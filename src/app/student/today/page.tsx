@@ -91,11 +91,7 @@ export default function TodayPage() {
       }
 
       setExistingEntry(data.entry)
-      setSuccess(
-        data.entry.on_time
-          ? 'Entry saved! Submitted on time ✓'
-          : 'Entry saved! Note: Submitted after midnight deadline'
-      )
+      setSuccess('Entry saved!')
     } catch (err: any) {
       setError(err.message || 'An error occurred')
     } finally {
