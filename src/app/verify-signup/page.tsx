@@ -66,9 +66,9 @@ function VerifySignupForm() {
 
         <form onSubmit={handleSubmit}>
           <Input
-            label="Email"
+            label="School Email"
             type="email"
-            placeholder="studentNumber@gapps.yrdsb.ca"
+            placeholder="number@gapps.yrdsb.ca"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
