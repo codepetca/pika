@@ -44,9 +44,35 @@ export interface Session {
   created_at: string
 }
 
+export interface Classroom {
+  id: string
+  teacher_id: string
+  title: string
+  class_code: string
+  term_label: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface StudentProfile {
+  id: string
+  user_id: string
+  student_number: string | null
+  first_name: string
+  last_name: string
+  created_at: string
+}
+
+export interface ClassroomEnrollment {
+  id: string
+  classroom_id: string
+  student_id: string
+  created_at: string
+}
+
 export interface ClassDay {
   id: string
-  course_code: string
+  classroom_id: string
   date: string  // YYYY-MM-DD
   prompt_text: string | null
   is_class_day: boolean
@@ -55,7 +81,7 @@ export interface ClassDay {
 export interface Entry {
   id: string
   student_id: string
-  course_code: string
+  classroom_id: string
   date: string  // YYYY-MM-DD
   text: string
   minutes_reported: number | null
