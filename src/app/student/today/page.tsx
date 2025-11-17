@@ -7,7 +7,7 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { format, parse } from 'date-fns'
 import type { MoodEmoji, Entry, ClassDay } from '@/types'
 
-const MOOD_OPTIONS: MoodEmoji[] = ['😊', '🙂', '😐', '😟', '😢']
+const MOOD_OPTIONS: MoodEmoji[] = ['😊', '😐', '😢']
 
 export default function TodayPage() {
   const [loading, setLoading] = useState(true)
