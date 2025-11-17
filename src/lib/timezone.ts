@@ -1,0 +1,59 @@
+import { format, parse } from 'date-fns'
+import { toZonedTime, fromZonedTime } from 'date-fns-tz'
+
+const TIMEZONE = 'America/Toronto'
+
+/**
+ * Converts a UTC date to Toronto time
+ */
+export function toTorontoTime(date: Date): Date {
+  return toZonedTime(date, TIMEZONE)
+}
+
+/**
+ * Converts a Toronto time to UTC
+ */
+export function fromTorontoTime(date: Date): Date {
+  return fromZonedTime(date, TIMEZONE)
+}
+
+/**
+ * Gets the current time in Toronto timezone
+ */
+export function nowInToronto(): Date {
+  return toTorontoTime(new Date())
+}
+
+/**
+ * Formats a date in Toronto timezone to YYYY-MM-DD
+ */
+export function formatDateInToronto(date: Date): string {
+  const torontoDate = toTorontoTime(date)
+  return format(torontoDate, 'yyyy-MM-dd')
+}
+
+/**
+ * Checks if an entry was submitted on time
+ * On-time = updated_at (Toronto time) <= date @ 23:00 Toronto time
+ */
+export function isOnTime(updatedAt: Date, dateString: string): boolean {
+  // Parse the date string (YYYY-MM-DD) in Toronto timezone
+  const targetDate = parse(dateString, 'yyyy-MM-dd', new Date())
+
+  // Create deadline: date @ 23:00 Toronto time
+  const deadlineInToronto = new Date(targetDate)
+  deadlineInToronto.setHours(23, 0, 0, 0)
+
+  // Convert deadline to UTC for comparison
+  const deadlineUTC = fromTorontoTime(deadlineInToronto)
+
+  // Compare
+  return updatedAt <= deadlineUTC
+}
+
+/**
+ * Gets today's date in Toronto timezone as YYYY-MM-DD
+ */
+export function getTodayInToronto(): string {
+  return formatDateInToronto(nowInToronto())
+}

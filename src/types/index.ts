@@ -1,0 +1,69 @@
+export type UserRole = 'student' | 'teacher'
+
+export type AttendanceStatus = 'present' | 'late' | 'absent'
+
+export type MoodEmoji = '😊' | '🙂' | '😐' | '😟' | '😢'
+
+export interface User {
+  id: string
+  email: string
+  role: UserRole
+  created_at: string
+}
+
+export interface LoginCode {
+  id: string
+  email: string
+  code_hash: string
+  expires_at: string
+  used: boolean
+  attempts: number
+  created_at: string
+}
+
+export interface ClassDay {
+  id: string
+  course_code: string
+  date: string  // YYYY-MM-DD
+  prompt_text: string | null
+  is_class_day: boolean
+}
+
+export interface Entry {
+  id: string
+  student_id: string
+  course_code: string
+  date: string  // YYYY-MM-DD
+  text: string
+  minutes_reported: number | null
+  mood: MoodEmoji | null
+  created_at: string
+  updated_at: string
+  on_time: boolean
+}
+
+export interface SessionData {
+  user: {
+    id: string
+    email: string
+    role: UserRole
+  }
+}
+
+export interface AttendanceRecord {
+  student_email: string
+  student_id: string
+  dates: Record<string, AttendanceStatus>  // date -> status
+  summary: {
+    present: number
+    late: number
+    absent: number
+  }
+}
+
+export type Semester = 'semester1' | 'semester2'
+
+export interface SemesterRange {
+  start: string  // MM-DD
+  end: string    // MM-DD
+}
