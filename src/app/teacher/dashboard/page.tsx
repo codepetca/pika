@@ -19,6 +19,7 @@ export default function TeacherDashboardPage() {
   const [loadingEntry, setLoadingEntry] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false)
 
   // Load classrooms
   useEffect(() => {
@@ -115,6 +116,40 @@ export default function TeacherDashboardPage() {
     alert('Class code copied!')
   }
 
+  async function handleDeleteClassroom() {
+    if (!selectedClassroom) return
+
+    const confirmed = confirm(
+      `Are you sure you want to delete "${selectedClassroom.title}"?\n\nThis will permanently delete:\n- The classroom\n- All student enrollments\n- All class days and calendar\n- All student entries\n\nThis action cannot be undone.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${selectedClassroom.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        alert(data.error || 'Failed to delete classroom')
+        return
+      }
+
+      // Remove from list
+      const updatedClassrooms = classrooms.filter(c => c.id !== selectedClassroom.id)
+      setClassrooms(updatedClassrooms)
+
+      // Select first remaining classroom or null
+      setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
+
+      alert('Classroom deleted successfully')
+    } catch (err) {
+      console.error('Error deleting classroom:', err)
+      alert('An error occurred while deleting the classroom')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -161,22 +196,39 @@ export default function TeacherDashboardPage() {
 
           <div className="space-y-2">
             {classrooms.map((classroom) => (
-              <button
+              <div
                 key={classroom.id}
-                onClick={() => setSelectedClassroom(classroom)}
-                className={`w-full text-left p-3 rounded transition ${
+                className={`relative p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
-                    ? 'bg-blue-50 border border-blue-200'
-                    : 'hover:bg-gray-50 border border-transparent'
+                    ? 'bg-blue-50 border-blue-200'
+                    : 'hover:bg-gray-50 border-transparent'
                 }`}
               >
-                <div className="font-medium text-gray-900 text-sm">
-                  {classroom.title}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {classroom.class_code}
-                </div>
-              </button>
+                <button
+                  onClick={() => setSelectedClassroom(classroom)}
+                  className="w-full text-left"
+                >
+                  <div className="font-medium text-gray-900 text-sm pr-6">
+                    {classroom.title}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {classroom.class_code}
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedClassroom(classroom)
+                    handleDeleteClassroom()
+                  }}
+                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                  title="Delete classroom"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -209,6 +261,13 @@ export default function TeacherDashboardPage() {
                   <Button size="sm" onClick={handleExportCSV}>
                     Export CSV
                   </Button>
+                  <button
+                    onClick={handleDeleteClassroom}
+                    className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition"
+                    title="Delete classroom"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             </div>

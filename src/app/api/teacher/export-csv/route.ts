@@ -138,10 +138,11 @@ export async function GET(request: NextRequest) {
     })
 
     // Return CSV file
+    const filename = `attendance-${classroom.title.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`
     return new NextResponse(csv, {
       headers: {
         'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="attendance-${courseCode}-${new Date().toISOString().split('T')[0]}.csv"`,
+        'Content-Disposition': `attachment; filename="${filename}"`,
       },
     })
   } catch (error: any) {

@@ -1,38 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
+import { requireAuth, requireRole } from '@/lib/auth'
 import { generateClassDays, generateClassDaysFromRange } from '@/lib/calendar'
 import { parse } from 'date-fns'
 import type { Semester } from '@/types'
 
 /**
- * GET /api/teacher/class-days?course_code=GLD2O&semester=semester1&year=2024
- * Fetches class days for a course/semester
+ * GET /api/teacher/class-days?classroom_id=xxx&semester=semester1&year=2024
+ * Fetches class days for a classroom
+ * Accessible by both teachers and students
  */
 export async function GET(request: NextRequest) {
   try {
-    await requireRole('teacher')
+    // Allow both teachers and students to read class days
+    await requireAuth()
 
     const { searchParams } = new URL(request.url)
-    const courseCode = searchParams.get('course_code')
-    const semester = searchParams.get('semester') as Semester | null
-    const yearParam = searchParams.get('year')
+    const classroomId = searchParams.get('classroom_id')
 
-    if (!courseCode || !semester || !yearParam) {
+    if (!classroomId) {
       return NextResponse.json(
-        { error: 'course_code, semester, and year are required' },
+        { error: 'classroom_id is required' },
         { status: 400 }
       )
     }
-
-    const year = parseInt(yearParam)
 
     const supabase = getServiceRoleClient()
 
     const { data: classDays, error } = await supabase
       .from('class_days')
       .select('*')
-      .eq('course_code', courseCode)
+      .eq('classroom_id', classroomId)
       .order('date', { ascending: true })
 
     if (error) {
@@ -59,41 +57,62 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/teacher/class-days
- * Generates class days for a course
+ * Generates class days for a classroom
  * Accepts either:
- * - { course_code, semester, year } for preset semesters
- * - { course_code, start_date, end_date } for custom date ranges
+ * - { classroom_id, semester, year } for preset semesters
+ * - { classroom_id, start_date, end_date } for custom date ranges
  */
 export async function POST(request: NextRequest) {
   try {
-    await requireRole('teacher')
+    const user = await requireRole('teacher')
 
     const body = await request.json()
-    const { course_code, semester, year, start_date, end_date } = body
+    const { classroom_id, semester, year, start_date, end_date } = body
 
     // Validate input - either semester/year OR start_date/end_date
     const hasSemesterParams = semester && year
     const hasCustomParams = start_date && end_date
 
-    if (!course_code || (!hasSemesterParams && !hasCustomParams)) {
+    if (!classroom_id || (!hasSemesterParams && !hasCustomParams)) {
       return NextResponse.json(
-        { error: 'course_code and either (semester + year) or (start_date + end_date) are required' },
+        { error: 'classroom_id and either (semester + year) or (start_date + end_date) are required' },
         { status: 400 }
       )
     }
 
     const supabase = getServiceRoleClient()
 
+    // Verify classroom ownership
+    const { data: classroom, error: classroomError } = await supabase
+      .from('classrooms')
+      .select('teacher_id')
+      .eq('id', classroom_id)
+      .single()
+
+    if (classroomError || !classroom) {
+      return NextResponse.json(
+        { error: 'Classroom not found' },
+        { status: 404 }
+      )
+    }
+
+    if (classroom.teacher_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
     // Check if class days already exist
     const { data: existing } = await supabase
       .from('class_days')
       .select('id')
-      .eq('course_code', course_code)
+      .eq('classroom_id', classroom_id)
       .limit(1)
 
     if (existing && existing.length > 0) {
       return NextResponse.json(
-        { error: 'Class days already exist for this course. Use PATCH to update.' },
+        { error: 'Class days already exist for this classroom. Use PATCH to update.' },
         { status: 409 }
       )
     }
@@ -121,7 +140,7 @@ export async function POST(request: NextRequest) {
 
     // Insert class days
     const classDayRecords = dates.map(date => ({
-      course_code,
+      classroom_id,
       date,
       is_class_day: true,
       prompt_text: null,
@@ -164,25 +183,46 @@ export async function POST(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    await requireRole('teacher')
+    const user = await requireRole('teacher')
 
     const body = await request.json()
-    const { course_code, date, is_class_day } = body
+    const { classroom_id, date, is_class_day } = body
 
-    if (!course_code || !date || typeof is_class_day !== 'boolean') {
+    if (!classroom_id || !date || typeof is_class_day !== 'boolean') {
       return NextResponse.json(
-        { error: 'course_code, date, and is_class_day are required' },
+        { error: 'classroom_id, date, and is_class_day are required' },
         { status: 400 }
       )
     }
 
     const supabase = getServiceRoleClient()
 
+    // Verify classroom ownership
+    const { data: classroom, error: classroomError } = await supabase
+      .from('classrooms')
+      .select('teacher_id')
+      .eq('id', classroom_id)
+      .single()
+
+    if (classroomError || !classroom) {
+      return NextResponse.json(
+        { error: 'Classroom not found' },
+        { status: 404 }
+      )
+    }
+
+    if (classroom.teacher_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
     // Check if the class day exists
     const { data: existing } = await supabase
       .from('class_days')
       .select('id')
-      .eq('course_code', course_code)
+      .eq('classroom_id', classroom_id)
       .eq('date', date)
       .single()
 
@@ -191,7 +231,7 @@ export async function PATCH(request: NextRequest) {
       const { data: created, error: createError } = await supabase
         .from('class_days')
         .insert({
-          course_code,
+          classroom_id,
           date,
           is_class_day,
           prompt_text: null,
