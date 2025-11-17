@@ -21,6 +21,7 @@ export default function TodayPage() {
   const [mood, setMood] = useState<MoodEmoji | null>(null)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [showHelp, setShowHelp] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -144,16 +145,32 @@ export default function TodayPage() {
 
       <form onSubmit={handleSubmit}>
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            What did you work on today?
-          </label>
+          <div className="flex items-center gap-2 mb-2">
+            <label className="text-sm font-medium text-gray-700">
+              What did you work on today?
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowHelp(!showHelp)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Help"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+          {showHelp && (
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-700">
+              Describe your learning activities, what you accomplished, challenges you faced, questions you have...
+            </div>
+          )}
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             required
             rows={8}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="What did you learn today?"
           />
         </div>
 
