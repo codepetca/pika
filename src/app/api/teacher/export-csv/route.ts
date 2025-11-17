@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       .map(day => day.date)
 
     // Build CSV
-    let csv = 'Student Email,Present,Late,Absent'
+    let csv = 'Student Email,Present,Absent'
 
     // Add date columns
     dates.forEach(date => {
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     // Add rows for each student
     attendanceRecords.forEach(record => {
-      csv += `${record.student_email},${record.summary.present},${record.summary.late},${record.summary.absent}`
+      csv += `${record.student_email},${record.summary.present},${record.summary.absent}`
 
       // Add attendance status for each date
       dates.forEach(date => {
@@ -98,7 +98,6 @@ export async function GET(request: NextRequest) {
         let symbol = ''
 
         if (status === 'present') symbol = 'P'
-        else if (status === 'late') symbol = 'L'
         else if (status === 'absent') symbol = 'A'
 
         csv += `,${symbol}`

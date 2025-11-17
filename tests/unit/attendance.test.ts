@@ -43,7 +43,7 @@ describe('attendance utilities', () => {
       expect(result['2024-09-01']).toBe('present')
     })
 
-    it('should return late when entry was submitted after deadline', () => {
+    it('should return present when entry exists regardless of on_time status', () => {
       const entries: Entry[] = [
         {
           id: '1',
@@ -61,7 +61,7 @@ describe('attendance utilities', () => {
 
       const result = computeAttendanceStatusForStudent(classDays, entries)
 
-      expect(result['2024-09-01']).toBe('late')
+      expect(result['2024-09-01']).toBe('present')
     })
 
     it('should handle mixed attendance statuses', () => {
@@ -95,7 +95,7 @@ describe('attendance utilities', () => {
       const result = computeAttendanceStatusForStudent(classDays, entries)
 
       expect(result['2024-09-01']).toBe('present')
-      expect(result['2024-09-02']).toBe('late')
+      expect(result['2024-09-02']).toBe('present')
       expect(result['2024-09-03']).toBe('absent')
     })
 
@@ -113,7 +113,6 @@ describe('attendance utilities', () => {
   describe('getAttendanceIcon', () => {
     it('should return correct icons', () => {
       expect(getAttendanceIcon('present')).toBe('🟢')
-      expect(getAttendanceIcon('late')).toBe('🟡')
       expect(getAttendanceIcon('absent')).toBe('🔴')
     })
   })
@@ -121,7 +120,6 @@ describe('attendance utilities', () => {
   describe('getAttendanceLabel', () => {
     it('should return correct labels', () => {
       expect(getAttendanceLabel('present')).toBe('Present')
-      expect(getAttendanceLabel('late')).toBe('Late')
       expect(getAttendanceLabel('absent')).toBe('Absent')
     })
   })

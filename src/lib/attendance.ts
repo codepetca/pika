@@ -25,10 +25,8 @@ export function computeAttendanceStatusForStudent(
 
     if (!entry) {
       result[classDay.date] = 'absent'
-    } else if (entry.on_time) {
-      result[classDay.date] = 'present'
     } else {
-      result[classDay.date] = 'late'
+      result[classDay.date] = 'present'
     }
   })
 
@@ -53,7 +51,6 @@ export function computeAttendanceRecords(
     // Calculate summary stats
     const summary = {
       present: 0,
-      late: 0,
       absent: 0
     }
 
@@ -77,8 +74,6 @@ export function getAttendanceIcon(status: AttendanceStatus): string {
   switch (status) {
     case 'present':
       return '🟢'
-    case 'late':
-      return '🟡'
     case 'absent':
       return '🔴'
   }
@@ -91,8 +86,6 @@ export function getAttendanceLabel(status: AttendanceStatus): string {
   switch (status) {
     case 'present':
       return 'Present'
-    case 'late':
-      return 'Late'
     case 'absent':
       return 'Absent'
   }

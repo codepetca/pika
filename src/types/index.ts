@@ -1,6 +1,6 @@
 export type UserRole = 'student' | 'teacher'
 
-export type AttendanceStatus = 'present' | 'late' | 'absent'
+export type AttendanceStatus = 'present' | 'absent'
 
 export type MoodEmoji = '😊' | '🙂' | '😐' | '😟' | '😢'
 
@@ -79,7 +79,6 @@ export interface AttendanceRecord {
   dates: Record<string, AttendanceStatus>  // date -> status
   summary: {
     present: number
-    late: number
     absent: number
   }
 }
