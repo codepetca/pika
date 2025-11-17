@@ -1,4 +1,5 @@
-import { parse, eachDayOfInterval, isWeekend, format } from 'date-fns'
+import { parse, eachDayOfInterval, isWeekend, format, addDays } from 'date-fns'
+import Holidays from 'date-holidays'
 import type { Semester, SemesterRange } from '@/types'
 
 // Semester date ranges
@@ -14,38 +15,61 @@ export const SEMESTER_RANGES: Record<Semester, SemesterRange> = {
 }
 
 /**
- * Ontario statutory holidays and school breaks
- * These are for the 2024-2025 school year
- * Update annually as needed
+ * Gets Ontario statutory holidays and school breaks for a date range
+ * Uses date-holidays library for automatic calculation
  */
-export const ONTARIO_HOLIDAYS_2024_2025: string[] = [
-  // Semester 1 (Fall 2024)
-  '2024-09-02', // Labour Day
-  '2024-10-14', // Thanksgiving
-  '2024-12-23', // Winter Break starts
-  '2024-12-24',
-  '2024-12-25', // Christmas
-  '2024-12-26', // Boxing Day
-  '2024-12-27',
-  '2024-12-28',
-  '2024-12-29',
-  '2024-12-30',
-  '2024-12-31',
-  '2025-01-01', // New Year's Day
-  '2025-01-02',
-  '2025-01-03', // Winter Break ends
+export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
+  const hd = new Holidays('CA', 'ON') // Canada, Ontario
+  const holidays: string[] = []
 
-  // Semester 2 (Winter/Spring 2025)
-  '2025-02-17', // Family Day
-  '2025-03-10', // March Break starts
-  '2025-03-11',
-  '2025-03-12',
-  '2025-03-13',
-  '2025-03-14', // March Break ends
-  '2025-04-18', // Good Friday
-  '2025-04-21', // Easter Monday
-  '2025-05-19', // Victoria Day
-]
+  // Get all holidays in the date range
+  const allDates = eachDayOfInterval({ start: startDate, end: endDate })
+
+  allDates.forEach(date => {
+    const dateHolidays = hd.isHoliday(date)
+    if (dateHolidays) {
+      holidays.push(format(date, 'yyyy-MM-dd'))
+    }
+  })
+
+  // Add school-specific breaks (Winter Break and March Break)
+  // These are not statutory holidays but are days when school is closed
+  const year = startDate.getFullYear()
+
+  // Winter Break: Dec 23 - Jan 3 (approximately)
+  // Check if date range includes December
+  if (startDate.getMonth() <= 11 && endDate.getMonth() >= 11) {
+    for (let day = 23; day <= 31; day++) {
+      holidays.push(`${year}-12-${String(day).padStart(2, '0')}`)
+    }
+  }
+  // Check if date range includes January (next year)
+  if (endDate.getMonth() <= 0 || (startDate.getMonth() === 11 && endDate.getFullYear() > year)) {
+    const nextYear = endDate.getMonth() === 0 ? endDate.getFullYear() : year + 1
+    holidays.push(`${nextYear}-01-02`)
+    holidays.push(`${nextYear}-01-03`)
+  }
+
+  // March Break: Second full week of March (Mon-Fri)
+  // Check if date range includes March
+  if (startDate.getMonth() <= 2 && endDate.getMonth() >= 2) {
+    const marchYear = endDate.getMonth() === 2 ? endDate.getFullYear() :
+                     (startDate.getMonth() <= 2 ? startDate.getFullYear() : year)
+    // Find second Monday of March
+    const marchFirst = new Date(marchYear, 2, 1) // March 1
+    const firstMonday = marchFirst.getDay() === 1 ? marchFirst :
+                       addDays(marchFirst, (8 - marchFirst.getDay()) % 7)
+    const secondMonday = addDays(firstMonday, 7)
+
+    // Add Monday through Friday of March Break
+    for (let i = 0; i < 5; i++) {
+      const breakDay = addDays(secondMonday, i)
+      holidays.push(format(breakDay, 'yyyy-MM-dd'))
+    }
+  }
+
+  return [...new Set(holidays)] // Remove duplicates
+}
 
 /**
  * Gets the start and end dates for a semester in a specific year
@@ -68,24 +92,34 @@ export function getSemesterDates(semester: Semester, year: number): { start: Dat
 }
 
 /**
- * Generates all class days for a semester, excluding weekends and holidays
+ * Generates all class days for a date range, excluding weekends and holidays
  */
-export function generateClassDays(semester: Semester, year: number): string[] {
-  const { start, end } = getSemesterDates(semester, year)
+export function generateClassDaysFromRange(startDate: Date, endDate: Date): string[] {
+  // Get all holidays in the range
+  const holidays = getOntarioHolidays(startDate, endDate)
+  const holidaySet = new Set(holidays)
 
   // Get all dates in the range
-  const allDates = eachDayOfInterval({ start, end })
+  const allDates = eachDayOfInterval({ start: startDate, end: endDate })
 
   // Filter out weekends and holidays
   const classDays = allDates
     .filter(date => !isWeekend(date))
     .filter(date => {
       const dateString = format(date, 'yyyy-MM-dd')
-      return !ONTARIO_HOLIDAYS_2024_2025.includes(dateString)
+      return !holidaySet.has(dateString)
     })
     .map(date => format(date, 'yyyy-MM-dd'))
 
   return classDays
+}
+
+/**
+ * Generates all class days for a semester, excluding weekends and holidays
+ */
+export function generateClassDays(semester: Semester, year: number): string[] {
+  const { start, end } = getSemesterDates(semester, year)
+  return generateClassDaysFromRange(start, end)
 }
 
 /**

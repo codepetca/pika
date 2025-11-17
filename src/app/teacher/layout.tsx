@@ -31,10 +31,10 @@ export default async function TeacherLayout({
                 Dashboard
               </Link>
               <Link
-                href="/teacher/class-days"
+                href="/teacher/calendar"
                 className="text-gray-700 hover:text-gray-900"
               >
-                Class Days
+                Calendar
               </Link>
             </div>
             <div className="flex items-center space-x-4">

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { generateClassDays } from '@/lib/calendar'
+import { generateClassDays, generateClassDaysFromRange } from '@/lib/calendar'
+import { parse } from 'date-fns'
 import type { Semester } from '@/types'
 
 /**
@@ -58,18 +59,25 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/teacher/class-days
- * Generates class days for a course/semester
+ * Generates class days for a course
+ * Accepts either:
+ * - { course_code, semester, year } for preset semesters
+ * - { course_code, start_date, end_date } for custom date ranges
  */
 export async function POST(request: NextRequest) {
   try {
     await requireRole('teacher')
 
     const body = await request.json()
-    const { course_code, semester, year } = body
+    const { course_code, semester, year, start_date, end_date } = body
 
-    if (!course_code || !semester || !year) {
+    // Validate input - either semester/year OR start_date/end_date
+    const hasSemesterParams = semester && year
+    const hasCustomParams = start_date && end_date
+
+    if (!course_code || (!hasSemesterParams && !hasCustomParams)) {
       return NextResponse.json(
-        { error: 'course_code, semester, and year are required' },
+        { error: 'course_code and either (semester + year) or (start_date + end_date) are required' },
         { status: 400 }
       )
     }
@@ -90,8 +98,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate class days
-    const dates = generateClassDays(semester, year)
+    // Generate class days based on input type
+    let dates: string[]
+
+    if (hasSemesterParams) {
+      // Use semester preset
+      dates = generateClassDays(semester as Semester, year)
+    } else {
+      // Use custom date range
+      const startDate = parse(start_date, 'yyyy-MM-dd', new Date())
+      const endDate = parse(end_date, 'yyyy-MM-dd', new Date())
+
+      if (startDate >= endDate) {
+        return NextResponse.json(
+          { error: 'end_date must be after start_date' },
+          { status: 400 }
+        )
+      }
+
+      dates = generateClassDaysFromRange(startDate, endDate)
+    }
 
     // Insert class days
     const classDayRecords = dates.map(date => ({
