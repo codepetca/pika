@@ -33,6 +33,39 @@ export default function CalendarPage() {
   const [endMonth, setEndMonth] = useState(1) // January
   const [endYear, setEndYear] = useState(currentYear + 1)
 
+  // Helper function to calculate semester years based on current date
+  function getSemesterYears() {
+    const now = new Date()
+    const currentMonth = now.getMonth() + 1 // 1-12
+    const currentYear = now.getFullYear()
+
+    let semester1Year: number
+    let semester2Year: number
+
+    if (currentMonth >= 9 || currentMonth <= 1) {
+      // Currently in Semester 1 (Sep-Jan)
+      if (currentMonth >= 9) {
+        // Sep-Dec: current academic year
+        semester1Year = currentYear
+        semester2Year = currentYear + 1
+      } else {
+        // Jan: academic year started prev year
+        semester1Year = currentYear - 1
+        semester2Year = currentYear
+      }
+    } else if (currentMonth >= 2 && currentMonth <= 6) {
+      // Currently in Semester 2 (Feb-Jun)
+      semester1Year = currentYear
+      semester2Year = currentYear
+    } else {
+      // July-August (summer): upcoming academic year
+      semester1Year = currentYear
+      semester2Year = currentYear + 1
+    }
+
+    return { semester1Year, semester2Year }
+  }
+
   useEffect(() => {
     loadClassDays()
   }, [courseCode])
@@ -58,8 +91,9 @@ export default function CalendarPage() {
       let body: any = { course_code: courseCode }
 
       if (wizardMode === 'preset' && selectedPreset) {
-        // Use semester preset
-        const year = selectedPreset === 'semester1' ? 2024 : 2025
+        // Use semester preset with calculated year
+        const { semester1Year, semester2Year } = getSemesterYears()
+        const year = selectedPreset === 'semester1' ? semester1Year : semester2Year
         body.semester = selectedPreset
         body.year = year
       } else if (wizardMode === 'custom') {
@@ -113,6 +147,9 @@ export default function CalendarPage() {
   }
 
   function renderWizard() {
+    // Calculate semester date ranges based on current date
+    const { semester1Year, semester2Year } = getSemesterYears()
+
     return (
       <div className="bg-white rounded-lg shadow-sm p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
@@ -127,36 +164,42 @@ export default function CalendarPage() {
                 setWizardMode('preset')
                 setSelectedPreset('semester1')
               }}
-              className={`px-6 py-3 rounded-lg border-2 transition-all ${
+              className={`px-6 py-4 rounded-lg border-2 transition-all text-left ${
                 wizardMode === 'preset' && selectedPreset === 'semester1'
                   ? 'border-blue-500 bg-blue-50 text-blue-900 font-medium'
                   : 'border-gray-300 hover:border-gray-400'
               }`}
             >
-              Semester 1 (Sep-Jan)
+              <div className="font-medium">Semester 1</div>
+              <div className="text-sm text-gray-600 mt-1">
+                Sep {semester1Year} - Jan {semester1Year + 1}
+              </div>
             </button>
             <button
               onClick={() => {
                 setWizardMode('preset')
                 setSelectedPreset('semester2')
               }}
-              className={`px-6 py-3 rounded-lg border-2 transition-all ${
+              className={`px-6 py-4 rounded-lg border-2 transition-all text-left ${
                 wizardMode === 'preset' && selectedPreset === 'semester2'
                   ? 'border-blue-500 bg-blue-50 text-blue-900 font-medium'
                   : 'border-gray-300 hover:border-gray-400'
               }`}
             >
-              Semester 2 (Feb-Jun)
+              <div className="font-medium">Semester 2</div>
+              <div className="text-sm text-gray-600 mt-1">
+                Feb {semester2Year} - Jun {semester2Year}
+              </div>
             </button>
             <button
               onClick={() => setWizardMode('custom')}
-              className={`px-6 py-3 rounded-lg border-2 transition-all ${
+              className={`px-6 py-4 rounded-lg border-2 transition-all ${
                 wizardMode === 'custom'
                   ? 'border-blue-500 bg-blue-50 text-blue-900 font-medium'
                   : 'border-gray-300 hover:border-gray-400'
               }`}
             >
-              Custom
+              <div className="font-medium">Custom</div>
             </button>
           </div>
         </div>
