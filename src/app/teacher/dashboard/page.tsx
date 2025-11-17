@@ -96,9 +96,6 @@ export default function TeacherDashboardPage() {
                     Present
                   </th>
                   <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Late
-                  </th>
-                  <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Absent
                   </th>
                   {dates.map(date => (
@@ -121,14 +118,11 @@ export default function TeacherDashboardPage() {
                       {record.summary.present}
                     </td>
                     <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900">
-                      {record.summary.late}
-                    </td>
-                    <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900">
                       {record.summary.absent}
                     </td>
                     {dates.map(date => {
                       const status = record.dates[date]
-                      const hasEntry = status === 'present' || status === 'late'
+                      const hasEntry = status === 'present'
 
                       return (
                         <td

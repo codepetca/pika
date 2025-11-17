@@ -44,7 +44,7 @@ export default function HistoryPage() {
           let status: AttendanceStatus = 'absent'
 
           if (entry) {
-            status = entry.on_time ? 'present' : 'late'
+            status = 'present'
           }
 
           return {
@@ -78,7 +78,6 @@ export default function HistoryPage() {
 
   const summary = {
     present: history.filter(h => h.status === 'present').length,
-    late: history.filter(h => h.status === 'late').length,
     absent: history.filter(h => h.status === 'absent').length,
   }
 
@@ -95,14 +94,6 @@ export default function HistoryPage() {
             <div className="mt-1">
               <div className="text-2xl font-bold text-gray-900">{summary.present}</div>
               <div className="text-sm text-gray-600">Present</div>
-            </div>
-          </div>
-
-          <div>
-            <span className="text-3xl">🟡</span>
-            <div className="mt-1">
-              <div className="text-2xl font-bold text-gray-900">{summary.late}</div>
-              <div className="text-sm text-gray-600">Late</div>
             </div>
           </div>
 
