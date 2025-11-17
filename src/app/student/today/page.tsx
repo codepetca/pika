@@ -153,7 +153,7 @@ export default function TodayPage() {
             required
             rows={8}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Describe your learning activities, what you accomplished, challenges you faced, questions you have..."
+            placeholder="What did you learn today?"
           />
         </div>
 
