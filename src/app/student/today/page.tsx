@@ -21,7 +21,6 @@ export default function TodayPage() {
   const [mood, setMood] = useState<MoodEmoji | null>(null)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
-  const [showHelp, setShowHelp] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -149,22 +148,22 @@ export default function TodayPage() {
             <label className="text-sm font-medium text-gray-700">
               What did you work on today?
             </label>
-            <button
-              type="button"
-              onClick={() => setShowHelp(!showHelp)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-              aria-label="Help"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </div>
-          {showHelp && (
-            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-700">
-              Describe your learning activities, what you accomplished, challenges you faced, questions you have...
+            <div className="relative group">
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Help"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity absolute left-0 top-full mt-1 w-80 p-3 bg-gray-900 text-white text-sm rounded-lg shadow-lg z-10">
+                Describe your learning activities, what you accomplished, challenges you faced, questions you have...
+                <div className="absolute -top-1 left-4 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+              </div>
             </div>
-          )}
+          </div>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
