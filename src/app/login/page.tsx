@@ -49,7 +49,7 @@ export default function LoginPage() {
           <Input
             label="Email"
             type="email"
-            placeholder="you@school.ca"
+            placeholder="studentNumber@gapps.yrdsb.ca"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
