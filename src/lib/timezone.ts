@@ -34,21 +34,21 @@ export function formatDateInToronto(date: Date): string {
 
 /**
  * Checks if an entry was submitted on time
- * On-time = updated_at (Toronto time) <= date @ 23:00 Toronto time
+ * On-time = updated_at (Toronto time) < midnight of next day (i.e., before the date changes)
  */
 export function isOnTime(updatedAt: Date, dateString: string): boolean {
   // Parse the date string (YYYY-MM-DD) in Toronto timezone
   const targetDate = parse(dateString, 'yyyy-MM-dd', new Date())
 
-  // Create deadline: date @ 23:00 Toronto time
+  // Create deadline: midnight of the NEXT day (start of next day) in Toronto time
   const deadlineInToronto = new Date(targetDate)
-  deadlineInToronto.setHours(23, 0, 0, 0)
+  deadlineInToronto.setHours(24, 0, 0, 0) // or equivalently, next day at 00:00:00
 
   // Convert deadline to UTC for comparison
   const deadlineUTC = fromTorontoTime(deadlineInToronto)
 
-  // Compare
-  return updatedAt <= deadlineUTC
+  // Compare - submission must be strictly before midnight (start of next day)
+  return updatedAt < deadlineUTC
 }
 
 /**

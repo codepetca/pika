@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
+import { getTodayInToronto } from '@/lib/timezone'
 import type { MoodEmoji, Entry, ClassDay } from '@/types'
 
 const MOOD_OPTIONS: MoodEmoji[] = ['😊', '🙂', '😐', '😟', '😢']
@@ -23,8 +24,8 @@ export default function TodayPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        // Get today's date on client side
-        const todayDate = new Date().toISOString().split('T')[0]
+        // Get today's date in Toronto timezone
+        const todayDate = getTodayInToronto()
         setToday(todayDate)
 
         // Check if today is a class day
@@ -92,7 +93,7 @@ export default function TodayPage() {
       setSuccess(
         data.entry.on_time
           ? 'Entry saved! Submitted on time ✓'
-          : 'Entry saved! Note: Submitted after 11pm deadline'
+          : 'Entry saved! Note: Submitted after midnight deadline'
       )
     } catch (err: any) {
       setError(err.message || 'An error occurred')
@@ -198,7 +199,7 @@ export default function TodayPage() {
 
       <div className="mt-6 pt-6 border-t text-sm text-gray-600">
         <p>
-          <strong>Reminder:</strong> Entries must be submitted by 11:00 PM (Toronto time) to be marked as on-time.
+          <strong>Reminder:</strong> Entries must be submitted before midnight (Toronto time) to be marked as on-time. The form will switch to the next day at midnight.
         </p>
       </div>
     </div>

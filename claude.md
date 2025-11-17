@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # PROJECT OVERVIEW
 
-**Pika** is a student daily log and attendance tracking application for an online high school course (GLD2O). Students submit daily journal entries by 11:00 PM (America/Toronto timezone), and teachers monitor attendance and read student submissions through a dashboard.
+**Pika** is a student daily log and attendance tracking application for an online high school course (GLD2O). Students submit daily journal entries before midnight (America/Toronto timezone), and teachers monitor attendance and read student submissions through a dashboard.
 
 **Status**: Greenfield project - specification complete, implementation in progress.
 
@@ -97,7 +97,7 @@ function computeAttendanceStatusForStudent(
 - Entry with `on_time = true` → `present`
 - Entry with `on_time = false` → `late`
 
-**On-time determination**: Entry is on-time if `updated_at` (converted to America/Toronto) is ≤ `date @ 23:00`
+**On-time determination**: Entry is on-time if `updated_at` (converted to America/Toronto) is before midnight (start of next day) in Toronto time
 
 ### 3. Database Schema
 
@@ -128,7 +128,7 @@ function computeAttendanceStatusForStudent(
 ## Timezone Handling
 **ALWAYS use America/Toronto timezone** for deadline calculations. The `on_time` field must be computed by:
 1. Converting `updated_at` from UTC to America/Toronto
-2. Comparing against `date @ 23:00` in Toronto time
+2. Comparing against midnight (start of next day) in Toronto time
 
 ## Security Requirements
 - **Hash all login codes** before storing (use bcrypt or similar)

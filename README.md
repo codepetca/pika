@@ -6,10 +6,9 @@ A Next.js application for tracking student daily journal entries and attendance 
 
 ### For Students
 - Passwordless email authentication (one-time codes)
-- Daily journal entry submission with deadline tracking (11:00 PM Toronto time)
+- Daily journal entry submission with deadline tracking (midnight Toronto time)
 - Attendance history with visual indicators (🟢 present, 🟡 late, 🔴 absent)
 - Mood tracking with emoji selection
-- Time tracking for study sessions
 
 ### For Teachers
 - Attendance dashboard with matrix view (students × dates)
@@ -206,11 +205,11 @@ All other email addresses are assigned the student role.
 
 Attendance is calculated per student per class day:
 
-- **Present** (🟢): Entry submitted before or at 11:00 PM (Toronto time)
-- **Late** (🟡): Entry submitted after 11:00 PM
+- **Present** (🟢): Entry submitted before midnight (Toronto time)
+- **Late** (🟡): Entry submitted after midnight
 - **Absent** (🔴): No entry submitted
 
-All times are handled in **America/Toronto** timezone to ensure consistent deadline enforcement.
+All times are handled in **America/Toronto** timezone to ensure consistent deadline enforcement. The daily log form switches to the next day at midnight Toronto time.
 
 ## Class Days Management
 

@@ -3,25 +3,33 @@ import { isOnTime, formatDateInToronto } from '@/lib/timezone'
 
 describe('timezone utilities', () => {
   describe('isOnTime', () => {
-    it('should return true when submitted before 11pm on the same day', () => {
-      // November 15, 2024 at 10:00 PM Toronto time (UTC-5)
+    it('should return true when submitted before midnight on the same day', () => {
+      // November 15, 2024 at 11:59 PM Toronto time (UTC-5)
+      const updatedAt = new Date('2024-11-15T23:59:00-05:00')
+      const dateString = '2024-11-15'
+
+      expect(isOnTime(updatedAt, dateString)).toBe(true)
+    })
+
+    it('should return true when submitted at 10pm on the same day', () => {
+      // November 15, 2024 at 10:00 PM Toronto time
       const updatedAt = new Date('2024-11-15T22:00:00-05:00')
       const dateString = '2024-11-15'
 
       expect(isOnTime(updatedAt, dateString)).toBe(true)
     })
 
-    it('should return true when submitted exactly at 11pm', () => {
-      // November 15, 2024 at 11:00 PM Toronto time
-      const updatedAt = new Date('2024-11-15T23:00:00-05:00')
+    it('should return false when submitted exactly at midnight', () => {
+      // November 16, 2024 at 12:00 AM (midnight) Toronto time
+      const updatedAt = new Date('2024-11-16T00:00:00-05:00')
       const dateString = '2024-11-15'
 
-      expect(isOnTime(updatedAt, dateString)).toBe(true)
+      expect(isOnTime(updatedAt, dateString)).toBe(false)
     })
 
-    it('should return false when submitted after 11pm', () => {
-      // November 15, 2024 at 11:01 PM Toronto time
-      const updatedAt = new Date('2024-11-15T23:01:00-05:00')
+    it('should return false when submitted after midnight', () => {
+      // November 16, 2024 at 12:01 AM Toronto time
+      const updatedAt = new Date('2024-11-16T00:01:00-05:00')
       const dateString = '2024-11-15'
 
       expect(isOnTime(updatedAt, dateString)).toBe(false)
