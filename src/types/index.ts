@@ -8,6 +8,8 @@ export interface User {
   id: string
   email: string
   role: UserRole
+  email_verified_at: string | null
+  password_hash: string | null
   created_at: string
 }
 
@@ -18,6 +20,27 @@ export interface LoginCode {
   expires_at: string
   used: boolean
   attempts: number
+  created_at: string
+}
+
+export type VerificationPurpose = 'signup' | 'reset_password'
+
+export interface VerificationCode {
+  id: string
+  user_id: string
+  code_hash: string
+  purpose: VerificationPurpose
+  expires_at: string
+  attempts: number
+  used_at: string | null
+  created_at: string
+}
+
+export interface Session {
+  id: string
+  user_id: string
+  token: string
+  expires_at: string
   created_at: string
 }
 

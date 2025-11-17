@@ -1,12 +1,29 @@
 import bcrypt from 'bcryptjs'
 
-const CODE_LENGTH = 8
+const VERIFICATION_CODE_LENGTH = 5 // For email verification (signup/reset)
+const LEGACY_CODE_LENGTH = 8 // For backward compatibility
 const SALT_ROUNDS = 10
 
 /**
- * Generates a random alphanumeric code
+ * Generates a random alphanumeric verification code (5 characters)
+ * Used for email verification during signup and password reset
  */
-export function generateCode(length: number = CODE_LENGTH): string {
+export function generateVerificationCode(): string {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let code = ''
+
+  for (let i = 0; i < VERIFICATION_CODE_LENGTH; i++) {
+    const randomIndex = Math.floor(Math.random() * characters.length)
+    code += characters[randomIndex]
+  }
+
+  return code
+}
+
+/**
+ * Generates a random alphanumeric code (legacy - for backward compatibility)
+ */
+export function generateCode(length: number = LEGACY_CODE_LENGTH): string {
   const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Removed ambiguous characters
   let code = ''
 
@@ -30,4 +47,31 @@ export async function hashCode(code: string): Promise<string> {
  */
 export async function verifyCode(plainCode: string, hashedCode: string): Promise<boolean> {
   return bcrypt.compare(plainCode, hashedCode)
+}
+
+/**
+ * Hashes a password using bcrypt
+ */
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, SALT_ROUNDS)
+}
+
+/**
+ * Compares a plain password with a hashed password
+ */
+export async function verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
+  return bcrypt.compare(plainPassword, hashedPassword)
+}
+
+/**
+ * Validates password meets minimum requirements
+ * - At least 8 characters
+ * - Returns error message if invalid, null if valid
+ */
+export function validatePassword(password: string): string | null {
+  if (!password || password.length < 8) {
+    return 'Password must be at least 8 characters long'
+  }
+
+  return null
 }
