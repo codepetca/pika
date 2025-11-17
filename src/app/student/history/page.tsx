@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { format, parse } from 'date-fns'
 import type { Entry, ClassDay, AttendanceStatus } from '@/types'
 import { getAttendanceIcon, getAttendanceLabel } from '@/lib/attendance'
 
@@ -121,31 +122,34 @@ export default function HistoryPage() {
             No class days yet
           </div>
         ) : (
-          history.map(({ date, entry, status }) => (
-            <div
-              key={date}
-              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-              onClick={() => entry && setSelectedEntry(entry)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <span className="text-2xl">{getAttendanceIcon(status)}</span>
-                  <div>
-                    <div className="font-medium text-gray-900">{date}</div>
-                    <div className="text-sm text-gray-600">
-                      {getAttendanceLabel(status)}
+          history.map(({ date, entry, status }) => {
+            const formattedDate = format(parse(date, 'yyyy-MM-dd', new Date()), 'EEE MMM d')
+            return (
+              <div
+                key={date}
+                className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                onClick={() => entry && setSelectedEntry(entry)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <span className="text-2xl">{getAttendanceIcon(status)}</span>
+                    <div>
+                      <div className="font-medium text-gray-900">{formattedDate}</div>
+                      <div className="text-sm text-gray-600">
+                        {getAttendanceLabel(status)}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {entry && (
-                  <button className="text-sm text-blue-600 hover:text-blue-700">
-                    View Entry →
-                  </button>
-                )}
+                  {entry && (
+                    <button className="text-sm text-blue-600 hover:text-blue-700">
+                      View Entry →
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 
@@ -161,7 +165,7 @@ export default function HistoryPage() {
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">
-                {selectedEntry.date}
+                {format(parse(selectedEntry.date, 'yyyy-MM-dd', new Date()), 'EEE MMM d')}
               </h3>
               <button
                 onClick={() => setSelectedEntry(null)}
@@ -177,13 +181,6 @@ export default function HistoryPage() {
                 <div className="text-gray-900 whitespace-pre-wrap">{selectedEntry.text}</div>
               </div>
 
-              {selectedEntry.minutes_reported && (
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-1">Time Spent</div>
-                  <div className="text-gray-900">{selectedEntry.minutes_reported} minutes</div>
-                </div>
-              )}
-
               {selectedEntry.mood && (
                 <div>
                   <div className="text-sm font-medium text-gray-700 mb-1">Mood</div>
@@ -192,7 +189,7 @@ export default function HistoryPage() {
               )}
 
               <div className="text-sm text-gray-600 pt-4 border-t">
-                <div>Submitted: {new Date(selectedEntry.updated_at).toLocaleString()}</div>
+                <div>Submitted: {format(new Date(selectedEntry.updated_at), 'h:mm a')}</div>
                 <div>
                   Status: {selectedEntry.on_time ? '✓ On time' : '⚠️ Late submission'}
                 </div>

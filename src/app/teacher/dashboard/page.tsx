@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
+import { format, parse } from 'date-fns'
 import type { AttendanceRecord, Entry } from '@/types'
 import { getAttendanceIcon } from '@/lib/attendance'
 
@@ -166,7 +167,9 @@ export default function TeacherDashboardPage() {
                 <h3 className="text-xl font-bold text-gray-900">
                   {selectedEntry.student_email}
                 </h3>
-                <p className="text-sm text-gray-600">{selectedEntry.date}</p>
+                <p className="text-sm text-gray-600">
+                  {format(parse(selectedEntry.date, 'yyyy-MM-dd', new Date()), 'EEE MMM d')}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedEntry(null)}
@@ -190,7 +193,7 @@ export default function TeacherDashboardPage() {
               )}
 
               <div className="text-sm text-gray-600 pt-4 border-t">
-                <div>Submitted: {new Date(selectedEntry.updated_at).toLocaleString()}</div>
+                <div>Submitted: {format(new Date(selectedEntry.updated_at), 'h:mm a')}</div>
                 <div>
                   Status: {selectedEntry.on_time ? '✓ On time' : '⚠️ Late submission'}
                 </div>

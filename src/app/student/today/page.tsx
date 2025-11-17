@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { getTodayInToronto } from '@/lib/timezone'
+import { format, parse } from 'date-fns'
 import type { MoodEmoji, Entry, ClassDay } from '@/types'
 
 const MOOD_OPTIONS: MoodEmoji[] = ['😊', '🙂', '😐', '😟', '😢']
@@ -123,13 +124,16 @@ export default function TodayPage() {
     )
   }
 
+  // Format date as "Mon Nov 17"
+  const formattedDate = today ? format(parse(today, 'yyyy-MM-dd', new Date()), 'EEE MMM d') : ''
+
   return (
     <div className="bg-white rounded-lg shadow-sm p-8">
       <h2 className="text-2xl font-bold text-gray-900 mb-2">
         Daily Log
       </h2>
       <p className="text-gray-600 mb-6">
-        {today} • {courseCode}
+        {formattedDate} • {courseCode}
       </p>
 
       {success && (
@@ -191,8 +195,7 @@ export default function TodayPage() {
 
         {existingEntry && (
           <p className="mt-4 text-sm text-gray-600 text-center">
-            Last updated: {new Date(existingEntry.updated_at).toLocaleString()}
-            {existingEntry.on_time && ' • On time ✓'}
+            Last updated: {format(new Date(existingEntry.updated_at), 'h:mm a')}
           </p>
         )}
       </form>
