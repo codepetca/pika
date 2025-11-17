@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default async function StudentLayout({
   children,
@@ -23,7 +24,7 @@ export default async function StudentLayout({
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-6">
-              <h1 className="text-xl font-bold text-gray-900">Pika</h1>
+              <Image src="/pika_silhouette.png" alt="Pika" width={40} height={40} className="object-contain" />
               <Link
                 href="/student/today"
                 className="text-gray-700 hover:text-gray-900"
