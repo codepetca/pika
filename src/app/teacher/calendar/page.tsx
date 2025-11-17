@@ -26,11 +26,12 @@ export default function CalendarPage() {
   const [wizardMode, setWizardMode] = useState<WizardMode>('preset')
   const [selectedPreset, setSelectedPreset] = useState<'semester1' | 'semester2' | null>(null)
 
-  // Custom date state
+  // Custom date state - default to September of current year to January of next year
+  const currentYear = new Date().getFullYear()
   const [startMonth, setStartMonth] = useState(9) // September
-  const [startYear, setStartYear] = useState(2024)
+  const [startYear, setStartYear] = useState(currentYear)
   const [endMonth, setEndMonth] = useState(1) // January
-  const [endYear, setEndYear] = useState(2025)
+  const [endYear, setEndYear] = useState(currentYear + 1)
 
   useEffect(() => {
     loadClassDays()
@@ -114,18 +115,12 @@ export default function CalendarPage() {
   function renderWizard() {
     return (
       <div className="bg-white rounded-lg shadow-sm p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
           Create Calendar
         </h2>
-        <p className="text-gray-600 mb-6">
-          Choose a semester preset or create a custom date range
-        </p>
 
         {/* Quick Select Buttons */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Quick Select
-          </label>
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => {
@@ -169,11 +164,10 @@ export default function CalendarPage() {
         {/* Custom Date Selection */}
         {wizardMode === 'custom' && (
           <div className="mb-6 p-6 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 mb-4">Custom Date Range</h3>
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Start Date
+                  Start
                 </label>
                 <div className="flex gap-3">
                   <select
@@ -199,7 +193,7 @@ export default function CalendarPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  End Date
+                  End
                 </label>
                 <div className="flex gap-3">
                   <select
@@ -226,12 +220,6 @@ export default function CalendarPage() {
             </div>
           </div>
         )}
-
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-blue-900">
-            <strong>Note:</strong> Weekends and Ontario statutory holidays will be automatically excluded.
-          </p>
-        </div>
 
         <Button
           onClick={handleGenerate}
