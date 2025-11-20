@@ -4,30 +4,51 @@ import { requireRole } from '@/lib/auth'
 import { computeAttendanceRecords } from '@/lib/attendance'
 
 /**
- * GET /api/teacher/attendance?course_code=GLD2O
- * Fetches attendance data for all students in a course
+ * GET /api/teacher/attendance?classroom_id=xxx
+ * Fetches attendance data for all students in a classroom
  */
 export async function GET(request: NextRequest) {
   try {
-    await requireRole('teacher')
+    const user = await requireRole('teacher')
 
     const { searchParams } = new URL(request.url)
-    const courseCode = searchParams.get('course_code')
+    const classroomId = searchParams.get('classroom_id')
 
-    if (!courseCode) {
+    if (!classroomId) {
       return NextResponse.json(
-        { error: 'course_code is required' },
+        { error: 'classroom_id is required' },
         { status: 400 }
       )
     }
 
     const supabase = getServiceRoleClient()
 
-    // Fetch class days for this course
+    // Verify ownership
+    const { data: classroom, error: classroomError } = await supabase
+      .from('classrooms')
+      .select('teacher_id')
+      .eq('id', classroomId)
+      .single()
+
+    if (classroomError || !classroom) {
+      return NextResponse.json(
+        { error: 'Classroom not found' },
+        { status: 404 }
+      )
+    }
+
+    if (classroom.teacher_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden' },
+        { status: 403 }
+      )
+    }
+
+    // Fetch class days for this classroom
     const { data: classDays, error: classDaysError } = await supabase
       .from('class_days')
       .select('*')
-      .eq('course_code', courseCode)
+      .eq('classroom_id', classroomId)
       .order('date', { ascending: true })
 
     if (classDaysError) {
@@ -38,26 +59,36 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch all students
-    const { data: students, error: studentsError } = await supabase
-      .from('users')
-      .select('id, email')
-      .eq('role', 'student')
-      .order('email', { ascending: true })
+    // Fetch enrolled students
+    const { data: enrollments, error: enrollmentsError } = await supabase
+      .from('classroom_enrollments')
+      .select(`
+        student_id,
+        users!classroom_enrollments_student_id_fkey(
+          id,
+          email
+        )
+      `)
+      .eq('classroom_id', classroomId)
 
-    if (studentsError) {
-      console.error('Error fetching students:', studentsError)
+    if (enrollmentsError) {
+      console.error('Error fetching enrollments:', enrollmentsError)
       return NextResponse.json(
         { error: 'Failed to fetch students' },
         { status: 500 }
       )
     }
 
-    // Fetch all entries for this course
+    const students = (enrollments || []).map(e => ({
+      id: e.users.id,
+      email: e.users.email,
+    })).sort((a, b) => a.email.localeCompare(b.email))
+
+    // Fetch all entries for this classroom
     const { data: entries, error: entriesError } = await supabase
       .from('entries')
       .select('*')
-      .eq('course_code', courseCode)
+      .eq('classroom_id', classroomId)
 
     if (entriesError) {
       console.error('Error fetching entries:', entriesError)
@@ -69,7 +100,7 @@ export async function GET(request: NextRequest) {
 
     // Compute attendance records
     const attendanceRecords = computeAttendanceRecords(
-      students || [],
+      students,
       classDays || [],
       entries || []
     )
@@ -82,7 +113,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       attendance: attendanceRecords,
       dates,
-      course_code: courseCode,
+      classroom_id: classroomId,
     })
   } catch (error: any) {
     if (error.message.includes('Forbidden') || error.message === 'Unauthorized') {

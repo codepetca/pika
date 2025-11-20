@@ -5,7 +5,7 @@ import { isOnTime } from '@/lib/timezone'
 import type { MoodEmoji } from '@/types'
 
 /**
- * GET /api/student/entries
+ * GET /api/student/entries?classroom_id=xxx
  * Fetches all entries for the current student
  */
 export async function GET(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const supabase = getServiceRoleClient()
 
     const { searchParams } = new URL(request.url)
-    const courseCode = searchParams.get('course_code')
+    const classroomId = searchParams.get('classroom_id')
 
     let query = supabase
       .from('entries')
@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
       .eq('student_id', user.id)
       .order('date', { ascending: false })
 
-    if (courseCode) {
-      query = query.eq('course_code', courseCode)
+    if (classroomId) {
+      query = query.eq('classroom_id', classroomId)
     }
 
     const { data: entries, error } = await query
@@ -59,12 +59,12 @@ export async function POST(request: NextRequest) {
     const user = await requireRole('student')
     const body = await request.json()
 
-    const { course_code, date, text, minutes_reported, mood } = body
+    const { classroom_id, date, text, minutes_reported, mood } = body
 
     // Validation
-    if (!course_code || !date || !text) {
+    if (!classroom_id || !date || !text) {
       return NextResponse.json(
-        { error: 'course_code, date, and text are required' },
+        { error: 'classroom_id, date, and text are required' },
         { status: 400 }
       )
     }
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate mood if provided
-    const validMoods: MoodEmoji[] = ['😊', '🙂', '😐', '😟', '😢']
+    const validMoods: MoodEmoji[] = ['😊', '🙂', '😐']
     if (mood && !validMoods.includes(mood)) {
       return NextResponse.json(
         { error: 'Invalid mood value' },
@@ -95,6 +95,21 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getServiceRoleClient()
+
+    // Verify student is enrolled in classroom
+    const { data: enrollment, error: enrollError } = await supabase
+      .from('classroom_enrollments')
+      .select('id')
+      .eq('classroom_id', classroom_id)
+      .eq('student_id', user.id)
+      .single()
+
+    if (enrollError || !enrollment) {
+      return NextResponse.json(
+        { error: 'Not enrolled in this classroom' },
+        { status: 403 }
+      )
+    }
 
     // Calculate on_time status
     const now = new Date()
@@ -105,7 +120,7 @@ export async function POST(request: NextRequest) {
       .from('entries')
       .select('id')
       .eq('student_id', user.id)
-      .eq('course_code', course_code)
+      .eq('classroom_id', classroom_id)
       .eq('date', date)
       .single()
 
@@ -140,7 +155,7 @@ export async function POST(request: NextRequest) {
         .from('entries')
         .insert({
           student_id: user.id,
-          course_code,
+          classroom_id,
           date,
           text,
           minutes_reported,

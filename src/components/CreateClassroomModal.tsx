@@ -1,0 +1,357 @@
+'use client'
+
+import { useState, FormEvent } from 'react'
+import { Input } from '@/components/Input'
+import { Button } from '@/components/Button'
+import { format } from 'date-fns'
+
+type WizardStep = 'name' | 'roster' | 'calendar'
+type CalendarMode = 'preset' | 'custom'
+type Semester = 'semester1' | 'semester2'
+
+interface CreateClassroomModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: (classroom: any) => void
+}
+
+export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClassroomModalProps) {
+  const [step, setStep] = useState<WizardStep>('name')
+  const [title, setTitle] = useState('')
+  const [rosterFile, setRosterFile] = useState<File | null>(null)
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>('preset')
+  const [selectedSemester, setSelectedSemester] = useState<Semester>('semester1')
+
+  // Custom date state
+  const currentYear = new Date().getFullYear()
+  const [startMonth, setStartMonth] = useState(9) // September
+  const [startYear, setStartYear] = useState(currentYear)
+  const [endMonth, setEndMonth] = useState(1) // January
+  const [endYear, setEndYear] = useState(currentYear + 1)
+
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  function getSemesterYears() {
+    const now = new Date()
+    const currentMonth = now.getMonth() + 1
+    const currentYear = now.getFullYear()
+
+    let semester1Year: number
+    let semester2Year: number
+
+    if (currentMonth >= 9 || currentMonth <= 1) {
+      if (currentMonth >= 9) {
+        semester1Year = currentYear
+        semester2Year = currentYear + 1
+      } else {
+        semester1Year = currentYear - 1
+        semester2Year = currentYear
+      }
+    } else if (currentMonth >= 2 && currentMonth <= 6) {
+      semester1Year = currentYear
+      semester2Year = currentYear
+    } else {
+      semester1Year = currentYear
+      semester2Year = currentYear + 1
+    }
+
+    return { semester1Year, semester2Year }
+  }
+
+  function resetForm() {
+    setStep('name')
+    setTitle('')
+    setRosterFile(null)
+    setCalendarMode('preset')
+    setSelectedSemester('semester1')
+    setError('')
+  }
+
+  async function handleCreate() {
+    setError('')
+    setLoading(true)
+
+    try {
+      // Step 1: Create classroom
+      const createResponse = await fetch('/api/teacher/classrooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      })
+
+      const createData = await createResponse.json()
+
+      if (!createResponse.ok) {
+        throw new Error(createData.error || 'Failed to create classroom')
+      }
+
+      const classroom = createData.classroom
+
+      // Step 2: Upload roster if provided
+      if (rosterFile) {
+        const formData = new FormData()
+        formData.append('file', rosterFile)
+
+        await fetch(`/api/teacher/classrooms/${classroom.id}/roster/upload-csv`, {
+          method: 'POST',
+          body: formData,
+        })
+        // Ignoring errors on roster upload - classroom is already created
+      }
+
+      // Step 3: Create calendar
+      let calendarBody: any = { classroom_id: classroom.id }
+
+      if (calendarMode === 'preset') {
+        const { semester1Year, semester2Year } = getSemesterYears()
+        const year = selectedSemester === 'semester1' ? semester1Year : semester2Year
+        calendarBody.semester = selectedSemester
+        calendarBody.year = year
+      } else {
+        const startDate = `${startYear}-${String(startMonth).padStart(2, '0')}-01`
+        const endDay = new Date(endYear, endMonth, 0).getDate()
+        const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
+        calendarBody.start_date = startDate
+        calendarBody.end_date = endDate
+      }
+
+      await fetch('/api/teacher/class-days', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(calendarBody),
+      })
+      // Ignoring errors on calendar creation - classroom is already created
+
+      onSuccess(classroom)
+      resetForm()
+      onClose()
+    } catch (err: any) {
+      setError(err.message || 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleClose() {
+    resetForm()
+    onClose()
+  }
+
+  if (!isOpen) return null
+
+  const { semester1Year, semester2Year } = getSemesterYears()
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Create Classroom</h2>
+
+        {/* Progress Indicator */}
+        <div className="flex items-center mb-6">
+          <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-blue-600' : 'bg-blue-200'}`} />
+          <div className={`flex-1 h-1 rounded ml-2 ${step === 'roster' ? 'bg-blue-600' : step === 'calendar' ? 'bg-blue-200' : 'bg-gray-200'}`} />
+          <div className={`flex-1 h-1 rounded ml-2 ${step === 'calendar' ? 'bg-blue-600' : 'bg-gray-200'}`} />
+        </div>
+
+        {/* Step 1: Name */}
+        {step === 'name' && (
+          <div>
+            <Input
+              label="Classroom Name"
+              type="text"
+              placeholder="Career Studies - Period 1"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              disabled={loading}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {/* Step 2: Roster */}
+        {step === 'roster' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload Roster (Optional)
+            </label>
+            <p className="text-sm text-gray-600 mb-4">
+              You can skip this step and upload a roster later from the dashboard.
+            </p>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={(e) => setRosterFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
+              disabled={loading}
+            />
+            {rosterFile && (
+              <p className="text-sm text-gray-600 mt-2">
+                Selected: {rosterFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-2">
+              Format: Student Number, First Name, Last Name, Email
+            </p>
+          </div>
+        )}
+
+        {/* Step 3: Calendar */}
+        {step === 'calendar' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Choose Calendar
+            </label>
+
+            <div className="space-y-3 mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setCalendarMode('preset')
+                  setSelectedSemester('semester1')
+                }}
+                className={`w-full p-4 rounded-lg border-2 transition text-left ${
+                  calendarMode === 'preset' && selectedSemester === 'semester1'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="font-medium">Semester 1</div>
+                <div className="text-sm text-gray-600 mt-1">
+                  Sep {semester1Year} - Jan {semester1Year + 1}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCalendarMode('preset')
+                  setSelectedSemester('semester2')
+                }}
+                className={`w-full p-4 rounded-lg border-2 transition text-left ${
+                  calendarMode === 'preset' && selectedSemester === 'semester2'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="font-medium">Semester 2</div>
+                <div className="text-sm text-gray-600 mt-1">
+                  Feb {semester2Year} - Jun {semester2Year}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCalendarMode('custom')}
+                className={`w-full p-4 rounded-lg border-2 transition ${
+                  calendarMode === 'custom'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="font-medium">Custom Date Range</div>
+              </button>
+            </div>
+
+            {calendarMode === 'custom' && (
+              <div className="p-4 bg-gray-50 rounded-lg mb-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Start</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={startMonth}
+                        onChange={(e) => setStartMonth(parseInt(e.target.value))}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                          <option key={month} value={month}>
+                            {format(new Date(2024, month - 1), 'MMM')}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        value={startYear}
+                        onChange={(e) => setStartYear(parseInt(e.target.value))}
+                        min={2020}
+                        max={2030}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">End</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={endMonth}
+                        onChange={(e) => setEndMonth(parseInt(e.target.value))}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                          <option key={month} value={month}>
+                            {format(new Date(2024, month - 1), 'MMM')}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        value={endYear}
+                        onChange={(e) => setEndYear(parseInt(e.target.value))}
+                        min={2020}
+                        max={2030}
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
+        {/* Navigation Buttons */}
+        <div className="flex gap-3 mt-6">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={step === 'name' ? handleClose : () => {
+              if (step === 'roster') setStep('name')
+              if (step === 'calendar') setStep('roster')
+              setError('')
+            }}
+            disabled={loading}
+            className="flex-1"
+          >
+            {step === 'name' ? 'Cancel' : 'Back'}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              if (step === 'name' && title) {
+                setStep('roster')
+                setError('')
+              } else if (step === 'roster') {
+                setStep('calendar')
+                setError('')
+              } else if (step === 'calendar') {
+                handleCreate()
+              }
+            }}
+            disabled={loading || (step === 'name' && !title)}
+            className="flex-1"
+          >
+            {loading ? 'Creating...' : step === 'calendar' ? 'Create' : 'Next'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
-import type { ClassDay } from '@/types'
+import { CreateClassroomModal } from '@/components/CreateClassroomModal'
+import type { ClassDay, Classroom } from '@/types'
 import {
   format,
   startOfMonth,
@@ -17,10 +18,13 @@ import {
 type WizardMode = 'preset' | 'custom'
 
 export default function CalendarPage() {
+  const [classrooms, setClassrooms] = useState<Classroom[]>([])
+  const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingCalendar, setLoadingCalendar] = useState(false)
   const [classDays, setClassDays] = useState<ClassDay[]>([])
-  const [courseCode] = useState('GLD2O')
   const [generating, setGenerating] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   // Wizard state
   const [wizardMode, setWizardMode] = useState<WizardMode>('preset')
@@ -66,29 +70,62 @@ export default function CalendarPage() {
     return { semester1Year, semester2Year }
   }
 
+  // Load classrooms
   useEffect(() => {
+    async function loadClassrooms() {
+      try {
+        const response = await fetch('/api/teacher/classrooms')
+        const data = await response.json()
+
+        setClassrooms(data.classrooms || [])
+
+        // Auto-select first classroom
+        if (data.classrooms && data.classrooms.length > 0) {
+          setSelectedClassroom(data.classrooms[0])
+        }
+      } catch (err) {
+        console.error('Error loading classrooms:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadClassrooms()
+  }, [])
+
+  // Load calendar when classroom selected
+  useEffect(() => {
+    if (!selectedClassroom) {
+      setClassDays([])
+      return
+    }
+
     loadClassDays()
-  }, [courseCode])
+  }, [selectedClassroom])
 
   async function loadClassDays() {
-    setLoading(true)
+    if (!selectedClassroom) return
+
+    setLoadingCalendar(true)
     try {
       const response = await fetch(
-        `/api/teacher/class-days?course_code=${courseCode}&semester=semester1&year=2024`
+        `/api/teacher/class-days?classroom_id=${selectedClassroom.id}&semester=semester1&year=2024`
       )
       const data = await response.json()
       setClassDays(data.class_days || [])
     } catch (err) {
       console.error('Error loading class days:', err)
     } finally {
-      setLoading(false)
+      setLoadingCalendar(false)
     }
   }
 
   async function handleGenerate() {
+    if (!selectedClassroom) return
+
     setGenerating(true)
     try {
-      let body: any = { course_code: courseCode }
+      let body: any = { classroom_id: selectedClassroom.id }
 
       if (wizardMode === 'preset' && selectedPreset) {
         // Use semester preset with calculated year
@@ -127,12 +164,14 @@ export default function CalendarPage() {
   }
 
   async function toggleClassDay(date: string, currentValue: boolean) {
+    if (!selectedClassroom) return
+
     try {
       const response = await fetch('/api/teacher/class-days', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          course_code: courseCode,
+          classroom_id: selectedClassroom.id,
           date,
           is_class_day: !currentValue,
         }),
@@ -143,6 +182,45 @@ export default function CalendarPage() {
       }
     } catch (err) {
       console.error('Error toggling class day:', err)
+    }
+  }
+
+  function handleClassroomCreated(classroom: Classroom) {
+    setClassrooms([classroom, ...classrooms])
+    setSelectedClassroom(classroom)
+  }
+
+  async function handleDeleteClassroom() {
+    if (!selectedClassroom) return
+
+    const confirmed = confirm(
+      `Are you sure you want to delete "${selectedClassroom.title}"?\n\nThis will permanently delete:\n- The classroom\n- All student enrollments\n- All class days and calendar\n- All student entries\n\nThis action cannot be undone.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${selectedClassroom.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        alert(data.error || 'Failed to delete classroom')
+        return
+      }
+
+      // Remove from list
+      const updatedClassrooms = classrooms.filter(c => c.id !== selectedClassroom.id)
+      setClassrooms(updatedClassrooms)
+
+      // Select first remaining classroom or null
+      setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
+
+      alert('Classroom deleted successfully')
+    } catch (err) {
+      console.error('Error deleting classroom:', err)
+      alert('An error occurred while deleting the classroom')
     }
   }
 
@@ -394,6 +472,106 @@ export default function CalendarPage() {
     )
   }
 
-  // Show wizard if no class days exist, otherwise show compact calendar
-  return classDays.length === 0 ? renderWizard() : renderCompactCalendar()
+  // Empty state - no classrooms
+  if (classrooms.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">No Classrooms Yet</h2>
+          <p className="text-gray-600 mb-6">Create your first classroom to get started</p>
+          <Button onClick={() => setShowCreateModal(true)}>
+            Create Classroom
+          </Button>
+        </div>
+
+        <CreateClassroomModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleClassroomCreated}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex gap-6">
+      {/* Classroom List Sidebar */}
+      <div className="w-64 flex-shrink-0">
+        <div className="bg-white rounded-lg shadow-sm p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">Classes</h3>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              + New
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {classrooms.map((classroom) => (
+              <div
+                key={classroom.id}
+                className={`relative p-3 rounded transition border ${
+                  selectedClassroom?.id === classroom.id
+                    ? 'bg-blue-50 border-blue-200'
+                    : 'hover:bg-gray-50 border-transparent'
+                }`}
+              >
+                <button
+                  onClick={() => setSelectedClassroom(classroom)}
+                  className="w-full text-left"
+                >
+                  <div className="font-medium text-gray-900 text-sm pr-6">
+                    {classroom.title}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {classroom.class_code}
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedClassroom(classroom)
+                    handleDeleteClassroom()
+                  }}
+                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                  title="Delete classroom"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1">
+        {selectedClassroom ? (
+          loadingCalendar ? (
+            <div className="flex justify-center py-12">
+              <Spinner size="lg" />
+            </div>
+          ) : classDays.length === 0 ? (
+            renderWizard()
+          ) : (
+            renderCompactCalendar()
+          )
+        ) : (
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-600">
+            Select a class to manage its calendar
+          </div>
+        )}
+      </div>
+
+      <CreateClassroomModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={handleClassroomCreated}
+      />
+    </div>
+  )
 }
