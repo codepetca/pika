@@ -115,3 +115,52 @@ export interface SemesterRange {
   start: string  // MM-DD
   end: string    // MM-DD
 }
+
+// Assignment types
+export interface Assignment {
+  id: string
+  classroom_id: string
+  title: string
+  description: string
+  due_at: string  // ISO 8601 timestamp
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface AssignmentDoc {
+  id: string
+  assignment_id: string
+  student_id: string
+  content: string
+  is_submitted: boolean
+  submitted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+// Assignment status for display
+export type AssignmentStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'in_progress_late'
+  | 'submitted_on_time'
+  | 'submitted_late'
+
+// Extended types for UI display
+export interface AssignmentWithStatus extends Assignment {
+  status: AssignmentStatus
+  doc?: AssignmentDoc
+}
+
+export interface AssignmentDocWithStudent extends AssignmentDoc {
+  student_email: string
+  student_name: string | null  // From student_profiles, null if not set
+  status: AssignmentStatus
+}
+
+export interface AssignmentStats {
+  total_students: number
+  submitted: number
+  late: number
+}
