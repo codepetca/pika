@@ -59,6 +59,7 @@ export default function HistoryPage() {
     }
 
     async function loadHistory() {
+      if (!selectedClassroom) return
       setLoadingHistory(true)
       try {
         // Fetch class days

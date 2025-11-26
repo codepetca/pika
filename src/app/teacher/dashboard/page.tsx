@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
@@ -53,6 +54,7 @@ export default function TeacherDashboardPage() {
     }
 
     async function loadAttendance() {
+      if (!selectedClassroom) return
       setLoadingAttendance(true)
       try {
         const response = await fetch(`/api/teacher/attendance?classroom_id=${selectedClassroom.id}`)
@@ -249,6 +251,11 @@ export default function TeacherDashboardPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  <Link href={`/classrooms/${selectedClassroom.id}`}>
+                    <Button size="sm">
+                      Assignments
+                    </Button>
+                  </Link>
                   <Button variant="secondary" size="sm" onClick={handleCopyClassCode}>
                     Copy Code
                   </Button>
@@ -258,7 +265,7 @@ export default function TeacherDashboardPage() {
                   <Button variant="secondary" size="sm" onClick={() => setShowUploadModal(true)}>
                     Upload Roster
                   </Button>
-                  <Button size="sm" onClick={handleExportCSV}>
+                  <Button variant="secondary" size="sm" onClick={handleExportCSV}>
                     Export CSV
                   </Button>
                   <button

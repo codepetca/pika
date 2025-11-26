@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, FormEvent } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { Input } from '@/components/Input'
@@ -61,6 +62,7 @@ export default function TodayPage() {
     }
 
     async function loadData() {
+      if (!selectedClassroom) return
       try {
         const todayDate = getTodayInToronto()
         setToday(todayDate)
@@ -243,22 +245,32 @@ export default function TodayPage() {
 
           <div className="space-y-2">
             {classrooms.map((classroom) => (
-              <button
+              <div
                 key={classroom.id}
-                onClick={() => setSelectedClassroom(classroom)}
-                className={`w-full text-left p-3 rounded transition ${
+                className={`p-3 rounded transition ${
                   selectedClassroom?.id === classroom.id
                     ? 'bg-blue-50 border border-blue-200'
                     : 'hover:bg-gray-50 border border-transparent'
                 }`}
               >
-                <div className="font-medium text-gray-900 text-sm">
-                  {classroom.title}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {classroom.class_code}
-                </div>
-              </button>
+                <button
+                  onClick={() => setSelectedClassroom(classroom)}
+                  className="w-full text-left"
+                >
+                  <div className="font-medium text-gray-900 text-sm">
+                    {classroom.title}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {classroom.class_code}
+                  </div>
+                </button>
+                <Link
+                  href={`/classrooms/${classroom.id}`}
+                  className="block text-xs text-blue-600 hover:text-blue-700 mt-2"
+                >
+                  View Assignments →
+                </Link>
+              </div>
             ))}
           </div>
         </div>

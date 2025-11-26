@@ -79,10 +79,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const students = (enrollments || []).map(e => ({
-      id: e.users.id,
-      email: e.users.email,
-    })).sort((a, b) => a.email.localeCompare(b.email))
+    const students = (enrollments || []).map(e => {
+      const user = e.users as unknown as { id: string; email: string }
+      return {
+        id: user.id,
+        email: user.email,
+      }
+    }).sort((a, b) => a.email.localeCompare(b.email))
 
     // Fetch all entries for this classroom
     const { data: entries, error: entriesError } = await supabase

@@ -62,7 +62,7 @@ export async function POST(
       const parts = line.split(',')
       if (parts.length < 4) continue
 
-      const [studentNumber, firstName, lastName, email] = parts.map(p => p.trim())
+      const [studentNumber, firstName, lastName, email] = parts.map((p: string) => p.trim())
 
       if (email && firstName && lastName) {
         students.push({
