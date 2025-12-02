@@ -1,0 +1,675 @@
+/**
+ * API tests for GET/POST /api/student/entries
+ * Tests student journal entry creation and retrieval
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { GET, POST } from '@/app/api/student/entries/route'
+import { NextRequest } from 'next/server'
+
+// Mock modules
+vi.mock('@/lib/supabase', () => ({
+  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
+}))
+
+vi.mock('@/lib/auth', () => ({
+  requireRole: vi.fn(async (role: string) => {
+    if (role === 'student') {
+      return { id: 'student-1', email: 'test@student.com', role: 'student' }
+    }
+    throw new Error('Unauthorized')
+  }),
+}))
+
+vi.mock('@/lib/timezone', () => ({
+  isOnTime: vi.fn((now: Date, date: string) => {
+    // Mock: entries created before midnight Toronto time are on time
+    const entryDate = new Date(date)
+    return now.getTime() <= entryDate.getTime() + 24 * 60 * 60 * 1000
+  }),
+}))
+
+const mockSupabaseClient = { from: vi.fn() }
+
+describe('GET /api/student/entries', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  describe('authorization', () => {
+    it('should return 401 when user is not authenticated', async () => {
+      const { requireRole } = await import('@/lib/auth')
+      ;(requireRole as any).mockRejectedValueOnce(new Error('Unauthorized'))
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries')
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(data.error).toBe('Unauthorized')
+    })
+  })
+
+  describe('fetching entries', () => {
+    it('should return all entries for the student', async () => {
+      const mockFrom = vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          order: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: 'entry-1',
+                student_id: 'student-1',
+                classroom_id: 'classroom-1',
+                date: '2024-10-15',
+                text: 'Entry 1',
+                on_time: true,
+              },
+              {
+                id: 'entry-2',
+                student_id: 'student-1',
+                classroom_id: 'classroom-1',
+                date: '2024-10-14',
+                text: 'Entry 2',
+                on_time: true,
+              },
+            ],
+            error: null,
+          }),
+        })),
+      }))
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries')
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.entries).toHaveLength(2)
+      expect(data.entries[0].id).toBe('entry-1')
+    })
+
+    it('should filter entries by classroom_id when provided', async () => {
+      const mockEq = vi.fn().mockReturnThis()
+      const mockFrom = vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: mockEq,
+          order: vi.fn().mockResolvedValue({
+            data: [{ id: 'entry-1', classroom_id: 'classroom-2' }],
+            error: null,
+          }),
+        })),
+      }))
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries?classroom_id=classroom-2')
+
+      await GET(request)
+
+      // Verify eq was called twice: once for student_id, once for classroom_id
+      expect(mockEq).toHaveBeenCalledWith('student_id', 'student-1')
+      expect(mockEq).toHaveBeenCalledWith('classroom_id', 'classroom-2')
+    })
+
+    it('should return 500 when database query fails', async () => {
+      const mockFrom = vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          order: vi.fn().mockResolvedValue({
+            data: null,
+            error: { message: 'Database error' },
+          }),
+        })),
+      }))
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries')
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to fetch entries')
+    })
+  })
+})
+
+describe('POST /api/student/entries', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  describe('authorization', () => {
+    it('should return 401 when user is not authenticated', async () => {
+      const { requireRole } = await import('@/lib/auth')
+      ;(requireRole as any).mockRejectedValueOnce(new Error('Unauthorized'))
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Test entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(data.error).toBe('Unauthorized')
+    })
+  })
+
+  describe('validation', () => {
+    it('should return 400 when classroom_id is missing', async () => {
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          date: '2024-10-15',
+          text: 'Test entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('classroom_id, date, and text are required')
+    })
+
+    it('should return 400 when date is missing', async () => {
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          text: 'Test entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('classroom_id, date, and text are required')
+    })
+
+    it('should return 400 when text is missing', async () => {
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('classroom_id, date, and text are required')
+    })
+
+    it('should return 400 when text is empty after trimming', async () => {
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: '   ',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Entry text cannot be empty')
+    })
+
+    it('should return 400 when date format is invalid', async () => {
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '10/15/2024',
+          text: 'Test entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Invalid date format (use YYYY-MM-DD)')
+    })
+
+    it('should return 400 when mood is invalid', async () => {
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Test entry',
+          mood: '😡', // Invalid mood
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Invalid mood value')
+    })
+
+    it('should accept valid moods (😊, 🙂, 😐)', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+            insert: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'entry-1', mood: '😊' },
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Test entry',
+          mood: '😊',
+        }),
+      })
+
+      const response = await POST(request)
+      expect(response.status).toBe(200)
+    })
+  })
+
+  describe('enrollment verification', () => {
+    it('should return 403 when student is not enrolled in classroom', async () => {
+      const mockFrom = vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: { code: 'PGRST116' },
+          }),
+        })),
+      }))
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-999',
+          date: '2024-10-15',
+          text: 'Test entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(data.error).toBe('Not enrolled in this classroom')
+    })
+  })
+
+  describe('entry creation', () => {
+    it('should create new entry when none exists', async () => {
+      const mockInsert = vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'entry-new-1',
+              student_id: 'student-1',
+              classroom_id: 'classroom-1',
+              date: '2024-10-15',
+              text: 'Test entry',
+              on_time: true,
+            },
+            error: null,
+          }),
+        })),
+      }))
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+            insert: mockInsert,
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Test entry',
+          minutes_reported: 60,
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.entry.id).toBe('entry-new-1')
+      expect(mockInsert).toHaveBeenCalledWith({
+        student_id: 'student-1',
+        classroom_id: 'classroom-1',
+        date: '2024-10-15',
+        text: 'Test entry',
+        minutes_reported: 60,
+        mood: undefined,
+        on_time: expect.any(Boolean),
+      })
+    })
+
+    it('should update existing entry when one exists', async () => {
+      const mockUpdate = vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'entry-existing-1',
+                text: 'Updated entry',
+                on_time: true,
+              },
+              error: null,
+            }),
+          })),
+        })),
+      }))
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValueOnce({
+                data: { id: 'entry-existing-1' },
+                error: null,
+              }),
+            })),
+            update: mockUpdate,
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Updated entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.entry.id).toBe('entry-existing-1')
+      expect(data.entry.text).toBe('Updated entry')
+      expect(mockUpdate).toHaveBeenCalledWith({
+        text: 'Updated entry',
+        minutes_reported: undefined,
+        mood: undefined,
+        on_time: expect.any(Boolean),
+      })
+    })
+
+    it('should calculate on_time status using isOnTime', async () => {
+      const { isOnTime } = await import('@/lib/timezone')
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+            insert: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'entry-1' },
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Test entry',
+        }),
+      })
+
+      await POST(request)
+
+      expect(isOnTime).toHaveBeenCalledWith(expect.any(Date), '2024-10-15')
+    })
+
+    it('should recalculate on_time when updating entry', async () => {
+      const { isOnTime } = await import('@/lib/timezone')
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValueOnce({
+                data: { id: 'entry-1' },
+                error: null,
+              }),
+            })),
+            update: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({
+                    data: { id: 'entry-1' },
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Updated entry',
+        }),
+      })
+
+      await POST(request)
+
+      expect(isOnTime).toHaveBeenCalledWith(expect.any(Date), '2024-10-15')
+    })
+  })
+
+  describe('error handling', () => {
+    it('should return 500 when creating entry fails', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+            insert: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: { message: 'Insert failed' },
+                }),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Test entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to create entry')
+    })
+
+    it('should return 500 when updating entry fails', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValueOnce({
+                data: { id: 'entry-1' },
+                error: null,
+              }),
+            })),
+            update: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: 'Update failed' },
+                  }),
+                })),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Updated entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to update entry')
+    })
+  })
+})
