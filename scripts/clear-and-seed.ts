@@ -13,6 +13,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { generateClassDays } from '../src/lib/calendar'
+import { hashPassword } from '../src/lib/crypto'
 import { config } from 'dotenv'
 import { resolve } from 'path'
 
@@ -47,12 +48,19 @@ async function clearAndSeed() {
   console.log('✓ Database cleared\n')
   console.log('🌱 Starting seed process...\n')
 
-  // 1. Create users
+  // 1. Create users with password
   console.log('Creating users...')
+
+  const password = 'test1234'
+  const passwordHash = await hashPassword(password)
 
   const { data: teacher } = await supabase
     .from('users')
-    .insert({ email: 'teacher@yrdsb.ca', role: 'teacher' })
+    .insert({
+      email: 'teacher@yrdsb.ca',
+      role: 'teacher',
+      password_hash: passwordHash
+    })
     .select()
     .single()
 
@@ -60,7 +68,11 @@ async function clearAndSeed() {
   for (let i = 1; i <= 3; i++) {
     const { data } = await supabase
       .from('users')
-      .insert({ email: `student${i}@student.yrdsb.ca`, role: 'student' })
+      .insert({
+        email: `student${i}@student.yrdsb.ca`,
+        role: 'student',
+        password_hash: passwordHash
+      })
       .select()
       .single()
     students.push(data)
@@ -200,12 +212,14 @@ async function clearAndSeed() {
   console.log('✅ Seed completed successfully!\n')
   console.log('Classroom:')
   console.log(`  ${classroom!.title} (${classroom!.class_code})`)
-  console.log('\nTest accounts:')
+  console.log('\nTest accounts (password: test1234):')
   console.log('  Teacher: teacher@yrdsb.ca')
   console.log('  Student 1: student1@student.yrdsb.ca (good attendance)')
   console.log('  Student 2: student2@student.yrdsb.ca (mixed attendance)')
   console.log('  Student 3: student3@student.yrdsb.ca (poor attendance)')
-  console.log('\nUse /api/auth/request-code to get a login code for any email.')
+  console.log('\nLogin options:')
+  console.log('  1. POST /api/auth/login with email + password')
+  console.log('  2. POST /api/auth/request-code for passwordless login')
 }
 
 clearAndSeed()
