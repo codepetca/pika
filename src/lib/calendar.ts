@@ -34,20 +34,33 @@ export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
 
   // Add school-specific breaks (Winter Break and March Break)
   // These are not statutory holidays but are days when school is closed
-  const year = startDate.getFullYear()
+  const startYear = startDate.getFullYear()
+  const endYear = endDate.getFullYear()
+  const startMonth = startDate.getMonth()
+  const endMonth = endDate.getMonth()
 
   // Winter Break: Dec 23 - Jan 3 (approximately)
   // Check if date range includes December
-  if (startDate.getMonth() <= 11 && endDate.getMonth() >= 11) {
+  // Range includes December if:
+  // 1. Start month is December (11), OR
+  // 2. End month is December (11), OR
+  // 3. Start is before December and end is in next year (spans December)
+  if (startMonth === 11 || endMonth === 11 || (startMonth < 11 && endYear > startYear)) {
     for (let day = 23; day <= 31; day++) {
-      holidays.push(`${year}-12-${String(day).padStart(2, '0')}`)
+      holidays.push(`${startYear}-12-${String(day).padStart(2, '0')}`)
     }
   }
-  // Check if date range includes January (next year)
-  if (endDate.getMonth() <= 0 || (startDate.getMonth() === 11 && endDate.getFullYear() > year)) {
-    const nextYear = endDate.getMonth() === 0 ? endDate.getFullYear() : year + 1
-    holidays.push(`${nextYear}-01-02`)
-    holidays.push(`${nextYear}-01-03`)
+
+  // Check if date range includes January (next year for winter break)
+  // This handles cases where the range spans into January of the next year
+  if (endMonth === 0 && endYear > startYear) {
+    // End date is in January of next year
+    holidays.push(`${endYear}-01-02`)
+    holidays.push(`${endYear}-01-03`)
+  } else if (startMonth === 11 && endYear > startYear) {
+    // Start is in December and end is in next year
+    holidays.push(`${endYear}-01-02`)
+    holidays.push(`${endYear}-01-03`)
   }
 
   // March Break: Second full week of March (Mon-Fri)
