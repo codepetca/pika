@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/login/route'
 import { NextRequest } from 'next/server'
+import * as loginRoute from '@/app/api/auth/login/route'
 
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
@@ -40,6 +41,8 @@ const mockSupabaseClient = {
 describe('POST /api/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset in-memory login attempts between tests
+    ;(loginRoute as any).loginAttempts?.clear?.()
   })
 
   // ==========================================================================
@@ -212,6 +215,7 @@ describe('POST /api/auth/login', () => {
 
   describe('rate limiting', () => {
     it('should lock account after 5 failed attempts', async () => {
+      vi.useFakeTimers()
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -246,9 +250,12 @@ describe('POST /api/auth/login', () => {
 
       expect(response.status).toBe(429)
       expect(data.error).toContain('Too many failed attempts')
+
+      vi.useRealTimers()
     })
 
     it('should include minutes remaining in lockout message', async () => {
+      vi.useFakeTimers()
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
@@ -282,6 +289,8 @@ describe('POST /api/auth/login', () => {
       const data = await response.json()
 
       expect(data.error).toMatch(/Try again in \d+ minute/)
+
+      vi.useRealTimers()
     })
   })
 

@@ -62,16 +62,17 @@ export async function POST(request: NextRequest) {
     // Calculate expiry
     const expiresAt = new Date(Date.now() + CODE_EXPIRY_MINUTES * 60 * 1000)
 
-    // Store hashed code
+    const insertPayload = {
+      email: normalizedEmail,
+      code_hash: codeHash,
+      expires_at: expiresAt.toISOString(),
+      used: false,
+      attempts: 0,
+    }
+
     const { error: insertError } = await supabase
       .from('login_codes')
-      .insert({
-        email: normalizedEmail,
-        code_hash: codeHash,
-        expires_at: expiresAt.toISOString(),
-        used: false,
-        attempts: 0,
-      })
+      .insert(insertPayload)
 
     if (insertError) {
       console.error('Error inserting login code:', insertError)

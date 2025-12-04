@@ -123,10 +123,12 @@ describe('POST /api/auth/request-code', () => {
       expect(response.status).toBe(200)
 
       // Verify the insert was called with normalized email
-      const insertCall = (mockSupabaseClient.from as any).mock.results[1]?.value?.insert
-      expect(insertCall).toHaveBeenCalled()
+      const fromMock: any = mockSupabaseClient.from
+      const insertCall = fromMock.mock.results[1]?.value?.insert
+
+      expect(insertCall).toBeDefined()
       const insertArgs = insertCall.mock.calls[0][0]
-      expect(insertArgs.email).toBeUndefined() // Will check via from('login_codes').eq() call
+      expect(insertArgs.email).toBe('test@example.com')
     })
   })
 
@@ -194,8 +196,11 @@ describe('POST /api/auth/request-code', () => {
       await POST(request)
 
       // Verify gte was called with a timestamp ~1 hour ago
-      const selectChain = (mockSupabaseClient.from as any).mock.results[0]?.value?.select()
-      const gteCall = selectChain.gte.mock.calls[0]
+      const selectSpy = (mockSupabaseClient.from as any).mock.results[0]?.value?.select
+      expect(selectSpy).toHaveBeenCalledWith('id')
+
+      const selectReturn = selectSpy.mock.results[0]?.value
+      const gteCall = selectReturn.gte.mock.calls[0]
       expect(gteCall[0]).toBe('created_at')
 
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)

@@ -136,8 +136,12 @@ describe('POST /api/auth/verify-code', () => {
       await POST(request)
 
       // Verify normalized email was used in query for login_codes table
-      const loginCodesChain = mockFrom.mock.results.find((r: any) => mockFrom.mock.calls[mockFrom.mock.results.indexOf(r)][0] === 'login_codes')
-      expect(loginCodesChain).toBeDefined()
+      const loginCodesCallIndex = mockFrom.mock.calls.findIndex((call: any[]) => call[0] === 'login_codes')
+      const loginCodesSelect = mockFrom.mock.results[loginCodesCallIndex]?.value.select
+
+      expect(loginCodesSelect).toHaveBeenCalledWith('*')
+      const selectReturn = loginCodesSelect!.mock.results[0]?.value
+      expect(selectReturn.eq).toHaveBeenCalledWith('email', 'test@example.com')
     })
 
     it('should normalize code by trimming and uppercasing', async () => {

@@ -5,11 +5,11 @@ import { requireRole } from '@/lib/auth'
 // POST /api/assignment-docs/[id]/unsubmit - Unsubmit assignment
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await requireRole('student')
-    const { id: assignmentId } = await params
+    const { id: assignmentId } = params
     const supabase = getServiceRoleClient()
 
     // Get assignment and verify enrollment
@@ -41,6 +41,35 @@ export async function POST(
       )
     }
 
+    // Fetch doc first to enforce ownership
+    const { data: existingDoc, error: docError } = await supabase
+      .from('assignment_docs')
+      .select('id, student_id')
+      .eq('assignment_id', assignmentId)
+      .single()
+
+    if (docError && docError.code === 'PGRST116') {
+      return NextResponse.json(
+        { error: 'Assignment doc not found' },
+        { status: 404 }
+      )
+    }
+
+    if (docError) {
+      console.error('Error fetching assignment doc:', docError)
+      return NextResponse.json(
+        { error: 'Failed to fetch assignment doc' },
+        { status: 500 }
+      )
+    }
+
+    if (!existingDoc || existingDoc.student_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Not authorized to unsubmit this document' },
+        { status: 403 }
+      )
+    }
+
     // Update to unsubmitted state
     const { data: doc, error } = await supabase
       .from('assignment_docs')
@@ -48,8 +77,7 @@ export async function POST(
         is_submitted: false,
         submitted_at: null
       })
-      .eq('assignment_id', assignmentId)
-      .eq('student_id', user.id)
+      .eq('id', existingDoc.id)
       .select()
       .single()
 

@@ -5,11 +5,11 @@ import { requireRole } from '@/lib/auth'
 // POST /api/assignment-docs/[id]/submit - Submit assignment
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await requireRole('student')
-    const { id: assignmentId } = await params
+    const { id: assignmentId } = params
     const supabase = getServiceRoleClient()
 
     // Get assignment and verify enrollment
@@ -42,17 +42,31 @@ export async function POST(
     }
 
     // Check if doc exists
-    const { data: existingDoc } = await supabase
+    const { data: existingDoc, error: docError } = await supabase
       .from('assignment_docs')
-      .select('id')
+      .select('id, student_id')
       .eq('assignment_id', assignmentId)
-      .eq('student_id', user.id)
       .single()
 
-    if (!existingDoc) {
+    if (docError && docError.code === 'PGRST116') {
       return NextResponse.json(
         { error: 'No work to submit. Please save your work first.' },
         { status: 400 }
+      )
+    }
+
+    if (docError) {
+      console.error('Error fetching assignment doc:', docError)
+      return NextResponse.json(
+        { error: 'Failed to fetch assignment doc' },
+        { status: 500 }
+      )
+    }
+
+    if (!existingDoc || existingDoc.student_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Not authorized to submit this document' },
+        { status: 403 }
       )
     }
 
@@ -63,8 +77,7 @@ export async function POST(
         is_submitted: true,
         submitted_at: new Date().toISOString()
       })
-      .eq('assignment_id', assignmentId)
-      .eq('student_id', user.id)
+      .eq('id', existingDoc.id)
       .select()
       .single()
 

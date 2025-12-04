@@ -6,11 +6,11 @@ import { requireRole } from '@/lib/auth'
 // The [id] here is the assignment_id, not the doc id
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await requireRole('student')
-    const { id: assignmentId } = await params
+    const { id: assignmentId } = params
     const supabase = getServiceRoleClient()
 
     // Get assignment and verify student is enrolled
@@ -42,40 +42,31 @@ export async function GET(
       )
     }
 
-    // Get or create assignment doc
-    let { data: doc, error: docError } = await supabase
+    // Get assignment doc for this assignment (ownership checked below)
+    const { data: doc, error: docError } = await supabase
       .from('assignment_docs')
       .select('*')
       .eq('assignment_id', assignmentId)
-      .eq('student_id', user.id)
       .single()
 
-    // Create doc if it doesn't exist (lazy creation)
-    if (docError && docError.code === 'PGRST116') {
-      const { data: newDoc, error: createError } = await supabase
-        .from('assignment_docs')
-        .insert({
-          assignment_id: assignmentId,
-          student_id: user.id,
-          content: '',
-          is_submitted: false
-        })
-        .select()
-        .single()
-
-      if (createError) {
-        console.error('Error creating assignment doc:', createError)
+    if (docError) {
+      if (docError.code === 'PGRST116') {
         return NextResponse.json(
-          { error: 'Failed to create assignment doc' },
-          { status: 500 }
+          { error: 'Assignment doc not found' },
+          { status: 404 }
         )
       }
-      doc = newDoc
-    } else if (docError) {
       console.error('Error fetching assignment doc:', docError)
       return NextResponse.json(
         { error: 'Failed to fetch assignment doc' },
         { status: 500 }
+      )
+    }
+
+    if (!doc || doc.student_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Not authorized to access this document' },
+        { status: 403 }
       )
     }
 
@@ -103,11 +94,11 @@ export async function GET(
 // PATCH /api/assignment-docs/[id] - Save content (autosave)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const user = await requireRole('student')
-    const { id: assignmentId } = await params
+    const { id: assignmentId } = params
     const body = await request.json()
     const { content } = body
 
@@ -149,16 +140,47 @@ export async function PATCH(
       )
     }
 
-    // Upsert assignment doc (create if doesn't exist, update if exists)
+    // Fetch doc to enforce ownership and submission rules
+    const { data: existingDoc, error: docFetchError } = await supabase
+      .from('assignment_docs')
+      .select('id, student_id, is_submitted')
+      .eq('assignment_id', assignmentId)
+      .single()
+
+    if (docFetchError) {
+      if (docFetchError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Assignment doc not found' },
+          { status: 404 }
+        )
+      }
+      console.error('Error fetching assignment doc:', docFetchError)
+      return NextResponse.json(
+        { error: 'Failed to fetch assignment doc' },
+        { status: 500 }
+      )
+    }
+
+    if (!existingDoc || existingDoc.student_id !== user.id) {
+      return NextResponse.json(
+        { error: 'Not authorized to modify this document' },
+        { status: 403 }
+      )
+    }
+
+    if (existingDoc.is_submitted) {
+      return NextResponse.json(
+        { error: 'Cannot edit a submitted document' },
+        { status: 403 }
+      )
+    }
+
     const { data: doc, error } = await supabase
       .from('assignment_docs')
-      .upsert({
-        assignment_id: assignmentId,
-        student_id: user.id,
+      .update({
         content
-      }, {
-        onConflict: 'assignment_id,student_id'
       })
+      .eq('id', existingDoc.id)
       .select()
       .single()
 
