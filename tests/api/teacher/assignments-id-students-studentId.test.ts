@@ -33,7 +33,14 @@ describe('GET /api/teacher/assignments/[id]/students/[studentId]', () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: { created_by: 'other' }, error: null }),
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'a-1',
+              created_by: 'other',
+              classrooms: { teacher_id: 'other' },
+            },
+            error: null,
+          }),
         })),
       })),
     }))

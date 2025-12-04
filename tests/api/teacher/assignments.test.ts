@@ -25,18 +25,18 @@ describe('GET /api/teacher/assignments', () => {
       if (table === 'classrooms') {
         return {
           select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: { id: 'c1', teacher_id: 'teacher-1' }, error: null }),
+          })),
+        }
+      } else if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({ data: { teacher_id: 'teacher-1' }, error: null }),
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
             })),
           })),
         }
-      }
-      return {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({ data: [], error: null }),
-          })),
-        })),
       }
     })
     ;(mockSupabaseClient.from as any) = mockFrom

@@ -37,7 +37,14 @@ describe('PATCH /api/teacher/assignments/[id]', () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: { created_by: 'teacher-1' }, error: null }),
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'a-1',
+              created_by: 'teacher-1',
+              classrooms: { teacher_id: 'teacher-1' },
+            },
+            error: null,
+          }),
         })),
       })),
     }))
@@ -60,7 +67,14 @@ describe('DELETE /api/teacher/assignments/[id]', () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: { created_by: 'other' }, error: null }),
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'a-1',
+              created_by: 'other',
+              classrooms: { teacher_id: 'other' },
+            },
+            error: null,
+          }),
         })),
       })),
     }))
