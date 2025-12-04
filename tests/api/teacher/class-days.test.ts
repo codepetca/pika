@@ -7,7 +7,10 @@ import { GET } from '@/app/api/teacher/class-days/route'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
-vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
+vi.mock('@/lib/auth', () => ({
+  requireAuth: vi.fn(async () => ({ id: 'teacher-1', role: 'teacher' })),
+  requireRole: vi.fn(async () => ({ id: 'teacher-1', role: 'teacher' })),
+}))
 vi.mock('@/lib/calendar', () => ({ getClassDaysForDateRange: vi.fn(() => []) }))
 
 const mockSupabaseClient = { from: vi.fn() }
