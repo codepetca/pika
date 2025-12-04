@@ -33,16 +33,41 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
   })
 
   it('should return 403 when not student owner', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'doc-1', student_id: 'other-student' },
-            error: null,
-          }),
-        })),
-      })),
-    }))
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'doc-1', student_id: 'other-student', assignment_id: 'assign-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      } else if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      } else if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'enroll-1' },
+              error: null,
+            }),
+          })),
+        }
+      }
+    })
     ;(mockSupabaseClient.from as any) = mockFrom
 
     const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-1/submit', {
