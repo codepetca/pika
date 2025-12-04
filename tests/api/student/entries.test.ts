@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from '@/app/api/student/entries/route'
 import { NextRequest } from 'next/server'
+import { mockAuthenticationError } from '../setup'
 
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
@@ -39,7 +40,7 @@ describe('GET /api/student/entries', () => {
   describe('authorization', () => {
     it('should return 401 when user is not authenticated', async () => {
       const { requireRole } = await import('@/lib/auth')
-      ;(requireRole as any).mockRejectedValueOnce(new Error('Unauthorized'))
+      ;(requireRole as any).mockRejectedValueOnce(mockAuthenticationError())
 
       const request = new NextRequest('http://localhost:3000/api/student/entries')
 
@@ -147,7 +148,7 @@ describe('POST /api/student/entries', () => {
   describe('authorization', () => {
     it('should return 401 when user is not authenticated', async () => {
       const { requireRole } = await import('@/lib/auth')
-      ;(requireRole as any).mockRejectedValueOnce(new Error('Unauthorized'))
+      ;(requireRole as any).mockRejectedValueOnce(mockAuthenticationError())
 
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
