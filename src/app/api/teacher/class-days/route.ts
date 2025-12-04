@@ -43,10 +43,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ class_days: classDays || [] })
   } catch (error: any) {
-    if (error.message.includes('Forbidden') || error.message === 'Unauthorized') {
+    // Authentication error (401)
+    if (error.name === 'AuthenticationError') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Authorization error (403)
+    if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // All other errors (500)
     console.error('Get class days error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -165,10 +172,17 @@ export async function POST(request: NextRequest) {
       class_days: created,
     })
   } catch (error: any) {
-    if (error.message.includes('Forbidden') || error.message === 'Unauthorized') {
+    // Authentication error (401)
+    if (error.name === 'AuthenticationError') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Authorization error (403)
+    if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // All other errors (500)
     console.error('Create class days error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -268,10 +282,17 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ class_day: updated })
   } catch (error: any) {
-    if (error.message.includes('Forbidden') || error.message === 'Unauthorized') {
+    // Authentication error (401)
+    if (error.name === 'AuthenticationError') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Authorization error (403)
+    if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // All other errors (500)
     console.error('Update class day error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

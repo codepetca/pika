@@ -38,10 +38,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ entries })
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
+    // Authentication error (401)
+    if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Authorization error (403)
+    if (error.name === 'AuthorizationError') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // All other errors (500)
     console.error('Get entries error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -178,10 +185,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ entry })
   } catch (error: any) {
-    if (error.message === 'Unauthorized' || error.message.includes('Forbidden')) {
+    // Authentication error (401)
+    if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Authorization error (403)
+    if (error.name === 'AuthorizationError') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // All other errors (500)
     console.error('Create/update entry error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
