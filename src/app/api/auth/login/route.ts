@@ -7,7 +7,7 @@ const MAX_LOGIN_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
 
 // In-memory store for login attempts (in production, use Redis or DB)
-const loginAttempts = new Map<string, { count: number; lockedUntil: number | null }>()
+export const loginAttempts = new Map<string, { count: number; lockedUntil: number | null }>()
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +22,12 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim()
+
+    // Remove expired lockouts
+    const existingAttempts = loginAttempts.get(normalizedEmail)
+    if (existingAttempts?.lockedUntil && Date.now() >= existingAttempts.lockedUntil) {
+      loginAttempts.delete(normalizedEmail)
+    }
 
     // Check if account is locked
     const attempts = loginAttempts.get(normalizedEmail)
@@ -107,6 +113,12 @@ function incrementLoginAttempts(email: string) {
 
   if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
     attempts.lockedUntil = Date.now() + LOCKOUT_DURATION_MS
+    setTimeout(() => {
+      const current = loginAttempts.get(email)
+      if (current && current.lockedUntil && Date.now() >= current.lockedUntil) {
+        loginAttempts.delete(email)
+      }
+    }, LOCKOUT_DURATION_MS + 10)
   }
 
   loginAttempts.set(email, attempts)
