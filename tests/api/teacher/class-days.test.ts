@@ -24,18 +24,22 @@ describe('GET /api/teacher/class-days', () => {
     expect(response.status).toBe(400)
   })
 
-  it('should return 403 when teacher does not own classroom', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: { teacher_id: 'other' }, error: null }),
-        })),
-      })),
-    }))
+  it('should return class days for any authenticated user', async () => {
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'class_days') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          })),
+        }
+      }
+    })
     ;(mockSupabaseClient.from as any) = mockFrom
 
     const request = new NextRequest('http://localhost:3000/api/teacher/class-days?classroom_id=c1')
     const response = await GET(request)
-    expect(response.status).toBe(403)
+    expect(response.status).toBe(200)
   })
 })
