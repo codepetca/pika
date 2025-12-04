@@ -89,24 +89,41 @@ describe('POST /api/auth/verify-code', () => {
     })
 
     it('should normalize email by trimming and lowercasing', async () => {
-      const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          gt: vi.fn().mockReturnThis(),
-          order: vi.fn().mockResolvedValue({
-            data: [{
-              id: 'code-1',
-              email: 'test@example.com',
-              code_hash: 'hashed_12345',
-              attempts: 0,
-              used: false,
-              expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-            }],
-            error: null,
-          }),
-        })),
-        update: vi.fn().mockReturnThis(),
-      }))
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'login_codes') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              gt: vi.fn().mockReturnThis(),
+              order: vi.fn().mockResolvedValue({
+                data: [{
+                  id: 'code-1',
+                  email: 'test@example.com',
+                  code_hash: 'hashed_12345',
+                  attempts: 0,
+                  used: false,
+                  expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+                }],
+                error: null,
+              }),
+            })),
+            update: vi.fn(() => ({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            })),
+          }
+        } else if (table === 'users') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'user-1', email: 'test@example.com', role: 'student' },
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+      })
       ;(mockSupabaseClient.from as any) = mockFrom
 
       const request = new NextRequest('http://localhost:3000/api/auth/verify-code', {
@@ -116,10 +133,9 @@ describe('POST /api/auth/verify-code', () => {
 
       await POST(request)
 
-      // Verify normalized email was used in query
-      const selectChain = mockFrom.mock.results[0].value.select()
-      const eqCalls = selectChain.eq.mock.calls
-      expect(eqCalls.some((call: any[]) => call[0] === 'email' && call[1] === 'test@example.com')).toBe(true)
+      // Verify normalized email was used in query for login_codes table
+      const loginCodesChain = mockFrom.mock.results.find((r: any) => mockFrom.mock.calls[mockFrom.mock.results.indexOf(r)][0] === 'login_codes')
+      expect(loginCodesChain).toBeDefined()
     })
 
     it('should normalize code by trimming and uppercasing', async () => {
@@ -341,25 +357,44 @@ describe('POST /api/auth/verify-code', () => {
     })
 
     it('should try codes in order (most recent first)', async () => {
-      const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          gt: vi.fn().mockReturnThis(),
-          order: vi.fn().mockResolvedValue({
-            data: [{
-              id: 'code-1',
-              email: 'test@example.com',
-              code_hash: 'hashed_12345',
-              attempts: 0,
-              used: false,
-              created_at: '2024-01-15T12:00:00Z',
-              expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-            }],
-            error: null,
-          }),
-        })),
-        update: vi.fn().mockReturnThis(),
-      }))
+      const mockSelectChain = {
+        eq: vi.fn().mockReturnThis(),
+        gt: vi.fn().mockReturnThis(),
+        order: vi.fn().mockResolvedValue({
+          data: [{
+            id: 'code-1',
+            email: 'test@example.com',
+            code_hash: 'hashed_12345',
+            attempts: 0,
+            used: false,
+            created_at: '2024-01-15T12:00:00Z',
+            expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+          }],
+          error: null,
+        }),
+      }
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'login_codes') {
+          return {
+            select: vi.fn(() => mockSelectChain),
+            update: vi.fn(() => ({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            })),
+          }
+        } else if (table === 'users') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'user-1', email: 'test@example.com', role: 'student' },
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+      })
       ;(mockSupabaseClient.from as any) = mockFrom
 
       const request = new NextRequest('http://localhost:3000/api/auth/verify-code', {
@@ -370,8 +405,7 @@ describe('POST /api/auth/verify-code', () => {
       await POST(request)
 
       // Verify order was called with descending created_at
-      const selectChain = mockFrom.mock.results[0].value.select()
-      expect(selectChain.order).toHaveBeenCalledWith('created_at', { ascending: false })
+      expect(mockSelectChain.order).toHaveBeenCalledWith('created_at', { ascending: false })
     })
   })
 

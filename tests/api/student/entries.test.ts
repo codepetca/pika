@@ -92,15 +92,18 @@ describe('GET /api/student/entries', () => {
     })
 
     it('should filter entries by classroom_id when provided', async () => {
-      const mockEq = vi.fn().mockReturnThis()
+      // Create a mock query object that is both chainable and thenable
+      const mockQuery = {
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        then: vi.fn((resolve: any) => resolve({
+          data: [{ id: 'entry-1', classroom_id: 'classroom-2' }],
+          error: null
+        }))
+      }
+
       const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: mockEq,
-          order: vi.fn().mockResolvedValue({
-            data: [{ id: 'entry-1', classroom_id: 'classroom-2' }],
-            error: null,
-          }),
-        })),
+        select: vi.fn(() => mockQuery),
       }))
       ;(mockSupabaseClient.from as any) = mockFrom
 
@@ -109,8 +112,8 @@ describe('GET /api/student/entries', () => {
       await GET(request)
 
       // Verify eq was called twice: once for student_id, once for classroom_id
-      expect(mockEq).toHaveBeenCalledWith('student_id', 'student-1')
-      expect(mockEq).toHaveBeenCalledWith('classroom_id', 'classroom-2')
+      expect(mockQuery.eq).toHaveBeenCalledWith('student_id', 'student-1')
+      expect(mockQuery.eq).toHaveBeenCalledWith('classroom_id', 'classroom-2')
     })
 
     it('should return 500 when database query fails', async () => {

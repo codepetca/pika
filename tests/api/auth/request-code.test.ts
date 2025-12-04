@@ -40,13 +40,19 @@ describe('POST /api/auth/request-code', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Default mock: no recent codes (rate limit not hit)
-    const mockSelect = mockSupabaseClient.from().select() as any
-    mockSelect.mockResolvedValue({ data: [], error: null })
-
-    // Default mock: successful insert
-    const mockInsert = mockSupabaseClient.from().insert() as any
-    mockInsert.mockResolvedValue({ error: null })
+    // Default mock: table-aware factory for login_codes
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'login_codes') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            gte: vi.fn().mockResolvedValue({ data: [], error: null }), // No recent codes (under rate limit)
+          })),
+          insert: vi.fn().mockResolvedValue({ error: null }), // Successful insert
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
   })
 
   // ==========================================================================

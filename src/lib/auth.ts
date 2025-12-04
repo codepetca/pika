@@ -2,6 +2,26 @@ import { getIronSession, IronSession } from 'iron-session'
 import { cookies } from 'next/headers'
 import type { SessionData, UserRole } from '@/types'
 
+/**
+ * Custom error class for authentication failures (401)
+ */
+export class AuthenticationError extends Error {
+  constructor(message = 'Unauthorized') {
+    super(message)
+    this.name = 'AuthenticationError'
+  }
+}
+
+/**
+ * Custom error class for authorization failures (403)
+ */
+export class AuthorizationError extends Error {
+  constructor(message = 'Forbidden') {
+    super(message)
+    this.name = 'AuthorizationError'
+  }
+}
+
 const sessionOptions = {
   password: process.env.SESSION_SECRET!,
   cookieName: 'pika_session',
@@ -55,26 +75,26 @@ export async function getCurrentUser(): Promise<SessionData['user'] | null> {
 }
 
 /**
- * Requires authentication - throws if not authenticated
+ * Requires authentication - throws AuthenticationError if not authenticated
  */
 export async function requireAuth(): Promise<SessionData['user']> {
   const user = await getCurrentUser()
 
   if (!user) {
-    throw new Error('Unauthorized')
+    throw new AuthenticationError('Not authenticated')
   }
 
   return user
 }
 
 /**
- * Requires specific role - throws if not authenticated or wrong role
+ * Requires specific role - throws AuthenticationError if not authenticated, AuthorizationError if wrong role
  */
 export async function requireRole(role: UserRole): Promise<SessionData['user']> {
-  const user = await requireAuth()
+  const user = await requireAuth()  // Throws AuthenticationError if not logged in
 
   if (user.role !== role) {
-    throw new Error('Forbidden: insufficient permissions')
+    throw new AuthorizationError(`Forbidden: ${role} role required`)
   }
 
   return user
