@@ -31,7 +31,9 @@ const mockSupabaseClient = {
   from: vi.fn(() => ({
     select: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
-    update: vi.fn().mockReturnThis(),
+    update: vi.fn(() => ({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    })),
     eq: vi.fn().mockReturnThis(),
     gt: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
@@ -155,7 +157,9 @@ describe('POST /api/auth/verify-code', () => {
             error: null,
           }),
         })),
-        update: vi.fn().mockReturnThis(),
+        update: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({ error: null }),
+        })),
       }))
       ;(mockSupabaseClient.from as any) = mockFrom
 
