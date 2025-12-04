@@ -318,6 +318,28 @@ export const expectErrorResponse = async (
 }
 
 // ============================================================================
+// Error Mock Helpers
+// ============================================================================
+
+/**
+ * Create an AuthenticationError for testing 401 responses
+ */
+export const mockAuthenticationError = () => {
+  const error = new Error('Not authenticated')
+  error.name = 'AuthenticationError'
+  return error
+}
+
+/**
+ * Create an AuthorizationError for testing 403 responses
+ */
+export const mockAuthorizationError = (message: string = 'Forbidden') => {
+  const error = new Error(message)
+  error.name = 'AuthorizationError'
+  return error
+}
+
+// ============================================================================
 // Setup/Teardown Helpers
 // ============================================================================
 

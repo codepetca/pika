@@ -34,6 +34,8 @@ import {
   requireAuth,
   requireRole,
   isTeacherEmail,
+  AuthenticationError,
+  AuthorizationError,
 } from '@/lib/auth'
 
 describe('auth utilities', () => {
@@ -228,13 +230,15 @@ describe('auth utilities', () => {
     it('should throw "Unauthorized" when not authenticated', async () => {
       mockSession.user = undefined
 
-      await expect(requireAuth()).rejects.toThrow('Unauthorized')
+      await expect(requireAuth()).rejects.toThrow(AuthenticationError)
+      await expect(requireAuth()).rejects.toThrow('Not authenticated')
     })
 
     it('should throw when session user is null', async () => {
       mockSession.user = null as any
 
-      await expect(requireAuth()).rejects.toThrow('Unauthorized')
+      await expect(requireAuth()).rejects.toThrow(AuthenticationError)
+      await expect(requireAuth()).rejects.toThrow('Not authenticated')
     })
 
     it('should return correct user object structure', async () => {
@@ -306,13 +310,15 @@ describe('auth utilities', () => {
         role: 'student',
       }
 
+      await expect(requireRole('teacher')).rejects.toThrow(AuthorizationError)
       await expect(requireRole('teacher')).rejects.toThrow('Forbidden')
     })
 
     it('should throw "Unauthorized" when not authenticated', async () => {
       mockSession.user = undefined
 
-      await expect(requireRole('student')).rejects.toThrow('Unauthorized')
+      await expect(requireRole('student')).rejects.toThrow(AuthenticationError)
+      await expect(requireRole('student')).rejects.toThrow('Not authenticated')
     })
 
     it('should include permission context in forbidden error message', async () => {
@@ -322,7 +328,8 @@ describe('auth utilities', () => {
         role: 'student',
       }
 
-      await expect(requireRole('teacher')).rejects.toThrow(/permissions/)
+      await expect(requireRole('teacher')).rejects.toThrow(AuthorizationError)
+      await expect(requireRole('teacher')).rejects.toThrow(/teacher role required/)
     })
 
     it('should throw when student tries to access teacher route', async () => {
