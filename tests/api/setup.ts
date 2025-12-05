@@ -208,7 +208,6 @@ export const mockSupabaseModule = () => {
  */
 export const mockCryptoModule = () => {
   return {
-    generateCode: vi.fn(() => '12345'),
     generateVerificationCode: vi.fn(() => 'ABC12'),
     hashCode: vi.fn(async (code: string) => `hashed_${code}`),
     verifyCode: vi.fn(async (code: string, hash: string) => hash === `hashed_${code}`),
@@ -223,7 +222,6 @@ export const mockCryptoModule = () => {
  */
 export const mockEmailModule = () => {
   return {
-    sendLoginCode: vi.fn(),
     sendSignupCode: vi.fn(),
     sendPasswordResetCode: vi.fn(),
   }

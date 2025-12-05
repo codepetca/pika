@@ -4,11 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import {
-  sendLoginCode,
-  sendSignupCode,
-  sendPasswordResetCode,
-} from '@/lib/email'
+import { sendSignupCode, sendPasswordResetCode } from '@/lib/email'
 
 describe('email utilities', () => {
   // Save original env
@@ -24,61 +20,6 @@ describe('email utilities', () => {
   afterEach(() => {
     consoleLogSpy.mockRestore()
     process.env.ENABLE_MOCK_EMAIL = originalEnv
-  })
-
-  // ==========================================================================
-  // sendLoginCode()
-  // ==========================================================================
-
-  describe('sendLoginCode', () => {
-    it('should log to console when ENABLE_MOCK_EMAIL=true', async () => {
-      process.env.ENABLE_MOCK_EMAIL = 'true'
-
-      await sendLoginCode('test@example.com', '12345')
-
-      expect(consoleLogSpy).toHaveBeenCalled()
-      // Check that console output includes email and code
-      const allLogs = consoleLogSpy.mock.calls.flat().join(' ')
-      expect(allLogs).toContain('test@example.com')
-      expect(allLogs).toContain('12345')
-    })
-
-    it('should include LOGIN CODE EMAIL header in console output', async () => {
-      process.env.ENABLE_MOCK_EMAIL = 'true'
-
-      await sendLoginCode('test@example.com', '12345')
-
-      const allLogs = consoleLogSpy.mock.calls.flat().join(' ')
-      expect(allLogs).toContain('LOGIN CODE EMAIL')
-    })
-
-    it('should return void (resolve promise)', async () => {
-      process.env.ENABLE_MOCK_EMAIL = 'true'
-
-      const result = await sendLoginCode('test@example.com', '12345')
-
-      expect(result).toBeUndefined()
-    })
-
-    it('should throw error when ENABLE_MOCK_EMAIL is not true (production mode)', async () => {
-      process.env.ENABLE_MOCK_EMAIL = 'false'
-
-      await expect(sendLoginCode('test@example.com', '12345')).rejects.toThrow(
-        'Production email sending not implemented'
-      )
-    })
-
-    it('should handle empty code gracefully in mock mode', async () => {
-      process.env.ENABLE_MOCK_EMAIL = 'true'
-
-      await expect(sendLoginCode('test@example.com', '')).resolves.not.toThrow()
-    })
-
-    it('should handle invalid email format gracefully in mock mode', async () => {
-      process.env.ENABLE_MOCK_EMAIL = 'true'
-
-      await expect(sendLoginCode('not-an-email', '12345')).resolves.not.toThrow()
-    })
   })
 
   // ==========================================================================
@@ -223,7 +164,6 @@ describe('email utilities', () => {
     it('should default to production mode when ENABLE_MOCK_EMAIL is undefined', async () => {
       delete process.env.ENABLE_MOCK_EMAIL
 
-      await expect(sendLoginCode('test@example.com', '12345')).rejects.toThrow()
       await expect(sendSignupCode('test@example.com', 'ABC12')).rejects.toThrow()
       await expect(sendPasswordResetCode('test@example.com', 'XYZ99')).rejects.toThrow()
     })
@@ -231,7 +171,6 @@ describe('email utilities', () => {
     it('should treat ENABLE_MOCK_EMAIL=false as production mode', async () => {
       process.env.ENABLE_MOCK_EMAIL = 'false'
 
-      await expect(sendLoginCode('test@example.com', '12345')).rejects.toThrow()
       await expect(sendSignupCode('test@example.com', 'ABC12')).rejects.toThrow()
       await expect(sendPasswordResetCode('test@example.com', 'XYZ99')).rejects.toThrow()
     })
@@ -239,7 +178,7 @@ describe('email utilities', () => {
     it('should only be in mock mode when explicitly set to "true"', async () => {
       process.env.ENABLE_MOCK_EMAIL = 'yes' // Not "true"
 
-      await expect(sendLoginCode('test@example.com', '12345')).rejects.toThrow()
+      await expect(sendSignupCode('test@example.com', 'ABC12')).rejects.toThrow()
     })
   })
 })

@@ -1,6 +1,6 @@
 # Architecture
 
-Defines the system architecture, patterns, and technical details for **Pika**. Primary flow is email verification + password; legacy passwordless code endpoints exist but are not part of the MVP.
+Defines the system architecture, patterns, and technical details for **Pika**. Primary flow is email verification + password.
 
 ---
 
@@ -28,8 +28,7 @@ Pika is a Next.js 14 application deployed on Vercel with a Supabase backend. It 
 │ classrooms, enrollments    │
 │ class_days, entries        │
 │ assignments, assignment_docs│
-│ verification_codes, sessions│
-│ (login_codes legacy)       │
+│ verification_codes         │
 └────────────────────────────┘
 ```
 
@@ -41,7 +40,7 @@ Pika is a Next.js 14 application deployed on Vercel with a Supabase backend. It 
 src/
 ├── app/
 │   ├── api/                       # API routes
-│   │   ├── auth/                  # signup, verify-signup, create-password, login, reset, me, logout (legacy request/verify-code)
+│   │   ├── auth/                  # signup, verify-signup, create-password, login, reset, me, logout
 │   │   ├── student/               # classrooms, join, entries, assignments
 │   │   ├── teacher/               # classrooms, roster, class-days, attendance, assignments, export-csv, entry
 │   │   └── assignment-docs/       # fetch/update/submit/unsubmit assignment docs
@@ -66,7 +65,6 @@ tests/                             # Vitest unit + API suites
 - **Login**: `/api/auth/login` with email/password; lockout after 5 failed attempts for 15 minutes.
 - **Forgot/Reset**: `/api/auth/forgot-password` issues reset code; `/reset-password/verify` + `/confirm` update password.
 - **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production.
-- **Legacy**: `/api/auth/request-code` + `/verify-code` use `login_codes` but are deprecated for MVP.
 
 ### Attendance Logic
 - Statuses: `present` or `absent` only. Presence is determined by existence of an entry for a class day where `is_class_day=true`.
@@ -125,7 +123,6 @@ Students: join classroom (code) -> daily entries -> open assignment -> autosave 
 - `POST /api/auth/reset-password/confirm`
 - `GET /api/auth/me`
 - `POST /api/auth/logout`
-- Legacy: `POST /api/auth/request-code`, `POST /api/auth/verify-code` (deprecated)
 
 **Student**
 - `GET /api/student/classrooms`
@@ -153,11 +150,10 @@ Students: join classroom (code) -> daily entries -> open assignment -> autosave 
 
 ---
 
-## Database Schema (Migrations 001–007)
+## Database Schema (Migrations 001–008)
 
 - `users` — `id`, `email`, `role`, `email_verified_at`, `password_hash`, timestamps
 - `verification_codes` — signup/reset codes with expiry/attempts
-- `sessions` — persistent tokens (not primary path; iron-session is used for app sessions)
 - `student_profiles` — student metadata linked to `users`
 - `classrooms` — owned by teacher (`teacher_id`)
 - `classroom_enrollments` — student membership per classroom
@@ -165,10 +161,9 @@ Students: join classroom (code) -> daily entries -> open assignment -> autosave 
 - `entries` — `student_id`, `classroom_id`, `date`, `text`, `mood`, `on_time`, timestamps
 - `assignments` — `classroom_id`, `title`, `description`, `due_at`, `created_by`
 - `assignment_docs` — one per (assignment, student); `content`, `is_submitted`, `submitted_at`
-- `login_codes` — legacy passwordless codes (deprecated)
 
 **RLS Highlights**
-- Auth tables (`verification_codes`, `sessions`, `login_codes`) are server-managed only.
+- Auth tables (`verification_codes`) are server-managed only.
 - Classrooms/enrollments/class_days/entries: RLS disabled for public; app uses service role plus ownership/enrollment checks.
 - Assignments/assignment_docs: policies allow teachers of the classroom to read, students to read/write their own docs.
 

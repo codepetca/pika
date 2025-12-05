@@ -51,7 +51,7 @@ npm install
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (starts with `sb_publishable_`)
   - `SUPABASE_SECRET_KEY` (starts with `sb_secret_`)
-- Apply migrations `supabase/migrations/001` through `007` (users, login/verification codes, class days, entries, auth refactor, classrooms, assignments).
+- Apply migrations `supabase/migrations/001` through `008` (users, verification codes, class days, entries, auth refactor, classrooms, assignments, legacy cleanup).
   - Dashboard: run each file in order.
   - CLI: `supabase db push`
 
@@ -117,7 +117,7 @@ npm start
 
 Session is stored in an HTTP-only, SameSite=Lax cookie via iron-session.
 
-**Legacy passwordless endpoints exist in the codebase but are not part of the MVP flow.**
+Password-based flow only; code-based login has been removed.
 
 ## Role Determination
 

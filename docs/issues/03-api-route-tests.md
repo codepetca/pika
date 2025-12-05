@@ -13,9 +13,15 @@ From `docs/core/tests.md`:
 We need to create a `tests/api/` directory and add tests for all API routes:
 
 ### Auth Routes
-- [ ] `/api/auth/request-code`
-- [ ] `/api/auth/verify-code`
+- [ ] `/api/auth/signup`
+- [ ] `/api/auth/verify-signup`
+- [ ] `/api/auth/create-password`
+- [ ] `/api/auth/login`
+- [ ] `/api/auth/forgot-password`
+- [ ] `/api/auth/reset-password/verify`
+- [ ] `/api/auth/reset-password/confirm`
 - [ ] `/api/auth/me`
+- [ ] `/api/auth/logout`
 
 ### Student Routes
 - [ ] `/api/student/entries`

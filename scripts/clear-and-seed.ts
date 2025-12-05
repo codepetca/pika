@@ -42,7 +42,6 @@ async function clearAndSeed() {
   await supabase.from('class_days').delete().neq('id', '00000000-0000-0000-0000-000000000000')
   await supabase.from('classrooms').delete().neq('id', '00000000-0000-0000-0000-000000000000')
   await supabase.from('verification_codes').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('login_codes').delete().neq('id', '00000000-0000-0000-0000-000000000000')
   await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000')
 
   console.log('✓ Database cleared\n')
@@ -218,8 +217,7 @@ async function clearAndSeed() {
   console.log('  Student 2: student2@student.yrdsb.ca (mixed attendance)')
   console.log('  Student 3: student3@student.yrdsb.ca (poor attendance)')
   console.log('\nLogin options:')
-  console.log('  1. POST /api/auth/login with email + password')
-  console.log('  2. POST /api/auth/request-code for passwordless login')
+  console.log('  POST /api/auth/login with email + password')
 }
 
 clearAndSeed()

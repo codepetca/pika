@@ -45,7 +45,7 @@ Overview of **Pika**: daily journals, attendance, classrooms, and assignments fo
 **Setup**
 1. `npm install`
 2. Configure `.env.local` (see README for template).
-3. Apply migrations `001`–`007` (users, login/verification codes, class days, entries, auth refactor, classrooms, assignments) via Supabase dashboard or `supabase db push`.
+3. Apply migrations `001`–`008` (users, verification codes, class days, entries, auth refactor, classrooms, assignments, legacy cleanup) via Supabase dashboard or `supabase db push`.
 4. `npm run dev` and open http://localhost:3000
 5. Optional: `npm run seed`
 
@@ -84,7 +84,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 ## Feature Overview
 
-1) **Authentication**: Email verification + password. Endpoints for signup, verify-signup, create-password, login, forgot/reset password. Legacy passwordless endpoints remain but are not primary.
+1) **Authentication**: Email verification + password. Endpoints for signup, verify-signup, create-password, login, forgot/reset password.
 
 2) **Daily Journal**: Per-classroom entry with Toronto midnight cutoff; present/absent attendance; history view.
 

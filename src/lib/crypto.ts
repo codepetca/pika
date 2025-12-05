@@ -1,7 +1,6 @@
 import bcrypt from 'bcryptjs'
 
 const VERIFICATION_CODE_LENGTH = 5 // For email verification (signup/reset)
-const LEGACY_CODE_LENGTH = 8 // For backward compatibility
 const SALT_ROUNDS = 10
 
 /**
@@ -13,21 +12,6 @@ export function generateVerificationCode(): string {
   let code = ''
 
   for (let i = 0; i < VERIFICATION_CODE_LENGTH; i++) {
-    const randomIndex = Math.floor(Math.random() * characters.length)
-    code += characters[randomIndex]
-  }
-
-  return code
-}
-
-/**
- * Generates a random alphanumeric code (legacy - for backward compatibility)
- */
-export function generateCode(length: number = LEGACY_CODE_LENGTH): string {
-  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // Removed ambiguous characters
-  let code = ''
-
-  for (let i = 0; i < length; i++) {
     const randomIndex = Math.floor(Math.random() * characters.length)
     code += characters[randomIndex]
   }

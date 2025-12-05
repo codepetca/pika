@@ -13,16 +13,6 @@ export interface User {
   created_at: string
 }
 
-export interface LoginCode {
-  id: string
-  email: string
-  code_hash: string
-  expires_at: string
-  used: boolean
-  attempts: number
-  created_at: string
-}
-
 export type VerificationPurpose = 'signup' | 'reset_password'
 
 export interface VerificationCode {
