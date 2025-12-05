@@ -457,6 +457,34 @@ Usage:
 - Tablet: Same as desktop
 - Mobile: Consider list view instead of table
 
+### Classroom & Assignments (Shared)
+
+#### Classroom Shell
+- **Sidebar**: list classrooms with code/link actions; keep width <= 280px, sticky on desktop.
+- **Join/Create affordances**: clear “+ New” (teacher) and “+ Join” (student) buttons at top of sidebar.
+- **Empty states**: centered card with primary action (create/join).
+
+#### Roster Upload
+- Modal with file picker + drag/drop; show progress + success/error inline.
+- After upload, refresh roster and attendance to reflect new students.
+
+#### Class Days
+- Toggle list/calendar per classroom; show disabled state for non-class days; keep destructive actions (delete/toggle off) secondary.
+
+#### Assignments (Teacher)
+- Card/list with title + due date + submission stats (`submitted/total`, late count).
+- Actions: “+ New Assignment” button reveals inline form; keep form constrained to ~480px width.
+
+#### Assignment Editor (Student)
+- Header: back link to classroom, due date, relative due text, status badge.
+- Editor: large textarea, monospace; autosave indicator (`Saved | Saving... | Unsaved changes`) top-right.
+- Actions: primary Submit / secondary Unsubmit; disable while submitting.
+- Submission timestamp: show in Toronto timezone, small text below editor.
+
+#### Status Badges
+- Present/absent: 🟢 / 🔴 icons only (no late in attendance UI).
+- Assignments: use `getAssignmentStatusBadgeClass` palette; keep text short (“In progress”, “Submitted (late)”).
+
 ---
 
 ## Responsive Breakpoints

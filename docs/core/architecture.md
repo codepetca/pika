@@ -1,51 +1,36 @@
 # Architecture
 
-This document defines the system architecture, patterns, and technical implementation details for **Pika**.
+Defines the system architecture, patterns, and technical details for **Pika**. Primary flow is email verification + password; legacy passwordless code endpoints exist but are not part of the MVP.
 
 ---
 
 ## System Overview
 
-Pika is a Next.js 14 application deployed on Vercel with a Supabase backend. It follows a standard server-side rendered (SSR) architecture with API routes for backend logic.
+Pika is a Next.js 14 application deployed on Vercel with a Supabase backend. It uses server components plus API routes, iron-session cookies for auth, and Supabase for persistence.
 
 ```
-┌─────────────────────────────────────────────┐
-│           Client (Browser)                  │
-│  ┌────────────┐          ┌──────────────┐  │
-│  │  Student   │          │   Teacher    │  │
-│  │   Pages    │          │   Pages      │  │
-│  └─────┬──────┘          └──────┬───────┘  │
-└────────┼─────────────────────────┼──────────┘
-         │                         │
-         └────────┬────────────────┘
-                  │ HTTP/HTTPS
-                  ↓
-┌─────────────────────────────────────────────┐
-│        Next.js App Router (Vercel)          │
-│  ┌───────────────────────────────────────┐  │
-│  │  Server Components & API Routes       │  │
-│  │  /api/auth/*                          │  │
-│  │  /api/student/*                       │  │
-│  │  /api/teacher/*                       │  │
-│  └────────────────┬──────────────────────┘  │
-└───────────────────┼─────────────────────────┘
-                    │
-                    ↓
-┌─────────────────────────────────────────────┐
-│         Supabase (PostgreSQL)               │
-│  ┌────────────────────────────────────┐    │
-│  │  Tables:                           │    │
-│  │  - students                        │    │
-│  │  - teachers                        │    │
-│  │  - entries (journal submissions)   │    │
-│  │  - class_days                      │    │
-│  │  - assignments                     │    │
-│  │  - assignment_docs                 │    │
-│  │  - login_codes                     │    │
-│  │  - classrooms                      │    │
-│  │  - classroom_students              │    │
-│  └────────────────────────────────────┘    │
-└─────────────────────────────────────────────┘
+┌────────────────────────────┐
+│        Client (RSC)        │
+│  Student UI  |  Teacher UI │
+└──────────────┬─────────────┘
+               │ HTTP
+┌──────────────▼─────────────┐
+│     Next.js App Router     │
+│   /api/auth/*              │
+│   /api/student/*           │
+│   /api/teacher/*           │
+│   /api/assignment-docs/*   │
+└──────────────┬─────────────┘
+               │ Supabase client
+┌──────────────▼─────────────┐
+│        Supabase DB         │
+│ users, student_profiles    │
+│ classrooms, enrollments    │
+│ class_days, entries        │
+│ assignments, assignment_docs│
+│ verification_codes, sessions│
+│ (login_codes legacy)       │
+└────────────────────────────┘
 ```
 
 ---
@@ -54,544 +39,163 @@ Pika is a Next.js 14 application deployed on Vercel with a Supabase backend. It 
 
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   ├── api/               # API routes
-│   │   ├── auth/          # Authentication endpoints
-│   │   │   ├── request-code/
-│   │   │   ├── verify-code/
-│   │   │   └── me/
-│   │   ├── student/       # Student data endpoints
-│   │   │   ├── entries/
-│   │   │   ├── classrooms/
-│   │   │   └── assignments/
-│   │   └── teacher/       # Teacher data endpoints
-│   │       ├── attendance/
-│   │       ├── class-days/
-│   │       ├── classrooms/
-│   │       └── assignments/
-│   ├── student/           # Student-facing pages
-│   │   ├── today/
-│   │   ├── history/
-│   │   └── classroom/
-│   ├── teacher/           # Teacher-facing pages
-│   │   ├── dashboard/
-│   │   └── classroom/
-│   ├── login/
-│   ├── verify-code/
-│   ├── logout/
-│   └── layout.tsx         # Root layout
-├── components/            # React components
-│   ├── AttendanceMatrix.tsx
-│   ├── EntryForm.tsx
-│   ├── Navigation.tsx
-│   └── ...
-├── lib/                   # Core utilities and business logic
-│   ├── supabase.ts       # Supabase client
-│   ├── auth.ts           # Session management
-│   ├── attendance.ts     # Attendance calculation logic
-│   ├── crypto.ts         # Code generation/hashing
-│   ├── timezone.ts       # America/Toronto timezone utilities
-│   ├── calendar.ts       # Class day generation
-│   └── email.ts          # Email sending
-└── types/                # TypeScript type definitions
-    └── index.ts
+├── app/
+│   ├── api/                       # API routes
+│   │   ├── auth/                  # signup, verify-signup, create-password, login, reset, me, logout (legacy request/verify-code)
+│   │   ├── student/               # classrooms, join, entries, assignments
+│   │   ├── teacher/               # classrooms, roster, class-days, attendance, assignments, export-csv, entry
+│   │   └── assignment-docs/       # fetch/update/submit/unsubmit assignment docs
+│   ├── login/, signup/, forgot-password/, reset-password/…
+│   ├── student/                   # student today/history dashboards
+│   ├── teacher/                   # teacher dashboard
+│   └── classrooms/                # shared classroom + assignment views
+├── components/                    # UI primitives and modals
+├── lib/                           # Core utilities (auth, crypto, timezone, attendance, calendar, assignments)
+└── types/                         # Shared TypeScript types
 
-supabase/migrations/      # Database migrations
-tests/                    # Test files
-├── unit/                 # Unit tests
-│   ├── attendance.test.ts
-│   ├── timezone.test.ts
-│   └── crypto.test.ts
-└── lib/                  # Core utility tests (TODO)
+supabase/migrations/               # 001–007 schema + RLS
+tests/                             # Vitest unit + API suites
 ```
 
 ---
 
-## Key Architectural Patterns
+## Key Patterns
 
-### 1. Authentication Flow
+### Authentication (Primary)
+- **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates; `/create-password` hashes password (bcrypt), sets session.
+- **Login**: `/api/auth/login` with email/password; lockout after 5 failed attempts for 15 minutes.
+- **Forgot/Reset**: `/api/auth/forgot-password` issues reset code; `/reset-password/verify` + `/confirm` update password.
+- **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production.
+- **Legacy**: `/api/auth/request-code` + `/verify-code` use `login_codes` but are deprecated for MVP.
 
-**Implementation**: Passwordless email codes (custom, NOT OAuth)
+### Attendance Logic
+- Statuses: `present` or `absent` only. Presence is determined by existence of an entry for a class day where `is_class_day=true`.
+- `on_time` is computed on write using America/Toronto but UI aggregates to present/absent.
+- Class day generation respects weekends/holidays; deadlines use America/Toronto (date-fns-tz).
 
-#### Request Code Flow
-```
-User enters email
-    ↓
-POST /api/auth/request-code
-    ↓
-1. Validate email format
-2. Check rate limits (max 5 requests/hour per email)
-3. Generate random 6-digit code
-4. Hash code with bcrypt (cost factor 10)
-5. Store hashed code + email + expiry (10min) in login_codes table
-6. Send code via email (or log if mock enabled)
-    ↓
-Response: { success: true }
-```
+### Assignments
+- Tables: `assignments` (per classroom) and `assignment_docs` (per student/assignment).
+- Student editor autosaves via `/api/assignment-docs/[id]` (PATCH), submit/unsubmit via `/submit` and `/unsubmit`.
+- Status helpers live in `src/lib/assignments.ts` (`calculateAssignmentStatus`, badge/label helpers).
 
-#### Verify Code Flow
-```
-User enters code
-    ↓
-POST /api/auth/verify-code {email, code}
-    ↓
-1. Fetch login_code record by email
-2. Check expiry (must be within 10 minutes)
-3. Check attempt count (max 3 attempts per code)
-4. Verify code with bcrypt.compare()
-5. If valid:
-   a. Determine role (student or teacher)
-   b. Create session with user_id, role, email
-   c. Set HTTP-only, secure, SameSite=Lax cookie
-   d. Delete login_code record
-6. If invalid:
-   a. Increment attempt count
-   b. Return error
-    ↓
-Response: { success: true, role, redirect }
-```
-
-#### Session Management
-- Sessions stored in encrypted HTTP-only cookies
-- Session includes: `user_id`, `role`, `email`, `student_id` (if student)
-- Session duration: 7 days (configurable via SESSION_MAX_AGE)
-- Middleware checks session on protected routes
-- Logout clears session cookie
-
-#### Security Requirements
-- **Hash all codes** with bcrypt (NEVER store plaintext)
-- **HTTP-only cookies** (prevent XSS attacks)
-- **Secure flag** (HTTPS only in production)
-- **SameSite=Lax** (CSRF protection)
-- **Rate limiting**: Max 5 code requests per hour per email
-- **Attempt limiting**: Max 3 verification attempts per code
-- **Short expiry**: Codes expire after 10 minutes
+### Route Protection
+- Role check via `requireRole('student' | 'teacher')` in API routes.
+- Classroom ownership/enrollment enforced in route logic and RLS.
+- Service role Supabase client used in API routes; iron-session used for identity.
 
 ---
 
-### 2. Attendance Logic
+## Data Flows
 
-**Core function**: `computeAttendanceStatusForStudent()` in `src/lib/attendance.ts`
-
-#### Function Signature
-```typescript
-function computeAttendanceStatusForStudent(
-  classDays: ClassDay[],
-  entries: Entry[]
-): Record<string, AttendanceStatus>
+### Student Daily Entry
+```
+POST /api/student/entries { classroom_id, date, text, mood }
+1) require student session
+2) validate enrollment + class day
+3) upsert entry, compute on_time (America/Toronto)
+4) return entry; attendance uses presence-only status
 ```
 
-#### Algorithm
+### Teacher Attendance Dashboard
 ```
-For each class day:
-  1. Look up entry for that date
-  2. If no entry exists:
-     → Status: 'absent'
-  3. If entry exists and on_time = true:
-     → Status: 'present'
-  4. If entry exists and on_time = false:
-     → Status: 'present' (late submissions still count as present)
-
-Return: { "2024-01-15": "present", "2024-01-16": "absent", ... }
+GET /api/teacher/attendance?classroom_id=...
+1) require teacher, verify ownership
+2) fetch students, class_days, entries
+3) compute summary via computeAttendanceStatusForStudent/computeAttendanceRecords
+4) render matrix + CSV export via /api/teacher/export-csv
 ```
 
-**Note**: The current implementation treats late submissions as present. There is no separate "late" status in the UI.
-
-#### On-Time Determination
-
-Function: `isOnTime()` in `src/lib/timezone.ts`
-
-```typescript
-function isOnTime(updatedAt: Date, date: string): boolean {
-  // Convert UTC timestamp to America/Toronto
-  const torontoTime = utcToZonedTime(updatedAt, 'America/Toronto')
-
-  // Get midnight (start of next day) for the class day
-  const midnightNextDay = zonedTimeToUtc(
-    new Date(date + 'T23:59:59'),
-    'America/Toronto'
-  )
-  midnightNextDay.setSeconds(59) // End of day
-
-  // Entry is on-time if submitted before midnight
-  return torontoTime <= midnightNextDay
-}
+### Classroom & Assignment
 ```
-
-**Critical**: All deadline calculations MUST use America/Toronto timezone to handle:
-- Daylight Saving Time (DST) transitions
-- Different UTC offsets throughout the year
-- Students submitting from different timezones
-
-#### Attendance Summary
-
-Computed by `computeAttendanceRecords()`:
-```typescript
-summary: {
-  present: number  // Count of present days
-  absent: number   // Count of absent days
-}
+Teachers: create classroom -> share join code -> upload roster CSV -> manage class days -> create assignments.
+Students: join classroom (code) -> daily entries -> open assignment -> autosave content -> submit/unsubmit.
 ```
 
 ---
 
-### 3. Route Protection
+## API Surface (non-exhaustive)
 
-**Middleware**: Checks authentication and authorization on protected routes
+**Auth**
+- `POST /api/auth/signup`
+- `POST /api/auth/verify-signup`
+- `POST /api/auth/create-password`
+- `POST /api/auth/login`
+- `POST /api/auth/forgot-password`
+- `POST /api/auth/reset-password/verify`
+- `POST /api/auth/reset-password/confirm`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
+- Legacy: `POST /api/auth/request-code`, `POST /api/auth/verify-code` (deprecated)
 
-#### Student Routes (Require `role = 'student'`)
-- `/student/*`
-- `/api/student/*`
+**Student**
+- `GET /api/student/classrooms`
+- `GET /api/student/classrooms/[id]`
+- `POST /api/student/classrooms/join`
+- `GET /api/student/entries`
+- `POST /api/student/entries`
+- `GET /api/student/assignments`
 
-Additional checks:
-- Verify `student_id` in session matches requested student_id
-- Prevent students from accessing other students' data
+**Teacher**
+- `GET/POST /api/teacher/classrooms`
+- `GET/PATCH/DELETE /api/teacher/classrooms/[id]`
+- `POST /api/teacher/classrooms/[id]/roster` (upload/manage roster)
+- `GET /api/teacher/class-days`
+- `GET /api/teacher/attendance`
+- `GET /api/teacher/export-csv`
+- `GET/POST /api/teacher/assignments`
+- `GET /api/teacher/assignments/[id]`
+- `GET /api/teacher/entry/[id]` (entry drill-down)
 
-#### Teacher Routes (Require `role = 'teacher'`)
-- `/teacher/*`
-- `/api/teacher/*`
-
-Additional checks:
-- Verify user has teacher role
-- Teachers can access all student data (read-only)
-
-#### Implementation Pattern
-```typescript
-// In API routes or server components
-const session = await getSession()
-
-if (!session) {
-  return Response.json({ error: 'Unauthorized' }, { status: 401 })
-}
-
-if (session.role !== 'teacher') {
-  return Response.json({ error: 'Forbidden' }, { status: 403 })
-}
-
-// Continue with authorized logic...
-```
-
----
-
-## Data Flow Patterns
-
-### Student Journal Submission Flow
-```
-Student writes entry → Submit button clicked
-    ↓
-POST /api/student/entries {content, date, student_id}
-    ↓
-1. Verify session (role = student)
-2. Validate student_id matches session
-3. Check if entry for date already exists
-4. If exists: UPDATE entries SET content, updated_at
-5. If not: INSERT new entry
-6. Compute on_time field using isOnTime(updated_at, date)
-7. Save to database
-    ↓
-Response: { success: true, entry }
-    ↓
-UI updates to show submission confirmed
-```
-
-### Teacher Dashboard Load Flow
-```
-Teacher visits /teacher/dashboard
-    ↓
-Server Component fetches:
-1. All students (for left column)
-2. Class days (for header row)
-3. All entries (for attendance matrix)
-    ↓
-Server calls computeAttendanceRecords() for each student
-    ↓
-Server renders AttendanceMatrix component with:
-- students (names, IDs)
-- classDays (dates)
-- attendance data (present/absent per student per day)
-    ↓
-Client-side interactivity:
-- Click cell to view entry details (if present)
-- Export CSV button
-```
+**Assignments**
+- `GET/PATCH /api/assignment-docs/[id]`
+- `POST /api/assignment-docs/[id]/submit`
+- `POST /api/assignment-docs/[id]/unsubmit`
 
 ---
 
-## API Route Structure
+## Database Schema (Migrations 001–007)
 
-### Authentication Routes (`/api/auth/*`)
-- `POST /api/auth/request-code` — Request login code
-- `POST /api/auth/verify-code` — Verify code and create session
-- `GET /api/auth/me` — Get current user info
-- `POST /api/auth/logout` — Clear session
+- `users` — `id`, `email`, `role`, `email_verified_at`, `password_hash`, timestamps
+- `verification_codes` — signup/reset codes with expiry/attempts
+- `sessions` — persistent tokens (not primary path; iron-session is used for app sessions)
+- `student_profiles` — student metadata linked to `users`
+- `classrooms` — owned by teacher (`teacher_id`)
+- `classroom_enrollments` — student membership per classroom
+- `class_days` — `classroom_id`, `date`, `is_class_day`
+- `entries` — `student_id`, `classroom_id`, `date`, `text`, `mood`, `on_time`, timestamps
+- `assignments` — `classroom_id`, `title`, `description`, `due_at`, `created_by`
+- `assignment_docs` — one per (assignment, student); `content`, `is_submitted`, `submitted_at`
+- `login_codes` — legacy passwordless codes (deprecated)
 
-### Student Routes (`/api/student/*`)
-- `GET /api/student/entries` — Get student's entries
-- `POST /api/student/entries` — Create/update entry
-- `GET /api/student/classrooms` — Get student's classrooms
-- `GET /api/student/assignments` — Get assignments for student
-
-### Teacher Routes (`/api/teacher/*`)
-- `GET /api/teacher/attendance` — Get attendance data for all students
-- `GET /api/teacher/class-days` — Get class days
-- `GET /api/teacher/classrooms` — Get all classrooms
-- `POST /api/teacher/classrooms` — Create classroom
-- `GET /api/teacher/assignments` — Get assignments
-- `POST /api/teacher/assignments` — Create assignment
+**RLS Highlights**
+- Auth tables (`verification_codes`, `sessions`, `login_codes`) are server-managed only.
+- Classrooms/enrollments/class_days/entries: RLS disabled for public; app uses service role plus ownership/enrollment checks.
+- Assignments/assignment_docs: policies allow teachers of the classroom to read, students to read/write their own docs.
 
 ---
 
-## Database Schema
+## Timezone & Deadlines
 
-### Core Tables
-
-#### `students`
-```sql
-id: bigint (PK)
-email: text (unique)
-name: text
-created_at: timestamp
-```
-
-#### `teachers`
-```sql
-id: bigint (PK)
-email: text (unique)
-name: text
-created_at: timestamp
-```
-
-#### `entries` (Journal Submissions)
-```sql
-id: bigint (PK)
-student_id: bigint (FK → students.id)
-date: date
-content: text
-on_time: boolean
-created_at: timestamp
-updated_at: timestamp
-```
-
-#### `class_days`
-```sql
-id: bigint (PK)
-date: date (unique)
-created_at: timestamp
-```
-
-#### `login_codes`
-```sql
-id: bigint (PK)
-email: text
-code_hash: text
-expires_at: timestamp
-attempts: integer (default 0)
-created_at: timestamp
-```
-
-### Row Level Security (RLS)
-
-**Students**:
-- Can SELECT their own entries
-- Can INSERT/UPDATE their own entries
-- Cannot access other students' data
-
-**Teachers**:
-- Can SELECT all entries (read-only)
-- Can SELECT all students
-- Can INSERT/UPDATE classrooms and assignments
-
-**Public**:
-- Can INSERT login_codes (anonymous users requesting codes)
-- Can SELECT/UPDATE login_codes for verification
+- Hardcoded to `America/Toronto` for all deadline logic.
+- `isOnTime` and calendar utilities use `date-fns-tz`; DST transitions are handled by the library.
+- Attendance uses presence only; late detection is surfaced via assignment status helpers, not attendance.
 
 ---
 
-## Critical Implementation Details
+## Testing Targets
 
-### Timezone Handling
-
-**Rule**: ALWAYS use America/Toronto timezone for deadline calculations
-
-#### Why?
-- Course is based in Ontario, Canada
-- Must handle Daylight Saving Time (DST) transitions
-- Students may submit from different timezones
-- Midnight deadline must be consistent in Toronto time
-
-#### Implementation
-```typescript
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz'
-
-const TIMEZONE = 'America/Toronto'
-
-// When checking if on time:
-const torontoTime = utcToZonedTime(updatedAt, TIMEZONE)
-
-// When setting midnight deadline:
-const midnight = zonedTimeToUtc(new Date(date + 'T23:59:59'), TIMEZONE)
-```
-
-#### DST Transitions
-- Spring forward: 2:00 AM → 3:00 AM (lose 1 hour)
-- Fall back: 2:00 AM → 1:00 AM (gain 1 hour)
-- `date-fns-tz` handles these transitions automatically
+- Keep business logic pure (`attendance.ts`, `timezone.ts`, `assignments.ts`) for unit tests.
+- API routes should be tested with mocked Supabase client and session guards.
+- Coverage priority: auth flows (signup/login/reset), classroom ownership/enrollment, assignment submit/unsubmit, attendance computation, calendar generation.
 
 ---
 
-### Pure Functions for Testing
+## Deployment Notes
 
-**Principle**: Keep business logic pure (no side effects) for easy testing
-
-#### Examples of Pure Functions
-
-**✅ Good** (Pure):
-```typescript
-function computeAttendanceStatusForStudent(
-  classDays: ClassDay[],
-  entries: Entry[]
-): Record<string, AttendanceStatus> {
-  // No database calls, no API calls, no mutations
-  // Input → Output (deterministic)
-}
-```
-
-**❌ Bad** (Impure):
-```typescript
-async function getAttendanceStatus(studentId: number) {
-  // Database calls inside function
-  const entries = await supabase.from('entries').select('*')
-  // Hard to test, has side effects
-}
-```
-
-#### Testing Strategy
-1. **Core logic** (pure functions) → Unit tests with 100% coverage
-2. **Data layer** (API routes) → Integration tests with mocked Supabase
-3. **UI** (components) → Minimal tests, focus on interactions
+- Vercel for frontend + API; Supabase for DB.
+- Use service role key server-side only; publishable key client-side.
+- Iron-session cookie (`pika_session`) must be secure in production with a 32+ char secret.
 
 ---
 
-### Security Architecture
-
-#### Defense in Depth
-
-**Layer 1: Input Validation**
-- Validate all user input (email format, required fields)
-- Sanitize content to prevent XSS
-- Check data types match expected schema
-
-**Layer 2: Authentication**
-- Verify session exists and is valid
-- Check session hasn't expired
-- Verify HMAC signature on session cookie
-
-**Layer 3: Authorization**
-- Check user role (student vs teacher)
-- Verify resource access (students can't access others' data)
-- Use Row Level Security (RLS) in database
-
-**Layer 4: Rate Limiting**
-- Limit code requests (5 per hour per email)
-- Limit verification attempts (3 per code)
-- Prevent brute force attacks
-
-**Layer 5: Database RLS**
-- Final enforcement at database level
-- Even if app logic fails, RLS prevents unauthorized access
-- Policies checked on every query
-
----
-
-## Middleware & Utilities
-
-### Session Middleware
-
-**Purpose**: Check authentication on protected routes
-
-**Implementation**: `src/lib/auth.ts`
-```typescript
-export async function getSession(): Promise<Session | null> {
-  // Read session cookie
-  // Decrypt and verify
-  // Return session data or null
-}
-
-export async function requireAuth(
-  role?: 'student' | 'teacher'
-): Promise<Session> {
-  const session = await getSession()
-
-  if (!session) {
-    throw new Error('Unauthorized')
-  }
-
-  if (role && session.role !== role) {
-    throw new Error('Forbidden')
-  }
-
-  return session
-}
-```
-
-### Supabase Client
-
-**Purpose**: Interact with database
-
-**Implementation**: `src/lib/supabase.ts`
-```typescript
-import { createClient } from '@supabase/supabase-js'
-
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SECRET_KEY!
-)
-```
-
-**Note**: Use secret key for server-side operations, publishable key for client-side
-
----
-
-## Deployment Architecture
-
-### Vercel (Frontend & API)
-- **Region**: Closest to users (auto-selected)
-- **Edge Network**: Global CDN for static assets
-- **Serverless Functions**: API routes run as lambdas
-- **Environment**: Production and preview environments
-- **CI/CD**: Automatic deployment on push to main
-
-### Supabase (Database)
-- **Region**: Choose closest to Vercel region
-- **Connection**: Direct from Vercel serverless functions
-- **Pooling**: Connection pooling enabled
-- **Backups**: Automatic daily backups
-- **Monitoring**: Built-in query performance monitoring
-
----
-
-## Performance Considerations
-
-### Server-Side Rendering (SSR)
-- Student/teacher pages are server components
-- Data fetched on server (faster, more secure)
-- Initial HTML includes content (good for SEO)
-
-### Caching Strategy
-- Static assets cached by Vercel CDN
-- API routes are dynamic (no caching)
-- Database queries can be cached with React Server Components
-
-### Database Optimization
-- Indexes on frequently queried columns (student_id, date)
-- RLS policies use indexes for fast filtering
-- Connection pooling reduces latency
-
----
-
-## Next Steps
-
-- For UI/UX patterns, see [/docs/core/design.md](/docs/core/design.md)
-- For testing strategy, see [/docs/core/tests.md](/docs/core/tests.md)
-- For project setup, see [/docs/core/project-context.md](/docs/core/project-context.md)
-- For agent collaboration, see [/docs/core/agents.md](/docs/core/agents.md)
+For UI/UX patterns see `docs/core/design.md`; for testing approach see `docs/core/tests.md`; for setup see `docs/core/project-context.md`.

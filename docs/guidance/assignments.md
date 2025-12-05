@@ -15,7 +15,7 @@ Add assignment functionality to **Pika**, building on the existing auth, attenda
 - Late detection based on due date vs submission time
 - Teachers view all student work in read-only mode
 
-**Future Extension** (not part of initial implementation):
+**Future Extension** (not part of current scope):
 - Detailed writing history tracking (`assignment_doc_events` table)
 
 ---
@@ -31,14 +31,14 @@ create table if not exists public.assignments (
   title text not null,
   description text not null default '',
   due_at timestamptz not null,
-  created_by uuid not null references public.profiles (id),
+  created_by uuid not null references public.users (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 ```
 
 - One row per assignment
-- Each assignment belongs to exactly one classroom
+- Each assignment belongs to exactly one classroom (owned by a teacher user)
 
 ### 2. `assignment_docs` table
 
@@ -46,7 +46,7 @@ create table if not exists public.assignments (
 create table if not exists public.assignment_docs (
   id uuid primary key default gen_random_uuid(),
   assignment_id uuid not null references public.assignments (id) on delete cascade,
-  student_id uuid not null references public.profiles (id) on delete cascade,
+  student_id uuid not null references public.users (id) on delete cascade,
   content text not null default '',
   is_submitted boolean not null default false,
   submitted_at timestamptz,
@@ -89,6 +89,8 @@ Add Row Level Security policies:
 - Can view assignments for classrooms they are members of
 - Can read and write **only their own** `assignment_docs`
 
+App uses the service role client in API routes and enforces ownership/enrollment checks before DB access; RLS remains defense-in-depth.
+
 ---
 
 ## UI & Routing
@@ -124,6 +126,7 @@ Within classroom page or nested route:
 - Simple `<textarea>` or `contentEditable` div
 - Autosave: debounce 1-2 seconds after last keystroke
 - "Saving..." / "Saved" indicator
+- Persist via `/api/assignment-docs/[id]` (PATCH) using service role on server
 
 **Actions**:
 - **Submit button**: Sets `is_submitted = true`, `submitted_at = now()`
@@ -133,7 +136,7 @@ Within classroom page or nested route:
 - Students can edit after due date
 - UI clearly shows "Late" if submitted after due date
 
-### 4. Teacher Assignment Detail
+### 4. Teacher Assignment Detail (`/classrooms/[classroomId]/assignments/[assignmentId]`)
 
 **Display**:
 - Assignment metadata (title, due date, description)
@@ -150,17 +153,8 @@ Within classroom page or nested route:
 
 ## Late Detection Logic
 
-Implement reusable helper function:
+Helper: `calculateAssignmentStatus` in `src/lib/assignments.ts`
 
-```typescript
-function getSubmissionStatus(
-  doc: AssignmentDoc | null,
-  dueAt: Date,
-  now: Date
-): 'not_started' | 'in_progress' | 'submitted_on_time' | 'submitted_late' | 'in_progress_late'
-```
-
-**Rules**:
 - No `assignment_docs` row → `not_started`
 - `is_submitted = false` AND `now <= due_at` → `in_progress`
 - `is_submitted = false` AND `now > due_at` → `in_progress_late`

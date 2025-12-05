@@ -1,386 +1,115 @@
 # Project Context
 
-This document provides an overview of the **Pika** project, including its purpose, tech stack, development setup, and deployment strategy.
+Overview of **Pika**: daily journals, attendance, classrooms, and assignments for online high school courses. Students submit work; teachers track attendance and assignments. America/Toronto timezone is authoritative.
+
+**Status**: Classrooms, assignments, password-based auth, and dashboards are implemented. Working toward full test coverage and polish.
 
 ---
 
-## What is Pika?
+## Goals
 
-**Pika** is a student daily log and attendance tracking application for an online high school course (GLD2O). Students submit daily journal entries before midnight (America/Toronto timezone), and teachers monitor attendance and read student submissions through a dashboard.
+**Primary**
+1) Reliable attendance from daily entries (present/absent)
+2) Mobile-friendly journal workflow per classroom
+3) Assignments with autosave, submit/unsubmit, and teacher review
+4) Teacher dashboards: attendance matrix, roster management, CSV export
 
-**Status**: Basic MVP complete - authentication, student experience, and teacher dashboard implemented. Currently working on comprehensive test coverage and polish.
-
----
-
-## Project Goals
-
-### Primary Goals
-1. **Simple, reliable attendance tracking** — Students submit entries, system determines present/absent
-2. **Daily journal submission workflow** — Mobile-friendly interface for students to write and submit
-3. **Assignment management** — Teachers create assignments, students edit in online editor
-4. **Teacher dashboard** — Monitor attendance, read submissions, export data
-
-### Non-Goals
-- Complex LMS features (gradebook, announcements, forums)
-- Multi-course support (built specifically for GLD2O)
-- Real-time collaboration
-- Mobile apps (web-first with responsive design)
+**Non-Goals**
+- Full LMS (gradebook, forums, announcements)
+- Native mobile apps (web-first responsive)
+- Real-time collaboration/editor history (future)
 
 ---
 
-## Target Users
+## Users
 
-### Students
-- **Context**: Online high school students in GLD2O course
-- **Need**: Simple way to submit daily logs from any device
-- **Key workflow**: Login → Write entry → Submit → View submission history
-- **Device**: Primarily mobile devices
-
-### Teachers
-- **Context**: Instructors monitoring daily student engagement
-- **Need**: Dashboard to track attendance and read student submissions
-- **Key workflow**: Login → View attendance matrix → Read entries → Export data
-- **Device**: Desktop/laptop computers
+- **Students**: join classrooms, submit daily entries, work on assignments, submit/unsubmit.
+- **Teachers**: create classrooms, manage rosters/class days, track attendance, create assignments, view submissions.
 
 ---
 
 ## Tech Stack
 
-### Framework & Language
-- **Next.js 14+** — React framework with App Router
-- **TypeScript** — Type-safe JavaScript
-- **React 18+** — UI library
-
-### Database & Backend
-- **Supabase** — PostgreSQL database with real-time capabilities
-- **Supabase Auth** — Session management (custom email code flow)
-- **Row Level Security (RLS)** — Database-level authorization
-
-### Styling & UI
-- **Tailwind CSS** — Utility-first CSS framework
-- **No component libraries** — Custom components only
-
-### Testing
-- **Vitest** — Fast unit test runner
-- **React Testing Library** — Component testing utilities
-- **Testing philosophy**: TDD-first for core logic, minimal UI tests
-
-### Development Tools
-- **ESLint** — Code linting
-- **TypeScript** — Type checking
-- **Git** — Version control
-- **GitHub** — Repository hosting and CI/CD
-
-### Deployment
-- **Vercel** — Next.js hosting
-- **Supabase Cloud** — Production database
+- **Next.js 14** (App Router, TypeScript)
+- **Supabase** (PostgreSQL + RLS)
+- **iron-session** for HTTP-only cookies
+- **Tailwind CSS**
+- **Vitest + React Testing Library**
 
 ---
 
 ## Getting Started
 
-### Prerequisites
-- **Node.js 18+** — JavaScript runtime
-- **npm or pnpm** — Package manager
-- **Supabase account** — Database (or local instance)
-- **SMTP credentials** — Email sending (or use mock mode)
-- **Git** — Version control
+**Prereqs**: Node 18+, Supabase project, git.
 
-### Local Development Setup
+**Setup**
+1. `npm install`
+2. Configure `.env.local` (see README for template).
+3. Apply migrations `001`–`007` (users, login/verification codes, class days, entries, auth refactor, classrooms, assignments) via Supabase dashboard or `supabase db push`.
+4. `npm run dev` and open http://localhost:3000
+5. Optional: `npm run seed`
 
-#### 1. Clone Repository
-```bash
-git clone <repository-url>
-cd pika
-```
-
-#### 2. Install Dependencies
-```bash
-npm install
-```
-
-#### 3. Set Up Environment Variables
-
-Create `.env.local` file in project root:
-
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your-project-url
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-SUPABASE_SECRET_KEY=sb_secret_...
-
-# Email (for sending codes)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SMTP_FROM=your-email@gmail.com
-
-# Auth
-DEV_TEACHER_EMAILS=teacher@example.com,another@example.com
-SESSION_SECRET=your-random-secret-min-32-chars
-SESSION_MAX_AGE=604800
-
-# Dev flags
-ENABLE_MOCK_EMAIL=true
-```
-
-**Note**: Supabase now uses publishable/secret keys (starting with `sb_publishable_` and `sb_secret_`) instead of legacy anon/service_role keys. The code supports both formats.
-
-#### 4. Run Migrations
-
-If using Supabase locally:
-```bash
-supabase start
-supabase db reset
-```
-
-If using Supabase Cloud, migrations run automatically on push.
-
-#### 5. Start Development Server
-```bash
-npm run dev
-```
-
-Open http://localhost:3000
+Email sending is mocked (`ENABLE_MOCK_EMAIL=true` logs codes). Wire a provider in `src/lib/email.ts` for production.
 
 ---
 
 ## Development Commands
 
-### Running the Application
 ```bash
-npm run dev              # Start dev server on localhost:3000
-npm run build            # Production build
-npm start                # Run production build locally
-```
-
-### Testing
-```bash
-npm run test             # Run all tests once
-npm run test:watch       # Watch mode (for TDD)
-npm run test:ui          # Vitest UI (visual test runner)
-npm run test:coverage    # Generate coverage report
-```
-
-### Database (Local Supabase)
-```bash
-supabase start           # Start local Supabase instance
-supabase stop            # Stop local instance
-supabase db reset        # Reset and re-run migrations
-supabase migration new <name>  # Create new migration
-supabase migration up    # Apply migrations
-```
-
-### Code Quality
-```bash
-npm run lint             # Run ESLint
-npm run type-check       # TypeScript type checking
+npm run dev           # dev server
+npm run build         # production build
+npm start             # run production build locally
+npm run test          # all tests
+npm run test:watch    # TDD loop
+npm run test:coverage # coverage report
+npm run lint          # ESLint
+npm run type-check    # TypeScript
 ```
 
 ---
 
-## Environment Variables
+## Environment Variables (required)
 
-### Required Variables
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SECRET_KEY`
+- `SESSION_SECRET` (>=32 chars for iron-session)
+- `DEV_TEACHER_EMAILS` (comma-separated)
+- `ENABLE_MOCK_EMAIL` (`true` to log verification/reset codes)
+- `NEXT_PUBLIC_APP_URL`
 
-#### Supabase Configuration
-- `NEXT_PUBLIC_SUPABASE_URL` — Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — Publishable key (starts with `sb_publishable_`)
-- `SUPABASE_SECRET_KEY` — Secret key (starts with `sb_secret_`)
-
-**Legacy keys** (still supported):
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Legacy anon key
-- `SUPABASE_SERVICE_ROLE_KEY` — Legacy service role key
-
-#### Email Configuration
-- `SMTP_HOST` — SMTP server hostname (e.g., smtp.gmail.com)
-- `SMTP_PORT` — SMTP port (usually 587 for TLS)
-- `SMTP_USER` — SMTP username
-- `SMTP_PASSWORD` — SMTP password (use app-specific password for Gmail)
-- `SMTP_FROM` — From email address
-
-#### Authentication
-- `DEV_TEACHER_EMAILS` — Comma-separated list of teacher emails for development
-- `SESSION_SECRET` — Random string (min 32 characters) for session encryption
-- `SESSION_MAX_AGE` — Session duration in seconds (default: 604800 = 7 days)
-
-#### Development Flags
-- `ENABLE_MOCK_EMAIL` — Set to `true` to log email codes instead of sending (development only)
-
-### Optional Variables
-- `ALLOWED_EMAIL_DOMAIN` — Restrict signups to specific domain (e.g., `example.com`)
-- `NODE_ENV` — Set by Next.js automatically (`development` | `production` | `test`)
+Legacy anon/service keys are supported but publishable/secret are preferred.
 
 ---
 
-## Key Features Overview
+## Feature Overview
 
-### 1. Authentication (Passwordless Email Codes)
-- User enters email
-- System generates 6-digit code, hashes it, stores in DB with 10min expiry
-- User receives code via email
-- User enters code to verify
-- System creates session with HTTP-only cookie
-- Rate limiting prevents abuse
+1) **Authentication**: Email verification + password. Endpoints for signup, verify-signup, create-password, login, forgot/reset password. Legacy passwordless endpoints remain but are not primary.
 
-### 2. Student Daily Journal
-- Students submit text entries daily
-- Deadline: Midnight (America/Toronto time)
-- Entry marked as "on time" if submitted before midnight
-- Students can view submission history
-- Students can edit entries until midnight
+2) **Daily Journal**: Per-classroom entry with Toronto midnight cutoff; present/absent attendance; history view.
 
-### 3. Teacher Dashboard
-- View attendance matrix (students × dates)
-- See icons: 🟢 present, 🔴 absent
-- Click student/date cell to read entry
-- Export attendance data as CSV
-- Filter by date range
+3) **Teacher Dashboard**: Attendance matrix, entry drill-down, class days management, CSV export.
 
-### 4. Assignment System (In Progress)
-- Teachers create assignments with deadlines
-- Students write submissions in online editor
-- Auto-save functionality
-- Submit/unsubmit before deadline
-- Teachers read and provide feedback
+4) **Classrooms & Roster**: Create classes, share join code/link, upload roster CSV, manage enrollments.
+
+5) **Assignments**: Create assignments per classroom; students edit with autosave and submit/unsubmit; teachers view stats and read-only docs.
 
 ---
 
 ## Deployment
 
-### Vercel (Recommended)
-
-#### Initial Setup
-1. Connect GitHub repository to Vercel
-2. Configure environment variables in Vercel dashboard
-3. Deploy automatically on push to main branch
-
-#### Environment Variables in Vercel
-- Set all production environment variables in Vercel dashboard
-- Use Supabase Cloud credentials (not local)
-- Set ENABLE_MOCK_EMAIL=false for production
-
-#### Build Settings
-- **Framework Preset**: Next.js
-- **Build Command**: `npm run build`
-- **Output Directory**: `.next`
-- **Install Command**: `npm install`
-
-### Supabase (Database)
-
-#### Production Setup
-1. Create Supabase project
-2. Configure database settings
-3. Run migrations automatically via Supabase CLI or dashboard
-4. Set up Row Level Security (RLS) policies
-
-#### Connection
-- Use Supabase Cloud URL and keys in production
-- Enable connection pooling for serverless functions
-- Monitor query performance in Supabase dashboard
-
----
-
-## Architecture at a Glance
-
-```
-┌─────────────┐
-│   Vercel    │ ← Next.js 14 App (TypeScript)
-│  (Frontend) │
-└──────┬──────┘
-       │
-       ├─ Student UI (mobile-first)
-       ├─ Teacher UI (desktop)
-       └─ API Routes (/api/*)
-              │
-              ↓
-       ┌──────────────┐
-       │   Supabase   │ ← PostgreSQL + Auth
-       │  (Backend)   │
-       └──────────────┘
-              │
-              ├─ students table
-              ├─ teachers table
-              ├─ entries table
-              ├─ class_days table
-              ├─ assignments table
-              └─ login_codes table
-```
-
----
-
-## Common Development Tasks
-
-### Add a New Feature
-1. Read `/docs/ai-instructions.md` and core docs
-2. Write tests FIRST for core logic
-3. Implement feature following TDD workflow
-4. Add UI components (keep thin)
-5. Update documentation if needed
-
-### Fix a Bug
-1. Write failing test that reproduces bug
-2. Fix code to pass test
-3. Verify all tests pass
-4. Update docs if bug revealed architecture issue
-
-### Add a Database Table
-1. Create new migration: `supabase migration new table_name`
-2. Write SQL for table creation + RLS policies
-3. Test migration locally: `supabase db reset`
-4. Update TypeScript types in `src/types/`
-5. Add tests for data access patterns
-
-### Deploy to Production
-1. Push code to main branch
-2. Vercel deploys automatically
-3. Verify deployment in Vercel dashboard
-4. Test production site
-5. Monitor for errors in Vercel logs
+- Host on Vercel; configure env vars in dashboard; set `ENABLE_MOCK_EMAIL=false` and add real email provider before production.
+- Supabase Cloud for DB; enable connection pooling; run migrations on deploy.
 
 ---
 
 ## Troubleshooting
 
-### Development Server Won't Start
-- Check Node.js version (requires 18+)
-- Delete `.next` folder and restart
-- Verify `.env.local` file exists and is complete
-- Check for port conflicts (port 3000)
-
-### Database Connection Issues
-- Verify Supabase credentials in `.env.local`
-- Check Supabase project status
-- Ensure RLS policies are not blocking queries
-- Check database logs in Supabase dashboard
-
-### Tests Failing
-- Run `npm run test:coverage` to see what's uncovered
-- Check test file imports and mocks
-- Verify timezone handling (tests use America/Toronto)
-- Clear test cache: `npm run test -- --clearCache`
-
-### Email Codes Not Sending
-- Check SMTP credentials
-- Verify `ENABLE_MOCK_EMAIL=true` for development
-- Check email logs in console when mock enabled
-- Test SMTP connection with a simple script
+- **Server won’t start**: check Node 18+, `.env.local`, clear `.next`.
+- **Supabase issues**: verify keys, ensure migrations applied, review RLS if access errors.
+- **Emails not arriving**: ensure mock mode expected; otherwise implement provider in `email.ts`.
+- **Timezone/attendance**: ensure server runs with America/Toronto assumptions; tests cover DST via `date-fns-tz`.
 
 ---
 
-## Additional Resources
-
-- **Next.js Docs**: https://nextjs.org/docs
-- **Supabase Docs**: https://supabase.com/docs
-- **Tailwind CSS**: https://tailwindcss.com/docs
-- **Vitest**: https://vitest.dev/guide/
-
----
-
-## Next Steps
-
-- For architecture details, see [/docs/core/architecture.md](/docs/core/architecture.md)
-- For UI/UX guidelines, see [/docs/core/design.md](/docs/core/design.md)
-- For testing strategy, see [/docs/core/tests.md](/docs/core/tests.md)
-- For roadmap and current status, see [/docs/core/roadmap.md](/docs/core/roadmap.md)
+For architecture, see `docs/core/architecture.md`. For testing, see `docs/core/tests.md`. For UI, see `docs/core/design.md`.

@@ -1,78 +1,71 @@
 # Implementation Roadmap
 
-Phase-based implementation tracking for **Pika**.
+Phase-based tracking for **Pika**.
 
 ---
 
 ## Current Status
 
-✅ **Basic MVP Complete**  
-The core attendance tracking system is operational with authentication, student daily logs, and teacher dashboards.
+✅ Classrooms, roster upload, assignments, and password-based auth are live.  
+🔄 Expanding test coverage and polishing docs/security.
 
 ---
 
 ## Implementation Phases
 
 ### Phase 0 — Setup ✅
-
-- [x] Initialize Next.js with TypeScript
-- [x] Configure Tailwind CSS
-- [x] Set up Supabase client
-- [x] Create environment variables template
+- Initialize Next.js + TypeScript
+- Tailwind CSS configured
+- Supabase client wiring
+- Env templates created
 
 ### Phase 1 — Auth ✅
-
-- [x] Create database migrations for all tables
-- [x] Implement `/api/auth/request-code` with hashing & rate limiting
-- [x] Implement `/api/auth/verify-code` with session creation
-- [x] Build login and verify-code pages
-- [x] Create session utilities and middleware
+- Email verification codes (signup/reset) + password hashing
+- Login with lockout
+- Session utilities (iron-session)
+- `/auth/*` pages for signup, verify, create-password, login, reset
 
 ### Phase 2 — Student Experience ✅
-
-- [x] Build `/student/today` with journal form
-- [x] Build `/student/history` with attendance indicators
-- [x] Create student API routes for entries
-- [x] Implement timezone handling and `on_time` calculation
+- `/student/today` journal form (per classroom)
+- `/student/history` attendance indicators
+- Student entries API with Toronto timezone handling
 
 ### Phase 3 — Teacher Dashboard ✅
+- Attendance matrix + entry detail modal
+- CSV export
+- Class days management
 
-- [x] Build attendance matrix component
-- [x] Implement entry detail modal
-- [x] Create CSV export functionality
-- [x] Teacher API routes for attendance data
+### Phase 4 — Classrooms & Rosters ✅
+- Classroom CRUD + join codes/links
+- Student join by code
+- Roster CSV upload + enrollment checks
+- Class days per classroom
 
-### Phase 4 — Tests & Polish 🔄
+### Phase 5 — Assignments ✅ (core)
+- Assignment creation per classroom
+- Student editor with autosave, submit/unsubmit
+- Teacher read-only view + submission stats
 
-- [ ] Write unit tests for core utilities
-- [ ] Add component tests
+### Phase 6 — Tests & Polish 🔄
+- [ ] Increase unit/API coverage (auth, classrooms, assignments, attendance)
 - [ ] Security hardening review
-- [ ] Documentation cleanup
+- [ ] Documentation cleanup and drift prevention
+- [ ] Optional component/integration tests
 
 ---
 
 ## Future Features
 
-See [guidance.md](guidance.md) for detailed specifications on upcoming features:
-
-- **Assignments System**: Teachers create assignments with due dates
-- **Online Editor**: Students work on assignments in an autosaving editor
-- **Submission Workflow**: Submit/unsubmit with late detection
-- **Teacher Work Review**: Read-only view of student submissions
-
-These features will be broken into GitHub issues for iterative implementation.
+- Production-ready email delivery
+- Late status display and richer attendance analytics
+- Regional holiday configuration
+- Notifications (missed entries, due dates)
+- Editor history/versioning (for assignments)
 
 ---
 
 ## Deployment
 
-**Target**: Vercel
-
-**Steps**:
-1. Create Supabase project and apply migrations
-2. Configure environment variables in Vercel
-3. Connect GitHub repo to Vercel project
-4. Deploy automatically on push to main
-
-**Database**: Use Supabase hosted Postgres (not local)  
-**Email**: Configure real SMTP for production (mock in development)
+- Target: Vercel + Supabase
+- Steps: apply migrations, configure env vars, deploy on push to `main`
+- Email: mock in dev; wire provider before production

@@ -51,12 +51,12 @@ We use a **TDD-first approach** for core logic and a pragmatic approach for UI.
 
 ### 3.1 Attendance Logic (`src/lib/attendance.ts`)
 
-Test the `computeAttendanceStatusForStudent()` function:
+Test the `computeAttendanceStatusForStudent()` function (present/absent only):
 
 - **No entries** → all class days marked `absent`
 - **On-time entries** → marked `present`
-- **Late entries** → marked `late`
 - **Mixed scenarios** → correct status per day
+- **is_class_day=false** → skipped (remains absent)
 - **Edge cases**: empty class days, empty entries
 
 **TDD Flow**: Write these tests BEFORE implementing the function.
@@ -74,13 +74,14 @@ Test the `isOnTime()` function:
 
 ### 3.3 Authentication (`src/lib/auth.ts`, `src/lib/crypto.ts`)
 
-Test code generation, hashing, and verification:
+Test password-based flows:
 
-- `generateCode()` produces valid codes
-- `hashCode()` uses bcrypt correctly
-- `verifyCode()` validates against hash
-- **Rate limiting** enforced (max attempts)
-- **Expiry** handled correctly (10min window)
+- `generateVerificationCode()` length/charset
+- `hashPassword`/`verifyPassword` bcrypt behavior
+- `isTeacherEmail` domains and `DEV_TEACHER_EMAILS`
+- Login lockout (5 attempts → 15 minute block)
+- Session cookie options (secure/sameSite/httpOnly)
+- `validatePassword` rules
 
 **TDD Flow**: Write tests for each function before implementation.
 
@@ -90,39 +91,50 @@ Test code generation, hashing, and verification:
 
 **Location**: `tests/api/` (mirrors `src/app/api/`)
 
-### 4.1 Authentication Routes
-
-- `/api/auth/request-code`: code generation, hashing, rate limiting
-- `/api/auth/verify-code`: validation, session creation, expiry
+### 4.1 Authentication Routes (primary)
+- `/api/auth/signup` → stores verification code, respects per-hour limit
+- `/api/auth/verify-signup` → attempts/expiry checks, role selection
+- `/api/auth/create-password` → hashes password, creates session
+- `/api/auth/login` → lockout after 5 failed attempts
+- `/api/auth/forgot-password` → reset code issuance
+- `/api/auth/reset-password/verify` + `/confirm` → code checks + password update
+- Session cookie behavior (httpOnly, secure in prod, SameSite=Lax)
 
 ### 4.2 Student Routes
-
-- `/api/student/entries`: CRUD operations for journal entries
-- Timezone handling on `on_time` calculation
+- `/api/student/classrooms` + `/join` + `/[id]` → enrollment checks, duplicate joins
+- `/api/student/entries` → upsert per classroom/date, `on_time` in America/Toronto
+- `/api/student/assignments` → status computation per assignment/doc
 
 ### 4.3 Teacher Routes
+- `/api/teacher/classrooms` + `/[id]` + `/[id]/roster` → ownership + roster upload behavior
+- `/api/teacher/class-days` → classroom scoping, holiday/weekend rules
+- `/api/teacher/attendance` → aggregation matches `computeAttendanceRecords`
+- `/api/teacher/export-csv` → correct headers/rows for selected classroom
+- `/api/teacher/assignments` + `/[id]` → classroom scoping, stats (submitted/late)
+- `/api/teacher/entry/[id]` → role-based access
 
-- `/api/teacher/attendance`: fetch attendance data
-- CSV export functionality
+### 4.4 Assignment Docs
+- `/api/assignment-docs/[id]` → fetch/update only for owner student or classroom teacher
+- `/submit` and `/unsubmit` → submitted_at handling, status transitions, late/on-time logic
 
-**TDD Approach**: Mock Supabase client, test route logic in isolation.
+### 5. Integration & Smoke Tests
 
----
-
-## 5. Integration & Smoke Tests
-
-**Location**: `tests/integration/`
+**Location**: `tests/integration/` (or Playwright)
 
 Focus on **critical user flows**:
 
 1. **Student flow**:
-   - Login with email code
+   - Signup → verify email → create password → login
+   - Join classroom via code
    - Submit journal entry
+   - Open assignment, autosave content, submit, unsubmit
    - Verify attendance status updates
 
 2. **Teacher flow**:
-   - Login
+   - Login with password
    - View attendance dashboard
+   - Upload roster CSV, see students appear
+   - Create assignment and see student statuses update after submit/unsubmit
    - Export CSV
 
 **Tools**: Consider Playwright for 1-2 E2E tests (optional).
@@ -137,7 +149,8 @@ Keep UI tests **minimal** and focused on critical interactions:
 
 - Student daily form renders and submits
 - Teacher dashboard displays attendance matrix
-- Attendance icons (🟢🟡🔴) show correct status
+- Attendance icons (🟢/🔴) show correct status
+- Assignment editor autosave/save-state indicator works
 
 **Philosophy**: Prefer testing business logic over UI. Keep views thin.
 
@@ -218,4 +231,3 @@ When NOT to update:
 - Minor refactors
 
 **Remember**: This file is a **map**, not a strict checklist. Favor updating tests and code before updating this document.
-

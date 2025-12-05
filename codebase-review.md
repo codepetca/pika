@@ -1,5 +1,7 @@
 # Pika Codebase Review - Alignment with Documentation
 
+_Note: This review reflected an earlier state. Tests and assignments/classroom features are now implemented; consult `/docs/core/tests.md` and `/docs/core/roadmap.md` for the current snapshot._
+
 ## Executive Summary
 
 Conducted comprehensive review of the Pika codebase against documentation (`docs/core/`). Identified critical gaps in:
