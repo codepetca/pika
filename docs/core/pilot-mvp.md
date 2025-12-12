@@ -45,6 +45,7 @@ Tabs should be context-specific (actions live inside their relevant tab).
 - Support:
   - **Day view** (one day at a time)
   - **Month view** (compact grid)
+- Cutoff: unsubmitted entries become **absent** after **midnight America/Toronto**.
 - Non-class days should appear as **disabled** (not counted).
 - Color semantics (for class days):
   - **Green:** present (submitted at least once, non-empty)
@@ -63,11 +64,13 @@ Tabs should be context-specific (actions live inside their relevant tab).
 - CSV upload is the only supported roster input for MVP.
 - CSV columns (4): `Student Number`, `First Name`, `Last Name`, `Email`
 - Re-upload behavior: **merge/add only**.
+- Enrollment is restricted to **roster emails** (board-issued student emails).
 - Teacher can remove a student from the roster at any time:
   - removal immediately removes access to the classroom and disappears from teacher views
   - does not prevent login overall (they may still be in other classrooms in the future)
   - removed students can be re-added later
 - Add a settings toggle: **allow/disallow enrollment** (join code works only when enabled).
+- Consider adding an optional teacher action to **email invites** (join link + code) to roster emails via Brevo.
 
 ## Assignments
 - Due dates are supported but optional.
@@ -84,6 +87,7 @@ To support automated history analysis, MVP should treat **Pika as the primary dr
   - an AI-generated summary of writing activity and/or content
   - a simple activity visualization (timeline / word-count over time / paste-event markers)
 - Visibility: teacher-only by default; optionally enable for students.
+- Summaries should run **on-demand** and **nightly after midnight** (America/Toronto).
 
 ## Out of Scope (for MVP)
 - Manual roster add/edit UI (beyond CSV upload + remove)
@@ -93,6 +97,5 @@ To support automated history analysis, MVP should treat **Pika as the primary dr
 
 ## Open Questions
 - What AI provider/model is acceptable for summaries (privacy + cost)?
-- Exact cutoff definition for gray → red (midnight America/Toronto vs configurable).
+- Nightly summarization: exact schedule time + which docs trigger recompute.
 - Exact rich-text editor scope for MVP (minimum formatting set).
-

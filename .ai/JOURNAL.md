@@ -73,3 +73,15 @@
 **Next:** Convert open questions into scoped issues and implement Phase 6 (tests/polish) + pilot UX upgrades against staging
 **Blockers:** None
 ---
+
+---
+## 2025-12-12 18:36 [AI - GPT-5.2]
+**Goal:** Incorporate pilot clarifications
+**Completed:** Updated pilot MVP spec with midnight cutoff, roster-restricted enrollment, and summary scheduling expectations
+**Status:** completed
+**Artifacts:**
+- PRs: #10
+- Files: `docs/core/pilot-mvp.md`
+**Next:** Confirm AI provider/model + nightly schedule time/scope; implement enrollment gating + summary jobs against staging
+**Blockers:** None
+---
