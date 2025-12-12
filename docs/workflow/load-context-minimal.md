@@ -24,6 +24,8 @@ This is a **lightweight version** of the full context load. Use this for most da
 
 ## Files to Load (in order)
 
+If starting a new session, first read: `/.ai/START-HERE.md` (verify environment + journal).
+
 1. **`/docs/ai-instructions.md`** — AI orchestrator (entry point + constraints)
 2. **`/docs/core/architecture.md`** — System architecture patterns
 
@@ -34,7 +36,7 @@ This is a **lightweight version** of the full context load. Use this for most da
 - tests.md (TDD workflow)
 - roadmap.md (current status)
 
-**Note**: CLAUDE.md is always auto-loaded and contains essential quick reference.
+**Note**: `CLAUDE.md` is always auto-loaded and contains essential quick reference.
 
 ---
 

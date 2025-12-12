@@ -1,4 +1,4 @@
-# Pika — GitHub Issue Workflow
+# Pika — GitHub Issue Workflow (Quick Pointer)
 
 When the user says "work on issue #X", follow this sequence:
 
@@ -10,13 +10,9 @@ gh issue view X --json number,title,body,labels
 
 ## 2. Read Required Documentation
 
-Read in this exact order:
-1. `/docs/core/design.md` — Architecture and UI/UX guidelines
-2. `/docs/core/agents.md` — AI agent instructions
-3. `/docs/core/tests.md` — TDD workflow and testing requirements
-4. `/docs/core/roadmap.md` — Current implementation status
-5. Relevant `/docs/guidance/` files (e.g., `assignments.md`)
-6. The issue body with requirements
+1. Read `/.ai/START-HERE.md`
+2. Read `docs/ai-instructions.md` and follow its required reading order
+3. Follow `docs/issue-worker.md` (full protocol)
 
 ## 3. Summarize the Plan
 

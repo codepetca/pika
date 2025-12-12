@@ -1,0 +1,105 @@
+name: Auto-Journal PR Events
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+jobs:
+  journal:
+    # Only run for PRs from branches in the same repo (GITHUB_TOKEN can't push to forks),
+    # and skip draft PR opens (we only want events that will merge through PR workflow).
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'opened' || github.event.pull_request.draft == false)
+    runs-on: ubuntu-latest
+    concurrency:
+      group: journal-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure local branch
+        run: |
+          git fetch origin "${{ github.head_ref }}" --force
+          git checkout -B "${{ github.head_ref }}" "origin/${{ github.head_ref }}"
+
+      - name: Check journal file exists
+        run: |
+          if [[ ! -f ".ai/JOURNAL.md" ]]; then
+            echo "Missing .ai/JOURNAL.md" >&2
+            exit 1
+          fi
+
+      - name: Check if journal entry already exists
+        id: check_journal
+        run: |
+          MARKER="PR-${{ github.event.action }} #${{ github.event.pull_request.number }}"
+          if grep -qF "$MARKER" .ai/JOURNAL.md 2>/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "marker=$MARKER" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Append journal entry
+        if: steps.check_journal.outputs.exists == 'false'
+        run: |
+          ACTION="${{ github.event.action }}"
+          if [[ "$ACTION" == "ready_for_review" ]]; then
+            EVENT="PR-READY"
+          else
+            EVENT="PR-OPENED"
+          fi
+
+          cat >> .ai/JOURNAL.md << EOF
+
+---
+## $(TZ=America/Toronto date '+%Y-%m-%d %H:%M') [GITHUB-EVENT]
+**Event:** $EVENT (${{ steps.check_journal.outputs.marker }})
+**Title:** ${{ github.event.pull_request.title }}
+**By:** ${{ github.event.pull_request.user.login }}
+**Branch:** ${{ github.head_ref }} → ${{ github.base_ref }}
+**URL:** ${{ github.event.pull_request.html_url }}
+---
+EOF
+
+      - name: Commit and push journal
+        if: steps.check_journal.outputs.exists == 'false'
+        run: |
+          git config user.name "pika journal bot"
+          git config user.email "journal-bot@users.noreply.github.com"
+
+          if [[ -n "$(git status -s .ai/JOURNAL.md)" ]]; then
+            git add .ai/JOURNAL.md
+            git commit -m "docs: auto-journal PR #${{ github.event.pull_request.number }} (${{ github.event.action }})"
+
+            # Avoid intermittent failures when PR metadata changes quickly (e.g. opened → ready_for_review),
+            # or when multiple workflow runs attempt to push around the same time.
+            max_retries=5
+            attempt=1
+            while true; do
+              if git push origin "HEAD:${{ github.head_ref }}"; then
+                break
+              fi
+
+              if [[ "$attempt" -ge "$max_retries" ]]; then
+                echo "Failed to push journal update after $max_retries attempts." >&2
+                exit 1
+              fi
+
+              attempt=$((attempt + 1))
+              echo "Push failed; retrying ($attempt/$max_retries)..." >&2
+
+              git fetch origin "${{ github.head_ref }}" --force
+              git pull --rebase origin "${{ github.head_ref }}"
+            done
+          fi

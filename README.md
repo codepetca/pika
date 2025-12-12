@@ -2,6 +2,21 @@
 
 Next.js application for classroom attendance, daily journals, and assignment submissions backed by Supabase.
 
+## For AI Agents
+
+Start with: `.ai/START-HERE.md`
+
+Key docs:
+- `docs/ai-instructions.md` (required reading order + constraints)
+- `docs/core/architecture.md` (architecture invariants)
+- `docs/issue-worker.md` (issue workflow)
+
+Feature/status tracking:
+```bash
+node scripts/features.mjs summary
+node scripts/features.mjs next
+```
+
 ## Features
 
 ### For Students
