@@ -8,7 +8,9 @@ The docs follow a strict multi-layer structure so that AI assistants can work co
 
 ## Quick Start for AI Agents
 
-**START HERE**: [ai-instructions.md](ai-instructions.md) — Your primary entry point!
+**START HERE**: [`/.ai/START-HERE.md`](/.ai/START-HERE.md)
+
+Then read: [ai-instructions.md](ai-instructions.md) — Your primary entry point for project rules.
 
 This file provides:
 - Required reading order (7 core files)
@@ -27,6 +29,10 @@ This file provides:
 /docs
 ├── ai-instructions.md          # AI orchestrator (entry point)
 │
+├── issue-author.md             # How to write implementation-ready issues
+├── issue-worker.md             # How to execute issues safely (plan gating + TDD)
+├── code-reviewer.md            # How to review PRs
+│
 ├── /core                        # Stable, long-lived reference docs
 │   ├── architecture.md         # System architecture & patterns
 │   ├── design.md               # UI/UX guidelines
@@ -34,6 +40,7 @@ This file provides:
 │   ├── agents.md               # Multi-agent collaboration (6 personas)
 │   ├── tests.md                # TDD philosophy & testing priorities
 │   └── roadmap.md              # Phase-based implementation tracking
+│   └── decision-log.md          # Durable summary of historical decisions
 │
 ├── /guidance                    # Domain/feature-level guidance
 │   └── assignments.md          # Assignments feature spec
@@ -178,6 +185,7 @@ Individual task files with acceptance criteria:
 
 Before modifying code, any AI assistant must read these **in this exact order**:
 
+0. **[/.ai/START-HERE.md](/.ai/START-HERE.md)** — session ritual (verify env, journal, feature status)
 1. **[/docs/ai-instructions.md](/docs/ai-instructions.md)** — AI orchestrator ⭐ START HERE
 2. **[/docs/core/architecture.md](/docs/core/architecture.md)** — System architecture
 3. **[/docs/core/design.md](/docs/core/design.md)** — UI/UX guidelines
@@ -185,6 +193,9 @@ Before modifying code, any AI assistant must read these **in this exact order**:
 5. **[/docs/core/agents.md](/docs/core/agents.md)** — Multi-agent collaboration
 6. **[/docs/core/tests.md](/docs/core/tests.md)** — TDD requirements
 7. **[/docs/core/roadmap.md](/docs/core/roadmap.md)** — Current status
+
+Optional (as needed):
+8. **[/docs/core/decision-log.md](/docs/core/decision-log.md)** — Historical decisions and rationale
 
 Then consult:
 8. Relevant **[/docs/guidance/*.md](/docs/guidance/)** files (feature specs as needed)

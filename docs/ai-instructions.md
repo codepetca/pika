@@ -1,6 +1,8 @@
 # AI Instructions for Pika
 
-This is your **primary entry point** for working on the Pika project. Read this file when starting a new session or when load-context is triggered.
+This is your **primary entry point** for working on the Pika project.
+
+If you are starting a new session, **first read** `.ai/START-HERE.md` (environment check + journal + workflow), then come back here.
 
 ---
 
@@ -37,7 +39,7 @@ Then consult:
 ### Tech Stack
 - **Framework**: Next.js 14+ (App Router, TypeScript)
 - **Database**: Supabase (PostgreSQL)
-- **Authentication**: Passwordless email codes (custom, NOT OAuth)
+- **Authentication**: Email verification codes (signup/reset) + password login (**NO OAuth**)
 - **Styling**: Tailwind CSS
 - **Testing**: Vitest + React Testing Library
 - **Deployment**: Vercel
@@ -74,7 +76,7 @@ This TDD approach ensures code quality and prevents regressions.
 - Next.js App Router (NOT Pages Router)
 - Supabase for database and storage
 - America/Toronto timezone for all deadlines
-- Passwordless email codes (NO OAuth providers)
+- Email verification codes (signup/reset) + password login (NO OAuth providers)
 - Tailwind CSS for styling
 - Vitest + React Testing Library for tests
 
@@ -127,7 +129,7 @@ This TDD approach ensures code quality and prevents regressions.
 
 1. Run: `gh issue view X --json number,title,body,labels`
 2. Follow reading order above
-3. Read workflow/handle-issue.md for detailed steps
+3. Follow `docs/issue-worker.md` (protocol) and `docs/workflow/handle-issue.md` (quick pointer)
 4. Create branch: `issue/X-slug`
 5. Follow TDD workflow
 6. Create PR with "Closes #X"

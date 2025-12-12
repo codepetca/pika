@@ -6,7 +6,9 @@ When the user says "load context" or starts a new session, load the AI instructi
 
 ## Primary Entry Point
 
-**Always start here**: `/docs/ai-instructions.md`
+If starting a new session, first read: `/.ai/START-HERE.md`
+
+Then start here: `/docs/ai-instructions.md`
 
 This file provides:
 - Required reading order for all core documentation
@@ -28,6 +30,7 @@ Follow the reading order specified in `ai-instructions.md`:
 5. **`/docs/core/agents.md`** — Multi-agent collaboration patterns
 6. **`/docs/core/tests.md`** — TDD requirements
 7. **`/docs/core/roadmap.md`** — Current implementation status
+8. **`/docs/core/decision-log.md`** — Historical decisions (optional, as needed)
 
 ---
 
@@ -46,6 +49,7 @@ Loaded AI instructions and core documentation:
 - Multi-agent collaboration (6 specialized agents)
 - TDD requirements (100% core coverage, test-first workflow)
 - Current roadmap (MVP complete, tests in progress)
+- AI continuity layer (`.ai/`): journal + feature inventory
 
 What would you like to work on?
 ```
