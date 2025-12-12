@@ -44,7 +44,7 @@ node scripts/features.mjs next
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - Supabase project (cloud or local)
 - Git
 
