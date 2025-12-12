@@ -62,3 +62,14 @@
 **Next:** None
 **Blockers:** None
 ---
+
+---
+## 2025-12-12 17:57 [AI - GPT-5.2]
+**Goal:** Preserve pilot MVP direction decisions
+**Completed:** Captured current pilot requirements, UX direction, and scope boundaries in durable docs
+**Status:** completed
+**Artifacts:**
+- Files: `docs/core/pilot-mvp.md`
+**Next:** Convert open questions into scoped issues and implement Phase 6 (tests/polish) + pilot UX upgrades against staging
+**Blockers:** None
+---
