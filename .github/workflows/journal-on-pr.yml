@@ -12,6 +12,9 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.action != 'opened' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
+    concurrency:
+      group: journal-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     permissions:
       contents: write
       pull-requests: read
@@ -60,7 +63,7 @@ jobs:
           cat >> .ai/JOURNAL.md << EOF
 
 ---
-## $(date '+%Y-%m-%d %H:%M') [GITHUB-EVENT]
+## $(TZ=America/Toronto date '+%Y-%m-%d %H:%M') [GITHUB-EVENT]
 **Event:** $EVENT (${{ steps.check_journal.outputs.marker }})
 **Title:** ${{ github.event.pull_request.title }}
 **By:** ${{ github.event.pull_request.user.login }}
@@ -78,6 +81,25 @@ EOF
           if [[ -n "$(git status -s .ai/JOURNAL.md)" ]]; then
             git add .ai/JOURNAL.md
             git commit -m "docs: auto-journal PR #${{ github.event.pull_request.number }} (${{ github.event.action }})"
-            git push origin "HEAD:${{ github.head_ref }}"
-          fi
 
+            # Avoid intermittent failures when PR metadata changes quickly (e.g. opened → ready_for_review),
+            # or when multiple workflow runs attempt to push around the same time.
+            max_retries=5
+            attempt=1
+            while true; do
+              if git push origin "HEAD:${{ github.head_ref }}"; then
+                break
+              fi
+
+              if [[ "$attempt" -ge "$max_retries" ]]; then
+                echo "Failed to push journal update after $max_retries attempts." >&2
+                exit 1
+              fi
+
+              attempt=$((attempt + 1))
+              echo "Push failed; retrying ($attempt/$max_retries)..." >&2
+
+              git fetch origin "${{ github.head_ref }}" --force
+              git pull --rebase origin "${{ github.head_ref }}"
+            done
+          fi

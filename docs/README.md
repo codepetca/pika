@@ -39,8 +39,8 @@ This file provides:
 │   ├── project-context.md      # Tech stack & setup
 │   ├── agents.md               # Multi-agent collaboration (6 personas)
 │   ├── tests.md                # TDD philosophy & testing priorities
-│   └── roadmap.md              # Phase-based implementation tracking
-│   └── decision-log.md          # Durable summary of historical decisions
+│   ├── roadmap.md              # Phase-based implementation tracking
+│   └── decision-log.md         # Durable summary of historical decisions
 │
 ├── /guidance                    # Domain/feature-level guidance
 │   └── assignments.md          # Assignments feature spec

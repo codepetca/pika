@@ -39,3 +39,26 @@
 **Blockers:** None
 ---
 
+---
+## 2025-12-12 11:14 [AI - GPT-5.2]
+**Goal:** Apply PR 9 review follow-ups
+**Completed:** Fixed docs tree formatting; set PR journal timestamps to America/Toronto
+**Status:** completed
+**Artifacts:**
+- PRs: #9
+- Files: `docs/README.md`, `.github/workflows/journal-on-pr.yml`
+**Next:** None
+**Blockers:** None
+---
+
+---
+## 2025-12-12 11:14 [AI - GPT-5.2]
+**Goal:** Harden PR journaling workflow
+**Completed:** Added workflow concurrency + push retry to avoid race failures; configured union merges for `.ai/JOURNAL.md`
+**Status:** completed
+**Artifacts:**
+- PRs: #9
+- Files: `.github/workflows/journal-on-pr.yml`, `.gitattributes`
+**Next:** None
+**Blockers:** None
+---
