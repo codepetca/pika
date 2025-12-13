@@ -3,6 +3,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { computeAttendanceRecords } from '@/lib/attendance'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * GET /api/teacher/attendance?classroom_id=xxx
  * Fetches attendance data for all students in a classroom

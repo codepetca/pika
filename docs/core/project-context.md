@@ -40,7 +40,7 @@ Overview of **Pika**: daily journals, attendance, classrooms, and assignments fo
 
 ## Getting Started
 
-**Prereqs**: Node 22+, Supabase project, git.
+**Prereqs**: Node 22.x, Supabase project, git.
 
 **Setup**
 1. `npm install`
@@ -106,7 +106,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 ## Troubleshooting
 
-- **Server won’t start**: check Node 22+, `.env.local`, clear `.next`.
+- **Server won’t start**: check Node 22.x, `.env.local`, clear `.next`.
 - **Supabase issues**: verify keys, ensure migrations applied, review RLS if access errors.
 - **Emails not arriving**: ensure mock mode expected; otherwise implement provider in `email.ts`.
 - **Timezone/attendance**: ensure server runs with America/Toronto assumptions; tests cover DST via `date-fns-tz`.

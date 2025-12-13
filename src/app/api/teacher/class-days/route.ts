@@ -5,6 +5,9 @@ import { generateClassDays, generateClassDaysFromRange } from '@/lib/calendar'
 import { parse } from 'date-fns'
 import type { Semester } from '@/types'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * GET /api/teacher/class-days?classroom_id=xxx&semester=semester1&year=2024
  * Fetches class days for a classroom

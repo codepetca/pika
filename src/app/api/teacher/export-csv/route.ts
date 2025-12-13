@@ -3,6 +3,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { computeAttendanceRecords } from '@/lib/attendance'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * GET /api/teacher/export-csv?classroom_id=xxx
  * Exports attendance data as CSV

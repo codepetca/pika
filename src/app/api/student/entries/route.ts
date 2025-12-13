@@ -4,6 +4,9 @@ import { requireRole } from '@/lib/auth'
 import { isOnTime } from '@/lib/timezone'
 import type { MoodEmoji } from '@/types'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 /**
  * GET /api/student/entries?classroom_id=xxx
  * Fetches all entries for the current student
