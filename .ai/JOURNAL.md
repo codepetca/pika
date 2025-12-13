@@ -140,3 +140,13 @@
 **Next:** Redeploy on Vercel; set Node version to 22 in Vercel settings to avoid future major auto-upgrades
 **Blockers:** None
 ---
+
+## 2025-12-13 10:02 [AI - GPT-5.2]
+**Goal:** Fix Vercel `DYNAMIC_SERVER_USAGE` build errors
+**Completed:** Forced authenticated GET API routes to render dynamically (`dynamic = 'force-dynamic'`, `revalidate = 0`) so Next.js doesn’t attempt static prerendering on cookie-backed endpoints during build
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/api/auth/me/route.ts`, `src/app/api/student/assignments/route.ts`, `src/app/api/student/classrooms/route.ts`, `src/app/api/student/classrooms/[id]/route.ts`, `src/app/api/student/entries/route.ts`, `src/app/api/assignment-docs/[id]/route.ts`, `src/app/api/teacher/class-days/route.ts`, `src/app/api/teacher/classrooms/route.ts`, `src/app/api/teacher/classrooms/[id]/route.ts`, `src/app/api/teacher/classrooms/[id]/roster/route.ts`, `src/app/api/teacher/attendance/route.ts`, `src/app/api/teacher/export-csv/route.ts`, `src/app/api/teacher/entry/[id]/route.ts`, `src/app/api/teacher/assignments/route.ts`, `src/app/api/teacher/assignments/[id]/route.ts`, `src/app/api/teacher/assignments/[id]/students/[studentId]/route.ts`
+**Next:** Redeploy on Vercel and confirm build logs are clean; if you still see an error at runtime, share the exact message + URL so we can fix the actual root cause (often missing `SESSION_SECRET`/Supabase env vars)
+**Blockers:** None
+---
