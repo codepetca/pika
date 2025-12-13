@@ -89,11 +89,23 @@
 ---
 ## 2025-12-12 21:59 [AI - GPT-5.2]
 **Goal:** Lock AI summary decisions
-**Completed:** Updated pilot MVP spec to use OpenAI `gpt-5-nano` and run nightly summary batches at 1:00am America/Toronto (changed docs only)
+**Completed:** Updated pilot MVP spec to use OpenAI `gpt-5-mini` and run nightly summary batches at 1:00am America/Toronto for submitted assignment docs only (changed docs only)
 **Status:** completed
 **Artifacts:**
 - PRs: #10
 - Files: `docs/core/pilot-mvp.md`
 **Next:** Implement assignment/doc history + summary job scheduling and storage (on-demand + nightly) on staging
+**Blockers:** None
+---
+
+---
+## 2025-12-12 22:07 [AI - GPT-5.2]
+**Goal:** Refine AI summary scope
+**Completed:** Clarified summaries are for assignments only; nightly batch runs only for submitted docs that changed since last summary
+**Status:** completed
+**Artifacts:**
+- PRs: #10
+- Files: `docs/core/pilot-mvp.md`
+**Next:** Confirm whether on-demand summaries are allowed for drafts, or only for submitted docs
 **Blockers:** None
 ---
