@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/login/route'
 import { NextRequest } from 'next/server'
-import * as loginRoute from '@/app/api/auth/login/route'
+import { loginAttempts } from '@/lib/login-lockout'
 
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
@@ -42,7 +42,7 @@ describe('POST /api/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Reset in-memory login attempts between tests
-    ;(loginRoute as any).loginAttempts?.clear?.()
+    loginAttempts.clear()
   })
 
   // ==========================================================================

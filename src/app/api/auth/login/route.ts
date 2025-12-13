@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { verifyPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
-
-const MAX_LOGIN_ATTEMPTS = 5
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
-
-// In-memory store for login attempts (in production, use Redis or DB)
-export const loginAttempts = new Map<string, { count: number; lockedUntil: number | null }>()
+import { clearExpiredLockout, getLockoutMinutesLeft, incrementLoginAttempts, loginAttempts } from '@/lib/login-lockout'
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,15 +19,11 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.toLowerCase().trim()
 
     // Remove expired lockouts
-    const existingAttempts = loginAttempts.get(normalizedEmail)
-    if (existingAttempts?.lockedUntil && Date.now() >= existingAttempts.lockedUntil) {
-      loginAttempts.delete(normalizedEmail)
-    }
+    clearExpiredLockout(normalizedEmail)
 
     // Check if account is locked
-    const attempts = loginAttempts.get(normalizedEmail)
-    if (attempts?.lockedUntil && Date.now() < attempts.lockedUntil) {
-      const minutesLeft = Math.ceil((attempts.lockedUntil - Date.now()) / 60000)
+    const minutesLeft = getLockoutMinutesLeft(normalizedEmail)
+    if (minutesLeft !== null) {
       return NextResponse.json(
         { error: `Too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.` },
         { status: 429 }
@@ -105,29 +96,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-function incrementLoginAttempts(email: string) {
-  const attempts = loginAttempts.get(email) || { count: 0, lockedUntil: null }
-  attempts.count++
-
-  if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
-    attempts.lockedUntil = Date.now() + LOCKOUT_DURATION_MS
-    setTimeout(() => {
-      const current = loginAttempts.get(email)
-      if (current && current.lockedUntil && Date.now() >= current.lockedUntil) {
-        loginAttempts.delete(email)
-      }
-    }, LOCKOUT_DURATION_MS + 10)
-  }
-
-  loginAttempts.set(email, attempts)
-
-  // Clean up old entries after 1 hour
-  setTimeout(() => {
-    const current = loginAttempts.get(email)
-    if (current && current.lockedUntil && Date.now() > current.lockedUntil) {
-      loginAttempts.delete(email)
-    }
-  }, 60 * 60 * 1000)
 }
