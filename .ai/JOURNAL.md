@@ -129,3 +129,14 @@
 **Next:** Ensure Vercel staging/production is configured to use Node 22+
 **Blockers:** None
 ---
+
+---
+## 2025-12-12 22:39 [AI - GPT-5.2]
+**Goal:** Adopt Vercel Cron for nightly summaries
+**Completed:** Added `vercel.json` cron schedules (05:00/06:00 UTC for 1am Toronto across DST), implemented a protected cron endpoint with `CRON_SECRET`, documented env vars + staging trigger, and added API tests
+**Status:** completed
+**Artifacts:**
+- Files: `vercel.json`, `src/app/api/cron/nightly-assignment-summaries/route.ts`, `tests/api/cron/nightly-assignment-summaries.test.ts`, `.env.example`, `README.md`, `docs/core/project-context.md`, `docs/core/pilot-mvp.md`
+**Next:** Implement assignment AI summary generation + “changed since last summary” storage and nightly batch processing
+**Blockers:** None
+---
