@@ -14,8 +14,8 @@ import { generateClassDays } from '../src/lib/calendar'
 import { config } from 'dotenv'
 import { resolve } from 'path'
 
-// Load environment variables from .env.local
-config({ path: resolve(process.cwd(), '.env.local') })
+const envFile = process.env.ENV_FILE || '.env.local'
+config({ path: resolve(process.cwd(), envFile) })
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY!

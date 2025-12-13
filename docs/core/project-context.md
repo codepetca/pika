@@ -48,6 +48,7 @@ Overview of **Pika**: daily journals, attendance, classrooms, and assignments fo
 3. Apply migrations `001`–`008` (users, verification codes, class days, entries, auth refactor, classrooms, assignments, legacy cleanup) via Supabase dashboard or `supabase db push`.
 4. `npm run dev` and open http://localhost:3000
 5. Optional: `npm run seed`
+   - To wipe + reseed against a specific env file: `ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true npm run seed:fresh`
 
 Email sending is mocked (`ENABLE_MOCK_EMAIL=true` logs codes). Wire a provider in `src/lib/email.ts` for production.
 
