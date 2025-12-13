@@ -187,3 +187,13 @@
 **Next:** Re-deploy staging; create the two production cron schedules (05:00 and 06:00 UTC) in the Vercel dashboard
 **Blockers:** None
 ---
+
+## 2025-12-13 15:05 [AI - GPT-5.2]
+**Goal:** Simplify cron schedule (single UTC time)
+**Completed:** Updated docs and cron endpoint window check to assume a single `0 6 * * *` schedule (06:00 UTC); accept 1–2am Toronto for DST tolerance
+**Status:** completed
+**Artifacts:**
+- Files: `README.md`, `docs/core/pilot-mvp.md`, `docs/core/project-context.md`, `src/app/api/cron/nightly-assignment-summaries/route.ts`
+**Next:** Configure the single cron schedule in Vercel dashboard; keep staging enabled only while validating, then disable to free cron quota
+**Blockers:** None
+---

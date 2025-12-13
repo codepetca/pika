@@ -93,7 +93,7 @@ To support automated history analysis, MVP should treat **Pika as the primary dr
 - AI model: **OpenAI `gpt-5-mini`** (configurable).
 - On-demand summarization should return cached results unless the assignment doc has changed since the last summary.
 - Nightly batch recomputes summaries only for **submitted** assignment docs changed since last summary.
-- Scheduled execution: Vercel Cron (configured in Vercel dashboard for **production only**) → `GET /api/cron/nightly-assignment-summaries` (protected via `CRON_SECRET`).
+- Scheduled execution: Vercel Cron (configured in Vercel dashboard; production recommended) at `0 6 * * *` (06:00 UTC; 1:00am Toronto in winter, 2:00am in summer) → `GET /api/cron/nightly-assignment-summaries` (protected via `CRON_SECRET`).
 - Manual staging trigger (non-production only):
   - `curl -X POST \"$NEXT_PUBLIC_APP_URL/api/cron/nightly-assignment-summaries?force=1\" -H \"Authorization: Bearer $CRON_SECRET\"`
 

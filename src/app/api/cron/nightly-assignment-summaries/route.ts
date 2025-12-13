@@ -15,11 +15,12 @@ function isProdEnv(): boolean {
 }
 
 function isWithinNightlyWindowToronto(date: Date): boolean {
-  // We schedule two UTC cron triggers (05:00 + 06:00 UTC) to hit 1am Toronto across DST.
+  // Cron is scheduled at 06:00 UTC (configured in the Vercel dashboard).
+  // That’s 1:00am Toronto in winter (EST) and 2:00am in summer (EDT).
   // Allow a small minute window for scheduling jitter.
   const hour = Number(formatInTimeZone(date, TIMEZONE, 'H'))
   const minute = Number(formatInTimeZone(date, TIMEZONE, 'm'))
-  return hour === 1 && minute < 10
+  return (hour === 1 || hour === 2) && minute < 10
 }
 
 async function handle(request: NextRequest) {

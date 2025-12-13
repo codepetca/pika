@@ -102,6 +102,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 - Host on Vercel; configure env vars in dashboard; set `ENABLE_MOCK_EMAIL=false` and add real email provider before production.
 - Supabase Cloud for DB; enable connection pooling; run migrations on deploy.
+- If using cron, configure schedules in the Vercel dashboard (production recommended). Current recommended schedule: `0 6 * * *` (06:00 UTC).
 
 ---
 
