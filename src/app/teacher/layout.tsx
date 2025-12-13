@@ -26,10 +26,10 @@ export default async function TeacherLayout({
             <div className="flex items-center space-x-6">
               <Image src="/pika_silhouette.png" alt="Pika" width={40} height={40} className="object-contain" />
               <Link
-                href="/teacher/dashboard"
+                href="/classrooms"
                 className="text-gray-700 hover:text-gray-900"
               >
-                Dashboard
+                Classrooms
               </Link>
               <Link
                 href="/teacher/calendar"

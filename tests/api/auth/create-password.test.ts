@@ -138,6 +138,6 @@ describe('POST /api/auth/create-password', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
-    expect(data.redirectUrl).toBe('/student/today')
+    expect(data.redirectUrl).toBe('/classrooms')
   })
 })

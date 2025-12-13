@@ -15,7 +15,7 @@ export default async function ClassroomsLayout({
   }
 
   const isTeacher = user.role === 'teacher'
-  const homeLink = isTeacher ? '/teacher/dashboard' : '/student/today'
+  const homeLink = '/classrooms'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -27,10 +27,10 @@ export default async function ClassroomsLayout({
               {isTeacher ? (
                 <>
                   <Link
-                    href="/teacher/dashboard"
+                    href={homeLink}
                     className="text-gray-700 hover:text-gray-900"
                   >
-                    Dashboard
+                    Classrooms
                   </Link>
                   <Link
                     href="/teacher/calendar"
@@ -42,10 +42,10 @@ export default async function ClassroomsLayout({
               ) : (
                 <>
                   <Link
-                    href="/student/today"
+                    href={homeLink}
                     className="text-gray-700 hover:text-gray-900"
                   >
-                    Today
+                    Classrooms
                   </Link>
                   <Link
                     href="/student/history"

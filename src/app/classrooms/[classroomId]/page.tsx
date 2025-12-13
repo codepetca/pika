@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
+import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { TeacherClassroomView } from './TeacherClassroomView'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentHistoryTab } from './StudentHistoryTab'
@@ -28,8 +29,10 @@ export default function ClassroomPage() {
 
   const [classroom, setClassroom] = useState<Classroom | null>(null)
   const [user, setUser] = useState<UserInfo | null>(null)
+  const [teacherClassrooms, setTeacherClassrooms] = useState<Classroom[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -47,6 +50,7 @@ export default function ClassroomPage() {
         if (userData.user.role === 'teacher') {
           const classroomRes = await fetch(`/api/teacher/classrooms`)
           const classroomData = await classroomRes.json()
+          setTeacherClassrooms(classroomData.classrooms || [])
           const found = classroomData.classrooms?.find((c: Classroom) => c.id === classroomId)
 
           if (!found) {
@@ -129,14 +133,46 @@ export default function ClassroomPage() {
     router.replace(url.pathname + url.search)
   }
 
+  function switchClassroom(nextId: string) {
+    const nextTab = isTeacher ? activeTab : 'today'
+    router.push(`/classrooms/${nextId}?tab=${encodeURIComponent(nextTab)}`)
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-900">{classroom.title}</h1>
-        <p className="text-gray-600 mt-1">
-          Code: <span className="font-mono">{classroom.class_code}</span>
-          {classroom.term_label && ` • ${classroom.term_label}`}
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{classroom.title}</h1>
+            <p className="text-gray-600 mt-1">
+              Code: <span className="font-mono">{classroom.class_code}</span>
+              {classroom.term_label && ` • ${classroom.term_label}`}
+            </p>
+          </div>
+
+          {isTeacher && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={classroom.id}
+                onChange={(e) => switchClassroom(e.target.value)}
+                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm"
+              >
+                {teacherClassrooms.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
+                onClick={() => setShowCreateModal(true)}
+              >
+                + New
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm mb-6">
@@ -188,6 +224,17 @@ export default function ClassroomPage() {
           {activeTab === 'history' && <StudentHistoryTab classroom={classroom} />}
           {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
         </>
+      )}
+
+      {isTeacher && (
+        <CreateClassroomModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={(created) => {
+            setShowCreateModal(false)
+            router.push(`/classrooms/${created.id}?tab=attendance`)
+          }}
+        />
       )}
     </div>
   )
