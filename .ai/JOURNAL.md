@@ -195,5 +195,12 @@
 **Artifacts:**
 - Files: `README.md`, `docs/core/pilot-mvp.md`, `docs/core/project-context.md`, `src/app/api/cron/nightly-assignment-summaries/route.ts`
 **Next:** Configure the single cron schedule in Vercel dashboard; keep staging enabled only while validating, then disable to free cron quota
+## 2025-12-13 14:27 [AI - GPT-5.2]
+**Goal:** Start classroom shell UX
+**Completed:** Added `/classrooms/[id]` role-based tabs, a reusable date navigator, and new teacher daily Attendance + Logs views (with inline expand and expand-all); added `/api/teacher/logs` to power the Logs tab
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/page.tsx`, `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/app/classrooms/[classroomId]/StudentTodayTab.tsx`, `src/app/classrooms/[classroomId]/StudentHistoryTab.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`, `src/components/DateNavigator.tsx`, `src/app/api/teacher/logs/route.ts`, `src/lib/class-days.ts`, `src/lib/date-string.ts`
+**Next:** Move teacher roster/calendar/settings into their tabs and update navigation to prefer the classroom shell over legacy `/teacher/*` and `/student/*` pages
 **Blockers:** None
 ---
