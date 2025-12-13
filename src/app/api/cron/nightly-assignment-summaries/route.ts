@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { nowInToronto } from '@/lib/timezone'
+import { formatInTimeZone } from 'date-fns-tz'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+const TIMEZONE = 'America/Toronto'
 
 function getCronAuthHeader(request: NextRequest): string | null {
   return request.headers.get('authorization') ?? request.headers.get('Authorization')
@@ -12,7 +17,9 @@ function isProdEnv(): boolean {
 function isWithinNightlyWindowToronto(date: Date): boolean {
   // We schedule two UTC cron triggers (05:00 + 06:00 UTC) to hit 1am Toronto across DST.
   // Allow a small minute window for scheduling jitter.
-  return date.getHours() === 1 && date.getMinutes() < 10
+  const hour = Number(formatInTimeZone(date, TIMEZONE, 'H'))
+  const minute = Number(formatInTimeZone(date, TIMEZONE, 'm'))
+  return hour === 1 && minute < 10
 }
 
 async function handle(request: NextRequest) {
@@ -33,8 +40,9 @@ async function handle(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const force = searchParams.get('force') === '1'
 
-  const torontoNow = nowInToronto()
-  const shouldRun = force ? !isProdEnv() : isWithinNightlyWindowToronto(torontoNow)
+  const shouldRun = force
+    ? !isProdEnv()
+    : isWithinNightlyWindowToronto(new Date())
 
   if (!shouldRun) {
     return NextResponse.json(
