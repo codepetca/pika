@@ -104,6 +104,11 @@ CRON_SECRET=generate-a-secure-random-secret
 npm run seed
 ```
 
+If you keep multiple Supabase environments, you can point seed scripts at a specific env file:
+```bash
+ENV_FILE=.env.staging.local npm run seed:fresh
+```
+
 7) **Run dev server**
 ```bash
 npm run dev
