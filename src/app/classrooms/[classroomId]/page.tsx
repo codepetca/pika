@@ -9,6 +9,9 @@ import { StudentHistoryTab } from './StudentHistoryTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherLogsTab } from './TeacherLogsTab'
+import { TeacherRosterTab } from './TeacherRosterTab'
+import { TeacherCalendarTab } from './TeacherCalendarTab'
+import { TeacherSettingsTab } from './TeacherSettingsTab'
 import type { Classroom } from '@/types'
 
 interface UserInfo {
@@ -170,19 +173,13 @@ export default function ClassroomPage() {
             <TeacherClassroomView classroom={classroom} />
           )}
           {activeTab === 'roster' && (
-            <div className="bg-white rounded-lg shadow-sm p-6 text-gray-600">
-              Roster management will live here next (CSV upload + remove).
-            </div>
+            <TeacherRosterTab classroom={classroom} />
           )}
           {activeTab === 'calendar' && (
-            <div className="bg-white rounded-lg shadow-sm p-6 text-gray-600">
-              Calendar (class days) will live here next.
-            </div>
+            <TeacherCalendarTab classroom={classroom} />
           )}
           {activeTab === 'settings' && (
-            <div className="bg-white rounded-lg shadow-sm p-6 text-gray-600">
-              Classroom settings will live here next.
-            </div>
+            <TeacherSettingsTab classroom={classroom} />
           )}
         </>
       ) : (

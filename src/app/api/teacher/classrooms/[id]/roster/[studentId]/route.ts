@@ -35,7 +35,53 @@ export async function DELETE(
       )
     }
 
-    // Remove enrollment (preserves historical entries)
+    // Remove student classroom data (logs + assignment docs) and then remove enrollment.
+    // We keep the user account and student profile intact so they can be re-added later.
+
+    const { error: entryDeleteError } = await supabase
+      .from('entries')
+      .delete()
+      .eq('classroom_id', classroomId)
+      .eq('student_id', studentId)
+
+    if (entryDeleteError) {
+      console.error('Error deleting student entries:', entryDeleteError)
+      return NextResponse.json(
+        { error: 'Failed to delete student entries' },
+        { status: 500 }
+      )
+    }
+
+    const { data: assignments, error: assignmentsError } = await supabase
+      .from('assignments')
+      .select('id')
+      .eq('classroom_id', classroomId)
+
+    if (assignmentsError) {
+      console.error('Error fetching classroom assignments:', assignmentsError)
+      return NextResponse.json(
+        { error: 'Failed to fetch classroom assignments' },
+        { status: 500 }
+      )
+    }
+
+    const assignmentIds = (assignments || []).map(a => a.id)
+    if (assignmentIds.length > 0) {
+      const { error: docsDeleteError } = await supabase
+        .from('assignment_docs')
+        .delete()
+        .eq('student_id', studentId)
+        .in('assignment_id', assignmentIds)
+
+      if (docsDeleteError) {
+        console.error('Error deleting student assignment docs:', docsDeleteError)
+        return NextResponse.json(
+          { error: 'Failed to delete student assignment docs' },
+          { status: 500 }
+        )
+      }
+    }
+
     const { error: deleteError } = await supabase
       .from('classroom_enrollments')
       .delete()
@@ -43,7 +89,7 @@ export async function DELETE(
       .eq('student_id', studentId)
 
     if (deleteError) {
-      console.error('Error removing student:', deleteError)
+      console.error('Error removing student enrollment:', deleteError)
       return NextResponse.json(
         { error: 'Failed to remove student' },
         { status: 500 }
