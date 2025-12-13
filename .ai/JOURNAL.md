@@ -150,3 +150,13 @@
 **Next:** Redeploy on Vercel and confirm build logs are clean; if you still see an error at runtime, share the exact message + URL so we can fix the actual root cause (often missing `SESSION_SECRET`/Supabase env vars)
 **Blockers:** None
 ---
+
+## 2025-12-13 10:06 [AI - GPT-5.2]
+**Goal:** Pin Node to 22.x
+**Completed:** Pinned `package.json` `engines.node` to `22.x` and updated env verification + docs to enforce Node 22.x (prevents automatic major upgrades on Vercel)
+**Status:** completed
+**Artifacts:**
+- Files: `package.json`, `scripts/verify-env.sh`, `README.md`, `docs/core/project-context.md`
+**Next:** In Vercel Project Settings → General → Node.js Version, set it explicitly to 22 to match `engines`
+**Blockers:** None
+---
