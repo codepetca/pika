@@ -64,6 +64,61 @@
 ---
 
 ---
+## 2025-12-12 17:57 [AI - GPT-5.2]
+**Goal:** Preserve pilot MVP direction decisions
+**Completed:** Captured current pilot requirements, UX direction, and scope boundaries in durable docs
+**Status:** completed
+**Artifacts:**
+- Files: `docs/core/pilot-mvp.md`
+**Next:** Convert open questions into scoped issues and implement Phase 6 (tests/polish) + pilot UX upgrades against staging
+**Blockers:** None
+---
+
+---
+## 2025-12-12 18:36 [AI - GPT-5.2]
+**Goal:** Incorporate pilot clarifications
+**Completed:** Updated pilot MVP spec with midnight cutoff, roster-restricted enrollment, and summary scheduling expectations
+**Status:** completed
+**Artifacts:**
+- PRs: #10
+- Files: `docs/core/pilot-mvp.md`
+**Next:** Confirm AI provider/model + nightly schedule time/scope; implement enrollment gating + summary jobs against staging
+**Blockers:** None
+---
+
+---
+## 2025-12-12 21:59 [AI - GPT-5.2]
+**Goal:** Lock AI summary decisions
+**Completed:** Updated pilot MVP spec to use OpenAI `gpt-5-nano` and run nightly summary batches at 1:00am America/Toronto (changed docs only)
+**Status:** completed
+**Artifacts:**
+- PRs: #10
+- Files: `docs/core/pilot-mvp.md`
+**Next:** Implement assignment/doc history + summary job scheduling and storage (on-demand + nightly) on staging
+**Blockers:** None
+---
+
+---
+## 2025-12-12 22:07 [AI - GPT-5.2]
+**Goal:** Refine AI summary scope
+**Completed:** Clarified summaries are for assignments only; nightly batch runs only for submitted docs that changed since last summary
+**Status:** completed
+**Artifacts:**
+- PRs: #10
+- Files: `docs/core/pilot-mvp.md`
+**Next:** Confirm whether on-demand summaries are allowed for drafts, or only for submitted docs
+**Blockers:** None
+---
+
+---
+## 2025-12-12 22:08 [AI - GPT-5.2]
+**Goal:** Update AI model choice
+**Completed:** Switched planned assignment summaries model from OpenAI `gpt-5-nano` to OpenAI `gpt-5-mini`
+**Status:** completed
+**Artifacts:**
+- PRs: #10
+- Files: `docs/core/pilot-mvp.md`
+**Next:** None
 ## 2025-12-12 18:39 [AI - GPT-5.2]
 **Goal:** Enforce Node 22 baseline
 **Completed:** Added `.nvmrc`, set `package.json` engines, and updated env verification + docs to require Node 22+
