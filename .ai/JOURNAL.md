@@ -129,3 +129,14 @@
 **Next:** Ensure Vercel staging/production is configured to use Node 22+
 **Blockers:** None
 ---
+
+---
+## 2025-12-12 23:08 [AI - GPT-5.2]
+**Goal:** Unblock Vercel deploy
+**Completed:** Removed `pnpm-lock.yaml` so Vercel uses npm, aligned Vitest deps so `npm ci` works, and fixed `next build` failures (route export + TS errors) so deployments can succeed
+**Status:** completed
+**Artifacts:**
+- Files: `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `.gitignore`, `src/app/api/auth/login/route.ts`, `src/lib/login-lockout.ts`, `src/lib/calendar.ts`, `tests/api/auth/login.test.ts`, `tests/api/setup.ts`, `tsconfig.json`
+**Next:** Redeploy on Vercel; set Node version to 22 in Vercel settings to avoid future major auto-upgrades
+**Blockers:** None
+---

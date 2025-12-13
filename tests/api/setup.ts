@@ -165,9 +165,13 @@ export const mockResponse = () => {
       return new Response(data, init)
     },
     redirect: (url: string, init?: ResponseInit) => {
-      response.status = init?.status || 302
+      const status = init?.status ?? 302
+      response.status = status
       response.headers.set('Location', url)
-      return Response.redirect(url, init)
+
+      const headers = new Headers(init?.headers)
+      headers.set('Location', url)
+      return new Response(null, { ...init, status, headers })
     },
     _getResponse: () => response,
   }

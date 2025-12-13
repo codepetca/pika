@@ -66,8 +66,7 @@ export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
   // March Break: Second full week of March (Mon-Fri)
   // Check if date range includes March
   if (startDate.getMonth() <= 2 && endDate.getMonth() >= 2) {
-    const marchYear = endDate.getMonth() === 2 ? endDate.getFullYear() :
-                     (startDate.getMonth() <= 2 ? startDate.getFullYear() : year)
+    const marchYear = endDate.getMonth() === 2 ? endYear : startYear
     // Find second Monday of March
     const marchFirst = new Date(marchYear, 2, 1) // March 1
     const firstMonday = marchFirst.getDay() === 1 ? marchFirst :
