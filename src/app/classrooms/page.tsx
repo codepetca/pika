@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { TeacherNoClassrooms } from './teacher-no-classrooms'
+import { TeacherClassroomsIndex } from './TeacherClassroomsIndex'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -18,17 +18,10 @@ export default async function ClassroomsIndexPage() {
   if (user.role === 'teacher') {
     const { data: classrooms } = await supabase
       .from('classrooms')
-      .select('id, updated_at')
+      .select('*')
       .eq('teacher_id', user.id)
       .order('updated_at', { ascending: false })
-      .limit(1)
-
-    const mostRecent = classrooms?.[0]
-    if (!mostRecent) {
-      return <TeacherNoClassrooms />
-    }
-
-    redirect(`/classrooms/${mostRecent.id}?tab=attendance`)
+    return <TeacherClassroomsIndex initialClassrooms={classrooms || []} />
   }
 
   const { data: enrollments } = await supabase
@@ -45,4 +38,3 @@ export default async function ClassroomsIndexPage() {
 
   redirect(`/classrooms/${mostRecentEnrollment.classroom_id}?tab=today`)
 }
-

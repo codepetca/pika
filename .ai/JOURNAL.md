@@ -224,3 +224,13 @@
 **Next:** Merge and validate on staging (login → `/classrooms` → classroom shell) for both teacher and student
 **Blockers:** None
 ---
+
+## 2025-12-13 16:45 [AI - GPT-5.2]
+**Goal:** Add dedicated teacher classrooms index
+**Completed:** Updated `/classrooms` to show a teacher classrooms list (with create flow) instead of auto-redirecting into the most recent classroom; students still auto-route into their most recent classroom or `/join`
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/page.tsx`, `src/app/classrooms/TeacherClassroomsIndex.tsx`
+**Next:** Merge and validate teacher flow: login → `/classrooms` list → open/switch classrooms
+**Blockers:** None
+---
