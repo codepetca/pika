@@ -5,12 +5,16 @@ import { Spinner } from '@/components/Spinner'
 import type { Classroom } from '@/types'
 
 interface RosterRow {
-  student_id: string
+  id: string
   email: string
   first_name: string | null
   last_name: string | null
   student_number: string | null
   created_at: string
+  updated_at: string
+  joined: boolean
+  student_id: string | null
+  joined_at: string | null
 }
 
 interface Props {
@@ -19,15 +23,17 @@ interface Props {
 
 function normalizeRosterRows(raw: any[]): RosterRow[] {
   return (raw || []).map((row) => {
-    const profile = row.student_profiles || {}
-    const user = row.users || {}
     return {
-      student_id: row.student_id,
-      email: user.email,
-      first_name: profile.first_name ?? null,
-      last_name: profile.last_name ?? null,
-      student_number: profile.student_number ?? null,
+      id: row.id,
+      email: row.email,
+      first_name: row.first_name ?? null,
+      last_name: row.last_name ?? null,
+      student_number: row.student_number ?? null,
       created_at: row.created_at,
+      updated_at: row.updated_at,
+      joined: !!row.joined,
+      student_id: row.student_id ?? null,
+      joined_at: row.joined_at ?? null,
     } satisfies RosterRow
   })
 }
@@ -93,7 +99,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to upload CSV')
       }
-      setSuccess(`Uploaded. Added ${data.addedCount ?? 0} students.`)
+      setSuccess(`Uploaded. Upserted ${data.upsertedCount ?? 0} roster rows.`)
       await loadRoster()
     } catch (err: any) {
       setError(err.message || 'Failed to upload CSV')
@@ -102,16 +108,18 @@ export function TeacherRosterTab({ classroom }: Props) {
     }
   }
 
-  async function removeStudent(studentId: string, email: string) {
+  async function removeStudent(rosterId: string, email: string, joined: boolean) {
     setError('')
     setSuccess('')
     const ok = window.confirm(
-      `Remove ${email} from this classroom?\n\nThis will delete their classroom data (logs and assignment docs).`
+      joined
+        ? `Remove ${email} from this classroom?\n\nThey are currently joined. This will delete their classroom data (logs and assignment docs).`
+        : `Remove ${email} from this classroom roster?\n\nThey are not joined yet.`
     )
     if (!ok) return
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${studentId}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${rosterId}`, {
         method: 'DELETE',
       })
       const data = await res.json()
@@ -175,7 +183,7 @@ export function TeacherRosterTab({ classroom }: Props) {
 
       <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
         {sortedRoster.map((row) => (
-          <div key={row.student_id} className="p-4 flex items-start justify-between gap-3">
+          <div key={row.id} className="p-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-medium text-gray-900">{row.email}</div>
               <div className="mt-1 text-sm text-gray-600">
@@ -183,12 +191,19 @@ export function TeacherRosterTab({ classroom }: Props) {
                   ? `${row.last_name ?? ''}${row.last_name ? ', ' : ''}${row.first_name ?? ''}`.trim()
                   : '(no name)'}
                 {row.student_number ? ` • ${row.student_number}` : ''}
+                <span className="ml-2">
+                  {row.joined ? (
+                    <span className="text-green-700">Joined</span>
+                  ) : (
+                    <span className="text-gray-500">Not joined</span>
+                  )}
+                </span>
               </div>
             </div>
             <button
               type="button"
               className="px-3 py-2 rounded-md border border-red-200 bg-white text-sm text-red-700 hover:bg-red-50 flex-shrink-0"
-              onClick={() => removeStudent(row.student_id, row.email)}
+              onClick={() => removeStudent(row.id, row.email, row.joined)}
             >
               Remove
             </button>
@@ -196,10 +211,9 @@ export function TeacherRosterTab({ classroom }: Props) {
         ))}
 
         {sortedRoster.length === 0 && (
-          <div className="p-6 text-center text-gray-500">No students enrolled</div>
+          <div className="p-6 text-center text-gray-500">No students on the roster</div>
         )}
       </div>
     </div>
   )
 }
-

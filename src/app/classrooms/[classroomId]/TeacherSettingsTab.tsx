@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { Classroom } from '@/types'
 
 interface Props {
@@ -8,12 +9,39 @@ interface Props {
 
 export function TeacherSettingsTab({ classroom }: Props) {
   const joinLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/join/${classroom.class_code}`
+  const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string>('')
+  const [success, setSuccess] = useState<string>('')
 
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text)
     } catch {
       // ignore
+    }
+  }
+
+  async function saveAllowEnrollment(nextValue: boolean) {
+    setSaving(true)
+    setError('')
+    setSuccess('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowEnrollment: nextValue }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update settings')
+      }
+      setAllowEnrollment(!!data.classroom?.allow_enrollment)
+      setSuccess('Settings saved.')
+    } catch (err: any) {
+      setError(err.message || 'Failed to update settings')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -24,6 +52,31 @@ export function TeacherSettingsTab({ classroom }: Props) {
         <p className="text-sm text-gray-600 mt-1">
           Classroom configuration and invite info.
         </p>
+      </div>
+
+      <div className="border-t border-gray-100 pt-4 space-y-2">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-medium text-gray-900">Allow enrollment</div>
+            <div className="text-sm text-gray-600">
+              When disabled, students cannot join using the code/link.
+            </div>
+          </div>
+
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={allowEnrollment}
+              onChange={(e) => saveAllowEnrollment(e.target.checked)}
+              disabled={saving}
+              className="h-4 w-4"
+            />
+            <span className="text-gray-700">{allowEnrollment ? 'Enabled' : 'Disabled'}</span>
+          </label>
+        </div>
+
+        {error && <div className="text-sm text-red-600">{error}</div>}
+        {success && <div className="text-sm text-green-700">{success}</div>}
       </div>
 
       <div className="space-y-2">
@@ -59,9 +112,8 @@ export function TeacherSettingsTab({ classroom }: Props) {
       </div>
 
       <div className="text-sm text-gray-600">
-        Enrollment enable/disable toggle will be added in a later phase.
+        Students must be on the roster (uploaded via CSV) and enrollment must be enabled to join.
       </div>
     </div>
   )
 }
-
