@@ -77,6 +77,7 @@ npm run type-check    # TypeScript
 - `DEV_TEACHER_EMAILS` (comma-separated)
 - `ENABLE_MOCK_EMAIL` (`true` to log verification/reset codes)
 - `NEXT_PUBLIC_APP_URL`
+- `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`)
 
 Legacy anon/service keys are supported but publishable/secret are preferred.
 

@@ -94,6 +94,9 @@ ENABLE_MOCK_EMAIL=true
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Cron (Vercel Cron Jobs)
+CRON_SECRET=generate-a-secure-random-secret
 ```
 
 6) **Seed data (optional)**
