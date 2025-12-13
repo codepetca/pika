@@ -89,6 +89,7 @@ To support automated history analysis, MVP should treat **Pika as the primary dr
 - Visibility: teacher-only by default; optionally enable for students.
 - Summaries apply to **assignments only** (not daily logs).
 - Summaries should run **on-demand** and as a nightly batch job at **1:00am America/Toronto**.
+- On-demand summaries are allowed for **drafts** and **submitted** docs.
 - AI model: **OpenAI `gpt-5-mini`** (configurable).
 - On-demand summarization should return cached results unless the assignment doc has changed since the last summary.
 - Nightly batch recomputes summaries only for **submitted** assignment docs changed since last summary.
