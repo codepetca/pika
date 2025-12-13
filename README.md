@@ -127,6 +127,26 @@ npm run test:watch
 npm run test:ui
 ```
 
+### UI Review (Gallery + Snapshots)
+
+Enable the UI gallery (recommended on staging):
+```env
+ENABLE_UI_GALLERY=true
+```
+
+Visit `/__ui` (e.g. `https://your-url/__ui`).
+
+Run Playwright snapshots against staging (generates local screenshots + an HTML report):
+```bash
+E2E_BASE_URL=https://your-staging-url \
+E2E_TEACHER_EMAIL=teacher@yrdsb.ca \
+E2E_STUDENT_EMAIL=student1@student.yrdsb.ca \
+E2E_PASSWORD=test1234 \
+pnpm run e2e:snapshots
+
+pnpm exec playwright show-report playwright-report
+```
+
 ### Build
 ```bash
 npm run build

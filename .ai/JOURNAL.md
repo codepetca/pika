@@ -234,3 +234,13 @@
 **Next:** Merge and validate teacher flow: login → `/classrooms` list → open/switch classrooms
 **Blockers:** None
 ---
+
+## 2025-12-13 17:10 [AI - GPT-5.2]
+**Goal:** Add UI review tools (gallery + snapshots)
+**Completed:** Added a staging-enabled `/__ui` gallery (gated by `ENABLE_UI_GALLERY=true`) and a Playwright snapshot runner that captures key screens across two laptop viewports into local artifacts
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/__ui/page.tsx`, `src/app/__ui/UiGallery.tsx`, `e2e/ui-snapshots.spec.ts`, `playwright.config.ts`, `README.md`, `docs/core/tests.md`, `.env.example`
+**Next:** Set `ENABLE_UI_GALLERY=true` on staging and run `pnpm run e2e:snapshots` against staging to generate the first snapshot pack
+**Blockers:** None
+---
