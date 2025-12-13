@@ -167,3 +167,13 @@
 **Next:** In Vercel Project Settings → General → Node.js Version, set it explicitly to 22 to match `engines`
 **Blockers:** None
 ---
+
+## 2025-12-13 13:38 [AI - GPT-5.2]
+**Goal:** Capture daily logs AI summary epic
+**Completed:** Added an epic to track teacher-facing 1-line daily log summaries using a cheaper model (OpenAI `gpt-5-nano`), separate from assignment summaries
+**Status:** completed
+**Artifacts:**
+- Files: `.ai/features.json`
+**Next:** Implement the classroom shell + Logs view UX first; then add the daily-log summarization pipeline (on-demand + cached)
+**Blockers:** None
+---
