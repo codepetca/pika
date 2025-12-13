@@ -40,18 +40,66 @@ const supabase = createClient(supabaseUrl, supabaseSecretKey, {
   auth: { persistSession: false }
 })
 
+function formatSupabaseError(error: any): string {
+  if (!error) return 'unknown error'
+  if (typeof error === 'string') return error
+  if (error.message) return error.message
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return String(error)
+  }
+}
+
+function ensureData<T>(data: T | null, label: string): T {
+  if (!data) {
+    throw new Error(`${label} returned no data`)
+  }
+  return data
+}
+
+function ensureOk(result: { error: any }, label: string) {
+  if (result.error) {
+    throw new Error(`${label} failed: ${formatSupabaseError(result.error)}`)
+  }
+}
+
 async function clearAndSeed() {
   console.log('🗑️  Clearing database...\n')
 
   // Clear data in correct order (respecting foreign keys)
-  await supabase.from('assignment_docs').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('assignments').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('entries').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('classroom_enrollments').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('class_days').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('classrooms').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('verification_codes').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-  await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  ensureOk(
+    await supabase.from('assignment_docs').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete assignment_docs'
+  )
+  ensureOk(
+    await supabase.from('assignments').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete assignments'
+  )
+  ensureOk(
+    await supabase.from('entries').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete entries'
+  )
+  ensureOk(
+    await supabase.from('classroom_enrollments').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete classroom_enrollments'
+  )
+  ensureOk(
+    await supabase.from('class_days').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete class_days'
+  )
+  ensureOk(
+    await supabase.from('classrooms').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete classrooms'
+  )
+  ensureOk(
+    await supabase.from('verification_codes').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete verification_codes'
+  )
+  ensureOk(
+    await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete users'
+  )
 
   console.log('✓ Database cleared\n')
   console.log('🌱 Starting seed process...\n')
@@ -62,28 +110,37 @@ async function clearAndSeed() {
   const password = 'test1234'
   const passwordHash = await hashPassword(password)
 
-  const { data: teacher } = await supabase
+  const { data: teacher, error: teacherError } = await supabase
     .from('users')
-    .insert({
+    .upsert({
       email: 'teacher@yrdsb.ca',
       role: 'teacher',
       password_hash: passwordHash
-    })
-    .select()
+    }, { onConflict: 'email' })
+    .select('id, email')
     .single()
+
+  if (teacherError) {
+    throw new Error(`Create teacher failed: ${formatSupabaseError(teacherError)}`)
+  }
+  const createdTeacher = ensureData(teacher, 'Create teacher')
 
   const students = []
   for (let i = 1; i <= 3; i++) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('users')
-      .insert({
+      .upsert({
         email: `student${i}@student.yrdsb.ca`,
         role: 'student',
         password_hash: passwordHash
-      })
-      .select()
+      }, { onConflict: 'email' })
+      .select('id, email')
       .single()
-    students.push(data)
+
+    if (error) {
+      throw new Error(`Create student${i} failed: ${formatSupabaseError(error)}`)
+    }
+    students.push(ensureData(data, `Create student${i}`))
   }
 
   console.log(`✓ Created 1 teacher and ${students.length} students\n`)
@@ -91,10 +148,10 @@ async function clearAndSeed() {
   // 2. Create classroom
   console.log('Creating classroom...')
 
-  const { data: classroom } = await supabase
+  const { data: classroom, error: classroomError } = await supabase
     .from('classrooms')
     .insert({
-      teacher_id: teacher!.id,
+      teacher_id: createdTeacher.id,
       title: 'GLD2O - Learning Strategies',
       class_code: 'GLD2O1',
       term_label: 'Semester 1 2024-2025',
@@ -102,18 +159,24 @@ async function clearAndSeed() {
     .select()
     .single()
 
-  console.log(`✓ Created classroom: ${classroom!.title}\n`)
+  if (classroomError) {
+    throw new Error(`Create classroom failed: ${formatSupabaseError(classroomError)}`)
+  }
+  const createdClassroom = ensureData(classroom, 'Create classroom')
+
+  console.log(`✓ Created classroom: ${createdClassroom.title}\n`)
 
   // 3. Enroll students
   console.log('Enrolling students...')
 
   for (const student of students) {
-    await supabase
+    const result = await supabase
       .from('classroom_enrollments')
       .insert({
-        classroom_id: classroom!.id,
-        student_id: student!.id,
+        classroom_id: createdClassroom.id,
+        student_id: student.id,
       })
+    ensureOk(result, `Enroll ${student.email}`)
   }
 
   console.log(`✓ Enrolled ${students.length} students\n`)
@@ -123,12 +186,12 @@ async function clearAndSeed() {
 
   const dates = generateClassDays('semester1', 2024)
   const classDayRecords = dates.map(date => ({
-    classroom_id: classroom!.id,
+    classroom_id: createdClassroom.id,
     date,
     is_class_day: true,
   }))
 
-  await supabase.from('class_days').insert(classDayRecords)
+  ensureOk(await supabase.from('class_days').insert(classDayRecords), 'Insert class_days')
 
   console.log(`✓ Generated ${dates.length} class days\n`)
 
@@ -139,7 +202,7 @@ async function clearAndSeed() {
     // Student 1 - Good attendance (mostly on time)
     {
       student_id: students[0]!.id,
-      classroom_id: classroom!.id,
+      classroom_id: createdClassroom.id,
       date: dates[0],
       text: 'Today I learned about functions in JavaScript. I practiced writing arrow functions and understood the difference between function declarations and expressions.',
       minutes_reported: 90,
@@ -148,7 +211,7 @@ async function clearAndSeed() {
     },
     {
       student_id: students[0]!.id,
-      classroom_id: classroom!.id,
+      classroom_id: createdClassroom.id,
       date: dates[1],
       text: 'Worked on array methods like map, filter, and reduce. These are really powerful! I created a small project to practice these concepts.',
       minutes_reported: 120,
@@ -157,7 +220,7 @@ async function clearAndSeed() {
     },
     {
       student_id: students[0]!.id,
-      classroom_id: classroom!.id,
+      classroom_id: createdClassroom.id,
       date: dates[2],
       text: 'Started learning about async/await and promises. This is challenging but I\'m making progress.',
       minutes_reported: 75,
@@ -168,7 +231,7 @@ async function clearAndSeed() {
     // Student 2 - Mixed attendance
     {
       student_id: students[1]!.id,
-      classroom_id: classroom!.id,
+      classroom_id: createdClassroom.id,
       date: dates[0],
       text: 'Introduction to the course. Reviewed the syllabus and set up my development environment.',
       minutes_reported: 60,
@@ -177,7 +240,7 @@ async function clearAndSeed() {
     },
     {
       student_id: students[1]!.id,
-      classroom_id: classroom!.id,
+      classroom_id: createdClassroom.id,
       date: dates[1],
       text: 'Sorry for the late submission. Had some technical issues but completed the reading.',
       minutes_reported: 45,
@@ -188,7 +251,7 @@ async function clearAndSeed() {
     // Student 3 - Poor attendance
     {
       student_id: students[2]!.id,
-      classroom_id: classroom!.id,
+      classroom_id: createdClassroom.id,
       date: dates[0],
       text: 'First day. Getting familiar with the course structure.',
       minutes_reported: 30,
@@ -212,14 +275,14 @@ async function clearAndSeed() {
     }
   })
 
-  await supabase.from('entries').insert(entriesWithTimestamps)
+  ensureOk(await supabase.from('entries').insert(entriesWithTimestamps), 'Insert entries')
 
   console.log(`✓ Created ${sampleEntries.length} sample entries\n`)
 
   // Summary
   console.log('✅ Seed completed successfully!\n')
   console.log('Classroom:')
-  console.log(`  ${classroom!.title} (${classroom!.class_code})`)
+  console.log(`  ${createdClassroom.title} (${createdClassroom.class_code})`)
   console.log('\nTest accounts (password: test1234):')
   console.log('  Teacher: teacher@yrdsb.ca')
   console.log('  Student 1: student1@student.yrdsb.ca (good attendance)')
