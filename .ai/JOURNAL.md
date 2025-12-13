@@ -177,3 +177,13 @@
 **Next:** Implement the classroom shell + Logs view UX first; then add the daily-log summarization pipeline (on-demand + cached)
 **Blockers:** None
 ---
+
+## 2025-12-13 14:45 [AI - GPT-5.2]
+**Goal:** Disable repo-managed Vercel cron schedules
+**Completed:** Removed `vercel.json` so staging deployments don’t attempt to create cron jobs (cron is configured in the Vercel dashboard for production only)
+**Status:** completed
+**Artifacts:**
+- Files: `README.md`, `docs/core/project-context.md`, `docs/core/pilot-mvp.md`
+**Next:** Re-deploy staging; create the two production cron schedules (05:00 and 06:00 UTC) in the Vercel dashboard
+**Blockers:** None
+---

@@ -99,6 +99,8 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 CRON_SECRET=generate-a-secure-random-secret
 ```
 
+Cron schedules are configured in the Vercel dashboard (recommended: production only).
+
 6) **Seed data (optional)**
 ```bash
 npm run seed
