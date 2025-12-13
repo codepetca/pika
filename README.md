@@ -106,7 +106,7 @@ npm run seed
 
 If you keep multiple Supabase environments, you can point seed scripts at a specific env file:
 ```bash
-ENV_FILE=.env.staging.local npm run seed:fresh
+ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true npm run seed:fresh
 ```
 
 7) **Run dev server**

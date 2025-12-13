@@ -22,9 +22,17 @@ config({ path: resolve(process.cwd(), envFile) })
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY!
+const allowDbWipe = process.env.ALLOW_DB_WIPE === 'true'
 
 if (!supabaseUrl || !supabaseSecretKey) {
   console.error('❌ Missing required environment variables')
+  process.exit(1)
+}
+
+if (!allowDbWipe) {
+  console.error('❌ Refusing to wipe database.')
+  console.error(`   This script deletes data from Supabase: ${supabaseUrl}`)
+  console.error(`   To proceed, set ALLOW_DB_WIPE=true in ${envFile} (or export it in your shell).`)
   process.exit(1)
 }
 
