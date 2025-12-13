@@ -32,7 +32,7 @@ export default function JoinClassroomPage() {
         }
 
         // Redirect to student dashboard with the new classroom selected
-        router.push(`/student/today?classroomId=${data.classroom.id}`)
+        router.push(`/classrooms/${data.classroom.id}?tab=today`)
       } catch (err: any) {
         console.error('Join error:', err)
         setError(err.message || 'An error occurred')

@@ -214,3 +214,13 @@
 **Next:** Merge PR #18 (classroom shell) then merge stacked tabs PR; validate UX on staging with seeded accounts
 **Blockers:** PR #18 required checks
 ---
+
+## 2025-12-13 16:35 [AI - GPT-5.2]
+**Goal:** Make classroom shell the primary app
+**Completed:** Added `/classrooms` landing that routes users into their most recent classroom (teacher: most recently updated; student: most recently joined); added `/join` entry page; updated auth redirects and nav links to point at `/classrooms`; added teacher classroom switcher + create flow in the shell
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/page.tsx`, `src/app/classrooms/teacher-no-classrooms.tsx`, `src/app/join/page.tsx`, `src/app/join/[code]/page.tsx`, `src/app/classrooms/[classroomId]/page.tsx`, `src/app/api/auth/login/route.ts`, `src/app/api/auth/create-password/route.ts`, `src/app/api/auth/reset-password/confirm/route.ts`, `src/app/classrooms/layout.tsx`, `src/app/teacher/layout.tsx`, `src/app/student/layout.tsx`, `src/components/CreateClassroomModal.tsx`, `tests/api/auth/login.test.ts`, `tests/api/auth/create-password.test.ts`
+**Next:** Merge and validate on staging (login → `/classrooms` → classroom shell) for both teacher and student
+**Blockers:** None
+---

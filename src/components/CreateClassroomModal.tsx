@@ -90,14 +90,16 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
 
       // Step 2: Upload roster if provided
       if (rosterFile) {
-        const formData = new FormData()
-        formData.append('file', rosterFile)
-
-        await fetch(`/api/teacher/classrooms/${classroom.id}/roster/upload-csv`, {
-          method: 'POST',
-          body: formData,
-        })
-        // Ignoring errors on roster upload - classroom is already created
+        try {
+          const csvData = await rosterFile.text()
+          await fetch(`/api/teacher/classrooms/${classroom.id}/roster/upload-csv`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ csvData }),
+          })
+        } catch {
+          // Ignoring errors on roster upload - classroom is already created
+        }
       }
 
       // Step 3: Create calendar
