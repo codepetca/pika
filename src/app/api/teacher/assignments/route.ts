@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // GET /api/teacher/assignments?classroom_id=xxx - List assignments for a classroom
 export async function GET(request: NextRequest) {
   try {

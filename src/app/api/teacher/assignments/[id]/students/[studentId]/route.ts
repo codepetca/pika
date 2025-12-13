@@ -3,6 +3,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // GET /api/teacher/assignments/[id]/students/[studentId] - Get specific student's work
 export async function GET(
   request: NextRequest,

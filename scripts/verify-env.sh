@@ -15,14 +15,14 @@ echo "🔍 Verifying Pika development environment..."
 
 if ! command -v node >/dev/null 2>&1; then
   echo "❌ node not found"
-  echo "   Install Node.js 22+"
+  echo "   Install Node.js 22.x"
   exit 1
 fi
 
 NODE_VERSION="$(node -p 'process.versions.node')"
 NODE_MAJOR="${NODE_VERSION%%.*}"
-if [[ "$NODE_MAJOR" -lt 22 ]]; then
-  echo "❌ Node.js >= 22 required (found $NODE_VERSION)"
+if [[ "$NODE_MAJOR" -ne 22 ]]; then
+  echo "❌ Node.js 22.x required (found $NODE_VERSION)"
   exit 1
 fi
 echo "✅ Node.js $NODE_VERSION"
