@@ -85,3 +85,15 @@
 **Next:** Confirm AI provider/model + nightly schedule time/scope; implement enrollment gating + summary jobs against staging
 **Blockers:** None
 ---
+
+---
+## 2025-12-12 21:59 [AI - GPT-5.2]
+**Goal:** Lock AI summary decisions
+**Completed:** Updated pilot MVP spec to use OpenAI `gpt-5-nano` and run nightly summary batches at 1:00am America/Toronto (changed docs only)
+**Status:** completed
+**Artifacts:**
+- PRs: #10
+- Files: `docs/core/pilot-mvp.md`
+**Next:** Implement assignment/doc history + summary job scheduling and storage (on-demand + nightly) on staging
+**Blockers:** None
+---

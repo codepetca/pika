@@ -87,7 +87,9 @@ To support automated history analysis, MVP should treat **Pika as the primary dr
   - an AI-generated summary of writing activity and/or content
   - a simple activity visualization (timeline / word-count over time / paste-event markers)
 - Visibility: teacher-only by default; optionally enable for students.
-- Summaries should run **on-demand** and **nightly after midnight** (America/Toronto).
+- Summaries should run **on-demand** and as a nightly batch job at **1:00am America/Toronto**.
+- AI model: **OpenAI `gpt-5-nano`** (configurable).
+- Nightly batch recomputes summaries only for docs changed since last summary.
 
 ## Out of Scope (for MVP)
 - Manual roster add/edit UI (beyond CSV upload + remove)
@@ -96,6 +98,4 @@ To support automated history analysis, MVP should treat **Pika as the primary dr
 - “Late” attendance or “late” assignments
 
 ## Open Questions
-- What AI provider/model is acceptable for summaries (privacy + cost)?
-- Nightly summarization: exact schedule time + which docs trigger recompute.
 - Exact rich-text editor scope for MVP (minimum formatting set).
