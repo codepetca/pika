@@ -62,3 +62,15 @@
 **Next:** None
 **Blockers:** None
 ---
+
+---
+## 2025-12-12 18:39 [AI - GPT-5.2]
+**Goal:** Enforce Node 22 baseline
+**Completed:** Added `.nvmrc`, set `package.json` engines, and updated env verification + docs to require Node 22+
+**Status:** completed
+**Artifacts:**
+- PRs: #11
+- Files: `.nvmrc`, `package.json`, `scripts/verify-env.sh`, `README.md`, `docs/core/project-context.md`
+**Next:** Ensure Vercel staging/production is configured to use Node 22+
+**Blockers:** None
+---
