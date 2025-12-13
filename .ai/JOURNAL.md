@@ -204,3 +204,13 @@
 **Next:** Move teacher roster/calendar/settings into their tabs and update navigation to prefer the classroom shell over legacy `/teacher/*` and `/student/*` pages
 **Blockers:** None
 ---
+
+## 2025-12-13 15:30 [AI - GPT-5.2]
+**Goal:** Fill remaining classroom shell tabs
+**Completed:** Implemented teacher `Roster`, `Calendar`, and `Settings` tabs in the classroom shell; updated roster removal to delete classroom-specific student data
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`, `src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx`, `src/app/classrooms/[classroomId]/TeacherSettingsTab.tsx`, `src/app/classrooms/[classroomId]/page.tsx`, `src/app/api/teacher/classrooms/[id]/roster/[studentId]/route.ts`, `tests/api/teacher/roster-studentId.test.ts`
+**Next:** Merge PR #18 (classroom shell) then merge stacked tabs PR; validate UX on staging with seeded accounts
+**Blockers:** PR #18 required checks
+---
