@@ -1,9 +1,6 @@
 import { defineConfig } from '@playwright/test'
 
-const baseURL = process.env.E2E_BASE_URL
-if (!baseURL) {
-  throw new Error('E2E_BASE_URL is required (set it to your staging URL)')
-}
+const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 
 export default defineConfig({
   testDir: './e2e',
@@ -23,4 +20,3 @@ export default defineConfig({
     },
   ],
 })
-
