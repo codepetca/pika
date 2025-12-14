@@ -23,7 +23,7 @@ export function StudentHistoryTab({ classroom }: Props) {
     async function load() {
       setLoading(true)
       try {
-        const classDaysRes = await fetch(`/api/teacher/class-days?classroom_id=${classroom.id}`)
+        const classDaysRes = await fetch(`/api/classrooms/${classroom.id}/class-days`)
         const classDaysData = await classDaysRes.json()
         const classDays: ClassDay[] = (classDaysData.class_days || []).filter((d: ClassDay) => d.is_class_day)
 
@@ -79,4 +79,3 @@ export function StudentHistoryTab({ classroom }: Props) {
     </div>
   )
 }
-

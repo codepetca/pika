@@ -64,7 +64,7 @@ export default function HistoryPage() {
       try {
         // Fetch class days
         const classDaysRes = await fetch(
-          `/api/teacher/class-days?classroom_id=${selectedClassroom.id}&semester=semester1&year=2024`
+          `/api/classrooms/${selectedClassroom.id}/class-days`
         )
         const classDaysData = await classDaysRes.json()
         const classDays: ClassDay[] = (classDaysData.class_days || []).filter(

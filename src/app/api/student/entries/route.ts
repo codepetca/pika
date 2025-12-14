@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { isOnTime } from '@/lib/timezone'
+import { getTodayInToronto } from '@/lib/timezone'
 import type { MoodEmoji } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -118,6 +119,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Not enrolled in this classroom' },
         { status: 403 }
+      )
+    }
+
+    const todayToronto = getTodayInToronto()
+    if (date > todayToronto) {
+      return NextResponse.json(
+        { error: 'Cannot submit entries for future dates' },
+        { status: 400 }
+      )
+    }
+
+    // Students can only log on dates that are explicitly marked as class days.
+    const { data: classDay, error: classDayError } = await supabase
+      .from('class_days')
+      .select('is_class_day')
+      .eq('classroom_id', classroom_id)
+      .eq('date', date)
+      .single()
+
+    if (classDayError && classDayError.code !== 'PGRST116') {
+      console.error('Error fetching class day:', classDayError)
+      return NextResponse.json(
+        { error: 'Failed to validate class day' },
+        { status: 500 }
+      )
+    }
+
+    if (!classDay?.is_class_day) {
+      return NextResponse.json(
+        { error: 'Not a class day' },
+        { status: 400 }
       )
     }
 

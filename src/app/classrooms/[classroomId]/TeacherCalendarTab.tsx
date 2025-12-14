@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import type { ClassDay, Classroom } from '@/types'
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
+import { getTodayInToronto } from '@/lib/timezone'
 
 interface Props {
   classroom: Classroom
@@ -21,7 +23,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/teacher/class-days?classroom_id=${classroom.id}`)
+      const res = await fetch(`/api/classrooms/${classroom.id}/class-days`)
       const data = await res.json()
       if (!res.ok) {
         throw new Error(data.error || 'Failed to load class days')
@@ -39,8 +41,34 @@ export function TeacherCalendarTab({ classroom }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom.id])
 
-  const sorted = useMemo(() => {
-    return [...classDays].sort((a, b) => a.date.localeCompare(b.date))
+  const range = useMemo(() => {
+    if (classroom.start_date && classroom.end_date) {
+      return { start: parseISO(classroom.start_date), end: parseISO(classroom.end_date) }
+    }
+    if (classDays.length === 0) return null
+    const dates = classDays.map(d => parseISO(d.date))
+    return {
+      start: new Date(Math.min(...dates.map(d => d.getTime()))),
+      end: new Date(Math.max(...dates.map(d => d.getTime()))),
+    }
+  }, [classDays, classroom.end_date, classroom.start_date])
+
+  const months = useMemo(() => {
+    if (!range) return []
+    const list: Date[] = []
+    let current = startOfMonth(range.start)
+    const end = startOfMonth(range.end)
+    while (current <= end) {
+      list.push(current)
+      current = addMonths(current, 1)
+    }
+    return list
+  }, [range])
+
+  const classDayMap = useMemo(() => {
+    const map = new Map<string, ClassDay>()
+    for (const day of classDays) map.set(day.date, day)
+    return map
   }, [classDays])
 
   async function generateFromRange() {
@@ -48,11 +76,10 @@ export function TeacherCalendarTab({ classroom }: Props) {
     setError('')
     setSuccess('')
     try {
-      const res = await fetch('/api/teacher/class-days', {
+      const res = await fetch(`/api/classrooms/${classroom.id}/class-days`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          classroom_id: classroom.id,
           start_date: startDate,
           end_date: endDate,
         }),
@@ -74,11 +101,10 @@ export function TeacherCalendarTab({ classroom }: Props) {
     setError('')
     setSuccess('')
     try {
-      const res = await fetch('/api/teacher/class-days', {
+      const res = await fetch(`/api/classrooms/${classroom.id}/class-days`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          classroom_id: classroom.id,
           date,
           is_class_day: isClassDay,
         }),
@@ -122,7 +148,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
         </div>
 
         <div className="text-sm text-gray-600">
-          Define which dates are class days. Students can only log on class days.
+          Define which dates are class days. Students can only log on class days. Past dates are locked.
         </div>
 
         <div className="flex flex-wrap items-end gap-2">
@@ -160,28 +186,98 @@ export function TeacherCalendarTab({ classroom }: Props) {
         {success && <div className="text-sm text-green-700">{success}</div>}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
-        {sorted.map((day) => (
-          <div key={day.date} className="p-4 flex items-center justify-between">
-            <div className="text-sm text-gray-800">{day.date}</div>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={day.is_class_day}
-                onChange={(e) => toggleDay(day.date, e.target.checked)}
-              />
-              Class day
-            </label>
-          </div>
-        ))}
+      {range ? (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {months.map(month => {
+              const monthStart = startOfMonth(month)
+              const monthEnd = endOfMonth(month)
+              const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
 
-        {sorted.length === 0 && (
-          <div className="p-6 text-center text-gray-500">
-            No class days defined yet. Generate a range above.
+              const todayToronto = getTodayInToronto()
+              const rangeStartStr = format(range.start, 'yyyy-MM-dd')
+              const rangeEndStr = format(range.end, 'yyyy-MM-dd')
+
+              return (
+                <div key={month.toString()} className="bg-white rounded-lg shadow-sm p-4">
+                  <h3 className="text-center font-bold text-gray-900 mb-3">
+                    {format(month, 'MMMM yyyy')}
+                  </h3>
+
+                  <div className="grid grid-cols-7 gap-1">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+                      <div key={i} className="text-center text-xs font-medium text-gray-500 py-1">
+                        {day}
+                      </div>
+                    ))}
+
+                    {Array.from({ length: monthStart.getDay() }).map((_, i) => (
+                      <div key={`empty-${i}`} />
+                    ))}
+
+                    {days.map(day => {
+                      const dateString = format(day, 'yyyy-MM-dd')
+                      const classDay = classDayMap.get(dateString)
+                      const isClassDay = classDay?.is_class_day || false
+                      const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                      const isBeforeToday = dateString < todayToronto
+                      const isInRange = dateString >= rangeStartStr && dateString <= rangeEndStr
+                      const disabled = !isInRange || isBeforeToday
+
+                      const colorClasses = disabled
+                        ? 'bg-gray-100 text-gray-400'
+                        : isClassDay
+                          ? 'bg-green-100 text-green-900 hover:bg-green-200'
+                          : classDay
+                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            : isWeekend
+                              ? 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                              : 'bg-red-50 text-red-700 hover:bg-red-100'
+
+                      return (
+                        <button
+                          key={dateString}
+                          onClick={() => toggleDay(dateString, !isClassDay)}
+                          className={`aspect-square p-1 rounded text-xs font-medium transition-colors ${colorClasses} ${disabled ? 'cursor-not-allowed' : ''}`}
+                          disabled={disabled}
+                        >
+                          {format(day, 'd')}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
           </div>
-        )}
-      </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-4">
+            <h4 className="font-medium text-gray-900 mb-3">Legend</h4>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-green-100 rounded"></div>
+                <span>Class Day</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                <span>Non-Class Day</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-gray-50 rounded"></div>
+                <span>Weekend (default)</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-red-50 rounded"></div>
+                <span>Holiday (default)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
+          No class days defined yet. Generate a range above.
+        </div>
+      )}
     </div>
   )
 }
-

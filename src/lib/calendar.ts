@@ -6,7 +6,7 @@ import type { Semester, SemesterRange } from '@/types'
 export const SEMESTER_RANGES: Record<Semester, SemesterRange> = {
   semester1: {
     start: '09-01', // September 1
-    end: '01-30',   // January 30
+    end: '01-31',   // January 31
   },
   semester2: {
     start: '02-01', // February 1

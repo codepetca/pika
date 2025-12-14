@@ -68,9 +68,7 @@ export default function TodayPage() {
         setToday(todayDate)
 
         // Check if today is a class day
-        const classDayRes = await fetch(
-          `/api/teacher/class-days?classroom_id=${selectedClassroom.id}&semester=semester1&year=2024`
-        )
+        const classDayRes = await fetch(`/api/classrooms/${selectedClassroom.id}/class-days`)
         const classDayData = await classDayRes.json()
 
         const todayClassDay = (classDayData.class_days || []).find(

@@ -28,6 +28,7 @@ vi.mock('@/lib/timezone', () => ({
     const entryDate = new Date(date)
     return now.getTime() <= entryDate.getTime() + 24 * 60 * 60 * 1000
   }),
+  getTodayInToronto: vi.fn(() => '2024-10-15'),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -280,6 +281,16 @@ describe('POST /api/student/entries', () => {
               }),
             })),
           }
+        } else if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { is_class_day: true },
+                error: null,
+              }),
+            })),
+          }
         } else if (table === 'entries') {
           return {
             select: vi.fn(() => ({
@@ -344,6 +355,85 @@ describe('POST /api/student/entries', () => {
     })
   })
 
+  describe('date + class day enforcement', () => {
+    it('should return 400 when date is in the future (Toronto)', async () => {
+      const { getTodayInToronto } = await import('@/lib/timezone')
+      ;(getTodayInToronto as any).mockReturnValueOnce('2024-10-14')
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Test entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Cannot submit entries for future dates')
+    })
+
+    it('should return 400 when date is not a class day', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { is_class_day: false },
+                error: null,
+              }),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/entries', {
+        method: 'POST',
+        body: JSON.stringify({
+          classroom_id: 'classroom-1',
+          date: '2024-10-15',
+          text: 'Test entry',
+        }),
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Not a class day')
+    })
+  })
+
   describe('entry creation', () => {
     it('should create new entry when none exists', async () => {
       const mockInsert = vi.fn(() => ({
@@ -369,6 +459,16 @@ describe('POST /api/student/entries', () => {
               eq: vi.fn().mockReturnThis(),
               single: vi.fn().mockResolvedValue({
                 data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { is_class_day: true },
                 error: null,
               }),
             })),
@@ -438,6 +538,16 @@ describe('POST /api/student/entries', () => {
               }),
             })),
           }
+        } else if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { is_class_day: true },
+                error: null,
+              }),
+            })),
+          }
         } else if (table === 'entries') {
           return {
             select: vi.fn(() => ({
@@ -490,6 +600,16 @@ describe('POST /api/student/entries', () => {
               }),
             })),
           }
+        } else if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { is_class_day: true },
+                error: null,
+              }),
+            })),
+          }
         } else if (table === 'entries') {
           return {
             select: vi.fn(() => ({
@@ -533,6 +653,16 @@ describe('POST /api/student/entries', () => {
               eq: vi.fn().mockReturnThis(),
               single: vi.fn().mockResolvedValue({
                 data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { is_class_day: true },
                 error: null,
               }),
             })),
@@ -589,6 +719,16 @@ describe('POST /api/student/entries', () => {
               }),
             })),
           }
+        } else if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { is_class_day: true },
+                error: null,
+              }),
+            })),
+          }
         } else if (table === 'entries') {
           return {
             select: vi.fn(() => ({
@@ -632,6 +772,16 @@ describe('POST /api/student/entries', () => {
               eq: vi.fn().mockReturnThis(),
               single: vi.fn().mockResolvedValue({
                 data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'class_days') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { is_class_day: true },
                 error: null,
               }),
             })),

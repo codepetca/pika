@@ -31,7 +31,7 @@ export function StudentTodayTab({ classroom }: Props) {
         const todayDate = getTodayInToronto()
         setToday(todayDate)
 
-        const classDayRes = await fetch(`/api/teacher/class-days?classroom_id=${classroom.id}`)
+        const classDayRes = await fetch(`/api/classrooms/${classroom.id}/class-days`)
         const classDayData = await classDayRes.json()
         setClassDays(classDayData.class_days || [])
 
@@ -156,4 +156,3 @@ export function StudentTodayTab({ classroom }: Props) {
     </div>
   )
 }
-

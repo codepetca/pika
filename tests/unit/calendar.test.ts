@@ -216,7 +216,7 @@ describe('calendar utilities', () => {
 
       expect(end.getFullYear()).toBe(2025)
       expect(end.getMonth()).toBe(0) // January
-      expect(end.getDate()).toBe(30)
+      expect(end.getDate()).toBe(31)
     })
 
     it('should return correct dates for semester2', () => {
@@ -617,7 +617,7 @@ describe('calendar utilities', () => {
     it('should have correct format for semester1', () => {
       expect(SEMESTER_RANGES.semester1).toEqual({
         start: '09-01',
-        end: '01-30',
+        end: '01-31',
       })
     })
 
