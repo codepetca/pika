@@ -335,6 +335,16 @@
 **Blockers:** None
 ---
 
+## 2025-12-14 08:52 [AI - GPT-5.2]
+**Goal:** Verify/polish: make `verify-env --full` reliable
+**Completed:** Added ESLint tooling/config so `npm run lint` works (and `bash scripts/verify-env.sh --full` passes); fixed a couple JSX apostrophe lint errors; added a small Logs UI hint when summaries are pending and a smoke checklist doc for daily log summaries.
+**Status:** completed
+**Artifacts:**
+- Files: `package.json`, `package-lock.json`, `.eslintrc.json`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `docs/core/daily-log-summaries-smoke.md`
+**Next:** Smoke test `docs/core/daily-log-summaries-smoke.md` on staging after the next cron run.
+**Blockers:** None
+---
+
 ## 2025-12-14 06:59 [AI - GPT-5.2]
 **Goal:** Implement `epic-daily-log-summaries` (teacher 1-line summaries)
 **Completed:** Added cached 1-line AI summaries for teacher Logs view (generated with OpenAI `gpt-5-nano` by default and stored per-entry). Summaries are generated **only** by the nightly cron job (no on-demand generation; no regeneration). Logs API now returns `summary` per student row; UI shows the summary when collapsed and full text when expanded. Added migration for `entry_summaries` table and tests for cron generation + cached reads.
