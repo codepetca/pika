@@ -254,3 +254,13 @@
 **Next:** Apply migration `009` to staging/prod and confirm end-to-end: teacher uploads roster → student signs in with roster email → joins by code → teacher sees Joined
 **Blockers:** None
 ---
+
+## 2025-12-14 15:55 [AI - GPT-5.2]
+**Goal:** Align dev seeding and roster add with allow-list
+**Completed:** Updated `scripts/clear-and-seed.ts` to wipe and populate `classroom_roster` + `student_profiles`; updated `/api/teacher/classrooms/[id]/roster/add` to upsert allow-list rows (no auto-enrollment); updated tests
+**Status:** completed
+**Artifacts:**
+- Files: `scripts/clear-and-seed.ts`, `src/app/api/teacher/classrooms/[id]/roster/add/route.ts`, `tests/api/teacher/roster-add.test.ts`
+**Next:** Merge PR and (optional) reseed staging/local to confirm teacher roster shows rows + join indicator
+**Blockers:** None
+---
