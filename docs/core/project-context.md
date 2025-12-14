@@ -40,10 +40,16 @@ Overview of **Pika**: daily journals, attendance, classrooms, and assignments fo
 
 ## Getting Started
 
-**Prereqs**: Node 22.x, Supabase project, git.
+## Prerequisites
+
+Node: 24.x (see `package.json#engines` and `.nvmrc`)
+
+Package manager: pnpm (recommended via Corepack; `package.json#packageManager`)
 
 **Setup**
-1. `npm install`
+1. Install dependencies:
+   - `corepack enable`
+   - `pnpm install`
 2. Configure `.env.local` (see README for template).
 3. Apply migrations `001`–`009` (users, verification codes, class days, entries, auth refactor, classrooms, assignments, legacy cleanup, roster allow-list + enrollment toggle) via Supabase dashboard or `supabase db push`.
 4. `npm run dev` and open http://localhost:3000
@@ -57,14 +63,13 @@ Email sending is mocked (`ENABLE_MOCK_EMAIL=true` logs codes). Wire a provider i
 ## Development Commands
 
 ```bash
-npm run dev           # dev server
-npm run build         # production build
-npm start             # run production build locally
-npm run test          # all tests
-npm run test:watch    # TDD loop
-npm run test:coverage # coverage report
-npm run lint          # ESLint
-npm run type-check    # TypeScript
+pnpm dev           # dev server
+pnpm build         # production build
+pnpm start         # run production build locally
+pnpm test          # all tests
+pnpm run test:watch
+pnpm run test:coverage
+pnpm run lint
 ```
 
 ---
@@ -116,7 +121,11 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 ## Troubleshooting
 
-- **Server won’t start**: check Node 22.x, `.env.local`, clear `.next`.
+- **Server won’t start**: check Node 24.x, `.env.local`, clear `.next`.
+- **pnpm thinks you’re on Node 22**: your `pnpm` binary is being executed by a different `node` than your shell (common when an older global pnpm is earlier in `PATH`). Fix with Corepack:
+  - `corepack enable`
+  - `corepack prepare pnpm@10.25.0 --activate`
+  - Re-open the terminal and re-check: `node -v`, `pnpm -v`, `pnpm exec node -v`
 - **Supabase issues**: verify keys, ensure migrations applied, review RLS if access errors.
 - **Emails not arriving**: ensure mock mode expected; otherwise implement provider in `email.ts`.
 - **Timezone/attendance**: ensure server runs with America/Toronto assumptions; tests cover DST via `date-fns-tz`.
