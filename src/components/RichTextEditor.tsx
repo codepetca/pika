@@ -178,10 +178,6 @@ export function RichTextEditor({
           >
             Link
           </button>
-
-          <div className="ml-auto hidden sm:block text-xs text-gray-500">
-            Shortcuts: Cmd/Ctrl+B, Cmd/Ctrl+I
-          </div>
         </div>
       </div>
       <EditorContent editor={editor} />
