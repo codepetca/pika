@@ -133,7 +133,7 @@ export function StudentClassroomView({ classroom }: Props) {
 
       {/* Today's Attendance */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Today's Check-in</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Today’s Check-in</h2>
 
         {!isClassDay ? (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">

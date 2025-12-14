@@ -181,11 +181,18 @@ export function TeacherLogsTab({ classroom }: Props) {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-1 text-sm text-gray-600 truncate">
-                    {row.entry!.text}
+                  <div className="mt-1 space-y-1">
+                    <div className="text-sm text-gray-600 truncate">
+                      {row.entry!.text}
+                    </div>
+                    {!row.summary && (
+                      <div className="text-xs text-gray-400">
+                        Summary pending (generated nightly)
+                      </div>
+                    )}
                   </div>
                 )}
-                </div>
+              </div>
                 {hasEntry && (
                   <button
                     type="button"
