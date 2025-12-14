@@ -41,6 +41,8 @@ export interface Classroom {
   class_code: string
   term_label: string | null
   allow_enrollment: boolean
+  start_date: string | null // YYYY-MM-DD, inclusive
+  end_date: string | null // YYYY-MM-DD, inclusive
   created_at: string
   updated_at: string
 }

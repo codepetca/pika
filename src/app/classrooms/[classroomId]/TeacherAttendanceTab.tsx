@@ -23,7 +23,7 @@ export function TeacherAttendanceTab({ classroom }: Props) {
     async function load() {
       setLoading(true)
       try {
-        const classDaysRes = await fetch(`/api/teacher/class-days?classroom_id=${classroom.id}`)
+        const classDaysRes = await fetch(`/api/classrooms/${classroom.id}/class-days`)
         const classDaysData = await classDaysRes.json()
         const nextClassDays: ClassDay[] = classDaysData.class_days || []
         setClassDays(nextClassDays)
@@ -107,4 +107,3 @@ export function TeacherAttendanceTab({ classroom }: Props) {
     </div>
   )
 }
-

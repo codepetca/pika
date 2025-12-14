@@ -48,9 +48,7 @@ export function StudentClassroomView({ classroom }: Props) {
       setAssignments(assignmentsData.assignments || [])
 
       // Check if today is a class day
-      const classDayRes = await fetch(
-        `/api/teacher/class-days?classroom_id=${classroom.id}&semester=semester1&year=2024`
-      )
+      const classDayRes = await fetch(`/api/classrooms/${classroom.id}/class-days`)
       const classDayData = await classDayRes.json()
 
       const todayClassDay = (classDayData.class_days || []).find(
