@@ -12,9 +12,11 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { generateClassDays } from '../src/lib/calendar'
+import { generateClassDays, generateClassDaysFromRange, getSemesterDates, getSemesterForDate } from '../src/lib/calendar'
 import { hashPassword } from '../src/lib/crypto'
+import { getTodayInToronto } from '../src/lib/timezone'
 import { config } from 'dotenv'
+import { addDays, format, parse, subDays } from 'date-fns'
 import { resolve } from 'path'
 
 const envFile = process.env.ENV_FILE || '.env.local'
@@ -61,6 +63,43 @@ function ensureData<T>(data: T | null, label: string): T {
 function ensureOk(result: { error: any }, label: string) {
   if (result.error) {
     throw new Error(`${label} failed: ${formatSupabaseError(result.error)}`)
+  }
+}
+
+function getSeedCalendar() {
+  const todayToronto = parse(getTodayInToronto(), 'yyyy-MM-dd', new Date())
+  const thisYear = todayToronto.getFullYear()
+
+  let semesterYear = thisYear
+  let semester = getSemesterForDate(todayToronto, thisYear)
+  if (!semester) {
+    semester = getSemesterForDate(todayToronto, thisYear - 1)
+    if (semester) semesterYear = thisYear - 1
+  }
+
+  if (semester) {
+    const { start, end } = getSemesterDates(semester, semesterYear)
+    const dates = generateClassDays(semester, semesterYear)
+    const schoolYearStart = semester === 'semester1' ? semesterYear : semesterYear - 1
+    const schoolYearEnd = semester === 'semester1' ? semesterYear + 1 : semesterYear
+    const semesterLabel = semester === 'semester1' ? 'Semester 1' : 'Semester 2'
+    return {
+      dates,
+      rangeStart: start,
+      rangeEnd: end,
+      termLabel: `${semesterLabel} ${schoolYearStart}-${schoolYearEnd}`,
+    }
+  }
+
+  // Summer (Jul/Aug) isn't inside either semester; use a short rolling range for dev/testing.
+  const rangeStart = subDays(todayToronto, 14)
+  const rangeEnd = addDays(todayToronto, 120)
+  const dates = generateClassDaysFromRange(rangeStart, rangeEnd)
+  return {
+    dates,
+    rangeStart,
+    rangeEnd,
+    termLabel: `Custom ${format(rangeStart, 'yyyy-MM-dd')} to ${format(rangeEnd, 'yyyy-MM-dd')}`,
   }
 }
 
@@ -170,13 +209,15 @@ async function clearAndSeed() {
   // 2. Create classroom
   console.log('Creating classroom...')
 
+  const seedCalendar = getSeedCalendar()
+
   const { data: classroom, error: classroomError } = await supabase
     .from('classrooms')
     .insert({
       teacher_id: createdTeacher.id,
       title: 'GLD2O - Learning Strategies',
       class_code: 'GLD2O1',
-      term_label: 'Semester 1 2024-2025',
+      term_label: seedCalendar.termLabel,
     })
     .select()
     .single()
@@ -185,6 +226,20 @@ async function clearAndSeed() {
     throw new Error(`Create classroom failed: ${formatSupabaseError(classroomError)}`)
   }
   const createdClassroom = ensureData(classroom, 'Create classroom')
+
+  const { error: calendarRangeError } = await supabase
+    .from('classrooms')
+    .update({
+      start_date: format(seedCalendar.rangeStart, 'yyyy-MM-dd'),
+      end_date: format(seedCalendar.rangeEnd, 'yyyy-MM-dd'),
+    })
+    .eq('id', createdClassroom.id)
+
+  if (calendarRangeError) {
+    throw new Error(
+      `Update classroom calendar range failed: ${formatSupabaseError(calendarRangeError)} (did you run supabase migrations?)`
+    )
+  }
 
   console.log(`✓ Created classroom: ${createdClassroom.title}\n`)
 
@@ -219,8 +274,8 @@ async function clearAndSeed() {
   // 4. Generate class days
   console.log('Generating class days...')
 
-  const dates = generateClassDays('semester1', 2024)
-  const classDayRecords = dates.map(date => ({
+  const dates = seedCalendar.dates
+  const classDayRecords = dates.map((date) => ({
     classroom_id: createdClassroom.id,
     date,
     is_class_day: true,
@@ -233,12 +288,20 @@ async function clearAndSeed() {
   // 5. Create sample entries
   console.log('Creating sample entries...')
 
+  const todayToronto = getTodayInToronto()
+  const pastDates = dates.filter(d => d <= todayToronto)
+  const entryDates = (pastDates.length >= 3 ? pastDates.slice(-3) : dates.slice(0, 3)).filter(Boolean)
+
+  if (entryDates.length < 3) {
+    throw new Error('Seed calendar did not produce enough dates for sample entries')
+  }
+
   const sampleEntries = [
     // Student 1 - Good attendance (mostly on time)
     {
       student_id: students[0]!.id,
       classroom_id: createdClassroom.id,
-      date: dates[0],
+      date: entryDates[0],
       text: 'Today I learned about functions in JavaScript. I practiced writing arrow functions and understood the difference between function declarations and expressions.',
       minutes_reported: 90,
       mood: '😊',
@@ -247,7 +310,7 @@ async function clearAndSeed() {
     {
       student_id: students[0]!.id,
       classroom_id: createdClassroom.id,
-      date: dates[1],
+      date: entryDates[1],
       text: 'Worked on array methods like map, filter, and reduce. These are really powerful! I created a small project to practice these concepts.',
       minutes_reported: 120,
       mood: '😊',
@@ -256,7 +319,7 @@ async function clearAndSeed() {
     {
       student_id: students[0]!.id,
       classroom_id: createdClassroom.id,
-      date: dates[2],
+      date: entryDates[2],
       text: 'Started learning about async/await and promises. This is challenging but I\'m making progress.',
       minutes_reported: 75,
       mood: '🙂',
@@ -267,7 +330,7 @@ async function clearAndSeed() {
     {
       student_id: students[1]!.id,
       classroom_id: createdClassroom.id,
-      date: dates[0],
+      date: entryDates[0],
       text: 'Introduction to the course. Reviewed the syllabus and set up my development environment.',
       minutes_reported: 60,
       mood: '🙂',
@@ -276,7 +339,7 @@ async function clearAndSeed() {
     {
       student_id: students[1]!.id,
       classroom_id: createdClassroom.id,
-      date: dates[1],
+      date: entryDates[1],
       text: 'Sorry for the late submission. Had some technical issues but completed the reading.',
       minutes_reported: 45,
       mood: '😐',
@@ -287,7 +350,7 @@ async function clearAndSeed() {
     {
       student_id: students[2]!.id,
       classroom_id: createdClassroom.id,
-      date: dates[0],
+      date: entryDates[0],
       text: 'First day. Getting familiar with the course structure.',
       minutes_reported: 30,
       mood: '😐',

@@ -41,6 +41,8 @@ export function TeacherCalendarTab({ classroom }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom.id])
 
+  const isInitialized = classDays.length > 0
+
   const range = useMemo(() => {
     if (classroom.start_date && classroom.end_date) {
       return { start: parseISO(classroom.start_date), end: parseISO(classroom.end_date) }
@@ -151,36 +153,42 @@ export function TeacherCalendarTab({ classroom }: Props) {
           Define which dates are class days. Students can only log on class days. Past dates are locked.
         </div>
 
-        <div className="flex flex-wrap items-end gap-2">
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Start</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm"
-              disabled={saving}
-            />
+        {!isInitialized ? (
+          <div className="flex flex-wrap items-end gap-2">
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Start</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm"
+                disabled={saving}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">End</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm"
+                disabled={saving}
+              />
+            </div>
+            <button
+              type="button"
+              className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
+              onClick={generateFromRange}
+              disabled={saving || !startDate || !endDate}
+            >
+              {saving ? 'Generating…' : 'Generate'}
+            </button>
           </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">End</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm"
-              disabled={saving}
-            />
+        ) : (
+          <div className="text-sm text-gray-600">
+            Calendar is already initialized. Use the grid below to toggle today/future days.
           </div>
-          <button
-            type="button"
-            className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
-            onClick={generateFromRange}
-            disabled={saving || !startDate || !endDate}
-          >
-            {saving ? 'Generating…' : 'Generate'}
-          </button>
-        </div>
+        )}
 
         {error && <div className="text-sm text-red-600">{error}</div>}
         {success && <div className="text-sm text-green-700">{success}</div>}
