@@ -93,10 +93,9 @@ export async function POST(
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (error: any) {
+    if (error.name === 'AuthenticationError') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error.name === 'AuthorizationError') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     console.error('Add students error:', error)
-    return NextResponse.json(
-      { error: error.message || 'Unauthorized' },
-      { status: 401 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
