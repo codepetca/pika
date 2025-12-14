@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { generateDailyLogSummary, hashDailyLogText } from '@/lib/daily-log-summaries'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -102,19 +101,10 @@ export async function GET(request: NextRequest) {
       (entries || []).map(entry => [entry.student_id, entry])
     )
 
-    const entriesWithStudent = students
-      .map(student => ({
-        student,
-        entry: entryByStudentId.get(student.id) || null,
-      }))
-      .filter((row): row is { student: { id: string; email: string }; entry: { id: string; text: string } } => Boolean(row.entry))
-
-    const entryIds = entriesWithStudent.map(row => row.entry.id)
+    const entryIds = (entries || []).map(entry => entry.id)
     const summaryByEntryId = new Map<string, { summary: string; model: string; text_hash: string }>()
 
     if (entryIds.length > 0) {
-      const canGenerate = Boolean(process.env.OPENAI_API_KEY?.trim())
-
       const { data: existingSummaries, error: summariesError } = await supabase
         .from('entry_summaries')
         .select('entry_id, model, text_hash, summary')
@@ -134,38 +124,6 @@ export async function GET(request: NextRequest) {
           model: row.model,
           text_hash: row.text_hash,
         })
-      }
-
-      const summariesToUpsert: Array<{ entry_id: string; model: string; text_hash: string; summary: string }> = []
-
-      for (const { entry } of entriesWithStudent) {
-        const textHash = hashDailyLogText(entry.text)
-        const cached = summaryByEntryId.get(entry.id)
-        if (cached && cached.text_hash === textHash) {
-          continue
-        }
-
-        if (!canGenerate) {
-          continue
-        }
-
-        const { summary, model } = await generateDailyLogSummary(entry.text)
-        summaryByEntryId.set(entry.id, { summary, model, text_hash: textHash })
-        summariesToUpsert.push({ entry_id: entry.id, model, text_hash: textHash, summary })
-      }
-
-      if (summariesToUpsert.length > 0) {
-        const { error: upsertError } = await supabase
-          .from('entry_summaries')
-          .upsert(summariesToUpsert, { onConflict: 'entry_id' })
-
-        if (upsertError) {
-          console.error('Error upserting entry summaries:', upsertError)
-          return NextResponse.json(
-            { error: 'Failed to store summaries' },
-            { status: 500 }
-          )
-        }
       }
     }
 
