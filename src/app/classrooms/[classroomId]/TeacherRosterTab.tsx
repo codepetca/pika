@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import type { Classroom } from '@/types'
 
+type Role = 'student' | 'teacher'
+
 interface RosterRow {
   id: string
   email: string
@@ -58,6 +60,19 @@ export function TeacherRosterTab({ classroom }: Props) {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster`)
       const data = await res.json()
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          // This can happen if you logged in as a student in another tab and replaced the teacher session cookie.
+          try {
+            const meRes = await fetch('/api/auth/me')
+            const meData = await meRes.json().catch(() => ({}))
+            const role = (meData?.user?.role ?? null) as Role | null
+            if (role && role !== 'teacher') {
+              throw new Error('You are not signed in as a teacher. Log out and sign back in as a teacher (student sign-in in another tab replaces the session).')
+            }
+          } catch {
+            // Ignore and fall back to generic message below.
+          }
+        }
         throw new Error(data.error || 'Failed to load roster')
       }
       setRoster(normalizeRosterRows(data.roster || []))

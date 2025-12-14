@@ -140,10 +140,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
+    if (error.name === 'AuthenticationError') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error.name === 'AuthorizationError') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     console.error('Remove student error:', error)
-    return NextResponse.json(
-      { error: error.message || 'Unauthorized' },
-      { status: 401 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
