@@ -85,6 +85,14 @@ async function clearAndSeed() {
     'Delete classroom_enrollments'
   )
   ensureOk(
+    await supabase.from('classroom_roster').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete classroom_roster'
+  )
+  ensureOk(
+    await supabase.from('student_profiles').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete student_profiles'
+  )
+  ensureOk(
     await supabase.from('class_days').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     'Delete class_days'
   )
@@ -143,6 +151,20 @@ async function clearAndSeed() {
     students.push(ensureData(data, `Create student${i}`))
   }
 
+  console.log('Creating student profiles...')
+  for (let i = 0; i < students.length; i++) {
+    const student = students[i]!
+    await supabase
+      .from('student_profiles')
+      .upsert({
+        user_id: student.id,
+        student_number: `100${i + 1}`,
+        first_name: `Student${i + 1}`,
+        last_name: 'Test',
+      }, { onConflict: 'user_id' })
+  }
+  console.log('✓ Created student profiles\n')
+
   console.log(`✓ Created 1 teacher and ${students.length} students\n`)
 
   // 2. Create classroom
@@ -165,6 +187,19 @@ async function clearAndSeed() {
   const createdClassroom = ensureData(classroom, 'Create classroom')
 
   console.log(`✓ Created classroom: ${createdClassroom.title}\n`)
+
+  // 2.5 Add students to classroom roster allow-list
+  console.log('Creating classroom roster allow-list...')
+  await supabase
+    .from('classroom_roster')
+    .insert(students.map((student, index) => ({
+      classroom_id: classroom!.id,
+      email: student!.email.toLowerCase().trim(),
+      student_number: `100${index + 1}`,
+      first_name: `Student${index + 1}`,
+      last_name: 'Test',
+    })))
+  console.log(`✓ Added ${students.length} students to classroom roster\n`)
 
   // 3. Enroll students
   console.log('Enrolling students...')

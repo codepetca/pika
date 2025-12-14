@@ -45,7 +45,7 @@ Overview of **Pika**: daily journals, attendance, classrooms, and assignments fo
 **Setup**
 1. `npm install`
 2. Configure `.env.local` (see README for template).
-3. Apply migrations `001`–`008` (users, verification codes, class days, entries, auth refactor, classrooms, assignments, legacy cleanup) via Supabase dashboard or `supabase db push`.
+3. Apply migrations `001`–`009` (users, verification codes, class days, entries, auth refactor, classrooms, assignments, legacy cleanup, roster allow-list + enrollment toggle) via Supabase dashboard or `supabase db push`.
 4. `npm run dev` and open http://localhost:3000
 5. Optional: `npm run seed`
    - To wipe + reseed against a specific env file: `ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true npm run seed:fresh`
@@ -78,7 +78,7 @@ npm run type-check    # TypeScript
 - `DEV_TEACHER_EMAILS` (comma-separated)
 - `ENABLE_MOCK_EMAIL` (`true` to log verification/reset codes)
 - `NEXT_PUBLIC_APP_URL`
-- `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`)
+- `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in Vercel dashboard)
 
 Legacy anon/service keys are supported but publishable/secret are preferred.
 
@@ -102,6 +102,15 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 - Host on Vercel; configure env vars in dashboard; set `ENABLE_MOCK_EMAIL=false` and add real email provider before production.
 - Supabase Cloud for DB; enable connection pooling; run migrations on deploy.
+- If using cron, configure schedules in the Vercel dashboard (production recommended). Current recommended schedule: `0 6 * * *` (06:00 UTC).
+
+---
+
+## Roster + Enrollment Rules
+
+- CSV upload populates a **classroom roster allow-list** (no auto-enrollment).
+- Students can join only if their signed-in email is on the roster and the classroom has enrollment enabled.
+- Teachers can disable enrollment per classroom in Settings.
 
 ---
 

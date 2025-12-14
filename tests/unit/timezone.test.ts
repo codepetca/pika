@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest'
-import { isOnTime, formatDateInToronto } from '@/lib/timezone'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { isOnTime, formatDateInToronto, getTodayInToronto, nowInToronto } from '@/lib/timezone'
 
 describe('timezone utilities', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   describe('isOnTime', () => {
     it('should return true when submitted before midnight on the same day', () => {
       // November 15, 2024 at 11:59 PM Toronto time (UTC-5)
@@ -69,6 +73,17 @@ describe('timezone utilities', () => {
 
       // In Toronto (UTC-5), this would still be Nov 15
       expect(formatted).toBe('2024-11-15')
+    })
+  })
+
+  describe('nowInToronto / getTodayInToronto', () => {
+    it('should return today in Toronto based on current time', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2024-11-16T03:00:00Z')) // 2024-11-15 22:00 in Toronto (UTC-5)
+
+      const now = nowInToronto()
+      expect(now).toBeInstanceOf(Date)
+      expect(getTodayInToronto()).toBe('2024-11-15')
     })
   })
 })

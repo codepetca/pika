@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // POST /api/assignment-docs/[id]/unsubmit - Unsubmit assignment
 export async function POST(
   request: NextRequest,
@@ -46,6 +49,7 @@ export async function POST(
       .from('assignment_docs')
       .select('id, student_id')
       .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
       .single()
 
     if (docError && docError.code === 'PGRST116') {
@@ -60,13 +64,6 @@ export async function POST(
       return NextResponse.json(
         { error: 'Failed to fetch assignment doc' },
         { status: 500 }
-      )
-    }
-
-    if (!existingDoc || existingDoc.student_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Not authorized to unsubmit this document' },
-        { status: 403 }
       )
     }
 

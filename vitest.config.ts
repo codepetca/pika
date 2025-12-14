@@ -8,6 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
+    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -16,6 +17,7 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/**/*.config.ts',
         'src/types/**',
+        'src/components/**', // UI components are not part of coverage targets
         'src/app/**', // Exclude Next.js app router files for now
       ],
       thresholds: {

@@ -37,3 +37,8 @@ supabase/.temp/
 
 # Remote Supabase reference (backup)
 .env.remote.local
+
+# Playwright / UI snapshots (generated locally)
+/playwright-report/
+/test-results/
+/artifacts/

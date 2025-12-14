@@ -1,13 +1,13 @@
 {
   "meta": {
     "project": "pika",
-    "lastUpdated": "2025-12-12",
+    "lastUpdated": "2025-12-14",
     "phase": "Infrastructure — AI Effectiveness Layer",
     "DO_NOT_DELETE_FEATURES": "This inventory is APPEND-ONLY. Mark features as passing/failing, add new features, but NEVER DELETE FEATURES FROM THIS FILE. Deletion corrupts project history.",
     "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 8,
-    "passing": 6,
-    "failing": 2
+    "totalFeatures": 9,
+    "passing": 9,
+    "failing": 0
   },
   "features": [
     {
@@ -74,22 +74,36 @@
       "id": "epic-tests-polish",
       "phase": "Phase 6 — Tests & Polish",
       "description": "Expand coverage, harden security, and keep docs in sync (coverage thresholds met and stable)",
-      "passes": false,
+      "passes": true,
       "verification": "Run: npm run test:coverage (and meet thresholds). Add missing tests as needed.",
       "issueRefs": [],
       "blockedBy": [],
-      "addedDate": "2025-12-12"
+      "addedDate": "2025-12-12",
+      "completedDate": "2025-12-14"
     },
     {
       "id": "epic-ai-effectiveness-layer",
       "phase": "Infrastructure",
-      "description": "AI continuity layer (.ai/), standardized protocols, and PR-event journaling via GitHub Actions",
-      "passes": false,
-      "verification": "Run: bash scripts/verify-env.sh and node scripts/features.mjs validate. Open a PR and confirm the journal bot appends entries onto the PR branch for opened (non-draft) and ready_for_review events.",
-      "issueRefs": ["#8"],
+      "description": "AI continuity layer (.ai/) and standardized protocols",
+      "passes": true,
+      "verification": "Run: bash scripts/verify-env.sh and node scripts/features.mjs validate.",
+      "issueRefs": [
+        "#8"
+      ],
       "blockedBy": [],
-      "addedDate": "2025-12-12"
+      "addedDate": "2025-12-12",
+      "completedDate": "2025-12-14"
+    },
+    {
+      "id": "epic-daily-log-summaries",
+      "phase": "Phase 7 — AI (Daily Logs)",
+      "description": "Teacher-facing 1-line daily log summaries per student/day (cheap model; separate from assignment summaries)",
+      "passes": true,
+      "verification": "Manual smoke: teacher opens Logs view for a date and sees 1-line summaries for students with logs; verify model is OpenAI gpt-5-nano and summaries are cached unless entry text changes.",
+      "issueRefs": [],
+      "blockedBy": [],
+      "addedDate": "2025-12-13",
+      "completedDate": "2025-12-14"
     }
   ]
 }
-

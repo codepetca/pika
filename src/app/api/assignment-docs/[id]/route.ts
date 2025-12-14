@@ -45,19 +45,48 @@ export async function GET(
       )
     }
 
-    // Get assignment doc for this assignment (ownership checked below)
-    const { data: doc, error: docError } = await supabase
+    // Get or create assignment doc for this student
+    const { data: existingDoc, error: docError } = await supabase
       .from('assignment_docs')
       .select('*')
       .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
       .single()
 
     if (docError) {
       if (docError.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Assignment doc not found' },
-          { status: 404 }
-        )
+        const { data: created, error: createError } = await supabase
+          .from('assignment_docs')
+          .insert({
+            assignment_id: assignmentId,
+            student_id: user.id,
+            content: '',
+            is_submitted: false,
+            submitted_at: null,
+          })
+          .select()
+          .single()
+
+        if (createError || !created) {
+          // If we raced another create, re-fetch.
+          if (createError?.code === '23505') {
+            const { data: raced } = await supabase
+              .from('assignment_docs')
+              .select('*')
+              .eq('assignment_id', assignmentId)
+              .eq('student_id', user.id)
+              .single()
+            return NextResponse.json({ assignment, doc: raced })
+          }
+
+          console.error('Error creating assignment doc:', createError)
+          return NextResponse.json(
+            { error: 'Failed to create assignment doc' },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({ assignment, doc: created })
       }
       console.error('Error fetching assignment doc:', docError)
       return NextResponse.json(
@@ -66,14 +95,7 @@ export async function GET(
       )
     }
 
-    if (!doc || doc.student_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Not authorized to access this document' },
-        { status: 403 }
-      )
-    }
-
-    return NextResponse.json({ assignment, doc })
+    return NextResponse.json({ assignment, doc: existingDoc })
   } catch (error: any) {
     // Authentication error (401)
     if (error.name === 'AuthenticationError') {
@@ -148,26 +170,37 @@ export async function PATCH(
       .from('assignment_docs')
       .select('id, student_id, is_submitted')
       .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
       .single()
 
     if (docFetchError) {
       if (docFetchError.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Assignment doc not found' },
-          { status: 404 }
-        )
+        const { data: created, error: createError } = await supabase
+          .from('assignment_docs')
+          .insert({
+            assignment_id: assignmentId,
+            student_id: user.id,
+            content: String(content ?? ''),
+            is_submitted: false,
+            submitted_at: null,
+          })
+          .select()
+          .single()
+
+        if (createError || !created) {
+          console.error('Error creating assignment doc:', createError)
+          return NextResponse.json(
+            { error: 'Failed to save' },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({ doc: created })
       }
       console.error('Error fetching assignment doc:', docFetchError)
       return NextResponse.json(
         { error: 'Failed to fetch assignment doc' },
         { status: 500 }
-      )
-    }
-
-    if (!existingDoc || existingDoc.student_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Not authorized to modify this document' },
-        { status: 403 }
       )
     }
 

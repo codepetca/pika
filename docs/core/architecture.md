@@ -109,6 +109,13 @@ Teachers: create classroom -> share join code -> upload roster CSV -> manage cla
 Students: join classroom (code) -> daily entries -> open assignment -> autosave content -> submit/unsubmit.
 ```
 
+**Roster + Enrollment gating**
+- Roster CSV populates a **classroom allow-list** (`classroom_roster`).
+- Students can only join if:
+  1) the classroom has `allow_enrollment=true`, and
+  2) their signed-in email matches a roster entry for that classroom.
+- Uploading roster CSV does **not** auto-enroll students; it only updates the allow-list.
+
 ---
 
 ## API Surface (non-exhaustive)
