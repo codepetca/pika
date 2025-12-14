@@ -295,7 +295,7 @@ export default function TodayPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Today's entry
+                        Today’s entry
                       </label>
                       <textarea
                         value={text}
@@ -357,7 +357,7 @@ export default function TodayPage() {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-600">
-            Select a class to view today's entry
+            Select a class to view today’s entry
           </div>
         )}
       </div>
