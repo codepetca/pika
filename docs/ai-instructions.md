@@ -119,18 +119,19 @@ This TDD approach ensures code quality and prevents regressions.
 
 1. Read ai-instructions.md (this file)
 2. Read all required docs in sequence
-3. Identify which agent role to adopt (see agents.md)
-4. Write tests FIRST for core logic
-5. Implement minimal code to pass tests
-6. Refactor for clarity
-7. Update docs if architecture changes
+3. Create a worktree for your branch (see `docs/workflow/worktrees.md`)
+4. Identify which agent role to adopt (see agents.md)
+5. Write tests FIRST for core logic
+6. Implement minimal code to pass tests
+7. Refactor for clarity
+8. Update docs if architecture changes
 
 ### Workflow 2: Working on an Issue
 
 1. Run: `gh issue view X --json number,title,body,labels`
 2. Follow reading order above
 3. Follow `docs/issue-worker.md` (protocol) and `docs/workflow/handle-issue.md` (quick pointer)
-4. Create branch: `issue/X-slug`
+4. Create a worktree for `issue/X-slug` (see `docs/workflow/worktrees.md`)
 5. Follow TDD workflow
 6. Create PR with "Closes #X"
 
@@ -145,10 +146,11 @@ This TDD approach ensures code quality and prevents regressions.
 ### Workflow 4: Fixing a Bug
 
 1. Read ai-instructions.md and relevant core docs
-2. Write a failing test that reproduces the bug
-3. Fix code to pass the test
-4. Refactor if needed
-5. Verify all tests pass
+2. Create a worktree for your branch (see `docs/workflow/worktrees.md`)
+3. Write a failing test that reproduces the bug
+4. Fix code to pass the test
+5. Refactor if needed
+6. Verify all tests pass
 
 ---
 

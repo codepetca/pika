@@ -325,6 +325,21 @@
 **Blockers:** None
 ---
 
+## 2025-12-14 12:55 [AI - GPT-5.2]
+**Goal:** Enforce worktree-based git workflow (prevent multi-terminal confusion)
+**Completed:** Documented a mandatory “hub checkout + one worktree per branch/PR” workflow under `../worktrees/pika/`, clarified “no branch work in `pika/`” and “never switch branches inside a worktree”, and added explicit cleanup instructions after merge.
+**Status:** completed
+**Artifacts:**
+- `docs/workflow/worktrees.md`
+- `.ai/START-HERE.md`
+- `AGENTS.md`
+- `docs/ai-instructions.md`
+- `docs/workflow/handle-issue.md`
+- `docs/core/agents.md`
+**Next:** Use `pika/` only for fetch/PR ops; create and use a dedicated worktree for every branch/task.
+**Blockers:** None
+---
+
 ## 2025-12-14 06:46 [AI - GPT-5.2]
 **Goal:** Remove PR journal bot requirement
 **Completed:** Deleted the PR-event journaling GitHub Action and updated `epic-ai-effectiveness-layer` to remove PR-journal-bot verification; marked the epic passing.

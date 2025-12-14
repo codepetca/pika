@@ -4,6 +4,12 @@
 - Read `.ai/START-HERE.md` at the start of every session.
 - Follow the required reading order in `docs/ai-instructions.md` before modifying code.
 
+## Git Worktrees (MANDATORY)
+- Never do branch work in the main repo directory (`pika/`).
+- Any branch work must happen in a dedicated git worktree under `../worktrees/pika/`.
+- Do not switch branches inside an existing working tree; create a new worktree instead.
+- After a PR is merged, remove its worktree (see `docs/workflow/worktrees.md`).
+
 ## Project Overview
 - Next.js 14+ (App Router) + TypeScript
 - Supabase (PostgreSQL) for data/storage
@@ -34,4 +40,3 @@
 4. `docs/core/design.md` (UI/UX rules)
 5. `docs/core/project-context.md` (setup and commands)
 6. `.ai/JOURNAL.md` + `docs/core/decision-log.md` (history/rationale)
-
