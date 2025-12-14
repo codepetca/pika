@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { GET } from '@/app/api/teacher/logs/route'
 import { NextRequest } from 'next/server'
 import { mockAuthenticationError } from '../setup'
-import { hashDailyLogText } from '@/lib/daily-log-summaries'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -126,7 +125,6 @@ describe('GET /api/teacher/logs', () => {
               error: null,
             }),
           })),
-          upsert: vi.fn().mockResolvedValue({ error: null }),
         }
       }
       return {}
@@ -147,8 +145,6 @@ describe('GET /api/teacher/logs', () => {
   })
 
   it('should return cached summary when text hash matches', async () => {
-    const cachedHash = hashDailyLogText('hello')
-
     const mockFrom = vi.fn((table: string) => {
       if (table === 'classrooms') {
         return {
@@ -193,11 +189,10 @@ describe('GET /api/teacher/logs', () => {
         return {
           select: vi.fn(() => ({
             in: vi.fn().mockResolvedValue({
-              data: [{ entry_id: 'e1', model: 'gpt-5-nano', text_hash: cachedHash, summary: 'Cached summary' }],
+              data: [{ entry_id: 'e1', model: 'gpt-5-nano', text_hash: 'hash', summary: 'Cached summary' }],
               error: null,
             }),
           })),
-          upsert: vi.fn().mockResolvedValue({ error: null }),
         }
       }
       return {}
@@ -216,10 +211,8 @@ describe('GET /api/teacher/logs', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
-  it('should generate and store summary when missing and OPENAI_API_KEY is configured', async () => {
+  it('should not generate summary on demand even if OPENAI_API_KEY is configured', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'test-key')
-
-    const upsertSpy = vi.fn().mockResolvedValue({ error: null })
 
     const mockFrom = vi.fn((table: string) => {
       if (table === 'classrooms') {
@@ -269,37 +262,21 @@ describe('GET /api/teacher/logs', () => {
               error: null,
             }),
           })),
-          upsert: upsertSpy,
         }
       }
       return {}
     })
     ;(mockSupabaseClient.from as any) = mockFrom
 
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ output_text: 'Generated summary' }),
-      } as any)
-    )
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
 
     const request = new NextRequest('http://localhost:3000/api/teacher/logs?classroom_id=classroom-1&date=2025-01-02')
     const response = await GET(request)
     expect(response.status).toBe(200)
 
     const body = await response.json()
-    expect(body.logs[1].summary).toBe('Generated summary')
-    expect(upsertSpy).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          entry_id: 'e1',
-          model: expect.any(String),
-          text_hash: expect.any(String),
-          summary: 'Generated summary',
-        }),
-      ],
-      { onConflict: 'entry_id' }
-    )
+    expect(body.logs[1].summary).toBe(null)
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
