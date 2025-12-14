@@ -34,7 +34,15 @@ Do not proceed with implementation until the user confirms the plan.
 
 After confirmation:
 
-a. **Create branch**: `issue/X-<slug>`
+a. **Create a worktree (MANDATORY)**:
+
+Use a dedicated worktree for the issue branch (see `docs/workflow/worktrees.md`).
+
+Example (from the hub checkout `pika/`):
+
+git fetch origin
+git worktree add -b issue/X-<slug> ../worktrees/pika/issue-X-<slug> origin/main
+cd ../worktrees/pika/issue-X-<slug>
 
 b. **Follow TDD workflow**:
    - Write tests FIRST for core logic (utilities, business rules)

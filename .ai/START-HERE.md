@@ -4,6 +4,16 @@
 
 ---
 
+## 0) Worktree Workflow (MANDATORY)
+
+Never do branch work inside `pika/` (the hub checkout).
+
+If you need a branch/PR, create and use a dedicated worktree under `../worktrees/pika/`.
+
+See: `docs/workflow/worktrees.md`
+
+---
+
 ## 1) Verify the Environment (1–2 min)
 
 ```bash
@@ -102,6 +112,10 @@ Before writing code:
    node scripts/features.mjs fail <feature-id>
    ```
 3. Commit and push the journal + feature changes.
+4. If the work was merged, remove the worktree:
+   ```bash
+   git worktree remove ../worktrees/pika/<branch-name>
+   ```
 
 ---
 
