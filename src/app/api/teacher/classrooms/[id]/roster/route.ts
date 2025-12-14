@@ -37,24 +37,9 @@ export async function GET(
       )
     }
 
-    // Get roster with student profiles
-    const { data: enrollments, error: rosterError } = await supabase
-      .from('classroom_enrollments')
-      .select(`
-        id,
-        student_id,
-        created_at,
-        student_profiles!inner(
-          id,
-          first_name,
-          last_name,
-          student_number,
-          user_id
-        ),
-        users!classroom_enrollments_student_id_fkey(
-          email
-        )
-      `)
+    const { data: rosterRows, error: rosterError } = await supabase
+      .from('classroom_roster')
+      .select('id, email, student_number, first_name, last_name, created_at, updated_at')
       .eq('classroom_id', classroomId)
 
     if (rosterError) {
@@ -65,7 +50,51 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ roster: enrollments })
+    const { data: enrollments, error: enrollmentsError } = await supabase
+      .from('classroom_enrollments')
+      .select(`
+        student_id,
+        created_at,
+        users!classroom_enrollments_student_id_fkey(email)
+      `)
+      .eq('classroom_id', classroomId)
+
+    if (enrollmentsError) {
+      console.error('Error fetching enrollments:', enrollmentsError)
+      return NextResponse.json(
+        { error: 'Failed to fetch roster' },
+        { status: 500 }
+      )
+    }
+
+    const joinedByEmail = new Map<string, { student_id: string; created_at: string }>()
+    for (const e of enrollments || []) {
+      const email = (e as any)?.users?.email
+      if (!email) continue
+      joinedByEmail.set(String(email).toLowerCase().trim(), {
+        student_id: (e as any).student_id,
+        created_at: (e as any).created_at,
+      })
+    }
+
+    const roster = (rosterRows || []).map((r: any) => {
+      const email = String(r.email || '').toLowerCase().trim()
+      const joined = joinedByEmail.get(email)
+      return {
+        id: r.id,
+        email: r.email,
+        student_number: r.student_number ?? null,
+        first_name: r.first_name ?? null,
+        last_name: r.last_name ?? null,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        joined: !!joined,
+        student_id: joined?.student_id ?? null,
+        joined_at: joined?.created_at ?? null,
+      }
+    })
+
+    return NextResponse.json({ roster })
   } catch (error: any) {
     console.error('Get roster error:', error)
     return NextResponse.json(

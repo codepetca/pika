@@ -244,3 +244,13 @@
 **Next:** Set `ENABLE_UI_GALLERY=true` on staging and run `pnpm run e2e:snapshots` against staging to generate the first snapshot pack
 **Blockers:** None
 ---
+
+## 2025-12-13 18:05 [AI - GPT-5.2]
+**Goal:** Roster-restricted enrollment + enrollment toggle
+**Completed:** Added a roster allow-list (`classroom_roster`) and `classrooms.allow_enrollment`; updated student join to require roster match + enrollment enabled; updated teacher roster to manage allow-list (no auto-enrollment) with joined indicator; added teacher settings toggle to enable/disable enrollment; improved join page error messaging
+**Status:** completed
+**Artifacts:**
+- Files: `supabase/migrations/009_roster_allowlist_and_enrollment_toggle.sql`, `src/app/api/student/classrooms/join/route.ts`, `src/app/api/teacher/classrooms/[id]/route.ts`, `src/app/api/teacher/classrooms/[id]/roster/route.ts`, `src/app/api/teacher/classrooms/[id]/roster/upload-csv/route.ts`, `src/app/api/teacher/classrooms/[id]/roster/[rosterId]/route.ts`, `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`, `src/app/classrooms/[classroomId]/TeacherSettingsTab.tsx`, `src/app/join/[code]/page.tsx`, `tests/api/student/classrooms-join.test.ts`, `tests/api/teacher/roster-upload-csv.test.ts`, `tests/api/teacher/roster-rosterId.test.ts`
+**Next:** Apply migration `009` to staging/prod and confirm end-to-end: teacher uploads roster → student signs in with roster email → joins by code → teacher sees Joined
+**Blockers:** None
+---
