@@ -24,6 +24,9 @@ interface Props {
 export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
   const router = useRouter()
 
+  const AUTOSAVE_DEBOUNCE_MS = 5000
+  const AUTOSAVE_MIN_INTERVAL_MS = 15000
+
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [doc, setDoc] = useState<AssignmentDoc | null>(null)
   const [content, setContent] = useState<TiptapContent>({ type: 'doc', content: [] })
@@ -35,12 +38,18 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSavedContentRef = useRef('')
+  const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSaveAttemptAtRef = useRef(0)
+  const pendingContentRef = useRef<TiptapContent | null>(null)
 
   useEffect(() => {
     loadAssignment()
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
+      }
+      if (throttledSaveTimeoutRef.current) {
+        clearTimeout(throttledSaveTimeoutRef.current)
       }
     }
   }, [assignmentId])
@@ -75,6 +84,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
     }
 
     setSaveStatus('saving')
+    lastSaveAttemptAtRef.current = Date.now()
 
     try {
       const response = await fetch(`/api/assignment-docs/${assignmentId}`, {
@@ -98,9 +108,36 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
     }
   }, [assignmentId])
 
+  const scheduleSave = useCallback((newContent: TiptapContent, options?: { force?: boolean }) => {
+    pendingContentRef.current = newContent
+
+    if (throttledSaveTimeoutRef.current) {
+      clearTimeout(throttledSaveTimeoutRef.current)
+      throttledSaveTimeoutRef.current = null
+    }
+
+    const now = Date.now()
+    const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
+
+    if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
+      void saveContent(newContent)
+      return
+    }
+
+    const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastAttempt
+    throttledSaveTimeoutRef.current = setTimeout(() => {
+      throttledSaveTimeoutRef.current = null
+      const latest = pendingContentRef.current
+      if (latest) {
+        void saveContent(latest)
+      }
+    }, waitMs)
+  }, [AUTOSAVE_MIN_INTERVAL_MS, saveContent])
+
   function handleContentChange(newContent: TiptapContent) {
     setContent(newContent)
     setSaveStatus('unsaved')
+    pendingContentRef.current = newContent
 
     // Debounce save
     if (saveTimeoutRef.current) {
@@ -108,8 +145,14 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      saveContent(newContent)
-    }, 1500) // Save after 1.5 seconds of no typing
+      scheduleSave(newContent)
+    }, AUTOSAVE_DEBOUNCE_MS)
+  }
+
+  function flushAutosave() {
+    if (saveStatus === 'unsaved' && pendingContentRef.current) {
+      scheduleSave(pendingContentRef.current, { force: true })
+    }
   }
 
   async function handleSubmit() {
@@ -246,6 +289,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
             placeholder="Write your response here..."
             disabled={submitting}
             editable={!isSubmitted}
+            onBlur={flushAutosave}
           />
         </div>
 

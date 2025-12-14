@@ -4,13 +4,14 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref, sanitizeLinkHref } from '@/lib/tiptap-content'
 
 interface RichTextEditorProps {
   content: TiptapContent
   onChange: (content: TiptapContent) => void
+  onBlur?: () => void
   placeholder?: string
   disabled?: boolean
   editable?: boolean
@@ -19,11 +20,13 @@ interface RichTextEditorProps {
 export function RichTextEditor({
   content,
   onChange,
+  onBlur,
   placeholder = 'Write your response here...',
   disabled = false,
   editable = true,
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   const editor = useEditor({
     extensions: [
@@ -75,7 +78,16 @@ export function RichTextEditor({
   }
 
   return (
-    <div className="border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500">
+    <div
+      ref={containerRef}
+      className="border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500"
+      onBlurCapture={event => {
+        if (!onBlur) return
+        const relatedTarget = event.relatedTarget as Node | null
+        if (relatedTarget && containerRef.current?.contains(relatedTarget)) return
+        onBlur()
+      }}
+    >
       <div className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50">
         <div className="p-2 flex flex-wrap items-center gap-1">
           <button
@@ -83,7 +95,6 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleBold().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('bold')}
-            title="Bold (Cmd/Ctrl+B)"
             className={`px-2 py-1 rounded text-sm font-semibold ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bold') ? 'bg-gray-300' : 'bg-white'}`}
           >
             B
@@ -93,7 +104,6 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleItalic().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('italic')}
-            title="Italic (Cmd/Ctrl+I)"
             className={`px-2 py-1 rounded text-sm italic ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('italic') ? 'bg-gray-300' : 'bg-white'}`}
           >
             I
