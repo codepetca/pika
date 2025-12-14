@@ -14,35 +14,28 @@ const mockSupabaseClient = { from: vi.fn() }
 describe('GET /api/assignment-docs/[id]', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('should return 404 when doc does not exist', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-999')
-    const response = await GET(request, { params: { id: 'doc-999' } })
-    expect(response.status).toBe(404)
-  })
-
-  it('should return 403 when not student owner', async () => {
+  it('should return 404 when assignment does not exist', async () => {
     const mockFrom = vi.fn((table: string) => {
-      if (table === 'assignment_docs') {
+      if (table === 'assignments') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'doc-1', student_id: 'other-student', assignment_id: 'assign-1' },
-                error: null,
-              }),
+              single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
             })),
           })),
         }
-      } else if (table === 'assignments') {
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-999')
+    const response = await GET(request, { params: { id: 'assign-999' } })
+    expect(response.status).toBe(404)
+  })
+
+  it('should create a doc when missing', async () => {
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
@@ -63,13 +56,33 @@ describe('GET /api/assignment-docs/[id]', () => {
             }),
           })),
         }
+      } else if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST116' },
+            }),
+          })),
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'doc-new', assignment_id: 'assign-1', student_id: 'student-1', content: '' },
+                error: null,
+              }),
+            })),
+          })),
+        }
       }
     })
     ;(mockSupabaseClient.from as any) = mockFrom
 
-    const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-1')
-    const response = await GET(request, { params: { id: 'doc-1' } })
-    expect(response.status).toBe(403)
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1')
+    const response = await GET(request, { params: { id: 'assign-1' } })
+    const data = await response.json()
+    expect(response.status).toBe(200)
+    expect(data.doc.id).toBe('doc-new')
   })
 })
 
@@ -81,12 +94,11 @@ describe('PATCH /api/assignment-docs/[id]', () => {
       if (table === 'assignment_docs') {
         return {
           select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'doc-1', student_id: 'student-1', is_submitted: true, assignment_id: 'assign-1' },
-                error: null,
-              }),
-            })),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'doc-1', student_id: 'student-1', is_submitted: true, assignment_id: 'assign-1' },
+              error: null,
+            }),
           })),
         }
       } else if (table === 'assignments') {

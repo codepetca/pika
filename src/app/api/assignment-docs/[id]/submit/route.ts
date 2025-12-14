@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // POST /api/assignment-docs/[id]/submit - Submit assignment
 export async function POST(
   request: NextRequest,
@@ -44,8 +47,9 @@ export async function POST(
     // Check if doc exists
     const { data: existingDoc, error: docError } = await supabase
       .from('assignment_docs')
-      .select('id, student_id')
+      .select('id, student_id, content')
       .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
       .single()
 
     if (docError && docError.code === 'PGRST116') {
@@ -63,10 +67,10 @@ export async function POST(
       )
     }
 
-    if (!existingDoc || existingDoc.student_id !== user.id) {
+    if (!existingDoc || !String(existingDoc.content || '').trim()) {
       return NextResponse.json(
-        { error: 'Not authorized to submit this document' },
-        { status: 403 }
+        { error: 'No work to submit. Please write something first.' },
+        { status: 400 }
       )
     }
 

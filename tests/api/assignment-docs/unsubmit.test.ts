@@ -15,37 +15,8 @@ describe('POST /api/assignment-docs/[id]/unsubmit', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('should return 404 when doc does not exist', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-999/unsubmit', {
-      method: 'POST',
-    })
-
-    const response = await POST(request, { params: { id: 'doc-999' } })
-    expect(response.status).toBe(404)
-  })
-
-  it('should return 403 when not student owner', async () => {
     const mockFrom = vi.fn((table: string) => {
-      if (table === 'assignment_docs') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'doc-1', student_id: 'other-student', assignment_id: 'assign-1' },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      } else if (table === 'assignments') {
+      if (table === 'assignments') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
@@ -56,7 +27,8 @@ describe('POST /api/assignment-docs/[id]/unsubmit', () => {
             })),
           })),
         }
-      } else if (table === 'classroom_enrollments') {
+      }
+      if (table === 'classroom_enrollments') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
@@ -67,14 +39,79 @@ describe('POST /api/assignment-docs/[id]/unsubmit', () => {
           })),
         }
       }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+          })),
+        }
+      }
     })
     ;(mockSupabaseClient.from as any) = mockFrom
 
-    const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-1/unsubmit', {
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/unsubmit', {
       method: 'POST',
     })
 
-    const response = await POST(request, { params: { id: 'doc-1' } })
-    expect(response.status).toBe(403)
+    const response = await POST(request, { params: { id: 'assign-1' } })
+    expect(response.status).toBe(404)
+  })
+
+  it('unsubmits when doc exists', async () => {
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'enroll-1' },
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'doc-1', student_id: 'student-1', assignment_id: 'assign-1' },
+              error: null,
+            }),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'doc-1', is_submitted: false },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/unsubmit', {
+      method: 'POST',
+    })
+
+    const response = await POST(request, { params: { id: 'assign-1' } })
+    expect(response.status).toBe(200)
   })
 })
