@@ -39,9 +39,5 @@ ALTER TABLE public.assignment_docs
 ALTER TABLE public.assignment_docs
   ALTER COLUMN content SET NOT NULL;
 
--- STEP 5: Add GIN index for efficient JSONB queries
-CREATE INDEX IF NOT EXISTS idx_assignment_docs_content_gin
-  ON public.assignment_docs USING gin(content);
-
--- STEP 6: Drop legacy column (optional - uncomment after verifying migration)
+-- STEP 5: Drop legacy column (optional - uncomment after verifying migration)
 -- ALTER TABLE public.assignment_docs DROP COLUMN content_legacy;
