@@ -324,3 +324,13 @@
 **Next:** Redeploy on Vercel; the Node version warning should be resolved.
 **Blockers:** None
 ---
+
+## 2025-12-14 06:46 [AI - GPT-5.2]
+**Goal:** Remove PR journal bot requirement
+**Completed:** Deleted the PR-event journaling GitHub Action and updated `epic-ai-effectiveness-layer` to remove PR-journal-bot verification; marked the epic passing.
+**Status:** completed
+**Artifacts:**
+- Files: `.github/workflows/journal-on-pr.yml`, `.ai/features.json`, `.ai/JOURNAL.md`
+**Next:** Proceed with `epic-daily-log-summaries`.
+**Blockers:** None
+---

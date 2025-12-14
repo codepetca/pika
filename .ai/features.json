@@ -6,8 +6,8 @@
     "DO_NOT_DELETE_FEATURES": "This inventory is APPEND-ONLY. Mark features as passing/failing, add new features, but NEVER DELETE FEATURES FROM THIS FILE. Deletion corrupts project history.",
     "deletionPolicy": "PROHIBITED",
     "totalFeatures": 9,
-    "passing": 7,
-    "failing": 2
+    "passing": 8,
+    "failing": 1
   },
   "features": [
     {
@@ -84,14 +84,15 @@
     {
       "id": "epic-ai-effectiveness-layer",
       "phase": "Infrastructure",
-      "description": "AI continuity layer (.ai/), standardized protocols, and PR-event journaling via GitHub Actions",
-      "passes": false,
-      "verification": "Run: bash scripts/verify-env.sh and node scripts/features.mjs validate. Open a PR and confirm the journal bot appends entries onto the PR branch for opened (non-draft) and ready_for_review events.",
+      "description": "AI continuity layer (.ai/) and standardized protocols",
+      "passes": true,
+      "verification": "Run: bash scripts/verify-env.sh and node scripts/features.mjs validate.",
       "issueRefs": [
         "#8"
       ],
       "blockedBy": [],
-      "addedDate": "2025-12-12"
+      "addedDate": "2025-12-12",
+      "completedDate": "2025-12-14"
     },
     {
       "id": "epic-daily-log-summaries",
