@@ -1,12 +1,19 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 
+function isSafeNextPath(next: string): boolean {
+  if (!next.startsWith('/')) return false
+  if (next.startsWith('//')) return false
+  return true
+}
+
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -30,7 +37,12 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed')
       }
 
-      // Redirect based on user role
+      const next = searchParams.get('next')
+      if (next && isSafeNextPath(next)) {
+        router.push(next)
+        return
+      }
+
       router.push(data.redirectUrl)
     } catch (err: any) {
       setError(err.message || 'An error occurred')
