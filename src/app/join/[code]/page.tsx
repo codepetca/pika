@@ -15,13 +15,19 @@ export default function JoinClassroomPage() {
   useEffect(() => {
     async function joinClassroom() {
       try {
+        const trimmedCode = String(code || '').trim()
+        const isUuid =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            trimmedCode
+          )
+
         // Try to join by code or ID
         const response = await fetch('/api/student/classrooms/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            classCode: code,
-            classroomId: code, // Try both in case it's a UUID
+            classCode: trimmedCode,
+            ...(isUuid ? { classroomId: trimmedCode } : {}),
           }),
         })
 
