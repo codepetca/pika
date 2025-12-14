@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { computeAttendanceStatusForStudent, getAttendanceIcon, getAttendanceLabel } from '@/lib/attendance'
+import {
+  computeAttendanceStatusForStudent,
+  computeAttendanceRecords,
+  getAttendanceIcon,
+  getAttendanceLabel,
+} from '@/lib/attendance'
 import type { ClassDay, Entry } from '@/types'
 
 describe('attendance utilities', () => {
@@ -107,6 +112,63 @@ describe('attendance utilities', () => {
       // Non-class day should not appear in results
       expect(result['2024-09-04']).toBeUndefined()
       expect(Object.keys(result)).not.toContain('2024-09-04')
+    })
+  })
+
+  describe('computeAttendanceRecords', () => {
+    it('should compute per-student attendance and summaries', () => {
+      const students = [
+        { id: 'student1', email: 'student1@example.com' },
+        { id: 'student2', email: 'student2@example.com' },
+      ]
+
+      const allEntries: Entry[] = [
+        {
+          id: 'e1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-01',
+          text: 'Entry 1',
+          minutes_reported: 60,
+          mood: '😊',
+          created_at: '2024-09-01T20:00:00Z',
+          updated_at: '2024-09-01T20:00:00Z',
+          on_time: true,
+        },
+        {
+          id: 'e2',
+          student_id: 'student2',
+          course_code: 'GLD2O',
+          date: '2024-09-02',
+          text: 'Entry 2',
+          minutes_reported: 30,
+          mood: '😊',
+          created_at: '2024-09-02T20:00:00Z',
+          updated_at: '2024-09-02T20:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      const records = computeAttendanceRecords(students, classDays, allEntries)
+      expect(records).toHaveLength(2)
+
+      const record1 = records.find(r => r.student_id === 'student1')!
+      expect(record1.student_email).toBe('student1@example.com')
+      expect(record1.dates).toEqual({
+        '2024-09-01': 'present',
+        '2024-09-02': 'absent',
+        '2024-09-03': 'absent',
+      })
+      expect(record1.summary).toEqual({ present: 1, absent: 2 })
+
+      const record2 = records.find(r => r.student_id === 'student2')!
+      expect(record2.student_email).toBe('student2@example.com')
+      expect(record2.dates).toEqual({
+        '2024-09-01': 'absent',
+        '2024-09-02': 'present',
+        '2024-09-03': 'absent',
+      })
+      expect(record2.summary).toEqual({ present: 1, absent: 2 })
     })
   })
 
