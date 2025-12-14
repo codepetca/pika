@@ -31,6 +31,11 @@ export default function JoinClassroomPage() {
           }),
         })
 
+        if (response.status === 401) {
+          router.push(`/login?next=${encodeURIComponent(`/join/${trimmedCode}`)}`)
+          return
+        }
+
         const data = await response.json()
 
         if (!response.ok) {
