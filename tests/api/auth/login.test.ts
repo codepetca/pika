@@ -330,7 +330,7 @@ describe('POST /api/auth/login', () => {
       expect(data).toEqual({
         success: true,
         message: 'Login successful',
-        redirectUrl: '/student/today',
+        redirectUrl: '/classrooms',
         user: {
           id: 'user-1',
           email: 'test@example.com',
@@ -370,7 +370,7 @@ describe('POST /api/auth/login', () => {
       expect(data).toEqual({
         success: true,
         message: 'Login successful',
-        redirectUrl: '/teacher/dashboard',
+        redirectUrl: '/classrooms',
         user: {
           id: 'user-teacher-1',
           email: 'teacher@gapps.yrdsb.ca',

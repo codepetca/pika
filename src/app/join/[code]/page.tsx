@@ -28,11 +28,17 @@ export default function JoinClassroomPage() {
         const data = await response.json()
 
         if (!response.ok) {
+          if (data?.code === 'enrollment_closed') {
+            throw new Error('Enrollment is closed. Ask your teacher to enable enrollment in Settings.')
+          }
+          if (data?.code === 'not_on_roster') {
+            throw new Error('Your email is not on the roster. Make sure you are signed in with your board email and ask your teacher to add you.')
+          }
           throw new Error(data.error || 'Failed to join classroom')
         }
 
         // Redirect to student dashboard with the new classroom selected
-        router.push(`/student/today?classroomId=${data.classroom.id}`)
+        router.push(`/classrooms/${data.classroom.id}?tab=today`)
       } catch (err: any) {
         console.error('Join error:', err)
         setError(err.message || 'An error occurred')
@@ -64,10 +70,10 @@ export default function JoinClassroomPage() {
           </h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={() => router.push('/login')}
+            onClick={() => router.push('/join')}
             className="text-blue-600 hover:underline"
           >
-            Go to Login
+            Try a different code
           </button>
         </div>
       </div>

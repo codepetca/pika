@@ -66,10 +66,15 @@ export async function PATCH(
 ) {
   // Parse request body
   const body = await request.json()
-  const { title, classCode, termLabel } = body
+  const { title, classCode, termLabel, allowEnrollment } = body
 
   // Validate: at least one field must be provided
-  if (title === undefined && classCode === undefined && termLabel === undefined) {
+  if (
+    title === undefined &&
+    classCode === undefined &&
+    termLabel === undefined &&
+    allowEnrollment === undefined
+  ) {
     return NextResponse.json(
       { error: 'No fields to update' },
       { status: 400 }
@@ -108,6 +113,7 @@ export async function PATCH(
     if (title !== undefined) updates.title = title
     if (classCode !== undefined) updates.class_code = classCode
     if (termLabel !== undefined) updates.term_label = termLabel
+    if (allowEnrollment !== undefined) updates.allow_enrollment = !!allowEnrollment
 
     const { data: updatedClassroom, error: updateError } = await supabase
       .from('classrooms')

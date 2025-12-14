@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 // POST /api/teacher/classrooms/[id]/roster/upload-csv - Upload CSV roster
 export async function POST(
   request: NextRequest,
@@ -81,89 +84,31 @@ export async function POST(
       )
     }
 
-    const addedStudents = []
-    const errors = []
+    const rosterRows = students.map((s: any) => ({
+      classroom_id: classroomId,
+      email: s.email.toLowerCase().trim(),
+      first_name: s.firstName || null,
+      last_name: s.lastName || null,
+      student_number: s.studentNumber || null,
+    }))
 
-    for (const student of students) {
-      const { email, firstName, lastName, studentNumber } = student
-      const normalizedEmail = email.toLowerCase().trim()
+    const { data: upserted, error: upsertError } = await supabase
+      .from('classroom_roster')
+      .upsert(rosterRows, { onConflict: 'classroom_id,email' })
+      .select('id, email')
 
-      try {
-        // Check if user exists
-        let { data: existingUser } = await supabase
-          .from('users')
-          .select('id, role')
-          .eq('email', normalizedEmail)
-          .single()
-
-        let userId: string
-
-        if (existingUser) {
-          userId = existingUser.id
-
-          // Update role to student if not already
-          if (existingUser.role !== 'student') {
-            await supabase
-              .from('users')
-              .update({ role: 'student' })
-              .eq('id', userId)
-          }
-        } else {
-          // Create new student user
-          const { data: newUser, error: createError } = await supabase
-            .from('users')
-            .insert({
-              email: normalizedEmail,
-              role: 'student',
-            })
-            .select('id')
-            .single()
-
-          if (createError || !newUser) {
-            errors.push({ email, error: 'Failed to create user' })
-            continue
-          }
-
-          userId = newUser.id
-        }
-
-        // Create or update student profile
-        await supabase
-          .from('student_profiles')
-          .upsert({
-            user_id: userId,
-            first_name: firstName,
-            last_name: lastName,
-            student_number: studentNumber || null,
-          }, {
-            onConflict: 'user_id'
-          })
-
-        // Add enrollment (skip if already enrolled)
-        const { error: enrollError } = await supabase
-          .from('classroom_enrollments')
-          .insert({
-            classroom_id: classroomId,
-            student_id: userId,
-          })
-
-        if (enrollError && !enrollError.message?.includes('duplicate')) {
-          errors.push({ email, error: 'Failed to enroll student' })
-          continue
-        }
-
-        addedStudents.push({ email, userId })
-      } catch (err: any) {
-        errors.push({ email, error: err.message })
-      }
+    if (upsertError) {
+      console.error('Roster upsert error:', upsertError)
+      return NextResponse.json(
+        { error: 'Failed to upload roster CSV' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
       success: true,
       totalProcessed: students.length,
-      addedCount: addedStudents.length,
-      added: addedStudents,
-      errors: errors.length > 0 ? errors : undefined,
+      upsertedCount: upserted?.length ?? 0,
     })
   } catch (error: any) {
     console.error('Upload CSV error:', error)

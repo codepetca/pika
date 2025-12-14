@@ -74,10 +74,7 @@ export async function POST(request: NextRequest) {
     // Create session
     await createSession(user.id, user.email, user.role)
 
-    // Return redirect URL based on role
-    const redirectUrl = user.role === 'teacher'
-      ? '/teacher/dashboard'
-      : '/student/today'
+    const redirectUrl = '/classrooms'
 
     return NextResponse.json({
       success: true,

@@ -40,6 +40,7 @@ export interface Classroom {
   title: string
   class_code: string
   term_label: string | null
+  allow_enrollment: boolean
   created_at: string
   updated_at: string
 }
