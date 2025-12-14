@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
+import { RichTextEditor } from '@/components/RichTextEditor'
 import {
   formatDueDate,
   formatRelativeDueDate,
@@ -12,7 +13,8 @@ import {
   getAssignmentStatusBadgeClass,
   isPastDue
 } from '@/lib/assignments'
-import type { Assignment, AssignmentDoc, AssignmentStatus } from '@/types'
+import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import type { Assignment, AssignmentDoc, TiptapContent } from '@/types'
 
 interface Props {
   classroomId: string
@@ -24,7 +26,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
 
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [doc, setDoc] = useState<AssignmentDoc | null>(null)
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState<TiptapContent>({ type: 'doc', content: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -54,8 +56,8 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
 
       setAssignment(data.assignment)
       setDoc(data.doc)
-      setContent(data.doc?.content || '')
-      lastSavedContentRef.current = data.doc?.content || ''
+      setContent(data.doc?.content || { type: 'doc', content: [] })
+      lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
     } catch (err: any) {
       console.error('Error loading assignment:', err)
       setError(err.message || 'Failed to load assignment')
@@ -65,8 +67,9 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
   }
 
   // Autosave with debouncing
-  const saveContent = useCallback(async (newContent: string) => {
-    if (newContent === lastSavedContentRef.current) {
+  const saveContent = useCallback(async (newContent: TiptapContent) => {
+    const newContentStr = JSON.stringify(newContent)
+    if (newContentStr === lastSavedContentRef.current) {
       setSaveStatus('saved')
       return
     }
@@ -87,7 +90,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
       }
 
       setDoc(data.doc)
-      lastSavedContentRef.current = newContent
+      lastSavedContentRef.current = newContentStr
       setSaveStatus('saved')
     } catch (err: any) {
       console.error('Error saving:', err)
@@ -95,7 +98,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
     }
   }, [assignmentId])
 
-  function handleContentChange(newContent: string) {
+  function handleContentChange(newContent: TiptapContent) {
     setContent(newContent)
     setSaveStatus('unsaved')
 
@@ -111,7 +114,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
 
   async function handleSubmit() {
     // Save first if there are unsaved changes
-    if (content !== lastSavedContentRef.current) {
+    if (JSON.stringify(content) !== lastSavedContentRef.current) {
       await saveContent(content)
     }
 
@@ -237,13 +240,12 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
         </div>
 
         <div className="p-4">
-          <textarea
-            value={content}
-            onChange={(e) => handleContentChange(e.target.value)}
-            rows={16}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+          <RichTextEditor
+            content={content}
+            onChange={handleContentChange}
             placeholder="Write your response here..."
             disabled={submitting}
+            editable={!isSubmitted}
           />
         </div>
 
@@ -255,7 +257,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
 
         <div className="p-4 border-t border-gray-200 flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            {content.length} characters
+            {countCharacters(content)} characters
           </div>
 
           <div className="flex gap-2">
@@ -270,7 +272,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
             ) : (
               <Button
                 onClick={handleSubmit}
-                disabled={submitting || !content.trim()}
+                disabled={submitting || isEmpty(content)}
               >
                 {submitting ? 'Submitting...' : 'Submit'}
               </Button>

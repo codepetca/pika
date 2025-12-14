@@ -109,6 +109,25 @@ export interface SemesterRange {
   end: string    // MM-DD
 }
 
+// Tiptap rich text editor types
+export interface TiptapContent {
+  type: 'doc'
+  content?: TiptapNode[]
+}
+
+export interface TiptapNode {
+  type: string
+  attrs?: Record<string, any>
+  content?: TiptapNode[]
+  marks?: TiptapMark[]
+  text?: string
+}
+
+export interface TiptapMark {
+  type: string
+  attrs?: Record<string, any>
+}
+
 // Assignment types
 export interface Assignment {
   id: string
@@ -125,7 +144,7 @@ export interface AssignmentDoc {
   id: string
   assignment_id: string
   student_id: string
-  content: string
+  content: TiptapContent  // Rich text content (JSONB)
   is_submitted: boolean
   submitted_at: string | null
   created_at: string

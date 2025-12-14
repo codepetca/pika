@@ -128,7 +128,7 @@ describe('PATCH /api/assignment-docs/[id]', () => {
 
     const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-1', {
       method: 'PATCH',
-      body: JSON.stringify({ content: 'new content' }),
+      body: JSON.stringify({ content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'new content' }] }] } }),
     })
 
     const response = await PATCH(request, { params: { id: 'doc-1' } })

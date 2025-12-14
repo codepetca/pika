@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { isValidTiptapContent } from '@/lib/tiptap-content'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -60,7 +61,7 @@ export async function GET(
           .insert({
             assignment_id: assignmentId,
             student_id: user.id,
-            content: '',
+            content: { type: 'doc', content: [] },
             is_submitted: false,
             submitted_at: null,
           })
@@ -134,6 +135,13 @@ export async function PATCH(
       )
     }
 
+    if (!isValidTiptapContent(content)) {
+      return NextResponse.json(
+        { error: 'Invalid content format' },
+        { status: 400 }
+      )
+    }
+
     const supabase = getServiceRoleClient()
 
     // Get assignment and verify enrollment
@@ -180,7 +188,7 @@ export async function PATCH(
           .insert({
             assignment_id: assignmentId,
             student_id: user.id,
-            content: String(content ?? ''),
+            content,
             is_submitted: false,
             submitted_at: null,
           })

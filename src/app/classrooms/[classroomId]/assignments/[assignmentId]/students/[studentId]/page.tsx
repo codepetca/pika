@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
+import { RichTextViewer } from '@/components/RichTextViewer'
 import {
   formatDueDate,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass
 } from '@/lib/assignments'
+import { countCharacters } from '@/lib/tiptap-content'
 import type { Assignment, AssignmentDoc, AssignmentStatus } from '@/types'
 
 interface StudentWorkData {
@@ -140,11 +142,9 @@ export default function StudentWorkPage() {
         <div className="p-4">
           {doc && doc.content ? (
             <div className="min-h-[200px]">
-              <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                {doc.content}
-              </pre>
+              <RichTextViewer content={doc.content} />
               <div className="mt-2 text-xs text-gray-500">
-                {doc.content.length} characters
+                {countCharacters(doc.content)} characters
               </div>
             </div>
           ) : (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { isEmpty } from '@/lib/tiptap-content'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -67,7 +68,7 @@ export async function POST(
       )
     }
 
-    if (!existingDoc || !String(existingDoc.content || '').trim()) {
+    if (!existingDoc || isEmpty(existingDoc.content)) {
       return NextResponse.json(
         { error: 'No work to submit. Please write something first.' },
         { status: 400 }
