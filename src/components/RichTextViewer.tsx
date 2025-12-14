@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import { useEffect } from 'react'
 import type { TiptapContent } from '@/types'
+import { isSafeLinkHref } from '@/lib/tiptap-content'
 
 interface RichTextViewerProps {
   content: TiptapContent
@@ -22,8 +23,11 @@ export function RichTextViewer({
       }),
       Link.configure({
         openOnClick: true,
+        validate: href => isSafeLinkHref(href),
         HTMLAttributes: {
           class: 'text-blue-600 underline hover:text-blue-700',
+          rel: 'noopener noreferrer nofollow',
+          target: '_blank',
         },
       }),
     ],

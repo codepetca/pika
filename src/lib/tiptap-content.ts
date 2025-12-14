@@ -1,5 +1,7 @@
 import type { TiptapContent, TiptapNode } from '@/types'
 
+const ALLOWED_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
+
 /**
  * Validate that content matches Tiptap JSON schema
  */
@@ -76,4 +78,42 @@ export function countWords(content: TiptapContent): number {
   if (!plainText) return 0
 
   return plainText.split(/\s+/).filter((word) => word.length > 0).length
+}
+
+export function isSafeLinkHref(href: string): boolean {
+  const trimmed = String(href ?? '').trim()
+  if (!trimmed) return false
+
+  try {
+    const url = new URL(trimmed)
+    return ALLOWED_LINK_PROTOCOLS.has(url.protocol)
+  } catch {
+    return false
+  }
+}
+
+export function sanitizeLinkHref(input: string): string | null {
+  const trimmed = String(input ?? '').trim()
+  if (!trimmed) return null
+
+  // Allow raw emails by converting to mailto:.
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    return `mailto:${trimmed}`
+  }
+
+  const candidates = [trimmed]
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+    candidates.push(`https://${trimmed}`)
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const url = new URL(candidate)
+      if (ALLOWED_LINK_PROTOCOLS.has(url.protocol)) return url.href
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null
 }
