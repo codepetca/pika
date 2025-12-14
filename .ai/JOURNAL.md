@@ -264,3 +264,33 @@
 **Next:** Merge PR and (optional) reseed staging/local to confirm teacher roster shows rows + join indicator
 **Blockers:** None
 ---
+
+## 2025-12-14 16:20 [AI - GPT-5.2]
+**Goal:** Fix join link/code usability
+**Completed:** Fixed joining by non-UUID codes (e.g. `GLD2O1`) and improved join-link flow for logged-out students by redirecting to `login?next=/join/<code>` and continuing after login
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/api/student/classrooms/join/route.ts`, `src/app/join/[code]/page.tsx`, `src/app/login/page.tsx`
+**Next:** Smoke test: logged-out student clicks join link → logs in → auto-joins; verify roster allow-list gate still applies
+**Blockers:** None
+---
+
+## 2025-12-14 16:40 [AI - GPT-5.2]
+**Goal:** Make assignments work end-to-end
+**Completed:** Fixed assignment doc handling to scope by `(assignment_id, student_id)` and auto-create draft docs; updated submit/unsubmit to scope by student and enforce non-empty content; added manual smoke checklist
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/api/assignment-docs/[id]/route.ts`, `src/app/api/assignment-docs/[id]/submit/route.ts`, `src/app/api/assignment-docs/[id]/unsubmit/route.ts`, `docs/core/assignments-smoke.md`, `tests/api/assignment-docs/*`
+**Next:** Run `docs/core/assignments-smoke.md` locally (teacher create → student edit/autosave → submit → teacher review)
+**Blockers:** None
+---
+
+## 2025-12-14 16:55 [AI - GPT-5.2]
+**Goal:** Fix Vercel build for login page
+**Completed:** Resolved Next.js prerender error by wrapping `useSearchParams` usage on `/login` in a `Suspense` boundary (moved UI into `LoginClient`)
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/login/LoginClient.tsx`, `src/app/login/page.tsx`
+**Next:** Redeploy when Vercel deployment quota resets
+**Blockers:** Vercel free plan deployment limit may delay validation
+---
