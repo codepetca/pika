@@ -258,6 +258,73 @@ describe('POST /api/student/classrooms/join', () => {
         student_id: 'student-1',
       })
     })
+
+    it('should use classCode when both classCode and non-UUID classroomId are provided', async () => {
+      const mockInsert = vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'enrollment-new-1' },
+            error: null,
+          }),
+        })),
+      }))
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classrooms') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn((_field: string, value: string) => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'classroom-1',
+                    title: 'Math 101',
+                    class_code: value,
+                    term_label: 'Fall 2024',
+                    allow_enrollment: true,
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+            insert: mockInsert,
+          }
+        }
+        if (table === 'classroom_roster') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  single: vi.fn().mockResolvedValue({
+                    data: { student_number: null, first_name: 'Test', last_name: 'Student' },
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          }
+        }
+        if (table === 'student_profiles') {
+          return { upsert: vi.fn().mockResolvedValue({ error: null }) }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/classrooms/join', {
+        method: 'POST',
+        body: JSON.stringify({ classCode: 'GLD2O1', classroomId: 'GLD2O1' }),
+      })
+
+      const response = await POST(request)
+      expect(response.status).toBe(201)
+    })
   })
 
   describe('joining by classroom ID', () => {
