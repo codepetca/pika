@@ -334,3 +334,13 @@
 **Next:** Proceed with `epic-daily-log-summaries`.
 **Blockers:** None
 ---
+
+## 2025-12-14 06:59 [AI - GPT-5.2]
+**Goal:** Implement `epic-daily-log-summaries` (teacher 1-line summaries)
+**Completed:** Added cached 1-line AI summaries for teacher Logs view (generated with OpenAI `gpt-5-nano` by default, stored per-entry, recomputed only when entry text changes). Logs API now returns `summary` per student row; UI shows the summary when collapsed and full text when expanded. Added migration for `entry_summaries` table and tests for caching/generation behavior.
+**Status:** completed
+**Artifacts:**
+- Files: `supabase/migrations/010_entry_summaries.sql`, `src/lib/daily-log-summaries.ts`, `src/app/api/teacher/logs/route.ts`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `tests/api/teacher/logs.test.ts`, `tests/unit/daily-log-summaries.test.ts`, `.env.example`, `.ai/features.json`
+**Next:** Apply migration `010_entry_summaries.sql` to staging/prod; set `OPENAI_API_KEY` (and optionally `OPENAI_DAILY_LOG_SUMMARY_MODEL`) in Vercel; smoke test teacher Logs tab.
+**Blockers:** None
+---

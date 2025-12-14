@@ -12,6 +12,7 @@ interface LogRow {
   student_id: string
   student_email: string
   entry: Entry | null
+  summary: string | null
 }
 
 interface Props {
@@ -157,22 +158,33 @@ export function TeacherLogsTab({ classroom }: Props) {
             <div key={row.student_id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900">
-                    {row.student_email}
+                <div className="text-sm font-medium text-gray-900">
+                  {row.student_email}
+                </div>
+                {!hasEntry ? (
+                  <div className="mt-1 text-sm text-gray-400">
+                    (missing)
                   </div>
-                  {!hasEntry ? (
-                    <div className="mt-1 text-sm text-gray-400">
-                      (missing)
-                    </div>
-                  ) : isExpanded ? (
-                    <div className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
+                ) : row.summary && !isExpanded ? (
+                  <div className="mt-1 text-sm text-gray-700">
+                    {row.summary}
+                  </div>
+                ) : isExpanded ? (
+                  <div className="mt-2 space-y-2">
+                    {row.summary && (
+                      <div className="text-sm text-gray-700">
+                        {row.summary}
+                      </div>
+                    )}
+                    <div className="text-sm text-gray-700 whitespace-pre-wrap">
                       {row.entry!.text}
                     </div>
-                  ) : (
-                    <div className="mt-1 text-sm text-gray-600 truncate">
-                      {row.entry!.text}
-                    </div>
-                  )}
+                  </div>
+                ) : (
+                  <div className="mt-1 text-sm text-gray-600 truncate">
+                    {row.entry!.text}
+                  </div>
+                )}
                 </div>
                 {hasEntry && (
                   <button
@@ -198,4 +210,3 @@ export function TeacherLogsTab({ classroom }: Props) {
     </div>
   )
 }
-

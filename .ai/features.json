@@ -6,8 +6,8 @@
     "DO_NOT_DELETE_FEATURES": "This inventory is APPEND-ONLY. Mark features as passing/failing, add new features, but NEVER DELETE FEATURES FROM THIS FILE. Deletion corrupts project history.",
     "deletionPolicy": "PROHIBITED",
     "totalFeatures": 9,
-    "passing": 8,
-    "failing": 1
+    "passing": 9,
+    "failing": 0
   },
   "features": [
     {
@@ -98,11 +98,12 @@
       "id": "epic-daily-log-summaries",
       "phase": "Phase 7 — AI (Daily Logs)",
       "description": "Teacher-facing 1-line daily log summaries per student/day (cheap model; separate from assignment summaries)",
-      "passes": false,
+      "passes": true,
       "verification": "Manual smoke: teacher opens Logs view for a date and sees 1-line summaries for students with logs; verify model is OpenAI gpt-5-nano and summaries are cached unless entry text changes.",
       "issueRefs": [],
       "blockedBy": [],
-      "addedDate": "2025-12-13"
+      "addedDate": "2025-12-13",
+      "completedDate": "2025-12-14"
     }
   ]
 }
