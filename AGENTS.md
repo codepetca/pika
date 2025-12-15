@@ -2,13 +2,71 @@
 
 ## Start Here (MANDATORY)
 - Read `.ai/START-HERE.md` at the start of every session.
+- **`docs/ai-instructions.md` is the authoritative source** for repository layout, worktree usage, and environment file handling.
 - Follow the required reading order in `docs/ai-instructions.md` before modifying code.
 
-## Git Worktrees (MANDATORY)
-- Never do branch work in the main repo directory (`pika/`).
-- Any branch work must happen in a dedicated git worktree under `../worktrees/pika/`.
-- Do not switch branches inside an existing working tree; create a new worktree instead.
-- After a PR is merged, remove its worktree (see `docs/workflow/worktrees.md`).
+## Git Worktrees (Required Workflow)
+
+**Core Principle:** Never switch branches in an existing working directory. For any non-trivial task, ALWAYS create a git worktree.
+
+**Rules:**
+- One worktree == one branch
+- Treat branch switching as directory switching
+- Main repo lives at: `$HOME/repos/pika` (hub checkout, stays on `main`)
+- Worktrees live under: `$HOME/repos/.worktrees/pika/<branch-name>`
+
+**Command Sequence:**
+```bash
+git fetch
+git worktree add $HOME/repos/.worktrees/pika/<branch-name> <branch-name>
+cd $HOME/repos/.worktrees/pika/<branch-name>
+```
+
+**Discovery:**
+- Use `git worktree list` to discover active branches
+
+**Cleanup:**
+- After PR is merged, remove the worktree and delete the local branch:
+  ```bash
+  git worktree remove $HOME/repos/.worktrees/pika/<branch-name>
+  git branch -D <branch-name>
+  ```
+- See `docs/workflow/worktrees.md` and `docs/ai-instructions.md` (authoritative)
+
+**Helper Script:**
+- Quick setup: `bash scripts/wt-add.sh <branch-name>`
+
+## Environment Files (.env.local)
+
+**Core Principle:** All worktrees share a single canonical `.env.local` file to avoid duplication and drift.
+
+**Canonical Location:**
+```
+$HOME/repos/.env/pika/.env.local
+```
+
+**Symlink Setup:**
+Each worktree must symlink `.env.local` to the canonical file:
+```bash
+ln -sf $HOME/repos/.env/pika/.env.local <worktree>/.env.local
+```
+
+**Why Symlinks:**
+- Worktrees do not share gitignored files
+- Symlinks avoid duplication and drift across branches
+- `-s` = symbolic link, `-f` = force/replace existing file
+
+**Helper Script Handles This:**
+- `bash scripts/wt-add.sh <branch-name>` automatically creates the symlink
+
+### When Branch-Specific Envs Are Allowed (Exceptions Only)
+
+Use separate `.env.local` files ONLY in these cases:
+- Running multiple Supabase/backend instances in parallel
+- Destructive DB schema or migration experiments
+- Different external API keys, models, or cost profiles
+
+**Otherwise, shared `.env.local` is mandatory.**
 
 ## Project Overview
 - Next.js 14+ (App Router) + TypeScript

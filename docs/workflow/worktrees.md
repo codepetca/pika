@@ -2,6 +2,8 @@
 
 This repo uses **git worktrees** to avoid branch/terminal confusion (especially with multiple terminals and/or multiple AIs).
 
+**NOTE:** `docs/ai-instructions.md` is the authoritative source for repository layout and worktree usage. If this document conflicts with ai-instructions.md, follow ai-instructions.md.
+
 ## Hard Rules
 
 1) Never work directly on a branch in the main working directory (`pika/`).
@@ -9,7 +11,7 @@ This repo uses **git worktrees** to avoid branch/terminal confusion (especially 
 2) Any branch work must happen inside a dedicated worktree.
 
 3) Each worktree must:
-- live in a **sibling directory** under `../worktrees/pika/`
+- live under `$HOME/repos/.worktrees/pika/`
 - check out **exactly one branch**
 - be used by **only one agent/task**
 
@@ -19,12 +21,29 @@ This repo uses **git worktrees** to avoid branch/terminal confusion (especially 
 
 ## Directory Convention
 
-- `pika/` = “hub” checkout (stays on `main`, stays clean)
-- `../worktrees/pika/<branch-name>/` = one worktree per branch/PR
+- `$HOME/repos/pika/` = "hub" checkout (stays on `main`, stays clean)
+- `$HOME/repos/.worktrees/pika/<branch-name>/` = one worktree per branch/PR
 
 Example:
 
-../worktrees/pika/feat-classroom-calendar-editing
+$HOME/repos/.worktrees/pika/feat-classroom-calendar-editing
+
+## Environment Files (.env.local)
+
+All worktrees share a single canonical `.env.local`:
+- **Canonical location:** `$HOME/repos/.env/pika/.env.local`
+- **Symlink setup:** Each worktree symlinks to the canonical file
+- **Helper script handles this automatically:** `bash scripts/wt-add.sh <branch-name>`
+
+**Manual symlink creation:**
+```bash
+ln -sf $HOME/repos/.env/pika/.env.local <worktree>/.env.local
+```
+
+**Exceptions (branch-specific envs allowed only for):**
+- Running multiple Supabase/backend instances in parallel
+- Destructive DB schema or migration experiments
+- Different external API keys, models, or cost profiles
 
 ## Pre-flight Checks (run often)
 
@@ -34,39 +53,58 @@ git status --porcelain=v1
 
 If `pwd` or `git rev-parse` is not what you expect, stop and fix it before editing files.
 
-## Create a New Branch Worktree
+## Quick Setup (Recommended)
 
-From the hub checkout (`pika/`):
+Use the helper script that creates the worktree and sets up .env.local symlink:
 
-git fetch origin
-git worktree add -b feat/<slug> ../worktrees/pika/feat-<slug> origin/main
-cd ../worktrees/pika/feat-<slug>
+```bash
+bash scripts/wt-add.sh <branch-name>
+cd $HOME/repos/.worktrees/pika/<branch-name>
+```
 
-## Work on an Existing Branch
+## Create a New Branch Worktree (Manual)
 
-From the hub checkout (`pika/`):
+From the hub checkout (`$HOME/repos/pika/`):
 
-git fetch origin
-git worktree add ../worktrees/pika/<branch-name> <branch-name>
-cd ../worktrees/pika/<branch-name>
+```bash
+git fetch
+git worktree add -b feat/<slug> $HOME/repos/.worktrees/pika/feat-<slug> origin/main
+ln -sf $HOME/repos/.env/pika/.env.local $HOME/repos/.worktrees/pika/feat-<slug>/.env.local
+cd $HOME/repos/.worktrees/pika/feat-<slug>
+```
 
-## Work on an Existing PR
+## Work on an Existing Branch (Manual)
 
-From the hub checkout (`pika/`):
+From the hub checkout (`$HOME/repos/pika/`):
 
+```bash
+git fetch
+git worktree add $HOME/repos/.worktrees/pika/<branch-name> <branch-name>
+ln -sf $HOME/repos/.env/pika/.env.local $HOME/repos/.worktrees/pika/<branch-name>/.env.local
+cd $HOME/repos/.worktrees/pika/<branch-name>
+```
+
+## Work on an Existing PR (Manual)
+
+From the hub checkout (`$HOME/repos/pika/`):
+
+```bash
 gh pr checkout <PR_NUMBER> --branch pr/<PR_NUMBER>
-git worktree add ../worktrees/pika/pr-<PR_NUMBER> pr/<PR_NUMBER>
-cd ../worktrees/pika/pr-<PR_NUMBER>
+git worktree add $HOME/repos/.worktrees/pika/pr-<PR_NUMBER> pr/<PR_NUMBER>
+ln -sf $HOME/repos/.env/pika/.env.local $HOME/repos/.worktrees/pika/pr-<PR_NUMBER>/.env.local
+cd $HOME/repos/.worktrees/pika/pr-<PR_NUMBER>
+```
 
 ## Cleanup After Merge
 
-From the hub checkout (`pika/`):
+From the hub checkout (`$HOME/repos/pika/`):
 
-git worktree remove ../worktrees/pika/<branch-name>
-
-Optionally delete the local branch:
-
+```bash
+git worktree remove $HOME/repos/.worktrees/pika/<branch-name>
 git branch -D <branch-name>
+```
+
+Both steps are **mandatory** after merge to keep the repository clean.
 
 ## Supabase Local Dev Note
 

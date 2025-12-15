@@ -381,5 +381,25 @@
 - Commits: 8d0958a
 - Files: src/lib/tiptap-content.ts, src/components/RichTextEditor.tsx, src/components/RichTextViewer.tsx, supabase/migrations/010_assignment_docs_rich_text.sql, src/app/api/assignment-docs/[id]/route.ts, src/app/api/assignment-docs/[id]/submit/route.ts, src/app/classrooms/[classroomId]/assignments/[assignmentId]/StudentAssignmentEditor.tsx, src/app/classrooms/[classroomId]/assignments/[assignmentId]/students/[studentId]/page.tsx, tests/unit/tiptap-content.test.ts, tests/api/assignment-docs/assignment-docs-id.test.ts
 **Next:** Review PR #38, test on staging, apply migration to staging/prod, merge to main
+## 2025-12-15 08:53 [AI - Claude Sonnet 4.5]
+**Goal:** Conduct documentation/codebase review and implement high-impact cleanup items
+**Completed:** Conducted comprehensive review of `.ai/`, `docs/`, and codebase structure; identified cleanup opportunities; implemented organizational improvements (moved CSV samples to `fixtures/`, archived completed `docs/issues/` files, documented route patterns in `docs/core/route-patterns.md`, removed stale `package-lock.json`); created PR #44. NOTE: Did not follow START-HERE.md checklist initially (skipped env verification, context recovery, required reading order, and plan-before-coding approval); corrected after user feedback.
+**Status:** completed
+**Artifacts:**
+- PRs: #44
+- Commits: d39edb0
+- Files: `fixtures/dev-roster.csv`, `fixtures/sample_class_ta_file.csv`, `docs/issues/archive/*.md`, `docs/core/route-patterns.md`, `package-lock.json` (deleted)
+**Next:** Merge PR #44 when approved; apply remaining medium-effort recommendations if desired (consolidate load-context docs, add test-architecture.md, clarify seed script usage)
+**Blockers:** None
+---
+
+---
+## 2025-12-15 14:30 [AI - Claude Sonnet 4.5]
+**Goal:** Standardize AI workflow documentation for worktree and environment file layout
+**Completed:** Updated all AI workflow documentation to establish `docs/ai-instructions.md` as authoritative source; standardized directory layout to `$HOME/repos/.worktrees/pika/` and `$HOME/repos/.env/pika/.env.local`; made branch deletion mandatory during cleanup; updated all related docs (START-HERE.md, AGENTS.md, worktrees.md) and helper script (wt-add.sh) for consistency. User manually committed and pushed changes to main.
+**Status:** completed
+**Artifacts:**
+- Files: `docs/ai-instructions.md`, `.ai/START-HERE.md`, `AGENTS.md`, `docs/workflow/worktrees.md`, `scripts/wt-add.sh`
+**Next:** None
 **Blockers:** None
 ---
