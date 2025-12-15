@@ -6,11 +6,21 @@
 
 ## 0) Worktree Workflow (MANDATORY)
 
-Never do branch work inside `pika/` (the hub checkout).
+Never do branch work inside `$HOME/repos/pika/` (the hub checkout).
 
-If you need a branch/PR, create and use a dedicated worktree under `../worktrees/pika/`.
+If you need a branch/PR, create and use a dedicated worktree under `$HOME/repos/.worktrees/pika/`.
 
-See: `docs/workflow/worktrees.md`
+**Quick setup:**
+```bash
+bash scripts/wt-add.sh <branch-name>
+cd $HOME/repos/.worktrees/pika/<branch-name>
+```
+
+This automatically:
+- Creates the worktree
+- Symlinks `.env.local` from `$HOME/repos/.env/pika/.env.local`
+
+See: `docs/workflow/worktrees.md` and `docs/ai-instructions.md` (authoritative source)
 
 ---
 
@@ -47,6 +57,15 @@ gh issue list --state closed --limit 5
 ---
 
 ## 3) Load Documentation (MANDATORY)
+
+`docs/ai-instructions.md` is the authoritative source of truth for:
+- repository layout
+- worktree usage
+- environment file handling (.env.local)
+- agent workflow rules
+
+If any instructions elsewhere (including this document) conflict,
+`docs/ai-instructions.md` MUST be followed.
 
 Start with the AI orchestrator and follow its reading order:
 
@@ -112,9 +131,10 @@ Before writing code:
    node scripts/features.mjs fail <feature-id>
    ```
 3. Commit and push the journal + feature changes.
-4. If the work was merged, remove the worktree:
+4. If the work was merged, remove the worktree and delete the local branch:
    ```bash
-   git worktree remove ../worktrees/pika/<branch-name>
+   git worktree remove $HOME/repos/.worktrees/pika/<branch-name>
+   git branch -D <branch-name>
    ```
 
 ---

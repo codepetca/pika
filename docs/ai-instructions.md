@@ -154,6 +154,95 @@ This TDD approach ensures code quality and prevents regressions.
 
 ---
 
+## Git Worktrees (Required Workflow)
+
+**Core Principle:** For any non-trivial task, ALWAYS create a git worktree. Never switch branches in an existing working directory.
+
+### Rules
+
+- **One worktree == one branch** — Treat branch switching as directory switching
+- **Worktree location:** `$HOME/repos/.worktrees/pika/<branch>`
+- **Active repo location:** `$HOME/repos/pika` (hub checkout, stays on `main`)
+
+### Standard Commands
+
+```bash
+git fetch
+git worktree add $HOME/repos/.worktrees/pika/<branch> <branch>
+cd $HOME/repos/.worktrees/pika/<branch>
+```
+
+### Discovery
+
+Use `git worktree list` to discover active worktrees.
+
+### Helper Script
+
+Quick setup (recommended):
+```bash
+bash scripts/wt-add.sh <branch>
+cd $HOME/repos/.worktrees/pika/<branch>
+```
+
+### Cleanup
+
+After PR is merged, remove the worktree and delete the local branch:
+```bash
+git worktree remove $HOME/repos/.worktrees/pika/<branch>
+git branch -D <branch>
+```
+
+---
+
+## Environment Files (.env.local)
+
+### Core Principle
+
+`.env.local` contains real secrets and must NEVER be committed. All ACTIVE repos and worktrees must symlink `.env.local` from a single canonical location to avoid duplication and drift.
+
+### File Locations
+
+- **Canonical `.env.local`:** `$HOME/repos/.env/pika/.env.local` (contains real secrets)
+- **Example file (committed):** `.env.example` (in repo, no secrets)
+
+### Symlink Setup
+
+Each worktree must symlink `.env.local` to the canonical file:
+
+```bash
+ln -sf $HOME/repos/.env/pika/.env.local <worktree>/.env.local
+```
+
+**Why symlinks:**
+- Worktrees do not share gitignored files
+- Symlinks avoid duplication and drift across branches
+- `-s` = symbolic link, `-f` = force/replace existing file
+
+**Helper script handles this automatically:**
+```bash
+bash scripts/wt-add.sh <branch>
+```
+
+### Branch-Specific Envs (Exceptions Only)
+
+Use separate `.env.local` files ONLY in these cases:
+- Running multiple Supabase/backend instances in parallel
+- Destructive DB schema or migration experiments
+- Different external API keys, models, or cost profiles
+
+**Otherwise, shared `.env.local` is mandatory.**
+
+---
+
+## Archived Repos
+
+- Repos under `$HOME/repos/archive/<project>` are inactive
+- Archived repos may have broken `.env.local` symlinks or missing worktrees
+- This is acceptable and intentional
+- Only active repos under `$HOME/repos/` require valid env symlinks and worktrees
+
+---
+
 ## When to Spawn Specialized Agents
 
 See [/docs/core/agents.md](/docs/core/agents.md) for detailed agent definitions. Use these agents based on task type:
