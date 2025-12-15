@@ -2,9 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { isValidTiptapContent } from '@/lib/tiptap-content'
+import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+/**
+ * Parse content field from database, handling both JSONB and legacy TEXT columns
+ * If content is a string (from TEXT column), parse it as JSON
+ * If content is already an object (from JSONB column), return as-is
+ */
+function parseContentField(content: any): TiptapContent {
+  if (typeof content === 'string') {
+    try {
+      return JSON.parse(content) as TiptapContent
+    } catch {
+      // If parsing fails, return empty doc
+      return { type: 'doc', content: [] }
+    }
+  }
+  return content as TiptapContent
+}
 
 // GET /api/assignment-docs/[id] - Get assignment doc (creates if doesn't exist)
 // The [id] here is the assignment_id, not the doc id
@@ -77,6 +95,10 @@ export async function GET(
               .eq('assignment_id', assignmentId)
               .eq('student_id', user.id)
               .single()
+            // Parse content if it's a string (for backwards compatibility)
+            if (raced) {
+              raced.content = parseContentField(raced.content)
+            }
             return NextResponse.json({ assignment, doc: raced })
           }
 
@@ -94,6 +116,11 @@ export async function GET(
         { error: 'Failed to fetch assignment doc' },
         { status: 500 }
       )
+    }
+
+    // Parse content if it's a string (for backwards compatibility)
+    if (existingDoc) {
+      existingDoc.content = parseContentField(existingDoc.content)
     }
 
     return NextResponse.json({ assignment, doc: existingDoc })
@@ -234,6 +261,11 @@ export async function PATCH(
         { error: 'Failed to save' },
         { status: 500 }
       )
+    }
+
+    // Parse content if it's a string (for backwards compatibility)
+    if (doc) {
+      doc.content = parseContentField(doc.content)
     }
 
     return NextResponse.json({ doc })

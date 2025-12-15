@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+/**
+ * Parse content field from database, handling both JSONB and legacy TEXT columns
+ */
+function parseContentField(content: any): TiptapContent {
+  if (typeof content === 'string') {
+    try {
+      return JSON.parse(content) as TiptapContent
+    } catch {
+      return { type: 'doc', content: [] }
+    }
+  }
+  return content as TiptapContent
+}
 
 // POST /api/assignment-docs/[id]/unsubmit - Unsubmit assignment
 export async function POST(
@@ -84,6 +99,11 @@ export async function POST(
         { error: 'Failed to unsubmit' },
         { status: 500 }
       )
+    }
+
+    // Parse content if it's a string (for backwards compatibility)
+    if (doc) {
+      doc.content = parseContentField(doc.content)
     }
 
     return NextResponse.json({ doc })
