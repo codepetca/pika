@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
+import { RichTextViewer } from '@/components/RichTextViewer'
 import {
   formatDueDate,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass
 } from '@/lib/assignments'
+import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import type { Assignment, AssignmentDoc, AssignmentStatus } from '@/types'
 
 interface StudentWorkData {
@@ -36,6 +38,7 @@ export default function StudentWorkPage() {
   const [data, setData] = useState<StudentWorkData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showPlainText, setShowPlainText] = useState(false)
 
   useEffect(() => {
     loadStudentWork()
@@ -126,25 +129,34 @@ export default function StudentWorkPage() {
       <div className="bg-white rounded-lg shadow-sm">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <span className="text-sm font-medium text-gray-700">Student Response</span>
-          {doc?.submitted_at && (
-            <span className="text-xs text-gray-500">
-              Submitted: {new Date(doc.submitted_at).toLocaleString('en-CA', {
-                timeZone: 'America/Toronto',
-                dateStyle: 'medium',
-                timeStyle: 'short'
-              })}
-            </span>
-          )}
+          <div className="flex items-center gap-4">
+            {doc?.submitted_at && (
+              <span className="text-xs text-gray-500">
+                Submitted: {new Date(doc.submitted_at).toLocaleString('en-CA', {
+                  timeZone: 'America/Toronto',
+                  dateStyle: 'medium',
+                  timeStyle: 'short'
+                })}
+              </span>
+            )}
+            <label className="flex items-center gap-2 text-xs text-gray-600 select-none">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300"
+                checked={showPlainText}
+                onChange={(e) => setShowPlainText(e.target.checked)}
+              />
+              Plain text
+            </label>
+          </div>
         </div>
 
         <div className="p-4">
-          {doc && doc.content ? (
+          {doc && doc.content && !isEmpty(doc.content) ? (
             <div className="min-h-[200px]">
-              <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                {doc.content}
-              </pre>
+              <RichTextViewer content={doc.content} showPlainText={showPlainText} />
               <div className="mt-2 text-xs text-gray-500">
-                {doc.content.length} characters
+                {countCharacters(doc.content)} characters
               </div>
             </div>
           ) : (

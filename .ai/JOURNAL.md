@@ -371,6 +371,16 @@
 ---
 
 ---
+## 2025-12-14 08:53 [AI - Sonnet 4.5]
+**Goal:** Add Tiptap rich text editor for assignment submissions
+**Completed:** Replaced plain textarea with Tiptap rich text editor supporting bold, italic, headings (H1-H3), lists, links, code blocks; migrated assignment_docs.content from TEXT to JSONB; added content validation utilities (isValid, isEmpty, extractPlainText, countCharacters, countWords); created RichTextEditor and RichTextViewer components (100% Tailwind CSS); updated API routes for JSONB validation; comprehensive test coverage (utilities 100%, API 90%+); all 396 tests passing
+**Status:** completed
+**Artifacts:**
+- PRs: #38
+- Branch: feature/tiptap-rich-text-editor
+- Commits: 8d0958a
+- Files: src/lib/tiptap-content.ts, src/components/RichTextEditor.tsx, src/components/RichTextViewer.tsx, supabase/migrations/010_assignment_docs_rich_text.sql, src/app/api/assignment-docs/[id]/route.ts, src/app/api/assignment-docs/[id]/submit/route.ts, src/app/classrooms/[classroomId]/assignments/[assignmentId]/StudentAssignmentEditor.tsx, src/app/classrooms/[classroomId]/assignments/[assignmentId]/students/[studentId]/page.tsx, tests/unit/tiptap-content.test.ts, tests/api/assignment-docs/assignment-docs-id.test.ts
+**Next:** Review PR #38, test on staging, apply migration to staging/prod, merge to main
 ## 2025-12-15 08:53 [AI - Claude Sonnet 4.5]
 **Goal:** Conduct documentation/codebase review and implement high-impact cleanup items
 **Completed:** Conducted comprehensive review of `.ai/`, `docs/`, and codebase structure; identified cleanup opportunities; implemented organizational improvements (moved CSV samples to `fixtures/`, archived completed `docs/issues/` files, documented route patterns in `docs/core/route-patterns.md`, removed stale `package-lock.json`); created PR #44. NOTE: Did not follow START-HERE.md checklist initially (skipped env verification, context recovery, required reading order, and plan-before-coding approval); corrected after user feedback.
