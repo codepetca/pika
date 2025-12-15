@@ -382,3 +382,14 @@
 **Next:** Merge PR #44 when approved; apply remaining medium-effort recommendations if desired (consolidate load-context docs, add test-architecture.md, clarify seed script usage)
 **Blockers:** None
 ---
+
+---
+## 2025-12-15 14:30 [AI - Claude Sonnet 4.5]
+**Goal:** Standardize AI workflow documentation for worktree and environment file layout
+**Completed:** Updated all AI workflow documentation to establish `docs/ai-instructions.md` as authoritative source; standardized directory layout to `$HOME/repos/.worktrees/pika/` and `$HOME/repos/.env/pika/.env.local`; made branch deletion mandatory during cleanup; updated all related docs (START-HERE.md, AGENTS.md, worktrees.md) and helper script (wt-add.sh) for consistency. User manually committed and pushed changes to main.
+**Status:** completed
+**Artifacts:**
+- Files: `docs/ai-instructions.md`, `.ai/START-HERE.md`, `AGENTS.md`, `docs/workflow/worktrees.md`, `scripts/wt-add.sh`
+**Next:** None
+**Blockers:** None
+---
