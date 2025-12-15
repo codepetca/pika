@@ -403,3 +403,16 @@
 **Next:** None
 **Blockers:** None
 ---
+
+---
+## 2025-12-15 13:00 [AI - Claude Sonnet 4.5]
+**Goal:** Fix raw JSON display bug in Tiptap editor and prepare PR #38 for merge
+**Completed:** Diagnosed and fixed issue where students saw raw JSON instead of rendered content in assignment editor. Root cause: migration 012 (TEXT→JSONB) not yet applied, causing content to be stored/retrieved as stringified JSON. Added defensive `parseContentField()` helper to all assignment_docs API routes to handle both TEXT and JSONB columns gracefully. All 401 tests passing. Resolved merge conflicts with main branch and prepared PR #38 for final merge.
+**Status:** completed
+**Artifacts:**
+- PRs: #38
+- Commits: 31b8d19 (defensive parsing), 238ad17 (merge main)
+- Files: `src/app/api/assignment-docs/[id]/route.ts`, `src/app/api/assignment-docs/[id]/submit/route.ts`, `src/app/api/assignment-docs/[id]/unsubmit/route.ts`, `src/app/api/teacher/assignments/[id]/students/[studentId]/route.ts`
+**Next:** Merge PR #38; apply migration 012 to staging/prod; create new issue for editor polish (formatting buttons not working, code block stripping marks, incremental saves with JSON Patch)
+**Blockers:** None
+---
