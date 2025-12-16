@@ -145,15 +145,15 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
   const { semester1Year, semester2Year } = getSemesterYears()
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Create Classroom</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full p-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Create Classroom</h2>
 
         {/* Progress Indicator */}
         <div className="flex items-center mb-6">
-          <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-blue-600' : 'bg-blue-200'}`} />
-          <div className={`flex-1 h-1 rounded ml-2 ${step === 'roster' ? 'bg-blue-600' : step === 'calendar' ? 'bg-blue-200' : 'bg-gray-200'}`} />
-          <div className={`flex-1 h-1 rounded ml-2 ${step === 'calendar' ? 'bg-blue-600' : 'bg-gray-200'}`} />
+          <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-blue-200 dark:bg-blue-800'}`} />
+          <div className={`flex-1 h-1 rounded ml-2 ${step === 'roster' ? 'bg-blue-600 dark:bg-blue-500' : step === 'calendar' ? 'bg-blue-200 dark:bg-blue-800' : 'bg-gray-200 dark:bg-gray-700'}`} />
+          <div className={`flex-1 h-1 rounded ml-2 ${step === 'calendar' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
         </div>
 
         {/* Step 1: Name */}
@@ -175,25 +175,25 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
         {/* Step 2: Roster */}
         {step === 'roster' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Upload Roster (Optional)
             </label>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               You can skip this step and upload a roster later from the dashboard.
             </p>
             <input
               type="file"
               accept=".csv"
               onChange={(e) => setRosterFile(e.target.files?.[0] || null)}
-              className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
+              className="block w-full text-sm text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-800 focus:outline-none"
               disabled={loading}
             />
             {rosterFile && (
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                 Selected: {rosterFile.name}
               </p>
             )}
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
               Format: Student Number, First Name, Last Name, Email
             </p>
           </div>
@@ -202,7 +202,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
         {/* Step 3: Calendar */}
         {step === 'calendar' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Choose Calendar
             </label>
 
@@ -215,12 +215,12 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 }}
                 className={`w-full p-4 rounded-lg border-2 transition text-left ${
                   calendarMode === 'preset' && selectedSemester === 'semester1'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                 }`}
               >
-                <div className="font-medium">Semester 1</div>
-                <div className="text-sm text-gray-600 mt-1">
+                <div className="font-medium text-gray-900 dark:text-gray-100">Semester 1</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Sep {semester1Year} - Jan {semester1Year + 1}
                 </div>
               </button>
@@ -233,12 +233,12 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 }}
                 className={`w-full p-4 rounded-lg border-2 transition text-left ${
                   calendarMode === 'preset' && selectedSemester === 'semester2'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                 }`}
               >
-                <div className="font-medium">Semester 2</div>
-                <div className="text-sm text-gray-600 mt-1">
+                <div className="font-medium text-gray-900 dark:text-gray-100">Semester 2</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Feb {semester2Year} - Jun {semester2Year}
                 </div>
               </button>
@@ -248,24 +248,24 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 onClick={() => setCalendarMode('custom')}
                 className={`w-full p-4 rounded-lg border-2 transition ${
                   calendarMode === 'custom'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:border-gray-400'
+                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
                 }`}
               >
-                <div className="font-medium">Custom Date Range</div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">Custom Date Range</div>
               </button>
             </div>
 
             {calendarMode === 'custom' && (
-              <div className="p-4 bg-gray-50 rounded-lg mb-4">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg mb-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Start</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start</label>
                     <div className="flex gap-2">
                       <select
                         value={startMonth}
                         onChange={(e) => setStartMonth(parseInt(e.target.value))}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                       >
                         {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                           <option key={month} value={month}>
@@ -279,17 +279,17 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                         onChange={(e) => setStartYear(parseInt(e.target.value))}
                         min={2020}
                         max={2030}
-                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">End</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End</label>
                     <div className="flex gap-2">
                       <select
                         value={endMonth}
                         onChange={(e) => setEndMonth(parseInt(e.target.value))}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                       >
                         {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                           <option key={month} value={month}>
@@ -303,7 +303,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                         onChange={(e) => setEndYear(parseInt(e.target.value))}
                         min={2020}
                         max={2030}
-                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                       />
                     </div>
                   </div>
@@ -314,7 +314,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
         )}
 
         {error && (
-          <div className="mt-4 text-sm text-red-600">
+          <div className="mt-4 text-sm text-red-600 dark:text-red-400">
             {error}
           </div>
         )}

@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { HomeIcon, CalendarIcon } from '@heroicons/react/24/outline'
+import { HomeIcon, CalendarIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface AppHeaderProps {
   user?: {
@@ -26,9 +27,10 @@ interface AppHeaderProps {
  */
 export function AppHeader({ user, classrooms, currentClassroomId }: AppHeaderProps) {
   const pathname = usePathname()
+  const { theme, toggleTheme } = useTheme()
 
   return (
-    <header className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-3">
+    <header className="h-12 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 gap-3">
       {/* Logo */}
       <Link href="/classrooms" className="flex-shrink-0">
         <PikaLogo className="w-8 h-8" />
@@ -63,6 +65,20 @@ export function AppHeader({ user, classrooms, currentClassroomId }: AppHeaderPro
       {/* Spacer */}
       <div className="flex-1" />
 
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={toggleTheme}
+        className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {theme === 'dark' ? (
+          <SunIcon className="w-5 h-5" />
+        ) : (
+          <MoonIcon className="w-5 h-5" />
+        )}
+      </button>
+
       {/* User Menu */}
       <UserMenu user={user} />
     </header>
@@ -82,8 +98,8 @@ function IconNavButton({ href, icon: Icon, label, isActive }: IconNavButtonProps
       href={href}
       className={`p-2 rounded-md transition-colors ${
         isActive
-          ? 'text-blue-600 bg-blue-50'
-          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30'
+          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
       }`}
       aria-label={label}
       title={label}

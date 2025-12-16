@@ -34,7 +34,7 @@ export function ClassroomDropdown({
   // If only one classroom, show as text instead of dropdown
   if (classrooms.length === 1) {
     return (
-      <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
+      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-xs">
         {classrooms[0].title}
       </div>
     )
@@ -45,7 +45,7 @@ export function ClassroomDropdown({
       <select
         value={currentClassroomId || classrooms[0].id}
         onChange={handleChange}
-        className="h-9 pl-3 pr-8 text-sm border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none max-w-xs truncate"
+        className="h-9 pl-3 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none max-w-xs truncate"
       >
         {classrooms.map((classroom) => (
           <option key={classroom.id} value={classroom.id}>
@@ -53,7 +53,7 @@ export function ClassroomDropdown({
           </option>
         ))}
       </select>
-      <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+      <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
     </div>
   )
 }

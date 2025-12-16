@@ -26,7 +26,7 @@ export function DateNavigator({
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+          className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
           onClick={() => onChange(addDaysToDateString(value, -1))}
           disabled={disabled}
         >
@@ -37,13 +37,13 @@ export function DateNavigator({
           type="date"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm disabled:opacity-50"
+          className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 disabled:opacity-50"
           disabled={disabled}
         />
 
         <button
           type="button"
-          className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+          className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
           onClick={() => onChange(addDaysToDateString(value, 1))}
           disabled={disabled}
         >
@@ -53,7 +53,7 @@ export function DateNavigator({
         {canUseShortcut && (
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50 disabled:opacity-50"
+            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
             onClick={onShortcut}
             disabled={disabled}
           >

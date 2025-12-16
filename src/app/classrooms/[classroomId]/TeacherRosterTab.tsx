@@ -166,7 +166,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         action={
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 font-medium"
+            className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
             onClick={loadRoster}
           >
             Refresh
@@ -175,18 +175,18 @@ export function TeacherRosterTab({ classroom }: Props) {
       />
 
       {/* Upload Section */}
-      <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <input
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-            className="text-sm"
+            className="text-sm text-gray-900 dark:text-gray-100"
             disabled={uploading}
           />
           <button
             type="button"
-            className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50 font-medium"
+            className="px-3 py-2 rounded-md bg-blue-600 dark:bg-blue-700 text-white text-sm hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50 font-medium"
             onClick={uploadCsv}
             disabled={uploading || csvText.trim().length === 0}
           >
@@ -194,12 +194,12 @@ export function TeacherRosterTab({ classroom }: Props) {
           </button>
         </div>
 
-        {error && <div className="text-sm text-red-600 mt-2">{error}</div>}
-        {success && <div className="text-sm text-green-700 mt-2">{success}</div>}
+        {error && <div className="text-sm text-red-600 dark:text-red-400 mt-2">{error}</div>}
+        {success && <div className="text-sm text-green-700 dark:text-green-400 mt-2">{success}</div>}
       </div>
 
       {/* Student List */}
-      <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
         {sortedRoster.map((row) => {
           const fullName = row.first_name || row.last_name
             ? `${row.last_name ?? ''}${row.last_name ? ', ' : ''}${row.first_name ?? ''}`.trim()
@@ -213,15 +213,15 @@ export function TeacherRosterTab({ classroom }: Props) {
               studentNumber={row.student_number ?? undefined}
               badge={
                 row.joined ? (
-                  <span className="text-xs font-medium text-green-700">Joined</span>
+                  <span className="text-xs font-medium text-green-700 dark:text-green-400">Joined</span>
                 ) : (
-                  <span className="text-xs text-gray-500">Not joined</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Not joined</span>
                 )
               }
               action={
                 <button
                   type="button"
-                  className="px-2 py-1 rounded-md border border-red-200 bg-white text-xs text-red-700 hover:bg-red-50 font-medium"
+                  className="px-2 py-1 rounded-md border border-red-200 dark:border-red-800 bg-white dark:bg-gray-800 text-xs text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 font-medium"
                   onClick={() => removeStudent(row.id, row.email, row.joined)}
                 >
                   Remove
@@ -232,7 +232,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         })}
 
         {sortedRoster.length === 0 && (
-          <div className="py-8 text-center text-sm text-gray-500">
+          <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
             No students on the roster
           </div>
         )}
