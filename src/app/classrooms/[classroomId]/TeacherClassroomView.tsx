@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from 'react'
 import Link from 'next/link'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/Button'
 import { Input } from '@/components/Input'
 import { Spinner } from '@/components/Spinner'
@@ -82,31 +83,22 @@ export function TeacherClassroomView({ classroom }: Props) {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{classroom.title}</h1>
-        <p className="text-gray-600 mt-1">
-          Code: <span className="font-mono">{classroom.class_code}</span>
-          {classroom.term_label && ` • ${classroom.term_label}`}
-        </p>
-      </div>
-
-      {/* Assignments Section */}
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Assignments</h2>
+      <PageHeader
+        title="Assignments"
+        action={
           <Button
             onClick={() => setShowNewForm(!showNewForm)}
             size="sm"
           >
             {showNewForm ? 'Cancel' : '+ New Assignment'}
           </Button>
-        </div>
+        }
+      />
 
-        {/* New Assignment Form */}
-        {showNewForm && (
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
-            <form onSubmit={handleCreateAssignment} className="space-y-4 max-w-xl">
+      {/* New Assignment Form */}
+      {showNewForm && (
+        <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4">
+          <form onSubmit={handleCreateAssignment} className="space-y-3 max-w-xl">
               <Input
                 label="Title"
                 type="text"
@@ -144,35 +136,35 @@ export function TeacherClassroomView({ classroom }: Props) {
                 <p className="text-sm text-red-600">{error}</p>
               )}
 
-              <div className="flex gap-2">
-                <Button type="submit" disabled={creating || !title || !dueAt}>
-                  {creating ? 'Creating...' : 'Create Assignment'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowNewForm(false)}
-                  disabled={creating}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </div>
-        )}
+            <div className="flex gap-2">
+              <Button type="submit" disabled={creating || !title || !dueAt}>
+                {creating ? 'Creating...' : 'Create Assignment'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowNewForm(false)}
+                disabled={creating}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
 
-        {/* Assignments List */}
-        <div className="p-4">
+      {/* Assignments List */}
+      <div className="bg-white rounded-lg border border-gray-200 p-3">
           {loading ? (
             <div className="flex justify-center py-8">
               <Spinner />
             </div>
-          ) : assignments.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No assignments yet
-            </div>
-          ) : (
-            <div className="space-y-3">
+        ) : assignments.length === 0 ? (
+          <div className="text-center py-6 text-sm text-gray-500">
+            No assignments yet
+          </div>
+        ) : (
+          <div className="space-y-2">
               {assignments.map((assignment) => (
                 <Link
                   key={assignment.id}
