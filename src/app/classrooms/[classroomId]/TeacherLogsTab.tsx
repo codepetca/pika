@@ -119,7 +119,7 @@ export function TeacherLogsTab({ classroom }: Props) {
               <>
                 <button
                   type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 bg-white text-xs hover:bg-gray-50 font-medium"
+                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
                   onClick={expandAll}
                   disabled={studentsWithLogs.length === 0}
                 >
@@ -127,7 +127,7 @@ export function TeacherLogsTab({ classroom }: Props) {
                 </button>
                 <button
                   type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 bg-white text-xs hover:bg-gray-50 font-medium"
+                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
                   onClick={collapseAll}
                   disabled={expanded.size === 0}
                 >
@@ -149,7 +149,7 @@ export function TeacherLogsTab({ classroom }: Props) {
         }
       />
 
-      <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
         {(isClassDay ? logs : []).map((row) => {
           const hasEntry = Boolean(row.entry)
           const isExpanded = expanded.has(row.student_id)
@@ -158,7 +158,7 @@ export function TeacherLogsTab({ classroom }: Props) {
           let expandedContent = null
 
           if (!hasEntry) {
-            preview = <span className="text-gray-400">(missing)</span>
+            preview = <span className="text-gray-400 dark:text-gray-500">(missing)</span>
           } else if (row.summary && !isExpanded) {
             preview = row.summary
           } else if (!isExpanded) {
@@ -166,7 +166,7 @@ export function TeacherLogsTab({ classroom }: Props) {
               <div>
                 <div className="truncate">{row.entry!.text}</div>
                 {!row.summary && (
-                  <div className="text-xs text-gray-400 mt-0.5">
+                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                     Summary pending (generated nightly)
                   </div>
                 )}
@@ -178,11 +178,11 @@ export function TeacherLogsTab({ classroom }: Props) {
             expandedContent = (
               <div className="space-y-2">
                 {row.summary && (
-                  <div className="text-sm text-gray-700 font-medium">
+                  <div className="text-sm text-gray-700 dark:text-gray-300 font-medium">
                     {row.summary}
                   </div>
                 )}
-                <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                   {row.entry!.text}
                 </div>
               </div>
@@ -202,12 +202,12 @@ export function TeacherLogsTab({ classroom }: Props) {
         })}
 
         {isClassDay && logs.length === 0 && (
-          <div className="py-8 text-center text-sm text-gray-500">
+          <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
             No students enrolled
           </div>
         )}
         {!isClassDay && (
-          <div className="py-8 text-center text-sm text-gray-500">
+          <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
             No class on this day
           </div>
         )}

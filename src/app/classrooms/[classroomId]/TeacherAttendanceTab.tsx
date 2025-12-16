@@ -89,7 +89,7 @@ export function TeacherAttendanceTab({ classroom }: Props) {
         }
       />
 
-      <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
         {rows.map((row) => (
           <StudentRow.Minimal
             key={row.student_id}
@@ -102,7 +102,7 @@ export function TeacherAttendanceTab({ classroom }: Props) {
           />
         ))}
         {rows.length === 0 && (
-          <div className="py-8 text-center text-sm text-gray-500">
+          <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
             No students enrolled
           </div>
         )}

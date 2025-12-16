@@ -93,11 +93,11 @@ export default function ClassroomPage() {
     return (
       <AppShell showHeader={false}>
         <div className="max-w-md mx-auto mt-12">
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-            <p className="text-red-600 mb-4">{error}</p>
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
             <button
               onClick={() => router.back()}
-              className="text-blue-600 hover:text-blue-700"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
             >
               Go back
             </button>
@@ -154,7 +154,7 @@ export default function ClassroomPage() {
       currentClassroomId={classroom.id}
     >
       {/* Compact tab navigation */}
-      <div className="border-b border-gray-200 -mx-4 px-4 mb-4">
+      <div className="border-b border-gray-200 dark:border-gray-700 -mx-4 px-4 mb-4">
         <div className="flex gap-4">
           {(isTeacher ? teacherTabs : studentTabs).map(t => {
             const isActive = activeTab === t.id
@@ -165,8 +165,8 @@ export default function ClassroomPage() {
                 onClick={() => setTab(t.id)}
                 className={`py-2 text-sm font-medium border-b-2 transition ${
                   isActive
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
                 }`}
               >
                 {t.label}
@@ -181,7 +181,7 @@ export default function ClassroomPage() {
         <div className="flex justify-end mb-3">
           <button
             type="button"
-            className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 font-medium"
+            className="px-3 py-2 rounded-md bg-blue-600 dark:bg-blue-700 text-white text-sm hover:bg-blue-700 dark:hover:bg-blue-600 font-medium"
             onClick={() => setShowCreateModal(true)}
           >
             + New classroom
