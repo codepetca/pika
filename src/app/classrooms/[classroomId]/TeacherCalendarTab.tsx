@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { PageHeader } from '@/components/PageHeader'
 import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -136,22 +137,22 @@ export function TeacherCalendarTab({ classroom }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-sm p-4 space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-lg font-semibold text-gray-900">Calendar</h2>
+    <div>
+      <PageHeader
+        title="Calendar"
+        subtitle="Define which dates are class days. Students can only log on class days. Past dates are locked."
+        action={
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50"
+            className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 font-medium"
             onClick={load}
           >
             Refresh
           </button>
-        </div>
+        }
+      />
 
-        <div className="text-sm text-gray-600">
-          Define which dates are class days. Students can only log on class days. Past dates are locked.
-        </div>
+      <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-3">
 
         {!isInitialized ? (
           <div className="flex flex-wrap items-end gap-2">
