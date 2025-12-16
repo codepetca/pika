@@ -552,3 +552,15 @@
 - Review snapshots in `artifacts/ui-snapshots/` for UI/UX improvements
 **Blockers:** None
 ---
+---
+## 2025-12-16 15:00 [AI - GPT-5.2]
+**Goal:** Allow Node 22 in verification/install requirements
+**Completed:** Relaxed `scripts/verify-env.sh` to accept Node 22+, updated `package.json` `engines.node`, ran `bash scripts/verify-env.sh` to prove the change, pushed `allow-node-22`, merged it into `main`, and recorded the session in `.ai/JOURNAL.md`
+**Status:** completed
+**Artifacts:**
+- Commits: 2f93254
+- Tests: `bash scripts/verify-env.sh`
+- Files: `scripts/verify-env.sh`, `package.json`, `.ai/JOURNAL.md`
+**Next:** None
+**Blockers:** None
+---
