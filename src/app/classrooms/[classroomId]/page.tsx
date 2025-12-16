@@ -144,7 +144,15 @@ export default function ClassroomPage() {
   }
 
   return (
-    <AppShell>
+    <AppShell
+      user={user}
+      classrooms={isTeacher ? teacherClassrooms.map(c => ({
+        id: c.id,
+        title: c.title,
+        code: c.class_code
+      })) : undefined}
+      currentClassroomId={classroom.id}
+    >
       {/* Compact tab navigation */}
       <div className="border-b border-gray-200 -mx-4 px-4 mb-4">
         <div className="flex gap-4">
