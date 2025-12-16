@@ -272,8 +272,8 @@ Usage:
         <h1 className="text-xl font-bold">Pika</h1>
       </div>
       <div className="flex items-center space-x-4">
-        <a href="/student/today" className="text-gray-700 hover:text-blue-600">
-          Today
+        <a href="/classrooms" className="text-gray-700 hover:text-blue-600">
+          Classrooms
         </a>
         <a href="/student/history" className="text-gray-700 hover:text-blue-600">
           History
@@ -353,17 +353,21 @@ Usage:
 
 ### Student Pages
 
+Keep the student version of `AppShell`/`AppHeader` so the title bar always shows the classroom the student is enrolled in (matching the teacher experience) and a single canonical date indicator. All student-facing dates should use the format `Tue Dec 16` (no year), and on the Today page that date should be left-aligned in the header ribbon, taking the place of the old “Today” label so it feels like the primary headline.
+
+This `Tue Dec 16` format applies throughout the app (calendar selectors, assignment due badges, history cards, etc.) so every date display feels predictable.
+
 #### Today Page (Journal Entry)
 **Layout**:
-- Full-width on mobile
-- Max-width container on desktop
-- Form centered vertically
+- Full-width page with centered card
+- Max-width container on larger screens
+- Form content sits within the card so the date headline remains the dominant element
 
 **Components**:
-- Date header with "on time" indicator
+- Date header with "on time" indicator (display `Tue Dec 16`)
 - Large textarea for journal entry
-- Character count (optional)
-- Submit button (primary, full-width on mobile)
+- Character count
+- Submit button (primary, full-width on smaller widths)
 
 **Example**:
 ```tsx
@@ -372,8 +376,8 @@ Usage:
 
   <main className="max-w-2xl mx-auto px-4 py-8">
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold mb-2">Today's Entry</h2>
-      <p className="text-sm text-gray-600 mb-6">Monday, January 15, 2024</p>
+      <h2 className="text-2xl font-bold mb-2">GLD2O — Learning Strategies</h2>
+      <p className="text-sm text-gray-600 mb-6">Tue Dec 16</p>
 
       <textarea
         className="w-full px-3 py-2 border border-gray-300 rounded-md
@@ -396,11 +400,11 @@ Usage:
 **Layout**:
 - List of past entries (most recent first)
 - Card-based design
-- Mobile: stack vertically
+- Stack vertically on narrower widths
 - Desktop: 2-column grid (optional)
 
 **Components**:
-- Date and status icon for each entry
+- Date and status icon for each entry (dates read `Tue Dec 16`)
 - Preview of content (first 150 characters)
 - "View full entry" link
 

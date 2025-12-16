@@ -564,3 +564,24 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-16 11:40 [AI - GPT-5.2]
+**Goal:** Align the student UI guidance with the latest header/date/mood requirements
+**Completed:** Removed the mobile-first framing in `docs/design-system.md`, added the class-aware title/header + date/mood guidance, and reflected the same student-specific expectations (class title bar, `Tue Dec 16` dates, mood prompt) inside `docs/core/design.md`
+**Status:** completed
+**Artifacts:**
+- Files: `docs/design-system.md`, `docs/core/design.md`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-16 11:49 [AI - GPT-5.2]
+**Goal:** Implement the updated student Today experience and align docs with the new date header expectations
+**Completed:** Added the formatted `Tue Dec 16` headline + class title to `src/app/student/today/page.tsx`, confirmed the mood label stay imperative, and reinforced the universal `Tue Dec 16` date format guidance across `docs/design-system.md` and `docs/core/design.md`; reran `pnpm run e2e:snapshots` (fails because Playwright cannot reach localhost:3000). 
+**Status:** completed
+**Artifacts:**
+- Tests: `pnpm run e2e:snapshots` (fails: Playwright can't reach http://localhost:3000/login)
+- Files: `src/app/student/today/page.tsx`, `docs/design-system.md`, `docs/core/design.md`, `.ai/JOURNAL.md`
+**Next:** Run e2e snapshots after starting the dev server; document the previous failure if the server remains down.
+**Blockers:** Playwright cannot reach http://localhost:3000/login because the dev server is not running.
+---

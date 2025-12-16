@@ -350,13 +350,6 @@ export default function HistoryPage() {
                 <div className="text-gray-900 whitespace-pre-wrap">{selectedEntry.text}</div>
               </div>
 
-              {selectedEntry.mood && (
-                <div>
-                  <div className="text-sm font-medium text-gray-700 mb-1">Mood</div>
-                  <div className="text-3xl">{selectedEntry.mood}</div>
-                </div>
-              )}
-
               <div className="text-sm text-gray-600 pt-4 border-t">
                 <div>Submitted: {format(new Date(selectedEntry.updated_at), 'h:mm a')}</div>
                 <div>

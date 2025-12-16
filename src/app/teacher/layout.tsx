@@ -15,7 +15,7 @@ export default async function TeacherLayout({
   }
 
   if (user.role !== 'teacher') {
-    redirect('/student/today')
+    redirect('/classrooms')
   }
 
   return (

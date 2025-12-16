@@ -294,7 +294,6 @@ red-100    // Error background
 ### Playful Accents (minimal use)
 
 - Logo: Keep existing blue pika
-- Mood emojis: Student daily log form
 - Status colors: Green/red for attendance
 
 ---
@@ -302,14 +301,17 @@ red-100    // Error background
 ## 📱 Responsive Breakpoints
 
 ```tsx
-// Mobile-first (default styles for mobile)
 sm:  640px  // Small tablets
 md:  768px  // Tablets
 lg:  1024px // Desktop
 xl:  1280px // Large desktop
 ```
 
-**Priority: Mobile experience for students**
+## 🎒 Student Today Header
+
+- Student pages should share the `AppHeader`/`AppShell` chrome so the top bar shows the currently enrolled classroom just like the teacher view, making the class context obvious.
+- Dates must use the format `Tue Dec 16` (no year) everywhere; on the Today page the date text should be displayed in the header area.
+- Apply the `Tue Dec 16` convention anywhere the app surfaces dates (calendar selectors, assignment due badges, history cards, etc.) so every timestamp is predictable.
 
 ---
 
@@ -368,7 +370,7 @@ xl:  1280px // Large desktop
 
 ## 📝 Notes
 
-- All Tailwind classes chosen to maintain mobile-first responsive design
+- All Tailwind classes chosen to maintain responsive layouts
 - Spacing choices prioritize information density without feeling cramped
 - Component system enables future theming/customization
 - Design system living document - update as patterns evolve
