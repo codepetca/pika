@@ -272,8 +272,8 @@ Usage:
         <h1 className="text-xl font-bold">Pika</h1>
       </div>
       <div className="flex items-center space-x-4">
-        <a href="/student/today" className="text-gray-700 hover:text-blue-600">
-          Today
+        <a href="/classrooms" className="text-gray-700 hover:text-blue-600">
+          Classrooms
         </a>
         <a href="/student/history" className="text-gray-700 hover:text-blue-600">
           History
@@ -367,7 +367,6 @@ This `Tue Dec 16` format applies throughout the app (calendar selectors, assignm
 - Date header with "on time" indicator (display `Tue Dec 16`)
 - Large textarea for journal entry
 - Character count
-- Mood prompt titled "How are you feeling?" (no "optional") with emoji buttons beneath
 - Submit button (primary, full-width on smaller widths)
 
 **Example**:

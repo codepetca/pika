@@ -294,7 +294,6 @@ red-100    // Error background
 ### Playful Accents (minimal use)
 
 - Logo: Keep existing blue pika
-- Mood emojis: Student daily log form
 - Status colors: Green/red for attendance
 
 ---
@@ -311,8 +310,7 @@ xl:  1280px // Large desktop
 ## 🎒 Student Today Header
 
 - Student pages should share the `AppHeader`/`AppShell` chrome so the top bar shows the currently enrolled classroom just like the teacher view, making the class context obvious.
-- Dates must use the format `Tue Dec 16` (no year) everywhere; on the Today page the date text should be left-aligned in the header ribbon and replace the previous “Today” label.
-- Keep the mood prompt simple—use `How are you feeling?` without any “(optional)” qualifier so the selector feels intentional.
+- Dates must use the format `Tue Dec 16` (no year) everywhere; on the Today page the date text should be displayed in the header area.
 - Apply the `Tue Dec 16` convention anywhere the app surfaces dates (calendar selectors, assignment due badges, history cards, etc.) so every timestamp is predictable.
 
 ---

@@ -150,7 +150,11 @@ export default function ClassroomPage() {
         id: c.id,
         title: c.title,
         code: c.class_code
-      })) : undefined}
+      })) : [{
+        id: classroom.id,
+        title: classroom.title,
+        code: classroom.class_code
+      }]}
       currentClassroomId={classroom.id}
     >
       {/* Compact tab navigation */}
