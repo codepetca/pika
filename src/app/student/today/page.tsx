@@ -7,6 +7,7 @@ import { Spinner } from '@/components/Spinner'
 import { Input } from '@/components/Input'
 import { getTodayInToronto } from '@/lib/timezone'
 import type { MoodEmoji, Entry, ClassDay, Classroom } from '@/types'
+import { format, parseISO } from 'date-fns'
 
 const MOOD_OPTIONS: MoodEmoji[] = ['😊', '🙂', '😐']
 
@@ -16,6 +17,7 @@ export default function TodayPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [today, setToday] = useState('')
+  const formattedDate = today ? format(parseISO(today), 'EEE MMM d') : ''
   const [isClassDay, setIsClassDay] = useState(true)
   const [existingEntry, setExistingEntry] = useState<Entry | null>(null)
 
@@ -281,7 +283,7 @@ export default function TodayPage() {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">{selectedClassroom.title}</h2>
-                <p className="text-gray-600 mt-1">{today}</p>
+                <p className="text-gray-600 mt-1 text-left">{formattedDate}</p>
               </div>
 
               {!isClassDay ? (
