@@ -30,3 +30,15 @@ echo "   $WORKTREE_PATH"
 echo ""
 echo "To switch to this worktree:"
 echo "   cd $WORKTREE_PATH"
+
+# Bootstrap pnpm dependencies within the new worktree if necessary.
+if [[ -f "$WORKTREE_PATH/package.json" ]]; then
+  pushd "$WORKTREE_PATH" > /dev/null
+  if [[ -d "node_modules" ]]; then
+    echo "🔁 node_modules already present; skipping install."
+  else
+    echo "📦 Installing dependencies (corepack pnpm install)..."
+    corepack pnpm install
+  fi
+  popd > /dev/null
+fi
