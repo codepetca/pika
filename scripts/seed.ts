@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js'
 import { generateClassDays } from '../src/lib/calendar'
 import { config } from 'dotenv'
 import { resolve } from 'path'
+import bcrypt from 'bcryptjs'
 
 const envFile = process.env.ENV_FILE || '.env.local'
 config({ path: resolve(process.cwd(), envFile) })
@@ -36,11 +37,15 @@ async function seed() {
   // 1. Create users
   console.log('Creating users...')
 
+  // Hash password for E2E tests (password: test1234)
+  const passwordHash = await bcrypt.hash('test1234', 10)
+
   const teacher = await supabase
     .from('users')
     .upsert({
       email: 'teacher@yrdsb.ca',
       role: 'teacher',
+      password_hash: passwordHash,
     }, { onConflict: 'email' })
     .select()
     .single()
@@ -51,6 +56,7 @@ async function seed() {
       .upsert({
         email: 'student1@student.yrdsb.ca',
         role: 'student',
+        password_hash: passwordHash,
       }, { onConflict: 'email' })
       .select()
       .single(),
@@ -59,6 +65,7 @@ async function seed() {
       .upsert({
         email: 'student2@student.yrdsb.ca',
         role: 'student',
+        password_hash: passwordHash,
       }, { onConflict: 'email' })
       .select()
       .single(),
@@ -67,6 +74,7 @@ async function seed() {
       .upsert({
         email: 'student3@student.yrdsb.ca',
         role: 'student',
+        password_hash: passwordHash,
       }, { onConflict: 'email' })
       .select()
       .single(),

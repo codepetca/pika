@@ -196,7 +196,6 @@ export function TeacherClassroomView({ classroom }: Props) {
             </div>
           )}
         </div>
-      </div>
     </div>
   )
 }
