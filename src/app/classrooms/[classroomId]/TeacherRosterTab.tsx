@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { PageHeader } from '@/components/PageHeader'
+import { StudentRow } from '@/components/StudentRow'
 import type { Classroom } from '@/types'
 
 type Role = 'student' | 'teacher'
@@ -157,23 +159,23 @@ export function TeacherRosterTab({ classroom }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-sm p-4 space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-lg font-semibold text-gray-900">Roster</h2>
+    <div>
+      <PageHeader
+        title="Roster"
+        subtitle="Upload CSV with columns: Student Number, First Name, Last Name, Email"
+        action={
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50"
+            className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 font-medium"
             onClick={loadRoster}
           >
             Refresh
           </button>
-        </div>
+        }
+      />
 
-        <div className="text-sm text-gray-600">
-          Upload CSV with columns: Student Number, First Name, Last Name, Email
-        </div>
-
+      {/* Upload Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <input
             type="file"
@@ -184,7 +186,7 @@ export function TeacherRosterTab({ classroom }: Props) {
           />
           <button
             type="button"
-            className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
+            className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50 font-medium"
             onClick={uploadCsv}
             disabled={uploading || csvText.trim().length === 0}
           >
@@ -192,41 +194,47 @@ export function TeacherRosterTab({ classroom }: Props) {
           </button>
         </div>
 
-        {error && <div className="text-sm text-red-600">{error}</div>}
-        {success && <div className="text-sm text-green-700">{success}</div>}
+        {error && <div className="text-sm text-red-600 mt-2">{error}</div>}
+        {success && <div className="text-sm text-green-700 mt-2">{success}</div>}
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
-        {sortedRoster.map((row) => (
-          <div key={row.id} className="p-4 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-gray-900">{row.email}</div>
-              <div className="mt-1 text-sm text-gray-600">
-                {row.first_name || row.last_name
-                  ? `${row.last_name ?? ''}${row.last_name ? ', ' : ''}${row.first_name ?? ''}`.trim()
-                  : '(no name)'}
-                {row.student_number ? ` • ${row.student_number}` : ''}
-                <span className="ml-2">
-                  {row.joined ? (
-                    <span className="text-green-700">Joined</span>
-                  ) : (
-                    <span className="text-gray-500">Not joined</span>
-                  )}
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="px-3 py-2 rounded-md border border-red-200 bg-white text-sm text-red-700 hover:bg-red-50 flex-shrink-0"
-              onClick={() => removeStudent(row.id, row.email, row.joined)}
-            >
-              Remove
-            </button>
-          </div>
-        ))}
+      {/* Student List */}
+      <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
+        {sortedRoster.map((row) => {
+          const fullName = row.first_name || row.last_name
+            ? `${row.last_name ?? ''}${row.last_name ? ', ' : ''}${row.first_name ?? ''}`.trim()
+            : undefined
+
+          return (
+            <StudentRow.Medium
+              key={row.id}
+              email={row.email}
+              name={fullName}
+              studentNumber={row.student_number ?? undefined}
+              badge={
+                row.joined ? (
+                  <span className="text-xs font-medium text-green-700">Joined</span>
+                ) : (
+                  <span className="text-xs text-gray-500">Not joined</span>
+                )
+              }
+              action={
+                <button
+                  type="button"
+                  className="px-2 py-1 rounded-md border border-red-200 bg-white text-xs text-red-700 hover:bg-red-50 font-medium"
+                  onClick={() => removeStudent(row.id, row.email, row.joined)}
+                >
+                  Remove
+                </button>
+              }
+            />
+          )
+        })}
 
         {sortedRoster.length === 0 && (
-          <div className="p-6 text-center text-gray-500">No students on the roster</div>
+          <div className="py-8 text-center text-sm text-gray-500">
+            No students on the roster
+          </div>
         )}
       </div>
     </div>

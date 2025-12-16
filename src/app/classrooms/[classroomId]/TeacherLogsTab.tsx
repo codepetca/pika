@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { PageHeader } from '@/components/PageHeader'
+import { StudentRow } from '@/components/StudentRow'
 import { DateNavigator } from '@/components/DateNavigator'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -107,111 +109,107 @@ export function TeacherLogsTab({ classroom }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="text-lg font-semibold text-gray-900">Logs</h2>
-          <DateNavigator
-            value={selectedDate}
-            onChange={setSelectedDate}
-            shortcutLabel="Yesterday"
-            onShortcut={() => {
-              const today = getTodayInToronto()
-              const previousClassDay = getMostRecentClassDayBefore(classDays, today)
-              setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
-            }}
-          />
-        </div>
-
-        <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
-          <div className="text-sm text-gray-600">
-            {isClassDay ? `Showing ${selectedDate}` : `No class on ${selectedDate}`}
+    <div>
+      <PageHeader
+        title="Logs"
+        subtitle={isClassDay ? `Showing ${selectedDate}` : `No class on ${selectedDate}`}
+        action={
+          <div className="flex items-center gap-2">
+            {isClassDay && (
+              <>
+                <button
+                  type="button"
+                  className="px-2 py-1 rounded-md border border-gray-300 bg-white text-xs hover:bg-gray-50 font-medium"
+                  onClick={expandAll}
+                  disabled={studentsWithLogs.length === 0}
+                >
+                  Expand all
+                </button>
+                <button
+                  type="button"
+                  className="px-2 py-1 rounded-md border border-gray-300 bg-white text-xs hover:bg-gray-50 font-medium"
+                  onClick={collapseAll}
+                  disabled={expanded.size === 0}
+                >
+                  Collapse all
+                </button>
+              </>
+            )}
+            <DateNavigator
+              value={selectedDate}
+              onChange={setSelectedDate}
+              shortcutLabel="Yesterday"
+              onShortcut={() => {
+                const today = getTodayInToronto()
+                const previousClassDay = getMostRecentClassDayBefore(classDays, today)
+                setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
+              }}
+            />
           </div>
-          {isClassDay && (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50"
-                onClick={expandAll}
-                disabled={studentsWithLogs.length === 0}
-              >
-                Expand all
-              </button>
-              <button
-                type="button"
-                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50"
-                onClick={collapseAll}
-                disabled={expanded.size === 0}
-              >
-                Collapse all
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+        }
+      />
 
-      <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
+      <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
         {(isClassDay ? logs : []).map((row) => {
           const hasEntry = Boolean(row.entry)
           const isExpanded = expanded.has(row.student_id)
-          return (
-            <div key={row.student_id} className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                <div className="text-sm font-medium text-gray-900">
-                  {row.student_email}
-                </div>
-                {!hasEntry ? (
-                  <div className="mt-1 text-sm text-gray-400">
-                    (missing)
+
+          let preview = null
+          let expandedContent = null
+
+          if (!hasEntry) {
+            preview = <span className="text-gray-400">(missing)</span>
+          } else if (row.summary && !isExpanded) {
+            preview = row.summary
+          } else if (!isExpanded) {
+            preview = (
+              <div>
+                <div className="truncate">{row.entry!.text}</div>
+                {!row.summary && (
+                  <div className="text-xs text-gray-400 mt-0.5">
+                    Summary pending (generated nightly)
                   </div>
-                ) : row.summary && !isExpanded ? (
-                  <div className="mt-1 text-sm text-gray-700">
+                )}
+              </div>
+            )
+          }
+
+          if (isExpanded && hasEntry) {
+            expandedContent = (
+              <div className="space-y-2">
+                {row.summary && (
+                  <div className="text-sm text-gray-700 font-medium">
                     {row.summary}
                   </div>
-                ) : isExpanded ? (
-                  <div className="mt-2 space-y-2">
-                    {row.summary && (
-                      <div className="text-sm text-gray-700">
-                        {row.summary}
-                      </div>
-                    )}
-                    <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {row.entry!.text}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-1 space-y-1">
-                    <div className="text-sm text-gray-600 truncate">
-                      {row.entry!.text}
-                    </div>
-                    {!row.summary && (
-                      <div className="text-xs text-gray-400">
-                        Summary pending (generated nightly)
-                      </div>
-                    )}
-                  </div>
                 )}
+                <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                  {row.entry!.text}
+                </div>
               </div>
-                {hasEntry && (
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50 flex-shrink-0"
-                    onClick={() => toggle(row.student_id)}
-                  >
-                    {isExpanded ? 'Collapse' : 'Expand'}
-                  </button>
-                )}
-              </div>
-            </div>
+            )
+          }
+
+          return (
+            <StudentRow.Expandable
+              key={row.student_id}
+              email={row.student_email}
+              preview={preview}
+              expanded={isExpanded}
+              expandedContent={expandedContent}
+              onToggle={hasEntry ? () => toggle(row.student_id) : undefined}
+            />
           )
         })}
 
         {isClassDay && logs.length === 0 && (
-          <div className="p-6 text-center text-gray-500">No students enrolled</div>
+          <div className="py-8 text-center text-sm text-gray-500">
+            No students enrolled
+          </div>
         )}
         {!isClassDay && (
-          <div className="p-6 text-center text-gray-500">No class on this day</div>
+          <div className="py-8 text-center text-sm text-gray-500">
+            No class on this day
+          </div>
         )}
       </div>
     </div>

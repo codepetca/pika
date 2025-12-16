@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { AppShell } from '@/components/AppShell'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { TeacherClassroomView } from './TeacherClassroomView'
@@ -80,25 +81,29 @@ export default function ClassroomPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
+      <AppShell showHeader={false}>
+        <div className="flex justify-center py-12">
+          <Spinner size="lg" />
+        </div>
+      </AppShell>
     )
   }
 
   if (error) {
     return (
-      <div className="max-w-md mx-auto mt-12">
-        <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={() => router.back()}
-            className="text-blue-600 hover:text-blue-700"
-          >
-            Go back
-          </button>
+      <AppShell showHeader={false}>
+        <div className="max-w-md mx-auto mt-12">
+          <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={() => router.back()}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              Go back
+            </button>
+          </div>
         </div>
-      </div>
+      </AppShell>
     )
   }
 
@@ -139,44 +144,18 @@ export default function ClassroomPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="mb-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{classroom.title}</h1>
-            <p className="text-gray-600 mt-1">
-              Code: <span className="font-mono">{classroom.class_code}</span>
-              {classroom.term_label && ` • ${classroom.term_label}`}
-            </p>
-          </div>
-
-          {isTeacher && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <select
-                value={classroom.id}
-                onChange={(e) => switchClassroom(e.target.value)}
-                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm"
-              >
-                {teacherClassrooms.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
-                onClick={() => setShowCreateModal(true)}
-              >
-                + New
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm mb-6">
-        <div className="flex flex-wrap border-b border-gray-200">
+    <AppShell
+      user={user}
+      classrooms={isTeacher ? teacherClassrooms.map(c => ({
+        id: c.id,
+        title: c.title,
+        code: c.class_code
+      })) : undefined}
+      currentClassroomId={classroom.id}
+    >
+      {/* Compact tab navigation */}
+      <div className="border-b border-gray-200 -mx-4 px-4 mb-4">
+        <div className="flex gap-4">
           {(isTeacher ? teacherTabs : studentTabs).map(t => {
             const isActive = activeTab === t.id
             return (
@@ -184,10 +163,10 @@ export default function ClassroomPage() {
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
+                className={`py-2 text-sm font-medium border-b-2 transition ${
                   isActive
-                    ? 'border-blue-600 text-blue-700'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-200'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {t.label}
@@ -196,6 +175,19 @@ export default function ClassroomPage() {
           })}
         </div>
       </div>
+
+      {/* Action button for teachers */}
+      {isTeacher && (
+        <div className="flex justify-end mb-3">
+          <button
+            type="button"
+            className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 font-medium"
+            onClick={() => setShowCreateModal(true)}
+          >
+            + New classroom
+          </button>
+        </div>
+      )}
 
       {isTeacher ? (
         <>
@@ -236,6 +228,6 @@ export default function ClassroomPage() {
           }}
         />
       )}
-    </div>
+    </AppShell>
   )
 }
