@@ -517,3 +517,22 @@
 - Fix E2E test data seeding with passwords (#50)
 **Blockers:** E2E tests still fail on teacher/student login due to missing passwords in seed data (tracked in #50)
 ---
+
+---
+## 2025-12-16 09:50 [AI - Claude Sonnet 4.5]
+**Goal:** Fix two blockers preventing E2E snapshot tests from completing
+**Completed:** Fixed TeacherClassroomView syntax error (extra closing div) and updated seed script to hash test user passwords with bcrypt. Created PR #52 combining both fixes to enable full UI/UX snapshot testing.
+**Status:** completed
+**Artifacts:**
+- Issues: Closes #50, #51
+- PRs: #52
+- Commits: 8858eb8
+- Files: `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `scripts/seed.ts`
+- Worktree: `$HOME/repos/.worktrees/pika/fix/e2e-snapshot-blockers`
+**Next:** 
+- Merge PR #52 once approved
+- Run `pnpm run seed:fresh` to populate test data
+- Run `pnpm run e2e:snapshots` to generate UI screenshots
+- Review snapshots for UI/UX improvements
+**Blockers:** None
+---
