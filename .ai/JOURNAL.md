@@ -585,3 +585,27 @@
 **Next:** Run e2e snapshots after starting the dev server; document the previous failure if the server remains down.
 **Blockers:** Playwright cannot reach http://localhost:3000/login because the dev server is not running.
 ---
+
+---
+## 2025-12-16 14:33 [AI - Claude Sonnet 4.5]
+**Goal:** Consolidate student Today view implementations and remove mood feature
+**Completed:** Eliminated duplicate student Today views (650 lines deleted), implemented design doc requirements (classroom in titlebar, date as primary headline), removed mood feature completely, and merged all changes via PR #53.
+**Status:** completed
+**Artifacts:**
+- PRs: #53 (merged)
+- Commits: d56b31b
+- Files Modified: 9 files (650 deleted, 18 added)
+  * Deleted: `/student/today/page.tsx`, `StudentClassroomView.tsx` (orphaned)
+  * Modified: `StudentTodayTab.tsx`, `page.tsx`, `student/history/page.tsx`
+  * Updated: `docs/core/design.md`, `docs/design-system.md`, `docs/core/roadmap.md`
+- Worktree: `$HOME/repos/.worktrees/pika/student-ui-docs` (removed)
+**Key Changes:**
+- Single source of truth for student Today view: `StudentTodayTab.tsx`
+- Date format: `Mon Dec 16` (no year) using date-fns
+- Date is now primary headline (left-aligned, replaces "Today" label)
+- Classroom shown in titlebar for students (matching teacher UX)
+- Mood feature removed completely (emoji selector + display)
+- Fixed teacher layout redirect: non-teachers → `/classrooms`
+**Next:** None
+**Blockers:** None
+---
