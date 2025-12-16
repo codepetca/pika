@@ -22,6 +22,7 @@
     "generate:secret": "node scripts/generate-env.js"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.39.0",
     "@tiptap/core": "^2.10.6",
     "@tiptap/extension-link": "^2.10.6",

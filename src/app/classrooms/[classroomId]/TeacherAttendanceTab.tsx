@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { PageHeader } from '@/components/PageHeader'
+import { StudentRow } from '@/components/StudentRow'
 import { DateNavigator } from '@/components/DateNavigator'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -69,10 +71,11 @@ export function TeacherAttendanceTab({ classroom }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="text-lg font-semibold text-gray-900">Attendance</h2>
+    <div>
+      <PageHeader
+        title="Attendance"
+        subtitle={!isClassDay ? `No class on ${selectedDate}` : undefined}
+        action={
           <DateNavigator
             value={selectedDate}
             onChange={setSelectedDate}
@@ -83,25 +86,25 @@ export function TeacherAttendanceTab({ classroom }: Props) {
               setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
             }}
           />
-        </div>
-        {!isClassDay && (
-          <div className="mt-3 text-sm text-gray-600">
-            No class on {selectedDate}.
-          </div>
-        )}
-      </div>
+        }
+      />
 
-      <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
+      <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
         {rows.map((row) => (
-          <div key={row.student_id} className="p-4 flex items-center justify-between">
-            <div className="text-sm text-gray-800">{row.student_email}</div>
-            <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
-              {isClassDay ? getAttendanceIcon(row.status) : '—'}
-            </div>
-          </div>
+          <StudentRow.Minimal
+            key={row.student_id}
+            email={row.student_email}
+            indicator={
+              <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
+                {isClassDay ? getAttendanceIcon(row.status) : '—'}
+              </div>
+            }
+          />
         ))}
         {rows.length === 0 && (
-          <div className="p-6 text-center text-gray-500">No students enrolled</div>
+          <div className="py-8 text-center text-sm text-gray-500">
+            No students enrolled
+          </div>
         )}
       </div>
     </div>
