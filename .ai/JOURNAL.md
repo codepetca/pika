@@ -979,3 +979,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 16:58 [AI - Codex]
+**Goal:** Match the calendar past class day tint to the non-class-day intensity while keeping a green tone.
+**Completed:** Lightened the legend swatch and past-class-day button styling so the background matches the neutral card tone with green text, keeping hover state subtle.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx`
+**Next:** None
+**Blockers:** None
+---

@@ -191,8 +191,8 @@ export function TeacherCalendarTab({ classroom }: Props) {
                 <div className="w-5 h-5 bg-gray-50 dark:bg-gray-800 rounded"></div>
                 <span>Non-Class Day</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-emerald-50 dark:bg-emerald-900/10 rounded"></div>
+                <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-emerald-50 dark:bg-emerald-900/5 rounded"></div>
                 <span>Past Class Day</span>
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -240,7 +240,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                         ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                         : isClassDay
                           ? isPastClassDay
-                            ? 'bg-emerald-50 dark:bg-emerald-900/10 text-emerald-900/70 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/10'
+                            ? 'bg-emerald-50 dark:bg-emerald-900/5 text-emerald-600 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/10'
                             : 'bg-green-100 dark:bg-green-900 text-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800'
                           : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                       return (
