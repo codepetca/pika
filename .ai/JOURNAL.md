@@ -999,3 +999,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 17:12 [AI - Codex]
+**Goal:** Make past class days brighter and prevent toggling the current day.
+**Completed:** Lightened the legend icon and past-day buttons to a lighter green, and disabled toggling on today while keeping the blue outline highlight.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx`
+**Next:** None
+**Blockers:** None
+---

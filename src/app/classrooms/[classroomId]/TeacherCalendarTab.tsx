@@ -192,7 +192,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                 <span>Non-Class Day</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-emerald-50 dark:bg-emerald-900/10 rounded"></div>
+                <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/10 rounded"></div>
                 <span>Past Class Day</span>
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -241,16 +241,17 @@ export function TeacherCalendarTab({ classroom }: Props) {
                         ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                         : isClassDay
                           ? isPastClassDay
-                            ? 'bg-emerald-50 dark:bg-emerald-900/5 text-emerald-600 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/5'
+                            ? 'bg-emerald-100 dark:bg-emerald-900/10 text-emerald-500 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/5'
                             : 'bg-green-100 dark:bg-green-900 text-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800'
                           : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                       const outlineClasses = isToday ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''
+                      const toggleDisabled = disabled || isToday
                       return (
                         <button
                           key={dateString}
                           onClick={() => toggleDay(dateString, !isClassDay)}
-                          className={`aspect-square p-1 rounded text-xs font-medium transition-colors ${colorClasses} ${disabled ? 'cursor-not-allowed' : ''} ${outlineClasses}`}
-                          disabled={disabled}
+                          className={`aspect-square p-1 rounded text-xs font-medium transition-colors ${colorClasses} ${toggleDisabled ? 'cursor-not-allowed' : ''} ${outlineClasses}`}
+                          disabled={toggleDisabled}
                         >
                           {format(day, 'd')}
                         </button>
