@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent, ChangeEvent } from 'react'
+import { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react'
 import { Button } from '@/components/Button'
 
 interface UploadRosterModalProps {
@@ -15,6 +15,16 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
+  const autoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current)
+        autoCloseTimerRef.current = null
+      }
+    }
+  }, [])
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -49,6 +59,11 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
 
       setResult(data)
       onSuccess()
+
+      const hasErrors = Array.isArray(data.errors) && data.errors.length > 0
+      if (!hasErrors) {
+        autoCloseTimerRef.current = setTimeout(handleClose, 1000)
+      }
     } catch (err: any) {
       setError(err.message || 'An error occurred')
     } finally {
@@ -57,6 +72,10 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   }
 
   function handleClose() {
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current)
+      autoCloseTimerRef.current = null
+    }
     setCsvFile(null)
     setError('')
     setResult(null)
