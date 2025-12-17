@@ -101,13 +101,24 @@ export function TeacherAttendanceTab({ classroom }: Props) {
             ←
           </button>
 
+          {/* Hidden native date input */}
           <input
             ref={dateInputRef}
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+            className="sr-only"
+            tabIndex={-1}
           />
+
+          {/* Visible formatted date button */}
+          <button
+            type="button"
+            onClick={() => dateInputRef.current?.showPicker()}
+            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            {formattedDate}
+          </button>
 
           <button
             type="button"
