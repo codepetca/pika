@@ -193,7 +193,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                 <span>Non-Class Day</span>
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">
-                Click to toggle class days
+                Click on date to toggle class days
               </div>
             </div>
           </div>
@@ -254,19 +254,6 @@ export function TeacherCalendarTab({ classroom }: Props) {
             })}
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Legend</h4>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-700 dark:text-gray-300">
-              <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-green-100 dark:bg-green-900 rounded"></div>
-                <span>Class Day</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-gray-50 dark:bg-gray-800 rounded"></div>
-                <span>Non-Class Day</span>
-              </div>
-            </div>
-          </div>
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center text-gray-500 dark:text-gray-400">
