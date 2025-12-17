@@ -152,9 +152,8 @@ export function TeacherCalendarTab({ classroom }: Props) {
         }
       />
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
-
-        {!isInitialized ? (
+      {!isInitialized && (
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3 mb-4">
           <div className="flex flex-wrap items-end gap-2">
             <div>
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Start</label>
@@ -185,11 +184,15 @@ export function TeacherCalendarTab({ classroom }: Props) {
               {saving ? 'Generating…' : 'Generate'}
             </button>
           </div>
-        ) : null}
+        </div>
+      )}
 
-        {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
-        {success && <div className="text-sm text-green-700 dark:text-green-400">{success}</div>}
-      </div>
+      {(error || success) && (
+        <div className="space-y-2 mb-4">
+          {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+          {success && <div className="text-sm text-green-700 dark:text-green-400">{success}</div>}
+        </div>
+      )}
 
       {range ? (
         <div className="space-y-4">
