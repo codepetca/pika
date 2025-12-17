@@ -145,24 +145,15 @@ export function TeacherLogsTab({ classroom }: Props) {
           onNext={() => moveDateBy(1)}
           rightActions={
             isClassDay ? (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-                  onClick={expandAll}
-                  disabled={logs.length === 0}
-                >
-                  Expand all
-                </button>
-                <button
-                  type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-                  onClick={collapseAll}
-                  disabled={expanded.size === 0}
-                >
-                  Collapse all
-                </button>
-              </div>
+              <button
+                type="button"
+                className="flex items-center gap-1 px-3 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
+                onClick={() => (expanded.size === logs.length ? collapseAll() : expandAll())}
+                disabled={logs.length === 0}
+              >
+                <ArrowsUpDownIcon className="h-4 w-4" aria-hidden="true" />
+                {expanded.size === logs.length ? 'Collapse all' : 'Expand all'}
+              </button>
             ) : null
           }
         />
