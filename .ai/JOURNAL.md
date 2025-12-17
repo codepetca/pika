@@ -829,3 +829,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 09:05 [AI - Codex]
+**Goal:** Convert the Logs view to match the attendance table while keeping the shared picker
+**Completed:** Replaced the expandable rows with a table that lists first name, last name, and log summary, added sortable headers (first/last/summary), and kept each row clickable so the entry details expand beneath; the shared `DateActionBar` action bar still handles date navigation, and expand/collapse all buttons remain beside it as before
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`
+**Next:** None
+**Blockers:** None
+---
