@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { format, parseISO } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
-import { StudentRow } from '@/components/StudentRow'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
@@ -14,11 +13,15 @@ interface Props {
   classroom: Classroom
 }
 
+type SortColumn = 'first_name' | 'last_name' | 'email'
+
 export function TeacherAttendanceTab({ classroom }: Props) {
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string>('')
+  const [sortColumn, setSortColumn] = useState<SortColumn>('last_name')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const dateInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -52,15 +55,49 @@ export function TeacherAttendanceTab({ classroom }: Props) {
   }, [classDays, selectedDate])
 
   const rows = useMemo(() => {
-    return attendance.map((record) => {
+    const emailUsername = (email: string) => email.split('@')[0]
+
+    const mappedRows = attendance.map((record) => {
       const status = record.dates[selectedDate]
       return {
         student_id: record.student_id,
         student_email: record.student_email,
+        student_first_name: record.student_first_name,
+        student_last_name: record.student_last_name,
+        email_username: emailUsername(record.student_email),
         status: status || 'absent',
       }
     })
-  }, [attendance, selectedDate])
+
+    // Sort by selected column
+    return mappedRows.sort((a, b) => {
+      let aVal = ''
+      let bVal = ''
+
+      if (sortColumn === 'email') {
+        aVal = a.email_username
+        bVal = b.email_username
+      } else if (sortColumn === 'first_name') {
+        aVal = a.student_first_name
+        bVal = b.student_first_name
+      } else {
+        aVal = a.student_last_name
+        bVal = b.student_last_name
+      }
+
+      const comparison = aVal.localeCompare(bVal)
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+  }, [attendance, selectedDate, sortColumn, sortDirection])
+
+  function handleSort(column: SortColumn) {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
 
   if (loading) {
     return (
@@ -84,7 +121,7 @@ export function TeacherAttendanceTab({ classroom }: Props) {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="px-4 py-3 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-base font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
             onClick={() => setSelectedDate(addDaysToDateString(selectedDate, -1))}
           >
             ←
@@ -100,7 +137,7 @@ export function TeacherAttendanceTab({ classroom }: Props) {
             tabIndex={-1}
           />
 
-          {/* Visible formatted date button - larger */}
+          {/* Visible formatted date button */}
           <button
             type="button"
             onClick={() => dateInputRef.current?.showPicker()}
@@ -111,43 +148,84 @@ export function TeacherAttendanceTab({ classroom }: Props) {
 
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="px-4 py-3 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-base font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
             onClick={() => setSelectedDate(addDaysToDateString(selectedDate, 1))}
           >
             →
           </button>
-
-          <button
-            type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-            onClick={() => {
-              const today = getTodayInToronto()
-              const previousClassDay = getMostRecentClassDayBefore(classDays, today)
-              setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
-            }}
-          >
-            Yesterday
-          </button>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-        {rows.map((row) => (
-          <StudentRow.Minimal
-            key={row.student_id}
-            email={row.student_email}
-            indicator={
-              <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
-                {isClassDay ? getAttendanceIcon(row.status) : '—'}
-              </div>
-            }
-          />
-        ))}
-        {rows.length === 0 && (
-          <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-            No students enrolled
-          </div>
-        )}
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <tr>
+              <th
+                className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => handleSort('first_name')}
+              >
+                <div className="flex items-center gap-1">
+                  First Name
+                  {sortColumn === 'first_name' && (
+                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => handleSort('last_name')}
+              >
+                <div className="flex items-center gap-1">
+                  Last Name
+                  {sortColumn === 'last_name' && (
+                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => handleSort('email')}
+              >
+                <div className="flex items-center gap-1">
+                  Email
+                  {sortColumn === 'email' && (
+                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </div>
+              </th>
+              <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 dark:text-gray-300">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            {rows.map((row) => (
+              <tr key={row.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                  {row.student_first_name}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                  {row.student_last_name}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                  {row.email_username}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
+                    {isClassDay ? getAttendanceIcon(row.status) : '—'}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={4} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  No students enrolled
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )

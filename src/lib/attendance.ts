@@ -37,7 +37,7 @@ export function computeAttendanceStatusForStudent(
  * Computes attendance records for multiple students
  */
 export function computeAttendanceRecords(
-  students: Array<{ id: string; email: string }>,
+  students: Array<{ id: string; email: string; first_name: string; last_name: string }>,
   classDays: ClassDay[],
   allEntries: Entry[]
 ): AttendanceRecord[] {
@@ -61,6 +61,8 @@ export function computeAttendanceRecords(
     return {
       student_email: student.email,
       student_id: student.id,
+      student_first_name: student.first_name,
+      student_last_name: student.last_name,
       dates,
       summary
     }

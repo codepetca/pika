@@ -95,6 +95,8 @@ export interface SessionData {
 export interface AttendanceRecord {
   student_email: string
   student_id: string
+  student_first_name: string
+  student_last_name: string
   dates: Record<string, AttendanceStatus>  // date -> status
   summary: {
     present: number

@@ -719,3 +719,35 @@
 **Next:** None
 **Blockers:** None
 ---
+
+---
+## 2025-12-17 [AI - Claude Sonnet 4.5]
+**Goal:** Improve attendance view date picker UX and add sortable student name/email columns
+**Completed:**
+- Enhanced date picker with formatted display ("Tue Dec 16" instead of "2025-12-16")
+- Hidden native date input with sr-only class, created visible formatted button
+- Made date picker button larger (px-4 py-3, text-base, font-medium)
+- Removed "Yesterday" button from date navigation
+- Made arrow buttons (← →) same size as date picker for visual consistency
+- Replaced StudentRow.Minimal with full HTML table
+- Added sortable columns: First Name, Last Name, Email (username only)
+- Implemented sort state management with direction toggle (↑/↓ indicators)
+- Removed unused StudentRow import
+**Status:** completed
+**Artifacts:**
+- Commits: (pushed to main)
+- Files Modified: 5 files
+  * Modified: src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx (table structure, sort logic, removed Yesterday button, consistent button sizing)
+  * Modified: src/app/api/teacher/attendance/route.ts (fetch student profiles)
+  * Modified: src/types/index.ts (added first_name/last_name to AttendanceRecord)
+  * Modified: src/lib/attendance.ts (updated function signatures)
+**Key Changes:**
+- Date picker: Hidden native input triggers from visible formatted button via useRef and showPicker()
+- Table headers: Clickable with hover effects, show sort indicators when active
+- Email display: Shows username only (before @ sign) using email.split('@')[0]
+- Sort columns: 'first_name', 'last_name', 'email' with asc/desc toggle
+- Button consistency: All navigation buttons use px-4 py-3 text-base font-medium
+- Data flow: API fetches student_profiles → AttendanceRecord includes names → table displays sorted rows
+**Next:** None
+**Blockers:** None
+---
