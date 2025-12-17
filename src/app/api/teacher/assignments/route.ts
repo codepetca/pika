@@ -36,20 +36,31 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch assignments with submission stats
-    const { data: assignments, error } = await supabase
+    // Fetch assignments with submission stats.
+    // Fall back to due_at ordering if the position column isn't available yet.
+    let assignments: any[] | null = null
+    const withPosition = await supabase
       .from('assignments')
       .select('*')
       .eq('classroom_id', classroomId)
       .order('position', { ascending: true })
       .order('due_at', { ascending: true })
 
-    if (error) {
-      console.error('Error fetching assignments:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch assignments' },
-        { status: 500 }
-      )
+    if (withPosition.error) {
+      const fallback = await supabase
+        .from('assignments')
+        .select('*')
+        .eq('classroom_id', classroomId)
+        .order('due_at', { ascending: true })
+
+      if (fallback.error) {
+        console.error('Error fetching assignments:', fallback.error)
+        return NextResponse.json({ error: 'Failed to fetch assignments' }, { status: 500 })
+      }
+
+      assignments = fallback.data
+    } else {
+      assignments = withPosition.data
     }
 
     // Count total students in classroom once
@@ -151,7 +162,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create assignment
-    const { data: lastAssignment } = await supabase
+    const lastAssignmentResult = await supabase
       .from('assignments')
       .select('position')
       .eq('classroom_id', classroom_id)
@@ -159,18 +170,25 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .maybeSingle()
 
-    const nextPosition = typeof lastAssignment?.position === 'number' ? lastAssignment.position + 1 : 0
+    const nextPosition =
+      typeof lastAssignmentResult.data?.position === 'number' ? lastAssignmentResult.data.position + 1 : 0
+
+    const insertBody: Record<string, any> = {
+      classroom_id,
+      title: title.trim(),
+      description: description || '',
+      due_at,
+      created_by: user.id,
+    }
+
+    // If the position column doesn't exist yet, omit it for backwards compatibility.
+    if (!lastAssignmentResult.error) {
+      insertBody.position = nextPosition
+    }
 
     const { data: assignment, error } = await supabase
       .from('assignments')
-      .insert({
-        classroom_id,
-        title: title.trim(),
-        description: description || '',
-        due_at,
-        position: nextPosition,
-        created_by: user.id
-      })
+      .insert(insertBody)
       .select()
       .single()
 
