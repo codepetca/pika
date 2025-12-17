@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
+import { format, parseISO } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
 import { PageHeader } from '@/components/PageHeader'
 import { StudentRow } from '@/components/StudentRow'
-import { DateNavigator } from '@/components/DateNavigator'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
@@ -27,6 +27,7 @@ export function TeacherLogsTab({ classroom }: Props) {
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const dateInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function loadBase() {
@@ -100,6 +101,15 @@ export function TeacherLogsTab({ classroom }: Props) {
     setExpanded(new Set())
   }
 
+  const formattedDate = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : ''
+  const navButtonClasses =
+    'px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700'
+
+  const moveDateBy = (delta: number) => {
+    if (!selectedDate) return
+    setSelectedDate(addDaysToDateString(selectedDate, delta))
+  }
+
   if (loading && logs.length === 0) {
     return (
       <div className="flex justify-center py-12">
@@ -114,9 +124,44 @@ export function TeacherLogsTab({ classroom }: Props) {
         title="Logs"
         subtitle={isClassDay ? `Showing ${selectedDate}` : `No class on ${selectedDate}`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className={navButtonClasses}
+                onClick={() => moveDateBy(-1)}
+              >
+                ←
+              </button>
+
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="sr-only"
+                tabIndex={-1}
+              />
+
+              <button
+                type="button"
+                className={navButtonClasses}
+                onClick={() => dateInputRef.current?.showPicker()}
+              >
+                {formattedDate || 'Select date'}
+              </button>
+
+              <button
+                type="button"
+                className={navButtonClasses}
+                onClick={() => moveDateBy(1)}
+              >
+                →
+              </button>
+            </div>
+
             {isClassDay && (
-              <>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
@@ -133,18 +178,8 @@ export function TeacherLogsTab({ classroom }: Props) {
                 >
                   Collapse all
                 </button>
-              </>
+              </div>
             )}
-            <DateNavigator
-              value={selectedDate}
-              onChange={setSelectedDate}
-              shortcutLabel="Yesterday"
-              onShortcut={() => {
-                const today = getTodayInToronto()
-                const previousClassDay = getMostRecentClassDayBefore(classDays, today)
-                setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
-              }}
-            />
           </div>
         }
       />

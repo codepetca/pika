@@ -789,3 +789,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 08:44 [AI - Codex]
+**Goal:** Standardize the Logs view action bar with the attendance picker layout without the extra shortcut button
+**Completed:** Replaced `DateNavigator` with the same hidden date input/picker and shared `navButtonClasses` used in the attendance view, moved the expand/collapse buttons into a flex container to the right, and kept the action bar responsive while retaining the logging/loading behavior
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`
+**Next:** None
+**Blockers:** None
+---
