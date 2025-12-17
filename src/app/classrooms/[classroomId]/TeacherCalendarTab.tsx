@@ -185,10 +185,6 @@ export function TeacherCalendarTab({ classroom }: Props) {
               {saving ? 'Generating…' : 'Generate'}
             </button>
           </div>
-        ) : (
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Calendar is already initialized. Use the grid below to toggle today/future days.
-          </div>
         )}
 
         {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
