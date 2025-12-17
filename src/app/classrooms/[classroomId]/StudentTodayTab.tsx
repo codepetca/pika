@@ -94,34 +94,34 @@ export function StudentTodayTab({ classroom }: Props) {
   const formattedDate = today ? format(parseISO(today), 'EEE MMM d') : ''
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">{formattedDate}</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{formattedDate}</h2>
       </div>
 
       {!isClassDay ? (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
-          <p className="text-gray-600">No class today</p>
+        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+          <p className="text-gray-600 dark:text-gray-400">No class today</p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               What did you do today?
             </label>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Write a short update..."
               required
               disabled={submitting}
             />
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {success && <p className="text-sm text-green-600">{success}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {success && <p className="text-sm text-green-600 dark:text-green-400">{success}</p>}
 
           <Button type="submit" disabled={submitting || !text}>
             {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}

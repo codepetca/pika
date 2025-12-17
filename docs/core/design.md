@@ -25,7 +25,14 @@ This document defines UI/UX patterns, visual design standards, and component gui
 - Focus indicators visible
 - No color-only information
 
-### 4. Performance
+### 4. Dark Mode Support (Required)
+- **All UI components MUST support both light and dark modes**
+- Use Tailwind's `dark:` prefix for all color classes
+- Ensure proper contrast in both light and dark modes (WCAG 2.1 AA)
+- Test all views in both modes before considering complete
+- Dark mode activates via Tailwind's `class` strategy (`darkMode: 'class'` in config)
+
+### 5. Performance
 - Fast initial load (< 3s)
 - Instant feedback on interactions
 - Lazy load below-the-fold content
@@ -48,13 +55,39 @@ This document defines UI/UX patterns, visual design standards, and component gui
 --color-secondary: #6b7280 /* gray-500 */
 ```
 
-#### Neutral Colors
+#### Neutral Colors (Light Mode)
 ```css
 --color-bg: #ffffff       /* white */
 --color-bg-secondary: #f9fafb /* gray-50 */
 --color-border: #e5e7eb   /* gray-200 */
 --color-text: #111827     /* gray-900 */
 --color-text-secondary: #6b7280 /* gray-500 */
+```
+
+#### Neutral Colors (Dark Mode)
+```css
+--color-bg-dark: #111827        /* gray-900 */
+--color-bg-secondary-dark: #030712 /* gray-950 */
+--color-border-dark: #374151     /* gray-700 */
+--color-text-dark: #ffffff       /* white */
+--color-text-secondary-dark: #9ca3af /* gray-400 */
+```
+
+#### Dark Mode Implementation Pattern
+All components must include dark mode variants using Tailwind's `dark:` prefix:
+```tsx
+// Background colors
+className="bg-white dark:bg-gray-900"
+className="bg-gray-50 dark:bg-gray-950"
+
+// Text colors
+className="text-gray-900 dark:text-white"
+className="text-gray-600 dark:text-gray-400"
+className="text-gray-700 dark:text-gray-300"
+
+// Border colors
+className="border-gray-200 dark:border-gray-700"
+className="border-gray-300 dark:border-gray-600"
 ```
 
 #### Semantic Colors
@@ -158,21 +191,21 @@ Usage:
 
 #### Primary Button
 ```tsx
-<button className="bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-md">
+<button className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-md">
   Submit Entry
 </button>
 ```
 
 #### Secondary Button
 ```tsx
-<button className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium px-4 py-2 rounded-md">
+<button className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-medium px-4 py-2 rounded-md">
   Cancel
 </button>
 ```
 
 #### Destructive Button
 ```tsx
-<button className="bg-red-500 hover:bg-red-600 text-white font-medium px-4 py-2 rounded-md">
+<button className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white font-medium px-4 py-2 rounded-md">
   Delete
 </button>
 ```
@@ -188,7 +221,8 @@ Usage:
 ```tsx
 <input
   type="text"
-  className="w-full px-3 py-2 border border-gray-300 rounded-md
+  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md
+             bg-white dark:bg-gray-800 text-gray-900 dark:text-white
              focus:outline-none focus:ring-2 focus:ring-blue-500"
   placeholder="Enter your name"
 />
@@ -223,18 +257,18 @@ Usage:
 
 #### Basic Card
 ```tsx
-<div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-  <h3 className="text-lg font-semibold mb-2">Card Title</h3>
-  <p className="text-gray-600">Card content goes here.</p>
+<div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
+  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Card Title</h3>
+  <p className="text-gray-600 dark:text-gray-400">Card content goes here.</p>
 </div>
 ```
 
 #### Clickable Card
 ```tsx
-<div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm
-                hover:shadow-md transition-shadow cursor-pointer">
-  <h3 className="text-lg font-semibold mb-2">Clickable Card</h3>
-  <p className="text-gray-600">Card content goes here.</p>
+<div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm
+                hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-shadow cursor-pointer">
+  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Clickable Card</h3>
+  <p className="text-gray-600 dark:text-gray-400">Card content goes here.</p>
 </div>
 ```
 
@@ -656,6 +690,8 @@ const HeavyComponent = dynamic(() => import('./HeavyComponent'))
 - Use custom fonts (slow loading)
 - Over-animate (distracting)
 - Create pixel-perfect designs (embrace flexibility)
+- **Ship components without dark mode support**
+- **Forget to test both light and dark modes**
 
 ✅ **DO**:
 - Use Tailwind utility classes
@@ -665,6 +701,9 @@ const HeavyComponent = dynamic(() => import('./HeavyComponent'))
 - Use system fonts
 - Use subtle transitions
 - Design for content flexibility
+- **Always add `dark:` variants to all color classes**
+- **Verify proper contrast in both light and dark modes**
+- **Test all new components in both modes before merging**
 
 ---
 

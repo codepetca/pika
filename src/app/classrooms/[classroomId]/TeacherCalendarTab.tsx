@@ -144,7 +144,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
         action={
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-300 bg-white text-sm hover:bg-gray-50 font-medium"
+            className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
             onClick={load}
           >
             Refresh
@@ -152,33 +152,33 @@ export function TeacherCalendarTab({ classroom }: Props) {
         }
       />
 
-      <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-3">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
 
         {!isInitialized ? (
           <div className="flex flex-wrap items-end gap-2">
             <div>
-              <label className="block text-xs text-gray-600 mb-1">Start</label>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Start</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm"
+                className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100"
                 disabled={saving}
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">End</label>
+              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">End</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm"
+                className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100"
                 disabled={saving}
               />
             </div>
             <button
               type="button"
-              className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
+              className="px-3 py-2 rounded-md bg-blue-600 dark:bg-blue-700 text-white text-sm hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50"
               onClick={generateFromRange}
               disabled={saving || !startDate || !endDate}
             >
@@ -186,13 +186,13 @@ export function TeacherCalendarTab({ classroom }: Props) {
             </button>
           </div>
         ) : (
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             Calendar is already initialized. Use the grid below to toggle today/future days.
           </div>
         )}
 
-        {error && <div className="text-sm text-red-600">{error}</div>}
-        {success && <div className="text-sm text-green-700">{success}</div>}
+        {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+        {success && <div className="text-sm text-green-700 dark:text-green-400">{success}</div>}
       </div>
 
       {range ? (
@@ -208,14 +208,14 @@ export function TeacherCalendarTab({ classroom }: Props) {
               const rangeEndStr = format(range.end, 'yyyy-MM-dd')
 
               return (
-                <div key={month.toString()} className="bg-white rounded-lg shadow-sm p-4">
-                  <h3 className="text-center font-bold text-gray-900 mb-3">
+                <div key={month.toString()} className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                  <h3 className="text-center font-bold text-gray-900 dark:text-gray-100 mb-3">
                     {format(month, 'MMMM yyyy')}
                   </h3>
 
                   <div className="grid grid-cols-7 gap-1">
                     {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                      <div key={i} className="text-center text-xs font-medium text-gray-500 py-1">
+                      <div key={i} className="text-center text-xs font-medium text-gray-500 dark:text-gray-400 py-1">
                         {day}
                       </div>
                     ))}
@@ -234,14 +234,14 @@ export function TeacherCalendarTab({ classroom }: Props) {
                       const disabled = !isInRange || isBeforeToday
 
                       const colorClasses = disabled
-                        ? 'bg-gray-100 text-gray-400'
+                        ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                         : isClassDay
-                          ? 'bg-green-100 text-green-900 hover:bg-green-200'
+                          ? 'bg-green-100 dark:bg-green-900 text-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800'
                           : classDay
-                            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
                             : isWeekend
-                              ? 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                              : 'bg-red-50 text-red-700 hover:bg-red-100'
+                              ? 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                              : 'bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-800'
 
                       return (
                         <button
@@ -260,30 +260,30 @@ export function TeacherCalendarTab({ classroom }: Props) {
             })}
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <h4 className="font-medium text-gray-900 mb-3">Legend</h4>
-            <div className="flex flex-wrap gap-4 text-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Legend</h4>
+            <div className="flex flex-wrap gap-4 text-sm text-gray-700 dark:text-gray-300">
               <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-green-100 rounded"></div>
+                <div className="w-5 h-5 bg-green-100 dark:bg-green-900 rounded"></div>
                 <span>Class Day</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded"></div>
                 <span>Non-Class Day</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-gray-50 rounded"></div>
+                <div className="w-5 h-5 bg-gray-50 dark:bg-gray-800 rounded"></div>
                 <span>Weekend (default)</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-red-50 rounded"></div>
+                <div className="w-5 h-5 bg-red-50 dark:bg-red-900 rounded"></div>
                 <span>Holiday (default)</span>
               </div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center text-gray-500 dark:text-gray-400">
           No class days defined yet. Generate a range above.
         </div>
       )}

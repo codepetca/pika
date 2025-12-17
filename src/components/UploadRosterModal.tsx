@@ -66,14 +66,14 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Upload Roster</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Upload Roster</h2>
 
         {!result ? (
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 CSV File
               </label>
               <input
@@ -81,21 +81,21 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 accept=".csv"
                 onChange={handleFileChange}
                 disabled={loading}
-                className="block w-full text-sm text-gray-500
+                className="block w-full text-sm text-gray-900 dark:text-gray-400
                   file:mr-4 file:py-2 file:px-4
                   file:rounded file:border-0
                   file:text-sm file:font-medium
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100
+                  file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-400
+                  hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50
                   disabled:opacity-50"
               />
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
                 Format: Student Number, First Name, Last Name, Email
               </p>
             </div>
 
             {error && (
-              <div className="mb-4 text-sm text-red-600">
+              <div className="mb-4 text-sm text-red-600 dark:text-red-400">
                 {error}
               </div>
             )}
@@ -121,21 +121,21 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
           </form>
         ) : (
           <div>
-            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded">
-              <p className="text-sm text-green-800">
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded">
+              <p className="text-sm text-green-800 dark:text-green-300">
                 Successfully processed {result.totalProcessed} students
               </p>
-              <p className="text-sm text-green-800">
+              <p className="text-sm text-green-800 dark:text-green-300">
                 Added {result.addedCount} students to roster
               </p>
             </div>
 
             {result.errors && result.errors.length > 0 && (
-              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
-                <p className="text-sm font-medium text-yellow-800 mb-2">
+              <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded">
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">
                   {result.errors.length} errors:
                 </p>
-                <ul className="text-xs text-yellow-700 space-y-1">
+                <ul className="text-xs text-yellow-700 dark:text-yellow-400 space-y-1">
                   {result.errors.slice(0, 5).map((err: any, i: number) => (
                     <li key={i}>{err.email}: {err.error}</li>
                   ))}

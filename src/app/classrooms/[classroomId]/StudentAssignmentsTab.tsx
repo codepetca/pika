@@ -36,9 +36,9 @@ export function StudentAssignmentsTab({ classroom }: Props) {
   }, [classroom.id])
 
   return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">Assignments</h2>
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Assignments</h2>
       </div>
 
       <div className="p-4">
@@ -47,24 +47,24 @@ export function StudentAssignmentsTab({ classroom }: Props) {
             <Spinner />
           </div>
         ) : assignments.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No assignments yet</div>
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">No assignments yet</div>
         ) : (
           <div className="space-y-3">
             {assignments.map((assignment) => (
               <Link
                 key={assignment.id}
                 href={`/classrooms/${classroom.id}/assignments/${assignment.id}`}
-                className="block p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition"
+                className="block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="font-medium text-gray-900 truncate">
+                    <h3 className="font-medium text-gray-900 dark:text-white truncate">
                       {assignment.title}
                     </h3>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                       {formatDueDate(assignment.due_at)}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {formatRelativeDueDate(assignment.due_at)}
                     </p>
                   </div>

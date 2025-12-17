@@ -43,12 +43,12 @@ function CreatePasswordForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-950">
+      <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
           Create Your Password
         </h1>
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-600 dark:text-gray-400 mb-6">
           Choose a secure password for your account
         </p>
 
@@ -75,7 +75,7 @@ function CreatePasswordForm() {
             error={error}
           />
 
-          <div className="mt-4 text-sm text-gray-600">
+          <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
             <p>Password must be:</p>
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li>At least 8 characters long</li>

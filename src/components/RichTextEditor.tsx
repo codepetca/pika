@@ -80,7 +80,7 @@ export function RichTextEditor({
   return (
     <div
       ref={containerRef}
-      className="border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500"
+      className="border border-gray-300 dark:border-gray-600 rounded-lg focus-within:ring-2 focus-within:ring-blue-500"
       onBlurCapture={event => {
         if (!onBlur) return
         const relatedTarget = event.relatedTarget as Node | null
@@ -88,14 +88,14 @@ export function RichTextEditor({
         onBlur()
       }}
     >
-      <div className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50">
+      <div className="sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950">
         <div className="p-2 flex flex-wrap items-center gap-1">
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBold().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('bold')}
-            className={`px-2 py-1 rounded text-sm font-semibold ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bold') ? 'bg-gray-300' : 'bg-white'}`}
+            className={`px-2 py-1 rounded text-sm font-semibold ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bold') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
           >
             B
           </button>
@@ -104,17 +104,17 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleItalic().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('italic')}
-            className={`px-2 py-1 rounded text-sm italic ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('italic') ? 'bg-gray-300' : 'bg-white'}`}
+            className={`px-2 py-1 rounded text-sm italic ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('italic') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
           >
             I
           </button>
-          <div className="w-px bg-gray-300 mx-1" />
+          <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('heading', { level: 1 })}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-300' : 'bg-white'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
           >
             H1
           </button>
@@ -123,7 +123,7 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('heading', { level: 2 })}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-300' : 'bg-white'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
           >
             H2
           </button>
@@ -132,17 +132,17 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('heading', { level: 3 })}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-300' : 'bg-white'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
           >
             H3
           </button>
-          <div className="w-px bg-gray-300 mx-1" />
+          <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('bulletList')}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bulletList') ? 'bg-gray-300' : 'bg-white'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bulletList') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
           >
             • List
           </button>
@@ -151,17 +151,17 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('orderedList')}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('orderedList') ? 'bg-gray-300' : 'bg-white'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('orderedList') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
           >
             1. List
           </button>
-          <div className="w-px bg-gray-300 mx-1" />
+          <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('codeBlock')}
-            className={`px-2 py-1 rounded text-sm font-mono ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('codeBlock') ? 'bg-gray-300' : 'bg-white'}`}
+            className={`px-2 py-1 rounded text-sm font-mono ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('codeBlock') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
           >
             {'</>'}
           </button>
@@ -184,7 +184,7 @@ export function RichTextEditor({
             }}
             disabled={!canEdit}
             aria-pressed={editor.isActive('link')}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('link') ? 'bg-gray-300' : 'bg-white'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('link') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
           >
             Link
           </button>

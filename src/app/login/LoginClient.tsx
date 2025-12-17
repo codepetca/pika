@@ -51,9 +51,9 @@ export function LoginClient() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-950">
+      <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
           Login to Pika
         </h1>
 
@@ -84,7 +84,7 @@ export function LoginClient() {
             <button
               type="button"
               onClick={() => router.push('/forgot-password')}
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
             >
               Forgot password?
             </button>
@@ -100,11 +100,11 @@ export function LoginClient() {
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Don&apos;t have an account?{' '}
             <button
               onClick={() => router.push('/signup')}
-              className="text-blue-600 hover:underline font-medium"
+              className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
             >
               Sign up
             </button>

@@ -52,14 +52,14 @@ export function RichTextViewer({
 
   if (showPlainText) {
     return (
-      <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 bg-gray-50 p-4 rounded-lg border border-gray-200">
+      <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-950 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
         {editor.getText()}
       </pre>
     )
   }
 
   return (
-    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+    <div className="bg-gray-50 dark:bg-gray-950 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
       <EditorContent editor={editor} />
     </div>
   )

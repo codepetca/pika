@@ -10,6 +10,7 @@ Design tokens and component guidelines for consistent, compact UI.
 2. **Consistent** - Reusable components, predictable patterns
 3. **Professional but Approachable** - Clean aesthetic with playful touches
 4. **Mobile-First** - Student experience optimized for phones
+5. **Dark Mode Required** - All components must support both light and dark modes
 
 ---
 
@@ -277,18 +278,53 @@ blue-500  // Interactive elements, selected state
 blue-600  // Buttons, links (current)
 blue-700  // Button hover
 
-// Gray (neutral)
+// Gray (neutral - light mode)
 gray-50   // Page background
 gray-100  // Hover states
 gray-200  // Borders, dividers
 gray-600  // Secondary text
 gray-900  // Primary text
 
+// Gray (neutral - dark mode)
+gray-950  // Page background (dark)
+gray-900  // Card/container background (dark)
+gray-800  // Hover states (dark)
+gray-700  // Borders, dividers (dark)
+gray-600  // Medium borders (dark)
+gray-400  // Secondary text (dark)
+gray-300  // Labels (dark)
+gray-100  // Primary text (dark)
+white     // Primary text (dark)
+
 // Semantic
 green-500  // Success, present
-green-100  // Success background
+green-100  // Success background (light)
+green-900  // Success background (dark)
 red-500    // Error, absent
-red-100    // Error background
+red-100    // Error background (light)
+red-900    // Error background (dark)
+```
+
+### Dark Mode Implementation (REQUIRED)
+
+**All components MUST include dark mode variants:**
+
+```tsx
+// Standard pattern for backgrounds
+className="bg-white dark:bg-gray-900"
+className="bg-gray-50 dark:bg-gray-950"
+
+// Standard pattern for text
+className="text-gray-900 dark:text-white"
+className="text-gray-600 dark:text-gray-400"
+className="text-gray-700 dark:text-gray-300"
+
+// Standard pattern for borders
+className="border-gray-200 dark:border-gray-700"
+className="border-gray-300 dark:border-gray-600"
+
+// Hover states
+className="hover:bg-gray-50 dark:hover:bg-gray-800"
 ```
 
 ### Playful Accents (minimal use)
@@ -359,12 +395,13 @@ xl:  1280px // Large desktop
 
 ## 🎯 Design Goals Checklist
 
-- [ ] 1. Compact titlebar (72px → 48px) with classroom dropdown, avatar, icons
-- [ ] 2. Reduced vertical padding (py-8 → py-3, eliminate redundant headers)
-- [ ] 3. Design consistency via shared components (AppShell, StudentRow, PageHeader)
-- [ ] 4. Reduced horizontal padding (px-8 → px-4, tighter card spacing)
-- [ ] 5. Compact student rows (60px → 36px)
-- [ ] 6. Maintain minimal, professional-but-fun aesthetic
+- [x] 1. Compact titlebar (72px → 48px) with classroom dropdown, avatar, icons
+- [x] 2. Reduced vertical padding (py-8 → py-3, eliminate redundant headers)
+- [x] 3. Design consistency via shared components (AppShell, StudentRow, PageHeader)
+- [x] 4. Reduced horizontal padding (px-8 → px-4, tighter card spacing)
+- [x] 5. Compact student rows (60px → 36px)
+- [x] 6. Maintain minimal, professional-but-fun aesthetic
+- [x] 7. **Dark mode support on ALL UI components** (2025-12-16)
 
 ---
 
@@ -374,3 +411,6 @@ xl:  1280px // Large desktop
 - Spacing choices prioritize information density without feeling cramped
 - Component system enables future theming/customization
 - Design system living document - update as patterns evolve
+- **Dark mode is MANDATORY** for all new components and views
+- Test all components in both light and dark modes before shipping
+- Use E2E snapshots to verify both modes render correctly

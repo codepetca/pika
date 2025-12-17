@@ -53,11 +53,11 @@ export function TeacherSettingsTab({ classroom }: Props) {
         subtitle="Classroom configuration and invite info."
       />
 
-      <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-4">
+      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-sm font-medium text-gray-900">Allow enrollment</div>
-            <div className="text-sm text-gray-600">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Allow enrollment</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
               When disabled, students cannot join using the code/link.
             </div>
           </div>
@@ -70,23 +70,23 @@ export function TeacherSettingsTab({ classroom }: Props) {
               disabled={saving}
               className="h-4 w-4"
             />
-            <span className="text-gray-700">{allowEnrollment ? 'Enabled' : 'Disabled'}</span>
+            <span className="text-gray-700 dark:text-gray-300">{allowEnrollment ? 'Enabled' : 'Disabled'}</span>
           </label>
         </div>
 
-        {error && <div className="text-sm text-red-600">{error}</div>}
-        {success && <div className="text-sm text-green-700">{success}</div>}
+        {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+        {success && <div className="text-sm text-green-700 dark:text-green-400">{success}</div>}
       </div>
 
       <div className="space-y-2">
-        <div className="text-sm text-gray-600">Join code</div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">Join code</div>
         <div className="flex items-center gap-2 flex-wrap">
-          <code className="px-3 py-2 rounded-md border border-gray-200 bg-gray-50 text-sm">
+          <code className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 text-sm text-gray-900 dark:text-gray-100">
             {classroom.class_code}
           </code>
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50"
+            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
             onClick={() => copy(classroom.class_code)}
           >
             Copy
@@ -95,14 +95,14 @@ export function TeacherSettingsTab({ classroom }: Props) {
       </div>
 
       <div className="space-y-2">
-        <div className="text-sm text-gray-600">Join link</div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">Join link</div>
         <div className="flex items-center gap-2 flex-wrap">
-          <code className="px-3 py-2 rounded-md border border-gray-200 bg-gray-50 text-sm break-all">
+          <code className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 text-sm text-gray-900 dark:text-gray-100 break-all">
             {joinLink}
           </code>
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50"
+            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
             onClick={() => copy(joinLink)}
           >
             Copy
@@ -110,7 +110,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
         </div>
       </div>
 
-      <div className="text-sm text-gray-600">
+      <div className="text-sm text-gray-600 dark:text-gray-400">
         Students must be on the roster (uploaded via CSV) and enrollment must be enabled to join.
       </div>
     </div>

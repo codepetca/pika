@@ -40,6 +40,7 @@ Pika uses two complementary layers:
 - **America/Toronto timezone** for all deadline calculations
 - **Email verification codes + password login** (NO OAuth)
 - **Tailwind CSS only** (NO component libraries)
+- **Dark mode on ALL components** (light + dark modes required)
 - **TDD-first** for core logic (write tests before implementation)
 - **Keep UI thin** (business logic in utilities/server code)
 - **Hash verification/reset codes and passwords** with bcrypt (never plaintext)
@@ -52,4 +53,5 @@ Pika uses two complementary layers:
 - Skipping tests for core logic
 - Committing secrets (`.env.local`, keys, tokens)
 - Over-engineering or unnecessary abstractions
+- **Shipping UI components without dark mode support**
 

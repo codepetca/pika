@@ -17,6 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "e2e:install": "playwright install",
     "e2e:snapshots": "playwright test e2e/ui-snapshots.spec.ts",
+    "e2e:snapshots:update": "playwright test e2e/ui-snapshots.spec.ts --update-snapshots",
     "seed": "tsx scripts/seed.ts",
     "seed:fresh": "tsx scripts/clear-and-seed.ts",
     "generate:secret": "node scripts/generate-env.js"

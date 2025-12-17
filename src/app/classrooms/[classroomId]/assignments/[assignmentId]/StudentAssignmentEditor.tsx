@@ -216,7 +216,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
 
   if (error && !assignment) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center">
         <p className="text-red-600 mb-4">{error}</p>
         <button
           onClick={() => router.back()}
@@ -247,8 +247,8 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
           >
             ← Back to classroom
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{assignment.title}</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{assignment.title}</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
             Due: {formatDueDate(assignment.due_at)}
           </p>
           <p className={`text-sm mt-1 ${isLate ? 'text-red-600' : 'text-gray-500'}`}>
@@ -262,15 +262,15 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
 
       {/* Description */}
       {assignment.description && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <p className="text-gray-700 whitespace-pre-wrap">{assignment.description}</p>
+        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{assignment.description}</p>
         </div>
       )}
 
       {/* Editor */}
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">Your Response</span>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Your Response</span>
           <span className={`text-xs ${
             saveStatus === 'saved' ? 'text-green-600' :
             saveStatus === 'saving' ? 'text-gray-500' :
@@ -299,7 +299,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
           </div>
         )}
 
-        <div className="p-4 border-t border-gray-200 flex items-center justify-between">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div className="text-sm text-gray-500">
             {countCharacters(content)} characters
           </div>
@@ -327,7 +327,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
 
       {/* Submission info */}
       {isSubmitted && doc?.submitted_at && (
-        <div className="text-sm text-gray-600 text-center">
+        <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
           Submitted on {new Date(doc.submitted_at).toLocaleString('en-CA', {
             timeZone: 'America/Toronto',
             dateStyle: 'medium',

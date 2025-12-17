@@ -72,11 +72,11 @@ export function TeacherAssignmentDetail({ classroomId, assignmentId }: Props) {
 
   if (error || !data) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-        <p className="text-red-600 mb-4">{error || 'Assignment not found'}</p>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+        <p className="text-red-600 dark:text-red-400 mb-4">{error || 'Assignment not found'}</p>
         <button
           onClick={() => router.back()}
-          className="text-blue-600 hover:text-blue-700"
+          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
         >
           Go back
         </button>
@@ -98,48 +98,48 @@ export function TeacherAssignmentDetail({ classroomId, assignmentId }: Props) {
       <div>
         <button
           onClick={() => router.push(`/classrooms/${classroomId}`)}
-          className="text-sm text-blue-600 hover:text-blue-700 mb-2"
+          className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-2"
         >
           ← Back to {classroom.title}
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">{assignment.title}</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{assignment.title}</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">
           Due: {formatDueDate(assignment.due_at)}
         </p>
       </div>
 
       {/* Description */}
       {assignment.description && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <p className="text-gray-700 whitespace-pre-wrap">{assignment.description}</p>
+        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{assignment.description}</p>
         </div>
       )}
 
       {/* Stats Summary */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow-sm p-4 text-center">
-          <div className="text-2xl font-bold text-gray-900">{students.length}</div>
-          <div className="text-sm text-gray-600">Students</div>
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{students.length}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Students</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm p-4 text-center">
-          <div className="text-2xl font-bold text-green-600">{submitted}</div>
-          <div className="text-sm text-gray-600">Submitted</div>
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{submitted}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Submitted</div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm p-4 text-center">
-          <div className="text-2xl font-bold text-orange-600">{late}</div>
-          <div className="text-sm text-gray-600">Late</div>
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
+          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{late}</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Late</div>
         </div>
       </div>
 
       {/* Student List */}
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Student Submissions</h2>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Student Submissions</h2>
         </div>
 
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {students.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               No students enrolled
             </div>
           ) : (
@@ -147,20 +147,20 @@ export function TeacherAssignmentDetail({ classroomId, assignmentId }: Props) {
               <Link
                 key={student.student_id}
                 href={`/classrooms/${classroomId}/assignments/${assignmentId}/students/${student.student_id}`}
-                className="block p-4 hover:bg-gray-50 transition"
+                className="block p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
                       {student.student_name || student.student_email}
                     </div>
                     {student.student_name && (
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         {student.student_email}
                       </div>
                     )}
                     {student.doc?.updated_at && (
-                      <div className="text-xs text-gray-400 mt-1">
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                         Last updated: {new Date(student.doc.updated_at).toLocaleString('en-CA', {
                           timeZone: 'America/Toronto',
                           dateStyle: 'short',
