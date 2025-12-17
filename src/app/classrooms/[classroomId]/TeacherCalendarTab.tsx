@@ -230,7 +230,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                       const isClassDay = classDay?.is_class_day || false
                       const isBeforeToday = dateString < todayToronto
                       const isInRange = dateString >= rangeStartStr && dateString <= rangeEndStr
-                      const disabled = !isInRange || isBeforeToday
+                      const disabled = !isInRange || (!isClassDay && isBeforeToday)
 
                       const colorClasses = disabled
                         ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
