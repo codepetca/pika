@@ -77,7 +77,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 CSV File Format
               </label>
               <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200 overflow-hidden max-w-full">
-                <div className="grid grid-cols-[minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)] gap-0 text-center text-[11px] leading-tight">
+                <div className="grid grid-cols-[minmax(0,_1.4fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)] gap-0 text-center text-[10px] leading-tight">
                   {['Student Number', 'First Name', 'Last Name', 'Email'].map((label, index, arr) => {
                     const horizontalPadding = label === 'Email' ? 'px-0' : 'px-2'
                     return (
