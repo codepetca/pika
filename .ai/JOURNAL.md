@@ -969,3 +969,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 16:47 [AI - Codex]
+**Goal:** Reorder the CSV preview so the column headers sit between the label and the dotted file picker, and update the label copy.
+**Completed:** Changed the label to “CSV File Format” and moved the header strip above the dashed dropzone so teachers see the required columns before choosing a file.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---

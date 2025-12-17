@@ -74,9 +74,17 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                CSV File
+                CSV File Format
               </label>
-              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3 mb-3">
+              <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200 mb-3">
+                <div className="flex divide-x divide-gray-200 dark:divide-gray-700 text-center text-xs">
+                  <span className="flex-1 bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">Student Number</span>
+                  <span className="flex-1 bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">First Name</span>
+                  <span className="flex-1 bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">Last Name</span>
+                  <span className="flex-1 bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">Email</span>
+                </div>
+              </div>
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">
                 <input
                   type="file"
                   accept=".csv"
@@ -90,14 +98,6 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                     hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50
                     disabled:opacity-50"
                 />
-              </div>
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200">
-                <div className="flex divide-x divide-gray-200 dark:divide-gray-700 text-center text-xs">
-                  <span className="flex-1 bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">Student Number</span>
-                  <span className="flex-1 bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">First Name</span>
-                  <span className="flex-1 bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">Last Name</span>
-                  <span className="flex-1 bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">Email</span>
-                </div>
               </div>
             </div>
             {error && (
