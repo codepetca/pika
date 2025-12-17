@@ -609,3 +609,60 @@
 **Next:** None
 **Blockers:** None
 ---
+
+---
+## 2025-12-17 [AI - Claude Sonnet 4.5]
+**Goal:** Add comprehensive dark mode support to all UI components and establish E2E snapshot testing system
+**Completed:** 
+- Implemented dark mode Tailwind classes across all 40+ components (auth, student, teacher, shared)
+- Migrated to Playwright's canonical `toHaveScreenshot()` API
+- Created authentication storage states for faster E2E tests (eliminates repeated logins)
+- Generated 25 snapshots covering all major views in both light and dark modes
+- Built `/snapshots-gallery` route for visual review with filtering (All, Auth, Teacher, Student)
+- Updated design documentation to mandate dark mode on all new components
+**Status:** completed
+**Artifacts:**
+- Commits: e631b1e (pushed directly to main)
+- Files Modified: 63 files (1165 insertions, 343 deletions)
+  * Updated: All auth pages, all student components, all teacher components, shared components
+  * New: `e2e/auth.setup.ts`, `e2e/__snapshots__/` (25 snapshots)
+  * New: `/api/snapshots/` endpoints, `/snapshots-gallery` page
+  * Updated: `CLAUDE.md`, `docs/core/design.md`, `docs/design-system.md`, `docs/core/architecture.md`
+- Tests: All 29 E2E snapshot tests passing (light + dark modes)
+- Scripts: `pnpm run e2e:snapshots`, `pnpm run e2e:snapshots:update`
+**Key Changes:**
+- Dark mode pattern: `bg-white dark:bg-gray-900`, `text-gray-900 dark:text-white`, etc.
+- Playwright config: auto-start dev server, auth storage states, stability settings
+- Snapshot gallery: visual verification for humans and AI at http://localhost:3000/snapshots-gallery
+- Design system: dark mode now MANDATORY for all components (documented in CLAUDE.md)
+**Next:** None
+**Blockers:** None
+---
+
+---
+## 2025-12-17 [AI - Claude Sonnet 4.5]
+**Goal:** Implement classroom landing page for students to improve navigation UX
+**Completed:** 
+- Created StudentClassroomsIndex component for student classroom selection
+- Removed auto-redirect behavior from /classrooms for students
+- Students now see all enrolled classrooms and can choose which to enter
+- Added prominent "Join classroom" button for easy classroom enrollment
+- Maintained full dark mode support across all new components
+**Status:** completed
+**Artifacts:**
+- PR: #54 (merged, squashed to main)
+- Commits: ba983fc
+- Files Modified: 2 files (88 insertions, 7 deletions)
+  * New: `src/app/classrooms/StudentClassroomsIndex.tsx`
+  * Modified: `src/app/classrooms/page.tsx`
+- Worktree: `classroom-landing-page` (removed)
+**Key Changes:**
+- StudentClassroomsIndex mirrors teacher UI pattern (card-based layout)
+- Logo/bunny/home icon → `/classrooms` (unified landing page for both roles)
+- Students can view all enrolled classrooms instead of auto-navigating to most recent
+- Empty state with clear "Join classroom" call-to-action
+- Dark mode classes: `bg-white dark:bg-gray-900`, `text-gray-900 dark:text-gray-100`, etc.
+- Navigation flow improved: students can easily switch between classrooms
+**Next:** None
+**Blockers:** None
+---
