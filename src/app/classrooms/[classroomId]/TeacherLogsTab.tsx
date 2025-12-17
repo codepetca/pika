@@ -190,15 +190,12 @@ export function TeacherLogsTab({ classroom }: Props) {
               >
                 Log Summary {getSortIndicator('summary')}
               </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-600 dark:text-gray-400">
-                Entry
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
             {isClassDay ? (
               sortedRows.map(row => {
-                const summaryText = row.summary ?? row.entry?.text ?? 'No log yet'
+                const summaryText = row.summary ?? row.entry?.text ?? ''
                 return (
                   <Fragment key={row.student_id}>
                     <tr
@@ -216,9 +213,7 @@ export function TeacherLogsTab({ classroom }: Props) {
                           {summaryText}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-center text-sm text-gray-700 dark:text-gray-300">
-                        {row.entry ? '📝' : '—'}
-                      </td>
+                      
                     </tr>
                     {expanded.has(row.student_id) && row.entry && (
                       <tr className="bg-gray-50 dark:bg-gray-900">
