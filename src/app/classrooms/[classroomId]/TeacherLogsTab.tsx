@@ -8,7 +8,7 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import type { ClassDay, Classroom, Entry } from '@/types'
 
-type SortColumn = 'first_name' | 'last_name' | 'summary'
+type SortColumn = 'first_name' | 'last_name'
 
 interface LogRow {
   student_id: string
@@ -84,10 +84,8 @@ export function TeacherLogsTab({ classroom }: Props) {
 
   const sortedRows = useMemo(() => {
     return [...logs].sort((a, b) => {
-      const aVal =
-        sortColumn === 'summary' ? (a.summary ?? '') : (a[sortColumn] ?? '')
-      const bVal =
-        sortColumn === 'summary' ? (b.summary ?? '') : (b[sortColumn] ?? '')
+      const aVal = a[sortColumn] ?? ''
+      const bVal = b[sortColumn] ?? ''
       const comparison = aVal.localeCompare(bVal)
       return sortDirection === 'asc' ? comparison : -comparison
     })
@@ -186,21 +184,15 @@ export function TeacherLogsTab({ classroom }: Props) {
               >
                 Last Name {getSortIndicator('last_name')}
               </th>
-              <th
-                className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 dark:text-gray-400 cursor-pointer"
-                onClick={() => toggleSort('summary')}
-              >
-                Log Summary {getSortIndicator('summary')}
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-600 dark:text-gray-400">
-                Entry
+              <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 dark:text-gray-400">
+                Log Summary
               </th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
             {isClassDay ? (
               sortedRows.map(row => {
-                const summaryText = row.summary ?? row.entry?.text ?? 'No log yet'
+                const summaryText = row.summary ?? row.entry?.text ?? ''
                 return (
                   <Fragment key={row.student_id}>
                     <tr
@@ -218,9 +210,6 @@ export function TeacherLogsTab({ classroom }: Props) {
                           {summaryText}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-center text-sm text-gray-700 dark:text-gray-300">
-                        {row.entry ? '📝' : '—'}
-                      </td>
                     </tr>
                     {expanded.has(row.student_id) && row.entry && (
                       <tr className="bg-gray-50 dark:bg-gray-900">
@@ -236,7 +225,7 @@ export function TeacherLogsTab({ classroom }: Props) {
               })
             ) : (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                <td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                   No class on this day
                 </td>
               </tr>
