@@ -120,11 +120,12 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-3 justify-end">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
         <span className="sr-only">Roster actions</span>
         <Button onClick={() => setUploadModalOpen(true)}>Upload CSV</Button>
         <Button
           variant="secondary"
+          className="ml-auto"
           onClick={loadRoster}
         >
           Refresh
