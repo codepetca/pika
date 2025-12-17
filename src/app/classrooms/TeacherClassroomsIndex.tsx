@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import type { Classroom } from '@/types'
@@ -52,21 +51,17 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
           {sorted.map((c) => (
-            <div key={c.id} className="p-4 flex items-start justify-between gap-4 flex-wrap">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{c.title}</div>
-                <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  Code: <span className="font-mono">{c.class_code}</span>
-                  {c.term_label ? ` • ${c.term_label}` : ''}
-                </div>
+            <button
+              key={c.id}
+              onClick={() => router.push(`/classrooms/${c.id}?tab=attendance`)}
+              className="w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+            >
+              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{c.title}</div>
+              <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                Code: <span className="font-mono">{c.class_code}</span>
+                {c.term_label ? ` • ${c.term_label}` : ''}
               </div>
-              <Link
-                href={`/classrooms/${c.id}?tab=attendance`}
-                className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                Open
-              </Link>
-            </div>
+            </button>
           ))}
         </div>
       )}

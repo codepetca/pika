@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { Spinner } from '@/components/Spinner'
-import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { TeacherClassroomView } from './TeacherClassroomView'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentHistoryTab } from './StudentHistoryTab'
@@ -33,7 +32,6 @@ export default function ClassroomPage() {
   const [teacherClassrooms, setTeacherClassrooms] = useState<Classroom[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -180,19 +178,6 @@ export default function ClassroomPage() {
         </div>
       </div>
 
-      {/* Action button for teachers */}
-      {isTeacher && (
-        <div className="flex justify-end mb-3">
-          <button
-            type="button"
-            className="px-3 py-2 rounded-md bg-blue-600 dark:bg-blue-700 text-white text-sm hover:bg-blue-700 dark:hover:bg-blue-600 font-medium"
-            onClick={() => setShowCreateModal(true)}
-          >
-            + New classroom
-          </button>
-        </div>
-      )}
-
       {isTeacher ? (
         <>
           {activeTab === 'attendance' && (
@@ -220,17 +205,6 @@ export default function ClassroomPage() {
           {activeTab === 'history' && <StudentHistoryTab classroom={classroom} />}
           {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
         </>
-      )}
-
-      {isTeacher && (
-        <CreateClassroomModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={(created) => {
-            setShowCreateModal(false)
-            router.push(`/classrooms/${created.id}?tab=attendance`)
-          }}
-        />
       )}
     </AppShell>
   )
