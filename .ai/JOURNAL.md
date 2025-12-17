@@ -748,6 +748,94 @@
 - Sort columns: 'first_name', 'last_name', 'email' with asc/desc toggle
 - Button consistency: All navigation buttons use px-4 py-3 text-base font-medium
 - Data flow: API fetches student_profiles → AttendanceRecord includes names → table displays sorted rows
+- Adjusted the teacher attendance date navigation controls to follow the compact sizing used elsewhere (smaller arrows and day picker action)
+- Added a shared `navButtonClasses` constant so all controls stay consistent and now honor the regular button size mandated by the UI guide
+**Status:** completed
+**Artifacts:**
+- Files Modified: src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx
+**Key Changes:**
+- Introduced `navButtonClasses` and applied it to the back/forward arrows, picker trigger, and “Yesterday” shortcut
+- Ensured the formatted date button no longer uses the oversized padding/font that previously made the controls feel imbalanced
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 08:29 [AI - Codex]
+**Goal:** Keep the teacher attendance calendar controls compact after the latest table layout landed
+**Completed:** Pulled the updated `main`, resolved the merge conflict in `TeacherAttendanceTab.tsx`, and switched the date picker and navigation arrows to reusable `navButtonClasses` so they now match the regular button size required by the UI guide without altering the new sortable table
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 08:36 [AI - Codex]
+**Goal:** Reduce vertical density of the teacher attendance student rows
+**Completed:** Reduced the table row padding from `py-3` to `py-2` so each student row is shorter while preserving the existing typography and alignment
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 08:37 [AI - Codex]
+**Goal:** Make teacher attendance rows even tighter
+**Completed:** Switched each table cell’s vertical padding from `py-2` to `py-1` so the student rows sit closer together while keeping text legible
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 08:44 [AI - Codex]
+**Goal:** Standardize the Logs view action bar with the attendance picker layout without the extra shortcut button
+**Completed:** Replaced `DateNavigator` with the same hidden date input/picker and shared `navButtonClasses` used in the attendance view, moved the expand/collapse buttons into a flex container to the right, and kept the action bar responsive while retaining the logging/loading behavior
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 08:46 [AI - Codex]
+**Goal:** Remove redundant header labels and left-justify the Logs action bar
+**Completed:** Dropped the `PageHeader` title/subtitle in `TeacherLogsTab` and replaced it with the compact, left-aligned action bar that now matches the attendance picker group, keeping expand/collapse buttons immediately to the right without rightward justification
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 08:58 [AI - Codex]
+**Goal:** Share the inline calendar picker between the attendance and Logs views
+**Completed:** Added `DateActionBar` (hidden native picker, compact arrows, styled buttons) and swapped both views to consume it with identical sizing; the Logs tab passes its expand/collapse controls as the component’s `rightActions` slot so the shared bar stays consistent
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DateActionBar.tsx`, `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 08:59 [AI - Codex]
+**Goal:** Let the Logs list rely on the row itself rather than buttons and surface student names with sortable headers
+**Completed:** Updated `StudentRow.Expandable` so the entire row toggles expansion, removed the inline expand button, and switched the Logs tab to show first/last names; it now sorts by first or last name via small pills in the shared `DateActionBar`, and the logs API returns the names from `student_profiles`
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/StudentRow.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/app/api/teacher/logs/route.ts`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 09:05 [AI - Codex]
+**Goal:** Convert the Logs view to match the attendance table while keeping the shared picker
+**Completed:** Replaced the expandable rows with a table that lists first name, last name, and log summary, added sortable headers (first/last/summary), and kept each row clickable so the entry details expand beneath; the shared `DateActionBar` action bar still handles date navigation, and expand/collapse all buttons remain beside it as before
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`
 **Next:** None
 **Blockers:** None
 ---

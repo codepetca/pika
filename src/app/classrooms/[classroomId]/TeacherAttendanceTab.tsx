@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState, useRef } from 'react'
-import { format, parseISO } from 'date-fns'
+import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { StudentRow } from '@/components/StudentRow'
+import { DateActionBar } from '@/components/DateActionBar'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
@@ -22,7 +23,6 @@ export function TeacherAttendanceTab({ classroom }: Props) {
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [sortColumn, setSortColumn] = useState<SortColumn>('last_name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  const dateInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -69,7 +69,6 @@ export function TeacherAttendanceTab({ classroom }: Props) {
       }
     })
 
-    // Sort by selected column
     return mappedRows.sort((a, b) => {
       let aVal = ''
       let bVal = ''
@@ -107,7 +106,6 @@ export function TeacherAttendanceTab({ classroom }: Props) {
     )
   }
 
-  const formattedDate = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : ''
 
   return (
     <div>
@@ -118,42 +116,12 @@ export function TeacherAttendanceTab({ classroom }: Props) {
             No class on {selectedDate}
           </p>
         )}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="px-4 py-3 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-base font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-            onClick={() => setSelectedDate(addDaysToDateString(selectedDate, -1))}
-          >
-            ←
-          </button>
-
-          {/* Hidden native date input */}
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="sr-only"
-            tabIndex={-1}
-          />
-
-          {/* Visible formatted date button */}
-          <button
-            type="button"
-            onClick={() => dateInputRef.current?.showPicker()}
-            className="px-4 py-3 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-base font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            {formattedDate}
-          </button>
-
-          <button
-            type="button"
-            className="px-4 py-3 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-base font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-            onClick={() => setSelectedDate(addDaysToDateString(selectedDate, 1))}
-          >
-            →
-          </button>
-        </div>
+        <DateActionBar
+          value={selectedDate}
+          onChange={setSelectedDate}
+          onPrev={() => moveDateBy(-1)}
+          onNext={() => moveDateBy(1)}
+        />
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -201,16 +169,16 @@ export function TeacherAttendanceTab({ classroom }: Props) {
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {rows.map((row) => (
               <tr key={row.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                <td className="px-4 py-1 text-sm text-gray-900 dark:text-gray-100">
                   {row.student_first_name}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                <td className="px-4 py-1 text-sm text-gray-900 dark:text-gray-100">
                   {row.student_last_name}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                <td className="px-4 py-1 text-sm text-gray-600 dark:text-gray-400">
                   {row.email_username}
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-4 py-1 text-center">
                   <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
                     {isClassDay ? getAttendanceIcon(row.status) : '—'}
                   </div>
