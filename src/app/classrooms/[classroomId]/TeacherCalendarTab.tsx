@@ -185,7 +185,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
               {saving ? 'Generating…' : 'Generate'}
             </button>
           </div>
-        )}
+        ) : null}
 
         {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
         {success && <div className="text-sm text-green-700 dark:text-green-400">{success}</div>}
