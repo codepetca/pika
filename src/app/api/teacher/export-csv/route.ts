@@ -82,13 +82,39 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const students = (enrollments || []).map(e => {
-      const user = e.users as unknown as { id: string; email: string }
-      return {
-        id: user.id,
-        email: user.email,
+    const studentIds = (enrollments || []).map(e => e.student_id)
+    const profileMap = new Map<string, { first_name: string; last_name: string }>()
+
+    if (studentIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('student_profiles')
+        .select('user_id, first_name, last_name')
+        .in('user_id', studentIds)
+
+      if (profilesError) {
+        console.error('Error fetching student profiles:', profilesError)
       }
-    }).sort((a, b) => a.email.localeCompare(b.email))
+
+      for (const profile of profiles || []) {
+        profileMap.set(profile.user_id, {
+          first_name: profile.first_name || '',
+          last_name: profile.last_name || '',
+        })
+      }
+    }
+
+    const students = (enrollments || [])
+      .map(e => {
+        const u = e.users as unknown as { id: string; email: string }
+        const profile = profileMap.get(u.id)
+        return {
+          id: u.id,
+          email: u.email,
+          first_name: profile?.first_name || '',
+          last_name: profile?.last_name || '',
+        }
+      })
+      .sort((a, b) => a.email.localeCompare(b.email))
 
     // Fetch entries
     const { data: entries, error: entriesError } = await supabase

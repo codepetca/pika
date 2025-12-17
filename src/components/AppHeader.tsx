@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { MoonIcon, SunIcon } from '@heroicons/react/24/outline'
+import { Bars3Icon, MoonIcon, SunIcon } from '@heroicons/react/24/outline'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
@@ -18,17 +18,38 @@ interface AppHeaderProps {
     code: string
   }>
   currentClassroomId?: string
+  currentTab?: string
+  onOpenSidebar?: () => void
 }
 
 /**
  * Compact global header (48px) with logo, classroom selector, icon nav, and user menu.
  * Reduces from previous 64-72px height.
  */
-export function AppHeader({ user, classrooms, currentClassroomId }: AppHeaderProps) {
+export function AppHeader({
+  user,
+  classrooms,
+  currentClassroomId,
+  currentTab,
+  onOpenSidebar,
+}: AppHeaderProps) {
   const { theme, toggleTheme } = useTheme()
 
   return (
     <header className="h-12 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 gap-3">
+      {/* Mobile sidebar trigger (classroom pages) */}
+      {onOpenSidebar && (
+        <button
+          type="button"
+          onClick={onOpenSidebar}
+          className="lg:hidden p-2 -ml-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label="Open classroom navigation"
+          title="Open navigation"
+        >
+          <Bars3Icon className="w-5 h-5" />
+        </button>
+      )}
+
       {/* Logo - click to return to classrooms index */}
       <Link href="/classrooms" className="flex-shrink-0">
         <PikaLogo className="w-8 h-8" />
@@ -39,6 +60,7 @@ export function AppHeader({ user, classrooms, currentClassroomId }: AppHeaderPro
         <ClassroomDropdown
           classrooms={classrooms}
           currentClassroomId={currentClassroomId}
+          currentTab={currentTab}
         />
       )}
 

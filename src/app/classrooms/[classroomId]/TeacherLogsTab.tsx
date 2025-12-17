@@ -8,7 +8,7 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import type { ClassDay, Classroom, Entry } from '@/types'
 
-type SortColumn = 'first_name' | 'last_name'
+type SortColumn = 'student_first_name' | 'student_last_name'
 
 interface LogRow {
   student_id: string
@@ -29,7 +29,7 @@ export function TeacherLogsTab({ classroom }: Props) {
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [sortColumn, setSortColumn] = useState<SortColumn>('last_name')
+  const [sortColumn, setSortColumn] = useState<SortColumn>('student_last_name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   useEffect(() => {
@@ -174,15 +174,15 @@ export function TeacherLogsTab({ classroom }: Props) {
             <tr>
               <th
                 className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 dark:text-gray-400 cursor-pointer"
-                onClick={() => toggleSort('first_name')}
+                onClick={() => toggleSort('student_first_name')}
               >
-                First Name {getSortIndicator('first_name')}
+                First Name {getSortIndicator('student_first_name')}
               </th>
               <th
                 className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 dark:text-gray-400 cursor-pointer"
-                onClick={() => toggleSort('last_name')}
+                onClick={() => toggleSort('student_last_name')}
               >
-                Last Name {getSortIndicator('last_name')}
+                Last Name {getSortIndicator('student_last_name')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 dark:text-gray-400">
                 Log Summary
