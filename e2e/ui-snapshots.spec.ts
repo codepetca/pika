@@ -183,9 +183,20 @@ test.describe('teacher screens - light mode', () => {
 test.describe('student screens - light mode', () => {
   test.use({ storageState: STUDENT_STORAGE })
 
-  test('classroom today tab', async ({ page }) => {
-    // Student auto-routes to their most recent classroom
+  test('classrooms index', async ({ page }) => {
     await page.goto('/classrooms')
+    await waitForContent(page)
+    await expect(page).toHaveScreenshot('student-classrooms-index.png', { fullPage: true })
+  })
+
+  test('classroom today tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click Open button to enter classroom
+    const openButton = page.getByRole('button', { name: 'Open' }).first()
+    await expect(openButton).toBeVisible({ timeout: 15_000 })
+    await openButton.click()
     await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
 
     // Wait for today tab content to load
@@ -196,6 +207,10 @@ test.describe('student screens - light mode', () => {
 
   test('classroom history tab', async ({ page }) => {
     await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click Open button to enter classroom
+    await page.getByRole('button', { name: 'Open' }).first().click()
     await page.waitForURL('**/classrooms/**')
 
     await page.getByRole('button', { name: 'History' }).click()
@@ -206,6 +221,10 @@ test.describe('student screens - light mode', () => {
 
   test('classroom assignments tab', async ({ page }) => {
     await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click Open button to enter classroom
+    await page.getByRole('button', { name: 'Open' }).first().click()
     await page.waitForURL('**/classrooms/**')
 
     await page.getByRole('button', { name: 'Assignments' }).click()
@@ -216,6 +235,10 @@ test.describe('student screens - light mode', () => {
 
   test('assignment editor', async ({ page }) => {
     await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click Open button to enter classroom
+    await page.getByRole('button', { name: 'Open' }).first().click()
     await page.waitForURL('**/classrooms/**')
 
     await page.getByRole('button', { name: 'Assignments' }).click()
@@ -322,8 +345,19 @@ test.describe('teacher screens - dark mode', () => {
 test.describe('student screens - dark mode', () => {
   test.use({ storageState: STUDENT_STORAGE })
 
+  test('classrooms index', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+    await enableDarkMode(page)
+    await expect(page).toHaveScreenshot('student-classrooms-index-dark.png', { fullPage: true })
+  })
+
   test('classroom today tab', async ({ page }) => {
     await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click Open button to enter classroom
+    await page.getByRole('button', { name: 'Open' }).first().click()
     await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
     await waitForContent(page)
     await enableDarkMode(page)
@@ -333,6 +367,10 @@ test.describe('student screens - dark mode', () => {
 
   test('classroom history tab', async ({ page }) => {
     await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click Open button to enter classroom
+    await page.getByRole('button', { name: 'Open' }).first().click()
     await page.waitForURL('**/classrooms/**')
 
     await page.getByRole('button', { name: 'History' }).click()
@@ -344,6 +382,10 @@ test.describe('student screens - dark mode', () => {
 
   test('classroom assignments tab', async ({ page }) => {
     await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click Open button to enter classroom
+    await page.getByRole('button', { name: 'Open' }).first().click()
     await page.waitForURL('**/classrooms/**')
 
     await page.getByRole('button', { name: 'Assignments' }).click()
