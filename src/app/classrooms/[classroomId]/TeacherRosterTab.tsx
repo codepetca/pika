@@ -69,7 +69,7 @@ export function TeacherRosterTab({ classroom }: Props) {
               throw new Error('You are not signed in as a teacher. Log out and sign back in as a teacher (student sign-in in another tab replaces the session).')
             }
           } catch {
-            // Fallback to generic message
+            // Fallback to generic message below
           }
         }
         throw new Error(data.error || 'Failed to load roster')
@@ -120,14 +120,9 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="sr-only">Roster actions</span>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Button onClick={() => setUploadModalOpen(true)}>Upload CSV</Button>
-        <Button
-          variant="secondary"
-          className="ml-auto"
-          onClick={loadRoster}
-        >
+        <Button variant="secondary" onClick={loadRoster}>
           Refresh
         </Button>
       </div>

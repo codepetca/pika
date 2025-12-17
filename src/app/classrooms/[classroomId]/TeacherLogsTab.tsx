@@ -7,7 +7,6 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import type { ClassDay, Classroom, Entry } from '@/types'
-import { ArrowsUpDownIcon } from '@heroicons/react/24/outline'
 
 type SortColumn = 'student_first_name' | 'student_last_name'
 
@@ -181,7 +180,7 @@ export function TeacherLogsTab({ classroom }: Props) {
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-            {isClassDay ? (
+            {isClassDay &&
               sortedRows.map(row => {
                 const summaryText = row.summary ?? row.entry?.text ?? ''
                 return (
@@ -213,14 +212,7 @@ export function TeacherLogsTab({ classroom }: Props) {
                     )}
                   </Fragment>
                 )
-              })
-            ) : (
-              <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                  No class on this day
-                </td>
-              </tr>
-            )}
+              })}
           </tbody>
         </table>
       </div>
