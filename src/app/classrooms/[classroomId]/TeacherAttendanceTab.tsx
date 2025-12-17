@@ -202,16 +202,16 @@ export function TeacherAttendanceTab({ classroom }: Props) {
           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {rows.map((row) => (
               <tr key={row.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                <td className="px-4 py-1 text-sm text-gray-900 dark:text-gray-100">
                   {row.student_first_name}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                <td className="px-4 py-1 text-sm text-gray-900 dark:text-gray-100">
                   {row.student_last_name}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                <td className="px-4 py-1 text-sm text-gray-600 dark:text-gray-400">
                   {row.email_username}
                 </td>
-                <td className="px-4 py-3 text-center">
+                <td className="px-4 py-1 text-center">
                   <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
                     {isClassDay ? getAttendanceIcon(row.status) : '—'}
                   </div>

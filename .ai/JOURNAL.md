@@ -769,3 +769,23 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 08:36 [AI - Codex]
+**Goal:** Reduce vertical density of the teacher attendance student rows
+**Completed:** Reduced the table row padding from `py-3` to `py-2` so each student row is shorter while preserving the existing typography and alignment
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 08:37 [AI - Codex]
+**Goal:** Make teacher attendance rows even tighter
+**Completed:** Switched each table cell’s vertical padding from `py-2` to `py-1` so the student rows sit closer together while keeping text legible
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`
+**Next:** None
+**Blockers:** None
+---
