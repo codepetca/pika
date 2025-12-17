@@ -72,40 +72,33 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
 
         {!result ? (
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div className="mb-4 space-y-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 CSV File Format
               </label>
-              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3 mb-3">
-                <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                  Format: Student Number, First Name, Last Name, Email
-                </div>
-                <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200">
-                  <div className="grid grid-cols-[140px_130px_140px_220px] gap-px text-center">
-                    <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 font-semibold">Student Number</span>
-                    <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 font-semibold">First Name</span>
-                    <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 font-semibold">Last Name</span>
-                    <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 font-semibold">Email</span>
-                    <span className="bg-white dark:bg-gray-900 px-2 py-1">123456</span>
-                    <span className="bg-white dark:bg-gray-900 px-2 py-1">Ava</span>
-                    <span className="bg-white dark:bg-gray-900 px-2 py-1">Smith</span>
-                    <span className="bg-white dark:bg-gray-900 px-2 py-1">ava.smith@example.com</span>
-                  </div>
+              <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200">
+                <div className="grid grid-cols-[120px_120px_120px_200px] gap-px text-center">
+                  <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">Student Number</span>
+                  <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">First Name</span>
+                  <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">Last Name</span>
+                  <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">Email</span>
                 </div>
               </div>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                disabled={loading}
-                className="block w-full text-sm text-gray-900 dark:text-gray-400
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded file:border-0
-                  file:text-sm file:font-medium
-                  file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-400
-                  hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50
-                  disabled:opacity-50"
-              />
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  disabled={loading}
+                  className="block w-full text-sm text-gray-900 dark:text-gray-400
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded file:border-0
+                    file:text-sm file:font-medium
+                    file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-400
+                    hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50
+                    disabled:opacity-50"
+                />
+              </div>
             </div>
             {error && (
               <div className="mb-4 text-sm text-red-600 dark:text-red-400">
