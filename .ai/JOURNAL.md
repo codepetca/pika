@@ -919,3 +919,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 16:03 [AI - Codex]
+**Goal:** Keep the roster upload preview, table headers, and example email compact so the modal never requires horizontal scrolling.
+**Completed:** Removed the overflow wrapper around the preview grid, tightened the column widths/padding, and shortened the example email to `ava@pika.app` so the snippet fits inside the dialog without scrolling.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---

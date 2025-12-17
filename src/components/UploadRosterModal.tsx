@@ -80,16 +80,16 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 <div className="text-sm text-gray-700 dark:text-gray-300 mb-2">
                   Format: Student Number, First Name, Last Name, Email
                 </div>
-                <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200">
-                  <div className="grid grid-cols-[140px_130px_140px_220px] gap-px text-center">
-                    <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 font-semibold">Student Number</span>
-                    <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 font-semibold">First Name</span>
-                    <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 font-semibold">Last Name</span>
-                    <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 font-semibold">Email</span>
-                    <span className="bg-white dark:bg-gray-900 px-2 py-1">123456</span>
-                    <span className="bg-white dark:bg-gray-900 px-2 py-1">Ava</span>
-                    <span className="bg-white dark:bg-gray-900 px-2 py-1">Smith</span>
-                    <span className="bg-white dark:bg-gray-900 px-2 py-1">ava.smith@example.com</span>
+                <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200">
+                  <div className="grid grid-cols-[110px_90px_110px_minmax(0,1fr)] gap-px text-center">
+                    <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">Student Number</span>
+                    <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">First Name</span>
+                    <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">Last Name</span>
+                    <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">Email</span>
+                    <span className="bg-white dark:bg-gray-900 px-1 py-1">123456</span>
+                    <span className="bg-white dark:bg-gray-900 px-1 py-1">Ava</span>
+                    <span className="bg-white dark:bg-gray-900 px-1 py-1">Smith</span>
+                    <span className="bg-white dark:bg-gray-900 px-1 py-1">ava@pika.app</span>
                   </div>
                 </div>
               </div>
