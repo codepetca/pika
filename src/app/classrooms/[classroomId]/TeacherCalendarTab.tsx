@@ -182,6 +182,21 @@ export function TeacherCalendarTab({ classroom }: Props) {
 
       {range ? (
         <div className="space-y-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex flex-wrap gap-6 text-sm text-gray-700 dark:text-gray-300">
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-green-100 dark:bg-green-900 rounded"></div>
+                <span>Class Day</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-gray-50 dark:bg-gray-800 rounded"></div>
+                <span>Non-Class Day</span>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                Click to toggle class days
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {months.map(month => {
               const monthStart = startOfMonth(month)
@@ -213,7 +228,6 @@ export function TeacherCalendarTab({ classroom }: Props) {
                       const dateString = format(day, 'yyyy-MM-dd')
                       const classDay = classDayMap.get(dateString)
                       const isClassDay = classDay?.is_class_day || false
-                      const isWeekend = day.getDay() === 0 || day.getDay() === 6
                       const isBeforeToday = dateString < todayToronto
                       const isInRange = dateString >= rangeStartStr && dateString <= rangeEndStr
                       const disabled = !isInRange || isBeforeToday
