@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState, type SVGProps } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from 'react'
 import {
   Bars3Icon,
   CalendarDaysIcon,
@@ -32,7 +32,7 @@ export type ClassroomNavItemId =
 type NavItem = {
   id: ClassroomNavItemId
   label: string
-  icon: (props: SVGProps<SVGSVGElement>) => JSX.Element
+  icon: ComponentType<SVGProps<SVGSVGElement>>
 }
 
 const teacherItems: NavItem[] = [

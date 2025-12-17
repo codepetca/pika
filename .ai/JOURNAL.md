@@ -69,6 +69,16 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-17 11:29 [AI - Codex]
+**Goal:** Unblock Vercel deploy by fixing build/typecheck errors
+**Completed:** Fixed Playwright config typings, restored missing date navigation helper in Attendance, corrected Logs sorting types, and ensured export CSV includes student profile names to satisfy `computeAttendanceRecords` typing; verified `pnpm build` succeeds locally
+**Status:** completed
+**Artifacts:**
+- Files: `playwright.config.ts`, `src/app/api/teacher/export-csv/route.ts`, `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/components/ClassroomSidebar.tsx`
+**Next:** Wait for Vercel check to pass, then merge PR
+**Blockers:** None
+---
+---
 ## 2025-12-17 11:15 [AI - Codex]
 **Goal:** Make collapsed sidebar tighter and allow smaller resize widths
 **Completed:** Reduced collapsed width and removed extra horizontal padding by switching collapsed nav items to fixed square icon buttons; lowered the expanded sidebar min width so it can be resized much smaller (labels truncate as needed)
