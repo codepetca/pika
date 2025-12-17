@@ -693,3 +693,29 @@
 **Next:** None
 **Blockers:** None
 ---
+
+---
+## 2025-12-17 [AI - Claude Sonnet 4.5]
+**Goal:** Simplify navigation and improve attendance date UX
+**Completed:** 
+- Removed home icon and calendar icon from AppHeader navigation bar
+- Made bunny logo the primary way to return to classrooms index
+- Changed attendance view title from "Attendance" to formatted date (e.g., "Tue Dec 16")
+- Made date title clickable to open date picker
+- Moved date navigation buttons below title and left-justified them
+- Inline date controls instead of separate PageHeader action slot
+**Status:** completed
+**Artifacts:**
+- Commits: cb3a032 (pushed to main)
+- Files Modified: 2 files
+  * Modified: src/components/AppHeader.tsx (removed icon navigation, cleaned up imports)
+  * Modified: src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx (new date-focused layout)
+**Key Changes:**
+- AppHeader: Removed HomeIcon and CalendarIcon imports and IconNavButton component
+- TeacherAttendanceTab: Added useRef for date input, format date with date-fns
+- Date picker opens when clicking the formatted date title
+- Date controls pattern: ← [date input] → [Yesterday button]
+- Hover effect on date title: hover:text-blue-600 dark:hover:text-blue-400
+**Next:** None
+**Blockers:** None
+---
