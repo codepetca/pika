@@ -116,13 +116,7 @@ export function TeacherAttendanceTab({ classroom }: Props) {
 
   return (
     <div>
-      {/* Date Navigation - left-justified */}
       <div className="mb-4">
-        {!isClassDay && (
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-            No class on {selectedDate}
-          </p>
-        )}
         <DateActionBar
           value={selectedDate}
           onChange={setSelectedDate}

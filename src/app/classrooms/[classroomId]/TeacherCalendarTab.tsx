@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { PageHeader } from '@/components/PageHeader'
 import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -138,23 +137,9 @@ export function TeacherCalendarTab({ classroom }: Props) {
 
   return (
     <div>
-      <PageHeader
-        title="Calendar"
-        subtitle="Define which dates are class days. Students can only log on class days. Past dates are locked."
-        action={
-          <button
-            type="button"
-            className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-            onClick={load}
-          >
-            Refresh
-          </button>
-        }
-      />
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
-
-        {!isInitialized ? (
+      {!isInitialized && (
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3 mb-4">
           <div className="flex flex-wrap items-end gap-2">
             <div>
               <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Start</label>
@@ -185,18 +170,37 @@ export function TeacherCalendarTab({ classroom }: Props) {
               {saving ? 'Generating…' : 'Generate'}
             </button>
           </div>
-        ) : (
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Calendar is already initialized. Use the grid below to toggle today/future days.
-          </div>
-        )}
+        </div>
+      )}
 
-        {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
-        {success && <div className="text-sm text-green-700 dark:text-green-400">{success}</div>}
-      </div>
+      {(error || success) && (
+        <div className="space-y-2 mb-4">
+          {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+          {success && <div className="text-sm text-green-700 dark:text-green-400">{success}</div>}
+        </div>
+      )}
 
       {range ? (
         <div className="space-y-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex flex-wrap gap-6 text-sm text-gray-700 dark:text-gray-300">
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-green-100 dark:bg-green-900 rounded"></div>
+                <span>Class Day</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-gray-50 dark:bg-gray-800 rounded"></div>
+                <span>Non-Class Day</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-emerald-50 dark:bg-emerald-900/40 rounded"></div>
+                <span>Past Class Day</span>
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                Click on date to toggle class days
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {months.map(month => {
               const monthStart = startOfMonth(month)
@@ -228,20 +232,18 @@ export function TeacherCalendarTab({ classroom }: Props) {
                       const dateString = format(day, 'yyyy-MM-dd')
                       const classDay = classDayMap.get(dateString)
                       const isClassDay = classDay?.is_class_day || false
-                      const isWeekend = day.getDay() === 0 || day.getDay() === 6
                       const isBeforeToday = dateString < todayToronto
+                      const isPastClassDay = isClassDay && isBeforeToday
                       const isInRange = dateString >= rangeStartStr && dateString <= rangeEndStr
-                      const disabled = !isInRange || isBeforeToday
+                      const disabled = !isInRange || (!isClassDay && isBeforeToday)
 
                       const colorClasses = disabled
                         ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                         : isClassDay
-                          ? 'bg-green-100 dark:bg-green-900 text-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800'
-                          : classDay
-                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            : isWeekend
-                              ? 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                              : 'bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-800'
+                          ? isPastClassDay
+                            ? 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-900/70 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-700'
+                            : 'bg-green-100 dark:bg-green-900 text-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800'
+                          : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
 
                       return (
                         <button
@@ -260,27 +262,6 @@ export function TeacherCalendarTab({ classroom }: Props) {
             })}
           </div>
 
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-            <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Legend</h4>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-700 dark:text-gray-300">
-              <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-green-100 dark:bg-green-900 rounded"></div>
-                <span>Class Day</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                <span>Non-Class Day</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-gray-50 dark:bg-gray-800 rounded"></div>
-                <span>Weekend (default)</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-red-50 dark:bg-red-900 rounded"></div>
-                <span>Holiday (default)</span>
-              </div>
-            </div>
-          </div>
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center text-gray-500 dark:text-gray-400">

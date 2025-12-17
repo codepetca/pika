@@ -7,6 +7,8 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import type { ClassDay, Classroom, Entry } from '@/types'
+import { ArrowsUpDownIcon } from '@heroicons/react/24/outline'
+import { ArrowsUpDownIcon } from '@heroicons/react/24/outline'
 
 type SortColumn = 'student_first_name' | 'student_last_name'
 
@@ -145,24 +147,14 @@ export function TeacherLogsTab({ classroom }: Props) {
           onNext={() => moveDateBy(1)}
           rightActions={
             isClassDay ? (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-                  onClick={expandAll}
-                  disabled={logs.length === 0}
-                >
-                  Expand all
-                </button>
-                <button
-                  type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-                  onClick={collapseAll}
-                  disabled={expanded.size === 0}
-                >
-                  Collapse all
-                </button>
-              </div>
+              <button
+                type="button"
+                className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+                onClick={() => (expanded.size === logs.length ? collapseAll() : expandAll())}
+                disabled={logs.length === 0}
+              >
+                {expanded.size === logs.length ? 'Collapse' : 'Expand'}
+              </button>
             ) : null
           }
         />
