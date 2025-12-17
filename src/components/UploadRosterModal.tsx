@@ -76,12 +76,12 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 CSV File Format
               </label>
-              <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200">
+              <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200 overflow-hidden">
                 <div className="grid grid-cols-[120px_120px_120px_200px] gap-px text-center">
-                  <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">Student Number</span>
-                  <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">First Name</span>
-                  <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">Last Name</span>
-                  <span className="bg-gray-100 dark:bg-gray-800 px-1 py-1 font-semibold">Email</span>
+                  <span className="bg-gray-100 dark:bg-gray-800 px-0 py-2 font-semibold">Student Number</span>
+                  <span className="bg-gray-100 dark:bg-gray-800 px-0 py-2 font-semibold">First Name</span>
+                  <span className="bg-gray-100 dark:bg-gray-800 px-0 py-2 font-semibold">Last Name</span>
+                  <span className="bg-gray-100 dark:bg-gray-800 px-0 py-2 font-semibold">Email</span>
                 </div>
               </div>
               <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">
