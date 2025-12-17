@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
+import { ClassroomSidebar } from '@/components/ClassroomSidebar'
 import { Spinner } from '@/components/Spinner'
 import { TeacherClassroomView } from './TeacherClassroomView'
 import { StudentTodayTab } from './StudentTodayTab'
@@ -32,6 +33,7 @@ export default function ClassroomPage() {
   const [teacherClassrooms, setTeacherClassrooms] = useState<Classroom[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -112,34 +114,12 @@ export default function ClassroomPage() {
   const tab = searchParams.get('tab')
   const isTeacher = user.role === 'teacher'
 
-  const teacherTabs = [
-    { id: 'attendance', label: 'Attendance' },
-    { id: 'logs', label: 'Logs' },
-    { id: 'assignments', label: 'Assignments' },
-    { id: 'roster', label: 'Roster' },
-    { id: 'calendar', label: 'Calendar' },
-    { id: 'settings', label: 'Settings' },
-  ] as const
-
-  const studentTabs = [
-    { id: 'today', label: 'Today' },
-    { id: 'history', label: 'History' },
-    { id: 'assignments', label: 'Assignments' },
-  ] as const
-
   const defaultTab = isTeacher ? 'attendance' : 'today'
-  const activeTab = (tab || defaultTab) as string
+  const validTabs = isTeacher
+    ? (['attendance', 'logs', 'assignments', 'roster', 'calendar', 'settings'] as const)
+    : (['today', 'history', 'assignments'] as const)
 
-  function setTab(nextTab: string) {
-    const url = new URL(window.location.href)
-    url.searchParams.set('tab', nextTab)
-    router.replace(url.pathname + url.search)
-  }
-
-  function switchClassroom(nextId: string) {
-    const nextTab = isTeacher ? activeTab : 'today'
-    router.push(`/classrooms/${nextId}?tab=${encodeURIComponent(nextTab)}`)
-  }
+  const activeTab = validTabs.includes(tab as any) ? (tab as string) : defaultTab
 
   return (
     <AppShell
@@ -154,58 +134,52 @@ export default function ClassroomPage() {
         code: classroom.class_code
       }]}
       currentClassroomId={classroom.id}
+      currentTab={activeTab}
+      onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+      mainClassName="max-w-none px-0 py-0"
     >
-      {/* Compact tab navigation */}
-      <div className="border-b border-gray-200 dark:border-gray-700 -mx-4 px-4 mb-4">
-        <div className="flex gap-4">
-          {(isTeacher ? teacherTabs : studentTabs).map(t => {
-            const isActive = activeTab === t.id
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`py-2 text-sm font-medium border-b-2 transition ${
-                  isActive
-                    ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-                }`}
-              >
-                {t.label}
-              </button>
-            )
-          })}
+      <div className="flex min-h-[calc(100vh-3rem)]">
+        <ClassroomSidebar
+          classroomId={classroom.id}
+          role={user.role}
+          activeTab={activeTab}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        />
+
+        <div className="flex-1 min-w-0 px-4 py-3">
+          <div className="max-w-7xl mx-auto">
+            {isTeacher ? (
+              <>
+                {activeTab === 'attendance' && (
+                  <TeacherAttendanceTab classroom={classroom} />
+                )}
+                {activeTab === 'logs' && (
+                  <TeacherLogsTab classroom={classroom} />
+                )}
+                {activeTab === 'assignments' && (
+                  <TeacherClassroomView classroom={classroom} />
+                )}
+                {activeTab === 'roster' && (
+                  <TeacherRosterTab classroom={classroom} />
+                )}
+                {activeTab === 'calendar' && (
+                  <TeacherCalendarTab classroom={classroom} />
+                )}
+                {activeTab === 'settings' && (
+                  <TeacherSettingsTab classroom={classroom} />
+                )}
+              </>
+            ) : (
+              <>
+                {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
+                {activeTab === 'history' && <StudentHistoryTab classroom={classroom} />}
+                {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
+              </>
+            )}
+          </div>
         </div>
       </div>
-
-      {isTeacher ? (
-        <>
-          {activeTab === 'attendance' && (
-            <TeacherAttendanceTab classroom={classroom} />
-          )}
-          {activeTab === 'logs' && (
-            <TeacherLogsTab classroom={classroom} />
-          )}
-          {activeTab === 'assignments' && (
-            <TeacherClassroomView classroom={classroom} />
-          )}
-          {activeTab === 'roster' && (
-            <TeacherRosterTab classroom={classroom} />
-          )}
-          {activeTab === 'calendar' && (
-            <TeacherCalendarTab classroom={classroom} />
-          )}
-          {activeTab === 'settings' && (
-            <TeacherSettingsTab classroom={classroom} />
-          )}
-        </>
-      ) : (
-        <>
-          {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
-          {activeTab === 'history' && <StudentHistoryTab classroom={classroom} />}
-          {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
-        </>
-      )}
     </AppShell>
   )
 }
