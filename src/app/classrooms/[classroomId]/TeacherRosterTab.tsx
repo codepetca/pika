@@ -52,6 +52,8 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [pendingRemoval, setPendingRemoval] = useState<{
     rosterId: string
     email: string
+    firstName: string | null
+    lastName: string | null
     joined: boolean
   } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
@@ -184,7 +186,15 @@ export function TeacherRosterTab({ classroom }: Props) {
                   <button
                     type="button"
                     className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
-                    onClick={() => setPendingRemoval({ rosterId: row.id, email: row.email, joined: row.joined })}
+                    onClick={() =>
+                      setPendingRemoval({
+                        rosterId: row.id,
+                        email: row.email,
+                        firstName: row.first_name,
+                        lastName: row.last_name,
+                        joined: row.joined,
+                      })
+                    }
                     aria-label={`Remove ${row.email}`}
                   >
                     <TrashIcon className="h-5 w-5" aria-hidden="true" />
@@ -218,9 +228,15 @@ export function TeacherRosterTab({ classroom }: Props) {
         title="Remove student?"
         description={
           pendingRemoval
-            ? pendingRemoval.joined
-              ? `${pendingRemoval.email}\n\nThey are currently joined. This will delete their classroom data (logs and assignment docs).`
-              : `${pendingRemoval.email}\n\nThey are not joined yet.`
+            ? `${
+                pendingRemoval.firstName || pendingRemoval.lastName
+                  ? `${pendingRemoval.firstName ?? ''} ${pendingRemoval.lastName ?? ''}`.trim()
+                  : 'Unnamed student'
+              }\n${pendingRemoval.email}\n\n${
+                pendingRemoval.joined
+                  ? 'They are currently joined. This will delete their classroom data (logs and assignment docs).'
+                  : 'They are not joined yet.'
+              }`
             : undefined
         }
         confirmLabel={isRemoving ? 'Removing...' : 'Remove'}
