@@ -24,11 +24,8 @@ export default defineConfig({
   use: {
     baseURL,
 
-    // Screenshot settings for toHaveScreenshot()
-    screenshot: {
-      animations: 'disabled', // Disable CSS animations
-      caret: 'hide', // Hide text cursor
-    },
+    // Collect screenshots on failure (assertion-specific screenshot options are in `expect.toHaveScreenshot`)
+    screenshot: 'only-on-failure',
 
     // Wait for fonts to load
     actionTimeout: 10_000,
@@ -40,6 +37,7 @@ export default defineConfig({
 
   // Snapshot comparison settings
   expect: {
+    timeout: 30_000,
     toHaveScreenshot: {
       // Allow small pixel differences due to font rendering
       maxDiffPixels: 100,
@@ -47,9 +45,9 @@ export default defineConfig({
 
       // Animations disabled globally
       animations: 'disabled',
+      caret: 'hide',
 
-      // Wait for fonts
-      timeout: 30_000,
+      // Optionally omitBackground/fullPage can be set per-test as needed
     },
   },
 

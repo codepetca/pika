@@ -38,6 +38,66 @@
 **Next:** Use `.ai/START-HERE.md` at the start of every session; track big-epic progress in `.ai/features.json`
 **Blockers:** None
 ---
+---
+## 2025-12-17 10:16 [AI - Codex]
+**Goal:** Replace classroom tab header navigation with a Supabase-style sidebar (collapsed/expanded + mobile drawer)
+**Completed:** Removed the in-page tab header row and introduced a context-aware classroom sidebar that lists teacher vs student routes, supports a single collapse/expand toggle (icons-only when collapsed), persists the state via the `pika_sidebar` cookie, and adds a mobile off-canvas drawer opened from the global header; classroom switching now preserves the active `?tab=` selection
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/page.tsx`, `src/app/classrooms/[classroomId]/layout.tsx`, `src/components/ClassroomSidebar.tsx`, `src/components/ClassroomSidebarProvider.tsx`, `src/components/AppHeader.tsx`, `src/components/AppShell.tsx`, `src/components/ClassroomDropdown.tsx`, `tests/api/teacher/logs.test.ts`
+**Next:** Visual polish pass (spacing/active state) after stakeholder review
+**Blockers:** None
+---
+---
+## 2025-12-17 11:02 [AI - Codex]
+**Goal:** Add drag-to-resize for the expanded classroom sidebar and persist width
+**Completed:** Added a desktop-only resize handle for the expanded sidebar, stores the chosen width in `pika_sidebar_w`, reads it server-side to avoid layout shift, and switched collapse/expand to icon-only controls
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/ClassroomSidebar.tsx`, `src/components/ClassroomSidebarProvider.tsx`, `src/app/classrooms/[classroomId]/layout.tsx`, `src/lib/classroom-sidebar.ts`
+**Next:** Decide min/max/default widths after trying it live
+**Blockers:** None
+---
+---
+## 2025-12-17 11:03 [AI - Codex]
+**Goal:** Keep arrow toggle, remove visible "collapse" wording
+**Completed:** Restored the single chevron arrow icon for the desktop toggle and changed the expanded-state label to "Minimize" (no visible text; tooltip/ARIA updated)
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/ClassroomSidebar.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 11:29 [AI - Codex]
+**Goal:** Unblock Vercel deploy by fixing build/typecheck errors
+**Completed:** Fixed Playwright config typings, restored missing date navigation helper in Attendance, corrected Logs sorting types, and ensured export CSV includes student profile names to satisfy `computeAttendanceRecords` typing; verified `pnpm build` succeeds locally
+**Status:** completed
+**Artifacts:**
+- Files: `playwright.config.ts`, `src/app/api/teacher/export-csv/route.ts`, `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/components/ClassroomSidebar.tsx`
+**Next:** Wait for Vercel check to pass, then merge PR
+**Blockers:** None
+---
+---
+## 2025-12-17 11:15 [AI - Codex]
+**Goal:** Make collapsed sidebar tighter and allow smaller resize widths
+**Completed:** Reduced collapsed width and removed extra horizontal padding by switching collapsed nav items to fixed square icon buttons; lowered the expanded sidebar min width so it can be resized much smaller (labels truncate as needed)
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/ClassroomSidebar.tsx`, `src/lib/classroom-sidebar.ts`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 11:11 [AI - Codex]
+**Goal:** Make sidebar narrower and resize smoother
+**Completed:** Reduced collapsed width and lowered the expanded minimum width; made resizing feel responsive by disabling width transitions during drag and updating the DOM width directly (commit to cookie/state on drag end)
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/ClassroomSidebar.tsx`, `src/lib/classroom-sidebar.ts`
+**Next:** None
+**Blockers:** None
+---
 
 ---
 ## 2025-12-12 11:14 [AI - GPT-5.2]

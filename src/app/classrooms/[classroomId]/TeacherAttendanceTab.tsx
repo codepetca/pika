@@ -98,6 +98,13 @@ export function TeacherAttendanceTab({ classroom }: Props) {
     }
   }
 
+  function moveDateBy(deltaDays: number) {
+    setSelectedDate(prev => {
+      const base = prev || getTodayInToronto()
+      return addDaysToDateString(base, deltaDays)
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">

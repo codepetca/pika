@@ -14,6 +14,9 @@ interface AppShellProps {
     code: string
   }>
   currentClassroomId?: string
+  currentTab?: string
+  onOpenSidebar?: () => void
+  mainClassName?: string
 }
 
 /**
@@ -25,7 +28,10 @@ export function AppShell({
   showHeader = true,
   user,
   classrooms,
-  currentClassroomId
+  currentClassroomId,
+  currentTab,
+  onOpenSidebar,
+  mainClassName,
 }: AppShellProps) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -34,9 +40,11 @@ export function AppShell({
           user={user}
           classrooms={classrooms}
           currentClassroomId={currentClassroomId}
+          currentTab={currentTab}
+          onOpenSidebar={onOpenSidebar}
         />
       )}
-      <main className="max-w-7xl mx-auto px-4 py-3">
+      <main className={mainClassName || 'max-w-7xl mx-auto px-4 py-3'}>
         {children}
       </main>
     </div>

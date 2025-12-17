@@ -10,6 +10,7 @@ interface ClassroomDropdownProps {
     code: string
   }>
   currentClassroomId?: string
+  currentTab?: string
 }
 
 /**
@@ -19,12 +20,16 @@ interface ClassroomDropdownProps {
 export function ClassroomDropdown({
   classrooms,
   currentClassroomId,
+  currentTab,
 }: ClassroomDropdownProps) {
   const router = useRouter()
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const classroomId = e.target.value
-    router.push(`/classrooms/${classroomId}`)
+    const nextUrl = currentTab
+      ? `/classrooms/${classroomId}?tab=${encodeURIComponent(currentTab)}`
+      : `/classrooms/${classroomId}`
+    router.push(nextUrl)
   }
 
   if (classrooms.length === 0) {

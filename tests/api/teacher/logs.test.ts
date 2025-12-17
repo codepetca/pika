@@ -103,6 +103,16 @@ describe('GET /api/teacher/logs', () => {
           })),
         }
       }
+      if (table === 'student_profiles') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
+          })),
+        }
+      }
       if (table === 'entries') {
         return {
           select: vi.fn(() => ({
@@ -166,6 +176,16 @@ describe('GET /api/teacher/logs', () => {
                 { student_id: 's1', users: { id: 's1', email: 'a@student.com' } },
                 { student_id: 's2', users: { id: 's2', email: 'b@student.com' } },
               ],
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'student_profiles') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [],
               error: null,
             }),
           })),
@@ -235,6 +255,16 @@ describe('GET /api/teacher/logs', () => {
                 { student_id: 's1', users: { id: 's1', email: 'a@student.com' } },
                 { student_id: 's2', users: { id: 's2', email: 'b@student.com' } },
               ],
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'student_profiles') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [],
               error: null,
             }),
           })),
