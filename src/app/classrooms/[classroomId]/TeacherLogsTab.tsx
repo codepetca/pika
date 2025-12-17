@@ -7,6 +7,7 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import type { ClassDay, Classroom, Entry } from '@/types'
+import { ArrowsUpDownIcon } from '@heroicons/react/24/outline'
 
 type SortColumn = 'student_first_name' | 'student_last_name'
 
