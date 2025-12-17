@@ -909,3 +909,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 14:25 [AI - Codex]
+**Goal:** Merge the latest main branch updates into `teacher-ui-ux-updates` and finish the requested calendar, logs, and roster polish.
+**Completed:** Resolved the calendar merge into the branch and rebuilt the legend/label with the new pastel past-day color, cleaned up the logs toggle so it’s a single Expand/Collapse action without the “No class on…” row, reworked the roster action bar/table to match the attendance style and left-align Upload CSV, ensured the upload modal shows the CSV preview, and confirmed `npm run lint` passes aside from pre-existing warnings in `TeacherClassroomView`, assignment editors, `SnapshotGallery`, and `teacher/calendar/page`.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`, `src/app/login/LoginClient.tsx`
+**Next:** None
+**Blockers:** None
+---
