@@ -71,10 +71,30 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const studentIds = (enrollments || []).map(e => e.student_id)
+    const { data: profiles, error: profilesError } = await supabase
+      .from('student_profiles')
+      .select('user_id, first_name, last_name')
+      .in('user_id', studentIds)
+
+    if (profilesError) {
+      console.error('Error fetching student profiles:', profilesError)
+    }
+
+    const profileMap = new Map(
+      (profiles || []).map(p => [p.user_id, p])
+    )
+
     const students = (enrollments || [])
       .map(e => {
         const u = e.users as unknown as { id: string; email: string }
-        return { id: u.id, email: u.email }
+        const profile = profileMap.get(u.id)
+        return {
+          id: u.id,
+          email: u.email,
+          first_name: profile?.first_name || '',
+          last_name: profile?.last_name || '',
+        }
       })
       .sort((a, b) => a.email.localeCompare(b.email))
 
@@ -133,6 +153,8 @@ export async function GET(request: NextRequest) {
       return {
         student_id: student.id,
         student_email: student.email,
+        student_first_name: student.first_name,
+        student_last_name: student.last_name,
         entry,
         summary: summaryRow ? summaryRow.summary : null,
       }

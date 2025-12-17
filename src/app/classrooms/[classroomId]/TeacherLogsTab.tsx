@@ -26,6 +26,8 @@ export function TeacherLogsTab({ classroom }: Props) {
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [sortColumn, setSortColumn] = useState<'first_name' | 'last_name'>('last_name')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
   useEffect(() => {
     async function loadBase() {
@@ -82,6 +84,21 @@ export function TeacherLogsTab({ classroom }: Props) {
     [logs]
   )
 
+  const sortedRows = useMemo(() => {
+    const mapped = logs.map(row => ({
+      ...row,
+      student_first_name: row.student_first_name || '',
+      student_last_name: row.student_last_name || '',
+    }))
+
+    return mapped.sort((a, b) => {
+      const aVal = a[sortColumn] || ''
+      const bVal = b[sortColumn] || ''
+      const comparison = aVal.localeCompare(bVal)
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+  }, [logs, sortColumn, sortDirection])
+
   function toggle(studentId: string) {
     setExpanded(prev => {
       const next = new Set(prev)
@@ -105,6 +122,15 @@ export function TeacherLogsTab({ classroom }: Props) {
     setSelectedDate(addDaysToDateString(selectedDate, delta))
   }
 
+  const toggleSort = (column: 'first_name' | 'last_name') => {
+    if (sortColumn === column) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
   if (loading && logs.length === 0) {
     return (
       <div className="flex justify-center py-12">
@@ -122,32 +148,56 @@ export function TeacherLogsTab({ classroom }: Props) {
           onPrev={() => moveDateBy(-1)}
           onNext={() => moveDateBy(1)}
           rightActions={
-            isClassDay ? (
-              <>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 rounded border border-gray-200 dark:border-gray-700 px-2 py-1">
                 <button
                   type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-                  onClick={expandAll}
-                  disabled={studentsWithLogs.length === 0}
+                  className="text-xs text-gray-900 dark:text-gray-100 font-medium"
+                  onClick={() => toggleSort('first_name')}
                 >
-                  Expand all
+                  First
+                  {sortColumn === 'first_name' && (
+                    <span className="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
                 </button>
                 <button
                   type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-                  onClick={collapseAll}
-                  disabled={expanded.size === 0}
+                  className="text-xs text-gray-900 dark:text-gray-100 font-medium"
+                  onClick={() => toggleSort('last_name')}
                 >
-                  Collapse all
+                  Last
+                  {sortColumn === 'last_name' && (
+                    <span className="ml-1">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+                  )}
                 </button>
-              </>
-            ) : null
+              </div>
+              {isClassDay && (
+                <div className="flex items-center gap-2 border-l border-gray-200 dark:border-gray-700 pl-3">
+                  <button
+                    type="button"
+                    className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
+                    onClick={expandAll}
+                    disabled={studentsWithLogs.length === 0}
+                  >
+                    Expand all
+                  </button>
+                  <button
+                    type="button"
+                    className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
+                    onClick={collapseAll}
+                    disabled={expanded.size === 0}
+                  >
+                    Collapse all
+                  </button>
+                </div>
+              )}
+            </div>
           }
         />
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-        {(isClassDay ? logs : []).map((row) => {
+        {(isClassDay ? sortedRows : []).map((row) => {
           const hasEntry = Boolean(row.entry)
           const isExpanded = expanded.has(row.student_id)
 
@@ -186,10 +236,12 @@ export function TeacherLogsTab({ classroom }: Props) {
             )
           }
 
+          const fullName = `${row.student_first_name || ''} ${row.student_last_name || ''}`.trim() || row.student_email
+
           return (
             <StudentRow.Expandable
               key={row.student_id}
-              email={row.student_email}
+              label={fullName}
               preview={preview}
               expanded={isExpanded}
               expandedContent={expandedContent}

@@ -81,7 +81,7 @@ export function StudentRowMedium({
  * Shows email, preview text, and expand/collapse toggle.
  */
 interface StudentRowExpandableProps {
-  email: string
+  label: string
   preview?: string | ReactNode
   expanded?: boolean
   expandedContent?: ReactNode
@@ -89,7 +89,7 @@ interface StudentRowExpandableProps {
 }
 
 export function StudentRowExpandable({
-  email,
+  label,
   preview,
   expanded = false,
   expandedContent,
@@ -97,26 +97,21 @@ export function StudentRowExpandable({
 }: StudentRowExpandableProps) {
   return (
     <div className="border-b border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-           onClick={onToggle}>
+      <div
+        className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+        onClick={onToggle}
+      >
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{email}</div>
+          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{label}</div>
           {!expanded && preview && (
             <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 truncate">
               {preview}
             </div>
           )}
         </div>
-        <button
-          type="button"
-          className="flex-shrink-0 ml-3 px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggle?.()
-          }}
-        >
-          {expanded ? 'Collapse' : 'Expand'}
-        </button>
+        <span className="flex-shrink-0 ml-3 text-xs text-gray-500 dark:text-gray-400">
+          {expanded ? '▴' : '▾'}
+        </span>
       </div>
       {expanded && expandedContent && (
         <div className="px-3 pb-3 pt-1 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">

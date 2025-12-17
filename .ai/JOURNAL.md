@@ -819,3 +819,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 08:59 [AI - Codex]
+**Goal:** Let the Logs list rely on the row itself rather than buttons and surface student names with sortable headers
+**Completed:** Updated `StudentRow.Expandable` so the entire row toggles expansion, removed the inline expand button, and switched the Logs tab to show first/last names; it now sorts by first or last name via small pills in the shared `DateActionBar`, and the logs API returns the names from `student_profiles`
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/StudentRow.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/app/api/teacher/logs/route.ts`
+**Next:** None
+**Blockers:** None
+---
