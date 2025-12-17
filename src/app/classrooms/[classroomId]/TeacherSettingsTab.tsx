@@ -21,8 +21,10 @@ export function TeacherSettingsTab({ classroom }: Props) {
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string>('')
-  const [success, setSuccess] = useState<string>('')
+  const [enrollmentError, setEnrollmentError] = useState<string>('')
+  const [enrollmentSuccess, setEnrollmentSuccess] = useState<string>('')
+  const [joinCodeError, setJoinCodeError] = useState<string>('')
+  const [joinCodeSuccess, setJoinCodeSuccess] = useState<string>('')
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [copyNotice, setCopyNotice] = useState<string>('')
@@ -49,8 +51,8 @@ export function TeacherSettingsTab({ classroom }: Props) {
 
   async function saveAllowEnrollment(nextValue: boolean) {
     setSaving(true)
-    setError('')
-    setSuccess('')
+    setEnrollmentError('')
+    setEnrollmentSuccess('')
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
         method: 'PATCH',
@@ -62,9 +64,9 @@ export function TeacherSettingsTab({ classroom }: Props) {
         throw new Error(data.error || 'Failed to update settings')
       }
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
-      setSuccess('Settings saved.')
+      setEnrollmentSuccess('Settings saved.')
     } catch (err: any) {
-      setError(err.message || 'Failed to update settings')
+      setEnrollmentError(err.message || 'Failed to update settings')
     } finally {
       setSaving(false)
     }
@@ -72,8 +74,8 @@ export function TeacherSettingsTab({ classroom }: Props) {
 
   async function regenerateJoinCode() {
     setIsRegenerating(true)
-    setError('')
-    setSuccess('')
+    setJoinCodeError('')
+    setJoinCodeSuccess('')
     try {
       const newCode = generateJoinCode()
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
@@ -86,9 +88,9 @@ export function TeacherSettingsTab({ classroom }: Props) {
         throw new Error(data.error || 'Failed to regenerate join code')
       }
       setJoinCode(data.classroom?.class_code || newCode)
-      setSuccess('Join code regenerated.')
+      setJoinCodeSuccess('Join code regenerated.')
     } catch (err: any) {
-      setError(err.message || 'Failed to regenerate join code')
+      setJoinCodeError(err.message || 'Failed to regenerate join code')
     } finally {
       setIsRegenerating(false)
       setShowRegenerateConfirm(false)
@@ -118,48 +120,56 @@ export function TeacherSettingsTab({ classroom }: Props) {
           </label>
         </div>
 
-        {error && <div className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</div>}
-        {success && <div className="mt-3 text-sm text-green-700 dark:text-green-400">{success}</div>}
+        {enrollmentError && <div className="mt-3 text-sm text-red-600 dark:text-red-400">{enrollmentError}</div>}
+        {enrollmentSuccess && <div className="mt-3 text-sm text-green-700 dark:text-green-400">{enrollmentSuccess}</div>}
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-        <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Invitation</div>
+        <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Join Code</div>
         <div className="text-xs text-gray-600 dark:text-gray-400">
           Students must be on the roster to join.
         </div>
-        <div className="flex flex-wrap items-center gap-3 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">
+
+        <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
           <button
             type="button"
-            className="flex-1 text-left text-lg font-semibold text-gray-900 dark:text-gray-100"
+            className="w-full sm:w-auto rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-base font-semibold text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
             onClick={() => copyWithNotice('Join code', joinCode)}
+            aria-label="Copy join code"
           >
-            <span className="select-all">{joinCode}</span>
+            {joinCode}
           </button>
+
           <Button
             variant="secondary"
             onClick={() => setShowRegenerateConfirm(true)}
             disabled={isRegenerating}
+            className="w-full sm:w-auto"
           >
-            {isRegenerating ? 'Regenerating…' : 'Regenerate code'}
+            {isRegenerating ? 'Generating…' : 'New code'}
           </Button>
-        </div>
-        <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">
+
           <button
             type="button"
-            className="text-sm text-gray-700 dark:text-gray-200 break-words text-left"
+            className="w-full flex-1 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 truncate"
             onClick={() => copyWithNotice('Join link', joinLink)}
+            aria-label="Copy join link"
+            title={joinLink}
           >
             {joinLink}
           </button>
         </div>
+
+        {joinCodeError && <div className="text-sm text-red-600 dark:text-red-400">{joinCodeError}</div>}
+        {joinCodeSuccess && <div className="text-sm text-green-700 dark:text-green-400">{joinCodeSuccess}</div>}
         {copyNotice && <div className="text-xs text-blue-600 dark:text-blue-300">{copyNotice}</div>}
       </div>
 
       <ConfirmDialog
         isOpen={showRegenerateConfirm}
-        title="Regenerate join code?"
-        description="This replaces the current code. Students will need the new link to join."
-        confirmLabel={isRegenerating ? 'Regenerating…' : 'Regenerate'}
+        title="Generate new join code?"
+        description="This replaces the current code. Students will need the new code/link to join."
+        confirmLabel={isRegenerating ? 'Generating…' : 'New code'}
         cancelLabel="Cancel"
         confirmVariant="danger"
         isConfirmDisabled={isRegenerating}
