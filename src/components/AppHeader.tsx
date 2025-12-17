@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { HomeIcon, CalendarIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline'
+import { MoonIcon, SunIcon } from '@heroicons/react/24/outline'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
@@ -26,12 +25,11 @@ interface AppHeaderProps {
  * Reduces from previous 64-72px height.
  */
 export function AppHeader({ user, classrooms, currentClassroomId }: AppHeaderProps) {
-  const pathname = usePathname()
   const { theme, toggleTheme } = useTheme()
 
   return (
     <header className="h-12 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 gap-3">
-      {/* Logo */}
+      {/* Logo - click to return to classrooms index */}
       <Link href="/classrooms" className="flex-shrink-0">
         <PikaLogo className="w-8 h-8" />
       </Link>
@@ -43,24 +41,6 @@ export function AppHeader({ user, classrooms, currentClassroomId }: AppHeaderPro
           currentClassroomId={currentClassroomId}
         />
       )}
-
-      {/* Icon Navigation */}
-      <nav className="flex items-center gap-1">
-        <IconNavButton
-          href="/classrooms"
-          icon={HomeIcon}
-          label="Classrooms"
-          isActive={pathname === '/classrooms'}
-        />
-        {user?.role === 'teacher' && (
-          <IconNavButton
-            href="/calendar"
-            icon={CalendarIcon}
-            label="Calendar"
-            isActive={pathname === '/calendar'}
-          />
-        )}
-      </nav>
 
       {/* Spacer */}
       <div className="flex-1" />
@@ -82,29 +62,5 @@ export function AppHeader({ user, classrooms, currentClassroomId }: AppHeaderPro
       {/* User Menu */}
       <UserMenu user={user} />
     </header>
-  )
-}
-
-interface IconNavButtonProps {
-  href: string
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  isActive?: boolean
-}
-
-function IconNavButton({ href, icon: Icon, label, isActive }: IconNavButtonProps) {
-  return (
-    <Link
-      href={href}
-      className={`p-2 rounded-md transition-colors ${
-        isActive
-          ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30'
-          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-      }`}
-      aria-label={label}
-      title={label}
-    >
-      <Icon className="w-5 h-5" />
-    </Link>
   )
 }

@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
+import { format, parseISO } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
-import { PageHeader } from '@/components/PageHeader'
 import { StudentRow } from '@/components/StudentRow'
-import { DateNavigator } from '@/components/DateNavigator'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
@@ -20,6 +19,7 @@ export function TeacherAttendanceTab({ classroom }: Props) {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string>('')
+  const dateInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -70,24 +70,66 @@ export function TeacherAttendanceTab({ classroom }: Props) {
     )
   }
 
+  const formattedDate = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : ''
+
   return (
     <div>
-      <PageHeader
-        title="Attendance"
-        subtitle={!isClassDay ? `No class on ${selectedDate}` : undefined}
-        action={
-          <DateNavigator
+      {/* Date Title - clickable to open date picker */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => dateInputRef.current?.showPicker()}
+          className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+        >
+          {formattedDate}
+        </button>
+        {!isClassDay && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+            No class on {selectedDate}
+          </p>
+        )}
+      </div>
+
+      {/* Date Navigation - left-justified */}
+      <div className="mb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+            onClick={() => setSelectedDate(addDaysToDateString(selectedDate, -1))}
+          >
+            ←
+          </button>
+
+          <input
+            ref={dateInputRef}
+            type="date"
             value={selectedDate}
-            onChange={setSelectedDate}
-            shortcutLabel="Yesterday"
-            onShortcut={() => {
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100"
+          />
+
+          <button
+            type="button"
+            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+            onClick={() => setSelectedDate(addDaysToDateString(selectedDate, 1))}
+          >
+            →
+          </button>
+
+          <button
+            type="button"
+            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+            onClick={() => {
               const today = getTodayInToronto()
               const previousClassDay = getMostRecentClassDayBefore(classDays, today)
               setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
             }}
-          />
-        }
-      />
+          >
+            Yesterday
+          </button>
+        </div>
+      </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
         {rows.map((row) => (
