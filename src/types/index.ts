@@ -137,6 +137,7 @@ export interface Assignment {
   title: string
   description: string
   due_at: string  // ISO 8601 timestamp
+  position: number
   created_by: string
   created_at: string
   updated_at: string

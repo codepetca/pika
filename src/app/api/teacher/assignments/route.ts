@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
       .from('assignments')
       .select('*')
       .eq('classroom_id', classroomId)
+      .order('position', { ascending: true })
       .order('due_at', { ascending: true })
 
     if (error) {
@@ -51,15 +52,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Count total students in classroom once
+    const { count: totalStudents } = await supabase
+      .from('classroom_enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('classroom_id', classroomId)
+
     // Get submission stats for each assignment
     const assignmentsWithStats = await Promise.all(
       (assignments || []).map(async (assignment) => {
-        // Count total students in classroom
-        const { count: totalStudents } = await supabase
-          .from('classroom_enrollments')
-          .select('*', { count: 'exact', head: true })
-          .eq('classroom_id', classroomId)
-
         // Count submitted docs
         const { data: docs } = await supabase
           .from('assignment_docs')
@@ -150,6 +151,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Create assignment
+    const { data: lastAssignment } = await supabase
+      .from('assignments')
+      .select('position')
+      .eq('classroom_id', classroom_id)
+      .order('position', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const nextPosition = typeof lastAssignment?.position === 'number' ? lastAssignment.position + 1 : 0
+
     const { data: assignment, error } = await supabase
       .from('assignments')
       .insert({
@@ -157,6 +168,7 @@ export async function POST(request: NextRequest) {
         title: title.trim(),
         description: description || '',
         due_at,
+        position: nextPosition,
         created_by: user.id
       })
       .select()
