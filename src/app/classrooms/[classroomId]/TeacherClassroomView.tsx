@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState, useEffect, FormEvent } from 'react'
+import { useCallback, useMemo, useRef, useState, useEffect, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
@@ -13,6 +13,7 @@ import {
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
+import { ChevronDownIcon, TrashIcon } from '@heroicons/react/24/outline'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -26,7 +27,7 @@ interface StudentSubmissionRow {
   student_first_name: string | null
   student_last_name: string | null
   status: AssignmentStatus
-  doc: { submitted_at?: string | null } | null
+  doc: { submitted_at?: string | null; updated_at?: string | null } | null
 }
 
 interface Props {
@@ -60,6 +61,7 @@ function formatTorontoDateTime(iso: string) {
 
 export function TeacherClassroomView({ classroom }: Props) {
   const router = useRouter()
+  const selectorRef = useRef<HTMLDivElement | null>(null)
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [showNewForm, setShowNewForm] = useState(false)
@@ -147,6 +149,25 @@ export function TeacherClassroomView({ classroom }: Props) {
     loadSelectedAssignment()
   }, [selection])
 
+  useEffect(() => {
+    if (!isSelectorOpen) return
+    function handleMouseDown(e: MouseEvent) {
+      if (!selectorRef.current) return
+      if (e.target instanceof Node && !selectorRef.current.contains(e.target)) {
+        setIsSelectorOpen(false)
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setIsSelectorOpen(false)
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isSelectorOpen])
+
   async function handleCreateAssignment(e: FormEvent) {
     e.preventDefault()
     setError('')
@@ -192,7 +213,7 @@ export function TeacherClassroomView({ classroom }: Props) {
   }
 
   const selectorLabel = useMemo(() => {
-    if (selection.mode === 'summary') return 'Summary'
+    if (selection.mode === 'summary') return 'Assignments'
     const found = assignments.find((a) => a.id === selection.assignmentId)
     return found?.title || 'Assignment'
   }, [assignments, selection])
@@ -202,15 +223,19 @@ export function TeacherClassroomView({ classroom }: Props) {
     const dir = sortDirection === 'asc' ? 1 : -1
     const rows = [...selectedAssignmentData.students]
     rows.sort((a, b) => {
-      const fieldA =
-        sortColumn === 'first'
-          ? a.student_first_name || a.student_email
-          : a.student_last_name || a.student_email
-      const fieldB =
-        sortColumn === 'first'
-          ? b.student_first_name || b.student_email
-          : b.student_last_name || b.student_email
-      return fieldA.localeCompare(fieldB) * dir
+      const primaryA = sortColumn === 'first' ? a.student_first_name : a.student_last_name
+      const primaryB = sortColumn === 'first' ? b.student_first_name : b.student_last_name
+
+      const missingA = primaryA ? 0 : 1
+      const missingB = primaryB ? 0 : 1
+      if (missingA !== missingB) return (missingA - missingB) * dir
+
+      const valueA = (primaryA || '').trim()
+      const valueB = (primaryB || '').trim()
+      const cmp = valueA.localeCompare(valueB)
+      if (cmp !== 0) return cmp * dir
+
+      return a.student_email.localeCompare(b.student_email) * dir
     })
     return rows
   }, [selectedAssignmentData, sortColumn, sortDirection])
@@ -248,14 +273,15 @@ export function TeacherClassroomView({ classroom }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative">
+        <div className="relative" ref={selectorRef}>
           <button
             type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800"
+            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 inline-flex items-center gap-2"
             onClick={() => setIsSelectorOpen((prev) => !prev)}
             aria-label="Select assignment view"
           >
-            {selectorLabel}
+            <span className="truncate max-w-[16rem]">{selectorLabel}</span>
+            <ChevronDownIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
           </button>
           {isSelectorOpen && (
             <div className="absolute z-10 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden">
@@ -264,7 +290,7 @@ export function TeacherClassroomView({ classroom }: Props) {
                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
                 onClick={() => setSelectionAndPersist({ mode: 'summary' })}
               >
-                Summary
+                Assignments
               </button>
               <div className="max-h-72 overflow-auto">
                 {assignments.map((a) => (
@@ -356,7 +382,7 @@ export function TeacherClassroomView({ classroom }: Props) {
       )}
 
       {selection.mode === 'summary' ? (
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+        <div>
           {loading ? (
             <div className="flex justify-center py-8">
               <Spinner />
@@ -387,17 +413,17 @@ export function TeacherClassroomView({ classroom }: Props) {
                       </p>
                     </div>
                     <div className="flex-shrink-0">
-                      <Button
+                      <button
                         type="button"
-                        variant="danger"
-                        size="sm"
                         onClick={(e) => {
                           e.preventDefault()
                           setPendingDelete({ id: assignment.id, title: assignment.title })
                         }}
+                        className="p-2 rounded-md text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-200 dark:hover:bg-red-900/20"
+                        aria-label={`Delete ${assignment.title}`}
                       >
-                        Delete
-                      </Button>
+                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                      </button>
                     </div>
                   </div>
                 </Link>
@@ -450,6 +476,9 @@ export function TeacherClassroomView({ classroom }: Props) {
                       <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                         Submitted
                       </th>
+                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Last updated
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -477,11 +506,14 @@ export function TeacherClassroomView({ classroom }: Props) {
                         <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                           {student.doc?.submitted_at ? formatTorontoDateTime(student.doc.submitted_at) : '—'}
                         </td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                          {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
+                        </td>
                       </tr>
                     ))}
                     {sortedStudents.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                           No students enrolled
                         </td>
                       </tr>
