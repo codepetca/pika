@@ -7,6 +7,7 @@ import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Input } from '@/components/Input'
 import { Spinner } from '@/components/Spinner'
+import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
 import { formatDueDate } from '@/lib/assignments'
 import {
   getAssignmentStatusBadgeClass,
@@ -80,6 +81,7 @@ export function TeacherClassroomView({ classroom }: Props) {
 
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
 
   // New assignment form state
   const [title, setTitle] = useState('')
@@ -486,11 +488,7 @@ export function TeacherClassroomView({ classroom }: Props) {
                       <tr
                         key={student.student_id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                        onClick={() =>
-                          router.push(
-                            `/classrooms/${classroom.id}/assignments/${selectedAssignmentData.assignment.id}/students/${student.student_id}`
-                          )
-                        }
+                        onClick={() => setSelectedStudentId(student.student_id)}
                       >
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                           {student.student_first_name ?? '—'}
@@ -538,6 +536,15 @@ export function TeacherClassroomView({ classroom }: Props) {
         onCancel={() => (isDeleting ? null : setPendingDelete(null))}
         onConfirm={deleteAssignment}
       />
+
+      {selection.mode === 'assignment' && selectedAssignmentData?.assignment?.id && selectedStudentId && (
+        <TeacherStudentWorkModal
+          isOpen={true}
+          assignmentId={selectedAssignmentData.assignment.id}
+          studentId={selectedStudentId}
+          onClose={() => setSelectedStudentId(null)}
+        />
+      )}
     </div>
   )
 }
