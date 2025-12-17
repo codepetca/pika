@@ -61,7 +61,6 @@ export function LoginClient() {
           <Input
             label="School Email"
             type="email"
-            placeholder="number@gapps.yrdsb.ca"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -72,7 +71,6 @@ export function LoginClient() {
           <Input
             label="Password"
             type="password"
-            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
