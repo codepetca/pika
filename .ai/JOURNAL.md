@@ -959,3 +959,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 16:40 [AI - Codex]
+**Goal:** Drop the placeholder data row from the CSV preview so only the column headers display.
+**Completed:** Replaced the grid with a single header row rendered via `flex`/`divide-x`, removing all sample student values.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
