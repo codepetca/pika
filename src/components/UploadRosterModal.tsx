@@ -92,7 +92,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 />
               </div>
               <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200">
-                <div className="grid grid-cols-[110px_90px_110px_minmax(0,1fr)] gap-px text-center">
+                <div className="grid grid-cols-[110px_90px_110px_minmax(0,1fr)] gap-y-px gap-x-0 text-center">
                   <span className="bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">Student Number</span>
                   <span className="bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">First Name</span>
                   <span className="bg-gray-100 dark:bg-gray-800 px-0 py-1 font-semibold">Last Name</span>

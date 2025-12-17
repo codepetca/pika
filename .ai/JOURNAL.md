@@ -949,3 +949,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 16:33 [AI - Codex]
+**Goal:** Remove any remaining horizontal padding from the sample preview headers so the CSV snippet touches each divider cleanly.
+**Completed:** Replaced the `gap-px` setting with `gap-y-px gap-x-0`, keeping vertical grid lines while eliminating horizontal gaps, and ensured every header/value still uses `px-0`.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
