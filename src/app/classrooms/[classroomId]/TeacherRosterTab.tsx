@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Button } from '@/components/Button'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import type { Classroom } from '@/types'
 import { CheckIcon, TrashIcon } from '@heroicons/react/24/outline'
@@ -48,6 +49,12 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [roster, setRoster] = useState<RosterRow[]>([])
   const [error, setError] = useState<string>('')
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    rosterId: string
+    email: string
+    joined: boolean
+  } | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
 
   const sortedRoster = useMemo(() => {
     return [...roster].sort((a, b) => a.email.localeCompare(b.email))
@@ -87,26 +94,25 @@ export function TeacherRosterTab({ classroom }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom.id])
 
-  async function removeStudent(rosterId: string, email: string, joined: boolean) {
+  async function confirmRemoveStudent() {
+    if (!pendingRemoval) return
+    setIsRemoving(true)
     setError('')
-    const ok = window.confirm(
-      joined
-        ? `Remove ${email} from this classroom?\n\nThey are currently joined. This will delete their classroom data (logs and assignment docs).`
-        : `Remove ${email} from this classroom roster?\n\nThey are not joined yet.`
-    )
-    if (!ok) return
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${rosterId}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${pendingRemoval.rosterId}`, {
         method: 'DELETE',
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         throw new Error(data.error || 'Failed to remove student')
       }
+      setPendingRemoval(null)
       await loadRoster()
     } catch (err: any) {
       setError(err.message || 'Failed to remove student')
+    } finally {
+      setIsRemoving(false)
     }
   }
 
@@ -178,7 +184,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   <button
                     type="button"
                     className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
-                    onClick={() => removeStudent(row.id, row.email, row.joined)}
+                    onClick={() => setPendingRemoval({ rosterId: row.id, email: row.email, joined: row.joined })}
                     aria-label={`Remove ${row.email}`}
                   >
                     <TrashIcon className="h-5 w-5" aria-hidden="true" />
@@ -205,6 +211,25 @@ export function TeacherRosterTab({ classroom }: Props) {
         onClose={() => setUploadModalOpen(false)}
         classroomId={classroom.id}
         onSuccess={loadRoster}
+      />
+
+      <ConfirmDialog
+        isOpen={!!pendingRemoval}
+        title="Remove student?"
+        description={
+          pendingRemoval
+            ? pendingRemoval.joined
+              ? `${pendingRemoval.email}\n\nThey are currently joined. This will delete their classroom data (logs and assignment docs).`
+              : `${pendingRemoval.email}\n\nThey are not joined yet.`
+            : undefined
+        }
+        confirmLabel={isRemoving ? 'Removing...' : 'Remove'}
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        isCancelDisabled={isRemoving}
+        isConfirmDisabled={isRemoving}
+        onCancel={() => (isRemoving ? null : setPendingRemoval(null))}
+        onConfirm={confirmRemoveStudent}
       />
     </div>
   )
