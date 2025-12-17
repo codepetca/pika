@@ -67,7 +67,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full p-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Upload Roster</h2>
 
         {!result ? (

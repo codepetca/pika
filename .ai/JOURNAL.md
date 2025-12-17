@@ -939,3 +939,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 16:27 [AI - Codex]
+**Goal:** Give the roster upload modal a bit more width so the preview table never feels cramped.
+**Completed:** Increased the modal’s `max-w` to `lg` while keeping it centered and padded to accommodate the preview grid without horizontal scrolling.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
