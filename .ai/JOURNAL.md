@@ -899,3 +899,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 09:26 [AI - Codex]
+**Goal:** Wrap up teacher UI work by sharing the shared picker, table logs, and compact rows updates
+**Completed:** Added `DateActionBar`, refactored attendance/logs to use it, rebuilt the logs view as a sortable table with expandable rows and blank summaries when missing, tightened row padding, and removed the summary sorting/Entry column per the latest polish; branch pushed as `ui-ux-fixes-for-teacher` with PR ready for merge
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DateActionBar.tsx`, `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/app/api/teacher/logs/route.ts`, `.ai/JOURNAL.md`
+**Next:** None
+**Blockers:** None
+---

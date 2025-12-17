@@ -84,8 +84,8 @@ export function TeacherLogsTab({ classroom }: Props) {
 
   const sortedRows = useMemo(() => {
     return [...logs].sort((a, b) => {
-      const aVal = a[sortColumn] || ''
-      const bVal = b[sortColumn] || ''
+      const aVal = a[sortColumn] ?? ''
+      const bVal = b[sortColumn] ?? ''
       const comparison = aVal.localeCompare(bVal)
       return sortDirection === 'asc' ? comparison : -comparison
     })
@@ -184,9 +184,9 @@ export function TeacherLogsTab({ classroom }: Props) {
               >
                 Last Name {getSortIndicator('student_last_name')}
               </th>
-          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 dark:text-gray-400">
-            Log Summary
-          </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 dark:text-gray-400">
+                Log Summary
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
@@ -210,14 +210,10 @@ export function TeacherLogsTab({ classroom }: Props) {
                           {summaryText}
                         </div>
                       </td>
-                      
                     </tr>
                     {expanded.has(row.student_id) && row.entry && (
                       <tr className="bg-gray-50 dark:bg-gray-900">
                         <td colSpan={3} className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                          <div className="font-medium text-gray-700 dark:text-gray-200 mb-2">
-                            Entry Details
-                          </div>
                           <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                             {row.entry.text}
                           </p>
@@ -229,7 +225,7 @@ export function TeacherLogsTab({ classroom }: Props) {
               })
             ) : (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                <td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                   No class on this day
                 </td>
               </tr>
