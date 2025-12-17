@@ -192,6 +192,10 @@ export function TeacherCalendarTab({ classroom }: Props) {
                 <div className="w-5 h-5 bg-gray-50 dark:bg-gray-800 rounded"></div>
                 <span>Non-Class Day</span>
               </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/60 rounded"></div>
+                <span>Past Class Day</span>
+              </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">
                 Click on date to toggle class days
               </div>
