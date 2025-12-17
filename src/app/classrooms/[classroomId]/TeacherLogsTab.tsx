@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { format, parseISO } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
-import { PageHeader } from '@/components/PageHeader'
 import { StudentRow } from '@/components/StudentRow'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -120,69 +119,65 @@ export function TeacherLogsTab({ classroom }: Props) {
 
   return (
     <div>
-      <PageHeader
-        title="Logs"
-        subtitle={isClassDay ? `Showing ${selectedDate}` : `No class on ${selectedDate}`}
-        action={
-          <div className="flex w-full flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2">
+      <div className="mb-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className={navButtonClasses}
+              onClick={() => moveDateBy(-1)}
+            >
+              ←
+            </button>
+
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="sr-only"
+              tabIndex={-1}
+            />
+
+            <button
+              type="button"
+              className={navButtonClasses}
+              onClick={() => dateInputRef.current?.showPicker()}
+            >
+              {formattedDate || 'Select date'}
+            </button>
+
+            <button
+              type="button"
+              className={navButtonClasses}
+              onClick={() => moveDateBy(1)}
+            >
+              →
+            </button>
+          </div>
+
+          {isClassDay && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                className={navButtonClasses}
-                onClick={() => moveDateBy(-1)}
+                className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
+                onClick={expandAll}
+                disabled={studentsWithLogs.length === 0}
               >
-                ←
+                Expand all
               </button>
-
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="sr-only"
-                tabIndex={-1}
-              />
-
               <button
                 type="button"
-                className={navButtonClasses}
-                onClick={() => dateInputRef.current?.showPicker()}
+                className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
+                onClick={collapseAll}
+                disabled={expanded.size === 0}
               >
-                {formattedDate || 'Select date'}
-              </button>
-
-              <button
-                type="button"
-                className={navButtonClasses}
-                onClick={() => moveDateBy(1)}
-              >
-                →
+                Collapse all
               </button>
             </div>
-
-            {isClassDay && (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-                  onClick={expandAll}
-                  disabled={studentsWithLogs.length === 0}
-                >
-                  Expand all
-                </button>
-                <button
-                  type="button"
-                  className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-                  onClick={collapseAll}
-                  disabled={expanded.size === 0}
-                >
-                  Collapse all
-                </button>
-              </div>
-            )}
-          </div>
-        }
-      />
+          )}
+        </div>
+      </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
         {(isClassDay ? logs : []).map((row) => {

@@ -799,3 +799,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 08:46 [AI - Codex]
+**Goal:** Remove redundant header labels and left-justify the Logs action bar
+**Completed:** Dropped the `PageHeader` title/subtitle in `TeacherLogsTab` and replaced it with the compact, left-aligned action bar that now matches the attendance picker group, keeping expand/collapse buttons immediately to the right without rightward justification
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`
+**Next:** None
+**Blockers:** None
+---
