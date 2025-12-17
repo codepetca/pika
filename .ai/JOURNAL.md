@@ -809,3 +809,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 08:58 [AI - Codex]
+**Goal:** Share the inline calendar picker between the attendance and Logs views
+**Completed:** Added `DateActionBar` (hidden native picker, compact arrows, styled buttons) and swapped both views to consume it with identical sizing; the Logs tab passes its expand/collapse controls as the component’s `rightActions` slot so the shared bar stays consistent
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DateActionBar.tsx`, `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`
+**Next:** None
+**Blockers:** None
+---

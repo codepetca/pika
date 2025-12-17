@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState, useRef } from 'react'
-import { format, parseISO } from 'date-fns'
+import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { StudentRow } from '@/components/StudentRow'
+import { DateActionBar } from '@/components/DateActionBar'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
@@ -22,7 +23,6 @@ export function TeacherAttendanceTab({ classroom }: Props) {
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [sortColumn, setSortColumn] = useState<SortColumn>('last_name')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
-  const dateInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function load() {
@@ -106,9 +106,6 @@ export function TeacherAttendanceTab({ classroom }: Props) {
     )
   }
 
-  const formattedDate = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : ''
-  const navButtonClasses =
-    'px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700'
 
   return (
     <div>
@@ -119,42 +116,12 @@ export function TeacherAttendanceTab({ classroom }: Props) {
             No class on {selectedDate}
           </p>
         )}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={navButtonClasses}
-            onClick={() => setSelectedDate(addDaysToDateString(selectedDate, -1))}
-          >
-            ←
-          </button>
-
-          {/* Hidden native date input */}
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="sr-only"
-            tabIndex={-1}
-          />
-
-          {/* Visible formatted date button */}
-          <button
-            type="button"
-            onClick={() => dateInputRef.current?.showPicker()}
-            className={navButtonClasses}
-          >
-            {formattedDate}
-          </button>
-
-          <button
-            type="button"
-            className={navButtonClasses}
-            onClick={() => setSelectedDate(addDaysToDateString(selectedDate, 1))}
-          >
-            →
-          </button>
-        </div>
+        <DateActionBar
+          value={selectedDate}
+          onChange={setSelectedDate}
+          onPrev={() => moveDateBy(-1)}
+          onNext={() => moveDateBy(1)}
+        />
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
