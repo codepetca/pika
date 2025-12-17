@@ -1,4 +1,4 @@
-'use client'
+ 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
@@ -121,10 +121,13 @@ export function TeacherRosterTab({ classroom }: Props) {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Button onClick={() => setUploadModalOpen(true)}>Upload CSV</Button>
-        <Button variant="secondary" onClick={loadRoster}>
-          Refresh
-        </Button>
+        <span className="sr-only">Roster actions</span>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={() => setUploadModalOpen(true)}>Upload CSV</Button>
+          <Button variant="secondary" onClick={loadRoster}>
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {error && (
