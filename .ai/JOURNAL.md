@@ -929,3 +929,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 16:19 [AI - Codex]
+**Goal:** Further simplify the upload roster UI so the preview and actions align without extra padding or labels.
+**Completed:** Removed the "Format" label, moved the sample CSV preview outside the dashed drop area, and stripped horizontal padding from the preview headers/values to keep everything tight in the dialog.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
