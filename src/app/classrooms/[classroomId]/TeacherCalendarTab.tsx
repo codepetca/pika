@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { PageHeader } from '@/components/PageHeader'
 import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -138,20 +137,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
 
   return (
     <div>
-      <PageHeader
-        title="Calendar"
-        subtitle="Define which dates are class days. Students can only log on class days. Past dates are locked."
-        action={
-          <button
-            type="button"
-            className="px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium"
-            onClick={load}
-          >
-            Refresh
-          </button>
-        }
-      />
-
+      
       {!isInitialized && (
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3 mb-4">
           <div className="flex flex-wrap items-end gap-2">
@@ -236,12 +222,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                         ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
                         : isClassDay
                           ? 'bg-green-100 dark:bg-green-900 text-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800'
-                          : classDay
-                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            : isWeekend
-                              ? 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                              : 'bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-800'
-
+                          : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                       return (
                         <button
                           key={dateString}
@@ -267,16 +248,8 @@ export function TeacherCalendarTab({ classroom }: Props) {
                 <span>Class Day</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                <span>Non-Class Day</span>
-              </div>
-              <div className="flex items-center space-x-2">
                 <div className="w-5 h-5 bg-gray-50 dark:bg-gray-800 rounded"></div>
-                <span>Weekend (default)</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-5 h-5 bg-red-50 dark:bg-red-900 rounded"></div>
-                <span>Holiday (default)</span>
+                <span>Non-Class Day</span>
               </div>
             </div>
           </div>
