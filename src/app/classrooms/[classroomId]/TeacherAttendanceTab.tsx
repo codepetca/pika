@@ -69,7 +69,6 @@ export function TeacherAttendanceTab({ classroom }: Props) {
       }
     })
 
-    // Sort by selected column
     return mappedRows.sort((a, b) => {
       let aVal = ''
       let bVal = ''
@@ -108,6 +107,8 @@ export function TeacherAttendanceTab({ classroom }: Props) {
   }
 
   const formattedDate = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : ''
+  const navButtonClasses =
+    'px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700'
 
   return (
     <div>
@@ -121,7 +122,7 @@ export function TeacherAttendanceTab({ classroom }: Props) {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="px-4 py-3 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-base font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className={navButtonClasses}
             onClick={() => setSelectedDate(addDaysToDateString(selectedDate, -1))}
           >
             ←
@@ -141,14 +142,14 @@ export function TeacherAttendanceTab({ classroom }: Props) {
           <button
             type="button"
             onClick={() => dateInputRef.current?.showPicker()}
-            className="px-4 py-3 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-base font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className={navButtonClasses}
           >
             {formattedDate}
           </button>
 
           <button
             type="button"
-            className="px-4 py-3 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-base font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className={navButtonClasses}
             onClick={() => setSelectedDate(addDaysToDateString(selectedDate, 1))}
           >
             →

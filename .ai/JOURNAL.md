@@ -748,6 +748,24 @@
 - Sort columns: 'first_name', 'last_name', 'email' with asc/desc toggle
 - Button consistency: All navigation buttons use px-4 py-3 text-base font-medium
 - Data flow: API fetches student_profiles → AttendanceRecord includes names → table displays sorted rows
+- Adjusted the teacher attendance date navigation controls to follow the compact sizing used elsewhere (smaller arrows and day picker action)
+- Added a shared `navButtonClasses` constant so all controls stay consistent and now honor the regular button size mandated by the UI guide
+**Status:** completed
+**Artifacts:**
+- Files Modified: src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx
+**Key Changes:**
+- Introduced `navButtonClasses` and applied it to the back/forward arrows, picker trigger, and “Yesterday” shortcut
+- Ensured the formatted date button no longer uses the oversized padding/font that previously made the controls feel imbalanced
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 08:29 [AI - Codex]
+**Goal:** Keep the teacher attendance calendar controls compact after the latest table layout landed
+**Completed:** Pulled the updated `main`, resolved the merge conflict in `TeacherAttendanceTab.tsx`, and switched the date picker and navigation arrows to reusable `navButtonClasses` so they now match the regular button size required by the UI guide without altering the new sortable table
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`
 **Next:** None
 **Blockers:** None
 ---
