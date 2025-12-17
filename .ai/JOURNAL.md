@@ -666,3 +666,30 @@
 **Next:** None
 **Blockers:** None
 ---
+
+---
+## 2025-12-17 [AI - Claude Sonnet 4.5]
+**Goal:** Improve classroom UX by making cards clickable and removing duplicate "New classroom" buttons
+**Completed:** 
+- Made entire classroom card clickable (removed separate "Open" button)
+- Removed "New classroom" button from classroom detail view
+- "New classroom" button now only appears on classrooms index page
+- Updated all E2E snapshot tests to work with new clickable card pattern
+- Regenerated 14 snapshots reflecting new cleaner UI
+**Status:** completed
+**Artifacts:**
+- Commits: f44c8e9, 38d702e (pushed to main)
+- Files Modified: 4 files (code), 15 files (snapshots)
+  * Modified: StudentClassroomsIndex.tsx, TeacherClassroomsIndex.tsx, [classroomId]/page.tsx
+  * Modified: e2e/ui-snapshots.spec.ts
+  * Regenerated: 14 snapshot images
+- Tests: All 31 E2E snapshot tests passing
+**Key Changes:**
+- Classroom cards now use button wrapper with full-width clickability
+- Hover states: bg-gray-50 dark:bg-gray-800 for better feedback
+- Removed CreateClassroomModal import/state from classroom detail page
+- Test selector pattern: `.locator('.bg-white.dark\\:bg-gray-900 button').first()`
+- Cleaner UI with larger hit area for navigation
+**Next:** None
+**Blockers:** None
+---
