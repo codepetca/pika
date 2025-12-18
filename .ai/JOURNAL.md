@@ -1050,6 +1050,16 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-18 09:15 [AI - Codex]
+**Goal:** Simplify the teacher classrooms index header.
+**Completed:** Removed the subtitle “Open a classroom to manage…” from the classrooms list header.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/TeacherClassroomsIndex.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
 ## 2025-12-17 17:05 [AI - Codex]
 **Goal:** Further brighten the dark-mode past class day styling and add an outline for the current date.
 **Completed:** Tuned the dark-mode background/text, set the legend swatch to an even lighter tint, and add a blue ring for today so it's highlighted without altering other modes.
