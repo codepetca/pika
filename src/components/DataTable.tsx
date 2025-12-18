@@ -116,7 +116,13 @@ export function SortableHeaderCell({
         ].join(' ')}
       >
         <span className="truncate">{label}</span>
-        {isActive ? <Icon className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" /> : null}
+        <Icon
+          className={[
+            'h-4 w-4 flex-shrink-0',
+            isActive ? 'text-gray-500 dark:text-gray-400' : 'opacity-0',
+          ].join(' ')}
+          aria-hidden="true"
+        />
       </button>
     </DataTableHeaderCell>
   )
