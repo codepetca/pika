@@ -7,7 +7,7 @@ export type DataTableDensity = 'compact' | 'normal'
 export type SortDirection = 'asc' | 'desc'
 
 function densityPadding(density: DataTableDensity) {
-  return density === 'compact' ? 'px-4 py-1' : 'px-4 py-3'
+  return density === 'compact' ? 'px-4 py-2' : 'px-4 py-3'
 }
 
 export function TableCard({

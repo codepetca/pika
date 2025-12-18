@@ -1020,6 +1020,16 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-18 08:54 [AI - Codex]
+**Goal:** Use a “normal compactness” for default table density.
+**Completed:** Increased the default compact padding so tables remain compact but not cramped (`py-2` vs `py-1`), keeping header and row heights aligned.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DataTable.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
 ## 2025-12-17 17:05 [AI - Codex]
 **Goal:** Further brighten the dark-mode past class day styling and add an outline for the current date.
 **Completed:** Tuned the dark-mode background/text, set the legend swatch to an even lighter tint, and add a blue ring for today so it's highlighted without altering other modes.
