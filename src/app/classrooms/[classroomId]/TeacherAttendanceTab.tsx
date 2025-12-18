@@ -8,6 +8,18 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { getAttendanceIcon } from '@/lib/attendance'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  EmptyStateRow,
+  SortableHeaderCell,
+  TableCard,
+} from '@/components/DataTable'
+import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 import type { AttendanceRecord, ClassDay, Classroom } from '@/types'
 
 interface Props {
@@ -21,8 +33,10 @@ export function TeacherAttendanceTab({ classroom }: Props) {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string>('')
-  const [sortColumn, setSortColumn] = useState<SortColumn>('last_name')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
+    column: SortColumn
+    direction: 'asc' | 'desc'
+  }>({ column: 'last_name', direction: 'asc' })
 
   useEffect(() => {
     async function load() {
@@ -70,32 +84,19 @@ export function TeacherAttendanceTab({ classroom }: Props) {
     })
 
     return mappedRows.sort((a, b) => {
-      let aVal = ''
-      let bVal = ''
-
       if (sortColumn === 'email') {
-        aVal = a.email_username
-        bVal = b.email_username
-      } else if (sortColumn === 'first_name') {
-        aVal = a.student_first_name
-        bVal = b.student_first_name
-      } else {
-        aVal = a.student_last_name
-        bVal = b.student_last_name
+        return applyDirection(a.email_username.localeCompare(b.email_username), sortDirection)
       }
-
-      const comparison = aVal.localeCompare(bVal)
-      return sortDirection === 'asc' ? comparison : -comparison
+      const aValue = sortColumn === 'first_name' ? a.student_first_name : a.student_last_name
+      const bValue = sortColumn === 'first_name' ? b.student_first_name : b.student_last_name
+      const cmp = compareNullableStrings(aValue, bValue, { missingLast: true })
+      if (cmp !== 0) return applyDirection(cmp, sortDirection)
+      return applyDirection(a.email_username.localeCompare(b.email_username), sortDirection)
     })
   }, [attendance, selectedDate, sortColumn, sortDirection])
 
   function handleSort(column: SortColumn) {
-    if (sortColumn === column) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortColumn(column)
-      setSortDirection('asc')
-    }
+    setSortState((prev) => toggleSort(prev, column))
   }
 
   function moveDateBy(deltaDays: number) {
@@ -116,86 +117,64 @@ export function TeacherAttendanceTab({ classroom }: Props) {
 
   return (
     <div>
-      <div className="mb-4">
-        <DateActionBar
-          value={selectedDate}
-          onChange={setSelectedDate}
-          onPrev={() => moveDateBy(-1)}
-          onNext={() => moveDateBy(1)}
-        />
-      </div>
-
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <tr>
-              <th
-                className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+      <TableCard
+        toolbar={
+          <DateActionBar
+            value={selectedDate}
+            onChange={setSelectedDate}
+            onPrev={() => moveDateBy(-1)}
+            onNext={() => moveDateBy(1)}
+          />
+        }
+      >
+        <DataTable>
+          <DataTableHead>
+            <DataTableRow>
+              <SortableHeaderCell
+                label="First Name"
+                isActive={sortColumn === 'first_name'}
+                direction={sortDirection}
                 onClick={() => handleSort('first_name')}
-              >
-                <div className="flex items-center gap-1">
-                  First Name
-                  {sortColumn === 'first_name' && (
-                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </div>
-              </th>
-              <th
-                className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                density="compact"
+              />
+              <SortableHeaderCell
+                label="Last Name"
+                isActive={sortColumn === 'last_name'}
+                direction={sortDirection}
                 onClick={() => handleSort('last_name')}
-              >
-                <div className="flex items-center gap-1">
-                  Last Name
-                  {sortColumn === 'last_name' && (
-                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </div>
-              </th>
-              <th
-                className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                density="compact"
+              />
+              <SortableHeaderCell
+                label="Email"
+                isActive={sortColumn === 'email'}
+                direction={sortDirection}
                 onClick={() => handleSort('email')}
-              >
-                <div className="flex items-center gap-1">
-                  Email
-                  {sortColumn === 'email' && (
-                    <span className="text-xs">{sortDirection === 'asc' ? '↑' : '↓'}</span>
-                  )}
-                </div>
-              </th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 dark:text-gray-300">
+                density="compact"
+              />
+              <DataTableHeaderCell density="compact" align="center">
                 Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              </DataTableHeaderCell>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
             {rows.map((row) => (
-              <tr key={row.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                <td className="px-4 py-1 text-sm text-gray-900 dark:text-gray-100">
-                  {row.student_first_name}
-                </td>
-                <td className="px-4 py-1 text-sm text-gray-900 dark:text-gray-100">
-                  {row.student_last_name}
-                </td>
-                <td className="px-4 py-1 text-sm text-gray-600 dark:text-gray-400">
+              <DataTableRow key={row.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <DataTableCell density="compact">{row.student_first_name}</DataTableCell>
+                <DataTableCell density="compact">{row.student_last_name}</DataTableCell>
+                <DataTableCell density="compact" className="text-gray-600 dark:text-gray-400">
                   {row.email_username}
-                </td>
-                <td className="px-4 py-1 text-center">
+                </DataTableCell>
+                <DataTableCell density="compact" align="center">
                   <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
                     {isClassDay ? getAttendanceIcon(row.status) : '—'}
                   </div>
-                </td>
-              </tr>
+                </DataTableCell>
+              </DataTableRow>
             ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={4} className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                  No students enrolled
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            {rows.length === 0 && <EmptyStateRow colSpan={4} message="No students enrolled" density="compact" />}
+          </DataTableBody>
+        </DataTable>
+      </TableCard>
     </div>
   )
 }

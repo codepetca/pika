@@ -1,12 +1,24 @@
- 'use client'
+'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableRow,
+  DataTableHeaderCell,
+  EmptyStateRow,
+  SortableHeaderCell,
+  TableCard,
+} from '@/components/DataTable'
 import type { Classroom } from '@/types'
 import { CheckIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 
 type Role = 'student' | 'teacher'
 
@@ -49,8 +61,10 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [roster, setRoster] = useState<RosterRow[]>([])
   const [error, setError] = useState<string>('')
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
-  const [sortColumn, setSortColumn] = useState<'first_name' | 'last_name'>('last_name')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
+    column: 'first_name' | 'last_name'
+    direction: 'asc' | 'desc'
+  }>({ column: 'last_name', direction: 'asc' })
   const [pendingRemoval, setPendingRemoval] = useState<{
     rosterId: string
     email: string
@@ -61,30 +75,20 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [isRemoving, setIsRemoving] = useState(false)
 
   const sortedRoster = useMemo(() => {
-    const dir = sortDirection === 'asc' ? 1 : -1
     const rows = [...roster]
     rows.sort((a, b) => {
-      const valueA = (sortColumn === 'first_name' ? a.first_name : a.last_name)?.trim() || ''
-      const valueB = (sortColumn === 'first_name' ? b.first_name : b.last_name)?.trim() || ''
+      const aValue = sortColumn === 'first_name' ? a.first_name : a.last_name
+      const bValue = sortColumn === 'first_name' ? b.first_name : b.last_name
+      const cmp = compareNullableStrings(aValue, bValue, { missingLast: true })
+      if (cmp !== 0) return applyDirection(cmp, sortDirection)
 
-      const missingA = valueA ? 0 : 1
-      const missingB = valueB ? 0 : 1
-      if (missingA !== missingB) return (missingA - missingB) * dir
-
-      const cmp = valueA.localeCompare(valueB)
-      if (cmp !== 0) return cmp * dir
-      return a.email.localeCompare(b.email) * dir
+      return applyDirection(a.email.localeCompare(b.email), sortDirection)
     })
     return rows
   }, [roster, sortColumn, sortDirection])
 
-  function toggleSort(column: 'first_name' | 'last_name') {
-    if (sortColumn !== column) {
-      setSortColumn(column)
-      setSortDirection('asc')
-      return
-    }
-    setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+  function onSort(column: 'first_name' | 'last_name') {
+    setSortState((prev) => toggleSort(prev, column))
   }
 
   async function loadRoster() {
@@ -153,65 +157,59 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <span className="sr-only">Roster actions</span>
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={() => setUploadModalOpen(true)}>Upload CSV</Button>
-          <Button variant="secondary" onClick={loadRoster}>
-            Refresh
-          </Button>
-        </div>
-      </div>
+      <TableCard
+        toolbar={
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="sr-only">Roster actions</span>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={() => setUploadModalOpen(true)}>Upload CSV</Button>
+              <Button variant="secondary" onClick={loadRoster}>
+                Refresh
+              </Button>
+            </div>
+          </div>
+        }
+      >
+            {error && (
+              <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+                  {error}
+                </div>
+              </div>
+            )}
 
-      {error && (
-        <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
-          {error}
-        </div>
-      )}
-
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                <button type="button" onClick={() => toggleSort('first_name')} className="hover:underline">
-                  First Name
-                </button>
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                <button type="button" onClick={() => toggleSort('last_name')} className="hover:underline">
-                  Last Name
-                </button>
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email
-              </th>
-              <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                Joined
-              </th>
-              <th className="px-4 py-3 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+        <DataTable>
+          <DataTableHead>
+            <DataTableRow>
+              <SortableHeaderCell
+                label="First Name"
+                isActive={sortColumn === 'first_name'}
+                direction={sortDirection}
+                onClick={() => onSort('first_name')}
+              />
+              <SortableHeaderCell
+                label="Last Name"
+                isActive={sortColumn === 'last_name'}
+                direction={sortDirection}
+                onClick={() => onSort('last_name')}
+              />
+              <DataTableHeaderCell>Email</DataTableHeaderCell>
+              <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
+              <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
             {sortedRoster.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                  {row.first_name ?? '—'}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                  {row.last_name ?? '—'}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                  {row.email}
-                </td>
-                <td className="px-4 py-3 text-center">
+              <DataTableRow key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
+                <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
+                <DataTableCell className="text-gray-600 dark:text-gray-400">{row.email}</DataTableCell>
+                <DataTableCell align="center">
                   {row.joined && (
                     <CheckIcon className="mx-auto h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />
                   )}
-                </td>
-                <td className="px-4 py-3 text-right">
+                </DataTableCell>
+                <DataTableCell align="right">
                   <button
                     type="button"
                     className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
@@ -228,22 +226,15 @@ export function TeacherRosterTab({ classroom }: Props) {
                   >
                     <TrashIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
-                </td>
-              </tr>
+                </DataTableCell>
+              </DataTableRow>
             ))}
             {sortedRoster.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="py-12 text-center text-sm text-gray-500 dark:text-gray-400"
-                >
-                  No students on the roster
-                </td>
-              </tr>
+              <EmptyStateRow colSpan={5} message="No students on the roster" />
             )}
-          </tbody>
-        </table>
-      </div>
+          </DataTableBody>
+        </DataTable>
+      </TableCard>
 
       <UploadRosterModal
         isOpen={isUploadModalOpen}
