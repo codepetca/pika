@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
+import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { format, parseISO } from 'date-fns'
@@ -94,40 +95,48 @@ export function StudentTodayTab({ classroom }: Props) {
   const formattedDate = today ? format(parseISO(today), 'EEE MMM d') : ''
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{formattedDate}</h2>
-      </div>
-
-      {!isClassDay ? (
-        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
-          <p className="text-gray-600 dark:text-gray-400">No class today</p>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              What did you do today?
-            </label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Write a short update..."
-              required
-              disabled={submitting}
-            />
+    <PageLayout>
+      <PageActionBar
+        primary={
+          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {formattedDate || 'Today'}
           </div>
+        }
+      />
 
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-          {success && <p className="text-sm text-green-600 dark:text-green-400">{success}</p>}
+      <PageContent>
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
+          {!isClassDay ? (
+            <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+              <p className="text-gray-600 dark:text-gray-400">No class today</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  What did you do today?
+                </label>
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Write a short update..."
+                  required
+                  disabled={submitting}
+                />
+              </div>
 
-          <Button type="submit" disabled={submitting || !text}>
-            {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
-          </Button>
-        </form>
-      )}
-    </div>
+              {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+              {success && <p className="text-sm text-green-600 dark:text-green-400">{success}</p>}
+
+              <Button type="submit" disabled={submitting || !text}>
+                {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
+              </Button>
+            </form>
+          )}
+        </div>
+      </PageContent>
+    </PageLayout>
   )
 }

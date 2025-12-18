@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Input } from '@/components/Input'
 import { Spinner } from '@/components/Spinner'
 import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
+import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import { formatDueDate } from '@/lib/assignments'
 import {
   getAssignmentStatusBadgeClass,
@@ -306,67 +307,81 @@ export function TeacherClassroomView({ classroom }: Props) {
     }
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative" ref={selectorRef}>
-          <button
-            type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 inline-flex items-center gap-2"
-            onClick={() => setIsSelectorOpen((prev) => !prev)}
-            aria-label="Select assignment view"
-          >
-            <span className="truncate max-w-[16rem]">{selectorLabel}</span>
-            <ChevronDownIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
-          </button>
-          {isSelectorOpen && (
-            <div className="absolute z-10 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden">
-              <button
-                type="button"
-                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
-                onClick={() => setSelectionAndPersist({ mode: 'summary' })}
-              >
-                Assignments
-              </button>
-              <div className="max-h-72 overflow-auto">
-                {assignments.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
-                    onClick={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: a.id })}
-                    title={a.title}
-                  >
-                    {a.title}
-                  </button>
-                ))}
-                {assignments.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No assignments</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+  const actionItems: ActionBarItem[] = useMemo(() => {
+    const items: ActionBarItem[] = []
 
-        <div className="flex items-center gap-2">
-          {selection.mode === 'assignment' && selectedAssignmentData && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => router.push(`/classrooms/${classroom.id}/assignments/${selectedAssignmentData.assignment.id}`)}
+    if (selection.mode === 'assignment') {
+      items.push({
+        id: 'open-assignment',
+        label: 'Open assignment',
+        onSelect: () => {
+          if (!selectedAssignmentData) return
+          router.push(`/classrooms/${classroom.id}/assignments/${selectedAssignmentData.assignment.id}`)
+        },
+        disabled: selectedAssignmentLoading || !selectedAssignmentData,
+      })
+    }
+
+    items.push({
+      id: 'toggle-new-assignment',
+      label: showNewForm ? 'Cancel' : '+ New Assignment',
+      onSelect: () => setShowNewForm((prev) => !prev),
+    })
+
+    return items
+  }, [classroom.id, router, selectedAssignmentData, selectedAssignmentLoading, selection.mode, showNewForm])
+
+  return (
+    <PageLayout>
+      <PageActionBar
+        primary={
+          <div className="relative" ref={selectorRef}>
+            <button
+              type="button"
+              className={[ACTIONBAR_BUTTON_CLASSNAME, 'inline-flex items-center gap-2 max-w-full'].join(' ')}
+              onClick={() => setIsSelectorOpen((prev) => !prev)}
+              aria-label="Select assignment view"
             >
-              Open assignment
-            </Button>
-          )}
-          <Button onClick={() => setShowNewForm(!showNewForm)} size="sm">
-            {showNewForm ? 'Cancel' : '+ New Assignment'}
-          </Button>
-        </div>
-      </div>
+              <span className="truncate max-w-[16rem]">{selectorLabel}</span>
+              <ChevronDownIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+            </button>
+            {isSelectorOpen && (
+              <div className="absolute z-10 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden">
+                <button
+                  type="button"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  onClick={() => setSelectionAndPersist({ mode: 'summary' })}
+                >
+                  Assignments
+                </button>
+                <div className="max-h-72 overflow-auto">
+                  {assignments.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      onClick={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: a.id })}
+                      title={a.title}
+                    >
+                      {a.title}
+                    </button>
+                  ))}
+                  {assignments.length === 0 && (
+                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No assignments</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        }
+        actions={actionItems}
+      />
+
+      <PageContent className="space-y-4">
 
       {/* New Assignment Form */}
       {showNewForm && (
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 mb-4">
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
           <form onSubmit={handleCreateAssignment} className="space-y-3 max-w-xl">
               <Input
                 label="Title"
@@ -561,6 +576,7 @@ export function TeacherClassroomView({ classroom }: Props) {
           onClose={() => setSelectedStudentId(null)}
         />
       )}
-    </div>
+      </PageContent>
+    </PageLayout>
   )
 }

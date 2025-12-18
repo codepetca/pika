@@ -7,6 +7,7 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import type { ClassDay, Classroom, Entry } from '@/types'
+import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   DataTable,
   DataTableBody,
@@ -141,85 +142,88 @@ export function TeacherLogsTab({ classroom }: Props) {
   }
 
   return (
-    <div>
-      <div className="pb-3">
-        <DateActionBar
-          value={selectedDate}
-          onChange={setSelectedDate}
-          onPrev={() => moveDateBy(-1)}
-          onNext={() => moveDateBy(1)}
-          rightActions={
-            isClassDay ? (
-              <button
-                type="button"
-                className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700"
-                onClick={() => (expanded.size === logs.length ? collapseAll() : expandAll())}
-                disabled={logs.length === 0}
-              >
-                {expanded.size === logs.length ? 'Collapse' : 'Expand'}
-              </button>
-            ) : null
-          }
-        />
-      </div>
+    <PageLayout>
+      <PageActionBar
+        primary={
+          <DateActionBar
+            value={selectedDate}
+            onChange={setSelectedDate}
+            onPrev={() => moveDateBy(-1)}
+            onNext={() => moveDateBy(1)}
+          />
+        }
+        actions={
+          isClassDay && logs.length > 0
+            ? [
+                {
+                  id: 'toggle-expand',
+                  label: expanded.size === logs.length ? 'Collapse' : 'Expand',
+                  onSelect: () => (expanded.size === logs.length ? collapseAll() : expandAll()),
+                },
+              ]
+            : []
+        }
+      />
 
-      <TableCard overflowX>
-        <DataTable>
-          <DataTableHead>
-            <DataTableRow>
-              <SortableHeaderCell
-                label="First Name"
-                isActive={sortColumn === 'student_first_name'}
-                direction={sortDirection}
-                onClick={() => onSort('student_first_name')}
-              />
-              <SortableHeaderCell
-                label="Last Name"
-                isActive={sortColumn === 'student_last_name'}
-                direction={sortDirection}
-                onClick={() => onSort('student_last_name')}
-              />
-              <DataTableHeaderCell>Log Summary</DataTableHeaderCell>
-            </DataTableRow>
-          </DataTableHead>
-          <DataTableBody>
-            {isClassDay &&
-              sortedRows.map(row => {
-                const summaryText = row.summary ?? row.entry?.text ?? ''
-                const isExpanded = expanded.has(row.student_id)
-                return (
-                  <Fragment key={row.student_id}>
-                    <DataTableRow
-                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                      onClick={() => toggle(row.student_id)}
-                    >
-                      <DataTableCell>{row.student_first_name || '—'}</DataTableCell>
-                      <DataTableCell>{row.student_last_name || '—'}</DataTableCell>
-                      <DataTableCell className="text-gray-700 dark:text-gray-300">
-                        <div className="truncate" title={summaryText}>
-                          {summaryText}
-                        </div>
-                      </DataTableCell>
-                    </DataTableRow>
-                    {isExpanded && row.entry && (
-                      <DataTableRow className="bg-white dark:bg-gray-900">
-                        <DataTableCell colSpan={3} className="text-gray-900 dark:text-gray-100">
-                          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                            {row.entry.text}
-                          </p>
+      <PageContent>
+        <TableCard overflowX>
+          <DataTable>
+            <DataTableHead>
+              <DataTableRow>
+                <SortableHeaderCell
+                  label="First Name"
+                  isActive={sortColumn === 'student_first_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('student_first_name')}
+                />
+                <SortableHeaderCell
+                  label="Last Name"
+                  isActive={sortColumn === 'student_last_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('student_last_name')}
+                />
+                <DataTableHeaderCell>Log Summary</DataTableHeaderCell>
+              </DataTableRow>
+            </DataTableHead>
+            <DataTableBody>
+              {isClassDay &&
+                sortedRows.map(row => {
+                  const summaryText = row.summary ?? row.entry?.text ?? ''
+                  const isExpanded = expanded.has(row.student_id)
+                  return (
+                    <Fragment key={row.student_id}>
+                      <DataTableRow
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                        onClick={() => toggle(row.student_id)}
+                      >
+                        <DataTableCell>{row.student_first_name || '—'}</DataTableCell>
+                        <DataTableCell>{row.student_last_name || '—'}</DataTableCell>
+                        <DataTableCell className="text-gray-700 dark:text-gray-300">
+                          <div className="truncate" title={summaryText}>
+                            {summaryText}
+                          </div>
                         </DataTableCell>
                       </DataTableRow>
-                    )}
-                  </Fragment>
-                )
-              })}
-            {isClassDay && sortedRows.length === 0 && (
-              <EmptyStateRow colSpan={3} message="No logs for this day" />
-            )}
-            {!isClassDay && <EmptyStateRow colSpan={3} message="Not a class day" />}
-          </DataTableBody>
-        </DataTable>
-      </TableCard>
-    </div>
+                      {isExpanded && row.entry && (
+                        <DataTableRow className="bg-white dark:bg-gray-900">
+                          <DataTableCell colSpan={3} className="text-gray-900 dark:text-gray-100">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                              {row.entry.text}
+                            </p>
+                          </DataTableCell>
+                        </DataTableRow>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              {isClassDay && sortedRows.length === 0 && (
+                <EmptyStateRow colSpan={3} message="No logs for this day" />
+              )}
+              {!isClassDay && <EmptyStateRow colSpan={3} message="Not a class day" />}
+            </DataTableBody>
+          </DataTable>
+        </TableCard>
+      </PageContent>
+    </PageLayout>
   )
 }

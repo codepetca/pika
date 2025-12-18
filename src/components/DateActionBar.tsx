@@ -3,6 +3,7 @@
 import { useRef } from 'react'
 import { format, parseISO } from 'date-fns'
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_ICON_BUTTON_CLASSNAME } from '@/components/PageLayout'
 
 interface DateActionBarProps {
   value: string
@@ -10,19 +11,17 @@ interface DateActionBarProps {
   onPrev: () => void
   onNext: () => void
   rightActions?: React.ReactNode
+  className?: string
 }
 
-export function DateActionBar({ value, onChange, onPrev, onNext, rightActions }: DateActionBarProps) {
+export function DateActionBar({ value, onChange, onPrev, onNext, rightActions, className = '' }: DateActionBarProps) {
   const dateInputRef = useRef<HTMLInputElement>(null)
   const formattedDate = value ? format(parseISO(value), 'EEE MMM d') : ''
-  const navButtonClasses =
-    'px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700'
-  const navIconButtonClasses = `${navButtonClasses} inline-flex items-center justify-center`
 
   return (
-    <div className="flex w-full flex-wrap items-center justify-between gap-4">
+    <div className={['flex w-full flex-wrap items-center justify-between gap-4', className].join(' ')}>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={navIconButtonClasses} onClick={onPrev} aria-label="Previous day">
+        <button type="button" className={ACTIONBAR_ICON_BUTTON_CLASSNAME} onClick={onPrev} aria-label="Previous day">
           <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
         </button>
 
@@ -37,13 +36,13 @@ export function DateActionBar({ value, onChange, onPrev, onNext, rightActions }:
 
         <button
           type="button"
-          className={navButtonClasses}
+          className={ACTIONBAR_BUTTON_CLASSNAME}
           onClick={() => dateInputRef.current?.showPicker()}
         >
           {formattedDate || 'Select date'}
         </button>
 
-        <button type="button" className={navIconButtonClasses} onClick={onNext} aria-label="Next day">
+        <button type="button" className={ACTIONBAR_ICON_BUTTON_CLASSNAME} onClick={onNext} aria-label="Next day">
           <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>

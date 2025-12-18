@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
+import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   DataTable,
   DataTableBody,
@@ -156,85 +156,90 @@ export function TeacherRosterTab({ classroom }: Props) {
   }
 
   return (
-    <div>
-      <div className="pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="sr-only">Roster actions</span>
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={() => setUploadModalOpen(true)}>Upload CSV</Button>
-            <Button variant="secondary" onClick={loadRoster}>
-              Refresh
-            </Button>
-          </div>
-        </div>
-      </div>
+    <PageLayout>
+      <PageActionBar
+        primary={
+          <button type="button" className={ACTIONBAR_BUTTON_CLASSNAME} onClick={() => setUploadModalOpen(true)}>
+            Upload CSV
+          </button>
+        }
+        actions={[
+          {
+            id: 'refresh',
+            label: 'Refresh',
+            onSelect: loadRoster,
+          },
+        ]}
+      />
 
-      <TableCard>
-        {error && (
-          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
-              {error}
+      <PageContent>
+        <TableCard>
+          {error && (
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+                {error}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <DataTable>
-          <DataTableHead>
-            <DataTableRow>
-              <SortableHeaderCell
-                label="First Name"
-                isActive={sortColumn === 'first_name'}
-                direction={sortDirection}
-                onClick={() => onSort('first_name')}
-              />
-              <SortableHeaderCell
-                label="Last Name"
-                isActive={sortColumn === 'last_name'}
-                direction={sortDirection}
-                onClick={() => onSort('last_name')}
-              />
-              <DataTableHeaderCell>Email</DataTableHeaderCell>
-              <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
-              <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
-            </DataTableRow>
-          </DataTableHead>
-          <DataTableBody>
-            {sortedRoster.map((row) => (
-              <DataTableRow key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
-                <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
-                <DataTableCell className="text-gray-600 dark:text-gray-400">{row.email}</DataTableCell>
-                <DataTableCell align="center">
-                  {row.joined && (
-                    <CheckIcon className="mx-auto h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />
-                  )}
-                </DataTableCell>
-                <DataTableCell align="right">
-                  <button
-                    type="button"
-                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
-                    onClick={() =>
-                      setPendingRemoval({
-                        rosterId: row.id,
-                        email: row.email,
-                        firstName: row.first_name,
-                        lastName: row.last_name,
-                        joined: row.joined,
-                      })
-                    }
-                    aria-label={`Remove ${row.email}`}
-                  >
-                    <TrashIcon className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                </DataTableCell>
+          <DataTable>
+            <DataTableHead>
+              <DataTableRow>
+                <SortableHeaderCell
+                  label="First Name"
+                  isActive={sortColumn === 'first_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('first_name')}
+                />
+                <SortableHeaderCell
+                  label="Last Name"
+                  isActive={sortColumn === 'last_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('last_name')}
+                />
+                <DataTableHeaderCell>Email</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
+                <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
               </DataTableRow>
-            ))}
-            {sortedRoster.length === 0 && (
-              <EmptyStateRow colSpan={5} message="No students on the roster" />
-            )}
-          </DataTableBody>
-        </DataTable>
-      </TableCard>
+            </DataTableHead>
+            <DataTableBody>
+              {sortedRoster.map((row) => (
+                <DataTableRow key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
+                  <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
+                  <DataTableCell className="text-gray-600 dark:text-gray-400">{row.email}</DataTableCell>
+                  <DataTableCell align="center">
+                    {row.joined && (
+                      <CheckIcon className="mx-auto h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />
+                    )}
+                  </DataTableCell>
+                  <DataTableCell align="right">
+                    <button
+                      type="button"
+                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
+                      onClick={() =>
+                        setPendingRemoval({
+                          rosterId: row.id,
+                          email: row.email,
+                          firstName: row.first_name,
+                          lastName: row.last_name,
+                          joined: row.joined,
+                        })
+                      }
+                      aria-label={`Remove ${row.email}`}
+                    >
+                      <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </DataTableCell>
+                </DataTableRow>
+              ))}
+              {sortedRoster.length === 0 && (
+                <EmptyStateRow colSpan={5} message="No students on the roster" />
+              )}
+            </DataTableBody>
+          </DataTable>
+        </TableCard>
+      </PageContent>
 
       <UploadRosterModal
         isOpen={isUploadModalOpen}
@@ -267,6 +272,6 @@ export function TeacherRosterTab({ classroom }: Props) {
         onCancel={() => (isRemoving ? null : setPendingRemoval(null))}
         onConfirm={confirmRemoveStudent}
       />
-    </div>
+    </PageLayout>
   )
 }
