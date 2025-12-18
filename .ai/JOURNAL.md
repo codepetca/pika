@@ -1030,6 +1030,16 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-18 09:00 [AI - Codex]
+**Goal:** Use Heroicons chevrons for date navigation in teacher Attendance/Logs.
+**Completed:** Replaced the `←/→` characters in `DateActionBar` with `ChevronLeftIcon` / `ChevronRightIcon` buttons with accessible labels.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DateActionBar.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
 ## 2025-12-17 17:05 [AI - Codex]
 **Goal:** Further brighten the dark-mode past class day styling and add an outline for the current date.
 **Completed:** Tuned the dark-mode background/text, set the legend swatch to an even lighter tint, and add a blue ring for today so it's highlighted without altering other modes.
