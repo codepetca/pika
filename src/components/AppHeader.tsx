@@ -51,7 +51,7 @@ export function AppHeader({
       )}
 
       {/* Logo - click to return to classrooms index */}
-      <Link href="/classrooms" className="flex-shrink-0">
+      <Link href="/classrooms" aria-label="Home" title="Home" className="flex-shrink-0">
         <PikaLogo className="w-8 h-8" />
       </Link>
 
