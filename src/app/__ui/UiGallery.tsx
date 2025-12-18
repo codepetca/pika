@@ -64,7 +64,6 @@ export function UiGallery({ role }: Props) {
       title: c.title,
       links: [
         { label: 'Today', href: `/classrooms/${c.id}?tab=today` },
-        { label: 'History', href: `/classrooms/${c.id}?tab=history` },
         { label: 'Assignments', href: `/classrooms/${c.id}?tab=assignments` },
       ],
     }))
@@ -144,4 +143,3 @@ export function UiGallery({ role }: Props) {
     </div>
   )
 }
-

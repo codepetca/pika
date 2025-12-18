@@ -13,6 +13,26 @@
 **Entry format:**
 ```markdown
 ---
+---
+## 2025-12-18 10:16 [AI - Codex]
+**Goal:** Remove the student History tab from the classroom dashboard/sidebar
+**Completed:** Removed the student “History” nav item and disallowed `?tab=history` for students (falls back to Today); removed the UI gallery link to the classroom history tab and updated the Today history component test to match the non-clickable list rows
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/ClassroomSidebar.tsx`, `src/app/classrooms/[classroomId]/page.tsx`, `src/app/__ui/UiGallery.tsx`, `tests/components/StudentTodayTabHistory.test.tsx`, `.ai/JOURNAL.md`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 08:42 [AI - Codex]
+**Goal:** Add a compact History section beneath Student Today without changing the core Today form
+**Completed:** Added a rounded History card under the Today card with a chevron text-toggle (cookie-persisted), session-cached fetching of the latest 10 entries (no extra requests on toggle), and entry rows with `Tue Dec 16` date badges + 🟢/🔴 status and ~150-char previews; extended `/api/student/entries` to support an optional `limit` param and added unit + component tests for cookie/session caching and toggle behavior
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/StudentTodayTab.tsx`, `src/app/api/student/entries/route.ts`, `src/lib/client-storage.ts`, `src/lib/student-entry-history.ts`, `tests/components/StudentTodayTabHistory.test.tsx`, `tests/unit/client-storage.test.ts`, `tests/unit/student-entry-history.test.ts`, `.ai/JOURNAL.md`
+**Next:** None
+**Blockers:** None
+---
 ## YYYY-MM-DD HH:MM [ACTOR]
 **Goal:** What you intended to do
 **Completed:** What actually changed

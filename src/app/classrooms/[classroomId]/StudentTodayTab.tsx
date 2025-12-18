@@ -6,6 +6,18 @@ import { Spinner } from '@/components/Spinner'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { format, parseISO } from 'date-fns'
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
+import {
+  readBooleanCookie,
+  safeSessionGetJson,
+  safeSessionSetJson,
+  writeCookie,
+} from '@/lib/client-storage'
+import {
+  getEntryPreview,
+  getStudentEntryHistoryCacheKey,
+  upsertEntryIntoHistory,
+} from '@/lib/student-entry-history'
 import type { Classroom, ClassDay, Entry } from '@/types'
 
 interface Props {
@@ -13,11 +25,17 @@ interface Props {
 }
 
 export function StudentTodayTab({ classroom }: Props) {
+  const historyLimit = 5
+  const historyCookieName = 'pika_student_today_history'
   const [loading, setLoading] = useState(true)
   const [today, setToday] = useState('')
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [existingEntry, setExistingEntry] = useState<Entry | null>(null)
   const [text, setText] = useState('')
+  const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
+  const [historyVisible, setHistoryVisible] = useState<boolean>(() =>
+    readBooleanCookie(historyCookieName, true)
+  )
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
@@ -29,16 +47,39 @@ export function StudentTodayTab({ classroom }: Props) {
         const todayDate = getTodayInToronto()
         setToday(todayDate)
 
-        const classDayRes = await fetch(`/api/classrooms/${classroom.id}/class-days`)
-        const classDayData = await classDayRes.json()
-        setClassDays(classDayData.class_days || [])
+        const historyCacheKey = getStudentEntryHistoryCacheKey({
+          classroomId: classroom.id,
+          limit: historyLimit,
+        })
+        const cached = safeSessionGetJson<Entry[]>(historyCacheKey)
 
-        const entriesRes = await fetch(`/api/student/entries?classroom_id=${classroom.id}`)
-        const entriesData = await entriesRes.json()
-        const todayEntry = (entriesData.entries || []).find((e: Entry) => e.date === todayDate) || null
+        const classDayPromise = fetch(`/api/classrooms/${classroom.id}/class-days`)
+          .then(r => r.json())
+          .then(data => setClassDays(data.class_days || []))
 
-        setExistingEntry(todayEntry)
-        setText(todayEntry?.text || '')
+        if (Array.isArray(cached)) {
+          setHistoryEntries(cached)
+          const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
+          setExistingEntry(todayEntry)
+          setText(todayEntry?.text || '')
+          await classDayPromise
+          return
+        }
+
+        const entriesPromise = fetch(
+          `/api/student/entries?classroom_id=${classroom.id}&limit=${historyLimit}`
+        )
+          .then(r => r.json())
+          .then(data => {
+            const entries: Entry[] = data.entries || []
+            setHistoryEntries(entries)
+            safeSessionSetJson(historyCacheKey, entries)
+            const todayEntry = entries.find((e: Entry) => e.date === todayDate) || null
+            setExistingEntry(todayEntry)
+            setText(todayEntry?.text || '')
+          })
+
+        await Promise.all([classDayPromise, entriesPromise])
       } catch (err) {
         console.error('Error loading today tab:', err)
       } finally {
@@ -49,6 +90,11 @@ export function StudentTodayTab({ classroom }: Props) {
   }, [classroom.id])
 
   const isClassDay = today ? isClassDayOnDate(classDays, today) : true
+
+  function setHistoryVisibility(next: boolean) {
+    setHistoryVisible(next)
+    writeCookie(historyCookieName, next ? '1' : '0')
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -74,6 +120,17 @@ export function StudentTodayTab({ classroom }: Props) {
       }
 
       setExistingEntry(data.entry)
+      setHistoryEntries(prev => {
+        const next = upsertEntryIntoHistory(prev, data.entry, historyLimit)
+        safeSessionSetJson(
+          getStudentEntryHistoryCacheKey({
+            classroomId: classroom.id,
+            limit: historyLimit,
+          }),
+          next
+        )
+        return next
+      })
       setSuccess('Entry saved!')
       setTimeout(() => setSuccess(''), 2000)
     } catch (err: any) {
@@ -92,42 +149,101 @@ export function StudentTodayTab({ classroom }: Props) {
   }
 
   const formattedDate = today ? format(parseISO(today), 'EEE MMM d') : ''
+  const historyListId = `student-today-history-${classroom.id}`
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{formattedDate}</h2>
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{formattedDate}</h2>
+        </div>
+
+        {!isClassDay ? (
+          <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+            <p className="text-gray-600 dark:text-gray-400">No class today</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                What did you do today?
+              </label>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Write a short update..."
+                required
+                disabled={submitting}
+              />
+            </div>
+
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {success && (
+              <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+            )}
+
+            <Button type="submit" disabled={submitting || !text}>
+              {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
+            </Button>
+          </form>
+        )}
       </div>
 
-      {!isClassDay ? (
-        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
-          <p className="text-gray-600 dark:text-gray-400">No class today</p>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              What did you do today?
-            </label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Write a short update..."
-              required
-              disabled={submitting}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+            History
+          </h3>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+            aria-expanded={historyVisible}
+            aria-controls={historyListId}
+            onClick={() => setHistoryVisibility(!historyVisible)}
+          >
+            {historyVisible ? 'Hide history' : 'Show history'}
+            <ChevronDownIcon
+              className={[
+                'h-4 w-4 transition-transform',
+                historyVisible ? '-rotate-180' : 'rotate-0',
+              ].join(' ')}
+              aria-hidden="true"
             />
+          </button>
+        </div>
+
+        {historyVisible && (
+          <div id={historyListId} className="divide-y divide-gray-200 dark:divide-gray-700">
+            {historyEntries.slice(0, historyLimit).map(entry => (
+              <div
+                key={entry.id}
+                className="px-4 py-3"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0">
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-200">
+                      <span>{format(parseISO(entry.date), 'EEE MMM d')}</span>
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-snug break-words">
+                      {getEntryPreview(entry.text, 150)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {historyEntries.length === 0 && (
+              <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                No past entries yet
+              </div>
+            )}
           </div>
-
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-          {success && <p className="text-sm text-green-600 dark:text-green-400">{success}</p>}
-
-          <Button type="submit" disabled={submitting || !text}>
-            {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
-          </Button>
-        </form>
-      )}
+        )}
+      </div>
     </div>
   )
 }

@@ -7,7 +7,6 @@ import { ClassroomSidebar } from '@/components/ClassroomSidebar'
 import { Spinner } from '@/components/Spinner'
 import { TeacherClassroomView } from './TeacherClassroomView'
 import { StudentTodayTab } from './StudentTodayTab'
-import { StudentHistoryTab } from './StudentHistoryTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherLogsTab } from './TeacherLogsTab'
@@ -117,7 +116,7 @@ export default function ClassroomPage() {
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
     ? (['attendance', 'logs', 'assignments', 'roster', 'calendar', 'settings'] as const)
-    : (['today', 'history', 'assignments'] as const)
+    : (['today', 'assignments'] as const)
 
   const activeTab = validTabs.includes(tab as any) ? (tab as string) : defaultTab
 
@@ -173,7 +172,6 @@ export default function ClassroomPage() {
             ) : (
               <>
                 {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
-                {activeTab === 'history' && <StudentHistoryTab classroom={classroom} />}
                 {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
               </>
             )}
