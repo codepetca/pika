@@ -1120,6 +1120,16 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-18 10:33 [AI - Codex]
+**Goal:** Remove lingering in-card header actions on assignment pages.
+**Completed:** Moved the student-work “Plain text” toggle (and related meta) into the page action bar and refactored the student assignment editor header into `PageActionBar`, keeping content sections below.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/assignments/[assignmentId]/StudentAssignmentEditor.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/students/[studentId]/page.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
 ## 2025-12-17 17:05 [AI - Codex]
 **Goal:** Further brighten the dark-mode past class day styling and add an outline for the current date.
 **Completed:** Tuned the dark-mode background/text, set the legend swatch to an even lighter tint, and add a blue ring for today so it's highlighted without altering other modes.

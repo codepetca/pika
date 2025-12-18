@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/RichTextViewer'
+import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import {
   formatDueDate,
   getAssignmentStatusLabel,
@@ -93,91 +94,98 @@ export default function StudentWorkPage() {
   const { assignment, classroom, student, doc, status } = data
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div>
-        <button
-          onClick={() => router.push(`/classrooms/${classroomId}/assignments/${assignmentId}`)}
-          className="text-sm text-blue-600 hover:text-blue-700 mb-2"
-        >
-          ← Back to {assignment.title}
-        </button>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {student.name || student.email}
-        </h1>
-        {student.name && (
-          <p className="text-gray-600">{student.email}</p>
-        )}
-      </div>
-
-      {/* Assignment Info */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="font-medium text-gray-900">{assignment.title}</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Due: {formatDueDate(assignment.due_at)}
-            </p>
-          </div>
-          <span className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(status)}`}>
-            {getAssignmentStatusLabel(status)}
-          </span>
-        </div>
-      </div>
-
-      {/* Student Work */}
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">Student Response</span>
-          <div className="flex items-center gap-4">
-            {doc?.submitted_at && (
-              <span className="text-xs text-gray-500">
-                Submitted: {new Date(doc.submitted_at).toLocaleString('en-CA', {
-                  timeZone: 'America/Toronto',
-                  dateStyle: 'medium',
-                  timeStyle: 'short'
-                })}
-              </span>
-            )}
-            <label className="flex items-center gap-2 text-xs text-gray-600 select-none">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={showPlainText}
-                onChange={(e) => setShowPlainText(e.target.checked)}
-              />
-              Plain text
-            </label>
-          </div>
-        </div>
-
-        <div className="p-4">
-          {doc && doc.content && !isEmpty(doc.content) ? (
-            <div className="min-h-[200px]">
-              <RichTextViewer content={doc.content} showPlainText={showPlainText} />
-              <div className="mt-2 text-xs text-gray-500">
-                {countCharacters(doc.content)} characters
+    <div className="max-w-4xl mx-auto px-4 py-6">
+      <PageLayout>
+        <PageActionBar
+          primary={
+            <div className="min-w-0">
+              <button
+                type="button"
+                className={ACTIONBAR_BUTTON_CLASSNAME}
+                onClick={() => router.push(`/classrooms/${classroomId}/assignments/${assignmentId}`)}
+              >
+                Back to assignment
+              </button>
+              <div className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                {student.name || student.email}
               </div>
+              {student.name && (
+                <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                  {student.email}
+                </div>
+              )}
+              {doc?.submitted_at && (
+                <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                  Submitted:{' '}
+                  {new Date(doc.submitted_at).toLocaleString('en-CA', {
+                    timeZone: 'America/Toronto',
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              No work submitted yet
-            </div>
-          )}
-        </div>
+          }
+          actions={
+            [
+              {
+                id: 'plain-text',
+                label: showPlainText ? 'Plain text ✓' : 'Plain text',
+                onSelect: () => setShowPlainText((prev) => !prev),
+              },
+            ] satisfies ActionBarItem[]
+          }
+        />
 
-        {doc?.updated_at && (
-          <div className="px-4 pb-4">
-            <p className="text-xs text-gray-400">
-              Last updated: {new Date(doc.updated_at).toLocaleString('en-CA', {
-                timeZone: 'America/Toronto',
-                dateStyle: 'medium',
-                timeStyle: 'short'
-              })}
-            </p>
+        <PageContent className="space-y-6">
+          {/* Assignment Info */}
+          <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="font-medium text-gray-900 dark:text-gray-100 truncate">{assignment.title}</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Due: {formatDueDate(assignment.due_at)}
+                </p>
+              </div>
+              <span className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(status)}`}>
+                {getAssignmentStatusLabel(status)}
+              </span>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Student Work */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-4">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Student Response</div>
+              {doc && doc.content && !isEmpty(doc.content) ? (
+                <div className="min-h-[200px]">
+                  <RichTextViewer content={doc.content} showPlainText={showPlainText} />
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    {countCharacters(doc.content)} characters
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  No work submitted yet
+                </div>
+              )}
+            </div>
+
+            {doc?.updated_at && (
+              <div className="px-4 pb-4">
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  Last updated:{' '}
+                  {new Date(doc.updated_at).toLocaleString('en-CA', {
+                    timeZone: 'America/Toronto',
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                </p>
+              </div>
+            )}
+          </div>
+        </PageContent>
+      </PageLayout>
     </div>
   )
 }
