@@ -22,6 +22,8 @@ interface AssignmentWithStats extends Assignment {
 
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
 
+const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
+
 interface StudentSubmissionRow {
   student_id: string
   student_email: string
@@ -118,6 +120,25 @@ export function TeacherClassroomView({ classroom }: Props) {
     const exists = assignments.some((a) => a.id === value)
     setSelection(exists ? { mode: 'assignment', assignmentId: value } : { mode: 'summary' })
   }, [assignments, classroom.id, loading])
+
+  useEffect(() => {
+    function onSelectionEvent(e: Event) {
+      const event = e as CustomEvent<{ classroomId?: string; value?: string }>
+      if (!event.detail) return
+      if (event.detail.classroomId !== classroom.id) return
+
+      const value = event.detail.value
+      if (!value || value === 'summary') {
+        setSelection({ mode: 'summary' })
+        return
+      }
+      const exists = assignments.some((a) => a.id === value)
+      setSelection(exists ? { mode: 'assignment', assignmentId: value } : { mode: 'summary' })
+    }
+
+    window.addEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
+    return () => window.removeEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
+  }, [assignments, classroom.id])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {

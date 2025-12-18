@@ -78,6 +78,8 @@ function writeCookie(name: string, value: string) {
   document.cookie = cookie
 }
 
+const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
+
 type SidebarAssignment = {
   id: string
   title: string
@@ -321,6 +323,11 @@ export function ClassroomSidebar({
     const value = assignmentId ? assignmentId : 'summary'
     writeCookie(name, value)
     setActiveAssignmentId(assignmentId)
+    window.dispatchEvent(
+      new CustomEvent(TEACHER_ASSIGNMENTS_SELECTION_EVENT, {
+        detail: { classroomId, value },
+      }),
+    )
   }
 
   async function reorderAssignments(orderedIds: string[]) {
