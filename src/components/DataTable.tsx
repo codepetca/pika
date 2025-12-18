@@ -56,7 +56,7 @@ export function DataTableRow({
 
 export function DataTableHeaderCell({
   children,
-  density = 'normal',
+  density = 'compact',
   align = 'left',
   className = '',
   ...props
@@ -88,7 +88,7 @@ export function SortableHeaderCell({
   isActive,
   direction,
   onClick,
-  density = 'normal',
+  density = 'compact',
   align = 'left',
 }: {
   label: string
@@ -124,7 +124,7 @@ export function SortableHeaderCell({
 
 export function DataTableCell({
   children,
-  density = 'normal',
+  density = 'compact',
   align = 'left',
   className = '',
   ...props
@@ -154,7 +154,7 @@ export function DataTableCell({
 export function EmptyStateRow({
   colSpan,
   message,
-  density = 'normal',
+  density = 'compact',
 }: {
   colSpan: number
   message: string
