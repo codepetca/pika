@@ -35,7 +35,7 @@ export function RichTextViewer({
     editable: false,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm max-w-none',
+        class: 'prose dark:prose-invert prose-sm max-w-none',
       },
     },
   })
@@ -59,7 +59,7 @@ export function RichTextViewer({
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-950 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
       <EditorContent editor={editor} />
     </div>
   )

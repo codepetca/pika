@@ -34,6 +34,11 @@ export function RichTextEditor({
         heading: {
           levels: [1, 2, 3],
         },
+        codeBlock: {
+          HTMLAttributes: {
+            class: 'bg-gray-900 dark:bg-gray-950 text-gray-100 p-4 rounded font-mono text-sm',
+          },
+        },
       }),
       Link.configure({
         openOnClick: false,
@@ -56,7 +61,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          'prose prose-sm max-w-none focus:outline-none min-h-[300px] px-3 py-2',
+          'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] px-3 py-2 bg-white dark:bg-gray-900',
       },
     },
   })
@@ -88,14 +93,14 @@ export function RichTextEditor({
         onBlur()
       }}
     >
-      <div className="sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950">
+      <div className="sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <div className="p-2 flex flex-wrap items-center gap-1">
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBold().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('bold')}
-            className={`px-2 py-1 rounded text-sm font-semibold ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bold') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
+            className={`px-2 py-1 rounded text-sm font-semibold ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bold') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
           >
             B
           </button>
@@ -104,7 +109,7 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleItalic().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('italic')}
-            className={`px-2 py-1 rounded text-sm italic ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('italic') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
+            className={`px-2 py-1 rounded text-sm italic ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('italic') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
           >
             I
           </button>
@@ -114,7 +119,7 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('heading', { level: 1 })}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
           >
             H1
           </button>
@@ -123,7 +128,7 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('heading', { level: 2 })}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
           >
             H2
           </button>
@@ -132,7 +137,7 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('heading', { level: 3 })}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
           >
             H3
           </button>
@@ -142,7 +147,7 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleBulletList().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('bulletList')}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bulletList') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bulletList') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
           >
             • List
           </button>
@@ -151,7 +156,7 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('orderedList')}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('orderedList') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('orderedList') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
           >
             1. List
           </button>
@@ -161,7 +166,7 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
             disabled={!canEdit}
             aria-pressed={editor.isActive('codeBlock')}
-            className={`px-2 py-1 rounded text-sm font-mono ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('codeBlock') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
+            className={`px-2 py-1 rounded text-sm font-mono ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('codeBlock') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
           >
             {'</>'}
           </button>
@@ -184,7 +189,7 @@ export function RichTextEditor({
             }}
             disabled={!canEdit}
             aria-pressed={editor.isActive('link')}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('link') ? 'bg-gray-300 dark:bg-gray-600' : 'bg-white dark:bg-gray-900'}`}
+            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('link') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
           >
             Link
           </button>
