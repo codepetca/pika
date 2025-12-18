@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/RichTextEditor'
+import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   formatDueDate,
   formatRelativeDueDate,
@@ -237,104 +238,109 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
   const isSubmitted = doc?.is_submitted || false
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <button
-            onClick={() => router.push(`/classrooms/${classroomId}`)}
-            className="text-sm text-blue-600 hover:text-blue-700 mb-2"
-          >
-            ← Back to classroom
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{assignment.title}</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Due: {formatDueDate(assignment.due_at)}
-          </p>
-          <p className={`text-sm mt-1 ${isLate ? 'text-red-600' : 'text-gray-500'}`}>
-            {formatRelativeDueDate(assignment.due_at)}
-          </p>
-        </div>
-        <span className={`px-3 py-1 rounded text-sm font-medium ${getAssignmentStatusBadgeClass(status)}`}>
-          {getAssignmentStatusLabel(status)}
-        </span>
-      </div>
+    <PageLayout>
+      <PageActionBar
+        primary={
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <button
+                type="button"
+                className={ACTIONBAR_BUTTON_CLASSNAME}
+                onClick={() => router.push(`/classrooms/${classroomId}`)}
+              >
+                Back to classroom
+              </button>
+              <div className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                {assignment.title}
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                Due: {formatDueDate(assignment.due_at)} • {formatRelativeDueDate(assignment.due_at)}
+              </div>
+            </div>
+            <span className={`px-3 py-1 rounded text-sm font-medium ${getAssignmentStatusBadgeClass(status)}`}>
+              {getAssignmentStatusLabel(status)}
+            </span>
+          </div>
+        }
+      />
 
-      {/* Description */}
-      {assignment.description && (
-        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{assignment.description}</p>
-        </div>
-      )}
-
-      {/* Editor */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Your Response</span>
-          <span className={`text-xs ${
-            saveStatus === 'saved' ? 'text-green-600' :
-            saveStatus === 'saving' ? 'text-gray-500' :
-            'text-orange-600'
-          }`}>
-            {saveStatus === 'saved' ? 'Saved' :
-             saveStatus === 'saving' ? 'Saving...' :
-             'Unsaved changes'}
-          </span>
-        </div>
-
-        <div className="p-4">
-          <RichTextEditor
-            content={content}
-            onChange={handleContentChange}
-            placeholder="Write your response here..."
-            disabled={submitting}
-            editable={!isSubmitted}
-            onBlur={flushAutosave}
-          />
-        </div>
-
-        {error && (
-          <div className="px-4 pb-4">
-            <p className="text-sm text-red-600">{error}</p>
+      <PageContent className="space-y-6">
+        {/* Description */}
+        {assignment.description && (
+          <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{assignment.description}</p>
           </div>
         )}
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div className="text-sm text-gray-500">
-            {countCharacters(content)} characters
+        {/* Editor */}
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Your Response</span>
+            <span className={`text-xs ${
+              saveStatus === 'saved' ? 'text-green-600 dark:text-green-400' :
+              saveStatus === 'saving' ? 'text-gray-500 dark:text-gray-400' :
+              'text-orange-600 dark:text-orange-400'
+            }`}>
+              {saveStatus === 'saved' ? 'Saved' :
+               saveStatus === 'saving' ? 'Saving...' :
+               'Unsaved changes'}
+            </span>
           </div>
 
-          <div className="flex gap-2">
-            {isSubmitted ? (
-              <Button
-                onClick={handleUnsubmit}
-                variant="secondary"
-                disabled={submitting}
-              >
-                {submitting ? 'Unsubmitting...' : 'Unsubmit'}
-              </Button>
-            ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={submitting || isEmpty(content)}
-              >
-                {submitting ? 'Submitting...' : 'Submit'}
-              </Button>
-            )}
+          <div className="p-4">
+            <RichTextEditor
+              content={content}
+              onChange={handleContentChange}
+              placeholder="Write your response here..."
+              disabled={submitting}
+              editable={!isSubmitted}
+              onBlur={flushAutosave}
+            />
+          </div>
+
+          {error && (
+            <div className="px-4 pb-4">
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            </div>
+          )}
+
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {countCharacters(content)} characters
+            </div>
+
+            <div className="flex gap-2">
+              {isSubmitted ? (
+                <Button
+                  onClick={handleUnsubmit}
+                  variant="secondary"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Unsubmitting...' : 'Unsubmit'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={submitting || isEmpty(content)}
+                >
+                  {submitting ? 'Submitting...' : 'Submit'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Submission info */}
-      {isSubmitted && doc?.submitted_at && (
-        <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
-          Submitted on {new Date(doc.submitted_at).toLocaleString('en-CA', {
-            timeZone: 'America/Toronto',
-            dateStyle: 'medium',
-            timeStyle: 'short'
-          })}
-        </div>
-      )}
-    </div>
+        {/* Submission info */}
+        {isSubmitted && doc?.submitted_at && (
+          <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
+            Submitted on {new Date(doc.submitted_at).toLocaleString('en-CA', {
+              timeZone: 'America/Toronto',
+              dateStyle: 'medium',
+              timeStyle: 'short'
+            })}
+          </div>
+        )}
+      </PageContent>
+    </PageLayout>
   )
 }

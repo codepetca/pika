@@ -88,7 +88,7 @@ describe('StudentTodayTab history section', () => {
 
     render(<StudentTodayTab classroom={classroom} />)
 
-    await screen.findByRole('heading', { name: 'Tue Dec 16' })
+    await screen.findAllByText('Tue Dec 16')
     await screen.findByText('History')
 
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()

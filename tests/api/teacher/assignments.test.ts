@@ -30,11 +30,23 @@ describe('GET /api/teacher/assignments', () => {
           })),
         }
       } else if (table === 'assignments') {
+        const builder: any = {}
+        builder.order = vi
+          .fn()
+          .mockImplementationOnce(() => builder)
+          .mockResolvedValue({ data: [], error: null })
+
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              order: builder.order,
             })),
+          })),
+        }
+      } else if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
           })),
         }
       }

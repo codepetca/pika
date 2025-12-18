@@ -2,14 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import type { Classroom, AttendanceRecord, Entry } from '@/types'
 import { getAttendanceIcon } from '@/lib/attendance'
+import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 
 export default function TeacherDashboardPage() {
+  const router = useRouter()
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
@@ -185,12 +188,12 @@ export default function TeacherDashboardPage() {
     <div className="flex gap-6">
       {/* Classroom List Sidebar */}
       <div className="w-64 flex-shrink-0">
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Classes</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Classes</h3>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
             >
               + New
             </button>
@@ -202,18 +205,18 @@ export default function TeacherDashboardPage() {
                 key={classroom.id}
                 className={`relative p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
-                    ? 'bg-blue-50 border-blue-200'
-                    : 'hover:bg-gray-50 border-transparent'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-transparent'
                 }`}
               >
                 <button
                   onClick={() => setSelectedClassroom(classroom)}
                   className="w-full text-left"
                 >
-                  <div className="font-medium text-gray-900 text-sm pr-6">
+                  <div className="font-medium text-gray-900 dark:text-gray-100 text-sm pr-6">
                     {classroom.title}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {classroom.class_code}
                   </div>
                 </button>
@@ -223,7 +226,7 @@ export default function TeacherDashboardPage() {
                     setSelectedClassroom(classroom)
                     handleDeleteClassroom()
                   }}
-                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
                   title="Delete classroom"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -239,175 +242,188 @@ export default function TeacherDashboardPage() {
       {/* Main Content */}
       <div className="flex-1">
         {selectedClassroom ? (
-          <div>
-            {/* Classroom Header */}
-            <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{selectedClassroom.title}</h2>
-                  <p className="text-gray-600 mt-1">
-                    {selectedClassroom.class_code}
-                    {selectedClassroom.term_label && ` • ${selectedClassroom.term_label}`}
-                  </p>
+          <PageLayout>
+            <PageActionBar
+              primary={
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    {selectedClassroom.title}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                    <span className="font-mono">{selectedClassroom.class_code}</span>
+                    {selectedClassroom.term_label ? ` • ${selectedClassroom.term_label}` : ''}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Link href={`/classrooms/${selectedClassroom.id}`}>
-                    <Button size="sm">
-                      Assignments
-                    </Button>
-                  </Link>
-                  <Button variant="secondary" size="sm" onClick={handleCopyClassCode}>
-                    Copy Code
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={handleCopyJoinLink}>
-                    Copy Link
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setShowUploadModal(true)}>
-                    Upload Roster
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={handleExportCSV}>
-                    Export CSV
-                  </Button>
-                  <button
-                    onClick={handleDeleteClassroom}
-                    className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition"
-                    title="Delete classroom"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
+              }
+              actions={
+                [
+                  {
+                    id: 'open-classroom',
+                    label: 'Open classroom',
+                    onSelect: () => router.push(`/classrooms/${selectedClassroom.id}`),
+                  },
+                  {
+                    id: 'copy-code',
+                    label: 'Copy code',
+                    onSelect: handleCopyClassCode,
+                  },
+                  {
+                    id: 'copy-link',
+                    label: 'Copy link',
+                    onSelect: handleCopyJoinLink,
+                  },
+                  {
+                    id: 'upload-roster',
+                    label: 'Upload roster',
+                    onSelect: () => setShowUploadModal(true),
+                  },
+                  {
+                    id: 'export-csv',
+                    label: 'Export CSV',
+                    onSelect: handleExportCSV,
+                  },
+                  {
+                    id: 'delete-classroom',
+                    label: 'Delete',
+                    onSelect: handleDeleteClassroom,
+                    destructive: true,
+                  },
+                ] satisfies ActionBarItem[]
+              }
+            />
 
-            {/* Attendance Dashboard */}
-            {loadingAttendance ? (
-              <div className="flex justify-center py-12">
-                <Spinner size="lg" />
-              </div>
-            ) : attendance.length === 0 ? (
-              <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-600">
-                No students enrolled yet
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="sticky left-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Student
-                        </th>
-                        <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Present
-                        </th>
-                        <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Absent
-                        </th>
-                        {dates.map(date => (
-                          <th
-                            key={date}
-                            className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            {date.slice(5)}
+            <PageContent>
+              {/* Attendance Dashboard */}
+              {loadingAttendance ? (
+                <div className="flex justify-center py-12">
+                  <Spinner size="lg" />
+                </div>
+              ) : attendance.length === 0 ? (
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center text-gray-600 dark:text-gray-300">
+                  No students enrolled yet
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                          <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Student
                           </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {attendance.map(record => (
-                        <tr key={record.student_id} className="hover:bg-gray-50">
-                          <td className="sticky left-0 z-10 bg-white px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {record.student_email}
-                          </td>
-                          <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900">
-                            {record.summary.present}
-                          </td>
-                          <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900">
-                            {record.summary.absent}
-                          </td>
-                          {dates.map(date => {
-                            const status = record.dates[date]
-                            const hasEntry = status === 'present'
-
-                            return (
-                              <td
-                                key={date}
-                                className={`px-3 py-4 whitespace-nowrap text-center text-xl ${
-                                  hasEntry ? 'cursor-pointer hover:bg-blue-50' : ''
-                                }`}
-                                onClick={() =>
-                                  hasEntry && handleCellClick(record.student_id, record.student_email, date)
-                                }
-                              >
-                                {status && getAttendanceIcon(status)}
-                              </td>
-                            )
-                          })}
+                          <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Present
+                          </th>
+                          <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                            Absent
+                          </th>
+                          {dates.map(date => (
+                            <th
+                              key={date}
+                              className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                            >
+                              {date.slice(5)}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                        {attendance.map(record => (
+                          <tr key={record.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <td className="sticky left-0 z-10 bg-white dark:bg-gray-900 px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                              {record.student_email}
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-gray-100">
+                              {record.summary.present}
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-gray-100">
+                              {record.summary.absent}
+                            </td>
+                            {dates.map(date => {
+                              const status = record.dates[date]
+                              const hasEntry = status === 'present'
 
-            {/* Entry Modal */}
-            {selectedEntry && (
-              <div
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-                onClick={() => setSelectedEntry(null)}
-              >
+                              return (
+                                <td
+                                  key={date}
+                                  className={`px-3 py-4 whitespace-nowrap text-center text-xl ${
+                                    hasEntry ? 'cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20' : ''
+                                  }`}
+                                  onClick={() =>
+                                    hasEntry && handleCellClick(record.student_id, record.student_email, date)
+                                  }
+                                >
+                                  {status && getAttendanceIcon(status)}
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Entry Modal */}
+              {selectedEntry && (
                 <div
-                  className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6"
-                  onClick={(e) => e.stopPropagation()}
+                  className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+                  onClick={() => setSelectedEntry(null)}
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">
-                        {selectedEntry.student_email}
-                      </h3>
-                      <p className="text-sm text-gray-600">{selectedEntry.date}</p>
-                    </div>
-                    <button
-                      onClick={() => setSelectedEntry(null)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Entry
-                      </label>
-                      <p className="text-gray-900 whitespace-pre-wrap">{selectedEntry.text}</p>
+                  <div
+                    className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full p-6"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                          {selectedEntry.student_email}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{selectedEntry.date}</p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedEntry(null)}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        aria-label="Close entry"
+                      >
+                        ✕
+                      </button>
                     </div>
 
-                    {selectedEntry.minutes_reported && (
+                    <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Time Spent
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Entry
                         </label>
-                        <p className="text-gray-900">{selectedEntry.minutes_reported} minutes</p>
+                        <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{selectedEntry.text}</p>
                       </div>
-                    )}
 
-                    {selectedEntry.mood && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Mood
-                        </label>
-                        <p className="text-2xl">{selectedEntry.mood}</p>
-                      </div>
-                    )}
+                      {selectedEntry.minutes_reported && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Time Spent
+                          </label>
+                          <p className="text-gray-900 dark:text-gray-100">{selectedEntry.minutes_reported} minutes</p>
+                        </div>
+                      )}
+
+                      {selectedEntry.mood && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Mood
+                          </label>
+                          <p className="text-2xl">{selectedEntry.mood}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </PageContent>
+          </PageLayout>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-600">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center text-gray-600 dark:text-gray-300">
             Select a classroom to view attendance
           </div>
         )}

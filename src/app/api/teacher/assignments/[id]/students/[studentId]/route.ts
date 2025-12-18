@@ -113,7 +113,10 @@ export async function GET(
         title: assignment.title,
         description: assignment.description,
         due_at: assignment.due_at,
-        created_at: assignment.created_at
+        position: assignment.position ?? 0,
+        created_by: assignment.created_by,
+        created_at: assignment.created_at,
+        updated_at: assignment.updated_at
       },
       classroom: assignment.classrooms,
       student: {

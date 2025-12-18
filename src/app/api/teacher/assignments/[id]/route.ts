@@ -72,7 +72,14 @@ export async function GET(
       .in('user_id', studentIds)
 
     const profileMap = new Map(
-      profiles?.map(p => [p.user_id, `${p.first_name} ${p.last_name}`]) || []
+      profiles?.map(p => [
+        p.user_id,
+        {
+          first_name: p.first_name,
+          last_name: p.last_name,
+          full_name: `${p.first_name} ${p.last_name}`.trim(),
+        },
+      ]) || []
     )
 
     // Get all assignment docs for this assignment
@@ -89,11 +96,14 @@ export async function GET(
       const status = calculateAssignmentStatus(assignment, doc)
       // users is a single object due to the foreign key relationship
       const userEmail = (enrollment.users as unknown as { id: string; email: string }).email
+      const profile = profileMap.get(enrollment.student_id) || null
 
       return {
         student_id: enrollment.student_id,
         student_email: userEmail,
-        student_name: profileMap.get(enrollment.student_id) || null,
+        student_first_name: profile?.first_name ?? null,
+        student_last_name: profile?.last_name ?? null,
+        student_name: profile?.full_name || null,
         status,
         doc: doc || null
       }
@@ -113,6 +123,7 @@ export async function GET(
         title: assignment.title,
         description: assignment.description,
         due_at: assignment.due_at,
+        position: assignment.position ?? 0,
         created_by: assignment.created_by,
         created_at: assignment.created_at,
         updated_at: assignment.updated_at

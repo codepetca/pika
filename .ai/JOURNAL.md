@@ -929,3 +929,253 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-17 14:25 [AI - Codex]
+**Goal:** Merge the latest main branch updates into `teacher-ui-ux-updates` and finish the requested calendar, logs, and roster polish.
+**Completed:** Resolved the calendar merge into the branch and rebuilt the legend/label with the new pastel past-day color, cleaned up the logs toggle so it’s a single Expand/Collapse action without the “No class on…” row, reworked the roster action bar/table to match the attendance style and left-align Upload CSV, ensured the upload modal shows the CSV preview, and confirmed `npm run lint` passes aside from pre-existing warnings in `TeacherClassroomView`, assignment editors, `SnapshotGallery`, and `teacher/calendar/page`.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`, `src/app/login/LoginClient.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 16:03 [AI - Codex]
+**Goal:** Keep the roster upload preview, table headers, and example email compact so the modal never requires horizontal scrolling.
+**Completed:** Removed the overflow wrapper around the preview grid, tightened the column widths/padding, and shortened the example email to `ava@pika.app` so the snippet fits inside the dialog without scrolling.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 16:19 [AI - Codex]
+**Goal:** Further simplify the upload roster UI so the preview and actions align without extra padding or labels.
+**Completed:** Removed the "Format" label, moved the sample CSV preview outside the dashed drop area, and stripped horizontal padding from the preview headers/values to keep everything tight in the dialog.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 16:27 [AI - Codex]
+**Goal:** Give the roster upload modal a bit more width so the preview table never feels cramped.
+**Completed:** Increased the modal’s `max-w` to `lg` while keeping it centered and padded to accommodate the preview grid without horizontal scrolling.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 16:33 [AI - Codex]
+**Goal:** Remove any remaining horizontal padding from the sample preview headers so the CSV snippet touches each divider cleanly.
+**Completed:** Replaced the `gap-px` setting with `gap-y-px gap-x-0`, keeping vertical grid lines while eliminating horizontal gaps, and ensured every header/value still uses `px-0`.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 16:40 [AI - Codex]
+**Goal:** Drop the placeholder data row from the CSV preview so only the column headers display.
+**Completed:** Replaced the grid with a single header row rendered via `flex`/`divide-x`, removing all sample student values.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 16:47 [AI - Codex]
+**Goal:** Reorder the CSV preview so the column headers sit between the label and the dotted file picker, and update the label copy.
+**Completed:** Changed the label to “CSV File Format” and moved the header strip above the dashed dropzone so teachers see the required columns before choosing a file.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/UploadRosterModal.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 16:58 [AI - Codex]
+**Goal:** Match the calendar past class day tint to the non-class-day intensity while keeping a green tone.
+**Completed:** Lightened the legend swatch and past-class-day button styling so the background matches the neutral card tone with green text, keeping hover state subtle.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 08:31 [AI - Codex]
+**Goal:** Ensure teacher table action bars are clearly outside the table card and fix a TS build error in the assignments view.
+**Completed:** Adjusted the shared sticky toolbar spacing so it visually sits above the table card, and fixed `TeacherClassroomView` selection narrowing so `next build` typechecks cleanly.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DataTable.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 08:40 [AI - Codex]
+**Goal:** Remove sticky toolbars and sticky table headers from teacher tables.
+**Completed:** Deleted the shared sticky table primitives and updated Attendance/Logs/Roster tabs to render their action bars above the table card without sticky behavior.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DataTable.tsx`, `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 08:48 [AI - Codex]
+**Goal:** Make compact table density the default and keep header/row height consistent.
+**Completed:** Switched `DataTableHeaderCell`, `SortableHeaderCell`, `DataTableCell`, and `EmptyStateRow` defaults to `density="compact"` so headers and rows match by default.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DataTable.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 08:54 [AI - Codex]
+**Goal:** Use a “normal compactness” for default table density.
+**Completed:** Increased the default compact padding so tables remain compact but not cramped (`py-2` vs `py-1`), keeping header and row heights aligned.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DataTable.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 09:00 [AI - Codex]
+**Goal:** Use Heroicons chevrons for date navigation in teacher Attendance/Logs.
+**Completed:** Replaced the `←/→` characters in `DateActionBar` with `ChevronLeftIcon` / `ChevronRightIcon` buttons with accessible labels.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DateActionBar.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 09:10 [AI - Codex]
+**Goal:** Make sidebar assignment clicks update the Assignments tab content reliably.
+**Completed:** Added a small client-side event bridge so sidebar selection changes propagate to `TeacherClassroomView` even when the URL doesn’t change (same-tab clicks), keeping behavior consistent with the action-bar dropdown.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/ClassroomSidebar.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 09:15 [AI - Codex]
+**Goal:** Simplify the teacher classrooms index header.
+**Completed:** Removed the subtitle “Open a classroom to manage…” from the classrooms list header.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/TeacherClassroomsIndex.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 09:22 [AI - Codex]
+**Goal:** Keep the assignments table flush to its header row.
+**Completed:** Moved the per-assignment “Open assignment” action into the assignments action bar so the table has nothing above its header row.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 09:28 [AI - Codex]
+**Goal:** Align sortable header labels with row text.
+**Completed:** Removed duplicate header padding for sortable columns by forcing the `<th>` padding to `0` and keeping padding on the inner button, fixing the “indented header” look.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DataTable.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 09:36 [AI - Codex]
+**Goal:** Use shared table styling in the assignments student list.
+**Completed:** Refactored the per-assignment student table in the Assignments tab to use the shared `DataTable` components (sortable headers + consistent spacing).
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 09:44 [AI - Codex]
+**Goal:** Prevent column width shifts when toggling sort.
+**Completed:** Always renders a chevron icon in sortable headers but keeps it invisible when unsorted, reserving space so table columns don’t jump when sorting is applied.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DataTable.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 10:06 [AI - Codex]
+**Goal:** Standardize classroom tab layout with a non-sticky action bar and consistent control sizing, with mobile actions collapsed into a menu.
+**Completed:** Added `PageLayout`/`PageActionBar` and migrated teacher + student classroom tabs to render an action bar above the main content; non-primary actions collapse into a kebab menu on mobile.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/PageLayout.tsx`, `src/components/DateActionBar.tsx`, `src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLogsTab.tsx`, `src/app/classrooms/[classroomId]/TeacherRosterTab.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `src/app/classrooms/[classroomId]/StudentTodayTab.tsx`, `src/app/classrooms/[classroomId]/StudentHistoryTab.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 10:22 [AI - Codex]
+**Goal:** Standardize teacher dashboard/calendar/settings pages to action bar + content layout.
+**Completed:** Refactored `/teacher/dashboard`, `/teacher/calendar`, and classroom `Settings` tab to use `PageActionBar` with mobile overflow menu, promoting primary controls and keeping content below.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/teacher/dashboard/page.tsx`, `src/app/teacher/calendar/page.tsx`, `src/app/classrooms/[classroomId]/TeacherSettingsTab.tsx`, `src/components/PageLayout.tsx`
+**Next:** Standardize remaining pages (“the rest”).
+**Blockers:** None
+---
+---
+## 2025-12-18 10:33 [AI - Codex]
+**Goal:** Remove lingering in-card header actions on assignment pages.
+**Completed:** Moved the student-work “Plain text” toggle (and related meta) into the page action bar and refactored the student assignment editor header into `PageActionBar`, keeping content sections below.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/assignments/[assignmentId]/StudentAssignmentEditor.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/students/[studentId]/page.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 10:45 [AI - Codex]
+**Goal:** Visually tint action-bar controls.
+**Completed:** Updated the shared action-bar button styles to use a subtle blue surface tint in light/dark mode, with destructive actions overriding to red.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/PageLayout.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 17:05 [AI - Codex]
+**Goal:** Further brighten the dark-mode past class day styling and add an outline for the current date.
+**Completed:** Tuned the dark-mode background/text, set the legend swatch to an even lighter tint, and add a blue ring for today so it's highlighted without altering other modes.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-17 17:12 [AI - Codex]
+**Goal:** Make past class days brighter and prevent toggling the current day.
+**Completed:** Lightened the legend icon and past-day buttons to a lighter green, and disabled toggling on today while keeping the blue outline highlight.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx`
+**Next:** None
+**Blockers:** None
+---

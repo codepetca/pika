@@ -3,6 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
+import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { format, parseISO } from 'date-fns'
@@ -152,98 +153,101 @@ export function StudentTodayTab({ classroom }: Props) {
   const historyListId = `student-today-history-${classroom.id}`
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{formattedDate}</h2>
-        </div>
-
-        {!isClassDay ? (
-          <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
-            <p className="text-gray-600 dark:text-gray-400">No class today</p>
+    <PageLayout>
+      <PageActionBar
+        primary={
+          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {formattedDate || 'Today'}
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                What did you do today?
-              </label>
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Write a short update..."
-                required
-                disabled={submitting}
-              />
+        }
+      />
+
+      <PageContent>
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
+            {!isClassDay ? (
+              <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+                <p className="text-gray-600 dark:text-gray-400">No class today</p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    What did you do today?
+                  </label>
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Write a short update..."
+                    required
+                    disabled={submitting}
+                  />
+                </div>
+
+                {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+                {success && (
+                  <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+                )}
+
+                <Button type="submit" disabled={submitting || !text}>
+                  {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
+                </Button>
+              </form>
+            )}
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">History</h3>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                aria-expanded={historyVisible}
+                aria-controls={historyListId}
+                onClick={() => setHistoryVisibility(!historyVisible)}
+              >
+                {historyVisible ? 'Hide history' : 'Show history'}
+                <ChevronDownIcon
+                  className={[
+                    'h-4 w-4 transition-transform',
+                    historyVisible ? '-rotate-180' : 'rotate-0',
+                  ].join(' ')}
+                  aria-hidden="true"
+                />
+              </button>
             </div>
 
-            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-            {success && (
-              <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
-            )}
-
-            <Button type="submit" disabled={submitting || !text}>
-              {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
-            </Button>
-          </form>
-        )}
-      </div>
-
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
-          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-            History
-          </h3>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
-            aria-expanded={historyVisible}
-            aria-controls={historyListId}
-            onClick={() => setHistoryVisibility(!historyVisible)}
-          >
-            {historyVisible ? 'Hide history' : 'Show history'}
-            <ChevronDownIcon
-              className={[
-                'h-4 w-4 transition-transform',
-                historyVisible ? '-rotate-180' : 'rotate-0',
-              ].join(' ')}
-              aria-hidden="true"
-            />
-          </button>
-        </div>
-
-        {historyVisible && (
-          <div id={historyListId} className="divide-y divide-gray-200 dark:divide-gray-700">
-            {historyEntries.slice(0, historyLimit).map(entry => (
-              <div
-                key={entry.id}
-                className="px-4 py-3"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="shrink-0">
-                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-200">
-                      <span>{format(parseISO(entry.date), 'EEE MMM d')}</span>
-                    </span>
+            {historyVisible && (
+              <div id={historyListId} className="divide-y divide-gray-200 dark:divide-gray-700">
+                {historyEntries.slice(0, historyLimit).map(entry => (
+                  <div key={entry.id} className="px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0">
+                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-200">
+                          <span>{format(parseISO(entry.date), 'EEE MMM d')}</span>
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-snug break-words">
+                          {getEntryPreview(entry.text, 150)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-snug break-words">
-                      {getEntryPreview(entry.text, 150)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
+                ))}
 
-            {historyEntries.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                No past entries yet
+                {historyEntries.length === 0 && (
+                  <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No past entries yet
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      </PageContent>
+    </PageLayout>
   )
 }
