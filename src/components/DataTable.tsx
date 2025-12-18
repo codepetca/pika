@@ -11,20 +11,29 @@ function densityPadding(density: DataTableDensity) {
   return density === 'compact' ? 'px-4 py-1' : 'px-4 py-3'
 }
 
-export function TableCard({
+export function StickyTableToolbar({
+  children,
+}: {
+  children: ReactNode
+}) {
+  return (
+    <div className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-950 pb-3">
+      {children}
+    </div>
+  )
+}
+
+export function StickyHeaderOffset({
   toolbar,
   children,
-  overflowX = false,
 }: {
-  toolbar?: ReactNode
+  toolbar: ReactNode
   children: ReactNode
-  overflowX?: boolean
 }) {
   const toolbarRef = useRef<HTMLDivElement | null>(null)
   const [toolbarHeight, setToolbarHeight] = useState(0)
 
   useEffect(() => {
-    if (!toolbar) return
     const el = toolbarRef.current
     if (!el) return
 
@@ -35,27 +44,33 @@ export function TableCard({
     const ro = new ResizeObserver(() => update())
     ro.observe(el)
     return () => ro.disconnect()
-  }, [toolbar])
+  }, [])
 
   return (
     <div
-      className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
       style={
-        toolbar
-          ? ({
-              ['--dt-header-top' as any]: `${toolbarHeight}px`,
-            } as any)
-          : undefined
+        ({
+          ['--dt-header-top' as any]: `${toolbarHeight}px`,
+        } as any)
       }
     >
-      {toolbar ? (
-        <div
-          ref={toolbarRef}
-          className="sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-3"
-        >
-          {toolbar}
-        </div>
-      ) : null}
+      <div ref={toolbarRef}>
+        <StickyTableToolbar>{toolbar}</StickyTableToolbar>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+export function TableCard({
+  children,
+  overflowX = false,
+}: {
+  children: ReactNode
+  overflowX?: boolean
+}) {
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className={overflowX ? 'overflow-x-auto' : undefined}>{children}</div>
     </div>
   )
