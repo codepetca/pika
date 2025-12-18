@@ -337,9 +337,20 @@ export function TeacherClassroomView({ classroom }: Props) {
           )}
         </div>
 
-        <Button onClick={() => setShowNewForm(!showNewForm)} size="sm">
-          {showNewForm ? 'Cancel' : '+ New Assignment'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {selection.mode === 'assignment' && selectedAssignmentData && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push(`/classrooms/${classroom.id}/assignments/${selectedAssignmentData.assignment.id}`)}
+            >
+              Open assignment
+            </Button>
+          )}
+          <Button onClick={() => setShowNewForm(!showNewForm)} size="sm">
+            {showNewForm ? 'Cancel' : '+ New Assignment'}
+          </Button>
+        </div>
       </div>
 
       {/* New Assignment Form */}
@@ -468,19 +479,6 @@ export function TeacherClassroomView({ classroom }: Props) {
             </div>
           ) : (
             <div>
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {selectedAssignmentData.assignment.title}
-                </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => router.push(`/classrooms/${classroom.id}/assignments/${selectedAssignmentData.assignment.id}`)}
-                >
-                  Open assignment
-                </Button>
-              </div>
-
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
