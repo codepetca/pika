@@ -1,7 +1,6 @@
 'use client'
 
 import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
-import { useEffect, useRef, useState } from 'react'
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
 
 export type DataTableDensity = 'compact' | 'normal'
@@ -9,58 +8,6 @@ export type SortDirection = 'asc' | 'desc'
 
 function densityPadding(density: DataTableDensity) {
   return density === 'compact' ? 'px-4 py-1' : 'px-4 py-3'
-}
-
-export function StickyTableToolbar({
-  children,
-}: {
-  children: ReactNode
-}) {
-  return (
-    <div className="sticky top-0 z-20">
-      <div className="bg-gray-50 dark:bg-gray-950">{children}</div>
-      <div className="h-3 bg-transparent" aria-hidden="true" />
-    </div>
-  )
-}
-
-export function StickyHeaderOffset({
-  toolbar,
-  children,
-}: {
-  toolbar: ReactNode
-  children: ReactNode
-}) {
-  const toolbarRef = useRef<HTMLDivElement | null>(null)
-  const [toolbarHeight, setToolbarHeight] = useState(0)
-
-  useEffect(() => {
-    const el = toolbarRef.current
-    if (!el) return
-
-    const update = () => setToolbarHeight(el.getBoundingClientRect().height)
-    update()
-
-    if (typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() => update())
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  return (
-    <div
-      style={
-        ({
-          ['--dt-header-top' as any]: `${toolbarHeight}px`,
-        } as any)
-      }
-    >
-      <div ref={toolbarRef}>
-        <StickyTableToolbar>{toolbar}</StickyTableToolbar>
-      </div>
-      {children}
-    </div>
-  )
 }
 
 export function TableCard({
@@ -84,8 +31,7 @@ export function DataTable({ children }: { children: ReactNode }) {
 export function DataTableHead({ children }: { children: ReactNode }) {
   return (
     <thead
-      className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky z-10"
-      style={{ top: 'var(--dt-header-top, 0px)' }}
+      className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
     >
       {children}
     </thead>

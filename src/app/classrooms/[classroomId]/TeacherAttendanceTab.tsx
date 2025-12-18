@@ -17,7 +17,6 @@ import {
   DataTableRow,
   EmptyStateRow,
   SortableHeaderCell,
-  StickyHeaderOffset,
   TableCard,
 } from '@/components/DataTable'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
@@ -118,68 +117,66 @@ export function TeacherAttendanceTab({ classroom }: Props) {
 
   return (
     <div>
-      <StickyHeaderOffset
-        toolbar={
-          <DateActionBar
-            value={selectedDate}
-            onChange={setSelectedDate}
-            onPrev={() => moveDateBy(-1)}
-            onNext={() => moveDateBy(1)}
-          />
-        }
-      >
-        <TableCard>
-          <DataTable>
-            <DataTableHead>
-              <DataTableRow>
-                <SortableHeaderCell
-                  label="First Name"
-                  isActive={sortColumn === 'first_name'}
-                  direction={sortDirection}
-                  onClick={() => handleSort('first_name')}
-                  density="compact"
-                />
-                <SortableHeaderCell
-                  label="Last Name"
-                  isActive={sortColumn === 'last_name'}
-                  direction={sortDirection}
-                  onClick={() => handleSort('last_name')}
-                  density="compact"
-                />
-                <SortableHeaderCell
-                  label="Email"
-                  isActive={sortColumn === 'email'}
-                  direction={sortDirection}
-                  onClick={() => handleSort('email')}
-                  density="compact"
-                />
-                <DataTableHeaderCell density="compact" align="center">
-                  Status
-                </DataTableHeaderCell>
+      <div className="pb-3">
+        <DateActionBar
+          value={selectedDate}
+          onChange={setSelectedDate}
+          onPrev={() => moveDateBy(-1)}
+          onNext={() => moveDateBy(1)}
+        />
+      </div>
+
+      <TableCard>
+        <DataTable>
+          <DataTableHead>
+            <DataTableRow>
+              <SortableHeaderCell
+                label="First Name"
+                isActive={sortColumn === 'first_name'}
+                direction={sortDirection}
+                onClick={() => handleSort('first_name')}
+                density="compact"
+              />
+              <SortableHeaderCell
+                label="Last Name"
+                isActive={sortColumn === 'last_name'}
+                direction={sortDirection}
+                onClick={() => handleSort('last_name')}
+                density="compact"
+              />
+              <SortableHeaderCell
+                label="Email"
+                isActive={sortColumn === 'email'}
+                direction={sortDirection}
+                onClick={() => handleSort('email')}
+                density="compact"
+              />
+              <DataTableHeaderCell density="compact" align="center">
+                Status
+              </DataTableHeaderCell>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
+            {rows.map((row) => (
+              <DataTableRow key={row.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <DataTableCell density="compact">{row.student_first_name}</DataTableCell>
+                <DataTableCell density="compact">{row.student_last_name}</DataTableCell>
+                <DataTableCell density="compact" className="text-gray-600 dark:text-gray-400">
+                  {row.email_username}
+                </DataTableCell>
+                <DataTableCell density="compact" align="center">
+                  <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
+                    {isClassDay ? getAttendanceIcon(row.status) : '—'}
+                  </div>
+                </DataTableCell>
               </DataTableRow>
-            </DataTableHead>
-            <DataTableBody>
-              {rows.map((row) => (
-                <DataTableRow key={row.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <DataTableCell density="compact">{row.student_first_name}</DataTableCell>
-                  <DataTableCell density="compact">{row.student_last_name}</DataTableCell>
-                  <DataTableCell density="compact" className="text-gray-600 dark:text-gray-400">
-                    {row.email_username}
-                  </DataTableCell>
-                  <DataTableCell density="compact" align="center">
-                    <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
-                      {isClassDay ? getAttendanceIcon(row.status) : '—'}
-                    </div>
-                  </DataTableCell>
-                </DataTableRow>
-              ))}
-              {rows.length === 0 && (
-                <EmptyStateRow colSpan={4} message="No students enrolled" density="compact" />
-              )}
-            </DataTableBody>
-          </DataTable>
-        </TableCard>
-      </StickyHeaderOffset>
+            ))}
+            {rows.length === 0 && (
+              <EmptyStateRow colSpan={4} message="No students enrolled" density="compact" />
+            )}
+          </DataTableBody>
+        </DataTable>
+      </TableCard>
     </div>
   )
 }
