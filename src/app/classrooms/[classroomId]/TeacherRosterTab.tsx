@@ -49,6 +49,8 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [roster, setRoster] = useState<RosterRow[]>([])
   const [error, setError] = useState<string>('')
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
+  const [sortColumn, setSortColumn] = useState<'first_name' | 'last_name'>('last_name')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [pendingRemoval, setPendingRemoval] = useState<{
     rosterId: string
     email: string
@@ -59,8 +61,31 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [isRemoving, setIsRemoving] = useState(false)
 
   const sortedRoster = useMemo(() => {
-    return [...roster].sort((a, b) => a.email.localeCompare(b.email))
-  }, [roster])
+    const dir = sortDirection === 'asc' ? 1 : -1
+    const rows = [...roster]
+    rows.sort((a, b) => {
+      const valueA = (sortColumn === 'first_name' ? a.first_name : a.last_name)?.trim() || ''
+      const valueB = (sortColumn === 'first_name' ? b.first_name : b.last_name)?.trim() || ''
+
+      const missingA = valueA ? 0 : 1
+      const missingB = valueB ? 0 : 1
+      if (missingA !== missingB) return (missingA - missingB) * dir
+
+      const cmp = valueA.localeCompare(valueB)
+      if (cmp !== 0) return cmp * dir
+      return a.email.localeCompare(b.email) * dir
+    })
+    return rows
+  }, [roster, sortColumn, sortDirection])
+
+  function toggleSort(column: 'first_name' | 'last_name') {
+    if (sortColumn !== column) {
+      setSortColumn(column)
+      setSortDirection('asc')
+      return
+    }
+    setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+  }
 
   async function loadRoster() {
     setLoading(true)
@@ -149,10 +174,14 @@ export function TeacherRosterTab({ classroom }: Props) {
           <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                First Name
+                <button type="button" onClick={() => toggleSort('first_name')} className="hover:underline">
+                  First Name
+                </button>
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                Last Name
+                <button type="button" onClick={() => toggleSort('last_name')} className="hover:underline">
+                  Last Name
+                </button>
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                 Email
