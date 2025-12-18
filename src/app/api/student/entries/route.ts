@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 /**
- * GET /api/student/entries?classroom_id=xxx
- * Fetches all entries for the current student
+ * GET /api/student/entries?classroom_id=xxx&limit=<n>
+ * Fetches entries for the current student (most recent first).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +19,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const classroomId = searchParams.get('classroom_id')
+    const limitParam = searchParams.get('limit')
+
+    let limit: number | null = null
+    if (limitParam) {
+      const parsed = Number.parseInt(limitParam, 10)
+      if (Number.isFinite(parsed) && parsed > 0) {
+        limit = Math.min(parsed, 100)
+      }
+    }
 
     let query = supabase
       .from('entries')
@@ -28,6 +37,10 @@ export async function GET(request: NextRequest) {
 
     if (classroomId) {
       query = query.eq('classroom_id', classroomId)
+    }
+
+    if (limit !== null) {
+      query = query.limit(limit)
     }
 
     const { data: entries, error } = await query

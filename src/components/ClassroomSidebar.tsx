@@ -7,7 +7,6 @@ import {
   Bars3Icon,
   CalendarDaysIcon,
   ClipboardDocumentListIcon,
-  ClockIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
   PencilSquareIcon,
@@ -29,7 +28,6 @@ export type ClassroomNavItemId =
   | 'calendar'
   | 'settings'
   | 'today'
-  | 'history'
 
 type NavItem = {
   id: ClassroomNavItemId
@@ -48,7 +46,6 @@ const teacherItems: NavItem[] = [
 
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PencilSquareIcon },
-  { id: 'history', label: 'History', icon: ClockIcon },
   { id: 'assignments', label: 'Assignments', icon: ClipboardDocumentListIcon },
 ]
 
