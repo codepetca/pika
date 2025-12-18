@@ -17,8 +17,9 @@ export function StickyTableToolbar({
   children: ReactNode
 }) {
   return (
-    <div className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-950 pb-3">
-      {children}
+    <div className="sticky top-0 z-20">
+      <div className="bg-gray-50 dark:bg-gray-950">{children}</div>
+      <div className="h-3 bg-transparent" aria-hidden="true" />
     </div>
   )
 }

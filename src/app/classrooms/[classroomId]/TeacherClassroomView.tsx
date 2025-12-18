@@ -127,11 +127,13 @@ export function TeacherClassroomView({ classroom }: Props) {
       return
     }
 
+    const assignmentId = selection.assignmentId
+
     async function loadSelectedAssignment() {
       setSelectedAssignmentLoading(true)
       setSelectedAssignmentError('')
       try {
-        const response = await fetch(`/api/teacher/assignments/${selection.assignmentId}`)
+        const response = await fetch(`/api/teacher/assignments/${assignmentId}`)
         const data = await response.json()
         if (!response.ok) {
           throw new Error(data.error || 'Failed to load assignment')
