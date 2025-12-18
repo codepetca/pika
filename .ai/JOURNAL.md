@@ -1179,3 +1179,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-18 13:09 [AI - Codex]
+**Goal:** Use `public/pika.png` for the home button icon.
+**Completed:** Replaced the 🐰 emoji logo in the global header with a Next `Image` pointing at `/pika.png`, keeping it at the same `w-8 h-8` size and adding an accessible Home label.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/PikaLogo.tsx`, `src/components/AppHeader.tsx`
+**Next:** None
+**Blockers:** None
+---
