@@ -1080,6 +1080,16 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-18 09:36 [AI - Codex]
+**Goal:** Use shared table styling in the assignments student list.
+**Completed:** Refactored the per-assignment student table in the Assignments tab to use the shared `DataTable` components (sortable headers + consistent spacing).
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
 ## 2025-12-17 17:05 [AI - Codex]
 **Goal:** Further brighten the dark-mode past class day styling and add an outline for the current date.
 **Completed:** Tuned the dark-mode background/text, set the legend swatch to an even lighter tint, and add a blue ring for today so it's highlighted without altering other modes.

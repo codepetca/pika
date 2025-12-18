@@ -15,6 +15,17 @@ import {
 } from '@/lib/assignments'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
 import { ChevronDownIcon, TrashIcon } from '@heroicons/react/24/outline'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  EmptyStateRow,
+  SortableHeaderCell,
+  TableCard,
+} from '@/components/DataTable'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -468,7 +479,7 @@ export function TeacherClassroomView({ classroom }: Props) {
           )}
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <TableCard overflowX>
           {selectedAssignmentLoading ? (
             <div className="flex justify-center py-10">
               <Spinner />
@@ -478,71 +489,55 @@ export function TeacherClassroomView({ classroom }: Props) {
               {selectedAssignmentError || 'Failed to load assignment'}
             </div>
           ) : (
-            <div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                        <button type="button" onClick={() => toggleSort('first')} className="hover:underline">
-                          First name
-                        </button>
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                        <button type="button" onClick={() => toggleSort('last')} className="hover:underline">
-                          Last name
-                        </button>
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Submitted
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Last updated
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {sortedStudents.map((student) => (
-                      <tr
-                        key={student.student_id}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                        onClick={() => setSelectedStudentId(student.student_id)}
-                      >
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                          {student.student_first_name ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                          {student.student_last_name ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(student.status)}`}>
-                            {getAssignmentStatusLabel(student.status)}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                          {student.doc?.submitted_at ? formatTorontoDateTime(student.doc.submitted_at) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
-                          {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                    {sortedStudents.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                          No students enrolled
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <DataTable>
+              <DataTableHead>
+                <DataTableRow>
+                  <SortableHeaderCell
+                    label="First Name"
+                    isActive={sortColumn === 'first'}
+                    direction={sortDirection}
+                    onClick={() => toggleSort('first')}
+                  />
+                  <SortableHeaderCell
+                    label="Last Name"
+                    isActive={sortColumn === 'last'}
+                    direction={sortDirection}
+                    onClick={() => toggleSort('last')}
+                  />
+                  <DataTableHeaderCell>Status</DataTableHeaderCell>
+                  <DataTableHeaderCell>Submitted</DataTableHeaderCell>
+                  <DataTableHeaderCell>Last updated</DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
+                {sortedStudents.map((student) => (
+                  <DataTableRow
+                    key={student.student_id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                    onClick={() => setSelectedStudentId(student.student_id)}
+                  >
+                    <DataTableCell>{student.student_first_name ?? '—'}</DataTableCell>
+                    <DataTableCell>{student.student_last_name ?? '—'}</DataTableCell>
+                    <DataTableCell>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(student.status)}`}>
+                        {getAssignmentStatusLabel(student.status)}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell className="text-gray-700 dark:text-gray-300">
+                      {student.doc?.submitted_at ? formatTorontoDateTime(student.doc.submitted_at) : '—'}
+                    </DataTableCell>
+                    <DataTableCell className="text-gray-700 dark:text-gray-300">
+                      {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
+                    </DataTableCell>
+                  </DataTableRow>
+                ))}
+                {sortedStudents.length === 0 && (
+                  <EmptyStateRow colSpan={5} message="No students enrolled" />
+                )}
+              </DataTableBody>
+            </DataTable>
           )}
-        </div>
+        </TableCard>
       )}
 
       <ConfirmDialog
