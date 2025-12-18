@@ -23,7 +23,6 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Classrooms</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Open a classroom to manage attendance, logs, roster, and assignments.</p>
         </div>
         <button
           type="button"
@@ -78,4 +77,3 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     </div>
   )
 }
-

@@ -7,7 +7,7 @@ interface UploadRosterModalProps {
   isOpen: boolean
   onClose: () => void
   classroomId: string
-  onSuccess: () => void
+  onSuccess: () => void | Promise<void>
 }
 
 export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: UploadRosterModalProps) {
@@ -48,7 +48,9 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
       }
 
       setResult(data)
-      onSuccess()
+      await onSuccess()
+      handleClose()
+      return
     } catch (err: any) {
       setError(err.message || 'An error occurred')
     } finally {
@@ -67,33 +69,48 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full p-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Upload Roster</h2>
 
         {!result ? (
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                CSV File
+            <div className="mb-4 space-y-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                CSV File Format
               </label>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                disabled={loading}
-                className="block w-full text-sm text-gray-900 dark:text-gray-400
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded file:border-0
-                  file:text-sm file:font-medium
-                  file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-400
-                  hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50
-                  disabled:opacity-50"
-              />
-              <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                Format: Student Number, First Name, Last Name, Email
-              </p>
+              <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200 overflow-hidden max-w-full">
+                <div className="grid grid-cols-[minmax(0,_1.4fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)] gap-0 text-center text-[10px] leading-tight">
+                  {['Student Number', 'First Name', 'Last Name', 'Email'].map((label, index, arr) => {
+                    const horizontalPadding = label === 'Email' ? 'px-0' : 'px-2'
+                    return (
+                      <span
+                        key={label}
+                        className={`bg-gray-100 dark:bg-gray-800 py-2 ${horizontalPadding} font-semibold ${
+                          index < arr.length - 1 ? 'border-r border-gray-200 dark:border-gray-700' : ''
+                        } whitespace-nowrap`}
+                      >
+                        {label}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                  disabled={loading}
+                  className="block w-full text-sm text-gray-900 dark:text-gray-400
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded file:border-0
+                    file:text-sm file:font-medium
+                    file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-400
+                    hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50
+                    disabled:opacity-50"
+                />
+              </div>
             </div>
-
             {error && (
               <div className="mb-4 text-sm text-red-600 dark:text-red-400">
                 {error}
