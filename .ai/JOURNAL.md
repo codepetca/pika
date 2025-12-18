@@ -1130,6 +1130,16 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-18 10:45 [AI - Codex]
+**Goal:** Visually tint action-bar controls.
+**Completed:** Updated the shared action-bar button styles to use a subtle blue surface tint in light/dark mode, with destructive actions overriding to red.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/PageLayout.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
 ## 2025-12-17 17:05 [AI - Codex]
 **Goal:** Further brighten the dark-mode past class day styling and add an outline for the current date.
 **Completed:** Tuned the dark-mode background/text, set the legend swatch to an even lighter tint, and add a blue ring for today so it's highlighted without altering other modes.

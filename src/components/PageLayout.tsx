@@ -13,7 +13,7 @@ export type ActionBarItem = {
 }
 
 const CONTROL_BASE =
-  'rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm font-medium text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed'
+  'rounded-md border border-blue-200 bg-blue-50 text-sm font-medium text-gray-900 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-blue-800 dark:bg-blue-900/20 dark:text-gray-100 dark:hover:bg-blue-900/30'
 
 export const ACTIONBAR_BUTTON_CLASSNAME = `${CONTROL_BASE} px-3 py-1.5`
 export const ACTIONBAR_ICON_BUTTON_CLASSNAME = `${CONTROL_BASE} px-2.5 py-1.5 inline-flex items-center justify-center`
@@ -154,7 +154,9 @@ export function PageActionBar({
                 type="button"
                 className={[
                   ACTIONBAR_BUTTON_CLASSNAME,
-                  item.destructive ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' : '',
+                  item.destructive
+                    ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-900/30'
+                    : '',
                 ].join(' ')}
                 onClick={item.onSelect}
                 disabled={item.disabled}
