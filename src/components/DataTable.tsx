@@ -104,7 +104,7 @@ export function SortableHeaderCell({
   const Icon = direction === 'asc' ? ChevronUpIcon : ChevronDownIcon
 
   return (
-    <DataTableHeaderCell density={density} align={align} className="p-0" aria-sort={ariaSort}>
+    <DataTableHeaderCell density={density} align={align} className="!p-0" aria-sort={ariaSort}>
       <button
         type="button"
         onClick={onClick}

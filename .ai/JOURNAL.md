@@ -1070,6 +1070,16 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-18 09:28 [AI - Codex]
+**Goal:** Align sortable header labels with row text.
+**Completed:** Removed duplicate header padding for sortable columns by forcing the `<th>` padding to `0` and keeping padding on the inner button, fixing the “indented header” look.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/DataTable.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
 ## 2025-12-17 17:05 [AI - Codex]
 **Goal:** Further brighten the dark-mode past class day styling and add an outline for the current date.
 **Completed:** Tuned the dark-mode background/text, set the legend swatch to an even lighter tint, and add a blue ring for today so it's highlighted without altering other modes.
