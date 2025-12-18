@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
+import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import type { ClassDay, Classroom } from '@/types'
 import {
   format,
@@ -387,14 +388,6 @@ export default function CalendarPage() {
 
     return (
       <div>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Calendar</h2>
-          <p className="text-gray-600">
-            <strong>{classDays.filter(d => d.is_class_day).length}</strong> class days configured.
-            Click any day to toggle.
-          </p>
-        </div>
-
         {/* Compact Multi-Month Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {months.map(month => {
@@ -518,12 +511,12 @@ export default function CalendarPage() {
     <div className="flex gap-6">
       {/* Classroom List Sidebar */}
       <div className="w-64 flex-shrink-0">
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Classes</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Classes</h3>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
             >
               + New
             </button>
@@ -535,18 +528,18 @@ export default function CalendarPage() {
                 key={classroom.id}
                 className={`relative p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
-                    ? 'bg-blue-50 border-blue-200'
-                    : 'hover:bg-gray-50 border-transparent'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-transparent'
                 }`}
               >
                 <button
                   onClick={() => setSelectedClassroom(classroom)}
                   className="w-full text-left"
                 >
-                  <div className="font-medium text-gray-900 text-sm pr-6">
+                  <div className="font-medium text-gray-900 dark:text-gray-100 text-sm pr-6">
                     {classroom.title}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {classroom.class_code}
                   </div>
                 </button>
@@ -556,7 +549,7 @@ export default function CalendarPage() {
                     setSelectedClassroom(classroom)
                     handleDeleteClassroom()
                   }}
-                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
                   title="Delete classroom"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -572,17 +565,46 @@ export default function CalendarPage() {
       {/* Main Content */}
       <div className="flex-1">
         {selectedClassroom ? (
-          loadingCalendar ? (
-            <div className="flex justify-center py-12">
-              <Spinner size="lg" />
-            </div>
-          ) : classDays.length === 0 ? (
-            renderWizard()
-          ) : (
-            renderCompactCalendar()
-          )
+          <PageLayout>
+            <PageActionBar
+              primary={
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    {selectedClassroom.title}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                    <span className="font-mono">{selectedClassroom.class_code}</span>
+                    {' • '}
+                    {classDays.filter(d => d.is_class_day).length} class days
+                  </div>
+                </div>
+              }
+              actions={
+                [
+                  {
+                    id: 'delete-classroom',
+                    label: 'Delete',
+                    onSelect: handleDeleteClassroom,
+                    destructive: true,
+                  },
+                ] satisfies ActionBarItem[]
+              }
+            />
+
+            <PageContent>
+              {loadingCalendar ? (
+                <div className="flex justify-center py-12">
+                  <Spinner size="lg" />
+                </div>
+              ) : classDays.length === 0 ? (
+                renderWizard()
+              ) : (
+                renderCompactCalendar()
+              )}
+            </PageContent>
+          </PageLayout>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-600">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center text-gray-600 dark:text-gray-300">
             Select a class to manage its calendar
           </div>
         )}

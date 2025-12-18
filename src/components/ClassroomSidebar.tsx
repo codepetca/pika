@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Bars3Icon,
   CalendarDaysIcon,
@@ -15,6 +16,7 @@ import {
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import { useClassroomSidebar } from './ClassroomSidebarProvider'
 import { CLASSROOM_SIDEBAR } from '@/lib/classroom-sidebar'
@@ -58,19 +60,58 @@ function tabHref(classroomId: string, tabId: ClassroomNavItemId) {
   return `/classrooms/${classroomId}?tab=${encodeURIComponent(tabId)}`
 }
 
+function readCookie(name: string) {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie
+    .split(';')
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${encodeURIComponent(name)}=`))
+  if (!match) return null
+  const value = match.split('=').slice(1).join('=')
+  return decodeURIComponent(value)
+}
+
+function writeCookie(name: string, value: string) {
+  const oneYearSeconds = 60 * 60 * 24 * 365
+  let cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Path=/; Max-Age=${oneYearSeconds}; SameSite=Lax`
+  if (process.env.NODE_ENV === 'production') cookie += '; Secure'
+  document.cookie = cookie
+}
+
+const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
+
+type SidebarAssignment = {
+  id: string
+  title: string
+}
+
 function Nav({
   classroomId,
   activeTab,
   role,
   isCollapsed,
   onNavigate,
+  assignments,
+  assignmentsExpanded,
+  onToggleAssignmentsExpanded,
+  activeAssignmentId,
+  onSelectAssignment,
+  onReorderAssignments,
 }: {
   classroomId: string
   activeTab: string
   role: 'student' | 'teacher'
   isCollapsed: boolean
   onNavigate?: () => void
+  assignments?: SidebarAssignment[]
+  assignmentsExpanded?: boolean
+  onToggleAssignmentsExpanded?: () => void
+  activeAssignmentId?: string | null
+  onSelectAssignment?: (assignmentId: string | null) => void
+  onReorderAssignments?: (orderedIds: string[]) => void
 }) {
+  const router = useRouter()
+  const [draggingId, setDraggingId] = useState<string | null>(null)
   const items = useMemo(() => getItems(role), [role])
 
   return (
@@ -84,11 +125,112 @@ function Nav({
           ? 'justify-center w-10 h-10 mx-auto'
           : 'gap-3 px-3 py-2'
 
+        if (role === 'teacher' && item.id === 'assignments') {
+          const canShowNested = !isCollapsed
+          const isExpanded = !!assignmentsExpanded
+
+          return (
+            <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
+              <div className="flex items-center">
+                <Link
+                  href={href}
+                  onClick={(e) => {
+                    onSelectAssignment?.(null)
+                    onNavigate?.()
+                  }}
+                  aria-current={isActive ? 'page' : undefined}
+                  title={isCollapsed ? item.label : undefined}
+                  className={[
+                    'group flex flex-1 items-center rounded-md text-sm font-medium transition-colors',
+                    layoutClass,
+                    isActive
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                  ].join(' ')}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
+                  {isCollapsed && <span className="sr-only">{item.label}</span>}
+                </Link>
+
+                {canShowNested && (
+                  <button
+                    type="button"
+                    onClick={onToggleAssignmentsExpanded}
+                    className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
+                    aria-label={isExpanded ? 'Collapse assignments' : 'Expand assignments'}
+                  >
+                    <ChevronDownIcon
+                      className={[
+                        'h-4 w-4 transition-transform',
+                        isExpanded ? 'rotate-0' : '-rotate-90',
+                      ].join(' ')}
+                      aria-hidden="true"
+                    />
+                  </button>
+                )}
+              </div>
+
+              {canShowNested && isExpanded && assignments && assignments.length > 0 && (
+                <div className="pl-10 pr-3 space-y-1">
+                  {assignments.map((assignment) => {
+                    const isAssignmentActive = activeTab === 'assignments' && activeAssignmentId === assignment.id
+
+                    return (
+                      <button
+                        key={assignment.id}
+                        type="button"
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = 'move'
+                          setDraggingId(assignment.id)
+                        }}
+                        onDragEnd={() => setDraggingId(null)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          if (!draggingId || draggingId === assignment.id || !onReorderAssignments) return
+                          const ids = assignments.map((a) => a.id)
+                          const from = ids.indexOf(draggingId)
+                          const to = ids.indexOf(assignment.id)
+                          if (from === -1 || to === -1) return
+                          const next = [...ids]
+                          next.splice(from, 1)
+                          next.splice(to, 0, draggingId)
+                          onReorderAssignments(next)
+                          setDraggingId(null)
+                        }}
+                        onClick={() => {
+                          onSelectAssignment?.(assignment.id)
+                          router.push(tabHref(classroomId, 'assignments'))
+                          onNavigate?.()
+                        }}
+                        className={[
+                          'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
+                          isAssignmentActive
+                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                          draggingId === assignment.id ? 'opacity-60' : '',
+                        ].join(' ')}
+                        title={assignment.title}
+                      >
+                        <span className="truncate block">{assignment.title}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        }
+
         return (
           <Link
             key={item.id}
             href={href}
-            onClick={onNavigate}
+            onClick={(e) => {
+              onNavigate?.()
+            }}
             aria-current={isActive ? 'page' : undefined}
             title={isCollapsed ? item.label : undefined}
             className={[
@@ -122,6 +264,7 @@ export function ClassroomSidebar({
   isMobileOpen: boolean
   onCloseMobile: () => void
 }) {
+  const router = useRouter()
   const { isCollapsed, toggleCollapsed, expandedWidth, setExpandedWidth } =
     useClassroomSidebar()
   const firstLinkRef = useRef<HTMLAnchorElement | null>(null)
@@ -131,6 +274,79 @@ export function ClassroomSidebar({
   const lastResizeWidthRef = useRef(expandedWidth)
   const isResizingRef = useRef(false)
   const [isResizing, setIsResizing] = useState(false)
+
+  const [assignments, setAssignments] = useState<SidebarAssignment[]>([])
+  const [assignmentsExpanded, setAssignmentsExpanded] = useState(true)
+  const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null)
+  const [isReorderingAssignments, setIsReorderingAssignments] = useState(false)
+
+  useEffect(() => {
+    if (role !== 'teacher') return
+    const cookieName = `pika_sidebar_assignments:${classroomId}`
+    const cookieValue = readCookie(cookieName)
+    setAssignmentsExpanded(cookieValue !== 'collapsed')
+  }, [classroomId, role])
+
+  useEffect(() => {
+    if (role !== 'teacher') return
+    const selectionCookieName = `teacherAssignmentsSelection:${classroomId}`
+    const selection = readCookie(selectionCookieName)
+    if (!selection || selection === 'summary') {
+      setActiveAssignmentId(null)
+      return
+    }
+    setActiveAssignmentId(selection)
+  }, [classroomId, role, activeTab])
+
+  useEffect(() => {
+    if (role !== 'teacher') return
+    async function loadAssignments() {
+      try {
+        const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
+        const data = await response.json()
+        setAssignments((data.assignments || []).map((a: any) => ({ id: a.id, title: a.title })))
+      } catch {
+        setAssignments([])
+      }
+    }
+    loadAssignments()
+  }, [classroomId, role])
+
+  function toggleAssignmentsExpanded() {
+    const next = !assignmentsExpanded
+    setAssignmentsExpanded(next)
+    writeCookie(`pika_sidebar_assignments:${classroomId}`, next ? 'expanded' : 'collapsed')
+  }
+
+  function setAssignmentsSelectionCookie(assignmentId: string | null) {
+    const name = `teacherAssignmentsSelection:${classroomId}`
+    const value = assignmentId ? assignmentId : 'summary'
+    writeCookie(name, value)
+    setActiveAssignmentId(assignmentId)
+    window.dispatchEvent(
+      new CustomEvent(TEACHER_ASSIGNMENTS_SELECTION_EVENT, {
+        detail: { classroomId, value },
+      }),
+    )
+  }
+
+  async function reorderAssignments(orderedIds: string[]) {
+    if (role !== 'teacher') return
+    setAssignments((prev) => {
+      const byId = new Map(prev.map((a) => [a.id, a]))
+      return orderedIds.map((id) => byId.get(id)).filter(Boolean) as SidebarAssignment[]
+    })
+    setIsReorderingAssignments(true)
+    try {
+      await fetch('/api/teacher/assignments/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroom_id: classroomId, assignment_ids: orderedIds }),
+      })
+    } finally {
+      setIsReorderingAssignments(false)
+    }
+  }
 
   useEffect(() => {
     if (!isMobileOpen) return
@@ -178,6 +394,18 @@ export function ClassroomSidebar({
             activeTab={activeTab}
             role={role}
             isCollapsed={isCollapsed}
+            assignments={role === 'teacher' ? assignments : undefined}
+            assignmentsExpanded={role === 'teacher' ? assignmentsExpanded : undefined}
+            onToggleAssignmentsExpanded={role === 'teacher' ? toggleAssignmentsExpanded : undefined}
+            activeAssignmentId={role === 'teacher' ? activeAssignmentId : undefined}
+            onSelectAssignment={(assignmentId) => {
+              if (role !== 'teacher') return
+              setAssignmentsSelectionCookie(assignmentId)
+            }}
+            onReorderAssignments={(orderedIds) => {
+              if (role !== 'teacher' || isReorderingAssignments) return
+              reorderAssignments(orderedIds)
+            }}
           />
 
           <div className="flex-1" />
@@ -296,6 +524,77 @@ export function ClassroomSidebar({
                 const isActive = activeTab === item.id
                 const Icon = item.icon
                 const href = tabHref(classroomId, item.id)
+
+                if (role === 'teacher' && item.id === 'assignments') {
+                  const isExpanded = assignmentsExpanded
+
+                  return (
+                    <div key={item.id} className="space-y-1">
+                      <div className="flex items-center">
+                        <Link
+                          href={href}
+                          onClick={() => {
+                            setAssignmentsSelectionCookie(null)
+                            onCloseMobile()
+                          }}
+                          ref={idx === 0 ? firstLinkRef : undefined}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={[
+                            'group flex flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                            isActive
+                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                          ].join(' ')}
+                        >
+                          <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={toggleAssignmentsExpanded}
+                          className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
+                          aria-label={isExpanded ? 'Collapse assignments' : 'Expand assignments'}
+                        >
+                          <ChevronDownIcon
+                            className={[
+                              'h-4 w-4 transition-transform',
+                              isExpanded ? 'rotate-0' : '-rotate-90',
+                            ].join(' ')}
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </div>
+                      {isExpanded && assignments.length > 0 && (
+                        <div className="pl-11 pr-3 space-y-1">
+                          {assignments.map((assignment) => {
+                            const isAssignmentActive =
+                              activeTab === 'assignments' && activeAssignmentId === assignment.id
+                            return (
+                              <button
+                                key={assignment.id}
+                                type="button"
+                                onClick={() => {
+                                  setAssignmentsSelectionCookie(assignment.id)
+                                  router.push(tabHref(classroomId, 'assignments'))
+                                  onCloseMobile()
+                                }}
+                                className={[
+                                  'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
+                                  isAssignmentActive
+                                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                                ].join(' ')}
+                                title={assignment.title}
+                              >
+                                <span className="truncate block">{assignment.title}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
 
                 return (
                   <Link
