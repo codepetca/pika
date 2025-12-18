@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import type { Classroom } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -98,17 +99,13 @@ export function TeacherSettingsTab({ classroom }: Props) {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Allow enrollment</div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              When disabled, students cannot join using the code/link.
-            </div>
-          </div>
-
-          <label className="inline-flex items-center gap-2 text-sm">
+    <PageLayout>
+      <PageActionBar
+        primary={
+          <label className="inline-flex items-center gap-3 text-sm">
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              Allow enrollment
+            </span>
             <input
               type="checkbox"
               checked={allowEnrollment}
@@ -116,15 +113,22 @@ export function TeacherSettingsTab({ classroom }: Props) {
               disabled={saving}
               className="h-4 w-4"
             />
-            <span className="text-gray-700 dark:text-gray-300">{allowEnrollment ? 'Enabled' : 'Disabled'}</span>
+            <span className="text-gray-700 dark:text-gray-300">
+              {allowEnrollment ? 'Enabled' : 'Disabled'}
+            </span>
           </label>
-        </div>
+        }
+      />
 
-        {enrollmentError && <div className="mt-3 text-sm text-red-600 dark:text-red-400">{enrollmentError}</div>}
-        {enrollmentSuccess && <div className="mt-3 text-sm text-green-700 dark:text-green-400">{enrollmentSuccess}</div>}
-      </div>
+      <PageContent className="space-y-5">
+        {(enrollmentError || enrollmentSuccess) && (
+          <div className="space-y-2">
+            {enrollmentError && <div className="text-sm text-red-600 dark:text-red-400">{enrollmentError}</div>}
+            {enrollmentSuccess && <div className="text-sm text-green-700 dark:text-green-400">{enrollmentSuccess}</div>}
+          </div>
+        )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
         <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Join Code</div>
         <div className="text-xs text-gray-600 dark:text-gray-400">
           Students must be on the roster to join.
@@ -177,6 +181,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
         onCancel={() => (isRegenerating ? null : setShowRegenerateConfirm(false))}
         onConfirm={regenerateJoinCode}
       />
-    </div>
+      </PageContent>
+    </PageLayout>
   )
 }

@@ -147,12 +147,15 @@ export function PageActionBar({
 
       {actions.length > 0 && (
         <>
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex flex-wrap items-center justify-end gap-2">
             {actions.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                className={ACTIONBAR_BUTTON_CLASSNAME}
+                className={[
+                  ACTIONBAR_BUTTON_CLASSNAME,
+                  item.destructive ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' : '',
+                ].join(' ')}
                 onClick={item.onSelect}
                 disabled={item.disabled}
               >
@@ -168,4 +171,3 @@ export function PageActionBar({
     </div>
   )
 }
-
