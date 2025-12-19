@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
-import { StudentAssignmentEditor } from './StudentAssignmentEditor'
 import { TeacherAssignmentDetail } from './TeacherAssignmentDetail'
 
 interface UserInfo {
@@ -42,6 +41,12 @@ export default function AssignmentPage() {
     loadUser()
   }, [router])
 
+  useEffect(() => {
+    if (!user) return
+    if (user.role !== 'student') return
+    router.replace(`/classrooms/${classroomId}?tab=assignments&assignmentId=${assignmentId}&view=edit`)
+  }, [assignmentId, classroomId, router, user])
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -54,19 +59,17 @@ export default function AssignmentPage() {
     return null
   }
 
+  if (user.role === 'student') {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      {user.role === 'teacher' ? (
-        <TeacherAssignmentDetail
-          classroomId={classroomId}
-          assignmentId={assignmentId}
-        />
-      ) : (
-        <StudentAssignmentEditor
-          classroomId={classroomId}
-          assignmentId={assignmentId}
-        />
-      )}
+      <TeacherAssignmentDetail classroomId={classroomId} assignmentId={assignmentId} />
     </div>
   )
 }

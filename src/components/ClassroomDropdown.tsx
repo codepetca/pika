@@ -39,7 +39,7 @@ export function ClassroomDropdown({
   // If only one classroom, show as text instead of dropdown
   if (classrooms.length === 1) {
     return (
-      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-xs">
+      <div className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate max-w-xs">
         {classrooms[0].title}
       </div>
     )
@@ -50,7 +50,7 @@ export function ClassroomDropdown({
       <select
         value={currentClassroomId || classrooms[0].id}
         onChange={handleChange}
-        className="h-9 pl-3 pr-8 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none max-w-xs truncate"
+        className="h-10 pl-3 pr-8 text-sm sm:text-base font-semibold border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none max-w-xs truncate"
       >
         {classrooms.map((classroom) => (
           <option key={classroom.id} value={classroom.id}>

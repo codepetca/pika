@@ -6,3 +6,17 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_test-key'
 process.env.SUPABASE_SECRET_KEY = 'sb_secret_test-key'
 process.env.ENABLE_MOCK_EMAIL = 'true'
+
+// JSDOM doesn't fully implement Range#getClientRects/getBoundingClientRect, but TipTap/ProseMirror uses them.
+if (typeof document !== 'undefined' && typeof Range !== 'undefined') {
+  const el = document.createElement('div')
+  const rangeProto = Range.prototype as any
+
+  if (typeof rangeProto.getClientRects !== 'function') {
+    rangeProto.getClientRects = () => el.getClientRects()
+  }
+
+  if (typeof rangeProto.getBoundingClientRect !== 'function') {
+    rangeProto.getBoundingClientRect = () => el.getBoundingClientRect()
+  }
+}

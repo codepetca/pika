@@ -24,6 +24,96 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-18 12:47 [AI - Codex]
+**Goal:** Apply `PageLayout` to the classrooms index page.
+**Completed:** Wrapped `/classrooms` index content in `AppShell` (header hidden) for consistent padding/background and refactored both teacher/student index views to use `PageLayout` + `PageActionBar` + `PageContent`.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/page.tsx`, `src/app/classrooms/TeacherClassroomsIndex.tsx`, `src/app/classrooms/StudentClassroomsIndex.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 12:49 [AI - Codex]
+**Goal:** Keep classrooms action labels consistent.
+**Completed:** Restored the leading “+” in the `/classrooms` action-bar buttons (`+ New classroom`, `+ Join classroom`).
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/TeacherClassroomsIndex.tsx`, `src/app/classrooms/StudentClassroomsIndex.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 13:09 [AI - Codex]
+**Goal:** Add the global title bar to `/classrooms`.
+**Completed:** Enabled the `AppShell` header on the classrooms index and passed `user` + available `classrooms` so the logo/theme toggle/user menu (and dropdown when applicable) appear.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/page.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-18 13:33 [AI - Codex]
+**Goal:** Avoid showing a selected classroom on the index title bar.
+**Completed:** Stopped passing `classrooms` into `AppShell` on `/classrooms` so the header doesn’t render the classroom dropdown/name when no classroom is selected.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/page.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-19 08:18 [AI - Codex]
+**Goal:** Make the student assignments tab match the teacher layout.
+**Completed:** Reworked the student assignments tab into a master-detail layout (desktop sidebar list of assignments + main content), added an action bar toggle for `View details` vs `Edit`, and redirected the standalone student assignment route into the in-tab view so the editor renders inside the classroom content area.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/StudentAssignmentEditor.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/page.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-19 08:28 [AI - Codex]
+**Goal:** Show student assignments in the left classroom sidebar.
+**Completed:** Added a nested assignments list under the student “Assignments” nav item in `ClassroomSidebar` (driven by `/api/student/assignments` + `assignmentId` query param) and removed the in-tab sidebar list while keeping the mobile dropdown selector.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/ClassroomSidebar.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-19 08:36 [AI - Codex]
+**Goal:** Simplify student assignments action bar.
+**Completed:** Removed the selected assignment title from the action bar and left-aligned the `View details` / `Edit` actions via an optional `actionsAlign="start"` on `PageActionBar`.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/PageLayout.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-19 09:25 [AI - Codex]
+**Goal:** Surface today’s date in the main title bar.
+**Completed:** Added a Toronto-local date display to `AppHeader` and removed the date from the student “Today” tab action bar to avoid duplication.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/AppHeader.tsx`, `src/app/classrooms/[classroomId]/StudentTodayTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
+## 2025-12-19 09:31 [AI - Codex]
+**Goal:** Make the main title bar date/classroom more prominent.
+**Completed:** Increased typography/weight for the classroom title selector and the Toronto date in the main header, and removed the student Today action bar entirely.
+**Status:** completed
+**Artifacts:**
+- Files: `src/components/AppHeader.tsx`, `src/components/ClassroomDropdown.tsx`, `src/app/classrooms/[classroomId]/StudentTodayTab.tsx`
+**Next:** None
+**Blockers:** None
+---
+---
 ## 2025-12-18 08:42 [AI - Codex]
 **Goal:** Add a compact History section beneath Student Today without changing the core Today form
 **Completed:** Added a rounded History card under the Today card with a chevron text-toggle (cookie-persisted), session-cached fetching of the latest 10 entries (no extra requests on toggle), and entry rows with `Tue Dec 16` date badges + 🟢/🔴 status and ~150-char previews; extended `/api/student/entries` to support an optional `limit` param and added unit + component tests for cookie/session caching and toggle behavior

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Bars3Icon,
   CalendarDaysIcon,
@@ -121,6 +121,63 @@ function Nav({
         const layoutClass = isCollapsed
           ? 'justify-center w-10 h-10 mx-auto'
           : 'gap-3 px-3 py-2'
+
+        if (role === 'student' && item.id === 'assignments') {
+          const canShowNested = !isCollapsed
+
+          return (
+            <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
+              <Link
+                href={href}
+                onClick={() => {
+                  onSelectAssignment?.(null)
+                  onNavigate?.()
+                }}
+                aria-current={isActive ? 'page' : undefined}
+                title={isCollapsed ? item.label : undefined}
+                className={[
+                  'group flex items-center rounded-md text-sm font-medium transition-colors',
+                  layoutClass,
+                  isActive
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                ].join(' ')}
+              >
+                <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                {!isCollapsed && <span className="truncate">{item.label}</span>}
+                {isCollapsed && <span className="sr-only">{item.label}</span>}
+              </Link>
+
+              {canShowNested && assignments && assignments.length > 0 && (
+                <div className="pl-10 pr-3 space-y-1">
+                  {assignments.map((assignment) => {
+                    const isAssignmentActive = activeTab === 'assignments' && activeAssignmentId === assignment.id
+
+                    return (
+                      <button
+                        key={assignment.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectAssignment?.(assignment.id)
+                          onNavigate?.()
+                        }}
+                        className={[
+                          'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
+                          isAssignmentActive
+                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                        ].join(' ')}
+                        title={assignment.title}
+                      >
+                        <span className="truncate block">{assignment.title}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        }
 
         if (role === 'teacher' && item.id === 'assignments') {
           const canShowNested = !isCollapsed
@@ -262,6 +319,8 @@ export function ClassroomSidebar({
   onCloseMobile: () => void
 }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const assignmentIdParam = searchParams.get('assignmentId')
   const { isCollapsed, toggleCollapsed, expandedWidth, setExpandedWidth } =
     useClassroomSidebar()
   const firstLinkRef = useRef<HTMLAnchorElement | null>(null)
@@ -296,10 +355,33 @@ export function ClassroomSidebar({
   }, [classroomId, role, activeTab])
 
   useEffect(() => {
+    if (role !== 'student') return
+    if (activeTab !== 'assignments') {
+      setActiveAssignmentId(null)
+      return
+    }
+    setActiveAssignmentId(assignmentIdParam)
+  }, [activeTab, assignmentIdParam, role])
+
+  useEffect(() => {
     if (role !== 'teacher') return
     async function loadAssignments() {
       try {
         const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
+        const data = await response.json()
+        setAssignments((data.assignments || []).map((a: any) => ({ id: a.id, title: a.title })))
+      } catch {
+        setAssignments([])
+      }
+    }
+    loadAssignments()
+  }, [classroomId, role])
+
+  useEffect(() => {
+    if (role !== 'student') return
+    async function loadAssignments() {
+      try {
+        const response = await fetch(`/api/student/assignments?classroom_id=${classroomId}`)
         const data = await response.json()
         setAssignments((data.assignments || []).map((a: any) => ({ id: a.id, title: a.title })))
       } catch {
@@ -325,6 +407,22 @@ export function ClassroomSidebar({
         detail: { classroomId, value },
       }),
     )
+  }
+
+  function setStudentAssignmentsSelection(assignmentId: string | null) {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', 'assignments')
+
+    if (assignmentId) {
+      params.set('assignmentId', assignmentId)
+      params.set('view', 'edit')
+    } else {
+      params.delete('assignmentId')
+      params.delete('view')
+    }
+
+    setActiveAssignmentId(assignmentId)
+    router.push(`/classrooms/${classroomId}?${params.toString()}`)
   }
 
   async function reorderAssignments(orderedIds: string[]) {
@@ -391,13 +489,18 @@ export function ClassroomSidebar({
             activeTab={activeTab}
             role={role}
             isCollapsed={isCollapsed}
-            assignments={role === 'teacher' ? assignments : undefined}
+            assignments={assignments}
             assignmentsExpanded={role === 'teacher' ? assignmentsExpanded : undefined}
             onToggleAssignmentsExpanded={role === 'teacher' ? toggleAssignmentsExpanded : undefined}
-            activeAssignmentId={role === 'teacher' ? activeAssignmentId : undefined}
+            activeAssignmentId={activeAssignmentId}
             onSelectAssignment={(assignmentId) => {
-              if (role !== 'teacher') return
-              setAssignmentsSelectionCookie(assignmentId)
+              if (role === 'teacher') {
+                setAssignmentsSelectionCookie(assignmentId)
+                return
+              }
+              if (role === 'student') {
+                setStudentAssignmentsSelection(assignmentId)
+              }
             }}
             onReorderAssignments={(orderedIds) => {
               if (role !== 'teacher' || isReorderingAssignments) return
@@ -573,6 +676,58 @@ export function ClassroomSidebar({
                                 onClick={() => {
                                   setAssignmentsSelectionCookie(assignment.id)
                                   router.push(tabHref(classroomId, 'assignments'))
+                                  onCloseMobile()
+                                }}
+                                className={[
+                                  'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
+                                  isAssignmentActive
+                                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                                ].join(' ')}
+                                title={assignment.title}
+                              >
+                                <span className="truncate block">{assignment.title}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+
+                if (role === 'student' && item.id === 'assignments') {
+                  return (
+                    <div key={item.id} className="space-y-1">
+                      <Link
+                        href={href}
+                        onClick={() => {
+                          setStudentAssignmentsSelection(null)
+                          onCloseMobile()
+                        }}
+                        ref={idx === 0 ? firstLinkRef : undefined}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={[
+                          'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                        ].join(' ')}
+                      >
+                        <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                        <span className="truncate">{item.label}</span>
+                      </Link>
+
+                      {assignments.length > 0 && (
+                        <div className="pl-11 pr-3 space-y-1">
+                          {assignments.map((assignment) => {
+                            const isAssignmentActive = activeTab === 'assignments' && activeAssignmentId === assignment.id
+                            return (
+                              <button
+                                key={assignment.id}
+                                type="button"
+                                onClick={() => {
+                                  setStudentAssignmentsSelection(assignment.id)
                                   onCloseMobile()
                                 }}
                                 className={[
