@@ -64,11 +64,12 @@ describe('email utilities', () => {
       expect(result).toBeUndefined()
     })
 
-    it('should throw error in production mode', async () => {
+    it('should throw error when BREVO_API_KEY is not configured in production mode', async () => {
       process.env.ENABLE_MOCK_EMAIL = 'false'
+      delete process.env.BREVO_API_KEY
 
       await expect(sendSignupCode('test@example.com', 'ABC12')).rejects.toThrow(
-        'Production email sending not implemented'
+        'BREVO_API_KEY is not configured'
       )
     })
 
@@ -125,11 +126,12 @@ describe('email utilities', () => {
       expect(result).toBeUndefined()
     })
 
-    it('should throw error in production mode', async () => {
+    it('should throw error when BREVO_API_KEY is not configured in production mode', async () => {
       process.env.ENABLE_MOCK_EMAIL = 'false'
+      delete process.env.BREVO_API_KEY
 
       await expect(sendPasswordResetCode('test@example.com', 'XYZ99')).rejects.toThrow(
-        'Production email sending not implemented'
+        'BREVO_API_KEY is not configured'
       )
     })
 

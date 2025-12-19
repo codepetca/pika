@@ -23,6 +23,7 @@
     "generate:secret": "node scripts/generate-env.js"
   },
   "dependencies": {
+    "@getbrevo/brevo": "^3.0.1",
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.39.0",
     "@tailwindcss/typography": "^0.5.19",

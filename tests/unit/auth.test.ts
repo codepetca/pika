@@ -366,33 +366,51 @@ describe('auth utilities', () => {
       process.env.DEV_TEACHER_EMAILS = originalEnv
     })
 
-    it('should return true for @gapps.yrdsb.ca domain', () => {
-      expect(isTeacherEmail('teacher@gapps.yrdsb.ca')).toBe(true)
-    })
-
-    it('should return true for @yrdsb.ca domain', () => {
+    // Rule 1: @yrdsb.ca with alphabetic local part → Teacher
+    it('should return true for @yrdsb.ca with alphabetic local part', () => {
       expect(isTeacherEmail('teacher@yrdsb.ca')).toBe(true)
+      expect(isTeacherEmail('john.smith@yrdsb.ca')).toBe(true)
+      expect(isTeacherEmail('any.teacher@yrdsb.ca')).toBe(true)
     })
 
+    // Rule 1: @yrdsb.ca with numeric-only local part → Student (CRITICAL)
+    it('should return false for @yrdsb.ca with numeric-only local part (students)', () => {
+      expect(isTeacherEmail('123456789@yrdsb.ca')).toBe(false)
+      expect(isTeacherEmail('987654321@yrdsb.ca')).toBe(false)
+      expect(isTeacherEmail('1@yrdsb.ca')).toBe(false)
+      expect(isTeacherEmail('000000000@yrdsb.ca')).toBe(false)
+    })
+
+    // Rule 1: @gapps.yrdsb.ca with alphabetic local part → Teacher
+    it('should return true for @gapps.yrdsb.ca with alphabetic local part', () => {
+      expect(isTeacherEmail('john.smith@gapps.yrdsb.ca')).toBe(true)
+      expect(isTeacherEmail('john.h.smith@gapps.yrdsb.ca')).toBe(true)
+      expect(isTeacherEmail('teacher@gapps.yrdsb.ca')).toBe(true)
+      expect(isTeacherEmail('a.b.c@gapps.yrdsb.ca')).toBe(true)
+    })
+
+    // Rule 1: @gapps.yrdsb.ca with numeric-only local part → Student (CRITICAL)
+    it('should return false for @gapps.yrdsb.ca with numeric-only local part (students)', () => {
+      expect(isTeacherEmail('123456789@gapps.yrdsb.ca')).toBe(false)
+      expect(isTeacherEmail('987654321@gapps.yrdsb.ca')).toBe(false)
+      expect(isTeacherEmail('1@gapps.yrdsb.ca')).toBe(false)
+      expect(isTeacherEmail('000000000@gapps.yrdsb.ca')).toBe(false)
+    })
+
+    // Rule 1: Mixed alphanumeric → Teacher (both domains)
+    it('should return true for YRDSB domains with mixed alphanumeric', () => {
+      expect(isTeacherEmail('john123@gapps.yrdsb.ca')).toBe(true)
+      expect(isTeacherEmail('123john@gapps.yrdsb.ca')).toBe(true)
+      expect(isTeacherEmail('j123@gapps.yrdsb.ca')).toBe(true)
+      expect(isTeacherEmail('john123@yrdsb.ca')).toBe(true)
+      expect(isTeacherEmail('teacher99@yrdsb.ca')).toBe(true)
+    })
+
+    // Rule 2: DEV_TEACHER_EMAILS
     it('should return true for emails in DEV_TEACHER_EMAILS', () => {
       process.env.DEV_TEACHER_EMAILS = 'dev@example.com,test@teacher.com'
       expect(isTeacherEmail('dev@example.com')).toBe(true)
       expect(isTeacherEmail('test@teacher.com')).toBe(true)
-    })
-
-    it('should return false for student domain emails', () => {
-      expect(isTeacherEmail('student@example.com')).toBe(false)
-    })
-
-    it('should return false for unknown domains', () => {
-      expect(isTeacherEmail('user@gmail.com')).toBe(false)
-      expect(isTeacherEmail('admin@school.org')).toBe(false)
-    })
-
-    it('should be case sensitive for teacher domains', () => {
-      // Email domains are case insensitive, but the function doesn't normalize
-      // This tests the actual implementation behavior
-      expect(isTeacherEmail('teacher@GAPPS.YRDSB.CA')).toBe(false)
     })
 
     it('should handle whitespace in DEV_TEACHER_EMAILS', () => {
@@ -411,13 +429,73 @@ describe('auth utilities', () => {
       expect(isTeacherEmail('dev@example.com')).toBe(false)
     })
 
-    it('should not match partial domain matches', () => {
-      expect(isTeacherEmail('teacher@fakegapps.yrdsb.ca.evil.com')).toBe(false)
+    // Case sensitivity and normalization
+    it('should be case insensitive', () => {
+      expect(isTeacherEmail('TEACHER@YRDSB.CA')).toBe(true)
+      expect(isTeacherEmail('John.Smith@GAPPS.YRDSB.CA')).toBe(true)
+      expect(isTeacherEmail('123456789@GAPPS.YRDSB.CA')).toBe(false)
+      expect(isTeacherEmail('123456789@YRDSB.CA')).toBe(false)
     })
 
-    it('should match emails ending exactly with teacher domains', () => {
-      expect(isTeacherEmail('any.teacher@gapps.yrdsb.ca')).toBe(true)
-      expect(isTeacherEmail('teacher.name@yrdsb.ca')).toBe(true)
+    it('should handle leading/trailing whitespace', () => {
+      expect(isTeacherEmail('  teacher@yrdsb.ca  ')).toBe(true)
+      expect(isTeacherEmail(' john.smith@gapps.yrdsb.ca ')).toBe(true)
+      expect(isTeacherEmail(' 123456789@gapps.yrdsb.ca ')).toBe(false)
+      expect(isTeacherEmail(' 123456789@yrdsb.ca ')).toBe(false)
+    })
+
+    // Default: Student
+    it('should return false for unknown domains', () => {
+      expect(isTeacherEmail('user@gmail.com')).toBe(false)
+      expect(isTeacherEmail('admin@school.org')).toBe(false)
+      expect(isTeacherEmail('student@student.yrdsb.ca')).toBe(false)
+    })
+
+    // Edge cases
+    it('should handle invalid email formats', () => {
+      expect(isTeacherEmail('notanemail')).toBe(false)
+      expect(isTeacherEmail('@gapps.yrdsb.ca')).toBe(false)
+      expect(isTeacherEmail('teacher@')).toBe(false)
+      expect(isTeacherEmail('')).toBe(false)
+    })
+
+    it('should not match partial domain matches', () => {
+      expect(isTeacherEmail('teacher@fakegapps.yrdsb.ca.evil.com')).toBe(false)
+      expect(isTeacherEmail('teacher@notyrdsb.ca')).toBe(false)
+    })
+
+    // Security: Ensure students can't become teachers
+    it('SECURITY: should never classify numeric YRDSB emails as teacher', () => {
+      const studentEmails = [
+        '123456789@gapps.yrdsb.ca',
+        '000000001@gapps.yrdsb.ca',
+        '999999999@gapps.yrdsb.ca',
+        '1@gapps.yrdsb.ca',
+        '123456789@yrdsb.ca',
+        '000000001@yrdsb.ca',
+        '999999999@yrdsb.ca',
+        '1@yrdsb.ca',
+      ]
+
+      studentEmails.forEach(email => {
+        expect(isTeacherEmail(email)).toBe(false)
+      })
+    })
+
+    it('SECURITY: should correctly classify alphabetic YRDSB emails as teacher', () => {
+      const teacherEmails = [
+        'john.smith@gapps.yrdsb.ca',
+        'jane.doe@gapps.yrdsb.ca',
+        'a.b.c@gapps.yrdsb.ca',
+        'teacher@gapps.yrdsb.ca',
+        'john.smith@yrdsb.ca',
+        'jane.doe@yrdsb.ca',
+        'teacher@yrdsb.ca',
+      ]
+
+      teacherEmails.forEach(email => {
+        expect(isTeacherEmail(email)).toBe(true)
+      })
     })
   })
 })

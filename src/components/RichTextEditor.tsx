@@ -55,6 +55,7 @@ export function RichTextEditor({
     ],
     content: content,
     editable: canEdit,
+    immediatelyRender: false,
     onUpdate: ({ editor }) => {
       onChange(editor.getJSON() as TiptapContent)
     },
