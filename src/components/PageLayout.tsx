@@ -135,12 +135,50 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
 export function PageActionBar({
   primary,
   actions = [],
+  actionsAlign = 'end',
   className = '',
 }: {
   primary: ReactNode
   actions?: ActionBarItem[]
+  actionsAlign?: 'start' | 'end'
   className?: string
 }) {
+  if (actionsAlign === 'start') {
+    return (
+      <div className={['w-full flex items-start gap-2', className].join(' ')}>
+        <div className="min-w-0">{primary}</div>
+
+        {actions.length > 0 && (
+          <>
+            <div className="hidden sm:flex flex-wrap items-center justify-start gap-2">
+              {actions.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={[
+                    ACTIONBAR_BUTTON_CLASSNAME,
+                    item.destructive
+                      ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-900/30'
+                      : '',
+                  ].join(' ')}
+                  onClick={item.onSelect}
+                  disabled={item.disabled}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="sm:hidden">
+              <ActionBarMenu items={actions} />
+            </div>
+          </>
+        )}
+
+        <div className="flex-1" />
+      </div>
+    )
+  }
+
   return (
     <div className={['w-full flex items-start gap-2', className].join(' ')}>
       <div className="min-w-0 flex-1">{primary}</div>

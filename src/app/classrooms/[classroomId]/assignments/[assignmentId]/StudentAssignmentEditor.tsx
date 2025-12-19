@@ -12,7 +12,6 @@ import {
   calculateAssignmentStatus,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
-  isPastDue
 } from '@/lib/assignments'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import type { Assignment, AssignmentDoc, TiptapContent } from '@/types'
@@ -20,10 +19,18 @@ import type { Assignment, AssignmentDoc, TiptapContent } from '@/types'
 interface Props {
   classroomId: string
   assignmentId: string
+  variant?: 'standalone' | 'embedded'
+  onExit?: () => void
 }
 
-export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
+export function StudentAssignmentEditor({
+  classroomId,
+  assignmentId,
+  variant = 'standalone',
+  onExit,
+}: Props) {
   const router = useRouter()
+  const isEmbedded = variant === 'embedded'
 
   const AUTOSAVE_DEBOUNCE_MS = 5000
   const AUTOSAVE_MIN_INTERVAL_MS = 15000
@@ -43,19 +50,9 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
 
-  useEffect(() => {
-    loadAssignment()
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-      if (throttledSaveTimeoutRef.current) {
-        clearTimeout(throttledSaveTimeoutRef.current)
-      }
-    }
-  }, [assignmentId])
-
-  async function loadAssignment() {
+  const loadAssignment = useCallback(async () => {
+    setLoading(true)
+    setError('')
     try {
       const response = await fetch(`/api/assignment-docs/${assignmentId}`)
       const data = await response.json()
@@ -74,7 +71,19 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [assignmentId])
+
+  useEffect(() => {
+    loadAssignment()
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+      if (throttledSaveTimeoutRef.current) {
+        clearTimeout(throttledSaveTimeoutRef.current)
+      }
+    }
+  }, [loadAssignment])
 
   // Autosave with debouncing
   const saveContent = useCallback(async (newContent: TiptapContent) => {
@@ -208,6 +217,15 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
   }
 
   if (loading) {
+    if (isEmbedded) {
+      return (
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-6 flex justify-center">
+            <Spinner size="lg" />
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
@@ -216,6 +234,20 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
   }
 
   if (error && !assignment) {
+    const exit = onExit ?? (() => router.push(`/classrooms/${classroomId}?tab=assignments`))
+    if (isEmbedded) {
+      return (
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+          <button
+            onClick={exit}
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+          >
+            Back to assignments
+          </button>
+        </div>
+      )
+    }
     return (
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center">
         <p className="text-red-600 mb-4">{error}</p>
@@ -234,8 +266,85 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
   }
 
   const status = calculateAssignmentStatus(assignment, doc)
-  const isLate = isPastDue(assignment.due_at)
   const isSubmitted = doc?.is_submitted || false
+
+  const editorContent = (
+    <div className="space-y-6">
+      {/* Description */}
+      {!isEmbedded && assignment.description && (
+        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{assignment.description}</p>
+        </div>
+      )}
+
+      {/* Editor */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Your Response</span>
+          <span
+            className={`text-xs ${
+              saveStatus === 'saved'
+                ? 'text-green-600 dark:text-green-400'
+                : saveStatus === 'saving'
+                  ? 'text-gray-500 dark:text-gray-400'
+                  : 'text-orange-600 dark:text-orange-400'
+            }`}
+          >
+            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+          </span>
+        </div>
+
+        <div className="p-4">
+          <RichTextEditor
+            content={content}
+            onChange={handleContentChange}
+            placeholder="Write your response here..."
+            disabled={submitting}
+            editable={!isSubmitted}
+            onBlur={flushAutosave}
+          />
+        </div>
+
+        {error && (
+          <div className="px-4 pb-4">
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          </div>
+        )}
+
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="text-sm text-gray-500 dark:text-gray-400">{countCharacters(content)} characters</div>
+
+          <div className="flex gap-2">
+            {isSubmitted ? (
+              <Button onClick={handleUnsubmit} variant="secondary" disabled={submitting}>
+                {submitting ? 'Unsubmitting...' : 'Unsubmit'}
+              </Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={submitting || isEmpty(content)}>
+                {submitting ? 'Submitting...' : 'Submit'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Submission info */}
+      {isSubmitted && doc?.submitted_at && (
+        <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
+          Submitted on{' '}
+          {new Date(doc.submitted_at).toLocaleString('en-CA', {
+            timeZone: 'America/Toronto',
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })}
+        </div>
+      )}
+    </div>
+  )
+
+  if (isEmbedded) {
+    return editorContent
+  }
 
   return (
     <PageLayout>
@@ -264,83 +373,7 @@ export function StudentAssignmentEditor({ classroomId, assignmentId }: Props) {
         }
       />
 
-      <PageContent className="space-y-6">
-        {/* Description */}
-        {assignment.description && (
-          <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{assignment.description}</p>
-          </div>
-        )}
-
-        {/* Editor */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Your Response</span>
-            <span className={`text-xs ${
-              saveStatus === 'saved' ? 'text-green-600 dark:text-green-400' :
-              saveStatus === 'saving' ? 'text-gray-500 dark:text-gray-400' :
-              'text-orange-600 dark:text-orange-400'
-            }`}>
-              {saveStatus === 'saved' ? 'Saved' :
-               saveStatus === 'saving' ? 'Saving...' :
-               'Unsaved changes'}
-            </span>
-          </div>
-
-          <div className="p-4">
-            <RichTextEditor
-              content={content}
-              onChange={handleContentChange}
-              placeholder="Write your response here..."
-              disabled={submitting}
-              editable={!isSubmitted}
-              onBlur={flushAutosave}
-            />
-          </div>
-
-          {error && (
-            <div className="px-4 pb-4">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          )}
-
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {countCharacters(content)} characters
-            </div>
-
-            <div className="flex gap-2">
-              {isSubmitted ? (
-                <Button
-                  onClick={handleUnsubmit}
-                  variant="secondary"
-                  disabled={submitting}
-                >
-                  {submitting ? 'Unsubmitting...' : 'Unsubmit'}
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={submitting || isEmpty(content)}
-                >
-                  {submitting ? 'Submitting...' : 'Submit'}
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Submission info */}
-        {isSubmitted && doc?.submitted_at && (
-          <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
-            Submitted on {new Date(doc.submitted_at).toLocaleString('en-CA', {
-              timeZone: 'America/Toronto',
-              dateStyle: 'medium',
-              timeStyle: 'short'
-            })}
-          </div>
-        )}
-      </PageContent>
+      <PageContent>{editorContent}</PageContent>
     </PageLayout>
   )
 }

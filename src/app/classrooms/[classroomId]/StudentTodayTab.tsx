@@ -3,7 +3,7 @@
 import { useEffect, useState, FormEvent } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
-import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { format, parseISO } from 'date-fns'
@@ -149,19 +149,10 @@ export function StudentTodayTab({ classroom }: Props) {
     )
   }
 
-  const formattedDate = today ? format(parseISO(today), 'EEE MMM d') : ''
   const historyListId = `student-today-history-${classroom.id}`
 
   return (
     <PageLayout>
-      <PageActionBar
-        primary={
-          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {formattedDate || 'Today'}
-          </div>
-        }
-      />
-
       <PageContent>
         <div className="space-y-6">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">

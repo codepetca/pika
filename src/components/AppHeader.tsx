@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Bars3Icon, MoonIcon, SunIcon } from '@heroicons/react/24/outline'
+import { useEffect, useMemo, useState } from 'react'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
@@ -35,6 +36,22 @@ export function AppHeader({
 }: AppHeaderProps) {
   const { theme, toggleTheme } = useTheme()
 
+  const formatter = useMemo(() => {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Toronto',
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    })
+  }, [])
+
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
+
   return (
     <header className="h-12 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 gap-3">
       {/* Mobile sidebar trigger (classroom pages) */}
@@ -64,8 +81,12 @@ export function AppHeader({
         />
       )}
 
-      {/* Spacer */}
-      <div className="flex-1" />
+      {/* Date */}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
+          {formatter.format(now)}
+        </div>
+      </div>
 
       {/* Dark Mode Toggle */}
       <button
