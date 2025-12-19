@@ -24,6 +24,16 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-19 10:35 [AI - Codex]
+**Goal:** Fix Vercel production client crash (React error #310) on `/`.
+**Completed:** Forced the home route to be dynamic so Next.js returns a real `307 Location: /login` redirect instead of a `NEXT_REDIRECT` HTML payload that triggers a client-side hook mismatch during hydration.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/page.tsx`
+**Next:** Redeploy to Vercel and confirm `/` loads and redirects cleanly.
+**Blockers:** None
+---
+---
 ## 2025-12-18 12:47 [AI - Codex]
 **Goal:** Apply `PageLayout` to the classrooms index page.
 **Completed:** Wrapped `/classrooms` index content in `AppShell` (header hidden) for consistent padding/background and refactored both teacher/student index views to use `PageLayout` + `PageActionBar` + `PageContent`.
