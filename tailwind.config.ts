@@ -8,8 +8,47 @@ const config: Config = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      typography: {
+        DEFAULT: {
+          css: {
+            // Ensure TipTap marks render properly
+            'strong': { fontWeight: '700' },
+            'em': { fontStyle: 'italic' },
+            'code': {
+              backgroundColor: 'rgb(243 244 246)',
+              padding: '0.2em 0.4em',
+              borderRadius: '0.25rem',
+              fontWeight: '400',
+            },
+            'pre': {
+              backgroundColor: 'rgb(31 41 55)',
+              color: 'rgb(229 231 235)',
+            },
+            'a': {
+              color: 'rgb(37 99 235)',
+              textDecoration: 'underline',
+              '&:hover': {
+                color: 'rgb(29 78 216)',
+              },
+            },
+          },
+        },
+        invert: {
+          css: {
+            'code': {
+              backgroundColor: 'rgb(31 41 55)',
+            },
+            'pre': {
+              backgroundColor: 'rgb(17 24 39)',
+            },
+          },
+        },
+      },
+    },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 }
 export default config
