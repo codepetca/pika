@@ -197,20 +197,26 @@ export function TeacherClassroomView({ classroom }: Props) {
     }
   }, [isSelectorOpen])
 
-  function handleCreateSuccess() {
+  function handleCreateSuccess(created: Assignment) {
+    // Optimistically add the new assignment to the list
+    setAssignments((prev) => [...prev, { ...created, stats: { total: 0, submitted: 0, late: 0 } }])
+    // Reload to get accurate stats from server
     loadAssignments()
   }
 
   function handleEditSuccess(updated: Assignment) {
+    // Optimistically update the assignment in the list
     setAssignments((prev) =>
       prev.map((assignment) =>
         assignment.id === updated.id ? { ...assignment, ...updated } : assignment
       )
     )
+    // Update selected assignment if it's the one being edited
     setSelectedAssignmentData((prev) => {
       if (!prev || prev.assignment.id !== updated.id) return prev
       return { ...prev, assignment: updated }
     })
+    // Reload to ensure consistency
     loadAssignments()
   }
 

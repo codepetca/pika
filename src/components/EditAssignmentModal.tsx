@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Assignment } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { addDaysToDateString } from '@/lib/date-string'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso } from '@/lib/timezone'
+import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
 
 interface EditAssignmentModalProps {
   isOpen: boolean
@@ -16,12 +16,14 @@ interface EditAssignmentModalProps {
 
 export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: EditAssignmentModalProps) {
   const initialValuesRef = useRef<{ title: string; description: string; dueAt: string } | null>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [dueAt, setDueAt] = useState(getTodayInToronto())
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const { dueAt, error, updateDueDate, moveDueDate, setDueAt, setError } = useAssignmentDateValidation(
+    getTodayInToronto()
+  )
 
   useEffect(() => {
     if (!isOpen || !assignment) return
@@ -34,29 +36,13 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
     setDueAt(nextDueAt)
     setError('')
     setShowCancelConfirm(false)
-  }, [assignment, isOpen])
 
-  function updateDueDate(next: string) {
-    const today = getTodayInToronto()
-    if (next < today) {
-      setError('Warning: Due date is in the past')
-    } else {
-      setError('')
-    }
-    setDueAt(next)
-  }
-
-  function moveDueDate(days: number) {
-    const today = getTodayInToronto()
-    const base = dueAt || today
-    const next = addDaysToDateString(base, days)
-    if (next < today) {
-      setError('Warning: Due date is in the past')
-    } else {
-      setError('')
-    }
-    setDueAt(next)
-  }
+    // Focus the title input when modal opens
+    setTimeout(() => {
+      titleInputRef.current?.focus()
+      titleInputRef.current?.select()
+    }, 100)
+  }, [assignment, isOpen, setDueAt, setError])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -78,7 +64,12 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to update assignment')
       }
-      onSuccess(data.assignment as Assignment)
+
+      if (!data.assignment) {
+        throw new Error('Invalid response: missing assignment data')
+      }
+
+      onSuccess(data.assignment)
       onClose()
     } catch (err: any) {
       setError(err.message || 'Failed to update assignment')
@@ -103,10 +94,33 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
 
   if (!isOpen || !assignment) return null
 
+  function handleBackdropClick(e: React.MouseEvent) {
+    if (e.target === e.currentTarget) {
+      handleCancel()
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') {
+      handleCancel()
+    }
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-[min(90vw,56rem)] p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Edit Assignment</h2>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50"
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+    >
+      <div
+        className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-[min(90vw,56rem)] p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-assignment-modal-title"
+      >
+        <h2 id="edit-assignment-modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          Edit Assignment
+        </h2>
 
         <AssignmentForm
           title={title}
@@ -122,6 +136,7 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
           submitLabel={saving ? 'Saving...' : 'Save changes'}
           disabled={saving}
           error={error}
+          titleInputRef={titleInputRef}
         />
       </div>
 

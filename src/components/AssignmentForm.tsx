@@ -1,6 +1,6 @@
 'use client'
 
-import type { FormEvent } from 'react'
+import type { FormEvent, RefObject } from 'react'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { DateActionBar } from '@/components/DateActionBar'
@@ -20,6 +20,7 @@ interface AssignmentFormProps {
   cancelLabel?: string
   disabled?: boolean
   error?: string
+  titleInputRef?: RefObject<HTMLInputElement>
 }
 
 export function AssignmentForm({
@@ -37,12 +38,14 @@ export function AssignmentForm({
   cancelLabel = 'Cancel',
   disabled = false,
   error,
+  titleInputRef,
 }: AssignmentFormProps) {
   const isSubmitDisabled = disabled || !title || !dueAt
 
   return (
     <form onSubmit={onSubmit} className="space-y-3 w-full">
       <Input
+        ref={titleInputRef}
         label="Title"
         type="text"
         value={title}

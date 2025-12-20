@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, useRef, type FormEvent } from 'react'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getTodayInToronto, toTorontoEndOfDayIso } from '@/lib/timezone'
+import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
 import type { Assignment } from '@/types'
 
 interface CreateAssignmentModalProps {
@@ -16,9 +17,11 @@ interface CreateAssignmentModalProps {
 export function CreateAssignmentModal({ isOpen, classroomId, onClose, onSuccess }: CreateAssignmentModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [dueAt, setDueAt] = useState(getTodayInToronto())
   const [creating, setCreating] = useState(false)
-  const [error, setError] = useState('')
+  const { dueAt, error, updateDueDate, moveDueDate, setDueAt, setError } = useAssignmentDateValidation(
+    addDaysToDateString(getTodayInToronto(), 1)
+  )
+  const titleInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -27,29 +30,12 @@ export function CreateAssignmentModal({ isOpen, classroomId, onClose, onSuccess 
     setDueAt(addDaysToDateString(getTodayInToronto(), 1))
     setError('')
     setCreating(false)
-  }, [isOpen])
 
-  function updateDueDate(next: string) {
-    const today = getTodayInToronto()
-    if (next < today) {
-      setError('Warning: Due date is in the past')
-    } else {
-      setError('')
-    }
-    setDueAt(next)
-  }
-
-  function moveDueDate(days: number) {
-    const today = getTodayInToronto()
-    const base = dueAt || today
-    const next = addDaysToDateString(base, days)
-    if (next < today) {
-      setError('Warning: Due date is in the past')
-    } else {
-      setError('')
-    }
-    setDueAt(next)
-  }
+    // Focus the title input when modal opens
+    setTimeout(() => {
+      titleInputRef.current?.focus()
+    }, 100)
+  }, [isOpen, setDueAt, setError])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -73,7 +59,11 @@ export function CreateAssignmentModal({ isOpen, classroomId, onClose, onSuccess 
         throw new Error(data.error || 'Failed to create assignment')
       }
 
-      onSuccess(data.assignment as Assignment)
+      if (!data.assignment) {
+        throw new Error('Invalid response: missing assignment data')
+      }
+
+      onSuccess(data.assignment)
       onClose()
     } catch (err: any) {
       setError(err.message || 'An error occurred')
@@ -84,10 +74,33 @@ export function CreateAssignmentModal({ isOpen, classroomId, onClose, onSuccess 
 
   if (!isOpen) return null
 
+  function handleBackdropClick(e: React.MouseEvent) {
+    if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') {
+      onClose()
+    }
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-[min(90vw,56rem)] p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">New Assignment</h2>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50"
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+    >
+      <div
+        className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-[min(90vw,56rem)] p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-assignment-modal-title"
+      >
+        <h2 id="create-assignment-modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          New Assignment
+        </h2>
 
         <AssignmentForm
           title={title}
@@ -103,6 +116,7 @@ export function CreateAssignmentModal({ isOpen, classroomId, onClose, onSuccess 
           submitLabel={creating ? 'Creating...' : 'Create Assignment'}
           disabled={creating}
           error={error}
+          titleInputRef={titleInputRef}
         />
       </div>
     </div>
