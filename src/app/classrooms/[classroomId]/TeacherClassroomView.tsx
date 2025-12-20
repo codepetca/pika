@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
@@ -383,10 +382,11 @@ export function TeacherClassroomView({ classroom }: Props) {
           ) : (
             <div className="space-y-2">
               {assignments.map((assignment) => (
-                <Link
+                <button
                   key={assignment.id}
-                  href={`/classrooms/${classroom.id}/assignments/${assignment.id}`}
-                  className="block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
+                  type="button"
+                  onClick={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })}
+                  className="w-full text-left p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -405,7 +405,7 @@ export function TeacherClassroomView({ classroom }: Props) {
                       <button
                         type="button"
                         onClick={(e) => {
-                          e.preventDefault()
+                          e.stopPropagation()
                           setEditAssignment(assignment)
                         }}
                         className="p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-300 dark:hover:text-gray-100 dark:hover:bg-gray-800"
@@ -416,7 +416,7 @@ export function TeacherClassroomView({ classroom }: Props) {
                       <button
                         type="button"
                         onClick={(e) => {
-                          e.preventDefault()
+                          e.stopPropagation()
                           setPendingDelete({ id: assignment.id, title: assignment.title })
                         }}
                         className="p-2 rounded-md text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-200 dark:hover:bg-red-900/20"
@@ -426,7 +426,7 @@ export function TeacherClassroomView({ classroom }: Props) {
                       </button>
                     </div>
                   </div>
-                </Link>
+                </button>
               ))}
             </div>
           )}
