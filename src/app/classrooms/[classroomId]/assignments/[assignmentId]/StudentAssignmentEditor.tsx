@@ -185,6 +185,9 @@ export function StudentAssignmentEditor({
       }
 
       setDoc(data.doc)
+      // Update lastSavedContentRef to match the current content after successful submit
+      lastSavedContentRef.current = JSON.stringify(content)
+      setSaveStatus('saved')
     } catch (err: any) {
       console.error('Error submitting:', err)
       setError(err.message || 'Failed to submit')

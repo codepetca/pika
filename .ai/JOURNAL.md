@@ -1301,6 +1301,15 @@
 **Blockers:** None
 ---
 ---
+## 2025-12-19 20:45 [AI - Claude Sonnet 4.5]
+**Goal:** Fix UI behavior and layout issues (Issue #69)
+**Completed:** Replaced alert() with styled success notification in verify-signup, added email persistence between login/signup via URL parameter, increased instructions textarea from 3 to 6 rows, fixed "Unsaved changes" persisting after assignment submission by updating lastSavedContentRef and saveStatus after successful submit.
+**Status:** completed
+**Artifacts:**
+- PR: #77
+- Files: `src/app/verify-signup/page.tsx`, `src/app/login/LoginClient.tsx`, `src/app/signup/page.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/StudentAssignmentEditor.tsx`
+**Next:** All quick-win issues (A-C / #67-69) completed
+**Blockers:** None
 ## 2025-12-19 20:43 [AI - Claude Sonnet 4.5]
 **Goal:** Fix code generation, date formatting, and error messages (Issue #68)
 **Completed:** Updated verification code character set (exclude O, 0, I, L), added uppercase transformation to join code inputs, changed due date format to include day of week without time, removed comma from titlebar date using date-fns, improved generic join error message, updated tests. Logo replacement deferred pending new design.
