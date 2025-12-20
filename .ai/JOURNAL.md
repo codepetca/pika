@@ -1329,3 +1329,13 @@
 - Files: `src/app/teacher/calendar/page.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/TeacherAssignmentDetail.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/students/[studentId]/page.tsx`, `src/app/snapshots-gallery/SnapshotGallery.tsx`
 **Next:** None
 **Blockers:** None
+---
+## 2025-12-20 00:24 [AI - Codex]
+**Goal:** Align due date formatting and join error fallback messaging after PR #76 follow-up.
+**Completed:** Updated assignment due date formatting to match "Tue Dec 16" pattern, adjusted unit tests, and shortened join fallback error to include roster hint while still surfacing server errors. Ran full test suite.
+**Status:** completed
+**Artifacts:**
+- Branch: `76-date-format-join-fallback`
+- Files: `src/lib/assignments.ts`, `tests/unit/assignments.test.ts`, `src/app/join/[code]/page.tsx`
+**Tests:** `pnpm test`
+**Blockers:** None

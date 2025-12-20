@@ -300,10 +300,10 @@ describe('assignment utilities', () => {
     it('should format date in America/Toronto timezone', () => {
       const formatted = formatDueDate('2024-10-20T23:59:59-04:00')
 
-      // Should include month, day, year
+      // Should include month and day (no year)
       expect(formatted).toMatch(/Oct|October/)
       expect(formatted).toMatch(/20/)
-      expect(formatted).toMatch(/2024/)
+      expect(formatted).not.toMatch(/\b2024\b/)
     })
 
     it('should include day of week in formatted output', () => {
@@ -318,10 +318,10 @@ describe('assignment utilities', () => {
 
       // Should NOT include time
       expect(formatted).not.toMatch(/\d{1,2}:\d{2}/)
-      // Should include month, day, year
+      // Should include month and day (no year)
       expect(formatted).toMatch(/Oct/)
       expect(formatted).toMatch(/21/)
-      expect(formatted).toMatch(/2024/)
+      expect(formatted).not.toMatch(/\b2024\b/)
     })
 
     it('should format consistently for different dates', () => {
