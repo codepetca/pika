@@ -1361,3 +1361,14 @@
 **Tests:** `pnpm test -- tests/components/EditAssignmentModal.test.tsx`
 **Next:** Await code review before merge.
 **Blockers:** None
+---
+## 2025-12-20 09:22 [AI - Codex]
+**Goal:** Remove legacy assignment detail routes.
+**Completed:** Removed the `/classrooms/[classroomId]/assignments/[assignmentId]` routes (including student sub-route), moved `StudentAssignmentEditor` to components, and aligned list clicks with the sidebar selection view.
+**Status:** completed
+**Artifacts:**
+- PR: #81
+- Files: `src/components/StudentAssignmentEditor.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Tests:** Not run (route removal + wiring only).
+**Next:** Confirm navigation behavior matches sidebar selection.
+**Blockers:** None
