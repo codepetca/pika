@@ -1,21 +1,19 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState, useEffect, FormEvent } from 'react'
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
-import { AssignmentForm } from '@/components/AssignmentForm'
+import { CreateAssignmentModal } from '@/components/CreateAssignmentModal'
 import { EditAssignmentModal } from '@/components/EditAssignmentModal'
 import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
-import { addDaysToDateString } from '@/lib/date-string'
 import { formatDueDate } from '@/lib/assignments'
 import {
   getAssignmentStatusBadgeClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
-import { getTodayInToronto, toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
 import { ChevronDownIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
 import {
@@ -81,7 +79,7 @@ export function TeacherClassroomView({ classroom }: Props) {
   const selectorRef = useRef<HTMLDivElement | null>(null)
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [loading, setLoading] = useState(true)
-  const [showNewForm, setShowNewForm] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
 
@@ -99,12 +97,6 @@ export function TeacherClassroomView({ classroom }: Props) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
-
-  // New assignment form state
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [dueAt, setDueAt] = useState(() => addDaysToDateString(getTodayInToronto(), 1))
-  const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
 
   const loadAssignments = useCallback(async () => {
@@ -208,62 +200,8 @@ export function TeacherClassroomView({ classroom }: Props) {
     }
   }, [isSelectorOpen])
 
-  async function handleCreateAssignment(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setCreating(true)
-
-    try {
-      const response = await fetch('/api/teacher/assignments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classroom_id: classroom.id,
-          title,
-          description,
-          due_at: toTorontoEndOfDayIso(dueAt),
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create assignment')
-      }
-
-      // Reset form and reload
-      setTitle('')
-      setDescription('')
-      setDueAt(addDaysToDateString(getTodayInToronto(), 1))
-      setShowNewForm(false)
-      loadAssignments()
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  function updateCreateDueDate(next: string) {
-    const today = getTodayInToronto()
-    if (next < today) {
-      setError('Warning: Due date is in the past')
-    } else {
-      setError('')
-    }
-    setDueAt(next)
-  }
-
-  function moveCreateDueDate(days: number) {
-    const today = getTodayInToronto()
-    const base = dueAt || today
-    const next = addDaysToDateString(base, days)
-    if (next < today) {
-      setError('Warning: Due date is in the past')
-    } else {
-      setError('')
-    }
-    setDueAt(next)
+  function handleCreateSuccess() {
+    loadAssignments()
   }
 
   function handleEditSuccess(updated: Assignment) {
@@ -326,6 +264,7 @@ export function TeacherClassroomView({ classroom }: Props) {
 
   async function deleteAssignment() {
     if (!pendingDelete) return
+    setError('')
     setIsDeleting(true)
     try {
       const response = await fetch(`/api/teacher/assignments/${pendingDelete.id}`, { method: 'DELETE' })
@@ -371,12 +310,12 @@ export function TeacherClassroomView({ classroom }: Props) {
 
     items.push({
       id: 'toggle-new-assignment',
-      label: showNewForm ? 'Cancel' : '+ New Assignment',
-      onSelect: () => setShowNewForm((prev) => !prev),
+      label: '+ New Assignment',
+      onSelect: () => setIsCreateModalOpen(true),
     })
 
     return items
-  }, [classroom.id, router, selectedAssignmentData, selectedAssignmentLoading, selection.mode, showNewForm])
+  }, [classroom.id, router, selectedAssignmentData, selectedAssignmentLoading, selection.mode])
 
   return (
     <PageLayout>
@@ -425,29 +364,13 @@ export function TeacherClassroomView({ classroom }: Props) {
       />
 
       <PageContent className="space-y-4">
+        {error && (
+          <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-700 dark:text-red-200">
+            {error}
+          </div>
+        )}
 
-      {/* New Assignment Form */}
-      {showNewForm && (
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-          <AssignmentForm
-            title={title}
-            description={description}
-            dueAt={dueAt}
-            onTitleChange={setTitle}
-            onDescriptionChange={setDescription}
-            onDueAtChange={updateCreateDueDate}
-            onPrevDate={() => moveCreateDueDate(-1)}
-            onNextDate={() => moveCreateDueDate(1)}
-            onSubmit={handleCreateAssignment}
-            onCancel={() => setShowNewForm(false)}
-            submitLabel={creating ? 'Creating...' : 'Create Assignment'}
-            disabled={creating}
-            error={error}
-          />
-        </div>
-      )}
-
-      {selection.mode === 'summary' ? (
+        {selection.mode === 'summary' ? (
         <div>
           {loading ? (
             <div className="flex justify-center py-8">
@@ -597,6 +520,13 @@ export function TeacherClassroomView({ classroom }: Props) {
         assignment={editAssignment}
         onClose={() => setEditAssignment(null)}
         onSuccess={handleEditSuccess}
+      />
+
+      <CreateAssignmentModal
+        isOpen={isCreateModalOpen}
+        classroomId={classroom.id}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleCreateSuccess}
       />
       </PageContent>
     </PageLayout>
