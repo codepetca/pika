@@ -80,10 +80,10 @@ export function getAssignmentStatusBadgeClass(status: AssignmentStatus): string 
 
 /**
  * Format a due date for display
- * Example: "Tue Dec 16, 2025"
+ * Example: "Tue Dec 16"
  */
 export function formatDueDate(dueAt: string): string {
-  return formatInTimeZone(new Date(dueAt), 'America/Toronto', 'EEE MMM d, yyyy')
+  return formatInTimeZone(new Date(dueAt), 'America/Toronto', 'EEE MMM d')
 }
 
 /**
