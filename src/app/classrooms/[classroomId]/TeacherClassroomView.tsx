@@ -9,13 +9,14 @@ import { Input } from '@/components/Input'
 import { Spinner } from '@/components/Spinner'
 import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { DateActionBar } from '@/components/DateActionBar'
 import { addDaysToDateString } from '@/lib/date-string'
 import { formatDueDate } from '@/lib/assignments'
 import {
   getAssignmentStatusBadgeClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
-import { fromTorontoTime } from '@/lib/timezone'
+import { fromTorontoTime, getTodayInToronto } from '@/lib/timezone'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
 import { ChevronDownIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { parse } from 'date-fns'
@@ -109,7 +110,7 @@ export function TeacherClassroomView({ classroom }: Props) {
   // New assignment form state
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [dueAt, setDueAt] = useState('')
+  const [dueAt, setDueAt] = useState(() => addDaysToDateString(getTodayInToronto(), 1))
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
 
@@ -240,7 +241,7 @@ export function TeacherClassroomView({ classroom }: Props) {
       // Reset form and reload
       setTitle('')
       setDescription('')
-      setDueAt('')
+      setDueAt(addDaysToDateString(getTodayInToronto(), 1))
       setShowNewForm(false)
       loadAssignments()
     } catch (err: any) {
@@ -420,40 +421,44 @@ export function TeacherClassroomView({ classroom }: Props) {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Due Date
                 </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-                    onClick={() => setDueAt(addDaysToDateString(dueAt, -1))}
-                    disabled={creating || !dueAt}
-                    aria-label="Previous day"
-                  >
-                    ←
-                  </button>
-
-                  <input
-                    type="date"
-                    value={dueAt}
-                    onChange={(e) => setDueAt(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed border-gray-300 dark:border-gray-600"
-                    required
-                    disabled={creating}
-                  />
-
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-                    onClick={() => setDueAt(addDaysToDateString(dueAt, 1))}
-                    disabled={creating || !dueAt}
-                    aria-label="Next day"
-                  >
-                    →
-                  </button>
-                </div>
+                <DateActionBar
+                  value={dueAt}
+                  onChange={(date) => {
+                    const today = getTodayInToronto()
+                    if (date < today) {
+                      setError('Warning: Due date is in the past')
+                    } else {
+                      setError('')
+                    }
+                    setDueAt(date)
+                  }}
+                  onPrev={() => {
+                    const today = getTodayInToronto()
+                    const base = dueAt || today
+                    const newDate = addDaysToDateString(base, -1)
+                    if (newDate < today) {
+                      setError('Warning: Due date is in the past')
+                    } else {
+                      setError('')
+                    }
+                    setDueAt(newDate)
+                  }}
+                  onNext={() => {
+                    const today = getTodayInToronto()
+                    const base = dueAt || today
+                    const newDate = addDaysToDateString(base, 1)
+                    if (newDate < today) {
+                      setError('Warning: Due date is in the past')
+                    } else {
+                      setError('')
+                    }
+                    setDueAt(newDate)
+                  }}
+                />
               </div>
 
               {error && (
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-sm text-yellow-600 dark:text-yellow-400">{error}</p>
               )}
 
             <div className="flex gap-2">
@@ -470,12 +475,6 @@ export function TeacherClassroomView({ classroom }: Props) {
               </Button>
             </div>
           </form>
-        </div>
-      )}
-
-      {error && (
-        <div className="text-sm text-red-600 dark:text-red-400">
-          {error}
         </div>
       )}
 
