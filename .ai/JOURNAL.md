@@ -1289,3 +1289,14 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-19 20:38 [AI - Claude Sonnet 4.5]
+**Goal:** Polish UI text and labels identified during e2e testing (Issue #67)
+**Completed:** Updated 6 text instances across 4 files: signup placeholder ("number@" → "email@"), assignment form label ("Description" → "Instructions"), student view button ("View Details" → "Instructions"), rich text editor list buttons ("• List" → "•", "1. List" → "1."), removed "Assignments" title from editor header. Updated corresponding test assertions.
+**Status:** completed
+**Artifacts:**
+- PR: #75
+- Files: `src/app/signup/page.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`, `src/components/RichTextEditor.tsx`, `tests/components/RichTextEditor.test.tsx`
+**Next:** Continue with remaining quick-win issues (#68, #69) from e2e feedback triage
+**Blockers:** None
+---
