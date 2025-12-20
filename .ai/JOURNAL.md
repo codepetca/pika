@@ -1350,3 +1350,14 @@
 **Tests:** `pnpm test -- tests/components/EditAssignmentModal.test.tsx`
 **Next:** Await code review before merge.
 **Blockers:** None
+---
+## 2025-12-20 09:05 [AI - Codex]
+**Goal:** Align assignment creation UI with edit modal for Issue #71.
+**Completed:** Added a create-assignment modal using the shared AssignmentForm and removed the inline create form; wired action bar to open the modal and reload list after creation.
+**Status:** completed
+**Artifacts:**
+- PR: #81
+- Files: `src/components/CreateAssignmentModal.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Tests:** `pnpm test -- tests/components/EditAssignmentModal.test.tsx`
+**Next:** Await code review before merge.
+**Blockers:** None
