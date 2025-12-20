@@ -41,7 +41,7 @@ export function AssignmentForm({
   const isSubmitDisabled = disabled || !title || !dueAt
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3 max-w-xl">
+    <form onSubmit={onSubmit} className="space-y-3 w-full">
       <Input
         label="Title"
         type="text"
