@@ -110,7 +110,7 @@ export function TeacherClassroomView({ classroom }: Props) {
   // New assignment form state
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [dueAt, setDueAt] = useState('')
+  const [dueAt, setDueAt] = useState(() => addDaysToDateString(getTodayInToronto(), 1))
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
 
@@ -241,7 +241,7 @@ export function TeacherClassroomView({ classroom }: Props) {
       // Reset form and reload
       setTitle('')
       setDescription('')
-      setDueAt('')
+      setDueAt(addDaysToDateString(getTodayInToronto(), 1))
       setShowNewForm(false)
       loadAssignments()
     } catch (err: any) {
@@ -426,10 +426,10 @@ export function TeacherClassroomView({ classroom }: Props) {
                   onChange={(date) => {
                     const today = getTodayInToronto()
                     if (date < today) {
-                      setError('Due date cannot be before today')
-                      return
+                      setError('Warning: Due date is in the past')
+                    } else {
+                      setError('')
                     }
-                    setError('')
                     setDueAt(date)
                   }}
                   onPrev={() => {
@@ -437,23 +437,28 @@ export function TeacherClassroomView({ classroom }: Props) {
                     const base = dueAt || today
                     const newDate = addDaysToDateString(base, -1)
                     if (newDate < today) {
-                      setError('Due date cannot be before today')
-                      return
+                      setError('Warning: Due date is in the past')
+                    } else {
+                      setError('')
                     }
-                    setError('')
                     setDueAt(newDate)
                   }}
                   onNext={() => {
                     const today = getTodayInToronto()
                     const base = dueAt || today
-                    setError('')
-                    setDueAt(addDaysToDateString(base, 1))
+                    const newDate = addDaysToDateString(base, 1)
+                    if (newDate < today) {
+                      setError('Warning: Due date is in the past')
+                    } else {
+                      setError('')
+                    }
+                    setDueAt(newDate)
                   }}
                 />
               </div>
 
               {error && (
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-sm text-yellow-600 dark:text-yellow-400">{error}</p>
               )}
 
             <div className="flex gap-2">
