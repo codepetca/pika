@@ -27,7 +27,7 @@ export default function JoinPage() {
             Join code
             <input
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
               className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="ABC123"
               autoCapitalize="characters"

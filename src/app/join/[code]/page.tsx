@@ -45,7 +45,7 @@ export default function JoinClassroomPage() {
           if (data?.code === 'not_on_roster') {
             throw new Error('Your email is not on the roster. Make sure you are signed in with your board email and ask your teacher to add you.')
           }
-          throw new Error(data.error || 'Failed to join classroom')
+          throw new Error(data.error || 'Make sure you signed in with your school email. Ask your teacher to add you to the roster.')
         }
 
         // Redirect to student dashboard with the new classroom selected
