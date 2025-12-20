@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 
 interface Snapshot {
@@ -137,11 +138,13 @@ export function SnapshotGallery() {
                 rel="noopener noreferrer"
                 className="block relative aspect-[4/3] bg-gray-100 overflow-hidden group"
               >
-                <img
+                <Image
                   src={`/api/snapshots/${snapshot.filename}`}
                   alt={snapshot.name}
-                  className="w-full h-full object-contain object-top group-hover:scale-105 transition-transform duration-200"
-                  loading="lazy"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-contain object-top group-hover:scale-105 transition-transform duration-200"
+                  unoptimized
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 bg-white px-4 py-2 rounded-md text-sm font-medium text-gray-900 shadow-lg transition-opacity">

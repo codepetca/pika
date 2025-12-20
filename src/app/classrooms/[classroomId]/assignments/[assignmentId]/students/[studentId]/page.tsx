@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/RichTextViewer'
@@ -41,11 +41,7 @@ export default function StudentWorkPage() {
   const [error, setError] = useState('')
   const [showPlainText, setShowPlainText] = useState(false)
 
-  useEffect(() => {
-    loadStudentWork()
-  }, [assignmentId, studentId])
-
-  async function loadStudentWork() {
+  const loadStudentWork = useCallback(async () => {
     try {
       const response = await fetch(
         `/api/teacher/assignments/${assignmentId}/students/${studentId}`
@@ -63,7 +59,11 @@ export default function StudentWorkPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [assignmentId, studentId])
+
+  useEffect(() => {
+    loadStudentWork()
+  }, [loadStudentWork])
 
   if (loading) {
     return (
