@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
@@ -94,6 +94,22 @@ export default function CalendarPage() {
     loadClassrooms()
   }, [])
 
+  const loadClassDays = useCallback(async () => {
+    const classroomId = selectedClassroom?.id
+    if (!classroomId) return
+
+    setLoadingCalendar(true)
+    try {
+      const response = await fetch(`/api/classrooms/${classroomId}/class-days`)
+      const data = await response.json()
+      setClassDays(data.class_days || [])
+    } catch (err) {
+      console.error('Error loading class days:', err)
+    } finally {
+      setLoadingCalendar(false)
+    }
+  }, [selectedClassroom?.id])
+
   // Load calendar when classroom selected
   useEffect(() => {
     if (!selectedClassroom) {
@@ -102,22 +118,7 @@ export default function CalendarPage() {
     }
 
     loadClassDays()
-  }, [selectedClassroom])
-
-  async function loadClassDays() {
-    if (!selectedClassroom) return
-
-    setLoadingCalendar(true)
-    try {
-      const response = await fetch(`/api/classrooms/${selectedClassroom.id}/class-days`)
-      const data = await response.json()
-      setClassDays(data.class_days || [])
-    } catch (err) {
-      console.error('Error loading class days:', err)
-    } finally {
-      setLoadingCalendar(false)
-    }
-  }
+  }, [selectedClassroom, loadClassDays])
 
   async function handleGenerate() {
     if (!selectedClassroom) return

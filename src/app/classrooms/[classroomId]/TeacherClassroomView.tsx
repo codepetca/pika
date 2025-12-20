@@ -395,7 +395,7 @@ export function TeacherClassroomView({ classroom }: Props) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Description
+                  Instructions
                 </label>
                 <textarea
                   value={description}

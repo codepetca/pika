@@ -15,8 +15,8 @@ describe('RichTextEditor formatting buttons', () => {
     expect(screen.getByText('H1')).toBeInTheDocument() // Heading 1
     expect(screen.getByText('H2')).toBeInTheDocument() // Heading 2
     expect(screen.getByText('H3')).toBeInTheDocument() // Heading 3
-    expect(screen.getByText('• List')).toBeInTheDocument() // Bullet list
-    expect(screen.getByText('1. List')).toBeInTheDocument() // Ordered list
+    expect(screen.getByText('•')).toBeInTheDocument() // Bullet list
+    expect(screen.getByText('1.')).toBeInTheDocument() // Ordered list
     expect(screen.getByText('</>')).toBeInTheDocument() // Code block
     expect(screen.getByText('Link')).toBeInTheDocument() // Link
   })
@@ -145,7 +145,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const bulletButton = screen.getByText('• List')
+    const bulletButton = screen.getByText('•')
     fireEvent.click(bulletButton)
 
     await waitFor(() => {
@@ -167,7 +167,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const orderedButton = screen.getByText('1. List')
+    const orderedButton = screen.getByText('1.')
     fireEvent.click(orderedButton)
 
     await waitFor(() => {
@@ -208,8 +208,8 @@ describe('RichTextEditor formatting buttons', () => {
     expect(screen.getByText('H1')).toBeDisabled()
     expect(screen.getByText('H2')).toBeDisabled()
     expect(screen.getByText('H3')).toBeDisabled()
-    expect(screen.getByText('• List')).toBeDisabled()
-    expect(screen.getByText('1. List')).toBeDisabled()
+    expect(screen.getByText('•')).toBeDisabled()
+    expect(screen.getByText('1.')).toBeDisabled()
     expect(screen.getByText('</>')).toBeDisabled()
     expect(screen.getByText('Link')).toBeDisabled()
   })
@@ -225,8 +225,8 @@ describe('RichTextEditor formatting buttons', () => {
     expect(screen.getByText('H1')).toBeDisabled()
     expect(screen.getByText('H2')).toBeDisabled()
     expect(screen.getByText('H3')).toBeDisabled()
-    expect(screen.getByText('• List')).toBeDisabled()
-    expect(screen.getByText('1. List')).toBeDisabled()
+    expect(screen.getByText('•')).toBeDisabled()
+    expect(screen.getByText('1.')).toBeDisabled()
     expect(screen.getByText('</>')).toBeDisabled()
     expect(screen.getByText('Link')).toBeDisabled()
   })
