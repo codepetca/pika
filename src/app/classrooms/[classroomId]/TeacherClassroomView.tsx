@@ -478,12 +478,6 @@ export function TeacherClassroomView({ classroom }: Props) {
         </div>
       )}
 
-      {error && (
-        <div className="text-sm text-red-600 dark:text-red-400">
-          {error}
-        </div>
-      )}
-
       {selection.mode === 'summary' ? (
         <div>
           {loading ? (
