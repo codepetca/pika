@@ -433,8 +433,9 @@ export function TeacherClassroomView({ classroom }: Props) {
                     setDueAt(date)
                   }}
                   onPrev={() => {
-                    const newDate = addDaysToDateString(dueAt, -1)
                     const today = getTodayInToronto()
+                    const base = dueAt || today
+                    const newDate = addDaysToDateString(base, -1)
                     if (newDate < today) {
                       setError('Due date cannot be before today')
                       return
@@ -443,8 +444,10 @@ export function TeacherClassroomView({ classroom }: Props) {
                     setDueAt(newDate)
                   }}
                   onNext={() => {
+                    const today = getTodayInToronto()
+                    const base = dueAt || today
                     setError('')
-                    setDueAt(addDaysToDateString(dueAt, 1))
+                    setDueAt(addDaysToDateString(base, 1))
                   }}
                 />
               </div>
