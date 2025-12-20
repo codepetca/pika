@@ -14,6 +14,7 @@ function VerifySignupForm() {
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [resendSuccess, setResendSuccess] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -48,9 +49,11 @@ function VerifySignupForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      alert('New verification code sent!')
+      setResendSuccess(true)
+      // Hide success message after 3 seconds
+      setTimeout(() => setResendSuccess(false), 3000)
     } catch (err) {
-      alert('Failed to resend code')
+      setError('Failed to resend code')
     }
   }
 
@@ -96,6 +99,12 @@ function VerifySignupForm() {
             {loading ? 'Verifying...' : 'Verify Email'}
           </Button>
         </form>
+
+        {resendSuccess && (
+          <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-lg">
+            New verification code sent!
+          </div>
+        )}
 
         <div className="mt-4 text-center">
           <button

@@ -101,7 +101,7 @@ export function LoginClient() {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Don&apos;t have an account?{' '}
             <button
-              onClick={() => router.push('/signup')}
+              onClick={() => router.push(`/signup${email ? `?email=${encodeURIComponent(email)}` : ''}`)}
               className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
             >
               Sign up
