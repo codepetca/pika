@@ -18,7 +18,7 @@ import {
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
 import type { AssignmentWithStatus, Classroom } from '@/types'
-import { StudentAssignmentEditor } from './assignments/[assignmentId]/StudentAssignmentEditor'
+import { StudentAssignmentEditor } from '@/components/StudentAssignmentEditor'
 
 interface Props {
   classroom: Classroom

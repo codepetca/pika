@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
 import { CreateAssignmentModal } from '@/components/CreateAssignmentModal'
@@ -74,7 +73,6 @@ function formatTorontoDateTime(iso: string) {
 }
 
 export function TeacherClassroomView({ classroom }: Props) {
-  const router = useRouter()
   const selectorRef = useRef<HTMLDivElement | null>(null)
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [loading, setLoading] = useState(true)
@@ -288,15 +286,6 @@ export function TeacherClassroomView({ classroom }: Props) {
 
     if (selection.mode === 'assignment') {
       items.push({
-        id: 'open-assignment',
-        label: 'Open assignment',
-        onSelect: () => {
-          if (!selectedAssignmentData) return
-          router.push(`/classrooms/${classroom.id}/assignments/${selectedAssignmentData.assignment.id}`)
-        },
-        disabled: selectedAssignmentLoading || !selectedAssignmentData,
-      })
-      items.push({
         id: 'edit-assignment',
         label: 'Edit assignment',
         onSelect: () => {
@@ -314,7 +303,7 @@ export function TeacherClassroomView({ classroom }: Props) {
     })
 
     return items
-  }, [classroom.id, router, selectedAssignmentData, selectedAssignmentLoading, selection.mode])
+  }, [classroom.id, selectedAssignmentData, selectedAssignmentLoading, selection.mode])
 
   return (
     <PageLayout>
