@@ -1289,3 +1289,13 @@
 **Next:** None
 **Blockers:** None
 ---
+---
+## 2025-12-19 21:32 [AI - Codex]
+**Goal:** Fix lint warnings for issue #57.
+**Completed:** Memoized loader callbacks to satisfy `useEffect` deps, and replaced snapshot gallery `<img>` with `next/image`.
+**Status:** completed
+**Artifacts:**
+- PR: #78
+- Files: `src/app/teacher/calendar/page.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/TeacherAssignmentDetail.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/students/[studentId]/page.tsx`, `src/app/snapshots-gallery/SnapshotGallery.tsx`
+**Next:** None
+**Blockers:** None
