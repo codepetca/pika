@@ -199,7 +199,7 @@ export function TeacherClassroomView({ classroom }: Props) {
 
   function handleCreateSuccess(created: Assignment) {
     // Optimistically add the new assignment to the list
-    setAssignments((prev) => [...prev, { ...created, stats: { total: 0, submitted: 0, late: 0 } }])
+    setAssignments((prev) => [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }])
     // Reload to get accurate stats from server
     loadAssignments()
   }
