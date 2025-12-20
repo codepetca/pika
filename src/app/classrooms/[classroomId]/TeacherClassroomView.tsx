@@ -9,13 +9,16 @@ import { Input } from '@/components/Input'
 import { Spinner } from '@/components/Spinner'
 import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { addDaysToDateString } from '@/lib/date-string'
 import { formatDueDate } from '@/lib/assignments'
 import {
   getAssignmentStatusBadgeClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
+import { fromTorontoTime } from '@/lib/timezone'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
 import { ChevronDownIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { parse } from 'date-fns'
 import {
   DataTable,
   DataTableBody,
@@ -72,6 +75,12 @@ function formatTorontoDateTime(iso: string) {
     dateStyle: 'short',
     timeStyle: 'short',
   })
+}
+
+function toTorontoEndOfDayIso(dateString: string) {
+  const date = parse(dateString, 'yyyy-MM-dd', new Date())
+  date.setHours(23, 59, 0, 0)
+  return fromTorontoTime(date).toISOString()
 }
 
 export function TeacherClassroomView({ classroom }: Props) {
@@ -218,7 +227,7 @@ export function TeacherClassroomView({ classroom }: Props) {
           classroom_id: classroom.id,
           title,
           description,
-          due_at: new Date(dueAt).toISOString()
+          due_at: toTorontoEndOfDayIso(dueAt),
         })
       })
 
@@ -407,14 +416,41 @@ export function TeacherClassroomView({ classroom }: Props) {
                 />
               </div>
 
-              <Input
-                label="Due Date"
-                type="datetime-local"
-                value={dueAt}
-                onChange={(e) => setDueAt(e.target.value)}
-                required
-                disabled={creating}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Due Date
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                    onClick={() => setDueAt(addDaysToDateString(dueAt, -1))}
+                    disabled={creating || !dueAt}
+                    aria-label="Previous day"
+                  >
+                    ←
+                  </button>
+
+                  <input
+                    type="date"
+                    value={dueAt}
+                    onChange={(e) => setDueAt(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed border-gray-300 dark:border-gray-600"
+                    required
+                    disabled={creating}
+                  />
+
+                  <button
+                    type="button"
+                    className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                    onClick={() => setDueAt(addDaysToDateString(dueAt, 1))}
+                    disabled={creating || !dueAt}
+                    aria-label="Next day"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
 
               {error && (
                 <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
