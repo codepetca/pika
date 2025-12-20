@@ -1339,3 +1339,14 @@
 - Files: `src/lib/assignments.ts`, `tests/unit/assignments.test.ts`, `src/app/join/[code]/page.tsx`
 **Tests:** `pnpm test`
 **Blockers:** None
+---
+## 2025-12-20 08:55 [AI - Codex]
+**Goal:** Add assignment edit UI for teachers (Issue #71).
+**Completed:** Extracted shared assignment form, added edit modal with PATCH integration and entry points from cards and action bar, and added component tests for prefill/validation/payload.
+**Status:** completed
+**Artifacts:**
+- PR: #81
+- Files: `src/components/AssignmentForm.tsx`, `src/components/EditAssignmentModal.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `src/lib/timezone.ts`, `tests/components/EditAssignmentModal.test.tsx`
+**Tests:** `pnpm test -- tests/components/EditAssignmentModal.test.tsx`
+**Next:** Await code review before merge.
+**Blockers:** None
