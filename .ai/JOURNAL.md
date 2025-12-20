@@ -1339,3 +1339,36 @@
 - Files: `src/lib/assignments.ts`, `tests/unit/assignments.test.ts`, `src/app/join/[code]/page.tsx`
 **Tests:** `pnpm test`
 **Blockers:** None
+---
+## 2025-12-20 08:55 [AI - Codex]
+**Goal:** Add assignment edit UI for teachers (Issue #71).
+**Completed:** Extracted shared assignment form, added edit modal with PATCH integration and entry points from cards and action bar, and added component tests for prefill/validation/payload.
+**Status:** completed
+**Artifacts:**
+- PR: #81
+- Files: `src/components/AssignmentForm.tsx`, `src/components/EditAssignmentModal.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `src/lib/timezone.ts`, `tests/components/EditAssignmentModal.test.tsx`
+**Tests:** `pnpm test -- tests/components/EditAssignmentModal.test.tsx`
+**Next:** Await code review before merge.
+**Blockers:** None
+---
+## 2025-12-20 09:05 [AI - Codex]
+**Goal:** Align assignment creation UI with edit modal for Issue #71.
+**Completed:** Added a create-assignment modal using the shared AssignmentForm and removed the inline create form; wired action bar to open the modal and reload list after creation.
+**Status:** completed
+**Artifacts:**
+- PR: #81
+- Files: `src/components/CreateAssignmentModal.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Tests:** `pnpm test -- tests/components/EditAssignmentModal.test.tsx`
+**Next:** Await code review before merge.
+**Blockers:** None
+---
+## 2025-12-20 09:22 [AI - Codex]
+**Goal:** Remove legacy assignment detail routes.
+**Completed:** Removed the `/classrooms/[classroomId]/assignments/[assignmentId]` routes (including student sub-route), moved `StudentAssignmentEditor` to components, and aligned list clicks with the sidebar selection view.
+**Status:** completed
+**Artifacts:**
+- PR: #81
+- Files: `src/components/StudentAssignmentEditor.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Tests:** Not run (route removal + wiring only).
+**Next:** Confirm navigation behavior matches sidebar selection.
+**Blockers:** None
