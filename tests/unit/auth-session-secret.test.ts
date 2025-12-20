@@ -18,7 +18,8 @@ describe('auth session secret validation', () => {
     vi.stubEnv('SESSION_SECRET', 'short-secret')
     vi.resetModules()
 
-    await expect(import('@/lib/auth')).rejects.toThrow('SESSION_SECRET must be at least 32 characters')
+    const { getSession } = await import('@/lib/auth')
+
+    await expect(getSession()).rejects.toThrow('SESSION_SECRET must be at least 32 characters')
   })
 })
-

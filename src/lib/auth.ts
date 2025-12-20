@@ -22,19 +22,23 @@ export class AuthorizationError extends Error {
   }
 }
 
-const sessionOptions = {
-  password: process.env.SESSION_SECRET!,
-  cookieName: 'pika_session',
-  cookieOptions: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    maxAge: 14 * 24 * 60 * 60, // 14 days
-  },
-}
+function getSessionOptions() {
+  const password = process.env.SESSION_SECRET
 
-if (!sessionOptions.password || sessionOptions.password.length < 32) {
-  throw new Error('SESSION_SECRET must be at least 32 characters')
+  if (!password || password.length < 32) {
+    throw new Error('SESSION_SECRET must be at least 32 characters')
+  }
+
+  return {
+    password,
+    cookieName: 'pika_session',
+    cookieOptions: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax' as const,
+      maxAge: 14 * 24 * 60 * 60, // 14 days
+    },
+  }
 }
 
 /**
@@ -42,7 +46,7 @@ if (!sessionOptions.password || sessionOptions.password.length < 32) {
  */
 export async function getSession(): Promise<IronSession<SessionData>> {
   const cookieStore = await cookies()
-  return getIronSession<SessionData>(cookieStore, sessionOptions)
+  return getIronSession<SessionData>(cookieStore, getSessionOptions())
 }
 
 /**
