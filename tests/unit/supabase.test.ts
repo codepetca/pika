@@ -42,7 +42,9 @@ describe('supabase utilities', () => {
   describe('supabase client', () => {
     it('should initialize client with correct URL', async () => {
       // Import after env vars are set
-      await import('@/lib/supabase')
+      const { getSupabaseClient } = await import('@/lib/supabase')
+
+      getSupabaseClient()
 
       expect(mockCreateClient).toHaveBeenCalledWith(
         'https://test.supabase.co',
@@ -51,7 +53,9 @@ describe('supabase utilities', () => {
     })
 
     it('should use publishable key for main client', async () => {
-      await import('@/lib/supabase')
+      const { getSupabaseClient } = await import('@/lib/supabase')
+
+      getSupabaseClient()
 
       expect(mockCreateClient).toHaveBeenCalledWith(
         expect.any(String),
@@ -63,18 +67,18 @@ describe('supabase utilities', () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL
       vi.resetModules()
 
-      await expect(async () => {
-        await import('@/lib/supabase')
-      }).rejects.toThrow('Missing Supabase environment variables')
+      const { getSupabaseClient } = await import('@/lib/supabase')
+
+      expect(() => getSupabaseClient()).toThrow('Missing Supabase environment variables')
     })
 
     it('should throw error when NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is missing', async () => {
       delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       vi.resetModules()
 
-      await expect(async () => {
-        await import('@/lib/supabase')
-      }).rejects.toThrow('Missing Supabase environment variables')
+      const { getSupabaseClient } = await import('@/lib/supabase')
+
+      expect(() => getSupabaseClient()).toThrow('Missing Supabase environment variables')
     })
   })
 
@@ -88,7 +92,6 @@ describe('supabase utilities', () => {
 
       getServiceRoleClient()
 
-      // Should be called twice - once for main client, once for service role
       expect(mockCreateClient).toHaveBeenLastCalledWith(
         'https://test.supabase.co',
         'sb_secret_test_key',
@@ -146,12 +149,13 @@ describe('supabase utilities', () => {
       const client2 = getServiceRoleClient()
 
       // Both should be function calls (not the same cached instance)
-      expect(mockCreateClient).toHaveBeenCalledTimes(3) // 1 for main + 2 for service role
+      expect(mockCreateClient).toHaveBeenCalledTimes(2)
     })
 
     it('should use same URL as main client', async () => {
       const { getServiceRoleClient } = await import('@/lib/supabase')
 
+      getServiceRoleClient()
       getServiceRoleClient()
 
       // Check that all calls use the same URL
