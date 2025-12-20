@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Spinner } from '@/components/Spinner'
@@ -40,11 +40,7 @@ export function TeacherAssignmentDetail({ classroomId, assignmentId }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    loadAssignment()
-  }, [assignmentId])
-
-  async function loadAssignment() {
+  const loadAssignment = useCallback(async () => {
     try {
       const response = await fetch(`/api/teacher/assignments/${assignmentId}`)
       const result = await response.json()
@@ -60,7 +56,11 @@ export function TeacherAssignmentDetail({ classroomId, assignmentId }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [assignmentId])
+
+  useEffect(() => {
+    loadAssignment()
+  }, [loadAssignment])
 
   if (loading) {
     return (

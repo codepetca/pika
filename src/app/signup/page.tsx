@@ -60,7 +60,7 @@ export default function SignupPage() {
             <Input
               label="School Email"
               type="email"
-              placeholder="number@gapps.yrdsb.ca"
+              placeholder="email@gapps.yrdsb.ca"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
