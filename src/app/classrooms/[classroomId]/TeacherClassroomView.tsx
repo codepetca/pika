@@ -3,23 +3,21 @@
 import { useCallback, useMemo, useRef, useState, useEffect, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { Input } from '@/components/Input'
 import { Spinner } from '@/components/Spinner'
+import { AssignmentForm } from '@/components/AssignmentForm'
+import { EditAssignmentModal } from '@/components/EditAssignmentModal'
 import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
-import { DateActionBar } from '@/components/DateActionBar'
 import { addDaysToDateString } from '@/lib/date-string'
 import { formatDueDate } from '@/lib/assignments'
 import {
   getAssignmentStatusBadgeClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
-import { fromTorontoTime, getTodayInToronto } from '@/lib/timezone'
+import { getTodayInToronto, toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
-import { ChevronDownIcon, TrashIcon } from '@heroicons/react/24/outline'
-import { parse } from 'date-fns'
+import { ChevronDownIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
 import {
   DataTable,
   DataTableBody,
@@ -78,12 +76,6 @@ function formatTorontoDateTime(iso: string) {
   })
 }
 
-function toTorontoEndOfDayIso(dateString: string) {
-  const date = parse(dateString, 'yyyy-MM-dd', new Date())
-  date.setHours(23, 59, 0, 0)
-  return fromTorontoTime(date).toISOString()
-}
-
 export function TeacherClassroomView({ classroom }: Props) {
   const router = useRouter()
   const selectorRef = useRef<HTMLDivElement | null>(null)
@@ -106,6 +98,7 @@ export function TeacherClassroomView({ classroom }: Props) {
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
 
   // New assignment form state
   const [title, setTitle] = useState('')
@@ -251,6 +244,41 @@ export function TeacherClassroomView({ classroom }: Props) {
     }
   }
 
+  function updateCreateDueDate(next: string) {
+    const today = getTodayInToronto()
+    if (next < today) {
+      setError('Warning: Due date is in the past')
+    } else {
+      setError('')
+    }
+    setDueAt(next)
+  }
+
+  function moveCreateDueDate(days: number) {
+    const today = getTodayInToronto()
+    const base = dueAt || today
+    const next = addDaysToDateString(base, days)
+    if (next < today) {
+      setError('Warning: Due date is in the past')
+    } else {
+      setError('')
+    }
+    setDueAt(next)
+  }
+
+  function handleEditSuccess(updated: Assignment) {
+    setAssignments((prev) =>
+      prev.map((assignment) =>
+        assignment.id === updated.id ? { ...assignment, ...updated } : assignment
+      )
+    )
+    setSelectedAssignmentData((prev) => {
+      if (!prev || prev.assignment.id !== updated.id) return prev
+      return { ...prev, assignment: updated }
+    })
+    loadAssignments()
+  }
+
   function setSelectionAndPersist(next: TeacherAssignmentSelection) {
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     const cookieValue = next.mode === 'summary' ? 'summary' : next.assignmentId
@@ -330,6 +358,15 @@ export function TeacherClassroomView({ classroom }: Props) {
         },
         disabled: selectedAssignmentLoading || !selectedAssignmentData,
       })
+      items.push({
+        id: 'edit-assignment',
+        label: 'Edit assignment',
+        onSelect: () => {
+          if (!selectedAssignmentData) return
+          setEditAssignment(selectedAssignmentData.assignment)
+        },
+        disabled: selectedAssignmentLoading || !selectedAssignmentData,
+      })
     }
 
     items.push({
@@ -392,89 +429,21 @@ export function TeacherClassroomView({ classroom }: Props) {
       {/* New Assignment Form */}
       {showNewForm && (
         <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-          <form onSubmit={handleCreateAssignment} className="space-y-3 max-w-xl">
-              <Input
-                label="Title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                disabled={creating}
-                placeholder="Assignment title"
-              />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Instructions
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={6}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Assignment instructions (optional)"
-                  disabled={creating}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Due Date
-                </label>
-                <DateActionBar
-                  value={dueAt}
-                  onChange={(date) => {
-                    const today = getTodayInToronto()
-                    if (date < today) {
-                      setError('Warning: Due date is in the past')
-                    } else {
-                      setError('')
-                    }
-                    setDueAt(date)
-                  }}
-                  onPrev={() => {
-                    const today = getTodayInToronto()
-                    const base = dueAt || today
-                    const newDate = addDaysToDateString(base, -1)
-                    if (newDate < today) {
-                      setError('Warning: Due date is in the past')
-                    } else {
-                      setError('')
-                    }
-                    setDueAt(newDate)
-                  }}
-                  onNext={() => {
-                    const today = getTodayInToronto()
-                    const base = dueAt || today
-                    const newDate = addDaysToDateString(base, 1)
-                    if (newDate < today) {
-                      setError('Warning: Due date is in the past')
-                    } else {
-                      setError('')
-                    }
-                    setDueAt(newDate)
-                  }}
-                />
-              </div>
-
-              {error && (
-                <p className="text-sm text-yellow-600 dark:text-yellow-400">{error}</p>
-              )}
-
-            <div className="flex gap-2">
-              <Button type="submit" disabled={creating || !title || !dueAt}>
-                {creating ? 'Creating...' : 'Create Assignment'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setShowNewForm(false)}
-                disabled={creating}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
+          <AssignmentForm
+            title={title}
+            description={description}
+            dueAt={dueAt}
+            onTitleChange={setTitle}
+            onDescriptionChange={setDescription}
+            onDueAtChange={updateCreateDueDate}
+            onPrevDate={() => moveCreateDueDate(-1)}
+            onNextDate={() => moveCreateDueDate(1)}
+            onSubmit={handleCreateAssignment}
+            onCancel={() => setShowNewForm(false)}
+            submitLabel={creating ? 'Creating...' : 'Create Assignment'}
+            disabled={creating}
+            error={error}
+          />
         </div>
       )}
 
@@ -509,7 +478,18 @@ export function TeacherClassroomView({ classroom }: Props) {
                         Due: {formatDueDate(assignment.due_at)}
                       </p>
                     </div>
-                    <div className="flex-shrink-0">
+                    <div className="flex-shrink-0 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setEditAssignment(assignment)
+                        }}
+                        className="p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-300 dark:hover:text-gray-100 dark:hover:bg-gray-800"
+                        aria-label={`Edit ${assignment.title}`}
+                      >
+                        <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
+                      </button>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -611,6 +591,13 @@ export function TeacherClassroomView({ classroom }: Props) {
           onClose={() => setSelectedStudentId(null)}
         />
       )}
+
+      <EditAssignmentModal
+        isOpen={!!editAssignment}
+        assignment={editAssignment}
+        onClose={() => setEditAssignment(null)}
+        onSuccess={handleEditSuccess}
+      />
       </PageContent>
     </PageLayout>
   )

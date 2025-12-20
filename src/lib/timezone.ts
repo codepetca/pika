@@ -33,6 +33,15 @@ export function formatDateInToronto(date: Date): string {
 }
 
 /**
+ * Converts a Toronto date string (YYYY-MM-DD) to end-of-day ISO timestamp.
+ */
+export function toTorontoEndOfDayIso(dateString: string): string {
+  const date = parse(dateString, 'yyyy-MM-dd', new Date())
+  date.setHours(23, 59, 0, 0)
+  return fromTorontoTime(date).toISOString()
+}
+
+/**
  * Checks if an entry was submitted on time
  * On-time = updated_at (Toronto time) < midnight of next day (i.e., before the date changes)
  */
