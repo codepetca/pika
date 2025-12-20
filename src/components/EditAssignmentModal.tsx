@@ -127,8 +127,7 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
 
       <ConfirmDialog
         isOpen={showCancelConfirm}
-        title="Discard changes?"
-        description="You have unsaved changes. Discard those changes?"
+        title="You have unsaved changes."
         confirmLabel="Discard changes"
         cancelLabel="Continue editing"
         confirmVariant="danger"
