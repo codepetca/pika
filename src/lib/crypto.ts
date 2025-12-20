@@ -6,9 +6,11 @@ const SALT_ROUNDS = 10
 /**
  * Generates a random alphanumeric verification code (5 characters)
  * Used for email verification during signup and password reset
+ *
+ * Excludes confusing characters: O, 0, I, L (same as classroom codes)
  */
 export function generateVerificationCode(): string {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
 
   for (let i = 0; i < VERIFICATION_CODE_LENGTH; i++) {

@@ -306,17 +306,22 @@ describe('assignment utilities', () => {
       expect(formatted).toMatch(/2024/)
     })
 
-    it('should include time in formatted output', () => {
+    it('should include day of week in formatted output', () => {
       const formatted = formatDueDate('2024-10-20T23:59:00-04:00')
 
-      // Should include time (11:59 PM)
-      expect(formatted).toMatch(/\d{1,2}:\d{2}/)
+      // Should include day of week (Sun)
+      expect(formatted).toMatch(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/)
     })
 
-    it('should handle midnight correctly', () => {
+    it('should format dates without time', () => {
       const formatted = formatDueDate('2024-10-21T00:00:00-04:00')
 
-      expect(formatted).toMatch(/12:00/)
+      // Should NOT include time
+      expect(formatted).not.toMatch(/\d{1,2}:\d{2}/)
+      // Should include month, day, year
+      expect(formatted).toMatch(/Oct/)
+      expect(formatted).toMatch(/21/)
+      expect(formatted).toMatch(/2024/)
     })
 
     it('should format consistently for different dates', () => {
