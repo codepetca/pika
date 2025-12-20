@@ -1310,6 +1310,15 @@
 - Files: `src/app/verify-signup/page.tsx`, `src/app/login/LoginClient.tsx`, `src/app/signup/page.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `src/app/classrooms/[classroomId]/assignments/[assignmentId]/StudentAssignmentEditor.tsx`
 **Next:** All quick-win issues (A-C / #67-69) completed
 **Blockers:** None
+## 2025-12-19 20:43 [AI - Claude Sonnet 4.5]
+**Goal:** Fix code generation, date formatting, and error messages (Issue #68)
+**Completed:** Updated verification code character set (exclude O, 0, I, L), added uppercase transformation to join code inputs, changed due date format to include day of week without time, removed comma from titlebar date using date-fns, improved generic join error message, updated tests. Logo replacement deferred pending new design.
+**Status:** completed
+**Artifacts:**
+- PR: #76
+- Files: `src/lib/crypto.ts`, `src/app/join/page.tsx`, `src/app/student/history/page.tsx`, `src/lib/assignments.ts`, `src/app/join/[code]/page.tsx`, `src/components/AppHeader.tsx`, `tests/unit/assignments.test.ts`
+**Next:** Continue with issue #69 (UI behavior and layout fixes)
+**Blockers:** Logo replacement requires design work
 ---
 ## 2025-12-19 21:32 [AI - Codex]
 **Goal:** Fix lint warnings for issue #57.

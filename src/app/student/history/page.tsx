@@ -161,7 +161,7 @@ export default function HistoryPage() {
               type="text"
               placeholder="Enter class code"
               value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               required
               disabled={joining}
               error={error}
@@ -203,7 +203,7 @@ export default function HistoryPage() {
                 type="text"
                 placeholder="Class code"
                 value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 required
                 disabled={joining}
                 error={error}

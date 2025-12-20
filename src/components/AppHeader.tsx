@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { Bars3Icon, MoonIcon, SunIcon } from '@heroicons/react/24/outline'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { formatInTimeZone } from 'date-fns-tz'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
@@ -35,15 +36,6 @@ export function AppHeader({
   onOpenSidebar,
 }: AppHeaderProps) {
   const { theme, toggleTheme } = useTheme()
-
-  const formatter = useMemo(() => {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Toronto',
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })
-  }, [])
 
   const [now, setNow] = useState(() => new Date())
 
@@ -84,7 +76,7 @@ export function AppHeader({
       {/* Date */}
       <div className="flex-1 flex items-center justify-center">
         <div className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
-          {formatter.format(now)}
+          {formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}
         </div>
       </div>
 
