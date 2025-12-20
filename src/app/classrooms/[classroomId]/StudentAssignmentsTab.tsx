@@ -119,7 +119,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
     return [
       {
         id: 'view-details',
-        label: view === 'details' ? 'View details ✓' : 'View details',
+        label: view === 'details' ? 'Instructions ✓' : 'Instructions',
         onSelect: () => navigate({ assignmentId: selectedAssignment.id, view: 'details' }),
       },
       {
@@ -135,7 +135,6 @@ export function StudentAssignmentsTab({ classroom }: Props) {
       <PageActionBar
         primary={
           <>
-            <div className="hidden lg:block text-sm font-medium text-gray-900 dark:text-gray-100">Assignments</div>
             <div className="lg:hidden relative" ref={mobileSelectorRef}>
               <button
                 type="button"
