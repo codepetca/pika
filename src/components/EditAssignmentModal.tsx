@@ -83,7 +83,7 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-[min(92vw,64rem)] p-6">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-[min(90vw,56rem)] p-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Edit Assignment</h2>
 
         <AssignmentForm
