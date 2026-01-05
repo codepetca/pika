@@ -38,8 +38,17 @@ export async function GET(
 
     let studentId = user.id
 
+    const assignmentData = assignment as {
+      classroom_id: string
+      classrooms: { teacher_id: string } | { teacher_id: string }[]
+    }
+
+    const classroomTeacherId = Array.isArray(assignmentData.classrooms)
+      ? assignmentData.classrooms[0]?.teacher_id
+      : assignmentData.classrooms?.teacher_id
+
     if (user.role === 'teacher') {
-      if (assignment.classrooms.teacher_id !== user.id) {
+      if (classroomTeacherId !== user.id) {
         return NextResponse.json(
           { error: 'Unauthorized' },
           { status: 403 }
@@ -57,7 +66,7 @@ export async function GET(
     const { data: enrollment } = await supabase
       .from('classroom_enrollments')
       .select('id')
-      .eq('classroom_id', assignment.classroom_id)
+      .eq('classroom_id', assignmentData.classroom_id)
       .eq('student_id', studentId)
       .single()
 

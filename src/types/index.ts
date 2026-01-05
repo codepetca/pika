@@ -1,3 +1,5 @@
+import type { Operation } from 'fast-json-patch'
+
 export type UserRole = 'student' | 'teacher'
 
 export type AttendanceStatus = 'present' | 'absent'
@@ -156,12 +158,7 @@ export interface AssignmentDoc {
 
 export type AssignmentDocHistoryTrigger = 'autosave' | 'blur' | 'submit' | 'baseline' | 'restore'
 
-export type JsonPatchOperation = {
-  op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test'
-  path: string
-  from?: string
-  value?: any
-}
+export type JsonPatchOperation = Operation
 
 export interface AssignmentDocHistoryEntry {
   id: string
