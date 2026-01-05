@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, FormEvent, useRef, useCallback } from 'react'
+import { useEffect, useState, FormEvent, useRef, useCallback, type ChangeEvent } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -42,7 +42,12 @@ export function StudentTodayTab({ classroom }: Props) {
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const [draftRestored, setDraftRestored] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const handleTextChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
+    setText(event.target.value)
+    setIsDirty(true)
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -71,9 +76,11 @@ export function StudentTodayTab({ classroom }: Props) {
           if (draft && draft.isDraftNewer) {
             setText(draft.text)
             setDraftRestored(true)
+            setIsDirty(false)
             setTimeout(() => setDraftRestored(false), 3000)
           } else {
             setText(todayEntry?.text || '')
+            setIsDirty(false)
           }
 
           await classDayPromise
@@ -96,9 +103,11 @@ export function StudentTodayTab({ classroom }: Props) {
             if (draft && draft.isDraftNewer) {
               setText(draft.text)
               setDraftRestored(true)
+              setIsDirty(false)
               setTimeout(() => setDraftRestored(false), 3000)
             } else {
               setText(todayEntry?.text || '')
+              setIsDirty(false)
             }
           })
 
@@ -114,11 +123,16 @@ export function StudentTodayTab({ classroom }: Props) {
 
   // Debounced autosave to localStorage
   useEffect(() => {
-    if (!today || !text) return
+    if (!today || !isDirty) return
 
     // Clear existing timer
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current)
+    }
+
+    if (text === '') {
+      clearDraft(classroom.id, today)
+      return
     }
 
     // Set new timer (500ms debounce)
@@ -136,7 +150,7 @@ export function StudentTodayTab({ classroom }: Props) {
         clearTimeout(autosaveTimerRef.current)
       }
     }
-  }, [classroom.id, today, text])
+  }, [classroom.id, today, text, isDirty])
 
   const isClassDay = today ? isClassDayOnDate(classDays, today) : true
 
@@ -183,6 +197,7 @@ export function StudentTodayTab({ classroom }: Props) {
 
       // Clear draft on successful save
       clearDraft(classroom.id, today)
+      setIsDirty(false)
 
       setSuccess('Entry saved!')
       setTimeout(() => setSuccess(''), 2000)
@@ -220,7 +235,7 @@ export function StudentTodayTab({ classroom }: Props) {
                   </label>
                   <textarea
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={handleTextChange}
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Write a short update..."

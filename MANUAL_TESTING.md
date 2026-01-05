@@ -134,8 +134,8 @@
 
 ### Empty Entry
 - Type text → delete all text
-- Draft should still save empty string
-- Reload → empty textarea
+- Draft should be cleared (no localStorage entry)
+- Reload → empty textarea with no draft restore toast
 
 ### Very Long Entry
 - Type 5000+ character entry
