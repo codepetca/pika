@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import { countCharacters, countWords } from '@/lib/tiptap-content'
 import type { AssignmentDocHistoryEntry } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -110,6 +111,19 @@ export async function POST(
         { error: 'Failed to restore document' },
         { status: 500 }
       )
+    }
+
+    try {
+      await supabase.from('assignment_doc_history').insert({
+        assignment_doc_id: doc.id,
+        patch: null,
+        snapshot: restoredContent,
+        word_count: countWords(restoredContent),
+        char_count: countCharacters(restoredContent),
+        trigger: 'restore',
+      })
+    } catch (historyError) {
+      console.error('Error saving assignment doc history:', historyError)
     }
 
     return NextResponse.json({ doc: updatedDoc })

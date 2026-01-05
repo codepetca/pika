@@ -134,4 +134,96 @@ describe('PATCH /api/assignment-docs/[id]', () => {
     const response = await PATCH(request, { params: { id: 'doc-1' } })
     expect(response.status).toBe(403)
   })
+
+  it('updates last history entry when rate-limited', async () => {
+    const now = new Date('2025-01-01T00:00:05Z').getTime()
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now)
+
+    const historyUpdate = vi.fn(() => ({
+      eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }))
+    const historyInsert = vi.fn().mockResolvedValue({ data: null, error: null })
+
+    const beforeContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Old' }] }],
+    }
+    const newContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'New' }] }],
+    }
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: { id: 'enroll-1' }, error: null }),
+          })),
+        }
+      }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'doc-1', student_id: 'student-1', is_submitted: false, content: beforeContent },
+              error: null,
+            }),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'doc-1', content: newContent },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'assignment_doc_history') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn(() => ({
+              limit: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { id: 'history-1', created_at: new Date(now - 5000).toISOString(), snapshot: null },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+          update: historyUpdate,
+          insert: historyInsert,
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ content: newContent }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'assign-1' } })
+    expect(response.status).toBe(200)
+    expect(historyUpdate).toHaveBeenCalled()
+    expect(historyInsert).not.toHaveBeenCalled()
+    dateSpy.mockRestore()
+  })
 })

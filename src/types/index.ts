@@ -154,7 +154,7 @@ export interface AssignmentDoc {
   updated_at: string
 }
 
-export type AssignmentDocHistoryTrigger = 'autosave' | 'blur' | 'submit' | 'baseline'
+export type AssignmentDocHistoryTrigger = 'autosave' | 'blur' | 'submit' | 'baseline' | 'restore'
 
 export type JsonPatchOperation = {
   op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test'

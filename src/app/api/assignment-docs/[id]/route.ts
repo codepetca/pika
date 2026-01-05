@@ -325,7 +325,23 @@ export async function PATCH(
         } catch (historyError) {
           console.error('Error saving assignment doc history:', historyError)
         }
-      } else if (!isRateLimited) {
+      } else if (isRateLimited) {
+        try {
+          await supabase
+            .from('assignment_doc_history')
+            .update({
+              patch: null,
+              snapshot: content,
+              word_count: countWords(content),
+              char_count: countCharacters(content),
+              trigger: trigger ?? 'autosave',
+              created_at: new Date().toISOString(),
+            })
+            .eq('id', lastHistory.id)
+        } catch (historyError) {
+          console.error('Error updating assignment doc history:', historyError)
+        }
+      } else {
         const storeSnapshot = shouldStoreSnapshot(patch, content)
         try {
           await supabase.from('assignment_doc_history').insert({
