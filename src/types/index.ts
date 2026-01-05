@@ -1,3 +1,5 @@
+import type { Operation } from 'fast-json-patch'
+
 export type UserRole = 'student' | 'teacher'
 
 export type AttendanceStatus = 'present' | 'absent'
@@ -152,6 +154,21 @@ export interface AssignmentDoc {
   submitted_at: string | null
   created_at: string
   updated_at: string
+}
+
+export type AssignmentDocHistoryTrigger = 'autosave' | 'blur' | 'submit' | 'baseline' | 'restore'
+
+export type JsonPatchOperation = Operation
+
+export interface AssignmentDocHistoryEntry {
+  id: string
+  assignment_doc_id: string
+  patch: JsonPatchOperation[] | null
+  snapshot: TiptapContent | null
+  word_count: number
+  char_count: number
+  trigger: AssignmentDocHistoryTrigger
+  created_at: string
 }
 
 // Assignment status for display

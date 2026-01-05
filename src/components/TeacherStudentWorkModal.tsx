@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/RichTextViewer'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { formatDueDate, getAssignmentStatusBadgeClass, getAssignmentStatusLabel } from '@/lib/assignments'
-import type { Assignment, AssignmentDoc, AssignmentStatus } from '@/types'
+import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus } from '@/types'
 
 interface StudentWorkData {
   assignment: Assignment
@@ -41,6 +41,9 @@ export function TeacherStudentWorkModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPlainText, setShowPlainText] = useState(false)
+  const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
 
   useEffect(() => {
     if (!isOpen) return
@@ -75,6 +78,34 @@ export function TeacherStudentWorkModal({
 
     loadStudentWork()
   }, [assignmentId, isOpen, studentId])
+
+  useEffect(() => {
+    if (!isOpen) return
+    setHistoryLoading(true)
+    setHistoryError('')
+    async function loadHistory() {
+      try {
+        const response = await fetch(
+          `/api/assignment-docs/${assignmentId}/history?student_id=${studentId}`
+        )
+        const result = await response.json()
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to load history')
+        }
+        setHistoryEntries(result.history || [])
+      } catch (err: any) {
+        setHistoryError(err.message || 'Failed to load history')
+      } finally {
+        setHistoryLoading(false)
+      }
+    }
+    loadHistory()
+  }, [assignmentId, isOpen, studentId])
+
+  const maxWordCount = useMemo(() => {
+    if (historyEntries.length === 0) return 1
+    return Math.max(...historyEntries.map(entry => entry.word_count), 1)
+  }, [historyEntries])
 
   if (!isOpen) return null
 
@@ -179,6 +210,61 @@ export function TeacherStudentWorkModal({
                   )}
                 </div>
               </div>
+
+              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">History timeline</span>
+                  {historyLoading && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>
+                  )}
+                </div>
+                <div className="p-4 space-y-3">
+                  {historyError && (
+                    <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                  )}
+                  {!historyLoading && historyEntries.length === 0 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">No history yet.</p>
+                  )}
+                  {historyEntries.length > 0 && (
+                    <>
+                      <div className="flex items-end gap-2 h-20">
+                        {historyEntries.map(entry => (
+                          <div key={entry.id} className="flex flex-col items-center gap-1">
+                            <div
+                              className="w-3 rounded bg-blue-500 dark:bg-blue-400"
+                              style={{ height: `${Math.max(8, (entry.word_count / maxWordCount) * 100)}%` }}
+                              title={`${entry.word_count} words`}
+                            />
+                            <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                              {entry.word_count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="space-y-2">
+                        {historyEntries.map(entry => (
+                          <div
+                            key={entry.id}
+                            className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2"
+                          >
+                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                              {entry.trigger}
+                            </span>
+                            <span>
+                              {new Date(entry.created_at).toLocaleString('en-CA', {
+                                timeZone: 'America/Toronto',
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })}
+                            </span>
+                            <span>{entry.word_count} words</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -186,4 +272,3 @@ export function TeacherStudentWorkModal({
     </div>
   )
 }
-
