@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, FormEvent } from 'react'
+import { useEffect, useState, FormEvent, useRef, useCallback, type ChangeEvent } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -19,6 +19,7 @@ import {
   getStudentEntryHistoryCacheKey,
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
+import { saveDraft, loadDraft, clearDraft } from '@/lib/draft-storage'
 import type { Classroom, ClassDay, Entry } from '@/types'
 
 interface Props {
@@ -40,6 +41,13 @@ export function StudentTodayTab({ classroom }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [draftRestored, setDraftRestored] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const handleTextChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
+    setText(event.target.value)
+    setIsDirty(true)
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -62,7 +70,19 @@ export function StudentTodayTab({ classroom }: Props) {
           setHistoryEntries(cached)
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
           setExistingEntry(todayEntry)
-          setText(todayEntry?.text || '')
+
+          // Check for draft
+          const draft = loadDraft(classroom.id, todayDate, todayEntry?.updated_at)
+          if (draft && draft.isDraftNewer) {
+            setText(draft.text)
+            setDraftRestored(true)
+            setIsDirty(false)
+            setTimeout(() => setDraftRestored(false), 3000)
+          } else {
+            setText(todayEntry?.text || '')
+            setIsDirty(false)
+          }
+
           await classDayPromise
           return
         }
@@ -77,7 +97,18 @@ export function StudentTodayTab({ classroom }: Props) {
             safeSessionSetJson(historyCacheKey, entries)
             const todayEntry = entries.find((e: Entry) => e.date === todayDate) || null
             setExistingEntry(todayEntry)
-            setText(todayEntry?.text || '')
+
+            // Check for draft
+            const draft = loadDraft(classroom.id, todayDate, todayEntry?.updated_at)
+            if (draft && draft.isDraftNewer) {
+              setText(draft.text)
+              setDraftRestored(true)
+              setIsDirty(false)
+              setTimeout(() => setDraftRestored(false), 3000)
+            } else {
+              setText(todayEntry?.text || '')
+              setIsDirty(false)
+            }
           })
 
         await Promise.all([classDayPromise, entriesPromise])
@@ -89,6 +120,37 @@ export function StudentTodayTab({ classroom }: Props) {
     }
     load()
   }, [classroom.id])
+
+  // Debounced autosave to localStorage
+  useEffect(() => {
+    if (!today || !isDirty) return
+
+    // Clear existing timer
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+    }
+
+    if (text === '') {
+      clearDraft(classroom.id, today)
+      return
+    }
+
+    // Set new timer (500ms debounce)
+    autosaveTimerRef.current = setTimeout(() => {
+      saveDraft({
+        classroomId: classroom.id,
+        date: today,
+        text,
+      })
+    }, 500)
+
+    // Cleanup on unmount
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current)
+      }
+    }
+  }, [classroom.id, today, text, isDirty])
 
   const isClassDay = today ? isClassDayOnDate(classDays, today) : true
 
@@ -132,6 +194,11 @@ export function StudentTodayTab({ classroom }: Props) {
         )
         return next
       })
+
+      // Clear draft on successful save
+      clearDraft(classroom.id, today)
+      setIsDirty(false)
+
       setSuccess('Entry saved!')
       setTimeout(() => setSuccess(''), 2000)
     } catch (err: any) {
@@ -168,7 +235,7 @@ export function StudentTodayTab({ classroom }: Props) {
                   </label>
                   <textarea
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
+                    onChange={handleTextChange}
                     rows={4}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Write a short update..."
@@ -180,6 +247,11 @@ export function StudentTodayTab({ classroom }: Props) {
                 {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
                 {success && (
                   <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+                )}
+                {draftRestored && (
+                  <p className="text-sm text-blue-600 dark:text-blue-400">
+                    Draft restored from auto-save
+                  </p>
                 )}
 
                 <Button type="submit" disabled={submitting || !text}>

@@ -1372,3 +1372,13 @@
 **Tests:** Not run (route removal + wiring only).
 **Next:** Confirm navigation behavior matches sidebar selection.
 **Blockers:** None
+---
+## 2026-01-05 08:54 [AI - Codex]
+**Goal:** Fix entry autosave draft behavior to avoid phantom restores and stale drafts.
+**Completed:** Added dirty tracking to autosave only after user edits, clear draft when text is emptied, and updated manual testing guidance.
+**Status:** completed
+**Artifacts:**
+- Files: `src/app/classrooms/[classroomId]/StudentTodayTab.tsx`, `MANUAL_TESTING.md`
+**Tests:** `npm test -- --run tests/unit/draft-storage.test.ts`
+**Next:** Confirm manual autosave sanity check in the student Today view.
+**Blockers:** None
