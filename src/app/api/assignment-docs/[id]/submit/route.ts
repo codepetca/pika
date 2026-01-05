@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { isEmpty } from '@/lib/tiptap-content'
+import { countCharacters, countWords, isEmpty } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -117,6 +117,19 @@ export async function POST(
     // Parse content if it's a string (for backwards compatibility)
     if (doc) {
       doc.content = parseContentField(doc.content)
+    }
+
+    try {
+      await supabase.from('assignment_doc_history').insert({
+        assignment_doc_id: existingDoc.id,
+        patch: null,
+        snapshot: existingDoc.content,
+        word_count: countWords(existingDoc.content),
+        char_count: countCharacters(existingDoc.content),
+        trigger: 'submit',
+      })
+    } catch (historyError) {
+      console.error('Error saving assignment doc history:', historyError)
     }
 
     return NextResponse.json({ doc })

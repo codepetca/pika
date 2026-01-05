@@ -154,6 +154,26 @@ export interface AssignmentDoc {
   updated_at: string
 }
 
+export type AssignmentDocHistoryTrigger = 'autosave' | 'blur' | 'submit' | 'baseline'
+
+export type JsonPatchOperation = {
+  op: 'add' | 'remove' | 'replace' | 'move' | 'copy' | 'test'
+  path: string
+  from?: string
+  value?: any
+}
+
+export interface AssignmentDocHistoryEntry {
+  id: string
+  assignment_doc_id: string
+  patch: JsonPatchOperation[] | null
+  snapshot: TiptapContent | null
+  word_count: number
+  char_count: number
+  trigger: AssignmentDocHistoryTrigger
+  created_at: string
+}
+
 // Assignment status for display
 export type AssignmentStatus =
   | 'not_started'

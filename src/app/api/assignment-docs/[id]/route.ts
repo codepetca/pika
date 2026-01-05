@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { isValidTiptapContent } from '@/lib/tiptap-content'
-import type { TiptapContent } from '@/types'
+import { countCharacters, countWords, isValidTiptapContent } from '@/lib/tiptap-content'
+import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import type { AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+const HISTORY_MIN_INTERVAL_MS = 10_000
 
 /**
  * Parse content field from database, handling both JSONB and legacy TEXT columns
@@ -153,11 +155,18 @@ export async function PATCH(
     const user = await requireRole('student')
     const { id: assignmentId } = params
     const body = await request.json()
-    const { content } = body
+    const { content, trigger } = body as { content: TiptapContent; trigger?: AssignmentDocHistoryTrigger }
 
     if (content === undefined) {
       return NextResponse.json(
         { error: 'Content is required' },
+        { status: 400 }
+      )
+    }
+
+    if (trigger && trigger !== 'autosave' && trigger !== 'blur') {
+      return NextResponse.json(
+        { error: 'Invalid trigger' },
         { status: 400 }
       )
     }
@@ -203,7 +212,7 @@ export async function PATCH(
     // Fetch doc to enforce ownership and submission rules
     const { data: existingDoc, error: docFetchError } = await supabase
       .from('assignment_docs')
-      .select('id, student_id, is_submitted')
+      .select('id, student_id, is_submitted, content')
       .eq('assignment_id', assignmentId)
       .eq('student_id', user.id)
       .single()
@@ -230,6 +239,19 @@ export async function PATCH(
           )
         }
 
+        try {
+          await supabase.from('assignment_doc_history').insert({
+            assignment_doc_id: created.id,
+            patch: null,
+            snapshot: content,
+            word_count: countWords(content),
+            char_count: countCharacters(content),
+            trigger: 'baseline',
+          })
+        } catch (historyError) {
+          console.error('Error saving assignment doc history:', historyError)
+        }
+
         return NextResponse.json({ doc: created })
       }
       console.error('Error fetching assignment doc:', docFetchError)
@@ -245,6 +267,9 @@ export async function PATCH(
         { status: 403 }
       )
     }
+
+    const beforeContent = parseContentField(existingDoc.content)
+    const patch = createJsonPatch(beforeContent, content)
 
     const { data: doc, error } = await supabase
       .from('assignment_docs')
@@ -266,6 +291,55 @@ export async function PATCH(
     // Parse content if it's a string (for backwards compatibility)
     if (doc) {
       doc.content = parseContentField(doc.content)
+    }
+
+    if (patch.length > 0) {
+      const { data: lastHistory, error: lastHistoryError } = await supabase
+        .from('assignment_doc_history')
+        .select('id, created_at, snapshot')
+        .eq('assignment_doc_id', existingDoc.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (lastHistoryError) {
+        console.error('Error fetching assignment doc history:', lastHistoryError)
+      }
+
+      const now = Date.now()
+      const lastCreatedAt = lastHistory?.created_at
+        ? new Date(lastHistory.created_at).getTime()
+        : null
+      const isRateLimited = lastCreatedAt !== null && now - lastCreatedAt < HISTORY_MIN_INTERVAL_MS
+
+      if (!lastHistory) {
+        try {
+          await supabase.from('assignment_doc_history').insert({
+            assignment_doc_id: existingDoc.id,
+            patch: null,
+            snapshot: content,
+            word_count: countWords(content),
+            char_count: countCharacters(content),
+            trigger: 'baseline',
+          })
+        } catch (historyError) {
+          console.error('Error saving assignment doc history:', historyError)
+        }
+      } else if (!isRateLimited) {
+        const storeSnapshot = shouldStoreSnapshot(patch, content)
+        try {
+          await supabase.from('assignment_doc_history').insert({
+            assignment_doc_id: existingDoc.id,
+            patch: storeSnapshot ? null : patch,
+            snapshot: storeSnapshot ? content : null,
+            word_count: countWords(content),
+            char_count: countCharacters(content),
+            trigger: trigger ?? 'autosave',
+          })
+        } catch (historyError) {
+          console.error('Error saving assignment doc history:', historyError)
+        }
+      }
     }
 
     return NextResponse.json({ doc })

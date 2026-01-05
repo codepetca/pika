@@ -14,7 +14,7 @@ import {
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
-import type { Assignment, AssignmentDoc, TiptapContent } from '@/types'
+import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 interface Props {
   classroomId: string
@@ -40,6 +40,11 @@ export function StudentAssignmentEditor({
   const [content, setContent] = useState<TiptapContent>({ type: 'doc', content: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const [historyVisible, setHistoryVisible] = useState(false)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
 
   // Save state
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
@@ -73,8 +78,26 @@ export function StudentAssignmentEditor({
     }
   }, [assignmentId])
 
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true)
+    setHistoryError('')
+    try {
+      const response = await fetch(`/api/assignment-docs/${assignmentId}/history`)
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load history')
+      }
+      setHistoryEntries(data.history || [])
+    } catch (err: any) {
+      setHistoryError(err.message || 'Failed to load history')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [assignmentId])
+
   useEffect(() => {
     loadAssignment()
+    loadHistory()
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
@@ -83,10 +106,13 @@ export function StudentAssignmentEditor({
         clearTimeout(throttledSaveTimeoutRef.current)
       }
     }
-  }, [loadAssignment])
+  }, [loadAssignment, loadHistory])
 
   // Autosave with debouncing
-  const saveContent = useCallback(async (newContent: TiptapContent) => {
+  const saveContent = useCallback(async (
+    newContent: TiptapContent,
+    options?: { trigger?: 'autosave' | 'blur' }
+  ) => {
     const newContentStr = JSON.stringify(newContent)
     if (newContentStr === lastSavedContentRef.current) {
       setSaveStatus('saved')
@@ -100,7 +126,10 @@ export function StudentAssignmentEditor({
       const response = await fetch(`/api/assignment-docs/${assignmentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newContent })
+        body: JSON.stringify({
+          content: newContent,
+          trigger: options?.trigger ?? 'autosave',
+        })
       })
 
       const data = await response.json()
@@ -118,7 +147,10 @@ export function StudentAssignmentEditor({
     }
   }, [assignmentId])
 
-  const scheduleSave = useCallback((newContent: TiptapContent, options?: { force?: boolean }) => {
+  const scheduleSave = useCallback((
+    newContent: TiptapContent,
+    options?: { force?: boolean; trigger?: 'autosave' | 'blur' }
+  ) => {
     pendingContentRef.current = newContent
 
     if (throttledSaveTimeoutRef.current) {
@@ -130,7 +162,7 @@ export function StudentAssignmentEditor({
     const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
 
     if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
-      void saveContent(newContent)
+      void saveContent(newContent, { trigger: options?.trigger })
       return
     }
 
@@ -139,7 +171,7 @@ export function StudentAssignmentEditor({
       throttledSaveTimeoutRef.current = null
       const latest = pendingContentRef.current
       if (latest) {
-        void saveContent(latest)
+        void saveContent(latest, { trigger: options?.trigger })
       }
     }, waitMs)
   }, [AUTOSAVE_MIN_INTERVAL_MS, saveContent])
@@ -155,20 +187,20 @@ export function StudentAssignmentEditor({
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-      scheduleSave(newContent)
+      scheduleSave(newContent, { trigger: 'autosave' })
     }, AUTOSAVE_DEBOUNCE_MS)
   }
 
   function flushAutosave() {
     if (saveStatus === 'unsaved' && pendingContentRef.current) {
-      scheduleSave(pendingContentRef.current, { force: true })
+      scheduleSave(pendingContentRef.current, { force: true, trigger: 'blur' })
     }
   }
 
   async function handleSubmit() {
     // Save first if there are unsaved changes
     if (JSON.stringify(content) !== lastSavedContentRef.current) {
-      await saveContent(content)
+      await saveContent(content, { trigger: 'autosave' })
     }
 
     setSubmitting(true)
@@ -216,6 +248,32 @@ export function StudentAssignmentEditor({
       setError(err.message || 'Failed to unsubmit')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleRestore(historyId: string) {
+    if (!confirm('Restore this version? Your current draft will be replaced.')) return
+    setRestoringId(historyId)
+    setHistoryError('')
+    try {
+      const response = await fetch(`/api/assignment-docs/${assignmentId}/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history_id: historyId })
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to restore')
+      }
+      setDoc(data.doc)
+      setContent(data.doc?.content || { type: 'doc', content: [] })
+      lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
+      setSaveStatus('saved')
+      await loadHistory()
+    } catch (err: any) {
+      setHistoryError(err.message || 'Failed to restore')
+    } finally {
+      setRestoringId(null)
     }
   }
 
@@ -282,19 +340,28 @@ export function StudentAssignmentEditor({
 
       {/* Editor */}
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Your Response</span>
-          <span
-            className={`text-xs ${
-              saveStatus === 'saved'
-                ? 'text-green-600 dark:text-green-400'
-                : saveStatus === 'saving'
-                  ? 'text-gray-500 dark:text-gray-400'
-                  : 'text-orange-600 dark:text-orange-400'
-            }`}
-          >
-            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
-          </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setHistoryVisible(prev => !prev)}
+              className="text-xs font-medium text-blue-600 dark:text-blue-300 hover:underline"
+            >
+              {historyVisible ? 'Hide history' : 'View history'}
+            </button>
+            <span
+              className={`text-xs ${
+                saveStatus === 'saved'
+                  ? 'text-green-600 dark:text-green-400'
+                  : saveStatus === 'saving'
+                    ? 'text-gray-500 dark:text-gray-400'
+                    : 'text-orange-600 dark:text-orange-400'
+              }`}
+            >
+              {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+            </span>
+          </div>
         </div>
 
         <div className="p-4">
@@ -330,6 +397,51 @@ export function StudentAssignmentEditor({
           </div>
         </div>
       </div>
+
+      {historyVisible && (
+        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">History</span>
+            {historyLoading && <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>}
+          </div>
+          {historyError && (
+            <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+          )}
+          {!historyLoading && historyEntries.length === 0 && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">No history yet.</p>
+          )}
+          <div className="space-y-2">
+            {historyEntries.map(entry => (
+              <div
+                key={entry.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-3 py-2"
+              >
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">
+                    {entry.trigger}
+                  </span>
+                  {' • '}
+                  {new Date(entry.created_at).toLocaleString('en-CA', {
+                    timeZone: 'America/Toronto',
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                  {' • '}
+                  {entry.word_count} words
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={restoringId === entry.id || submitting || isSubmitted}
+                  onClick={() => handleRestore(entry.id)}
+                >
+                  {restoringId === entry.id ? 'Restoring...' : 'Restore'}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Submission info */}
       {isSubmitted && doc?.submitted_at && (

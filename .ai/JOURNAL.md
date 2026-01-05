@@ -1382,3 +1382,13 @@
 **Tests:** `npm test -- --run tests/unit/draft-storage.test.ts`
 **Next:** Confirm manual autosave sanity check in the student Today view.
 **Blockers:** None
+---
+## 2026-01-05 09:09 [AI - Codex]
+**Goal:** Issue #83 assignment doc history with JSON Patch tracking, history UI, and restore.
+**Completed:** Added assignment_doc_history migration, JSON patch utilities + reconstruction logic, autosave/blur/submit history capture, history/restore APIs, cleanup cron, and student/teacher history UI with restore.
+**Status:** completed
+**Artifacts:**
+- Files: `supabase/migrations/014_assignment_doc_history.sql`, `src/lib/json-patch.ts`, `src/lib/assignment-doc-history.ts`, `src/app/api/assignment-docs/[id]/route.ts`, `src/app/api/assignment-docs/[id]/history/route.ts`, `src/app/api/assignment-docs/[id]/restore/route.ts`, `src/app/api/assignment-docs/[id]/submit/route.ts`, `src/app/api/cron/cleanup-history/route.ts`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`, `tests/lib/json-patch.test.ts`, `tests/lib/assignment-doc-history.test.ts`, `tests/api/assignment-docs/history.test.ts`, `tests/api/assignment-docs/restore.test.ts`
+**Tests:** `npm test -- --run tests/lib/json-patch.test.ts tests/lib/assignment-doc-history.test.ts tests/api/assignment-docs/history.test.ts tests/api/assignment-docs/restore.test.ts`
+**Next:** Consider manual sanity checks for history capture, teacher timeline, and student restore.
+**Blockers:** None
