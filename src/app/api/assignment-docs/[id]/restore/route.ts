@@ -90,11 +90,28 @@ export async function POST(
     }
 
     const entries = (history || []) as AssignmentDocHistoryEntry[]
-    const restoredContent = reconstructAssignmentDocContent(entries, historyId)
-    if (!restoredContent) {
+
+    // Verify the history entry belongs to this document
+    const targetEntry = entries.find(entry => entry.id === historyId)
+    if (!targetEntry) {
       return NextResponse.json(
         { error: 'History entry not found' },
         { status: 404 }
+      )
+    }
+
+    if (targetEntry.assignment_doc_id !== doc.id) {
+      return NextResponse.json(
+        { error: 'History entry does not belong to this document' },
+        { status: 403 }
+      )
+    }
+
+    const restoredContent = reconstructAssignmentDocContent(entries, historyId)
+    if (!restoredContent) {
+      return NextResponse.json(
+        { error: 'Failed to reconstruct document content' },
+        { status: 500 }
       )
     }
 

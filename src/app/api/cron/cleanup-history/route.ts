@@ -94,9 +94,9 @@ async function handle(request: NextRequest) {
   let deleted = 0
   for (let i = 0; i < docIds.length; i += DEFAULT_CHUNK_SIZE) {
     const chunk = docIds.slice(i, i + DEFAULT_CHUNK_SIZE)
-    const { error: deleteError } = await supabase
+    const { count, error: deleteError } = await supabase
       .from('assignment_doc_history')
-      .delete()
+      .delete({ count: 'exact' })
       .in('assignment_doc_id', chunk)
 
     if (deleteError) {
@@ -107,7 +107,7 @@ async function handle(request: NextRequest) {
       )
     }
 
-    deleted += chunk.length
+    deleted += count ?? 0
   }
 
   return NextResponse.json({ status: 'ok', deleted })
