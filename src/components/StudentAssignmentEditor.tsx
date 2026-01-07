@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/RichTextEditor'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -49,6 +50,7 @@ export function StudentAssignmentEditor({
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(true)
   const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [restoringId, setRestoringId] = useState<string | null>(null)
 
@@ -60,6 +62,7 @@ export function StudentAssignmentEditor({
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
+  const draftBeforePreviewRef = useRef<TiptapContent | null>(null)
 
   function getTriggerBadgeClasses(trigger: AssignmentDocHistoryEntry['trigger']) {
     return 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
@@ -202,6 +205,7 @@ export function StudentAssignmentEditor({
   }, [AUTOSAVE_MIN_INTERVAL_MS, saveContent])
 
   function handleContentChange(newContent: TiptapContent) {
+    if (previewEntry) return
     setContent(newContent)
     setSaveStatus('unsaved')
     pendingContentRef.current = newContent
@@ -277,6 +281,9 @@ export function StudentAssignmentEditor({
   }
 
   function updatePreview(entry: AssignmentDocHistoryEntry) {
+    if (!draftBeforePreviewRef.current) {
+      draftBeforePreviewRef.current = JSON.parse(JSON.stringify(content)) as TiptapContent
+    }
     // Reconstruct content for this entry (client-side, no API call)
     // API returns newest-first, but reconstruction needs oldest-first
     const oldestFirst = [...historyEntries].reverse()
@@ -298,11 +305,32 @@ export function StudentAssignmentEditor({
     setLockedEntryId(entry.id)
   }
 
-  function handleExitPreview() {
+  function handleHistoryMouseLeave() {
+    if (lockedEntryId) return
+    handleExitPreview()
+  }
+
+  function handleHistoryToggle() {
+    if (isHistoryOpen) {
+      handleExitPreview()
+    }
+    setIsHistoryOpen(prev => !prev)
+  }
+
+  function handleExitPreview(options?: { restoreDraft?: boolean }) {
+    const shouldRestore = options?.restoreDraft !== false
+    if (shouldRestore && draftBeforePreviewRef.current) {
+      const restoredDraft = draftBeforePreviewRef.current
+      setContent(restoredDraft)
+      pendingContentRef.current = restoredDraft
+      const restoredStr = JSON.stringify(restoredDraft)
+      setSaveStatus(restoredStr === lastSavedContentRef.current ? 'saved' : 'unsaved')
+    }
     setPreviewEntry(null)
     setPreviewContent(null)
     setShowRestoreModal(false)
     setLockedEntryId(null)
+    draftBeforePreviewRef.current = null
   }
 
   function handleRestoreClick() {
@@ -330,7 +358,7 @@ export function StudentAssignmentEditor({
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
       setSaveStatus('saved')
       await loadHistory()
-      handleExitPreview()
+      handleExitPreview({ restoreDraft: false })
     } catch (err: any) {
       setHistoryError(err.message || 'Failed to restore')
     } finally {
@@ -393,7 +421,7 @@ export function StudentAssignmentEditor({
   const isPreviewLocked = lockedEntryId !== null
 
   const editorContent = (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6 h-full min-h-0">
       {/* Description */}
       {!isEmbedded && assignment.description && (
         <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -402,36 +430,54 @@ export function StudentAssignmentEditor({
       )}
 
       {/* Editor with History Column */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col min-h-0 flex-1">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {previewEntry ? (
-              <span className="text-yellow-600 dark:text-yellow-400">
-                Previewing save from {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
-              </span>
-            ) : (
-              'Your Response'
-            )}
-          </span>
-          <span
-            className={`text-xs ${
-              saveStatus === 'saved'
-                ? 'text-green-600 dark:text-green-400'
-                : saveStatus === 'saving'
-                  ? 'text-gray-500 dark:text-gray-400'
-                  : 'text-orange-600 dark:text-orange-400'
-            }`}
-          >
-            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
-          </span>
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                {assignment.title}
+              </div>
+              {previewEntry && (
+                <div className="text-xs text-yellow-600 dark:text-yellow-400">
+                  Previewing save from {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
+                </div>
+              )}
+            </div>
+            <div
+              className={`text-xs text-center ${
+                saveStatus === 'saved'
+                  ? 'text-green-600 dark:text-green-400'
+                  : saveStatus === 'saving'
+                    ? 'text-gray-500 dark:text-gray-400'
+                    : 'text-orange-600 dark:text-orange-400'
+              }`}
+            >
+              {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleHistoryToggle}
+                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                aria-expanded={isHistoryOpen}
+                aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
+              >
+                {isHistoryOpen ? (
+                  <EyeSlashIcon className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <EyeIcon className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Main Content Area: Editor + History Column */}
-        <div className="flex flex-col md:flex-row">
+        <div className="flex flex-1 min-h-0 flex-col md:flex-row">
           {/* Editor */}
-          <div className="flex-1 p-4 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700">
-            <div className={previewEntry ? 'ring-2 ring-yellow-400 dark:ring-yellow-600 rounded-lg' : ''}>
+          <div className={`flex-1 min-h-0 border-b md:border-b-0 border-gray-200 dark:border-gray-700 flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
+            <div className={previewEntry ? 'ring-2 ring-yellow-400 dark:ring-yellow-600 rounded-lg flex-1 min-h-0' : 'flex-1 min-h-0'}>
               <RichTextEditor
                 content={previewContent || content}
                 onChange={handleContentChange}
@@ -439,6 +485,7 @@ export function StudentAssignmentEditor({
                 disabled={submitting || !!previewEntry}
                 editable={!isSubmitted && !previewEntry}
                 onBlur={flushAutosave}
+                className="h-full"
               />
             </div>
 
@@ -450,102 +497,105 @@ export function StudentAssignmentEditor({
           </div>
 
           {/* History Column (Desktop) */}
-          <div
-            className="hidden md:block w-60 bg-gray-50 dark:bg-gray-950 overflow-y-auto"
-            style={{ maxHeight: '600px' }}
-            onMouseLeave={handleExitPreview}
-          >
-            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                History
-              </h3>
-            </div>
-            {historyLoading ? (
-              <div className="p-4 text-center">
-                <Spinner size="sm" />
+          {isHistoryOpen && (
+            <div
+              className="hidden md:flex w-60 bg-gray-50 dark:bg-gray-950 flex-col min-h-0"
+              onMouseLeave={handleHistoryMouseLeave}
+            >
+              <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                  History
+                </h3>
               </div>
-            ) : historyError ? (
-              <div className="p-4">
-                <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
-              </div>
-            ) : historyEntries.length === 0 ? (
-              <div className="p-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {(() => {
-                  const entriesByDate = historyEntries.reduce((acc, entry) => {
-                    const date = formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'MMM d')
-                    if (!acc[date]) acc[date] = []
-                    acc[date]!.push(entry)
-                    return acc
-                  }, {} as Record<string, AssignmentDocHistoryEntry[]>)
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {historyLoading ? (
+                  <div className="p-4 text-center">
+                    <Spinner size="sm" />
+                  </div>
+                ) : historyError ? (
+                  <div className="p-4">
+                    <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                  </div>
+                ) : historyEntries.length === 0 ? (
+                  <div className="p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {(() => {
+                      const entriesByDate = historyEntries.reduce((acc, entry) => {
+                        const date = formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'MMM d')
+                        if (!acc[date]) acc[date] = []
+                        acc[date]!.push(entry)
+                        return acc
+                      }, {} as Record<string, AssignmentDocHistoryEntry[]>)
 
-                  return Object.entries(entriesByDate).map(([date, entries]) => (
-                    <div key={date} className="px-3 py-2">
-                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{date}</div>
-                      <div className="space-y-1">
-                        {entries.map((entry, idx) => {
-                          const prevEntry = idx > 0 ? entries[idx - 1] : null
-                          const charDiff = prevEntry ? entry.char_count - prevEntry.char_count : entry.char_count
-                          const isActive = previewEntry?.id === entry.id
+                      return Object.entries(entriesByDate).map(([date, entries]) => (
+                        <div key={date} className="px-3 py-2">
+                          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{date}</div>
+                          <div className="space-y-1">
+                            {entries.map((entry, idx) => {
+                              const prevEntry = idx > 0 ? entries[idx - 1] : null
+                              const charDiff = prevEntry ? entry.char_count - prevEntry.char_count : entry.char_count
+                              const isActive = previewEntry?.id === entry.id
 
-                          return (
-                            <button
-                              key={entry.id}
-                              onClick={() => handlePreviewLock(entry)}
-                              onMouseEnter={() => handlePreviewHover(entry)}
-                              className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
-                                isActive
-                                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                                  : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
-                              }`}
-                            >
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-mono">
-                                            {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
-                                          </span>
-                                          <span
-                                            className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses(entry.trigger)}`}
-                                          >
-                                            {entry.trigger}
-                                          </span>
-                                        </div>
-                                        <span className={`text-[10px] ${
-                                          charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
-                                          charDiff > 0 ? 'text-green-600 dark:text-green-400' :
-                                          charDiff < 0 ? 'text-red-600 dark:text-red-400' :
-                                          'text-gray-500 dark:text-gray-500'
-                                }`}>
-                                  {charDiff > 0 ? '+' : ''}{charDiff}
-                                </span>
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))
-                })()}
+                              return (
+                                <button
+                                  key={entry.id}
+                                  onClick={() => handlePreviewLock(entry)}
+                                  onMouseEnter={() => handlePreviewHover(entry)}
+                                  className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
+                                    isActive
+                                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                                      : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono">
+                                        {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
+                                      </span>
+                                      <span
+                                        className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses(entry.trigger)}`}
+                                      >
+                                        {entry.trigger}
+                                      </span>
+                                    </div>
+                                    <span className={`text-[10px] ${
+                                      charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
+                                      charDiff > 0 ? 'text-green-600 dark:text-green-400' :
+                                      charDiff < 0 ? 'text-red-600 dark:text-red-400' :
+                                      'text-gray-500 dark:text-gray-500'
+                                    }`}>
+                                      {charDiff > 0 ? '+' : ''}{charDiff}
+                                    </span>
+                                  </div>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))
+                    })()}
+                  </div>
+                )}
               </div>
-            )}
-            {isPreviewLocked && previewEntry && (
-              <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex flex-col gap-2">
-                  {!isSubmitted && (
-                    <Button onClick={handleRestoreClick} disabled={restoringId !== null}>
-                      {restoringId ? 'Restoring...' : 'Restore'}
+              {isPreviewLocked && previewEntry && (
+                <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex flex-col gap-2">
+                    {!isSubmitted && (
+                      <Button onClick={handleRestoreClick} disabled={restoringId !== null}>
+                        {restoringId ? 'Restoring...' : 'Restore'}
+                      </Button>
+                    )}
+                    <Button onClick={() => handleExitPreview()} variant="secondary">
+                      Cancel
                     </Button>
-                  )}
-                  <Button onClick={handleExitPreview} variant="secondary">
-                    Cancel
-                  </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer with Actions */}
@@ -568,12 +618,13 @@ export function StudentAssignmentEditor({
         </div>
 
         {/* Mobile History Drawer */}
-        <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
+        {isHistoryOpen && (
+          <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
           <details
             className="group"
             onToggle={(event) => {
               const target = event.currentTarget
-              if (!target.open) {
+              if (!target.open && !lockedEntryId) {
                 handleExitPreview()
               }
             }}
@@ -658,7 +709,7 @@ export function StudentAssignmentEditor({
                       {restoringId ? 'Restoring...' : 'Restore'}
                     </Button>
                   )}
-                  <Button onClick={handleExitPreview} variant="secondary">
+                  <Button onClick={() => handleExitPreview()} variant="secondary">
                     Cancel
                   </Button>
                 </div>
@@ -666,6 +717,7 @@ export function StudentAssignmentEditor({
             </div>
           </details>
         </div>
+        )}
       </div>
 
       {/* Restore Confirmation Modal */}
@@ -711,7 +763,7 @@ export function StudentAssignmentEditor({
   }
 
   return (
-    <PageLayout>
+    <PageLayout className="h-full flex flex-col">
       <PageActionBar
         primary={
           <div className="flex items-start justify-between gap-3">
@@ -737,7 +789,7 @@ export function StudentAssignmentEditor({
         }
       />
 
-      <PageContent>{editorContent}</PageContent>
+      <PageContent className="flex-1 min-h-0">{editorContent}</PageContent>
     </PageLayout>
   )
 }

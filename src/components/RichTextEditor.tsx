@@ -15,6 +15,7 @@ interface RichTextEditorProps {
   placeholder?: string
   disabled?: boolean
   editable?: boolean
+  className?: string
 }
 
 export function RichTextEditor({
@@ -24,6 +25,7 @@ export function RichTextEditor({
   placeholder = 'Write your response here...',
   disabled = false,
   editable = true,
+  className = '',
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -62,14 +64,14 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] px-3 py-2 bg-white dark:bg-gray-900',
+          'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] h-full px-3 py-2 bg-white dark:bg-gray-900',
       },
     },
   })
 
   useEffect(() => {
     if (editor && JSON.stringify(content) !== JSON.stringify(editor.getJSON())) {
-      editor.commands.setContent(content)
+      editor.commands.setContent(content, false)
     }
   }, [content, editor])
 
@@ -86,7 +88,10 @@ export function RichTextEditor({
   return (
     <div
       ref={containerRef}
-      className="border border-gray-300 dark:border-gray-600 rounded-lg focus-within:ring-2 focus-within:ring-blue-500"
+      className={[
+        'border border-gray-300 dark:border-gray-600 rounded-none focus-within:ring-2 focus-within:ring-blue-500 flex flex-col min-h-0',
+        className,
+      ].join(' ')}
       onBlurCapture={event => {
         if (!onBlur) return
         const relatedTarget = event.relatedTarget as Node | null
@@ -196,7 +201,9 @@ export function RichTextEditor({
           </button>
         </div>
       </div>
-      <EditorContent editor={editor} />
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   )
 }

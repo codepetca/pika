@@ -35,7 +35,7 @@ export function RichTextViewer({
     editable: false,
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert prose-sm max-w-none',
+        class: 'prose dark:prose-invert prose-sm max-w-none h-full',
       },
     },
   })
@@ -52,15 +52,17 @@ export function RichTextViewer({
 
   if (showPlainText) {
     return (
-      <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-950 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+      <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-950 p-4 rounded-none border border-gray-200 dark:border-gray-700 h-full overflow-y-auto">
         {editor.getText()}
       </pre>
     )
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-      <EditorContent editor={editor} />
+    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-none border border-gray-200 dark:border-gray-700 flex flex-col min-h-0 h-full">
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   )
 }
