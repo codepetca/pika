@@ -92,7 +92,7 @@ export async function GET(
       .from('assignment_doc_history')
       .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, trigger, created_at')
       .eq('assignment_doc_id', doc.id)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
 
     if (historyError) {
       console.error('Error fetching assignment doc history:', historyError)

@@ -14,6 +14,9 @@ import {
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import { format } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 interface Props {
@@ -43,7 +46,9 @@ export function StudentAssignmentEditor({
   const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
-  const [historyVisible, setHistoryVisible] = useState(false)
+  const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
+  const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+  const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [restoringId, setRestoringId] = useState<string | null>(null)
 
   // Save state
@@ -251,15 +256,39 @@ export function StudentAssignmentEditor({
     }
   }
 
-  async function handleRestore(historyId: string) {
-    if (!confirm('Restore this version? Your current draft will be replaced.')) return
-    setRestoringId(historyId)
+  function handlePreviewClick(entry: AssignmentDocHistoryEntry) {
+    // Reconstruct content for this entry (client-side, no API call)
+    // API returns newest-first, but reconstruction needs oldest-first
+    const oldestFirst = [...historyEntries].reverse()
+    const reconstructed = reconstructAssignmentDocContent(oldestFirst, entry.id)
+
+    if (reconstructed) {
+      setPreviewEntry(entry)
+      setPreviewContent(reconstructed)
+    }
+  }
+
+  function handleExitPreview() {
+    setPreviewEntry(null)
+    setPreviewContent(null)
+    setShowRestoreModal(false)
+  }
+
+  function handleRestoreClick() {
+    if (!previewEntry) return
+    setShowRestoreModal(true)
+  }
+
+  async function confirmRestore() {
+    if (!previewEntry) return
+
+    setRestoringId(previewEntry.id)
     setHistoryError('')
     try {
       const response = await fetch(`/api/assignment-docs/${assignmentId}/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history_id: historyId })
+        body: JSON.stringify({ history_id: previewEntry.id })
       })
       const data = await response.json()
       if (!response.ok) {
@@ -270,10 +299,12 @@ export function StudentAssignmentEditor({
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
       setSaveStatus('saved')
       await loadHistory()
+      handleExitPreview()
     } catch (err: any) {
       setHistoryError(err.message || 'Failed to restore')
     } finally {
       setRestoringId(null)
+      setShowRestoreModal(false)
     }
   }
 
@@ -338,107 +369,255 @@ export function StudentAssignmentEditor({
         </div>
       )}
 
-      {/* Editor */}
+      {/* Editor with History Column */}
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Your Response</span>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setHistoryVisible(prev => !prev)}
-              className="text-xs font-medium text-blue-600 dark:text-blue-300 hover:underline"
-            >
-              {historyVisible ? 'Hide history' : 'View history'}
-            </button>
-            <span
-              className={`text-xs ${
-                saveStatus === 'saved'
-                  ? 'text-green-600 dark:text-green-400'
-                  : saveStatus === 'saving'
-                    ? 'text-gray-500 dark:text-gray-400'
-                    : 'text-orange-600 dark:text-orange-400'
-              }`}
-            >
-              {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
-            </span>
-          </div>
-        </div>
-
-        <div className="p-4">
-          <RichTextEditor
-            content={content}
-            onChange={handleContentChange}
-            placeholder="Write your response here..."
-            disabled={submitting}
-            editable={!isSubmitted}
-            onBlur={flushAutosave}
-          />
-        </div>
-
-        {error && (
-          <div className="px-4 pb-4">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        )}
-
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div className="text-sm text-gray-500 dark:text-gray-400">{countCharacters(content)} characters</div>
-
-          <div className="flex gap-2">
-            {isSubmitted ? (
-              <Button onClick={handleUnsubmit} variant="secondary" disabled={submitting}>
-                {submitting ? 'Unsubmitting...' : 'Unsubmit'}
-              </Button>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {previewEntry ? (
+              <span className="text-yellow-600 dark:text-yellow-400">
+                Previewing save from {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
+              </span>
             ) : (
-              <Button onClick={handleSubmit} disabled={submitting || isEmpty(content)}>
-                {submitting ? 'Submitting...' : 'Submit'}
-              </Button>
+              'Your Response'
+            )}
+          </span>
+          <span
+            className={`text-xs ${
+              saveStatus === 'saved'
+                ? 'text-green-600 dark:text-green-400'
+                : saveStatus === 'saving'
+                  ? 'text-gray-500 dark:text-gray-400'
+                  : 'text-orange-600 dark:text-orange-400'
+            }`}
+          >
+            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+          </span>
+        </div>
+
+        {/* Main Content Area: Editor + History Column */}
+        <div className="flex flex-col md:flex-row">
+          {/* Editor */}
+          <div className="flex-1 p-4 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700">
+            <div className={previewEntry ? 'ring-2 ring-yellow-400 dark:ring-yellow-600 rounded-lg' : ''}>
+              <RichTextEditor
+                content={previewContent || content}
+                onChange={handleContentChange}
+                placeholder="Write your response here..."
+                disabled={submitting || !!previewEntry}
+                editable={!isSubmitted && !previewEntry}
+                onBlur={flushAutosave}
+              />
+            </div>
+
+            {error && (
+              <div className="mt-4">
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
+          </div>
+
+          {/* History Column (Desktop) */}
+          <div className="hidden md:block w-60 bg-gray-50 dark:bg-gray-950 overflow-y-auto" style={{ maxHeight: '600px' }}>
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                History
+              </h3>
+            </div>
+            {historyLoading ? (
+              <div className="p-4 text-center">
+                <Spinner size="sm" />
+              </div>
+            ) : historyError ? (
+              <div className="p-4">
+                <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+              </div>
+            ) : historyEntries.length === 0 ? (
+              <div className="p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {(() => {
+                  const entriesByDate = historyEntries.reduce((acc, entry) => {
+                    const date = formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'MMM d')
+                    if (!acc[date]) acc[date] = []
+                    acc[date]!.push(entry)
+                    return acc
+                  }, {} as Record<string, AssignmentDocHistoryEntry[]>)
+
+                  return Object.entries(entriesByDate).map(([date, entries]) => (
+                    <div key={date} className="px-3 py-2">
+                      <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{date}</div>
+                      <div className="space-y-1">
+                        {entries.map((entry, idx) => {
+                          const prevEntry = idx > 0 ? entries[idx - 1] : null
+                          const charDiff = prevEntry ? entry.char_count - prevEntry.char_count : entry.char_count
+                          const isActive = previewEntry?.id === entry.id
+
+                          return (
+                            <button
+                              key={entry.id}
+                              onClick={() => handlePreviewClick(entry)}
+                              className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
+                                isActive
+                                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                                  : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-mono">
+                                  {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
+                                </span>
+                                <span className={`text-[10px] ${
+                                  charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
+                                  charDiff > 0 ? 'text-green-600 dark:text-green-400' :
+                                  charDiff < 0 ? 'text-red-600 dark:text-red-400' :
+                                  'text-gray-500 dark:text-gray-500'
+                                }`}>
+                                  {charDiff > 0 ? '+' : ''}{charDiff}
+                                </span>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))
+                })()}
+              </div>
             )}
           </div>
         </div>
+
+        {/* Footer with Actions */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {countCharacters(previewContent || content)} characters
+          </div>
+
+          <div className="flex gap-2">
+            {previewEntry ? (
+              <>
+                <Button onClick={handleExitPreview} variant="secondary">
+                  Exit Preview
+                </Button>
+                {!isSubmitted && (
+                  <Button onClick={handleRestoreClick} disabled={restoringId !== null}>
+                    {restoringId ? 'Restoring...' : 'Restore This Version'}
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                {isSubmitted ? (
+                  <Button onClick={handleUnsubmit} variant="secondary" disabled={submitting}>
+                    {submitting ? 'Unsubmitting...' : 'Unsubmit'}
+                  </Button>
+                ) : (
+                  <Button onClick={handleSubmit} disabled={submitting || isEmpty(content)}>
+                    {submitting ? 'Submitting...' : 'Submit'}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile History Drawer */}
+        <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
+          <details className="group">
+            <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between">
+              <span>View History ({historyEntries.length})</span>
+              <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            <div className="px-4 pb-4 max-h-80 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+              {historyLoading ? (
+                <div className="p-4 text-center">
+                  <Spinner size="sm" />
+                </div>
+              ) : historyError ? (
+                <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+              ) : historyEntries.length === 0 ? (
+                <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+              ) : (
+                <div className="space-y-3 mt-3">
+                  {(() => {
+                    const entriesByDate = historyEntries.reduce((acc, entry) => {
+                      const date = formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'MMM d')
+                      if (!acc[date]) acc[date] = []
+                      acc[date]!.push(entry)
+                      return acc
+                    }, {} as Record<string, AssignmentDocHistoryEntry[]>)
+
+                    return Object.entries(entriesByDate).map(([date, entries]) => (
+                      <div key={date}>
+                        <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{date}</div>
+                        <div className="space-y-1">
+                          {entries.map((entry, idx) => {
+                            const prevEntry = idx > 0 ? entries[idx - 1] : null
+                            const charDiff = prevEntry ? entry.char_count - prevEntry.char_count : entry.char_count
+                            const isActive = previewEntry?.id === entry.id
+
+                            return (
+                              <button
+                                key={entry.id}
+                                onClick={() => handlePreviewClick(entry)}
+                                className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
+                                  isActive
+                                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                                    : 'bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-mono">
+                                    {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
+                                  </span>
+                                  <span className={`text-xs ${
+                                    charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
+                                    charDiff > 0 ? 'text-green-600 dark:text-green-400' :
+                                    charDiff < 0 ? 'text-red-600 dark:text-red-400' :
+                                    'text-gray-500'
+                                  }`}>
+                                    {charDiff > 0 ? '+' : ''}{charDiff}
+                                  </span>
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))
+                  })()}
+                </div>
+              )}
+            </div>
+          </details>
+        </div>
       </div>
 
-      {historyVisible && (
-        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">History</span>
-            {historyLoading && <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>}
-          </div>
-          {historyError && (
-            <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
-          )}
-          {!historyLoading && historyEntries.length === 0 && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">No history yet.</p>
-          )}
-          <div className="space-y-2">
-            {historyEntries.map(entry => (
-              <div
-                key={entry.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-3 py-2"
-              >
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  <span className="font-medium text-gray-800 dark:text-gray-200">
-                    {entry.trigger}
-                  </span>
-                  {' • '}
-                  {new Date(entry.created_at).toLocaleString('en-CA', {
-                    timeZone: 'America/Toronto',
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}
-                  {' • '}
-                  {entry.word_count} words
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={restoringId === entry.id || submitting || isSubmitted}
-                  onClick={() => handleRestore(entry.id)}
-                >
-                  {restoringId === entry.id ? 'Restoring...' : 'Restore'}
-                </Button>
-              </div>
-            ))}
+      {/* Restore Confirmation Modal */}
+      {showRestoreModal && previewEntry && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Restore this version?
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              This will replace your current draft with the version saved on{' '}
+              {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, yyyy')} at{' '}
+              {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'h:mm a')}.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button onClick={() => setShowRestoreModal(false)} variant="secondary">
+                Cancel
+              </Button>
+              <Button onClick={confirmRestore} disabled={restoringId !== null}>
+                {restoringId ? 'Restoring...' : 'Restore'}
+              </Button>
+            </div>
           </div>
         </div>
       )}
