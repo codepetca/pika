@@ -1735,3 +1735,25 @@
 **Next:** Manual: verify Edit assignment appears on the left when an assignment is selected.
 **Blockers:** None
 ---
+## 2026-01-07 14:21 [AI - Codex]
+**Goal:** Align student sidebar assignments UI with teacher (no dropdown, always expanded).
+**Completed:** Reworked the student assignments nav row to mirror teacher styling (without the toggle) and removed the `view` param from student sidebar navigation.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/ClassroomSidebar.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: check student sidebar assignments list and selection.
+**Blockers:** None
+---
+## 2026-01-07 14:29 [AI - Codex]
+**Goal:** Keep student sidebar available on mobile while staying permanent/collapsible on desktop.
+**Completed:** Restored the student mobile drawer so navigation stays accessible on small screens.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/ClassroomSidebar.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: verify student sidebar opens via hamburger on mobile and stays visible on desktop.
+**Blockers:** None
+---
