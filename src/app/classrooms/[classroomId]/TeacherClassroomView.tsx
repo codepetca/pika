@@ -99,6 +99,7 @@ export function TeacherClassroomView({ classroom }: Props) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [error, setError] = useState('')
 
   const loadAssignments = useCallback(async () => {
