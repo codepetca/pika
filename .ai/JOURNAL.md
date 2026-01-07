@@ -1392,3 +1392,16 @@
 **Tests:** `npm test -- --run tests/lib/json-patch.test.ts tests/lib/assignment-doc-history.test.ts tests/api/assignment-docs/history.test.ts tests/api/assignment-docs/restore.test.ts`
 **Next:** Consider manual sanity checks for history capture, teacher timeline, and student restore.
 **Blockers:** None
+---
+## 2026-01-07 10:30 [AI - Codex]
+**Goal:** Issue #89 redesign assignment history UI with vertical column and instant preview.
+**Completed:** Redesigned history from collapsible section to permanent vertical column (240px fixed) with click-to-preview, date grouping, character diff indicators, orange flags for large changes (+200 chars), restore confirmation modal for students, read-only preview for teachers, and responsive mobile drawer.
+**Status:** completed
+**Artifacts:**
+- Issue: #89
+- PR: #90 (draft)
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/api/assignment-docs/[id]/history/route.ts`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Build passes, existing tests pass (no new tests needed - reconstruction logic unchanged)
+**Next:** Manual testing in staging, then mark PR ready for review.
+**Blockers:** None
