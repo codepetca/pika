@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Bars3Icon,
@@ -76,6 +76,7 @@ function writeCookie(name: string, value: string) {
 }
 
 const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
+const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
 type SidebarAssignment = {
   id: string
@@ -365,19 +366,31 @@ export function ClassroomSidebar({
     setActiveAssignmentId(assignmentIdParam)
   }, [activeTab, assignmentIdParam, role])
 
+  const loadTeacherAssignments = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
+      const data = await response.json()
+      setAssignments((data.assignments || []).map((a: any) => ({ id: a.id, title: a.title })))
+    } catch {
+      setAssignments([])
+    }
+  }, [classroomId])
+
   useEffect(() => {
     if (role !== 'teacher') return
-    async function loadAssignments() {
-      try {
-        const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
-        const data = await response.json()
-        setAssignments((data.assignments || []).map((a: any) => ({ id: a.id, title: a.title })))
-      } catch {
-        setAssignments([])
-      }
+    loadTeacherAssignments()
+  }, [loadTeacherAssignments, role])
+
+  useEffect(() => {
+    if (role !== 'teacher') return
+    function onAssignmentsUpdated(event: Event) {
+      const detail = (event as CustomEvent<{ classroomId?: string }>).detail
+      if (!detail || detail.classroomId !== classroomId) return
+      loadTeacherAssignments()
     }
-    loadAssignments()
-  }, [classroomId, role])
+    window.addEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, onAssignmentsUpdated)
+    return () => window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, onAssignmentsUpdated)
+  }, [classroomId, loadTeacherAssignments, role])
 
   useEffect(() => {
     if (role !== 'student') return

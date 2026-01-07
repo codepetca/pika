@@ -1757,3 +1757,14 @@
 **Next:** Manual: verify student sidebar opens via hamburger on mobile and stays visible on desktop.
 **Blockers:** None
 ---
+## 2026-01-07 14:38 [AI - Codex]
+**Goal:** Refresh teacher sidebar assignments after create/edit/delete without page reload.
+**Completed:** Broadcast assignment updates from the teacher view and listen in the sidebar to reload the list.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `src/components/ClassroomSidebar.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: create/edit/delete an assignment and confirm the sidebar list updates immediately.
+**Blockers:** None
+---

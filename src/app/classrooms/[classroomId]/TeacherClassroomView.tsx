@@ -39,6 +39,7 @@ interface AssignmentWithStats extends Assignment {
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
 
 const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
+const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
 interface StudentSubmissionRow {
   student_id: string
@@ -106,6 +107,11 @@ export function TeacherClassroomView({ classroom }: Props) {
       const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
       const data = await response.json()
       setAssignments(data.assignments || [])
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
+          detail: { classroomId: classroom.id },
+        })
+      )
     } catch (err) {
       console.error('Error loading assignments:', err)
     } finally {
