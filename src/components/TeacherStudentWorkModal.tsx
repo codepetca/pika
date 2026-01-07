@@ -8,6 +8,7 @@ import { RichTextViewer } from '@/components/RichTextViewer'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
+import { HistoryList } from '@/components/HistoryList'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, TiptapContent } from '@/types'
 
 interface StudentWorkData {
@@ -153,10 +154,6 @@ export function TeacherStudentWorkModal({
     }
     loadHistory()
   }, [assignmentId, isOpen, studentId])
-
-  function getTriggerBadgeClasses(trigger: AssignmentDocHistoryEntry['trigger']) {
-    return 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-  }
 
   const isPreviewLocked = lockedEntryId !== null
 
@@ -316,63 +313,12 @@ export function TeacherStudentWorkModal({
                             <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {(() => {
-                              const entriesByDate = historyEntries.reduce((acc, entry) => {
-                                const date = formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'MMM d')
-                                if (!acc[date]) acc[date] = []
-                                acc[date]!.push(entry)
-                                return acc
-                              }, {} as Record<string, AssignmentDocHistoryEntry[]>)
-
-                              return Object.entries(entriesByDate).map(([date, entries]) => (
-                                <div key={date} className="px-3 py-2">
-                                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{date}</div>
-                                  <div className="space-y-1">
-                                    {entries.map((entry, idx) => {
-                                      const prevEntry = idx > 0 ? entries[idx - 1] : null
-                                      const charDiff = prevEntry ? entry.char_count - prevEntry.char_count : entry.char_count
-                                      const isActive = previewEntry?.id === entry.id
-
-                                      return (
-                                        <button
-                                          key={entry.id}
-                                          onClick={() => handlePreviewLock(entry)}
-                                          onMouseEnter={() => handlePreviewHover(entry)}
-                                          className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
-                                            isActive
-                                              ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                                              : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
-                                          }`}
-                                        >
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                              <span className="font-mono">
-                                                {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
-                                              </span>
-                                              <span
-                                                className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses(entry.trigger)}`}
-                                              >
-                                                {entry.trigger}
-                                              </span>
-                                            </div>
-                                            <span className={`text-[10px] ${
-                                              charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
-                                              charDiff > 0 ? 'text-green-600 dark:text-green-400' :
-                                              charDiff < 0 ? 'text-red-600 dark:text-red-400' :
-                                              'text-gray-500 dark:text-gray-500'
-                                            }`}>
-                                              {charDiff > 0 ? '+' : ''}{charDiff}
-                                            </span>
-                                          </div>
-                                        </button>
-                                      )
-                                    })}
-                                  </div>
-                                </div>
-                              ))
-                            })()}
-                          </div>
+                          <HistoryList
+                            entries={historyEntries}
+                            activeEntryId={previewEntry?.id ?? null}
+                            onEntryClick={handlePreviewLock}
+                            onEntryHover={handlePreviewHover}
+                          />
                         )}
                       </div>
                       {isPreviewLocked && previewEntry && (
@@ -414,62 +360,12 @@ export function TeacherStudentWorkModal({
                       ) : historyEntries.length === 0 ? (
                         <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
                       ) : (
-                        <div className="space-y-3 mt-3">
-                          {(() => {
-                            const entriesByDate = historyEntries.reduce((acc, entry) => {
-                              const date = formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'MMM d')
-                              if (!acc[date]) acc[date] = []
-                              acc[date]!.push(entry)
-                              return acc
-                            }, {} as Record<string, AssignmentDocHistoryEntry[]>)
-
-                            return Object.entries(entriesByDate).map(([date, entries]) => (
-                              <div key={date}>
-                                <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{date}</div>
-                                <div className="space-y-1">
-                                  {entries.map((entry, idx) => {
-                                    const prevEntry = idx > 0 ? entries[idx - 1] : null
-                                    const charDiff = prevEntry ? entry.char_count - prevEntry.char_count : entry.char_count
-                                    const isActive = previewEntry?.id === entry.id
-
-                                    return (
-                                      <button
-                                        key={entry.id}
-                                        onClick={() => handlePreviewLock(entry)}
-                                        className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
-                                          isActive
-                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                                            : 'bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
-                                        }`}
-                                      >
-                                        <div className="flex items-center justify-between">
-                                          <div className="flex items-center gap-2">
-                                            <span className="font-mono">
-                                              {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
-                                            </span>
-                                            <span
-                                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses(entry.trigger)}`}
-                                            >
-                                              {entry.trigger}
-                                            </span>
-                                          </div>
-                                          <span className={`text-xs ${
-                                            charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
-                                            charDiff > 0 ? 'text-green-600 dark:text-green-400' :
-                                            charDiff < 0 ? 'text-red-600 dark:text-red-400' :
-                                            'text-gray-500'
-                                          }`}>
-                                            {charDiff > 0 ? '+' : ''}{charDiff}
-                                          </span>
-                                        </div>
-                                      </button>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-                            ))
-                          })()}
-                        </div>
+                        <HistoryList
+                          entries={historyEntries}
+                          activeEntryId={previewEntry?.id ?? null}
+                          onEntryClick={handlePreviewLock}
+                          variant="mobile"
+                        />
                       )}
                     {isPreviewLocked && previewEntry && (
                       <div className="pt-4">
