@@ -43,4 +43,3 @@ supabase/.temp/
 /test-results/
 /artifacts/
 /.auth/
-.env.staging
