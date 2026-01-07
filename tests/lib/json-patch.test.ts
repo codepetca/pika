@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { applyJsonPatch, createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
-import type { TiptapContent } from '@/types'
+import type { JsonPatchOperation, TiptapContent } from '@/types'
 
 describe('json-patch utilities', () => {
   it('creates and applies patches to reach the target content', () => {
@@ -42,5 +42,20 @@ describe('json-patch utilities', () => {
     }
     const patch = createJsonPatch(content, content)
     expect(shouldStoreSnapshot(patch, content, 1)).toBe(false)
+  })
+
+  it('returns base content when patch application fails', () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] },
+      ],
+    }
+
+    const invalidPatch: JsonPatchOperation[] = [
+      { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'Oops' }] },
+    ]
+
+    expect(applyJsonPatch(content, invalidPatch)).toEqual(content)
   })
 })

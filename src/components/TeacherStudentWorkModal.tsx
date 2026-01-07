@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/RichTextViewer'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
@@ -48,8 +49,9 @@ export function TeacherStudentWorkModal({
   const [historyError, setHistoryError] = useState('')
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+  const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
 
-  function handlePreviewClick(entry: AssignmentDocHistoryEntry) {
+  function updatePreview(entry: AssignmentDocHistoryEntry) {
     // Reconstruct content for this entry (client-side, no API call)
     // API returns newest-first, but reconstruction needs oldest-first
     const oldestFirst = [...historyEntries].reverse()
@@ -61,9 +63,20 @@ export function TeacherStudentWorkModal({
     }
   }
 
+  function handlePreviewHover(entry: AssignmentDocHistoryEntry) {
+    if (lockedEntryId) return
+    updatePreview(entry)
+  }
+
+  function handlePreviewLock(entry: AssignmentDocHistoryEntry) {
+    updatePreview(entry)
+    setLockedEntryId(entry.id)
+  }
+
   function handleExitPreview() {
     setPreviewEntry(null)
     setPreviewContent(null)
+    setLockedEntryId(null)
   }
 
   useEffect(() => {
@@ -128,6 +141,12 @@ export function TeacherStudentWorkModal({
     }
     loadHistory()
   }, [assignmentId, isOpen, studentId])
+
+  function getTriggerBadgeClasses(trigger: AssignmentDocHistoryEntry['trigger']) {
+    return 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+  }
+
+  const isPreviewLocked = lockedEntryId !== null
 
   if (!isOpen) return null
 
@@ -249,20 +268,14 @@ export function TeacherStudentWorkModal({
                       </div>
                     )}
 
-                    {previewEntry && (
-                      <div className="mt-4">
-                        <button
-                          onClick={handleExitPreview}
-                          className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md text-gray-700 dark:text-gray-300"
-                        >
-                          Exit Preview
-                        </button>
-                      </div>
-                    )}
                   </div>
 
                   {/* History Column (Desktop) */}
-                  <div className="hidden md:block w-60 bg-gray-50 dark:bg-gray-950 overflow-y-auto" style={{ maxHeight: '500px' }}>
+                  <div
+                    className="hidden md:block w-60 bg-gray-50 dark:bg-gray-950 overflow-y-auto"
+                    style={{ maxHeight: '500px' }}
+                    onMouseLeave={handleExitPreview}
+                  >
                     <div className="p-3 border-b border-gray-200 dark:border-gray-700">
                       <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                         History
@@ -302,7 +315,8 @@ export function TeacherStudentWorkModal({
                                   return (
                                     <button
                                       key={entry.id}
-                                      onClick={() => handlePreviewClick(entry)}
+                                      onClick={() => handlePreviewLock(entry)}
+                                      onMouseEnter={() => handlePreviewHover(entry)}
                                       className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
                                         isActive
                                           ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
@@ -310,9 +324,16 @@ export function TeacherStudentWorkModal({
                                       }`}
                                     >
                                       <div className="flex items-center justify-between">
-                                        <span className="font-mono">
-                                          {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-mono">
+                                            {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
+                                          </span>
+                                          <span
+                                            className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses(entry.trigger)}`}
+                                          >
+                                            {entry.trigger}
+                                          </span>
+                                        </div>
                                         <span className={`text-[10px] ${
                                           charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
                                           charDiff > 0 ? 'text-green-600 dark:text-green-400' :
@@ -331,12 +352,27 @@ export function TeacherStudentWorkModal({
                         })()}
                       </div>
                     )}
+                    {isPreviewLocked && previewEntry && (
+                      <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
+                        <Button onClick={handleExitPreview} variant="secondary" className="w-full">
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Mobile History Drawer */}
                 <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
-                  <details className="group">
+                  <details
+                    className="group"
+                    onToggle={(event) => {
+                      const target = event.currentTarget
+                      if (!target.open) {
+                        handleExitPreview()
+                      }
+                    }}
+                  >
                     <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between">
                       <span>View History ({historyEntries.length})</span>
                       <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -374,7 +410,7 @@ export function TeacherStudentWorkModal({
                                     return (
                                       <button
                                         key={entry.id}
-                                        onClick={() => handlePreviewClick(entry)}
+                                        onClick={() => handlePreviewLock(entry)}
                                         className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
                                           isActive
                                             ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
@@ -382,9 +418,16 @@ export function TeacherStudentWorkModal({
                                         }`}
                                       >
                                         <div className="flex items-center justify-between">
-                                          <span className="font-mono">
-                                            {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
-                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-mono">
+                                              {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
+                                            </span>
+                                            <span
+                                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses(entry.trigger)}`}
+                                            >
+                                              {entry.trigger}
+                                            </span>
+                                          </div>
                                           <span className={`text-xs ${
                                             charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
                                             charDiff > 0 ? 'text-green-600 dark:text-green-400' :
@@ -401,6 +444,13 @@ export function TeacherStudentWorkModal({
                               </div>
                             ))
                           })()}
+                        </div>
+                      )}
+                      {isPreviewLocked && previewEntry && (
+                        <div className="pt-4">
+                          <Button onClick={handleExitPreview} variant="secondary" className="w-full">
+                            Cancel
+                          </Button>
                         </div>
                       )}
                     </div>

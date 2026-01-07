@@ -1405,3 +1405,69 @@
 **Tests:** Build passes, existing tests pass (no new tests needed - reconstruction logic unchanged)
 **Next:** Manual testing in staging, then mark PR ready for review.
 **Blockers:** None
+## 2026-01-07 10:45 [AI - Codex]
+**Goal:** Issue #89 fix history list to update immediately after student saves.
+**Completed:** Returned latest history entry from PATCH save and merged it into the client history list so saves appear without refresh; adjusted API test mocks for new select chain.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/api/assignment-docs/[id]/route.ts`, `src/components/StudentAssignmentEditor.tsx`, `tests/api/assignment-docs/assignment-docs-id.test.ts`
+**Tests:** `pnpm exec vitest run tests/api/assignment-docs/assignment-docs-id.test.ts`
+**Next:** Manual verify autosave updates history UI without refresh.
+**Blockers:** None
+---
+## 2026-01-07 10:55 [AI - Codex]
+**Goal:** Add hover preview + lock controls for assignment history (Issue #89 follow-up).
+**Completed:** Added hover preview with click-to-lock in student and teacher history columns, moved Cancel/Restore controls to bottom of history area, and clear preview on history-area exit or drawer close.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI behavior change only)
+**Next:** Manual hover/lock/restore check in student + teacher views.
+**Blockers:** None
+---
+## 2026-01-07 11:06 [AI - Codex]
+**Goal:** Show history trigger badges and record paste events for assignment history.
+**Completed:** Added paste trigger to history types/validation, captured paste events in the editor to mark the next save as `paste`, and surfaced trigger badges in student + teacher history lists.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/types/index.ts`, `src/app/api/assignment-docs/[id]/route.ts`, `src/components/RichTextEditor.tsx`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI behavior + types only)
+**Next:** Manual check: paste text, ensure history shows `paste` badge.
+**Blockers:** None
+---
+## 2026-01-07 11:15 [AI - Codex]
+**Goal:** Fix JSON patch apply errors when pasting.
+**Completed:** Treat `paste` saves as snapshots to avoid invalid patches and added safe fallback in JSON patch apply with a regression test.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/api/assignment-docs/[id]/route.ts`, `src/lib/json-patch.ts`, `tests/lib/json-patch.test.ts`
+**Tests:** `pnpm exec vitest run tests/lib/json-patch.test.ts`
+**Next:** Manual paste-and-save check in student history preview.
+**Blockers:** None
+---
+## 2026-01-07 11:20 [AI - Codex]
+**Goal:** Ensure paste-triggered saves always appear in history.
+**Completed:** Bypassed rate-limit updates for `paste` triggers so paste saves always insert a new history row (and snapshot).
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/api/assignment-docs/[id]/route.ts`
+**Tests:** Not run (behavioral change only).
+**Next:** Manual paste + blur check to confirm new history row appears.
+**Blockers:** None
+---
+## 2026-01-07 11:25 [AI - Codex]
+**Goal:** Remove paste-trigger tracking and restore normal autosave behavior.
+**Completed:** Removed paste trigger from types/API/UI, dropped editor paste flagging, and reverted history logic to standard autosave/blur triggers.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/types/index.ts`, `src/app/api/assignment-docs/[id]/route.ts`, `src/components/RichTextEditor.tsx`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run.
+**Next:** Manual paste + blur check to confirm autosave still works.
+**Blockers:** None
+---

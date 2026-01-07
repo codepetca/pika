@@ -48,6 +48,7 @@ export function StudentAssignmentEditor({
   const [historyError, setHistoryError] = useState('')
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+  const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
   const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [restoringId, setRestoringId] = useState<string | null>(null)
 
@@ -59,6 +60,10 @@ export function StudentAssignmentEditor({
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
+
+  function getTriggerBadgeClasses(trigger: AssignmentDocHistoryEntry['trigger']) {
+    return 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+  }
 
   const loadAssignment = useCallback(async () => {
     setLoading(true)
@@ -143,7 +148,22 @@ export function StudentAssignmentEditor({
         throw new Error(data.error || 'Failed to save')
       }
 
+      const historyEntry = data.historyEntry as AssignmentDocHistoryEntry | null | undefined
+
       setDoc(data.doc)
+      if (historyEntry) {
+        setHistoryEntries(prev => {
+          const existingIndex = prev.findIndex(entry => entry.id === historyEntry.id)
+          const next = existingIndex === -1 ? [historyEntry, ...prev] : [...prev]
+
+          if (existingIndex !== -1) {
+            next[existingIndex] = historyEntry
+          }
+
+          return next.sort((a, b) => b.created_at.localeCompare(a.created_at))
+        })
+        setPreviewEntry(prev => (prev?.id === historyEntry.id ? historyEntry : prev))
+      }
       lastSavedContentRef.current = newContentStr
       setSaveStatus('saved')
     } catch (err: any) {
@@ -256,7 +276,7 @@ export function StudentAssignmentEditor({
     }
   }
 
-  function handlePreviewClick(entry: AssignmentDocHistoryEntry) {
+  function updatePreview(entry: AssignmentDocHistoryEntry) {
     // Reconstruct content for this entry (client-side, no API call)
     // API returns newest-first, but reconstruction needs oldest-first
     const oldestFirst = [...historyEntries].reverse()
@@ -268,14 +288,25 @@ export function StudentAssignmentEditor({
     }
   }
 
+  function handlePreviewHover(entry: AssignmentDocHistoryEntry) {
+    if (lockedEntryId) return
+    updatePreview(entry)
+  }
+
+  function handlePreviewLock(entry: AssignmentDocHistoryEntry) {
+    updatePreview(entry)
+    setLockedEntryId(entry.id)
+  }
+
   function handleExitPreview() {
     setPreviewEntry(null)
     setPreviewContent(null)
     setShowRestoreModal(false)
+    setLockedEntryId(null)
   }
 
   function handleRestoreClick() {
-    if (!previewEntry) return
+    if (!previewEntry || !lockedEntryId) return
     setShowRestoreModal(true)
   }
 
@@ -359,6 +390,7 @@ export function StudentAssignmentEditor({
 
   const status = calculateAssignmentStatus(assignment, doc)
   const isSubmitted = doc?.is_submitted || false
+  const isPreviewLocked = lockedEntryId !== null
 
   const editorContent = (
     <div className="space-y-6">
@@ -418,7 +450,11 @@ export function StudentAssignmentEditor({
           </div>
 
           {/* History Column (Desktop) */}
-          <div className="hidden md:block w-60 bg-gray-50 dark:bg-gray-950 overflow-y-auto" style={{ maxHeight: '600px' }}>
+          <div
+            className="hidden md:block w-60 bg-gray-50 dark:bg-gray-950 overflow-y-auto"
+            style={{ maxHeight: '600px' }}
+            onMouseLeave={handleExitPreview}
+          >
             <div className="p-3 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
                 History
@@ -458,22 +494,30 @@ export function StudentAssignmentEditor({
                           return (
                             <button
                               key={entry.id}
-                              onClick={() => handlePreviewClick(entry)}
+                              onClick={() => handlePreviewLock(entry)}
+                              onMouseEnter={() => handlePreviewHover(entry)}
                               className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
                                 isActive
                                   ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
                                   : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
                               }`}
                             >
-                              <div className="flex items-center justify-between">
-                                <span className="font-mono">
-                                  {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
-                                </span>
-                                <span className={`text-[10px] ${
-                                  charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
-                                  charDiff > 0 ? 'text-green-600 dark:text-green-400' :
-                                  charDiff < 0 ? 'text-red-600 dark:text-red-400' :
-                                  'text-gray-500 dark:text-gray-500'
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-mono">
+                                            {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
+                                          </span>
+                                          <span
+                                            className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses(entry.trigger)}`}
+                                          >
+                                            {entry.trigger}
+                                          </span>
+                                        </div>
+                                        <span className={`text-[10px] ${
+                                          charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
+                                          charDiff > 0 ? 'text-green-600 dark:text-green-400' :
+                                          charDiff < 0 ? 'text-red-600 dark:text-red-400' :
+                                          'text-gray-500 dark:text-gray-500'
                                 }`}>
                                   {charDiff > 0 ? '+' : ''}{charDiff}
                                 </span>
@@ -487,6 +531,20 @@ export function StudentAssignmentEditor({
                 })()}
               </div>
             )}
+            {isPreviewLocked && previewEntry && (
+              <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col gap-2">
+                  {!isSubmitted && (
+                    <Button onClick={handleRestoreClick} disabled={restoringId !== null}>
+                      {restoringId ? 'Restoring...' : 'Restore'}
+                    </Button>
+                  )}
+                  <Button onClick={handleExitPreview} variant="secondary">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -497,36 +555,29 @@ export function StudentAssignmentEditor({
           </div>
 
           <div className="flex gap-2">
-            {previewEntry ? (
-              <>
-                <Button onClick={handleExitPreview} variant="secondary">
-                  Exit Preview
-                </Button>
-                {!isSubmitted && (
-                  <Button onClick={handleRestoreClick} disabled={restoringId !== null}>
-                    {restoringId ? 'Restoring...' : 'Restore This Version'}
-                  </Button>
-                )}
-              </>
+            {isSubmitted ? (
+              <Button onClick={handleUnsubmit} variant="secondary" disabled={submitting || !!previewEntry}>
+                {submitting ? 'Unsubmitting...' : 'Unsubmit'}
+              </Button>
             ) : (
-              <>
-                {isSubmitted ? (
-                  <Button onClick={handleUnsubmit} variant="secondary" disabled={submitting}>
-                    {submitting ? 'Unsubmitting...' : 'Unsubmit'}
-                  </Button>
-                ) : (
-                  <Button onClick={handleSubmit} disabled={submitting || isEmpty(content)}>
-                    {submitting ? 'Submitting...' : 'Submit'}
-                  </Button>
-                )}
-              </>
+              <Button onClick={handleSubmit} disabled={submitting || isEmpty(content) || !!previewEntry}>
+                {submitting ? 'Submitting...' : 'Submit'}
+              </Button>
             )}
           </div>
         </div>
 
         {/* Mobile History Drawer */}
         <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
-          <details className="group">
+          <details
+            className="group"
+            onToggle={(event) => {
+              const target = event.currentTarget
+              if (!target.open) {
+                handleExitPreview()
+              }
+            }}
+          >
             <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between">
               <span>View History ({historyEntries.length})</span>
               <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -564,21 +615,28 @@ export function StudentAssignmentEditor({
                             return (
                               <button
                                 key={entry.id}
-                                onClick={() => handlePreviewClick(entry)}
+                                onClick={() => handlePreviewLock(entry)}
                                 className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
                                   isActive
                                     ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
                                     : 'bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
                                 }`}
                               >
-                                <div className="flex items-center justify-between">
-                                  <span className="font-mono">
-                                    {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
-                                  </span>
-                                  <span className={`text-xs ${
-                                    charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
-                                    charDiff > 0 ? 'text-green-600 dark:text-green-400' :
-                                    charDiff < 0 ? 'text-red-600 dark:text-red-400' :
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-mono">
+                                              {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
+                                            </span>
+                                            <span
+                                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses(entry.trigger)}`}
+                                            >
+                                              {entry.trigger}
+                                            </span>
+                                          </div>
+                                          <span className={`text-xs ${
+                                            charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
+                                            charDiff > 0 ? 'text-green-600 dark:text-green-400' :
+                                            charDiff < 0 ? 'text-red-600 dark:text-red-400' :
                                     'text-gray-500'
                                   }`}>
                                     {charDiff > 0 ? '+' : ''}{charDiff}
@@ -591,6 +649,18 @@ export function StudentAssignmentEditor({
                       </div>
                     ))
                   })()}
+                </div>
+              )}
+              {isPreviewLocked && previewEntry && (
+                <div className="pt-4 flex flex-col gap-2">
+                  {!isSubmitted && (
+                    <Button onClick={handleRestoreClick} disabled={restoringId !== null}>
+                      {restoringId ? 'Restoring...' : 'Restore'}
+                    </Button>
+                  )}
+                  <Button onClick={handleExitPreview} variant="secondary">
+                    Cancel
+                  </Button>
                 </div>
               )}
             </div>
