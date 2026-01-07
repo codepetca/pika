@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/RichTextViewer'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatDueDate, getAssignmentStatusBadgeClass, getAssignmentStatusLabel } from '@/lib/assignments'
-import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus } from '@/types'
+import { formatInTimeZone } from 'date-fns-tz'
+import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, TiptapContent } from '@/types'
 
 interface StudentWorkData {
   assignment: Assignment
@@ -44,15 +46,40 @@ export function TeacherStudentWorkModal({
   const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
+  const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
+  const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+
+  function handlePreviewClick(entry: AssignmentDocHistoryEntry) {
+    // Reconstruct content for this entry (client-side, no API call)
+    // API returns newest-first, but reconstruction needs oldest-first
+    const oldestFirst = [...historyEntries].reverse()
+    const reconstructed = reconstructAssignmentDocContent(oldestFirst, entry.id)
+
+    if (reconstructed) {
+      setPreviewEntry(entry)
+      setPreviewContent(reconstructed)
+    }
+  }
+
+  function handleExitPreview() {
+    setPreviewEntry(null)
+    setPreviewContent(null)
+  }
 
   useEffect(() => {
     if (!isOpen) return
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        if (previewEntry) {
+          handleExitPreview()
+        } else {
+          onClose()
+        }
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isOpen, onClose])
+  }, [isOpen, onClose, previewEntry])
 
   useEffect(() => {
     if (!isOpen) return
@@ -101,11 +128,6 @@ export function TeacherStudentWorkModal({
     }
     loadHistory()
   }, [assignmentId, isOpen, studentId])
-
-  const maxWordCount = useMemo(() => {
-    if (historyEntries.length === 0) return 1
-    return Math.max(...historyEntries.map(entry => entry.word_count), 1)
-  }, [historyEntries])
 
   if (!isOpen) return null
 
@@ -181,9 +203,19 @@ export function TeacherStudentWorkModal({
                 </div>
               </div>
 
+              {/* Student Response with History Column */}
               <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                {/* Header */}
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Student response</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {previewEntry ? (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        Previewing save from {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
+                      </span>
+                    ) : (
+                      'Student response'
+                    )}
+                  </span>
                   <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 select-none">
                     <input
                       type="checkbox"
@@ -195,74 +227,184 @@ export function TeacherStudentWorkModal({
                   </label>
                 </div>
 
-                <div className="p-4">
-                  {data.doc && data.doc.content && !isEmpty(data.doc.content) ? (
-                    <div className="min-h-[300px]">
-                      <RichTextViewer content={data.doc.content} showPlainText={showPlainText} />
-                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        {countCharacters(data.doc.content)} characters
+                {/* Main Content Area: Response + History Column */}
+                <div className="flex flex-col md:flex-row">
+                  {/* Student Response */}
+                  <div className="flex-1 p-4 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700">
+                    {data.doc && data.doc.content && !isEmpty(data.doc.content) ? (
+                      <div className="min-h-[300px]">
+                        <div className={previewEntry ? 'ring-2 ring-blue-400 dark:ring-blue-600 rounded-lg p-2' : ''}>
+                          <RichTextViewer
+                            content={previewContent || data.doc.content}
+                            showPlainText={showPlainText}
+                          />
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          {countCharacters(previewContent || data.doc.content)} characters
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                      No work submitted yet
-                    </div>
-                  )}
-                </div>
-              </div>
+                    ) : (
+                      <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                        No work submitted yet
+                      </div>
+                    )}
 
-              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">History timeline</span>
-                  {historyLoading && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>
-                  )}
+                    {previewEntry && (
+                      <div className="mt-4">
+                        <button
+                          onClick={handleExitPreview}
+                          className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md text-gray-700 dark:text-gray-300"
+                        >
+                          Exit Preview
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* History Column (Desktop) */}
+                  <div className="hidden md:block w-60 bg-gray-50 dark:bg-gray-950 overflow-y-auto" style={{ maxHeight: '500px' }}>
+                    <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                      <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                        History
+                      </h3>
+                    </div>
+                    {historyLoading ? (
+                      <div className="p-4 text-center">
+                        <Spinner size="sm" />
+                      </div>
+                    ) : historyError ? (
+                      <div className="p-4">
+                        <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                      </div>
+                    ) : historyEntries.length === 0 ? (
+                      <div className="p-4">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {(() => {
+                          const entriesByDate = historyEntries.reduce((acc, entry) => {
+                            const date = formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'MMM d')
+                            if (!acc[date]) acc[date] = []
+                            acc[date]!.push(entry)
+                            return acc
+                          }, {} as Record<string, AssignmentDocHistoryEntry[]>)
+
+                          return Object.entries(entriesByDate).map(([date, entries]) => (
+                            <div key={date} className="px-3 py-2">
+                              <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{date}</div>
+                              <div className="space-y-1">
+                                {entries.map((entry, idx) => {
+                                  const prevEntry = idx > 0 ? entries[idx - 1] : null
+                                  const charDiff = prevEntry ? entry.char_count - prevEntry.char_count : entry.char_count
+                                  const isActive = previewEntry?.id === entry.id
+
+                                  return (
+                                    <button
+                                      key={entry.id}
+                                      onClick={() => handlePreviewClick(entry)}
+                                      className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
+                                        isActive
+                                          ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                                          : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-mono">
+                                          {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
+                                        </span>
+                                        <span className={`text-[10px] ${
+                                          charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
+                                          charDiff > 0 ? 'text-green-600 dark:text-green-400' :
+                                          charDiff < 0 ? 'text-red-600 dark:text-red-400' :
+                                          'text-gray-500 dark:text-gray-500'
+                                        }`}>
+                                          {charDiff > 0 ? '+' : ''}{charDiff}
+                                        </span>
+                                      </div>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="p-4 space-y-3">
-                  {historyError && (
-                    <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
-                  )}
-                  {!historyLoading && historyEntries.length === 0 && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">No history yet.</p>
-                  )}
-                  {historyEntries.length > 0 && (
-                    <>
-                      <div className="flex items-end gap-2 h-20">
-                        {historyEntries.map(entry => (
-                          <div key={entry.id} className="flex flex-col items-center gap-1">
-                            <div
-                              className="w-3 rounded bg-blue-500 dark:bg-blue-400"
-                              style={{ height: `${Math.max(8, (entry.word_count / maxWordCount) * 100)}%` }}
-                              title={`${entry.word_count} words`}
-                            />
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                              {entry.word_count}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="space-y-2">
-                        {historyEntries.map(entry => (
-                          <div
-                            key={entry.id}
-                            className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2"
-                          >
-                            <span className="font-medium text-gray-800 dark:text-gray-200">
-                              {entry.trigger}
-                            </span>
-                            <span>
-                              {new Date(entry.created_at).toLocaleString('en-CA', {
-                                timeZone: 'America/Toronto',
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })}
-                            </span>
-                            <span>{entry.word_count} words</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
+
+                {/* Mobile History Drawer */}
+                <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
+                  <details className="group">
+                    <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between">
+                      <span>View History ({historyEntries.length})</span>
+                      <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </summary>
+                    <div className="px-4 pb-4 max-h-80 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+                      {historyLoading ? (
+                        <div className="p-4 text-center">
+                          <Spinner size="sm" />
+                        </div>
+                      ) : historyError ? (
+                        <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                      ) : historyEntries.length === 0 ? (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                      ) : (
+                        <div className="space-y-3 mt-3">
+                          {(() => {
+                            const entriesByDate = historyEntries.reduce((acc, entry) => {
+                              const date = formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'MMM d')
+                              if (!acc[date]) acc[date] = []
+                              acc[date]!.push(entry)
+                              return acc
+                            }, {} as Record<string, AssignmentDocHistoryEntry[]>)
+
+                            return Object.entries(entriesByDate).map(([date, entries]) => (
+                              <div key={date}>
+                                <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{date}</div>
+                                <div className="space-y-1">
+                                  {entries.map((entry, idx) => {
+                                    const prevEntry = idx > 0 ? entries[idx - 1] : null
+                                    const charDiff = prevEntry ? entry.char_count - prevEntry.char_count : entry.char_count
+                                    const isActive = previewEntry?.id === entry.id
+
+                                    return (
+                                      <button
+                                        key={entry.id}
+                                        onClick={() => handlePreviewClick(entry)}
+                                        className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
+                                          isActive
+                                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                                            : 'bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                        }`}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className="font-mono">
+                                            {formatInTimeZone(new Date(entry.created_at), 'America/Toronto', 'h:mm a')}
+                                          </span>
+                                          <span className={`text-xs ${
+                                            charDiff > 200 ? 'text-orange-600 dark:text-orange-400 font-bold' :
+                                            charDiff > 0 ? 'text-green-600 dark:text-green-400' :
+                                            charDiff < 0 ? 'text-red-600 dark:text-red-400' :
+                                            'text-gray-500'
+                                          }`}>
+                                            {charDiff > 0 ? '+' : ''}{charDiff}
+                                          </span>
+                                        </div>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            ))
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </details>
                 </div>
               </div>
             </div>
