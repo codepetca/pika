@@ -39,9 +39,10 @@ export function HistoryList({
             </div>
             <div className="space-y-1">
               {dateEntries.map((entry, idx) => {
-                const prevEntry = idx > 0 ? dateEntries[idx - 1] : null
-                const charDiff = prevEntry
-                  ? entry.char_count - prevEntry.char_count
+                // Compare to next (older) entry to show what THIS save changed
+                const olderEntry = idx < dateEntries.length - 1 ? dateEntries[idx + 1] : null
+                const charDiff = olderEntry
+                  ? entry.char_count - olderEntry.char_count
                   : entry.char_count
                 const isActive = activeEntryId === entry.id
 
@@ -104,9 +105,10 @@ export function HistoryList({
           </div>
           <div className="space-y-1">
             {dateEntries.map((entry, idx) => {
-              const prevEntry = idx > 0 ? dateEntries[idx - 1] : null
-              const charDiff = prevEntry
-                ? entry.char_count - prevEntry.char_count
+              // Compare to next (older) entry to show what THIS save changed
+              const olderEntry = idx < dateEntries.length - 1 ? dateEntries[idx + 1] : null
+              const charDiff = olderEntry
+                ? entry.char_count - olderEntry.char_count
                 : entry.char_count
               const isActive = activeEntryId === entry.id
 
