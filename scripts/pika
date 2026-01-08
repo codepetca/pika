@@ -16,7 +16,7 @@ ISSUE_FETCH_LIMIT=200
 ISSUE_PAGE_SIZE=5
 ISSUE_SLUG_MAX=40
 WORKTREE_PAGE_SIZE=5
-QUIT_SENTINEL="__quit__"
+QUIT_SENTINEL="__pika_quit__"
 MENU_LABELS=()
 MENU_VALUES=()
 MENU_HOTKEYS=()
@@ -75,6 +75,40 @@ ensure_env_symlink() {
     fi
 }
 
+get_term_cols() {
+    local cols="80"
+    if command -v tput >/dev/null 2>&1; then
+        cols="$(tput cols 2>/dev/null || echo 80)"
+    fi
+    if ! [[ "$cols" =~ ^[0-9]+$ ]]; then
+        cols="80"
+    fi
+    if (( cols <= 0 )); then
+        cols="80"
+    fi
+    echo "$cols"
+}
+
+truncate_for_width() {
+    local value="$1"
+    local max_len="$2"
+    local len="${#value}"
+
+    if (( max_len <= 0 )); then
+        echo ""
+        return 0
+    fi
+    if (( len <= max_len )); then
+        echo "$value"
+        return 0
+    fi
+    if (( max_len <= 3 )); then
+        echo "${value:0:max_len}"
+        return 0
+    fi
+    echo "${value:0:$((max_len - 3))}..."
+}
+
 menu_select() {
     local prompt="$1"
     local selected="${2:-0}"
@@ -101,20 +135,34 @@ menu_select() {
     trap 'if (( has_tput )); then tput cnorm >&2 || true; fi' RETURN
 
     while true; do
+        local cols=""
+        cols="$(get_term_cols)"
+        local header_width="$cols"
+        local label_width=$((cols - 2))
+        if (( label_width < 1 )); then
+            label_width=1
+        fi
+
         for i in "${!MENU_HEADER_LINES[@]}"; do
-            printf "%s\n" "${MENU_HEADER_LINES[$i]}" >&2
+            local header_line=""
+            header_line="$(truncate_for_width "${MENU_HEADER_LINES[$i]}" "$header_width")"
+            printf "%s\n" "$header_line" >&2
         done
         if [[ -n "$prompt" ]]; then
-            printf "%s\n" "$prompt" >&2
+            local prompt_line=""
+            prompt_line="$(truncate_for_width "$prompt" "$header_width")"
+            printf "%s\n" "$prompt_line" >&2
             prompt_lines=1
         else
             prompt_lines=0
         fi
         for i in "${!MENU_LABELS[@]}"; do
+            local label=""
+            label="$(truncate_for_width "${MENU_LABELS[$i]}" "$label_width")"
             if (( i == selected )); then
-                printf "  %s%s%s\n" "$rev" "${MENU_LABELS[$i]}" "$sgr0" >&2
+                printf "  %s%s%s\n" "$rev" "$label" "$sgr0" >&2
             else
-                printf "  %s\n" "${MENU_LABELS[$i]}" >&2
+                printf "  %s\n" "$label" >&2
             fi
         done
 

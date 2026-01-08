@@ -2054,3 +2054,14 @@
 **Next:** Re-run ./scripts/pika codex to confirm q exits and n is selectable.
 **Blockers:** None
 ---
+## 2026-01-08 14:08 [AI - Codex]
+**Goal:** Harden quit handling and prevent menu wrapping.
+**Completed:** Switched to a less-colliding quit sentinel and truncated menu/header lines to terminal width.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to verify q and long labels render cleanly.
+**Blockers:** None
+---
