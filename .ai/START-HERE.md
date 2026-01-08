@@ -149,8 +149,8 @@ Before writing code:
 3. Commit and push the journal + feature changes.
 4. If the work was merged, remove the worktree and delete the local branch:
    ```bash
-   git -C "$PIKA_WORKTREE" worktree remove "$PIKA_WORKTREE"
    export PIKA_WORKTREE="$HOME/Repos/pika"
+   git -C "$PIKA_WORKTREE" worktree remove "$HOME/Repos/.worktrees/pika/<branch-name>"
    git -C "$PIKA_WORKTREE" branch -D <branch-name>
    ```
 

@@ -74,9 +74,11 @@ If `pwd` or `git rev-parse` is not what you expect, stop and fix it before editi
 
 ## Quick Setup (Recommended)
 
-Legacy helper script that creates the worktree and sets up the .env.local symlink:
+Legacy helper script that creates the worktree and sets up the .env.local symlink
+(human-only; it runs git without `-C` internally):
 
 ```bash
+cd "$PIKA_WORKTREE"
 bash "$PIKA_WORKTREE/scripts/wt-add.sh" <branch-name>
 cd $HOME/Repos/.worktrees/pika/<branch-name>
 ```

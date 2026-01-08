@@ -1779,3 +1779,14 @@
 **Tests:** Not run (docs/scripts only).
 **Next:** Manual: run the grep checks for $HOME/repos and /Users/stew to confirm clean paths.
 **Blockers:** None
+---
+## 2026-01-08 10:13 [AI - Codex]
+**Goal:** Fix review findings in worktree docs.
+**Completed:** Corrected worktree cleanup sequence, noted legacy helper script safety, and documented excluding .ai/JOURNAL.md from path greps.
+**Status:** completed
+**Artifacts:**
+- Branch: `92-worktree-docs`
+- Files: `.ai/START-HERE.md`, `docs/issue-worker.md`, `docs/workflow/worktrees.md`
+**Tests:** Not run (docs only).
+**Next:** None.
+**Blockers:** None
