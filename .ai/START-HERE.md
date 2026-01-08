@@ -22,6 +22,20 @@ This automatically:
 
 See: `docs/workflow/worktrees.md` and `docs/ai-instructions.md` (authoritative source)
 
+### Worktree Rules (Mandatory)
+
+- This repo uses git worktrees.
+- Each agent session is bound to exactly ONE worktree.
+- The active worktree path is in $PIKA_WORKTREE.
+
+Rules:
+- NEVER assume the shell cwd.
+- ALL git commands MUST use: git -C "$PIKA_WORKTREE".
+- ALL file paths MUST be absolute or prefixed with "$PIKA_WORKTREE".
+
+If unsure which worktree to use:
+- Ask the user to run `pika ls`.
+
 ---
 
 ## 1) Verify the Environment (1–2 min)
