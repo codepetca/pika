@@ -1955,3 +1955,14 @@
 **Next:** Re-run `./scripts/pika codex` to confirm the header copy.
 **Blockers:** None
 ---
+## 2026-01-08 13:47 [AI - Codex]
+**Goal:** Simplify worktree menu options.
+**Completed:** Removed explicit new/quit menu rows and moved those actions into the header with global hotkeys.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm header text and hidden hotkeys.
+**Blockers:** None
+---

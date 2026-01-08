@@ -20,6 +20,8 @@ MENU_LABELS=()
 MENU_VALUES=()
 MENU_HOTKEYS=()
 MENU_HEADER_LINES=()
+MENU_GLOBAL_KEYS=()
+MENU_GLOBAL_VALUES=()
 
 die() {
     echo "error: $1" >&2
@@ -145,6 +147,15 @@ menu_select() {
         else
             local key_lower=""
             key_lower="$(echo "$key" | tr '[:upper:]' '[:lower:]')"
+            for i in "${!MENU_GLOBAL_KEYS[@]}"; do
+                local hotkey=""
+                hotkey="$(echo "${MENU_GLOBAL_KEYS[$i]}" | tr '[:upper:]' '[:lower:]')"
+                if [[ -n "$hotkey" && "$key_lower" == "$hotkey" ]]; then
+                    printf "\n" >&2
+                    echo "${MENU_GLOBAL_VALUES[$i]}"
+                    return 0
+                fi
+            done
             for i in "${!MENU_HOTKEYS[@]}"; do
                 local hotkey=""
                 hotkey="$(echo "${MENU_HOTKEYS[$i]}" | tr '[:upper:]' '[:lower:]')"
@@ -416,6 +427,8 @@ prompt_for_worktree() {
         MENU_VALUES=()
         MENU_HOTKEYS=()
         MENU_HEADER_LINES=()
+        MENU_GLOBAL_KEYS=()
+        MENU_GLOBAL_VALUES=()
 
         if (( total > 0 )); then
             local start=$((page * WORKTREE_PAGE_SIZE))
@@ -427,7 +440,7 @@ prompt_for_worktree() {
             if (( end > total )); then
                 end="$total"
             fi
-            MENU_HEADER_LINES=("Choose a worktree:")
+            MENU_HEADER_LINES=("Choose a worktree. (n)ew worktree or (q)uit.")
             local i=0
             for ((i = start; i < end; i++)); do
                 local display_index=$((i - start + 1))
@@ -436,12 +449,10 @@ prompt_for_worktree() {
                 MENU_HOTKEYS+=("${display_index}")
             done
         else
-            MENU_HEADER_LINES=("Choose a worktree:")
+            MENU_HEADER_LINES=("Choose a worktree. (n)ew worktree or (q)uit.")
         fi
-
-        MENU_LABELS+=("n) New worktree")
-        MENU_VALUES+=("__new__")
-        MENU_HOTKEYS+=("n")
+        MENU_GLOBAL_KEYS+=("n" "q")
+        MENU_GLOBAL_VALUES+=("__new__" "__quit__")
 
         if (( total > 0 && (page + 1) * WORKTREE_PAGE_SIZE < total )); then
             MENU_LABELS+=("m) More")
@@ -453,9 +464,6 @@ prompt_for_worktree() {
             MENU_VALUES+=("__prev__")
             MENU_HOTKEYS+=("p")
         fi
-        MENU_LABELS+=("q) Quit")
-        MENU_VALUES+=("__quit__")
-        MENU_HOTKEYS+=("q")
 
         local selection=""
         if ! selection="$(menu_select "" 0)"; then
