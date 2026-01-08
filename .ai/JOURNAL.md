@@ -1878,3 +1878,14 @@
 **Next:** Re-run `./scripts/pika codex` to confirm spacing.
 **Blockers:** None
 ---
+## 2026-01-08 13:29 [AI - Codex]
+**Goal:** Simplify menu prompt text.
+**Completed:** Shortened the worktree prompt to "Choose:".
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm the prompt copy.
+**Blockers:** None
+---

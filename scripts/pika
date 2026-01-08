@@ -352,7 +352,7 @@ prompt_for_worktree() {
         echo "  q) Quit" >&2
 
         local choice=""
-        if ! choice="$(read_choice "Choose a worktree (1-${WORKTREE_PAGE_SIZE}) or action: ")"; then
+        if ! choice="$(read_choice "Choose: ")"; then
             return 1
         fi
         case "$choice" in
