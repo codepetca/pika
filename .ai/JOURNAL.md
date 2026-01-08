@@ -1801,3 +1801,14 @@
 **Tests:** Not run (docs/script only).
 **Next:** None.
 **Blockers:** None
+---
+## 2026-01-08 10:27 [AI - Codex]
+**Goal:** Correct Claude flag and run sanity checks for new pika commands.
+**Completed:** Updated `scripts/pika` to use `--dangerously-skip-permissions` and ran `--help` checks for the CLI commands.
+**Status:** completed
+**Artifacts:**
+- Branch: `92-worktree-docs`
+- Files: `scripts/pika`
+**Tests:** Manual: `scripts/pika claude 92-worktree-docs -- --help` (failed: `claude` not found), `scripts/pika codex 92-worktree-docs -- --help` (ok).
+**Next:** Verify Claude CLI is installed/available on PATH for pika claude.
+**Blockers:** None

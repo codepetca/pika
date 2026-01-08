@@ -40,7 +40,7 @@ cmd_claude() {
     export PIKA_WORKTREE="$path"
     export PIKA_WORKTREE_NAME="$name"
 
-    exec claude --dangerously-skip-permission "$@"
+    exec claude --dangerously-skip-permissions "$@"
 }
 
 cmd_codex() {
