@@ -1812,3 +1812,256 @@
 **Tests:** Manual: `scripts/pika claude 92-worktree-docs -- --help` (failed: `claude` not found), `scripts/pika codex 92-worktree-docs -- --help` (ok).
 **Next:** Verify Claude CLI is installed/available on PATH for pika claude.
 **Blockers:** None
+## 2026-01-08 13:07 [AI - Codex]
+**Goal:** Improve pika worktree selection UX.
+**Completed:** Added interactive selection with hub/main option, substring matching, issue-based worktree creation with paging, and recency sorting.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Manual verification of `pika codex` prompts and issue flow.
+**Blockers:** None
+---
+## 2026-01-08 13:13 [AI - Codex]
+**Goal:** Fix `pika codex` crash when no args are passed.
+**Completed:** Guarded empty arg arrays under nounset before invoking Codex/Claude.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` with no args to confirm prompt path.
+**Blockers:** None
+---
+## 2026-01-08 13:15 [AI - Codex]
+**Goal:** Allow selecting main even when only one worktree exists.
+**Completed:** Removed auto-select of the sole worktree so the prompt is always shown.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` with one worktree and verify main option.
+**Blockers:** None
+---
+## 2026-01-08 13:23 [AI - Codex]
+**Goal:** Simplify main menu and enable single-key selection.
+**Completed:** Moved worktree creation options into a submenu, added single-key selection handling, and fixed GH issue number formatting.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to verify the new menus and issue list output.
+**Blockers:** None
+---
+## 2026-01-08 13:25 [AI - Codex]
+**Goal:** Add paging to worktree selection.
+**Completed:** Added 5-item paging with single-key more/previous navigation in the worktree picker.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Verify paging with more than five worktrees.
+**Blockers:** None
+---
+## 2026-01-08 13:27 [AI - Codex]
+**Goal:** Improve CLI menu readability.
+**Completed:** Added a blank line after single-key menu selections.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm spacing.
+**Blockers:** None
+---
+## 2026-01-08 13:29 [AI - Codex]
+**Goal:** Simplify menu prompt text.
+**Completed:** Shortened the worktree prompt to "Choose:".
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm the prompt copy.
+**Blockers:** None
+---
+## 2026-01-08 13:30 [AI - Codex]
+**Goal:** Align submenu prompts with the main menu.
+**Completed:** Shortened issue and new-worktree prompts to "Choose:".
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm prompt copy.
+**Blockers:** None
+---
+## 2026-01-08 13:37 [AI - Codex]
+**Goal:** Add arrow-key navigation and highlighted menu selection.
+**Completed:** Reworked menus to use a highlighted selection UI with arrow keys and single-key hotkeys.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm arrow-key navigation and hotkeys.
+**Blockers:** None
+---
+## 2026-01-08 13:39 [AI - Codex]
+**Goal:** Simplify menu copy for new worktree and issue list.
+**Completed:** Renamed the new-worktree header/options and removed the verbose issue list header text.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm updated menu copy.
+**Blockers:** None
+---
+## 2026-01-08 13:41 [AI - Codex]
+**Goal:** Reduce menu chrome in the interactive picker.
+**Completed:** Removed the "Choose" prompt line and stripped "showing" details from menu headers.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm the updated menu layout.
+**Blockers:** None
+---
+## 2026-01-08 13:42 [AI - Codex]
+**Goal:** Fix enter key selection in interactive menus.
+**Completed:** Treated empty key reads as Enter to select the highlighted option.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` and confirm Enter selects.
+**Blockers:** None
+---
+## 2026-01-08 13:45 [AI - Codex]
+**Goal:** Adjust worktree menu header copy.
+**Completed:** Renamed the worktree header to "Choose a worktree:".
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm the header copy.
+**Blockers:** None
+---
+## 2026-01-08 13:47 [AI - Codex]
+**Goal:** Simplify worktree menu options.
+**Completed:** Removed explicit new/quit menu rows and moved those actions into the header with global hotkeys.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm header text and hidden hotkeys.
+**Blockers:** None
+---
+## 2026-01-08 13:49 [AI - Codex]
+**Goal:** Align new-worktree header copy.
+**Completed:** Updated the new-worktree header and quit label to match the requested wording.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm header copy.
+**Blockers:** None
+---
+## 2026-01-08 13:50 [AI - Codex]
+**Goal:** Simplify the new-worktree menu.
+**Completed:** Removed the explicit quit row and made q a global hotkey.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm the menu layout.
+**Blockers:** None
+---
+## 2026-01-08 13:52 [AI - Codex]
+**Goal:** Update menu copy and hide quit/back rows.
+**Completed:** Adjusted the worktree header text and removed quit references from submenu headers, using global hotkeys for q/b.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm header copy and back behavior.
+**Blockers:** None
+---
+## 2026-01-08 13:55 [AI - Codex]
+**Goal:** Refine worktree header copy.
+**Completed:** Updated the worktree menu header to the requested wording.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm the header copy.
+**Blockers:** None
+---
+## 2026-01-08 13:55 [AI - Codex]
+**Goal:** Finalize worktree header copy.
+**Completed:** Adjusted the header text to the latest phrasing.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm the header copy.
+**Blockers:** None
+---
+## 2026-01-08 13:57 [AI - Codex]
+**Goal:** Make q quit the script everywhere.
+**Completed:** Routed global q to exit in the issue and new-worktree menus and the main selector.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex and confirm q exits from any menu.
+**Blockers:** None
+---
+## 2026-01-08 13:59 [AI - Codex]
+**Goal:** Remove back navigation and restore q behavior.
+**Completed:** Removed back references and made q cancel in submenus while quitting from the main menu.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to verify q cancels submenus and quits main.
+**Blockers:** None
+---
+## 2026-01-08 14:04 [AI - Codex]
+**Goal:** Restore quit behavior and adjust worktree menu options.
+**Completed:** Made q propagate a quit sentinel to the caller, added a selectable new-worktree row, and updated the header copy.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm q exits and n is selectable.
+**Blockers:** None
+---
+## 2026-01-08 14:08 [AI - Codex]
+**Goal:** Harden quit handling and prevent menu wrapping.
+**Completed:** Switched to a less-colliding quit sentinel and truncated menu/header lines to terminal width.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to verify q and long labels render cleanly.
+**Blockers:** None
+---
