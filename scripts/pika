@@ -120,6 +120,12 @@ menu_select() {
             return 1
         fi
 
+        if [[ -z "$key" || "$key" == $'\r' || "$key" == $'\n' ]]; then
+            printf "\n" >&2
+            echo "${MENU_VALUES[$selected]}"
+            return 0
+        fi
+
         if [[ "$key" == $'\x1b' ]]; then
             local rest=""
             if read -r -n 2 -s -t 1 rest; then
@@ -136,10 +142,6 @@ menu_select() {
                         ;;
                 esac
             fi
-        elif [[ "$key" == $'\r' || "$key" == $'\n' ]]; then
-            printf "\n" >&2
-            echo "${MENU_VALUES[$selected]}"
-            return 0
         else
             local key_lower=""
             key_lower="$(echo "$key" | tr '[:upper:]' '[:lower:]')"

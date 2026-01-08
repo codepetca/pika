@@ -1933,3 +1933,14 @@
 **Next:** Re-run `./scripts/pika codex` to confirm the updated menu layout.
 **Blockers:** None
 ---
+## 2026-01-08 13:42 [AI - Codex]
+**Goal:** Fix enter key selection in interactive menus.
+**Completed:** Treated empty key reads as Enter to select the highlighted option.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` and confirm Enter selects.
+**Blockers:** None
+---
