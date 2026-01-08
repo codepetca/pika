@@ -1988,3 +1988,14 @@
 **Next:** Re-run ./scripts/pika codex to confirm the menu layout.
 **Blockers:** None
 ---
+## 2026-01-08 13:52 [AI - Codex]
+**Goal:** Update menu copy and hide quit/back rows.
+**Completed:** Adjusted the worktree header text and removed quit references from submenu headers, using global hotkeys for q/b.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm header copy and back behavior.
+**Blockers:** None
+---

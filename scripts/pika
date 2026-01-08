@@ -272,6 +272,8 @@ prompt_worktree_from_issue() {
         MENU_LABELS=()
         MENU_VALUES=()
         MENU_HOTKEYS=()
+        MENU_GLOBAL_KEYS=()
+        MENU_GLOBAL_VALUES=()
         MENU_HEADER_LINES=("Open issues:")
 
         local i=0
@@ -292,9 +294,8 @@ prompt_worktree_from_issue() {
             MENU_VALUES+=("__prev__")
             MENU_HOTKEYS+=("p")
         fi
-        MENU_LABELS+=("q) Cancel")
-        MENU_VALUES+=("__cancel__")
-        MENU_HOTKEYS+=("q")
+        MENU_GLOBAL_KEYS+=("q" "b")
+        MENU_GLOBAL_VALUES+=("__cancel__" "__back__")
 
         local selection=""
         if ! selection="$(menu_select "" 0)"; then
@@ -310,7 +311,7 @@ prompt_worktree_from_issue() {
                 page=$((page - 1))
                 continue
                 ;;
-            "__cancel__")
+            "__cancel__"|"__back__")
                 return 1
                 ;;
             issue:*)
@@ -362,9 +363,9 @@ prompt_new_worktree_menu() {
             "__create__"
         )
         MENU_HOTKEYS=("1" "2" "3")
-        MENU_GLOBAL_KEYS=("q")
-        MENU_GLOBAL_VALUES=("__cancel__")
-        MENU_HEADER_LINES=("New worktree from or (q)uit")
+        MENU_GLOBAL_KEYS=("q" "b")
+        MENU_GLOBAL_VALUES=("__cancel__" "__back__")
+        MENU_HEADER_LINES=("New worktree from:")
 
         local selection=""
         if ! selection="$(menu_select "" 0)"; then
@@ -394,7 +395,7 @@ prompt_new_worktree_menu() {
                     return 0
                 fi
                 ;;
-            "__cancel__")
+            "__cancel__"|"__back__")
                 return 1
                 ;;
             *)
@@ -440,7 +441,7 @@ prompt_for_worktree() {
             if (( end > total )); then
                 end="$total"
             fi
-            MENU_HEADER_LINES=("Choose a worktree. (n)ew worktree or (q)uit.")
+            MENU_HEADER_LINES=("Choose one or (n)ew worktree. (q)uit anytime or (b)ack.")
             local i=0
             for ((i = start; i < end; i++)); do
                 local display_index=$((i - start + 1))
@@ -449,10 +450,10 @@ prompt_for_worktree() {
                 MENU_HOTKEYS+=("${display_index}")
             done
         else
-            MENU_HEADER_LINES=("Choose a worktree. (n)ew worktree or (q)uit.")
+            MENU_HEADER_LINES=("Choose one or (n)ew worktree. (q)uit anytime or (b)ack.")
         fi
-        MENU_GLOBAL_KEYS+=("n" "q")
-        MENU_GLOBAL_VALUES+=("__new__" "__quit__")
+        MENU_GLOBAL_KEYS+=("n" "q" "b")
+        MENU_GLOBAL_VALUES+=("__new__" "__quit__" "__quit__")
 
         if (( total > 0 && (page + 1) * WORKTREE_PAGE_SIZE < total )); then
             MENU_LABELS+=("m) More")
