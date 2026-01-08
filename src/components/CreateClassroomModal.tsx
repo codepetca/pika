@@ -5,7 +5,7 @@ import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { format } from 'date-fns'
 
-type WizardStep = 'name' | 'roster' | 'calendar'
+type WizardStep = 'name' | 'calendar'
 type CalendarMode = 'preset' | 'custom'
 type Semester = 'semester1' | 'semester2'
 
@@ -18,7 +18,6 @@ interface CreateClassroomModalProps {
 export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClassroomModalProps) {
   const [step, setStep] = useState<WizardStep>('name')
   const [title, setTitle] = useState('')
-  const [rosterFile, setRosterFile] = useState<File | null>(null)
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('preset')
   const [selectedSemester, setSelectedSemester] = useState<Semester>('semester1')
 
@@ -62,7 +61,6 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
   function resetForm() {
     setStep('name')
     setTitle('')
-    setRosterFile(null)
     setCalendarMode('preset')
     setSelectedSemester('semester1')
     setError('')
@@ -88,21 +86,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
 
       const classroom = createData.classroom
 
-      // Step 2: Upload roster if provided
-      if (rosterFile) {
-        try {
-          const csvData = await rosterFile.text()
-          await fetch(`/api/teacher/classrooms/${classroom.id}/roster/upload-csv`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ csvData }),
-          })
-        } catch {
-          // Ignoring errors on roster upload - classroom is already created
-        }
-      }
-
-      // Step 3: Create calendar
+      // Step 2: Create calendar
       let calendarBody: any = { classroom_id: classroom.id }
 
       if (calendarMode === 'preset') {
@@ -152,7 +136,6 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
         {/* Progress Indicator */}
         <div className="flex items-center mb-6">
           <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-blue-200 dark:bg-blue-800'}`} />
-          <div className={`flex-1 h-1 rounded ml-2 ${step === 'roster' ? 'bg-blue-600 dark:bg-blue-500' : step === 'calendar' ? 'bg-blue-200 dark:bg-blue-800' : 'bg-gray-200 dark:bg-gray-700'}`} />
           <div className={`flex-1 h-1 rounded ml-2 ${step === 'calendar' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
         </div>
 
@@ -172,34 +155,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
           </div>
         )}
 
-        {/* Step 2: Roster */}
-        {step === 'roster' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Upload Roster (Optional)
-            </label>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              You can skip this step and upload a roster later from the dashboard.
-            </p>
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => setRosterFile(e.target.files?.[0] || null)}
-              className="block w-full text-sm text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-800 focus:outline-none"
-              disabled={loading}
-            />
-            {rosterFile && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Selected: {rosterFile.name}
-              </p>
-            )}
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-              Format: Student Number, First Name, Last Name, Email
-            </p>
-          </div>
-        )}
-
-        {/* Step 3: Calendar */}
+        {/* Step 2: Calendar */}
         {step === 'calendar' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -325,8 +281,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
             type="button"
             variant="secondary"
             onClick={step === 'name' ? handleClose : () => {
-              if (step === 'roster') setStep('name')
-              if (step === 'calendar') setStep('roster')
+              setStep('name')
               setError('')
             }}
             disabled={loading}
@@ -338,9 +293,6 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
             type="button"
             onClick={() => {
               if (step === 'name' && title) {
-                setStep('roster')
-                setError('')
-              } else if (step === 'roster') {
                 setStep('calendar')
                 setError('')
               } else if (step === 'calendar') {

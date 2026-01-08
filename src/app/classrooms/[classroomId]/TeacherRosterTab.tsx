@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
-import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { AddStudentsModal } from '@/components/AddStudentsModal'
+import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   DataTable,
   DataTableBody,
@@ -61,6 +62,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [roster, setRoster] = useState<RosterRow[]>([])
   const [error, setError] = useState<string>('')
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
+  const [isAddModalOpen, setAddModalOpen] = useState(false)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: 'first_name' | 'last_name'
     direction: 'asc' | 'desc'
@@ -159,9 +161,18 @@ export function TeacherRosterTab({ classroom }: Props) {
     <PageLayout>
       <PageActionBar
         primary={
-          <button type="button" className={ACTIONBAR_BUTTON_CLASSNAME} onClick={() => setUploadModalOpen(true)}>
-            Upload CSV
-          </button>
+          <div className="flex gap-2">
+            <button type="button" className={ACTIONBAR_BUTTON_CLASSNAME} onClick={() => setAddModalOpen(true)}>
+              Add Students
+            </button>
+            <button
+              type="button"
+              className={ACTIONBAR_BUTTON_SECONDARY_CLASSNAME}
+              onClick={() => setUploadModalOpen(true)}
+            >
+              Upload CSV
+            </button>
+          </div>
         }
         actions={[
           {
@@ -240,6 +251,13 @@ export function TeacherRosterTab({ classroom }: Props) {
           </DataTable>
         </TableCard>
       </PageContent>
+
+      <AddStudentsModal
+        isOpen={isAddModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        classroomId={classroom.id}
+        onSuccess={loadRoster}
+      />
 
       <UploadRosterModal
         isOpen={isUploadModalOpen}
