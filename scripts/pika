@@ -16,6 +16,10 @@ ISSUE_FETCH_LIMIT=200
 ISSUE_PAGE_SIZE=5
 ISSUE_SLUG_MAX=40
 WORKTREE_PAGE_SIZE=5
+MENU_LABELS=()
+MENU_VALUES=()
+MENU_HOTKEYS=()
+MENU_HEADER_LINES=()
 
 die() {
     echo "error: $1" >&2
@@ -68,21 +72,97 @@ ensure_env_symlink() {
     fi
 }
 
-read_choice() {
+menu_select() {
     local prompt="$1"
-    local choice=""
+    local selected="${2:-0}"
+    local count="${#MENU_LABELS[@]}"
+    local header_count="${#MENU_HEADER_LINES[@]}"
+    local key=""
+    local rev=""
+    local sgr0=""
+    local has_tput=0
+    local i=0
+
+    if (( count == 0 )); then
+        return 1
+    fi
+
+    if command -v tput >/dev/null 2>&1; then
+        has_tput=1
+        rev="$(tput rev 2>/dev/null || true)"
+        sgr0="$(tput sgr0 2>/dev/null || true)"
+        tput civis >&2 || true
+    fi
+
+    trap 'if (( has_tput )); then tput cnorm >&2 || true; fi' RETURN
+
     while true; do
-        printf "%s" "$prompt" >&2
-        if ! IFS= read -r -n 1 -s choice; then
+        for i in "${!MENU_HEADER_LINES[@]}"; do
+            printf "%s\n" "${MENU_HEADER_LINES[$i]}" >&2
+        done
+        printf "%s\n" "$prompt" >&2
+        for i in "${!MENU_LABELS[@]}"; do
+            if (( i == selected )); then
+                printf "  %s%s%s\n" "$rev" "${MENU_LABELS[$i]}" "$sgr0" >&2
+            else
+                printf "  %s\n" "${MENU_LABELS[$i]}" >&2
+            fi
+        done
+
+        local lines=$((header_count + 1 + count))
+        if ! IFS= read -r -n 1 -s key; then
             return 1
         fi
-        if [[ "$choice" == $'\n' || "$choice" == $'\r' || -z "$choice" ]]; then
-            continue
+
+        if [[ "$key" == $'\x1b' ]]; then
+            local rest=""
+            if read -r -n 2 -s -t 1 rest; then
+                case "$rest" in
+                    "[A")
+                        if (( selected > 0 )); then
+                            selected=$((selected - 1))
+                        fi
+                        ;;
+                    "[B")
+                        if (( selected < count - 1 )); then
+                            selected=$((selected + 1))
+                        fi
+                        ;;
+                esac
+            fi
+        elif [[ "$key" == $'\r' || "$key" == $'\n' ]]; then
+            printf "\n" >&2
+            echo "${MENU_VALUES[$selected]}"
+            return 0
+        else
+            local key_lower=""
+            key_lower="$(echo "$key" | tr '[:upper:]' '[:lower:]')"
+            for i in "${!MENU_HOTKEYS[@]}"; do
+                local hotkey=""
+                hotkey="$(echo "${MENU_HOTKEYS[$i]}" | tr '[:upper:]' '[:lower:]')"
+                if [[ -n "$hotkey" && "$key_lower" == "$hotkey" ]]; then
+                    printf "\n" >&2
+                    echo "${MENU_VALUES[$i]}"
+                    return 0
+                fi
+            done
         fi
-        printf "%s\n" "$choice" >&2
-        printf "\n" >&2
-        echo "$choice"
-        return 0
+
+        if (( selected < 0 )); then
+            selected=0
+        fi
+        if (( selected >= count )); then
+            selected=$((count - 1))
+        fi
+
+        if (( has_tput )); then
+            for ((i = 0; i < lines; i++)); do
+                tput cuu1 >&2 || true
+                tput el >&2 || true
+            done
+        else
+            printf "\n" >&2
+        fi
     done
 }
 
@@ -170,60 +250,59 @@ prompt_worktree_from_issue() {
             end="$total"
         fi
 
-        echo "Open issues (most recent first; showing $((start + 1))-$end of $total):" >&2
+        MENU_LABELS=()
+        MENU_VALUES=()
+        MENU_HOTKEYS=()
+        MENU_HEADER_LINES=("Open issues (most recent first; showing $((start + 1))-$end of $total):")
+
         local i=0
         for ((i = start; i < end; i++)); do
             local display_index=$((i - start + 1))
-            printf "  %d) #%s %s\n" "$display_index" "${issue_numbers[$i]}" "${issue_titles[$i]}" >&2
+            MENU_LABELS+=("${display_index}) #${issue_numbers[$i]} ${issue_titles[$i]}")
+            MENU_VALUES+=("issue:${i}")
+            MENU_HOTKEYS+=("${display_index}")
         done
 
         if (( end < total )); then
-            echo "  m) More" >&2
+            MENU_LABELS+=("m) More")
+            MENU_VALUES+=("__more__")
+            MENU_HOTKEYS+=("m")
         fi
         if (( page > 0 )); then
-            echo "  p) Previous" >&2
+            MENU_LABELS+=("p) Previous")
+            MENU_VALUES+=("__prev__")
+            MENU_HOTKEYS+=("p")
         fi
-        echo "  q) Cancel" >&2
+        MENU_LABELS+=("q) Cancel")
+        MENU_VALUES+=("__cancel__")
+        MENU_HOTKEYS+=("q")
 
-        local choice=""
-        if ! choice="$(read_choice "Choose: ")"; then
+        local selection=""
+        if ! selection="$(menu_select "Choose:" 0)"; then
             return 1
         fi
-        if [[ "$choice" =~ ^[qQ]$ ]]; then
-            return 1
-        fi
-        if [[ "$choice" =~ ^[mM]$ ]]; then
-            if (( end < total )); then
+
+        case "$selection" in
+            "__more__")
                 page=$((page + 1))
                 continue
-            fi
-            echo "No more issues to show." >&2
-            continue
-        fi
-        if [[ "$choice" =~ ^[pP]$ ]]; then
-            if (( page > 0 )); then
+                ;;
+            "__prev__")
                 page=$((page - 1))
                 continue
-            fi
-            echo "Already at the first page." >&2
-            continue
-        fi
-
-        local issue_number=""
-        local issue_title=""
-        if [[ "$choice" =~ ^[0-9]+$ ]]; then
-            local index=$((choice - 1))
-            if (( index >= 0 && index < (end - start) )); then
-                local absolute_index=$((start + index))
-                issue_number="${issue_numbers[$absolute_index]}"
-                issue_title="${issue_titles[$absolute_index]}"
-            fi
-        fi
-
-        if [[ -z "$issue_number" ]]; then
-            echo "Invalid issue selection." >&2
-            continue
-        fi
+                ;;
+            "__cancel__")
+                return 1
+                ;;
+            issue:*)
+                local absolute_index="${selection#issue:}"
+                local issue_number="${issue_numbers[$absolute_index]}"
+                local issue_title="${issue_titles[$absolute_index]}"
+                ;;
+            *)
+                continue
+                ;;
+        esac
 
         local slug=""
         slug="$(slugify "$issue_title" "$ISSUE_SLUG_MAX")"
@@ -253,19 +332,28 @@ prompt_worktree_from_issue() {
 
 prompt_new_worktree_menu() {
     while true; do
-        echo "New worktree:" >&2
-        echo "  1) Create from GitHub issue" >&2
-        echo "  2) Use main (hub repo)" >&2
-        echo "  3) Create new worktree" >&2
-        echo "  q) Cancel" >&2
+        MENU_LABELS=(
+            "1) Create from GitHub issue"
+            "2) Use main (hub repo)"
+            "3) Create new worktree"
+            "q) Cancel"
+        )
+        MENU_VALUES=(
+            "__issue__"
+            "__hub__"
+            "__create__"
+            "__cancel__"
+        )
+        MENU_HOTKEYS=("1" "2" "3" "q")
+        MENU_HEADER_LINES=("New worktree:")
 
-        local choice=""
-        if ! choice="$(read_choice "Choose: ")"; then
+        local selection=""
+        if ! selection="$(menu_select "Choose:" 0)"; then
             return 1
         fi
 
-        case "$choice" in
-            1)
+        case "$selection" in
+            "__issue__")
                 if command -v gh >/dev/null 2>&1 && gh auth status -h github.com >/dev/null 2>&1; then
                     if prompt_worktree_from_issue; then
                         return 0
@@ -274,12 +362,12 @@ prompt_new_worktree_menu() {
                     echo "GitHub CLI not available/authenticated." >&2
                 fi
                 ;;
-            2)
+            "__hub__")
                 warn_hub_repo
                 echo "$HUB_SENTINEL"
                 return 0
                 ;;
-            3)
+            "__create__")
                 local name=""
                 name="$(prompt_new_worktree_name)" || continue
                 if create_worktree "$name"; then
@@ -287,11 +375,11 @@ prompt_new_worktree_menu() {
                     return 0
                 fi
                 ;;
-            q|Q)
+            "__cancel__")
                 return 1
                 ;;
             *)
-                echo "Invalid selection: $choice" >&2
+                echo "Invalid selection: $selection" >&2
                 ;;
         esac
     done
@@ -308,13 +396,6 @@ prompt_for_worktree() {
         worktrees+=("$worktree")
     done < <(list_worktrees)
 
-    local has_gh=0
-    if command -v gh >/dev/null 2>&1; then
-        if gh auth status -h github.com >/dev/null 2>&1; then
-            has_gh=1
-        fi
-    fi
-
     if [[ -n "$requested" ]]; then
         echo "worktree '$requested' does not exist." >&2
     fi
@@ -323,6 +404,11 @@ prompt_for_worktree() {
     local page=0
 
     while true; do
+        MENU_LABELS=()
+        MENU_VALUES=()
+        MENU_HOTKEYS=()
+        MENU_HEADER_LINES=()
+
         if (( total > 0 )); then
             local start=$((page * WORKTREE_PAGE_SIZE))
             if (( start >= total )); then
@@ -333,61 +419,62 @@ prompt_for_worktree() {
             if (( end > total )); then
                 end="$total"
             fi
-            echo "Available worktrees (showing $((start + 1))-$end of $total):" >&2
+            MENU_HEADER_LINES=("Available worktrees (showing $((start + 1))-$end of $total):")
             local i=0
             for ((i = start; i < end; i++)); do
                 local display_index=$((i - start + 1))
-                printf "  %d) %s\n" "$display_index" "${worktrees[$i]}" >&2
+                MENU_LABELS+=("${display_index}) ${worktrees[$i]}")
+                MENU_VALUES+=("worktree:${worktrees[$i]}")
+                MENU_HOTKEYS+=("${display_index}")
             done
         else
-            echo "No worktrees found." >&2
+            MENU_HEADER_LINES=("No worktrees found.")
         fi
-        echo "  n) New worktree" >&2
-        if (( (page + 1) * WORKTREE_PAGE_SIZE < total )); then
-            echo "  m) More" >&2
+
+        MENU_LABELS+=("n) New worktree")
+        MENU_VALUES+=("__new__")
+        MENU_HOTKEYS+=("n")
+
+        if (( total > 0 && (page + 1) * WORKTREE_PAGE_SIZE < total )); then
+            MENU_LABELS+=("m) More")
+            MENU_VALUES+=("__more__")
+            MENU_HOTKEYS+=("m")
         fi
         if (( page > 0 )); then
-            echo "  p) Previous" >&2
+            MENU_LABELS+=("p) Previous")
+            MENU_VALUES+=("__prev__")
+            MENU_HOTKEYS+=("p")
         fi
-        echo "  q) Quit" >&2
+        MENU_LABELS+=("q) Quit")
+        MENU_VALUES+=("__quit__")
+        MENU_HOTKEYS+=("q")
 
-        local choice=""
-        if ! choice="$(read_choice "Choose: ")"; then
+        local selection=""
+        if ! selection="$(menu_select "Choose:" 0)"; then
             return 1
         fi
-        case "$choice" in
-            q|quit|exit)
-                return 1
-                ;;
-            n|N)
+
+        case "$selection" in
+            "__new__")
                 if prompt_new_worktree_menu; then
                     return 0
                 fi
                 ;;
-            m|M)
-                if (( (page + 1) * WORKTREE_PAGE_SIZE < total )); then
-                    page=$((page + 1))
-                else
-                    echo "No more worktrees to show." >&2
-                fi
+            "__more__")
+                page=$((page + 1))
                 ;;
-            p|P)
-                if (( page > 0 )); then
-                    page=$((page - 1))
-                else
-                    echo "Already at the first page." >&2
-                fi
+            "__prev__")
+                page=$((page - 1))
+                ;;
+            "__quit__")
+                return 1
+                ;;
+            worktree:*)
+                echo "${selection#worktree:}"
+                return 0
                 ;;
             *)
-                if [[ "$choice" =~ ^[0-9]+$ ]]; then
-                    local index=$((choice - 1))
-                    if (( index >= 0 && index < (end - start) )); then
-                        local absolute_index=$((start + index))
-                        echo "${worktrees[$absolute_index]}"
-                        return 0
-                    fi
-                fi
-                echo "Invalid selection: $choice" >&2
+                echo "Invalid selection: $selection" >&2
                 ;;
         esac
     done

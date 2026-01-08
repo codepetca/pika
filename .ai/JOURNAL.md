@@ -1900,3 +1900,14 @@
 **Next:** Re-run `./scripts/pika codex` to confirm prompt copy.
 **Blockers:** None
 ---
+## 2026-01-08 13:37 [AI - Codex]
+**Goal:** Add arrow-key navigation and highlighted menu selection.
+**Completed:** Reworked menus to use a highlighted selection UI with arrow keys and single-key hotkeys.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm arrow-key navigation and hotkeys.
+**Blockers:** None
+---
