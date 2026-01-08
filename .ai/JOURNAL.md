@@ -1977,3 +1977,14 @@
 **Next:** Re-run ./scripts/pika codex to confirm header copy.
 **Blockers:** None
 ---
+## 2026-01-08 13:50 [AI - Codex]
+**Goal:** Simplify the new-worktree menu.
+**Completed:** Removed the explicit quit row and made q a global hotkey.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm the menu layout.
+**Blockers:** None
+---

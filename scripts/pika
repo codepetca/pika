@@ -355,15 +355,15 @@ prompt_new_worktree_menu() {
             "1) GitHub issue"
             "2) Main (hub)"
             "3) Blank"
-            "q) Quit"
         )
         MENU_VALUES=(
             "__issue__"
             "__hub__"
             "__create__"
-            "__cancel__"
         )
-        MENU_HOTKEYS=("1" "2" "3" "q")
+        MENU_HOTKEYS=("1" "2" "3")
+        MENU_GLOBAL_KEYS=("q")
+        MENU_GLOBAL_VALUES=("__cancel__")
         MENU_HEADER_LINES=("New worktree from or (q)uit")
 
         local selection=""
