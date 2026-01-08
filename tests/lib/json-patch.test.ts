@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { applyJsonPatch, createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { applyJsonPatch, tryApplyJsonPatch, createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import type { JsonPatchOperation, TiptapContent } from '@/types'
 
 describe('json-patch utilities', () => {
@@ -57,5 +57,44 @@ describe('json-patch utilities', () => {
     ]
 
     expect(applyJsonPatch(content, invalidPatch)).toEqual(content)
+  })
+
+  it('tryApplyJsonPatch returns success true on valid patch', () => {
+    const before: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] },
+      ],
+    }
+    const after: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Hello world' }] },
+      ],
+    }
+
+    const patch = createJsonPatch(before, after)
+    const result = tryApplyJsonPatch(before, patch)
+
+    expect(result.success).toBe(true)
+    expect(result.content).toEqual(after)
+  })
+
+  it('tryApplyJsonPatch returns success false on invalid patch', () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] },
+      ],
+    }
+
+    const invalidPatch: JsonPatchOperation[] = [
+      { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'Oops' }] },
+    ]
+
+    const result = tryApplyJsonPatch(content, invalidPatch)
+
+    expect(result.success).toBe(false)
+    expect(result.content).toEqual(content)
   })
 })
