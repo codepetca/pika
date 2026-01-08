@@ -2087,3 +2087,36 @@
 **Next:** Run ./scripts/pika claude with an invalid CLAUDE_BIN to confirm fallback.
 **Blockers:** None
 ---
+## 2026-01-08 14:47 [AI - Codex]
+**Goal:** Show full nested worktree names in the pika menu.
+**Completed:** Listed worktrees via `git worktree list --porcelain` and printed paths relative to `WORKTREE_ROOT`; updated ls and error output to use this list.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-worktree-menu
+- Files: scripts/pika
+**Tests:** Not run (manual check via `scripts/pika ls`).
+**Next:** Run `pika codex` to confirm menu shows `issue/...` entries.
+**Blockers:** None
+---
+## 2026-01-08 15:16 [AI - Codex]
+**Goal:** Harden worktree listing order and fallback behavior.
+**Completed:** Added fallback to `ls -1t` when `git worktree list` fails and restored mtime-based ordering for nested worktrees.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-worktree-menu
+- Files: scripts/pika
+**Tests:** Not run (manual check recommended).
+**Next:** Run `scripts/pika codex` to confirm ordering and nested names.
+**Blockers:** None
+---
+## 2026-01-08 18:47 [AI - Codex]
+**Goal:** Remove mtime prefixes from worktree listings.
+**Completed:** Switched mtime aggregation to use real tab separators so `cut -f2-` strips timestamps correctly.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-worktree-menu
+- Files: scripts/pika
+**Tests:** Not run (manual check recommended).
+**Next:** Re-run `scripts/pika ls` and `scripts/pika codex` to confirm clean labels.
+**Blockers:** None
+---
