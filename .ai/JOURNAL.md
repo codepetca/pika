@@ -1823,3 +1823,14 @@
 **Next:** Manual verification of `pika codex` prompts and issue flow.
 **Blockers:** None
 ---
+## 2026-01-08 13:13 [AI - Codex]
+**Goal:** Fix `pika codex` crash when no args are passed.
+**Completed:** Guarded empty arg arrays under nounset before invoking Codex/Claude.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` with no args to confirm prompt path.
+**Blockers:** None
+---
