@@ -1812,3 +1812,14 @@
 **Tests:** Manual: `scripts/pika claude 92-worktree-docs -- --help` (failed: `claude` not found), `scripts/pika codex 92-worktree-docs -- --help` (ok).
 **Next:** Verify Claude CLI is installed/available on PATH for pika claude.
 **Blockers:** None
+## 2026-01-08 13:07 [AI - Codex]
+**Goal:** Improve pika worktree selection UX.
+**Completed:** Added interactive selection with hub/main option, substring matching, issue-based worktree creation with paging, and recency sorting.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Manual verification of `pika codex` prompts and issue flow.
+**Blockers:** None
+---
