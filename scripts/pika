@@ -77,12 +77,19 @@ ensure_env_symlink() {
 
 resolve_claude_bin() {
     if [[ -n "${CLAUDE_BIN:-}" ]]; then
-        echo "$CLAUDE_BIN"
-        return 0
+        if [[ -x "$CLAUDE_BIN" ]]; then
+            echo "$CLAUDE_BIN"
+            return 0
+        fi
+        echo "warning: CLAUDE_BIN is set but not executable: $CLAUDE_BIN" >&2
     fi
     if command -v claude >/dev/null 2>&1; then
-        command -v claude
-        return 0
+        local resolved=""
+        resolved="$(command -v claude)"
+        if [[ -n "$resolved" && -x "$resolved" ]]; then
+            echo "$resolved"
+            return 0
+        fi
     fi
     local fallback="$HOME/.claude/local/claude"
     if [[ -x "$fallback" ]]; then

@@ -2076,3 +2076,14 @@
 **Next:** Run `./scripts/pika claude` with and without `CLAUDE_BIN` set.
 **Blockers:** None
 ---
+## 2026-01-08 14:21 [AI - Codex]
+**Goal:** Harden claude binary resolution.
+**Completed:** Validated CLAUDE_BIN and command -v targets are executable before use.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/claude-check
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Run ./scripts/pika claude with an invalid CLAUDE_BIN to confirm fallback.
+**Blockers:** None
+---
