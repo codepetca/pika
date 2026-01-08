@@ -1768,3 +1768,47 @@
 **Next:** Manual: create/edit/delete an assignment and confirm the sidebar list updates immediately.
 **Blockers:** None
 ---
+---
+## 2026-01-08 10:02 [AI - Codex]
+**Goal:** Unify worktree workflow docs and path conventions; align with docs/dev-workflow.md.
+**Completed:** Updated worktree guidance to point to docs/dev-workflow.md, standardized $HOME/Repos paths, and aligned git examples with git -C "$PIKA_WORKTREE" usage; refreshed legacy worktrees.md with a deprecation banner.
+**Status:** completed
+**Artifacts:**
+- Branch: `92-worktree-docs`
+- Files: `.ai/START-HERE.md`, `AGENTS.md`, `docs/ai-instructions.md`, `docs/core/agents.md`, `docs/dev-workflow.md`, `docs/semester-plan.md`, `docs/workflow/handle-issue.md`, `docs/workflow/worktrees.md`, `scripts/pika`, `scripts/wt-add.sh`
+**Tests:** Not run (docs/scripts only).
+**Next:** Manual: run the grep checks for $HOME/repos and /Users/stew to confirm clean paths.
+**Blockers:** None
+---
+## 2026-01-08 10:13 [AI - Codex]
+**Goal:** Fix review findings in worktree docs.
+**Completed:** Corrected worktree cleanup sequence, noted legacy helper script safety, and documented excluding .ai/JOURNAL.md from path greps.
+**Status:** completed
+**Artifacts:**
+- Branch: `92-worktree-docs`
+- Files: `.ai/START-HERE.md`, `docs/issue-worker.md`, `docs/workflow/worktrees.md`
+**Tests:** Not run (docs only).
+**Next:** None.
+**Blockers:** None
+---
+## 2026-01-08 10:22 [AI - Codex]
+**Goal:** Add explicit Claude/Codex launch commands to pika and docs.
+**Completed:** Replaced pika ai with pika claude/pika codex, added arg forwarding syntax, and updated workflow docs accordingly.
+**Status:** completed
+**Artifacts:**
+- Branch: `92-worktree-docs`
+- Files: `.ai/START-HERE.md`, `AGENTS.md`, `docs/ai-instructions.md`, `docs/core/agents.md`, `docs/dev-workflow.md`, `docs/workflow/handle-issue.md`, `scripts/pika`
+**Tests:** Not run (docs/script only).
+**Next:** None.
+**Blockers:** None
+---
+## 2026-01-08 10:27 [AI - Codex]
+**Goal:** Correct Claude flag and run sanity checks for new pika commands.
+**Completed:** Updated `scripts/pika` to use `--dangerously-skip-permissions` and ran `--help` checks for the CLI commands.
+**Status:** completed
+**Artifacts:**
+- Branch: `92-worktree-docs`
+- Files: `scripts/pika`
+**Tests:** Manual: `scripts/pika claude 92-worktree-docs -- --help` (failed: `claude` not found), `scripts/pika codex 92-worktree-docs -- --help` (ok).
+**Next:** Verify Claude CLI is installed/available on PATH for pika claude.
+**Blockers:** None

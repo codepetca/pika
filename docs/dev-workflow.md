@@ -34,7 +34,7 @@ similar to build tooling or CI conventions.
 The main repo checkout:
 
 ```
-/Users/stew/Repos/pika
+$HOME/Repos/pika
 ```
 
 Used for:
@@ -49,12 +49,24 @@ Used for:
 Each feature branch lives in its own worktree:
 
 ```
-/Users/stew/Repos/.worktrees/pika/<worktree-name>
+$HOME/Repos/.worktrees/pika/<worktree-name>
 ```
 
 Rules:
 - One worktree per feature branch
 - Agents operate on exactly one worktree
+
+---
+
+### Environment files
+
+All worktrees share a single canonical `.env.local` file:
+
+```
+$HOME/Repos/.env/pika/.env.local
+```
+
+Each worktree must symlink `.env.local` to that canonical path to avoid drift.
 
 ---
 
@@ -70,6 +82,7 @@ The `pika` script is a thin router that:
 ```bash
 pika ls
 pika claude <worktree>
+# or
 pika codex <worktree>
 ```
 
@@ -78,7 +91,7 @@ pika codex <worktree>
 - `pika ls`
   Lists available worktrees.
 
-- `pika claude <worktree>`
+- `pika claude <worktree> [-- <args...>]`
   Launches Claude bound to the given worktree.
   Exports:
   - `PIKA_PROJECT`
@@ -87,15 +100,24 @@ pika codex <worktree>
 
   Alias: `pika ai <worktree>` (legacy)
 
-- `pika codex <worktree>`
+- `pika codex <worktree> [-- <args...>]`
   Launches Codex bound to the given worktree.
-  Exports the same environment variables as `pika claude`.
+  Exports:
+  - `PIKA_PROJECT`
+  - `PIKA_WORKTREE`
+  - `PIKA_WORKTREE_NAME`
 
 - `pika git <worktree> <git args...>`
   Runs git safely using:
   ```bash
   git -C "$PIKA_WORKTREE" <git args...>
   ```
+
+Use `--` to pass through engine flags, for example:
+```bash
+pika claude my-worktree -- --model sonnet
+pika codex my-worktree -- --max-output-tokens 1200
+```
 
 ---
 

@@ -1,10 +1,14 @@
 #!/bin/bash
 # pika — worktree router for agent-safe workflows (v1)
-# Usage: pika ls | pika ai <worktree> | pika git <worktree> <args...>
+# Usage:
+#   pika ls
+#   pika claude <worktree> [-- <args...>]
+#   pika codex <worktree> [-- <args...>]
+#   pika git <worktree> <args...>
 
 set -euo pipefail
 
-WORKTREE_ROOT="/Users/stew/Repos/.worktrees/pika"
+WORKTREE_ROOT="$HOME/Repos/.worktrees/pika"
 
 die() {
     echo "error: $1" >&2
@@ -22,8 +26,12 @@ cmd_ls() {
     fi
 }
 
-cmd_ai() {
+cmd_claude() {
     local name="$1"
+    shift
+    if [[ "${1:-}" == "--" ]]; then
+        shift
+    fi
     local path="$WORKTREE_ROOT/$name"
 
     [[ -d "$path" ]] || die "worktree '$name' does not exist"
@@ -32,11 +40,15 @@ cmd_ai() {
     export PIKA_WORKTREE="$path"
     export PIKA_WORKTREE_NAME="$name"
 
-    exec claude --dangerously-skip-permissions
+    exec claude --dangerously-skip-permissions "$@"
 }
 
 cmd_codex() {
     local name="$1"
+    shift
+    if [[ "${1:-}" == "--" ]]; then
+        shift
+    fi
     local path="$WORKTREE_ROOT/$name"
 
     [[ -d "$path" ]] || die "worktree '$name' does not exist"
@@ -45,7 +57,7 @@ cmd_codex() {
     export PIKA_WORKTREE="$path"
     export PIKA_WORKTREE_NAME="$name"
 
-    exec codex --yolo
+    exec codex --yolo "$@"
 }
 
 cmd_git() {
@@ -64,12 +76,12 @@ case "${1:-}" in
         cmd_ls
         ;;
     ai|claude)
-        [[ -n "${2:-}" ]] || die "usage: pika claude <worktree>"
-        cmd_ai "$2"
+        [[ -n "${2:-}" ]] || die "usage: pika claude <worktree> [-- <args...>]"
+        cmd_claude "${@:2}"
         ;;
     codex)
-        [[ -n "${2:-}" ]] || die "usage: pika codex <worktree>"
-        cmd_codex "$2"
+        [[ -n "${2:-}" ]] || die "usage: pika codex <worktree> [-- <args...>]"
+        cmd_codex "${@:2}"
         ;;
     git)
         [[ -n "${2:-}" ]] || die "usage: pika git <worktree> <git args...>"
@@ -79,10 +91,10 @@ case "${1:-}" in
         echo "pika — worktree router (v1)"
         echo ""
         echo "Commands:"
-        echo "  pika ls                      List available worktrees"
-        echo "  pika claude <worktree>       Launch Claude in worktree context"
-        echo "  pika codex <worktree>        Launch Codex in worktree context"
-        echo "  pika git <worktree> ...      Run git command in worktree"
+        echo "  pika ls                    List available worktrees"
+        echo "  pika claude <worktree>     Launch Claude in worktree context"
+        echo "  pika codex <worktree>      Launch Codex in worktree context"
+        echo "  pika git <worktree> ...    Run git command in worktree"
         exit 1
         ;;
 esac

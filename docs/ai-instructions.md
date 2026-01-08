@@ -119,7 +119,7 @@ This TDD approach ensures code quality and prevents regressions.
 
 1. Read ai-instructions.md (this file)
 2. Read all required docs in sequence
-3. Create a worktree for your branch (see `docs/workflow/worktrees.md`)
+3. Create a worktree for your branch (see `docs/dev-workflow.md`)
 4. Identify which agent role to adopt (see agents.md)
 5. Write tests FIRST for core logic
 6. Implement minimal code to pass tests
@@ -131,7 +131,7 @@ This TDD approach ensures code quality and prevents regressions.
 1. Run: `gh issue view X --json number,title,body,labels`
 2. Follow reading order above
 3. Follow `docs/issue-worker.md` (protocol) and `docs/workflow/handle-issue.md` (quick pointer)
-4. Create a worktree for `issue/X-slug` (see `docs/workflow/worktrees.md`)
+4. Create a worktree for `issue/X-slug` (see `docs/dev-workflow.md`)
 5. Follow TDD workflow
 6. Create PR with "Closes #X"
 
@@ -146,7 +146,7 @@ This TDD approach ensures code quality and prevents regressions.
 ### Workflow 4: Fixing a Bug
 
 1. Read ai-instructions.md and relevant core docs
-2. Create a worktree for your branch (see `docs/workflow/worktrees.md`)
+2. Create a worktree for your branch (see `docs/dev-workflow.md`)
 3. Write a failing test that reproduces the bug
 4. Fix code to pass the test
 5. Refactor if needed
@@ -156,41 +156,15 @@ This TDD approach ensures code quality and prevents regressions.
 
 ## Git Worktrees (Required Workflow)
 
-**Core Principle:** For any non-trivial task, ALWAYS create a git worktree. Never switch branches in an existing working directory.
+`docs/dev-workflow.md` is the single source of truth for worktree setup and usage.
 
-### Rules
+Summary:
+- **Hub repo:** `$HOME/Repos/pika` (stays on `main`)
+- **Worktrees:** `$HOME/Repos/.worktrees/pika/<branch>`
+- Use `pika ls` and `pika claude <worktree>` or `pika codex <worktree>` to bind `PIKA_WORKTREE`
+- All git commands must use `git -C "$PIKA_WORKTREE"` (set `PIKA_WORKTREE="$HOME/Repos/pika"` for hub-level commands)
 
-- **One worktree == one branch** — Treat branch switching as directory switching
-- **Worktree location:** `$HOME/repos/.worktrees/pika/<branch>`
-- **Active repo location:** `$HOME/repos/pika` (hub checkout, stays on `main`)
-
-### Standard Commands
-
-```bash
-git fetch
-git worktree add $HOME/repos/.worktrees/pika/<branch> <branch>
-cd $HOME/repos/.worktrees/pika/<branch>
-```
-
-### Discovery
-
-Use `git worktree list` to discover active worktrees.
-
-### Helper Script
-
-Quick setup (recommended):
-```bash
-bash scripts/wt-add.sh <branch>
-cd $HOME/repos/.worktrees/pika/<branch>
-```
-
-### Cleanup
-
-After PR is merged, remove the worktree and delete the local branch:
-```bash
-git worktree remove $HOME/repos/.worktrees/pika/<branch>
-git branch -D <branch>
-```
+See `docs/dev-workflow.md` for create/cleanup steps and `.env.local` symlinks.
 
 ---
 
@@ -202,7 +176,7 @@ git branch -D <branch>
 
 ### File Locations
 
-- **Canonical `.env.local`:** `$HOME/repos/.env/pika/.env.local` (contains real secrets)
+- **Canonical `.env.local`:** `$HOME/Repos/.env/pika/.env.local` (contains real secrets)
 - **Example file (committed):** `.env.example` (in repo, no secrets)
 
 ### Symlink Setup
@@ -210,7 +184,7 @@ git branch -D <branch>
 Each worktree must symlink `.env.local` to the canonical file:
 
 ```bash
-ln -sf $HOME/repos/.env/pika/.env.local <worktree>/.env.local
+ln -sf $HOME/Repos/.env/pika/.env.local <worktree>/.env.local
 ```
 
 **Why symlinks:**
@@ -218,10 +192,7 @@ ln -sf $HOME/repos/.env/pika/.env.local <worktree>/.env.local
 - Symlinks avoid duplication and drift across branches
 - `-s` = symbolic link, `-f` = force/replace existing file
 
-**Helper script handles this automatically:**
-```bash
-bash scripts/wt-add.sh <branch>
-```
+See `docs/dev-workflow.md` for the recommended worktree setup flow.
 
 ### Branch-Specific Envs (Exceptions Only)
 
@@ -236,10 +207,10 @@ Use separate `.env.local` files ONLY in these cases:
 
 ## Archived Repos
 
-- Repos under `$HOME/repos/archive/<project>` are inactive
+- Repos under `$HOME/Repos/archive/<project>` are inactive
 - Archived repos may have broken `.env.local` symlinks or missing worktrees
 - This is acceptable and intentional
-- Only active repos under `$HOME/repos/` require valid env symlinks and worktrees
+- Only active repos under `$HOME/Repos/` require valid env symlinks and worktrees
 
 ---
 

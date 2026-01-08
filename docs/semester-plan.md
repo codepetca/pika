@@ -83,7 +83,7 @@ esac
 ```
 ┌─────────────────────────────────────────────────────────┐
 │ 1. DEVELOP                                              │
-│    - Create worktree: bash scripts/wt-add.sh migration-x│
+│    - Create worktree: docs/dev-workflow.md (migration-x)│
 │    - Write migration in supabase/migrations/            │
 │    - Test locally: supabase db reset                    │
 └─────────────────────┬───────────────────────────────────┘
