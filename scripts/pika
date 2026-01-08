@@ -427,7 +427,7 @@ prompt_for_worktree() {
             if (( end > total )); then
                 end="$total"
             fi
-            MENU_HEADER_LINES=("Available worktrees:")
+            MENU_HEADER_LINES=("Choose a worktree:")
             local i=0
             for ((i = start; i < end; i++)); do
                 local display_index=$((i - start + 1))
@@ -436,7 +436,7 @@ prompt_for_worktree() {
                 MENU_HOTKEYS+=("${display_index}")
             done
         else
-            MENU_HEADER_LINES=("No worktrees found.")
+            MENU_HEADER_LINES=("Choose a worktree:")
         fi
 
         MENU_LABELS+=("n) New worktree")

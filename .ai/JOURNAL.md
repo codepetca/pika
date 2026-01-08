@@ -1944,3 +1944,14 @@
 **Next:** Re-run `./scripts/pika codex` and confirm Enter selects.
 **Blockers:** None
 ---
+## 2026-01-08 13:45 [AI - Codex]
+**Goal:** Adjust worktree menu header copy.
+**Completed:** Renamed the worktree header to "Choose a worktree:".
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm the header copy.
+**Blockers:** None
+---
