@@ -265,12 +265,6 @@ prompt_for_worktree() {
         echo "worktree '$requested' does not exist." >&2
     fi
 
-    if (( ${#worktrees[@]} == 1 )); then
-        echo "Using only worktree: ${worktrees[0]}" >&2
-        echo "${worktrees[0]}"
-        return 0
-    fi
-
     while true; do
         if (( ${#worktrees[@]} > 0 )); then
             echo "Available worktrees:" >&2

@@ -1834,3 +1834,14 @@
 **Next:** Re-run `./scripts/pika codex` with no args to confirm prompt path.
 **Blockers:** None
 ---
+## 2026-01-08 13:15 [AI - Codex]
+**Goal:** Allow selecting main even when only one worktree exists.
+**Completed:** Removed auto-select of the sole worktree so the prompt is always shown.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` with one worktree and verify main option.
+**Blockers:** None
+---
