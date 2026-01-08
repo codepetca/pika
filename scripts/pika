@@ -355,7 +355,7 @@ prompt_new_worktree_menu() {
             "1) GitHub issue"
             "2) Main (hub)"
             "3) Blank"
-            "q) Cancel"
+            "q) Quit"
         )
         MENU_VALUES=(
             "__issue__"
@@ -364,7 +364,7 @@ prompt_new_worktree_menu() {
             "__cancel__"
         )
         MENU_HOTKEYS=("1" "2" "3" "q")
-        MENU_HEADER_LINES=("New worktree from:")
+        MENU_HEADER_LINES=("New worktree from or (q)uit")
 
         local selection=""
         if ! selection="$(menu_select "" 0)"; then

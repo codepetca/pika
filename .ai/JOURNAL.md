@@ -1966,3 +1966,14 @@
 **Next:** Re-run `./scripts/pika codex` to confirm header text and hidden hotkeys.
 **Blockers:** None
 ---
+## 2026-01-08 13:49 [AI - Codex]
+**Goal:** Align new-worktree header copy.
+**Completed:** Updated the new-worktree header and quit label to match the requested wording.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm header copy.
+**Blockers:** None
+---
