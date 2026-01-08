@@ -32,7 +32,20 @@ cmd_ai() {
     export PIKA_WORKTREE="$path"
     export PIKA_WORKTREE_NAME="$name"
 
-    exec claude
+    exec claude --dangerously-skip-permissions
+}
+
+cmd_codex() {
+    local name="$1"
+    local path="$WORKTREE_ROOT/$name"
+
+    [[ -d "$path" ]] || die "worktree '$name' does not exist"
+
+    export PIKA_PROJECT="pika"
+    export PIKA_WORKTREE="$path"
+    export PIKA_WORKTREE_NAME="$name"
+
+    exec codex --yolo
 }
 
 cmd_git() {
@@ -50,9 +63,13 @@ case "${1:-}" in
     ls)
         cmd_ls
         ;;
-    ai)
-        [[ -n "${2:-}" ]] || die "usage: pika ai <worktree>"
+    ai|claude)
+        [[ -n "${2:-}" ]] || die "usage: pika claude <worktree>"
         cmd_ai "$2"
+        ;;
+    codex)
+        [[ -n "${2:-}" ]] || die "usage: pika codex <worktree>"
+        cmd_codex "$2"
         ;;
     git)
         [[ -n "${2:-}" ]] || die "usage: pika git <worktree> <git args...>"
@@ -62,9 +79,10 @@ case "${1:-}" in
         echo "pika — worktree router (v1)"
         echo ""
         echo "Commands:"
-        echo "  pika ls                    List available worktrees"
-        echo "  pika ai <worktree>         Launch Claude in worktree context"
-        echo "  pika git <worktree> ...    Run git command in worktree"
+        echo "  pika ls                      List available worktrees"
+        echo "  pika claude <worktree>       Launch Claude in worktree context"
+        echo "  pika codex <worktree>        Launch Codex in worktree context"
+        echo "  pika git <worktree> ...      Run git command in worktree"
         exit 1
         ;;
 esac

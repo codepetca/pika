@@ -69,22 +69,29 @@ The `pika` script is a thin router that:
 
 ```bash
 pika ls
-pika ai <worktree>
+pika claude <worktree>
+pika codex <worktree>
 ```
 
 ### Available commands
 
-- `pika ls`  
+- `pika ls`
   Lists available worktrees.
 
-- `pika ai <worktree>`  
-  Launches Claude bound to the given worktree.  
+- `pika claude <worktree>`
+  Launches Claude bound to the given worktree.
   Exports:
   - `PIKA_PROJECT`
   - `PIKA_WORKTREE`
   - `PIKA_WORKTREE_NAME`
 
-- `pika git <worktree> <git args...>`  
+  Alias: `pika ai <worktree>` (legacy)
+
+- `pika codex <worktree>`
+  Launches Codex bound to the given worktree.
+  Exports the same environment variables as `pika claude`.
+
+- `pika git <worktree> <git args...>`
   Runs git safely using:
   ```bash
   git -C "$PIKA_WORKTREE" <git args...>
