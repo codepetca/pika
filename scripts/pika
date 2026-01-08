@@ -80,6 +80,7 @@ read_choice() {
             continue
         fi
         printf "%s\n" "$choice" >&2
+        printf "\n" >&2
         echo "$choice"
         return 0
     done

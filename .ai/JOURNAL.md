@@ -1867,3 +1867,14 @@
 **Next:** Verify paging with more than five worktrees.
 **Blockers:** None
 ---
+## 2026-01-08 13:27 [AI - Codex]
+**Goal:** Improve CLI menu readability.
+**Completed:** Added a blank line after single-key menu selections.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm spacing.
+**Blockers:** None
+---
