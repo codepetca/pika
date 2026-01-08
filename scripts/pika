@@ -16,6 +16,7 @@ ISSUE_FETCH_LIMIT=200
 ISSUE_PAGE_SIZE=5
 ISSUE_SLUG_MAX=40
 WORKTREE_PAGE_SIZE=5
+QUIT_SENTINEL="__quit__"
 MENU_LABELS=()
 MENU_VALUES=()
 MENU_HOTKEYS=()
@@ -295,7 +296,7 @@ prompt_worktree_from_issue() {
             MENU_HOTKEYS+=("p")
         fi
         MENU_GLOBAL_KEYS+=("q")
-        MENU_GLOBAL_VALUES+=("__cancel__")
+        MENU_GLOBAL_VALUES+=("__quit__")
 
         local selection=""
         if ! selection="$(menu_select "" 0)"; then
@@ -311,8 +312,9 @@ prompt_worktree_from_issue() {
                 page=$((page - 1))
                 continue
                 ;;
-            "__cancel__")
-                return 1
+            "__quit__")
+                echo "$QUIT_SENTINEL"
+                return 0
                 ;;
             issue:*)
                 local absolute_index="${selection#issue:}"
@@ -364,7 +366,7 @@ prompt_new_worktree_menu() {
         )
         MENU_HOTKEYS=("1" "2" "3")
         MENU_GLOBAL_KEYS=("q")
-        MENU_GLOBAL_VALUES=("__cancel__")
+        MENU_GLOBAL_VALUES=("__quit__")
         MENU_HEADER_LINES=("New worktree from:")
 
         local selection=""
@@ -395,8 +397,9 @@ prompt_new_worktree_menu() {
                     return 0
                 fi
                 ;;
-            "__cancel__")
-                return 1
+            "__quit__")
+                echo "$QUIT_SENTINEL"
+                return 0
                 ;;
             *)
                 echo "Invalid selection: $selection" >&2
@@ -441,7 +444,7 @@ prompt_for_worktree() {
             if (( end > total )); then
                 end="$total"
             fi
-            MENU_HEADER_LINES=("Choose one or (n)ew worktree, (q)uit.")
+            MENU_HEADER_LINES=("Choose one or (q)uit")
             local i=0
             for ((i = start; i < end; i++)); do
                 local display_index=$((i - start + 1))
@@ -450,10 +453,14 @@ prompt_for_worktree() {
                 MENU_HOTKEYS+=("${display_index}")
             done
         else
-            MENU_HEADER_LINES=("Choose one or (n)ew worktree, (q)uit.")
+            MENU_HEADER_LINES=("Choose one or (q)uit")
         fi
-        MENU_GLOBAL_KEYS+=("n" "q")
-        MENU_GLOBAL_VALUES+=("__new__" "__quit__")
+        MENU_GLOBAL_KEYS+=("q")
+        MENU_GLOBAL_VALUES+=("__quit__")
+
+        MENU_LABELS+=("n) New worktree")
+        MENU_VALUES+=("__new__")
+        MENU_HOTKEYS+=("n")
 
         if (( total > 0 && (page + 1) * WORKTREE_PAGE_SIZE < total )); then
             MENU_LABELS+=("m) More")
@@ -484,7 +491,8 @@ prompt_for_worktree() {
                 page=$((page - 1))
                 ;;
             "__quit__")
-                exit 0
+                echo "$QUIT_SENTINEL"
+                return 0
                 ;;
             worktree:*)
                 echo "${selection#worktree:}"
@@ -516,6 +524,9 @@ cmd_claude() {
         else
             name="$(prompt_for_worktree "$name" "usage: pika claude <worktree> [-- <args...>]")" || exit 1
         fi
+    fi
+    if [[ "$name" == "$QUIT_SENTINEL" ]]; then
+        exit 0
     fi
     local path=""
     if [[ "$name" == "$HUB_SENTINEL" ]]; then
@@ -555,6 +566,9 @@ cmd_codex() {
         else
             name="$(prompt_for_worktree "$name" "usage: pika codex <worktree> [-- <args...>]")" || exit 1
         fi
+    fi
+    if [[ "$name" == "$QUIT_SENTINEL" ]]; then
+        exit 0
     fi
     local path=""
     if [[ "$name" == "$HUB_SENTINEL" ]]; then

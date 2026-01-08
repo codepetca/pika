@@ -2043,3 +2043,14 @@
 **Next:** Re-run ./scripts/pika codex to verify q cancels submenus and quits main.
 **Blockers:** None
 ---
+## 2026-01-08 14:04 [AI - Codex]
+**Goal:** Restore quit behavior and adjust worktree menu options.
+**Completed:** Made q propagate a quit sentinel to the caller, added a selectable new-worktree row, and updated the header copy.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm q exits and n is selectable.
+**Blockers:** None
+---
