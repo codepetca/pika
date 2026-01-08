@@ -15,6 +15,7 @@ HUB_SENTINEL="__hub__"
 ISSUE_FETCH_LIMIT=200
 ISSUE_PAGE_SIZE=5
 ISSUE_SLUG_MAX=40
+WORKTREE_PAGE_SIZE=5
 
 die() {
     echo "error: $1" >&2
@@ -317,20 +318,40 @@ prompt_for_worktree() {
         echo "worktree '$requested' does not exist." >&2
     fi
 
+    local total="${#worktrees[@]}"
+    local page=0
+
     while true; do
-        if (( ${#worktrees[@]} > 0 )); then
-            echo "Available worktrees:" >&2
-            for i in "${!worktrees[@]}"; do
-                printf "  %d) %s\n" $((i + 1)) "${worktrees[$i]}" >&2
+        if (( total > 0 )); then
+            local start=$((page * WORKTREE_PAGE_SIZE))
+            if (( start >= total )); then
+                start=0
+                page=0
+            fi
+            local end=$((start + WORKTREE_PAGE_SIZE))
+            if (( end > total )); then
+                end="$total"
+            fi
+            echo "Available worktrees (showing $((start + 1))-$end of $total):" >&2
+            local i=0
+            for ((i = start; i < end; i++)); do
+                local display_index=$((i - start + 1))
+                printf "  %d) %s\n" "$display_index" "${worktrees[$i]}" >&2
             done
         else
             echo "No worktrees found." >&2
         fi
         echo "  n) New worktree" >&2
+        if (( (page + 1) * WORKTREE_PAGE_SIZE < total )); then
+            echo "  m) More" >&2
+        fi
+        if (( page > 0 )); then
+            echo "  p) Previous" >&2
+        fi
         echo "  q) Quit" >&2
 
         local choice=""
-        if ! choice="$(read_choice "Choose a worktree (number) or action: ")"; then
+        if ! choice="$(read_choice "Choose a worktree (1-${WORKTREE_PAGE_SIZE}) or action: ")"; then
             return 1
         fi
         case "$choice" in
@@ -342,11 +363,26 @@ prompt_for_worktree() {
                     return 0
                 fi
                 ;;
+            m|M)
+                if (( (page + 1) * WORKTREE_PAGE_SIZE < total )); then
+                    page=$((page + 1))
+                else
+                    echo "No more worktrees to show." >&2
+                fi
+                ;;
+            p|P)
+                if (( page > 0 )); then
+                    page=$((page - 1))
+                else
+                    echo "Already at the first page." >&2
+                fi
+                ;;
             *)
                 if [[ "$choice" =~ ^[0-9]+$ ]]; then
                     local index=$((choice - 1))
-                    if (( index >= 0 && index < ${#worktrees[@]} )); then
-                        echo "${worktrees[$index]}"
+                    if (( index >= 0 && index < (end - start) )); then
+                        local absolute_index=$((start + index))
+                        echo "${worktrees[$absolute_index]}"
                         return 0
                     fi
                 fi

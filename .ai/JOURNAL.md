@@ -1856,3 +1856,14 @@
 **Next:** Re-run `./scripts/pika codex` to verify the new menus and issue list output.
 **Blockers:** None
 ---
+## 2026-01-08 13:25 [AI - Codex]
+**Goal:** Add paging to worktree selection.
+**Completed:** Added 5-item paging with single-key more/previous navigation in the worktree picker.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Verify paging with more than five worktrees.
+**Blockers:** None
+---
