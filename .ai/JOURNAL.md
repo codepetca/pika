@@ -1911,3 +1911,14 @@
 **Next:** Re-run `./scripts/pika codex` to confirm arrow-key navigation and hotkeys.
 **Blockers:** None
 ---
+## 2026-01-08 13:39 [AI - Codex]
+**Goal:** Simplify menu copy for new worktree and issue list.
+**Completed:** Renamed the new-worktree header/options and removed the verbose issue list header text.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm updated menu copy.
+**Blockers:** None
+---

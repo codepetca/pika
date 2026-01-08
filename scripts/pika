@@ -253,7 +253,7 @@ prompt_worktree_from_issue() {
         MENU_LABELS=()
         MENU_VALUES=()
         MENU_HOTKEYS=()
-        MENU_HEADER_LINES=("Open issues (most recent first; showing $((start + 1))-$end of $total):")
+        MENU_HEADER_LINES=("Open issues:")
 
         local i=0
         for ((i = start; i < end; i++)); do
@@ -333,9 +333,9 @@ prompt_worktree_from_issue() {
 prompt_new_worktree_menu() {
     while true; do
         MENU_LABELS=(
-            "1) Create from GitHub issue"
-            "2) Use main (hub repo)"
-            "3) Create new worktree"
+            "1) GitHub issue"
+            "2) Main (hub)"
+            "3) Blank"
             "q) Cancel"
         )
         MENU_VALUES=(
@@ -345,7 +345,7 @@ prompt_new_worktree_menu() {
             "__cancel__"
         )
         MENU_HOTKEYS=("1" "2" "3" "q")
-        MENU_HEADER_LINES=("New worktree:")
+        MENU_HEADER_LINES=("New worktree from:")
 
         local selection=""
         if ! selection="$(menu_select "Choose:" 0)"; then
