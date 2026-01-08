@@ -186,7 +186,7 @@ prompt_worktree_from_issue() {
         echo "  q) Cancel" >&2
 
         local choice=""
-        if ! choice="$(read_choice "Choose issue (1-${ISSUE_PAGE_SIZE}) or action: ")"; then
+        if ! choice="$(read_choice "Choose: ")"; then
             return 1
         fi
         if [[ "$choice" =~ ^[qQ]$ ]]; then
@@ -260,7 +260,7 @@ prompt_new_worktree_menu() {
         echo "  q) Cancel" >&2
 
         local choice=""
-        if ! choice="$(read_choice "Choose action: ")"; then
+        if ! choice="$(read_choice "Choose: ")"; then
             return 1
         fi
 

@@ -1889,3 +1889,14 @@
 **Next:** Re-run `./scripts/pika codex` to confirm the prompt copy.
 **Blockers:** None
 ---
+## 2026-01-08 13:30 [AI - Codex]
+**Goal:** Align submenu prompts with the main menu.
+**Completed:** Shortened issue and new-worktree prompts to "Choose:".
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm prompt copy.
+**Blockers:** None
+---
