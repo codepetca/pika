@@ -28,13 +28,26 @@ die() {
     echo "error: $1" >&2
     echo "" >&2
     echo "Available worktrees:" >&2
-    ls -1 "$WORKTREE_ROOT" 2>/dev/null || echo "  (none)" >&2
+    local has_any=0
+    while IFS= read -r worktree; do
+        [[ -n "$worktree" ]] || continue
+        echo "  $worktree" >&2
+        has_any=1
+    done < <(list_worktrees)
+    if (( has_any == 0 )); then
+        echo "  (none)" >&2
+    fi
     exit 1
 }
 
 cmd_ls() {
-    if [[ -d "$WORKTREE_ROOT" ]]; then
-        ls -1 "$WORKTREE_ROOT"
+    local worktrees=()
+    while IFS= read -r worktree; do
+        [[ -n "$worktree" ]] || continue
+        worktrees+=("$worktree")
+    done < <(list_worktrees)
+    if (( ${#worktrees[@]} > 0 )); then
+        printf "%s\n" "${worktrees[@]}"
     else
         echo "(no worktrees found)"
     fi
@@ -48,8 +61,54 @@ require_tty_or_die() {
 }
 
 list_worktrees() {
-    if [[ -d "$WORKTREE_ROOT" ]]; then
+    if [[ ! -d "$WORKTREE_ROOT" ]]; then
+        return 0
+    fi
+
+    local lines=""
+    if ! lines="$(git -C "$HUB_REPO" worktree list --porcelain 2>/dev/null)"; then
         ls -1t "$WORKTREE_ROOT" 2>/dev/null || true
+        return 0
+    fi
+
+    local paths=()
+    local line=""
+    while IFS= read -r line; do
+        case "$line" in
+            worktree\ *)
+                local path="${line#worktree }"
+                if [[ "$path" == "$WORKTREE_ROOT" || "$path" != "$WORKTREE_ROOT/"* ]]; then
+                    continue
+                fi
+                local rel="${path#"$WORKTREE_ROOT/"}"
+                if [[ -n "$rel" ]]; then
+                    paths+=("$rel")
+                fi
+                ;;
+        esac
+    done <<< "$lines"
+
+    if (( ${#paths[@]} == 0 )); then
+        return 0
+    fi
+
+    local mtime_lines=""
+    local rel=""
+    for rel in "${paths[@]}"; do
+        local path="$WORKTREE_ROOT/$rel"
+        local mtime=""
+        if mtime="$(stat -f %m "$path" 2>/dev/null)"; then
+            :
+        elif mtime="$(stat -c %Y "$path" 2>/dev/null)"; then
+            :
+        else
+            mtime=0
+        fi
+        mtime_lines+="${mtime}"$'\t'"${rel}"$'\n'
+    done
+
+    if [[ -n "$mtime_lines" ]]; then
+        printf "%s" "$mtime_lines" | sort -rn | cut -f2-
     fi
     return 0
 }
