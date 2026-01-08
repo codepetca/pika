@@ -1999,3 +1999,14 @@
 **Next:** Re-run ./scripts/pika codex to confirm header copy and back behavior.
 **Blockers:** None
 ---
+## 2026-01-08 13:55 [AI - Codex]
+**Goal:** Refine worktree header copy.
+**Completed:** Updated the worktree menu header to the requested wording.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm the header copy.
+**Blockers:** None
+---
