@@ -2032,3 +2032,14 @@
 **Next:** Re-run ./scripts/pika codex and confirm q exits from any menu.
 **Blockers:** None
 ---
+## 2026-01-08 13:59 [AI - Codex]
+**Goal:** Remove back navigation and restore q behavior.
+**Completed:** Removed back references and made q cancel in submenus while quitting from the main menu.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to verify q cancels submenus and quits main.
+**Blockers:** None
+---

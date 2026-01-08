@@ -294,8 +294,8 @@ prompt_worktree_from_issue() {
             MENU_VALUES+=("__prev__")
             MENU_HOTKEYS+=("p")
         fi
-        MENU_GLOBAL_KEYS+=("q" "b")
-        MENU_GLOBAL_VALUES+=("__quit__" "__back__")
+        MENU_GLOBAL_KEYS+=("q")
+        MENU_GLOBAL_VALUES+=("__cancel__")
 
         local selection=""
         if ! selection="$(menu_select "" 0)"; then
@@ -311,10 +311,7 @@ prompt_worktree_from_issue() {
                 page=$((page - 1))
                 continue
                 ;;
-            "__quit__")
-                exit 0
-                ;;
-            "__back__")
+            "__cancel__")
                 return 1
                 ;;
             issue:*)
@@ -366,8 +363,8 @@ prompt_new_worktree_menu() {
             "__create__"
         )
         MENU_HOTKEYS=("1" "2" "3")
-        MENU_GLOBAL_KEYS=("q" "b")
-        MENU_GLOBAL_VALUES=("__quit__" "__back__")
+        MENU_GLOBAL_KEYS=("q")
+        MENU_GLOBAL_VALUES=("__cancel__")
         MENU_HEADER_LINES=("New worktree from:")
 
         local selection=""
@@ -398,10 +395,7 @@ prompt_new_worktree_menu() {
                     return 0
                 fi
                 ;;
-            "__quit__")
-                exit 0
-                ;;
-            "__back__")
+            "__cancel__")
                 return 1
                 ;;
             *)
@@ -447,7 +441,7 @@ prompt_for_worktree() {
             if (( end > total )); then
                 end="$total"
             fi
-            MENU_HEADER_LINES=("Choose one or (n)ew worktree, (q)uit, (b)ack.")
+            MENU_HEADER_LINES=("Choose one or (n)ew worktree, (q)uit.")
             local i=0
             for ((i = start; i < end; i++)); do
                 local display_index=$((i - start + 1))
@@ -456,10 +450,10 @@ prompt_for_worktree() {
                 MENU_HOTKEYS+=("${display_index}")
             done
         else
-            MENU_HEADER_LINES=("Choose one or (n)ew worktree, (q)uit, (b)ack.")
+            MENU_HEADER_LINES=("Choose one or (n)ew worktree, (q)uit.")
         fi
-        MENU_GLOBAL_KEYS+=("n" "q" "b")
-        MENU_GLOBAL_VALUES+=("__new__" "__quit__" "__quit__")
+        MENU_GLOBAL_KEYS+=("n" "q")
+        MENU_GLOBAL_VALUES+=("__new__" "__quit__")
 
         if (( total > 0 && (page + 1) * WORKTREE_PAGE_SIZE < total )); then
             MENU_LABELS+=("m) More")
