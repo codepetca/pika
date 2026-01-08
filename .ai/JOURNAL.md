@@ -1845,3 +1845,14 @@
 **Next:** Re-run `./scripts/pika codex` with one worktree and verify main option.
 **Blockers:** None
 ---
+## 2026-01-08 13:23 [AI - Codex]
+**Goal:** Simplify main menu and enable single-key selection.
+**Completed:** Moved worktree creation options into a submenu, added single-key selection handling, and fixed GH issue number formatting.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to verify the new menus and issue list output.
+**Blockers:** None
+---

@@ -67,6 +67,23 @@ ensure_env_symlink() {
     fi
 }
 
+read_choice() {
+    local prompt="$1"
+    local choice=""
+    while true; do
+        printf "%s" "$prompt" >&2
+        if ! IFS= read -r -n 1 -s choice; then
+            return 1
+        fi
+        if [[ "$choice" == $'\n' || "$choice" == $'\r' || -z "$choice" ]]; then
+            continue
+        fi
+        printf "%s\n" "$choice" >&2
+        echo "$choice"
+        return 0
+    done
+}
+
 warn_hub_repo() {
     echo "warning: using hub repo; avoid branch work here." >&2
 }
@@ -117,7 +134,7 @@ prompt_new_worktree_name() {
 
 prompt_worktree_from_issue() {
     local lines=""
-    if ! lines="$(gh issue list --state open --limit "$ISSUE_FETCH_LIMIT" --json number,title,updatedAt --template '{{range .}}{{printf "%s\t%d\t%s\n" .updatedAt .number .title}}{{end}}' 2>/dev/null)"; then
+    if ! lines="$(gh issue list --state open --limit "$ISSUE_FETCH_LIMIT" --json number,title,updatedAt --template '{{range .}}{{printf "%s\t%v\t%s\n" .updatedAt .number .title}}{{end}}' 2>/dev/null)"; then
         echo "Unable to list GitHub issues." >&2
         return 1
     fi
@@ -167,8 +184,7 @@ prompt_worktree_from_issue() {
         echo "  q) Cancel" >&2
 
         local choice=""
-        printf "Choose issue (number/index) or action: " >&2
-        if ! read -r choice; then
+        if ! choice="$(read_choice "Choose issue (1-${ISSUE_PAGE_SIZE}) or action: ")"; then
             return 1
         fi
         if [[ "$choice" =~ ^[qQ]$ ]]; then
@@ -194,20 +210,11 @@ prompt_worktree_from_issue() {
         local issue_number=""
         local issue_title=""
         if [[ "$choice" =~ ^[0-9]+$ ]]; then
-            for i in "${!issue_numbers[@]}"; do
-                if [[ "${issue_numbers[$i]}" == "$choice" ]]; then
-                    issue_number="${issue_numbers[$i]}"
-                    issue_title="${issue_titles[$i]}"
-                    break
-                fi
-            done
-            if [[ -z "$issue_number" ]]; then
-                local index=$((choice - 1))
-                if (( index >= 0 && index < (end - start) )); then
-                    local absolute_index=$((start + index))
-                    issue_number="${issue_numbers[$absolute_index]}"
-                    issue_title="${issue_titles[$absolute_index]}"
-                fi
+            local index=$((choice - 1))
+            if (( index >= 0 && index < (end - start) )); then
+                local absolute_index=$((start + index))
+                issue_number="${issue_numbers[$absolute_index]}"
+                issue_title="${issue_titles[$absolute_index]}"
             fi
         fi
 
@@ -239,7 +246,52 @@ prompt_worktree_from_issue() {
             return 0
         fi
 
-        return 1
+    done
+}
+
+prompt_new_worktree_menu() {
+    while true; do
+        echo "New worktree:" >&2
+        echo "  1) Create from GitHub issue" >&2
+        echo "  2) Use main (hub repo)" >&2
+        echo "  3) Create new worktree" >&2
+        echo "  q) Cancel" >&2
+
+        local choice=""
+        if ! choice="$(read_choice "Choose action: ")"; then
+            return 1
+        fi
+
+        case "$choice" in
+            1)
+                if command -v gh >/dev/null 2>&1 && gh auth status -h github.com >/dev/null 2>&1; then
+                    if prompt_worktree_from_issue; then
+                        return 0
+                    fi
+                else
+                    echo "GitHub CLI not available/authenticated." >&2
+                fi
+                ;;
+            2)
+                warn_hub_repo
+                echo "$HUB_SENTINEL"
+                return 0
+                ;;
+            3)
+                local name=""
+                name="$(prompt_new_worktree_name)" || continue
+                if create_worktree "$name"; then
+                    echo "$name"
+                    return 0
+                fi
+                ;;
+            q|Q)
+                return 1
+                ;;
+            *)
+                echo "Invalid selection: $choice" >&2
+                ;;
+        esac
     done
 }
 
@@ -274,43 +326,21 @@ prompt_for_worktree() {
         else
             echo "No worktrees found." >&2
         fi
-        echo "  n) Create new worktree" >&2
-        if (( has_gh == 1 )); then
-            echo "  g) Create from GitHub issue" >&2
-        fi
-        echo "  h) Use main (hub repo)" >&2
+        echo "  n) New worktree" >&2
         echo "  q) Quit" >&2
 
         local choice=""
-        printf "Choose a worktree (number/name) or action: " >&2
-        if ! read -r choice; then
+        if ! choice="$(read_choice "Choose a worktree (number) or action: ")"; then
             return 1
         fi
         case "$choice" in
             q|quit|exit)
                 return 1
                 ;;
-            n|new)
-                local name=""
-                name="$(prompt_new_worktree_name)" || continue
-                if create_worktree "$name"; then
-                    echo "$name"
+            n|N)
+                if prompt_new_worktree_menu; then
                     return 0
                 fi
-                ;;
-            g|gh|issue|issues)
-                if (( has_gh == 1 )); then
-                    if prompt_worktree_from_issue; then
-                        return 0
-                    fi
-                else
-                    echo "GitHub CLI not available/authenticated." >&2
-                fi
-                ;;
-            h|hub|main)
-                warn_hub_repo
-                echo "$HUB_SENTINEL"
-                return 0
                 ;;
             *)
                 if [[ "$choice" =~ ^[0-9]+$ ]]; then
@@ -318,32 +348,6 @@ prompt_for_worktree() {
                     if (( index >= 0 && index < ${#worktrees[@]} )); then
                         echo "${worktrees[$index]}"
                         return 0
-                    fi
-                fi
-                if [[ -d "$WORKTREE_ROOT/$choice" ]]; then
-                    echo "$choice"
-                    return 0
-                fi
-                local query_lower=""
-                query_lower="$(echo "$choice" | tr '[:upper:]' '[:lower:]')"
-                if [[ -n "$query_lower" ]]; then
-                    local matches=()
-                    for worktree in "${worktrees[@]}"; do
-                        local worktree_lower=""
-                        worktree_lower="$(echo "$worktree" | tr '[:upper:]' '[:lower:]')"
-                        if [[ "$worktree_lower" == *"$query_lower"* ]]; then
-                            matches+=("$worktree")
-                        fi
-                    done
-                    if (( ${#matches[@]} == 1 )); then
-                        echo "${matches[0]}"
-                        return 0
-                    elif (( ${#matches[@]} > 1 )); then
-                        echo "Matches:" >&2
-                        for worktree in "${matches[@]}"; do
-                            echo "  $worktree" >&2
-                        done
-                        continue
                     fi
                 fi
                 echo "Invalid selection: $choice" >&2
