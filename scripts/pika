@@ -75,6 +75,30 @@ ensure_env_symlink() {
     fi
 }
 
+resolve_claude_bin() {
+    if [[ -n "${CLAUDE_BIN:-}" ]]; then
+        if [[ -x "$CLAUDE_BIN" ]]; then
+            echo "$CLAUDE_BIN"
+            return 0
+        fi
+        echo "warning: CLAUDE_BIN is set but not executable: $CLAUDE_BIN" >&2
+    fi
+    if command -v claude >/dev/null 2>&1; then
+        local resolved=""
+        resolved="$(command -v claude)"
+        if [[ -n "$resolved" && -x "$resolved" ]]; then
+            echo "$resolved"
+            return 0
+        fi
+    fi
+    local fallback="$HOME/.claude/local/claude"
+    if [[ -x "$fallback" ]]; then
+        echo "$fallback"
+        return 0
+    fi
+    return 1
+}
+
 get_term_cols() {
     local cols="80"
     if command -v tput >/dev/null 2>&1; then
@@ -554,6 +578,11 @@ prompt_for_worktree() {
 }
 
 cmd_claude() {
+    local claude_bin=""
+    if ! claude_bin="$(resolve_claude_bin)"; then
+        echo "error: claude not found in PATH (set CLAUDE_BIN or install claude)" >&2
+        exit 1
+    fi
     local name=""
     if [[ -n "${1:-}" && "${1:-}" != "--" ]]; then
         name="$1"
@@ -590,9 +619,9 @@ cmd_claude() {
     export PIKA_WORKTREE_NAME="$name"
 
     if (( ${#args[@]} > 0 )); then
-        exec claude --dangerously-skip-permissions "${args[@]}"
+        exec "$claude_bin" --dangerously-skip-permissions "${args[@]}"
     fi
-    exec claude --dangerously-skip-permissions
+    exec "$claude_bin" --dangerously-skip-permissions
 }
 
 cmd_codex() {
