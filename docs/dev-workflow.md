@@ -34,7 +34,7 @@ similar to build tooling or CI conventions.
 The main repo checkout:
 
 ```
-/Users/stew/Repos/pika
+$HOME/Repos/pika
 ```
 
 Used for:
@@ -49,12 +49,24 @@ Used for:
 Each feature branch lives in its own worktree:
 
 ```
-/Users/stew/Repos/.worktrees/pika/<worktree-name>
+$HOME/Repos/.worktrees/pika/<worktree-name>
 ```
 
 Rules:
 - One worktree per feature branch
 - Agents operate on exactly one worktree
+
+---
+
+### Environment files
+
+All worktrees share a single canonical `.env.local` file:
+
+```
+$HOME/Repos/.env/pika/.env.local
+```
+
+Each worktree must symlink `.env.local` to that canonical path to avoid drift.
 
 ---
 

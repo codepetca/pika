@@ -36,13 +36,16 @@ After confirmation:
 
 a. **Create a worktree (MANDATORY)**:
 
-Use a dedicated worktree for the issue branch (see `docs/workflow/worktrees.md`).
+Use a dedicated worktree for the issue branch (see `docs/dev-workflow.md`).
 
 Example (from the hub checkout `pika/`):
 
-git fetch origin
-git worktree add -b issue/X-<slug> ../worktrees/pika/issue-X-<slug> origin/main
-cd ../worktrees/pika/issue-X-<slug>
+```bash
+export PIKA_WORKTREE="$HOME/Repos/pika"
+git -C "$PIKA_WORKTREE" fetch origin
+git -C "$PIKA_WORKTREE" worktree add -b issue/X-<slug> $HOME/Repos/.worktrees/pika/issue-X-<slug> origin/main
+pika ai issue-X-<slug>
+```
 
 b. **Follow TDD workflow**:
    - Write tests FIRST for core logic (utilities, business rules)

@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-WORKTREE_ROOT="/Users/stew/Repos/.worktrees/pika"
+WORKTREE_ROOT="$HOME/Repos/.worktrees/pika"
 
 die() {
     echo "error: $1" >&2

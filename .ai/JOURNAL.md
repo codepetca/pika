@@ -1768,3 +1768,14 @@
 **Next:** Manual: create/edit/delete an assignment and confirm the sidebar list updates immediately.
 **Blockers:** None
 ---
+---
+## 2026-01-08 10:02 [AI - Codex]
+**Goal:** Unify worktree workflow docs and path conventions; align with docs/dev-workflow.md.
+**Completed:** Updated worktree guidance to point to docs/dev-workflow.md, standardized $HOME/Repos paths, and aligned git examples with git -C "$PIKA_WORKTREE" usage; refreshed legacy worktrees.md with a deprecation banner.
+**Status:** completed
+**Artifacts:**
+- Branch: `92-worktree-docs`
+- Files: `.ai/START-HERE.md`, `AGENTS.md`, `docs/ai-instructions.md`, `docs/core/agents.md`, `docs/dev-workflow.md`, `docs/semester-plan.md`, `docs/workflow/handle-issue.md`, `docs/workflow/worktrees.md`, `scripts/pika`, `scripts/wt-add.sh`
+**Tests:** Not run (docs/scripts only).
+**Next:** Manual: run the grep checks for $HOME/repos and /Users/stew to confirm clean paths.
+**Blockers:** None
