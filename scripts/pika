@@ -441,7 +441,7 @@ prompt_for_worktree() {
             if (( end > total )); then
                 end="$total"
             fi
-            MENU_HEADER_LINES=("Choose one. Or (n)ew worktree, (q)uit, (b)ack.")
+            MENU_HEADER_LINES=("Choose one or (n)ew worktree, (q)uit, (b)ack.")
             local i=0
             for ((i = start; i < end; i++)); do
                 local display_index=$((i - start + 1))
@@ -450,7 +450,7 @@ prompt_for_worktree() {
                 MENU_HOTKEYS+=("${display_index}")
             done
         else
-            MENU_HEADER_LINES=("Choose one. Or (n)ew worktree, (q)uit, (b)ack.")
+            MENU_HEADER_LINES=("Choose one or (n)ew worktree, (q)uit, (b)ack.")
         fi
         MENU_GLOBAL_KEYS+=("n" "q" "b")
         MENU_GLOBAL_VALUES+=("__new__" "__quit__" "__quit__")

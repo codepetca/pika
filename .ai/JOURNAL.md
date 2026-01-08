@@ -2010,3 +2010,14 @@
 **Next:** Re-run ./scripts/pika codex to confirm the header copy.
 **Blockers:** None
 ---
+## 2026-01-08 13:55 [AI - Codex]
+**Goal:** Finalize worktree header copy.
+**Completed:** Adjusted the header text to the latest phrasing.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex to confirm the header copy.
+**Blockers:** None
+---
