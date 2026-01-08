@@ -13,7 +13,9 @@ If you need a branch/PR, create and use a dedicated worktree under `$HOME/Repos/
 **Quick start (existing worktree):**
 ```bash
 pika ls
-pika ai <worktree>
+pika claude <worktree>
+# or
+pika codex <worktree>
 ```
 
 **Creating a new worktree:** Follow `docs/dev-workflow.md` (authoritative).

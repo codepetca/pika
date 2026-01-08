@@ -161,7 +161,7 @@ This TDD approach ensures code quality and prevents regressions.
 Summary:
 - **Hub repo:** `$HOME/Repos/pika` (stays on `main`)
 - **Worktrees:** `$HOME/Repos/.worktrees/pika/<branch>`
-- Use `pika ls` and `pika ai <worktree>` to bind `PIKA_WORKTREE`
+- Use `pika ls` and `pika claude <worktree>` or `pika codex <worktree>` to bind `PIKA_WORKTREE`
 - All git commands must use `git -C "$PIKA_WORKTREE"` (set `PIKA_WORKTREE="$HOME/Repos/pika"` for hub-level commands)
 
 See `docs/dev-workflow.md` for create/cleanup steps and `.env.local` symlinks.

@@ -1790,3 +1790,14 @@
 **Tests:** Not run (docs only).
 **Next:** None.
 **Blockers:** None
+---
+## 2026-01-08 10:22 [AI - Codex]
+**Goal:** Add explicit Claude/Codex launch commands to pika and docs.
+**Completed:** Replaced pika ai with pika claude/pika codex, added arg forwarding syntax, and updated workflow docs accordingly.
+**Status:** completed
+**Artifacts:**
+- Branch: `92-worktree-docs`
+- Files: `.ai/START-HERE.md`, `AGENTS.md`, `docs/ai-instructions.md`, `docs/core/agents.md`, `docs/dev-workflow.md`, `docs/workflow/handle-issue.md`, `scripts/pika`
+**Tests:** Not run (docs/script only).
+**Next:** None.
+**Blockers:** None

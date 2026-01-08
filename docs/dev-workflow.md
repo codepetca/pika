@@ -81,7 +81,9 @@ The `pika` script is a thin router that:
 
 ```bash
 pika ls
-pika ai <worktree>
+pika claude <worktree>
+# or
+pika codex <worktree>
 ```
 
 ### Available commands
@@ -89,8 +91,15 @@ pika ai <worktree>
 - `pika ls`  
   Lists available worktrees.
 
-- `pika ai <worktree>`  
+- `pika claude <worktree> [-- <args...>]`  
   Launches Claude bound to the given worktree.  
+  Exports:
+  - `PIKA_PROJECT`
+  - `PIKA_WORKTREE`
+  - `PIKA_WORKTREE_NAME`
+
+- `pika codex <worktree> [-- <args...>]`  
+  Launches Codex bound to the given worktree.  
   Exports:
   - `PIKA_PROJECT`
   - `PIKA_WORKTREE`
@@ -101,6 +110,12 @@ pika ai <worktree>
   ```bash
   git -C "$PIKA_WORKTREE" <git args...>
   ```
+
+Use `--` to pass through engine flags, for example:
+```bash
+pika claude my-worktree -- --model sonnet
+pika codex my-worktree -- --max-output-tokens 1200
+```
 
 ---
 

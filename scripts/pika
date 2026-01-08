@@ -1,6 +1,10 @@
 #!/bin/bash
 # pika — worktree router for agent-safe workflows (v1)
-# Usage: pika ls | pika ai <worktree> | pika git <worktree> <args...>
+# Usage:
+#   pika ls
+#   pika claude <worktree> [-- <args...>]
+#   pika codex <worktree> [-- <args...>]
+#   pika git <worktree> <args...>
 
 set -euo pipefail
 
@@ -22,8 +26,12 @@ cmd_ls() {
     fi
 }
 
-cmd_ai() {
+cmd_claude() {
     local name="$1"
+    shift
+    if [[ "${1:-}" == "--" ]]; then
+        shift
+    fi
     local path="$WORKTREE_ROOT/$name"
 
     [[ -d "$path" ]] || die "worktree '$name' does not exist"
@@ -32,7 +40,24 @@ cmd_ai() {
     export PIKA_WORKTREE="$path"
     export PIKA_WORKTREE_NAME="$name"
 
-    exec claude
+    exec claude --dangerously-skip-permission "$@"
+}
+
+cmd_codex() {
+    local name="$1"
+    shift
+    if [[ "${1:-}" == "--" ]]; then
+        shift
+    fi
+    local path="$WORKTREE_ROOT/$name"
+
+    [[ -d "$path" ]] || die "worktree '$name' does not exist"
+
+    export PIKA_PROJECT="pika"
+    export PIKA_WORKTREE="$path"
+    export PIKA_WORKTREE_NAME="$name"
+
+    exec codex --yolo "$@"
 }
 
 cmd_git() {
@@ -50,9 +75,13 @@ case "${1:-}" in
     ls)
         cmd_ls
         ;;
-    ai)
-        [[ -n "${2:-}" ]] || die "usage: pika ai <worktree>"
-        cmd_ai "$2"
+    claude)
+        [[ -n "${2:-}" ]] || die "usage: pika claude <worktree> [-- <args...>]"
+        cmd_claude "${@:2}"
+        ;;
+    codex)
+        [[ -n "${2:-}" ]] || die "usage: pika codex <worktree> [-- <args...>]"
+        cmd_codex "${@:2}"
         ;;
     git)
         [[ -n "${2:-}" ]] || die "usage: pika git <worktree> <git args...>"
@@ -63,7 +92,8 @@ case "${1:-}" in
         echo ""
         echo "Commands:"
         echo "  pika ls                    List available worktrees"
-        echo "  pika ai <worktree>         Launch Claude in worktree context"
+        echo "  pika claude <worktree>     Launch Claude in worktree context"
+        echo "  pika codex <worktree>      Launch Codex in worktree context"
         echo "  pika git <worktree> ...    Run git command in worktree"
         exit 1
         ;;

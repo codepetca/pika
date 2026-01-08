@@ -18,7 +18,9 @@
 **Quick start (existing worktree):**
 ```bash
 pika ls
-pika ai <worktree>
+pika claude <worktree>
+# or
+pika codex <worktree>
 ```
 
 **Creating a new worktree:**
