@@ -2021,3 +2021,14 @@
 **Next:** Re-run ./scripts/pika codex to confirm the header copy.
 **Blockers:** None
 ---
+## 2026-01-08 13:57 [AI - Codex]
+**Goal:** Make q quit the script everywhere.
+**Completed:** Routed global q to exit in the issue and new-worktree menus and the main selector.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/pika-script-prompt
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run ./scripts/pika codex and confirm q exits from any menu.
+**Blockers:** None
+---

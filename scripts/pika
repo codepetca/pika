@@ -295,7 +295,7 @@ prompt_worktree_from_issue() {
             MENU_HOTKEYS+=("p")
         fi
         MENU_GLOBAL_KEYS+=("q" "b")
-        MENU_GLOBAL_VALUES+=("__cancel__" "__back__")
+        MENU_GLOBAL_VALUES+=("__quit__" "__back__")
 
         local selection=""
         if ! selection="$(menu_select "" 0)"; then
@@ -311,7 +311,10 @@ prompt_worktree_from_issue() {
                 page=$((page - 1))
                 continue
                 ;;
-            "__cancel__"|"__back__")
+            "__quit__")
+                exit 0
+                ;;
+            "__back__")
                 return 1
                 ;;
             issue:*)
@@ -364,7 +367,7 @@ prompt_new_worktree_menu() {
         )
         MENU_HOTKEYS=("1" "2" "3")
         MENU_GLOBAL_KEYS=("q" "b")
-        MENU_GLOBAL_VALUES=("__cancel__" "__back__")
+        MENU_GLOBAL_VALUES=("__quit__" "__back__")
         MENU_HEADER_LINES=("New worktree from:")
 
         local selection=""
@@ -395,7 +398,10 @@ prompt_new_worktree_menu() {
                     return 0
                 fi
                 ;;
-            "__cancel__"|"__back__")
+            "__quit__")
+                exit 0
+                ;;
+            "__back__")
                 return 1
                 ;;
             *)
@@ -484,7 +490,7 @@ prompt_for_worktree() {
                 page=$((page - 1))
                 ;;
             "__quit__")
-                return 1
+                exit 0
                 ;;
             worktree:*)
                 echo "${selection#worktree:}"
