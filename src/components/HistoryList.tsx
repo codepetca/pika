@@ -29,6 +29,12 @@ export function HistoryList({
     return acc
   }, {} as Record<string, AssignmentDocHistoryEntry[]>)
 
+  // Helper to find the next older entry globally (across date boundaries)
+  function findOlderEntry(entryId: string): AssignmentDocHistoryEntry | null {
+    const idx = entries.findIndex((e) => e.id === entryId)
+    return idx >= 0 && idx < entries.length - 1 ? entries[idx + 1] : null
+  }
+
   if (variant === 'mobile') {
     return (
       <div className="space-y-3 mt-3">
@@ -38,9 +44,9 @@ export function HistoryList({
               {date}
             </div>
             <div className="space-y-1">
-              {dateEntries.map((entry, idx) => {
-                // Compare to next (older) entry to show what THIS save changed
-                const olderEntry = idx < dateEntries.length - 1 ? dateEntries[idx + 1] : null
+              {dateEntries.map((entry) => {
+                // Compare to next (older) entry globally to show what THIS save changed
+                const olderEntry = findOlderEntry(entry.id)
                 const charDiff = olderEntry
                   ? entry.char_count - olderEntry.char_count
                   : entry.char_count
@@ -104,9 +110,9 @@ export function HistoryList({
             {date}
           </div>
           <div className="space-y-1">
-            {dateEntries.map((entry, idx) => {
-              // Compare to next (older) entry to show what THIS save changed
-              const olderEntry = idx < dateEntries.length - 1 ? dateEntries[idx + 1] : null
+            {dateEntries.map((entry) => {
+              // Compare to next (older) entry globally to show what THIS save changed
+              const olderEntry = findOlderEntry(entry.id)
               const charDiff = olderEntry
                 ? entry.char_count - olderEntry.char_count
                 : entry.char_count

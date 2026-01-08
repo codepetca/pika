@@ -276,7 +276,7 @@ export function StudentAssignmentEditor({
     }
   }
 
-  function updatePreview(entry: AssignmentDocHistoryEntry) {
+  function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
     if (!draftBeforePreviewRef.current) {
       draftBeforePreviewRef.current = JSON.parse(JSON.stringify(content)) as TiptapContent
     }
@@ -288,7 +288,9 @@ export function StudentAssignmentEditor({
     if (reconstructed) {
       setPreviewEntry(entry)
       setPreviewContent(reconstructed)
+      return true
     }
+    return false
   }
 
   function handlePreviewHover(entry: AssignmentDocHistoryEntry) {
@@ -297,8 +299,10 @@ export function StudentAssignmentEditor({
   }
 
   function handlePreviewLock(entry: AssignmentDocHistoryEntry) {
-    updatePreview(entry)
-    setLockedEntryId(entry.id)
+    const success = updatePreview(entry)
+    if (success) {
+      setLockedEntryId(entry.id)
+    }
   }
 
   function handleHistoryMouseLeave() {

@@ -52,7 +52,7 @@ export function TeacherStudentWorkModal({
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
   const [isHistoryOpen, setIsHistoryOpen] = useState(true)
 
-  function updatePreview(entry: AssignmentDocHistoryEntry) {
+  function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
     // Reconstruct content for this entry (client-side, no API call)
     // API returns newest-first, but reconstruction needs oldest-first
     const oldestFirst = [...historyEntries].reverse()
@@ -61,7 +61,9 @@ export function TeacherStudentWorkModal({
     if (reconstructed) {
       setPreviewEntry(entry)
       setPreviewContent(reconstructed)
+      return true
     }
+    return false
   }
 
   function handlePreviewHover(entry: AssignmentDocHistoryEntry) {
@@ -70,8 +72,10 @@ export function TeacherStudentWorkModal({
   }
 
   function handlePreviewLock(entry: AssignmentDocHistoryEntry) {
-    updatePreview(entry)
-    setLockedEntryId(entry.id)
+    const success = updatePreview(entry)
+    if (success) {
+      setLockedEntryId(entry.id)
+    }
   }
 
   function handleExitPreview() {

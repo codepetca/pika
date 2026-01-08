@@ -1,4 +1,4 @@
-import { applyJsonPatch } from '@/lib/json-patch'
+import { tryApplyJsonPatch } from '@/lib/json-patch'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 export function reconstructAssignmentDocContent(
@@ -27,7 +27,13 @@ export function reconstructAssignmentDocContent(
       continue
     }
     if (entry.patch) {
-      content = applyJsonPatch(content, entry.patch)
+      const result = tryApplyJsonPatch(content, entry.patch)
+      if (!result.success) {
+        // Patch failed - return null to indicate reconstruction failure
+        console.error('Failed to reconstruct history at entry:', entry.id)
+        return null
+      }
+      content = result.content
     }
   }
 

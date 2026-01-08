@@ -23,6 +23,20 @@ export function applyJsonPatch(
   }
 }
 
+export function tryApplyJsonPatch(
+  base: TiptapContent,
+  patch: JsonPatchOperation[]
+): { success: boolean; content: TiptapContent } {
+  const cloned = cloneContent(base)
+  try {
+    const result = applyPatch(cloned, patch, true, false)
+    return { success: true, content: result.newDocument as TiptapContent }
+  } catch (error) {
+    console.error('Error applying JSON patch:', error)
+    return { success: false, content: cloned }
+  }
+}
+
 export function shouldStoreSnapshot(
   patch: JsonPatchOperation[],
   content: TiptapContent,
