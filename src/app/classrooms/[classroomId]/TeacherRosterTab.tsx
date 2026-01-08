@@ -5,7 +5,7 @@ import { Spinner } from '@/components/Spinner'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
-import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   DataTable,
   DataTableBody,
@@ -167,7 +167,7 @@ export function TeacherRosterTab({ classroom }: Props) {
             </button>
             <button
               type="button"
-              className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className={ACTIONBAR_BUTTON_SECONDARY_CLASSNAME}
               onClick={() => setUploadModalOpen(true)}
             >
               Upload CSV
