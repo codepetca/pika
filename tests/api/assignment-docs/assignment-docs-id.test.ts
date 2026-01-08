@@ -140,9 +140,29 @@ describe('PATCH /api/assignment-docs/[id]', () => {
     const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now)
 
     const historyUpdate = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'history-1',
+              assignment_doc_id: 'doc-1',
+              patch: null,
+              snapshot: null,
+              word_count: 3,
+              char_count: 3,
+              trigger: 'autosave',
+              created_at: new Date(now).toISOString(),
+            },
+            error: null,
+          }),
+        })),
+      })),
     }))
-    const historyInsert = vi.fn().mockResolvedValue({ data: null, error: null })
+    const historyInsert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      })),
+    }))
 
     const beforeContent = {
       type: 'doc',

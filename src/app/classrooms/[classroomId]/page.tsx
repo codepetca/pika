@@ -146,8 +146,8 @@ export default function ClassroomPage() {
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
 
-        <div className="flex-1 min-w-0 px-4 py-3">
-          <div className="max-w-7xl mx-auto">
+        <div className="flex-1 min-w-0 min-h-0 px-4 py-3">
+          <div className="max-w-7xl mx-auto h-full flex flex-col min-h-0">
             {isTeacher ? (
               <>
                 {activeTab === 'attendance' && (

@@ -1392,3 +1392,379 @@
 **Tests:** `npm test -- --run tests/lib/json-patch.test.ts tests/lib/assignment-doc-history.test.ts tests/api/assignment-docs/history.test.ts tests/api/assignment-docs/restore.test.ts`
 **Next:** Consider manual sanity checks for history capture, teacher timeline, and student restore.
 **Blockers:** None
+---
+## 2026-01-07 10:30 [AI - Codex]
+**Goal:** Issue #89 redesign assignment history UI with vertical column and instant preview.
+**Completed:** Redesigned history from collapsible section to permanent vertical column (240px fixed) with click-to-preview, date grouping, character diff indicators, orange flags for large changes (+200 chars), restore confirmation modal for students, read-only preview for teachers, and responsive mobile drawer.
+**Status:** completed
+**Artifacts:**
+- Issue: #89
+- PR: #90 (draft)
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/api/assignment-docs/[id]/history/route.ts`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Build passes, existing tests pass (no new tests needed - reconstruction logic unchanged)
+**Next:** Manual testing in staging, then mark PR ready for review.
+**Blockers:** None
+## 2026-01-07 10:45 [AI - Codex]
+**Goal:** Issue #89 fix history list to update immediately after student saves.
+**Completed:** Returned latest history entry from PATCH save and merged it into the client history list so saves appear without refresh; adjusted API test mocks for new select chain.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/api/assignment-docs/[id]/route.ts`, `src/components/StudentAssignmentEditor.tsx`, `tests/api/assignment-docs/assignment-docs-id.test.ts`
+**Tests:** `pnpm exec vitest run tests/api/assignment-docs/assignment-docs-id.test.ts`
+**Next:** Manual verify autosave updates history UI without refresh.
+**Blockers:** None
+---
+## 2026-01-07 10:55 [AI - Codex]
+**Goal:** Add hover preview + lock controls for assignment history (Issue #89 follow-up).
+**Completed:** Added hover preview with click-to-lock in student and teacher history columns, moved Cancel/Restore controls to bottom of history area, and clear preview on history-area exit or drawer close.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI behavior change only)
+**Next:** Manual hover/lock/restore check in student + teacher views.
+**Blockers:** None
+---
+## 2026-01-07 11:06 [AI - Codex]
+**Goal:** Show history trigger badges and record paste events for assignment history.
+**Completed:** Added paste trigger to history types/validation, captured paste events in the editor to mark the next save as `paste`, and surfaced trigger badges in student + teacher history lists.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/types/index.ts`, `src/app/api/assignment-docs/[id]/route.ts`, `src/components/RichTextEditor.tsx`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI behavior + types only)
+**Next:** Manual check: paste text, ensure history shows `paste` badge.
+**Blockers:** None
+---
+## 2026-01-07 11:15 [AI - Codex]
+**Goal:** Fix JSON patch apply errors when pasting.
+**Completed:** Treat `paste` saves as snapshots to avoid invalid patches and added safe fallback in JSON patch apply with a regression test.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/api/assignment-docs/[id]/route.ts`, `src/lib/json-patch.ts`, `tests/lib/json-patch.test.ts`
+**Tests:** `pnpm exec vitest run tests/lib/json-patch.test.ts`
+**Next:** Manual paste-and-save check in student history preview.
+**Blockers:** None
+---
+## 2026-01-07 11:20 [AI - Codex]
+**Goal:** Ensure paste-triggered saves always appear in history.
+**Completed:** Bypassed rate-limit updates for `paste` triggers so paste saves always insert a new history row (and snapshot).
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/api/assignment-docs/[id]/route.ts`
+**Tests:** Not run (behavioral change only).
+**Next:** Manual paste + blur check to confirm new history row appears.
+**Blockers:** None
+---
+## 2026-01-07 11:25 [AI - Codex]
+**Goal:** Remove paste-trigger tracking and restore normal autosave behavior.
+**Completed:** Removed paste trigger from types/API/UI, dropped editor paste flagging, and reverted history logic to standard autosave/blur triggers.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/types/index.ts`, `src/app/api/assignment-docs/[id]/route.ts`, `src/components/RichTextEditor.tsx`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run.
+**Next:** Manual paste + blur check to confirm autosave still works.
+**Blockers:** None
+---
+## 2026-01-07 12:05 [AI - Codex]
+**Goal:** Make assignment editor/history fill available height and scroll.
+**Completed:** Converted student and teacher assignment history layouts to flex-fill with scrollable history panes, and made the rich text editor/viewer height-aware; propagated full-height container in the classroom assignment view.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/classrooms/[classroomId]/page.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`, `src/components/RichTextEditor.tsx`, `src/components/RichTextViewer.tsx`
+**Tests:** Not run (UI layout change only).
+**Next:** Manual check: editor/history column fills vertical space and history scrolls when long.
+**Blockers:** None
+---
+## 2026-01-07 12:22 [AI - Codex]
+**Goal:** Fix hover preview saving content and require Cancel to exit locked preview.
+**Completed:** Prevented programmatic preview updates from emitting editor changes, and made history mouseleave/toggle ignore locked previews for both student and teacher views.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/RichTextEditor.tsx`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI behavior change only).
+**Next:** Manual: hover preview should not autosave or overwrite content; locked preview should persist until Cancel.
+**Blockers:** None
+---
+## 2026-01-07 12:29 [AI - Codex]
+**Goal:** Preserve unsaved draft when hovering history previews.
+**Completed:** Captured draft content before preview and restored it on exit; ignored editor updates while previewing so preview content doesn't overwrite draft state.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/StudentAssignmentEditor.tsx`
+**Tests:** Not run (UI behavior only).
+**Next:** Manual: hover preview and exit should restore unsaved draft without saving.
+**Blockers:** None
+---
+## 2026-01-07 13:29 [AI - Codex]
+**Goal:** Remove padding so TipTap content fills its container.
+**Completed:** Dropped internal padding from the rich text editor/viewer content wrappers.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/RichTextEditor.tsx`, `src/components/RichTextViewer.tsx`
+**Tests:** Not run (visual change only).
+**Next:** Manual: verify editor/viewer content aligns flush to container borders.
+**Blockers:** None
+---
+## 2026-01-07 13:31 [AI - Codex]
+**Goal:** Let the TipTap editor fill its parent container without outer padding.
+**Completed:** Restored editor/viewer internal padding and removed parent padding around the editor areas so the TipTap window fills the card region.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/RichTextEditor.tsx`, `src/components/RichTextViewer.tsx`, `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (visual layout change only).
+**Next:** Manual: confirm editor window reaches container edges while text retains internal padding.
+**Blockers:** None
+---
+## 2026-01-07 13:32 [AI - Codex]
+**Goal:** Remove rounded corners from the TipTap editor/viewer frames.
+**Completed:** Switched TipTap editor/viewer containers to `rounded-none`.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/RichTextEditor.tsx`, `src/components/RichTextViewer.tsx`
+**Tests:** Not run (visual tweak only).
+**Next:** Manual: confirm editor/viewer frames have square corners.
+**Blockers:** None
+---
+## 2026-01-07 13:39 [AI - Codex]
+**Goal:** Add collapsible history panel with centered save indicator.
+**Completed:** Added history toggle for student/teacher, centered save status in student header, and hid history column/drawer when collapsed (clears preview/lock).
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: toggle history open/closed; ensure preview is cleared and save indicator sits centered.
+**Blockers:** None
+---
+## 2026-01-07 13:41 [AI - Codex]
+**Goal:** Replace history toggle text with icons and show assignment title in headers.
+**Completed:** Added show/hide icons for history toggles and switched header labels to assignment titles with preview subtext.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/StudentAssignmentEditor.tsx`, `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI tweak only).
+**Next:** Manual: verify icon toggle and header title/preview layout.
+**Blockers:** None
+---
+## 2026-01-07 13:43 [AI - Codex]
+**Goal:** Replace teacher plain-text toggle checkbox with icons.
+**Completed:** Swapped the plain-text checkbox for icon buttons (document vs document-text) with accessible labels.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI tweak only).
+**Next:** Manual: verify plain text toggle works and icons swap.
+**Blockers:** None
+---
+## 2026-01-07 13:44 [AI - Codex]
+**Goal:** Swap the teacher plain-text toggle icon to typographic T variants.
+**Completed:** Replaced the document icons with monospace/serif T glyphs for plain vs rich text.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI tweak only).
+**Next:** Manual: verify toggle button shows mono T in plain text mode and serif T otherwise.
+**Blockers:** None
+---
+## 2026-01-07 13:45 [AI - Codex]
+**Goal:** Use T and slashed-T icons for the plain-text toggle.
+**Completed:** Replaced the glyph toggle with inline T and slashed-T SVG icons.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI tweak only).
+**Next:** Manual: verify toggle shows T vs slashed T.
+**Blockers:** None
+---
+## 2026-01-07 13:47 [AI - Codex]
+**Goal:** Use T vs thicker T for the plain-text toggle.
+**Completed:** Replaced slashed-T with a thicker stroke T for plain text mode.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI tweak only).
+**Next:** Manual: verify toggle shows thin T vs thick T.
+**Blockers:** None
+---
+## 2026-01-07 13:48 [AI - Codex]
+**Goal:** Flip the T toggle so rich text uses the thicker stroke.
+**Completed:** Swapped thin/thick T assignment in the teacher plain-text toggle.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI tweak only).
+**Next:** Manual: verify rich text shows thicker T, plain text shows thinner T.
+**Blockers:** None
+---
+## 2026-01-07 13:49 [AI - Codex]
+**Goal:** Remove the teacher assignment info card above student work.
+**Completed:** Dropped the assignment summary card from the teacher modal and removed unused formatting helpers.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI layout change only).
+**Next:** Manual: confirm modal header + response area align without the info card.
+**Blockers:** None
+---
+## 2026-01-07 13:52 [AI - Codex]
+**Goal:** Let the teacher modal student work fill the parent container.
+**Completed:** Removed outer padding from the teacher modal content area so the work card can expand.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (layout change only).
+**Next:** Manual: verify student work card reaches modal edges as intended.
+**Blockers:** None
+---
+## 2026-01-07 13:53 [AI - Codex]
+**Goal:** Increase teacher modal height.
+**Completed:** Increased modal height to 95vh for more vertical space.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (layout change only).
+**Next:** Manual: confirm modal fills more vertical space without clipping.
+**Blockers:** None
+---
+## 2026-01-07 13:56 [AI - Codex]
+**Goal:** Move assignment title and toggles to the teacher modal title bar.
+**Completed:** Shifted assignment title + preview info into the modal header, moved plain-text/history toggles next to the close button, and removed the inner assignment header row.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI layout change only).
+**Next:** Manual: verify modal header shows assignment title + toggles and no inner header remains.
+**Blockers:** None
+---
+## 2026-01-07 13:57 [AI - Codex]
+**Goal:** Center assignment title in the teacher modal header with student name first.
+**Completed:** Reworked the modal header into a 3-column grid: student name left, assignment title centered, controls right.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (layout change only).
+**Next:** Manual: verify centered assignment title and left-aligned student name.
+**Blockers:** None
+---
+## 2026-01-07 13:58 [AI - Codex]
+**Goal:** Remove student email from teacher modal header.
+**Completed:** Dropped the student email line in the modal title bar.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (UI tweak only).
+**Next:** Manual: confirm header shows student name only.
+**Blockers:** None
+---
+## 2026-01-07 14:03 [AI - Codex]
+**Goal:** Align teacher modal to the top of the viewport.
+**Completed:** Positioned the modal container at the top by switching to `items-start` with minimal padding.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`
+**Tests:** Not run (layout change only).
+**Next:** Manual: verify modal sits at top of viewport.
+**Blockers:** None
+---
+## 2026-01-07 14:07 [AI - Codex]
+**Goal:** Add prev/next student navigation in the teacher modal.
+**Completed:** Added header nav buttons in the teacher modal and wired prev/next navigation based on the current sorted student list.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/TeacherStudentWorkModal.tsx`, `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: click prev/next in the modal to navigate students in table order.
+**Blockers:** None
+---
+## 2026-01-07 14:10 [AI - Codex]
+**Goal:** Remove assignment dropdown selectors from teacher and student action bars.
+**Completed:** Removed the assignment selector dropdowns and related state/effects from student and teacher assignment action bars.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: verify action bars no longer show assignment selectors and remaining actions still work.
+**Blockers:** None
+---
+## 2026-01-07 14:13 [AI - Codex]
+**Goal:** Show student assignment instructions in a modal and remove Edit button.
+**Completed:** Replaced the instructions/details view with a modal, removed the Edit action, and simplified assignment navigation to always edit mode.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: open instructions modal and confirm assignment editing remains the default view.
+**Blockers:** None
+---
+## 2026-01-07 14:14 [AI - Codex]
+**Goal:** Left-align the teacher "Edit assignment" action.
+**Completed:** Moved the edit action into the left side of the action bar and left only "+ New Assignment" on the right.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: verify Edit assignment appears on the left when an assignment is selected.
+**Blockers:** None
+---
+## 2026-01-07 14:21 [AI - Codex]
+**Goal:** Align student sidebar assignments UI with teacher (no dropdown, always expanded).
+**Completed:** Reworked the student assignments nav row to mirror teacher styling (without the toggle) and removed the `view` param from student sidebar navigation.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/ClassroomSidebar.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: check student sidebar assignments list and selection.
+**Blockers:** None
+---
+## 2026-01-07 14:29 [AI - Codex]
+**Goal:** Keep student sidebar available on mobile while staying permanent/collapsible on desktop.
+**Completed:** Restored the student mobile drawer so navigation stays accessible on small screens.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/components/ClassroomSidebar.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: verify student sidebar opens via hamburger on mobile and stays visible on desktop.
+**Blockers:** None
+---
+## 2026-01-07 14:38 [AI - Codex]
+**Goal:** Refresh teacher sidebar assignments after create/edit/delete without page reload.
+**Completed:** Broadcast assignment updates from the teacher view and listen in the sidebar to reload the list.
+**Status:** completed
+**Artifacts:**
+- Branch: `89-history-ui-redesign`
+- Files: `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`, `src/components/ClassroomSidebar.tsx`
+**Tests:** Not run (UI change only).
+**Next:** Manual: create/edit/delete an assignment and confirm the sidebar list updates immediately.
+**Blockers:** None
+---

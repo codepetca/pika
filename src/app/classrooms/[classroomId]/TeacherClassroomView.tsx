@@ -1,19 +1,25 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
+import { useCallback, useMemo, useState, useEffect } from 'react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
 import { CreateAssignmentModal } from '@/components/CreateAssignmentModal'
 import { EditAssignmentModal } from '@/components/EditAssignmentModal'
 import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
-import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import {
+  ACTIONBAR_BUTTON_CLASSNAME,
+  PageActionBar,
+  PageContent,
+  PageLayout,
+  type ActionBarItem,
+} from '@/components/PageLayout'
 import { formatDueDate } from '@/lib/assignments'
 import {
   getAssignmentStatusBadgeClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
-import { ChevronDownIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
 import {
   DataTable,
   DataTableBody,
@@ -33,6 +39,7 @@ interface AssignmentWithStats extends Assignment {
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
 
 const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
+const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
 interface StudentSubmissionRow {
   student_id: string
@@ -73,12 +80,10 @@ function formatTorontoDateTime(iso: string) {
 }
 
 export function TeacherClassroomView({ classroom }: Props) {
-  const selectorRef = useRef<HTMLDivElement | null>(null)
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
-  const [isSelectorOpen, setIsSelectorOpen] = useState(false)
 
   const [selectedAssignmentData, setSelectedAssignmentData] = useState<{
     assignment: Assignment
@@ -94,6 +99,7 @@ export function TeacherClassroomView({ classroom }: Props) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [error, setError] = useState('')
 
   const loadAssignments = useCallback(async () => {
@@ -102,6 +108,11 @@ export function TeacherClassroomView({ classroom }: Props) {
       const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
       const data = await response.json()
       setAssignments(data.assignments || [])
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
+          detail: { classroomId: classroom.id },
+        })
+      )
     } catch (err) {
       console.error('Error loading assignments:', err)
     } finally {
@@ -178,25 +189,6 @@ export function TeacherClassroomView({ classroom }: Props) {
     loadSelectedAssignment()
   }, [selection])
 
-  useEffect(() => {
-    if (!isSelectorOpen) return
-    function handleMouseDown(e: MouseEvent) {
-      if (!selectorRef.current) return
-      if (e.target instanceof Node && !selectorRef.current.contains(e.target)) {
-        setIsSelectorOpen(false)
-      }
-    }
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setIsSelectorOpen(false)
-    }
-    document.addEventListener('mousedown', handleMouseDown)
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isSelectorOpen])
-
   function handleCreateSuccess(created: Assignment) {
     // Optimistically add the new assignment to the list
     setAssignments((prev) => [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }])
@@ -228,12 +220,6 @@ export function TeacherClassroomView({ classroom }: Props) {
     setIsSelectorOpen(false)
   }
 
-  const selectorLabel = useMemo(() => {
-    if (selection.mode === 'summary') return 'Assignments'
-    const found = assignments.find((a) => a.id === selection.assignmentId)
-    return found?.title || 'Assignment'
-  }, [assignments, selection])
-
   const sortedStudents = useMemo(() => {
     if (!selectedAssignmentData) return []
     const dir = sortDirection === 'asc' ? 1 : -1
@@ -255,6 +241,24 @@ export function TeacherClassroomView({ classroom }: Props) {
     })
     return rows
   }, [selectedAssignmentData, sortColumn, sortDirection])
+
+  const selectedStudentIndex = useMemo(() => {
+    if (!selectedStudentId) return -1
+    return sortedStudents.findIndex((student) => student.student_id === selectedStudentId)
+  }, [sortedStudents, selectedStudentId])
+
+  const canGoPrevStudent = selectedStudentIndex > 0
+  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < sortedStudents.length - 1
+
+  const handleGoPrevStudent = useCallback(() => {
+    if (selectedStudentIndex <= 0) return
+    setSelectedStudentId(sortedStudents[selectedStudentIndex - 1].student_id)
+  }, [selectedStudentIndex, sortedStudents])
+
+  const handleGoNextStudent = useCallback(() => {
+    if (selectedStudentIndex === -1 || selectedStudentIndex >= sortedStudents.length - 1) return
+    setSelectedStudentId(sortedStudents[selectedStudentIndex + 1].student_id)
+  }, [selectedStudentIndex, sortedStudents])
 
   function toggleSort(column: 'first' | 'last') {
     if (sortColumn !== column) {
@@ -288,74 +292,35 @@ export function TeacherClassroomView({ classroom }: Props) {
   }
 
   const actionItems: ActionBarItem[] = useMemo(() => {
-    const items: ActionBarItem[] = []
+    return [
+      {
+        id: 'toggle-new-assignment',
+        label: '+ New Assignment',
+        onSelect: () => setIsCreateModalOpen(true),
+      },
+    ]
+  }, [])
 
-    if (selection.mode === 'assignment') {
-      items.push({
-        id: 'edit-assignment',
-        label: 'Edit assignment',
-        onSelect: () => {
-          if (!selectedAssignmentData) return
-          setEditAssignment(selectedAssignmentData.assignment)
-        },
-        disabled: selectedAssignmentLoading || !selectedAssignmentData,
-      })
-    }
-
-    items.push({
-      id: 'toggle-new-assignment',
-      label: '+ New Assignment',
-      onSelect: () => setIsCreateModalOpen(true),
-    })
-
-    return items
-  }, [classroom.id, selectedAssignmentData, selectedAssignmentLoading, selection.mode])
+  const canEditAssignment = selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading
+  const editAssignmentButton = selection.mode === 'assignment' ? (
+    <button
+      type="button"
+      className={ACTIONBAR_BUTTON_CLASSNAME}
+      onClick={() => {
+        if (!selectedAssignmentData) return
+        setEditAssignment(selectedAssignmentData.assignment)
+      }}
+      disabled={!canEditAssignment}
+    >
+      Edit assignment
+    </button>
+  ) : (
+    <div />
+  )
 
   return (
     <PageLayout>
-      <PageActionBar
-        primary={
-          <div className="relative" ref={selectorRef}>
-            <button
-              type="button"
-              className={[ACTIONBAR_BUTTON_CLASSNAME, 'inline-flex items-center gap-2 max-w-full'].join(' ')}
-              onClick={() => setIsSelectorOpen((prev) => !prev)}
-              aria-label="Select assignment view"
-            >
-              <span className="truncate max-w-[16rem]">{selectorLabel}</span>
-              <ChevronDownIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden="true" />
-            </button>
-            {isSelectorOpen && (
-              <div className="absolute z-10 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden">
-                <button
-                  type="button"
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  onClick={() => setSelectionAndPersist({ mode: 'summary' })}
-                >
-                  Assignments
-                </button>
-                <div className="max-h-72 overflow-auto">
-                  {assignments.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-100"
-                      onClick={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: a.id })}
-                      title={a.title}
-                    >
-                      {a.title}
-                    </button>
-                  ))}
-                  {assignments.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No assignments</div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        }
-        actions={actionItems}
-      />
+      <PageActionBar primary={editAssignmentButton} actions={actionItems} />
 
       <PageContent className="space-y-4">
         {error && (
@@ -506,6 +471,10 @@ export function TeacherClassroomView({ classroom }: Props) {
           isOpen={true}
           assignmentId={selectedAssignmentData.assignment.id}
           studentId={selectedStudentId}
+          canGoPrev={canGoPrevStudent}
+          canGoNext={canGoNextStudent}
+          onGoPrev={handleGoPrevStudent}
+          onGoNext={handleGoNextStudent}
           onClose={() => setSelectedStudentId(null)}
         />
       )}

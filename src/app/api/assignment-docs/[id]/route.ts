@@ -3,11 +3,13 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { countCharacters, countWords, isValidTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
-import type { AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
+import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 const HISTORY_MIN_INTERVAL_MS = 10_000
+const HISTORY_SELECT_FIELDS =
+  'id, assignment_doc_id, patch, snapshot, word_count, char_count, trigger, created_at'
 
 /**
  * Parse content field from database, handling both JSONB and legacy TEXT columns
@@ -179,6 +181,7 @@ export async function PATCH(
     }
 
     const supabase = getServiceRoleClient()
+    let historyEntry: AssignmentDocHistoryEntry | null = null
 
     // Get assignment and verify enrollment
     const { data: assignment, error: assignmentError } = await supabase
@@ -240,19 +243,29 @@ export async function PATCH(
         }
 
         try {
-          await supabase.from('assignment_doc_history').insert({
-            assignment_doc_id: created.id,
-            patch: null,
-            snapshot: content,
-            word_count: countWords(content),
-            char_count: countCharacters(content),
-            trigger: 'baseline',
-          })
+          const { data: createdHistory, error: historyError } = await supabase
+            .from('assignment_doc_history')
+            .insert({
+              assignment_doc_id: created.id,
+              patch: null,
+              snapshot: content,
+              word_count: countWords(content),
+              char_count: countCharacters(content),
+              trigger: 'baseline',
+            })
+            .select(HISTORY_SELECT_FIELDS)
+            .single()
+
+          if (historyError) {
+            throw historyError
+          }
+
+          historyEntry = createdHistory
         } catch (historyError) {
           console.error('Error saving assignment doc history:', historyError)
         }
 
-        return NextResponse.json({ doc: created })
+        return NextResponse.json({ doc: created, historyEntry })
       }
       console.error('Error fetching assignment doc:', docFetchError)
       return NextResponse.json(
@@ -314,20 +327,30 @@ export async function PATCH(
 
       if (!lastHistory) {
         try {
-          await supabase.from('assignment_doc_history').insert({
-            assignment_doc_id: existingDoc.id,
-            patch: null,
-            snapshot: content,
-            word_count: countWords(content),
-            char_count: countCharacters(content),
-            trigger: 'baseline',
-          })
+          const { data: createdHistory, error: historyError } = await supabase
+            .from('assignment_doc_history')
+            .insert({
+              assignment_doc_id: existingDoc.id,
+              patch: null,
+              snapshot: content,
+              word_count: countWords(content),
+              char_count: countCharacters(content),
+              trigger: 'baseline',
+            })
+            .select(HISTORY_SELECT_FIELDS)
+            .single()
+
+          if (historyError) {
+            throw historyError
+          }
+
+          historyEntry = createdHistory
         } catch (historyError) {
           console.error('Error saving assignment doc history:', historyError)
         }
       } else if (isRateLimited) {
         try {
-          await supabase
+          const { data: updatedHistory, error: historyError } = await supabase
             .from('assignment_doc_history')
             .update({
               patch: null,
@@ -338,27 +361,45 @@ export async function PATCH(
               created_at: new Date().toISOString(),
             })
             .eq('id', lastHistory.id)
+            .select(HISTORY_SELECT_FIELDS)
+            .single()
+
+          if (historyError) {
+            throw historyError
+          }
+
+          historyEntry = updatedHistory
         } catch (historyError) {
           console.error('Error updating assignment doc history:', historyError)
         }
       } else {
         const storeSnapshot = shouldStoreSnapshot(patch, content)
         try {
-          await supabase.from('assignment_doc_history').insert({
-            assignment_doc_id: existingDoc.id,
-            patch: storeSnapshot ? null : patch,
-            snapshot: storeSnapshot ? content : null,
-            word_count: countWords(content),
-            char_count: countCharacters(content),
-            trigger: trigger ?? 'autosave',
-          })
+          const { data: createdHistory, error: historyError } = await supabase
+            .from('assignment_doc_history')
+            .insert({
+              assignment_doc_id: existingDoc.id,
+              patch: storeSnapshot ? null : patch,
+              snapshot: storeSnapshot ? content : null,
+              word_count: countWords(content),
+              char_count: countCharacters(content),
+              trigger: trigger ?? 'autosave',
+            })
+            .select(HISTORY_SELECT_FIELDS)
+            .single()
+
+          if (historyError) {
+            throw historyError
+          }
+
+          historyEntry = createdHistory
         } catch (historyError) {
           console.error('Error saving assignment doc history:', historyError)
         }
       }
     }
 
-    return NextResponse.json({ doc })
+    return NextResponse.json({ doc, historyEntry })
   } catch (error: any) {
     // Authentication error (401)
     if (error.name === 'AuthenticationError') {

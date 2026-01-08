@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/RichTextEditor'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -14,6 +15,9 @@ import {
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import { formatInTimeZone } from 'date-fns-tz'
+import { HistoryList } from '@/components/HistoryList'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 interface Props {
@@ -43,7 +47,11 @@ export function StudentAssignmentEditor({
   const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
-  const [historyVisible, setHistoryVisible] = useState(false)
+  const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
+  const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+  const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(true)
+  const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [restoringId, setRestoringId] = useState<string | null>(null)
 
   // Save state
@@ -54,6 +62,7 @@ export function StudentAssignmentEditor({
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
+  const draftBeforePreviewRef = useRef<TiptapContent | null>(null)
 
   const loadAssignment = useCallback(async () => {
     setLoading(true)
@@ -138,7 +147,22 @@ export function StudentAssignmentEditor({
         throw new Error(data.error || 'Failed to save')
       }
 
+      const historyEntry = data.historyEntry as AssignmentDocHistoryEntry | null | undefined
+
       setDoc(data.doc)
+      if (historyEntry) {
+        setHistoryEntries(prev => {
+          const existingIndex = prev.findIndex(entry => entry.id === historyEntry.id)
+          const next = existingIndex === -1 ? [historyEntry, ...prev] : [...prev]
+
+          if (existingIndex !== -1) {
+            next[existingIndex] = historyEntry
+          }
+
+          return next.sort((a, b) => b.created_at.localeCompare(a.created_at))
+        })
+        setPreviewEntry(prev => (prev?.id === historyEntry.id ? historyEntry : prev))
+      }
       lastSavedContentRef.current = newContentStr
       setSaveStatus('saved')
     } catch (err: any) {
@@ -177,6 +201,7 @@ export function StudentAssignmentEditor({
   }, [AUTOSAVE_MIN_INTERVAL_MS, saveContent])
 
   function handleContentChange(newContent: TiptapContent) {
+    if (previewEntry) return
     setContent(newContent)
     setSaveStatus('unsaved')
     pendingContentRef.current = newContent
@@ -251,15 +276,78 @@ export function StudentAssignmentEditor({
     }
   }
 
-  async function handleRestore(historyId: string) {
-    if (!confirm('Restore this version? Your current draft will be replaced.')) return
-    setRestoringId(historyId)
+  function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
+    if (!draftBeforePreviewRef.current) {
+      draftBeforePreviewRef.current = JSON.parse(JSON.stringify(content)) as TiptapContent
+    }
+    // Reconstruct content for this entry (client-side, no API call)
+    // API returns newest-first, but reconstruction needs oldest-first
+    const oldestFirst = [...historyEntries].reverse()
+    const reconstructed = reconstructAssignmentDocContent(oldestFirst, entry.id)
+
+    if (reconstructed) {
+      setPreviewEntry(entry)
+      setPreviewContent(reconstructed)
+      return true
+    }
+    return false
+  }
+
+  function handlePreviewHover(entry: AssignmentDocHistoryEntry) {
+    if (lockedEntryId) return
+    updatePreview(entry)
+  }
+
+  function handlePreviewLock(entry: AssignmentDocHistoryEntry) {
+    const success = updatePreview(entry)
+    if (success) {
+      setLockedEntryId(entry.id)
+    }
+  }
+
+  function handleHistoryMouseLeave() {
+    if (lockedEntryId) return
+    handleExitPreview()
+  }
+
+  function handleHistoryToggle() {
+    if (isHistoryOpen) {
+      handleExitPreview()
+    }
+    setIsHistoryOpen(prev => !prev)
+  }
+
+  function handleExitPreview(options?: { restoreDraft?: boolean }) {
+    const shouldRestore = options?.restoreDraft !== false
+    if (shouldRestore && draftBeforePreviewRef.current) {
+      const restoredDraft = draftBeforePreviewRef.current
+      setContent(restoredDraft)
+      pendingContentRef.current = restoredDraft
+      const restoredStr = JSON.stringify(restoredDraft)
+      setSaveStatus(restoredStr === lastSavedContentRef.current ? 'saved' : 'unsaved')
+    }
+    setPreviewEntry(null)
+    setPreviewContent(null)
+    setShowRestoreModal(false)
+    setLockedEntryId(null)
+    draftBeforePreviewRef.current = null
+  }
+
+  function handleRestoreClick() {
+    if (!previewEntry || !lockedEntryId) return
+    setShowRestoreModal(true)
+  }
+
+  async function confirmRestore() {
+    if (!previewEntry) return
+
+    setRestoringId(previewEntry.id)
     setHistoryError('')
     try {
       const response = await fetch(`/api/assignment-docs/${assignmentId}/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history_id: historyId })
+        body: JSON.stringify({ history_id: previewEntry.id })
       })
       const data = await response.json()
       if (!response.ok) {
@@ -270,10 +358,12 @@ export function StudentAssignmentEditor({
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
       setSaveStatus('saved')
       await loadHistory()
+      handleExitPreview({ restoreDraft: false })
     } catch (err: any) {
       setHistoryError(err.message || 'Failed to restore')
     } finally {
       setRestoringId(null)
+      setShowRestoreModal(false)
     }
   }
 
@@ -328,9 +418,10 @@ export function StudentAssignmentEditor({
 
   const status = calculateAssignmentStatus(assignment, doc)
   const isSubmitted = doc?.is_submitted || false
+  const isPreviewLocked = lockedEntryId !== null
 
   const editorContent = (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6 h-full min-h-0">
       {/* Description */}
       {!isEmbedded && assignment.description && (
         <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
@@ -338,20 +429,23 @@ export function StudentAssignmentEditor({
         </div>
       )}
 
-      {/* Editor */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Your Response</span>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setHistoryVisible(prev => !prev)}
-              className="text-xs font-medium text-blue-600 dark:text-blue-300 hover:underline"
-            >
-              {historyVisible ? 'Hide history' : 'View history'}
-            </button>
-            <span
-              className={`text-xs ${
+      {/* Editor with History Column */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col min-h-0 flex-1">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                {assignment.title}
+              </div>
+              {previewEntry && (
+                <div className="text-xs text-yellow-600 dark:text-yellow-400">
+                  Previewing save from {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
+                </div>
+              )}
+            </div>
+            <div
+              className={`text-xs text-center ${
                 saveStatus === 'saved'
                   ? 'text-green-600 dark:text-green-400'
                   : saveStatus === 'saving'
@@ -360,85 +454,191 @@ export function StudentAssignmentEditor({
               }`}
             >
               {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
-            </span>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleHistoryToggle}
+                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                aria-expanded={isHistoryOpen}
+                aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
+              >
+                {isHistoryOpen ? (
+                  <EyeSlashIcon className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <EyeIcon className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="p-4">
-          <RichTextEditor
-            content={content}
-            onChange={handleContentChange}
-            placeholder="Write your response here..."
-            disabled={submitting}
-            editable={!isSubmitted}
-            onBlur={flushAutosave}
-          />
+        {/* Main Content Area: Editor + History Column */}
+        <div className="flex flex-1 min-h-0 flex-col md:flex-row">
+          {/* Editor */}
+          <div className={`flex-1 min-h-0 border-b md:border-b-0 border-gray-200 dark:border-gray-700 flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
+            <div className={previewEntry ? 'ring-2 ring-yellow-400 dark:ring-yellow-600 rounded-lg flex-1 min-h-0' : 'flex-1 min-h-0'}>
+              <RichTextEditor
+                content={previewContent || content}
+                onChange={handleContentChange}
+                placeholder="Write your response here..."
+                disabled={submitting || !!previewEntry}
+                editable={!isSubmitted && !previewEntry}
+                onBlur={flushAutosave}
+                className="h-full"
+              />
+            </div>
+
+            {error && (
+              <div className="mt-4">
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
+          </div>
+
+          {/* History Column (Desktop) */}
+          {isHistoryOpen && (
+            <div
+              className="hidden md:flex w-60 bg-gray-50 dark:bg-gray-950 flex-col min-h-0"
+              onMouseLeave={handleHistoryMouseLeave}
+            >
+              <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                  History
+                </h3>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {historyLoading ? (
+                  <div className="p-4 text-center">
+                    <Spinner size="sm" />
+                  </div>
+                ) : historyError ? (
+                  <div className="p-4">
+                    <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                  </div>
+                ) : historyEntries.length === 0 ? (
+                  <div className="p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                  </div>
+                ) : (
+                  <HistoryList
+                    entries={historyEntries}
+                    activeEntryId={previewEntry?.id ?? null}
+                    onEntryClick={handlePreviewLock}
+                    onEntryHover={handlePreviewHover}
+                  />
+                )}
+              </div>
+              {isPreviewLocked && previewEntry && (
+                <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex flex-col gap-2">
+                    {!isSubmitted && (
+                      <Button onClick={handleRestoreClick} disabled={restoringId !== null}>
+                        {restoringId ? 'Restoring...' : 'Restore'}
+                      </Button>
+                    )}
+                    <Button onClick={() => handleExitPreview()} variant="secondary">
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {error && (
-          <div className="px-4 pb-4">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          </div>
-        )}
-
+        {/* Footer with Actions */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div className="text-sm text-gray-500 dark:text-gray-400">{countCharacters(content)} characters</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {countCharacters(previewContent || content)} characters
+          </div>
 
           <div className="flex gap-2">
             {isSubmitted ? (
-              <Button onClick={handleUnsubmit} variant="secondary" disabled={submitting}>
+              <Button onClick={handleUnsubmit} variant="secondary" disabled={submitting || !!previewEntry}>
                 {submitting ? 'Unsubmitting...' : 'Unsubmit'}
               </Button>
             ) : (
-              <Button onClick={handleSubmit} disabled={submitting || isEmpty(content)}>
+              <Button onClick={handleSubmit} disabled={submitting || isEmpty(content) || !!previewEntry}>
                 {submitting ? 'Submitting...' : 'Submit'}
               </Button>
             )}
           </div>
         </div>
+
+        {/* Mobile History Drawer */}
+        {isHistoryOpen && (
+          <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
+          <details
+            className="group"
+            onToggle={(event) => {
+              const target = event.currentTarget
+              if (!target.open && !lockedEntryId) {
+                handleExitPreview()
+              }
+            }}
+          >
+            <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between">
+              <span>View History ({historyEntries.length})</span>
+              <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            <div className="px-4 pb-4 max-h-80 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+              {historyLoading ? (
+                <div className="p-4 text-center">
+                  <Spinner size="sm" />
+                </div>
+              ) : historyError ? (
+                <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+              ) : historyEntries.length === 0 ? (
+                <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+              ) : (
+                <HistoryList
+                  entries={historyEntries}
+                  activeEntryId={previewEntry?.id ?? null}
+                  onEntryClick={handlePreviewLock}
+                  variant="mobile"
+                />
+              )}
+              {isPreviewLocked && previewEntry && (
+                <div className="pt-4 flex flex-col gap-2">
+                  {!isSubmitted && (
+                    <Button onClick={handleRestoreClick} disabled={restoringId !== null}>
+                      {restoringId ? 'Restoring...' : 'Restore'}
+                    </Button>
+                  )}
+                  <Button onClick={() => handleExitPreview()} variant="secondary">
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          </details>
+        </div>
+        )}
       </div>
 
-      {historyVisible && (
-        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">History</span>
-            {historyLoading && <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>}
-          </div>
-          {historyError && (
-            <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
-          )}
-          {!historyLoading && historyEntries.length === 0 && (
-            <p className="text-xs text-gray-500 dark:text-gray-400">No history yet.</p>
-          )}
-          <div className="space-y-2">
-            {historyEntries.map(entry => (
-              <div
-                key={entry.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-3 py-2"
-              >
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  <span className="font-medium text-gray-800 dark:text-gray-200">
-                    {entry.trigger}
-                  </span>
-                  {' • '}
-                  {new Date(entry.created_at).toLocaleString('en-CA', {
-                    timeZone: 'America/Toronto',
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  })}
-                  {' • '}
-                  {entry.word_count} words
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={restoringId === entry.id || submitting || isSubmitted}
-                  onClick={() => handleRestore(entry.id)}
-                >
-                  {restoringId === entry.id ? 'Restoring...' : 'Restore'}
-                </Button>
-              </div>
-            ))}
+      {/* Restore Confirmation Modal */}
+      {showRestoreModal && previewEntry && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Restore this version?
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              This will replace your current draft with the version saved on{' '}
+              {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, yyyy')} at{' '}
+              {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'h:mm a')}.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button onClick={() => setShowRestoreModal(false)} variant="secondary">
+                Cancel
+              </Button>
+              <Button onClick={confirmRestore} disabled={restoringId !== null}>
+                {restoringId ? 'Restoring...' : 'Restore'}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -462,7 +662,7 @@ export function StudentAssignmentEditor({
   }
 
   return (
-    <PageLayout>
+    <PageLayout className="h-full flex flex-col">
       <PageActionBar
         primary={
           <div className="flex items-start justify-between gap-3">
@@ -488,7 +688,7 @@ export function StudentAssignmentEditor({
         }
       />
 
-      <PageContent>{editorContent}</PageContent>
+      <PageContent className="flex-1 min-h-0">{editorContent}</PageContent>
     </PageLayout>
   )
 }

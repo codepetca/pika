@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { useEffect, useState } from 'react'
+import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/RichTextViewer'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
-import { formatDueDate, getAssignmentStatusBadgeClass, getAssignmentStatusLabel } from '@/lib/assignments'
-import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus } from '@/types'
+import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import { formatInTimeZone } from 'date-fns-tz'
+import { HistoryList } from '@/components/HistoryList'
+import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, TiptapContent } from '@/types'
 
 interface StudentWorkData {
   assignment: Assignment
@@ -21,14 +24,10 @@ interface TeacherStudentWorkModalProps {
   onClose: () => void
   assignmentId: string
   studentId: string
-}
-
-function formatTorontoDateTime(iso: string) {
-  return new Date(iso).toLocaleString('en-CA', {
-    timeZone: 'America/Toronto',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
+  canGoPrev?: boolean
+  canGoNext?: boolean
+  onGoPrev?: () => void
+  onGoNext?: () => void
 }
 
 export function TeacherStudentWorkModal({
@@ -36,6 +35,10 @@ export function TeacherStudentWorkModal({
   onClose,
   assignmentId,
   studentId,
+  canGoPrev = false,
+  canGoNext = false,
+  onGoPrev,
+  onGoNext,
 }: TeacherStudentWorkModalProps) {
   const [data, setData] = useState<StudentWorkData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -44,18 +47,72 @@ export function TeacherStudentWorkModal({
   const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
+  const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
+  const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+  const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
+  const [isHistoryOpen, setIsHistoryOpen] = useState(true)
 
+  function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
+    // Reconstruct content for this entry (client-side, no API call)
+    // API returns newest-first, but reconstruction needs oldest-first
+    const oldestFirst = [...historyEntries].reverse()
+    const reconstructed = reconstructAssignmentDocContent(oldestFirst, entry.id)
+
+    if (reconstructed) {
+      setPreviewEntry(entry)
+      setPreviewContent(reconstructed)
+      return true
+    }
+    return false
+  }
+
+  function handlePreviewHover(entry: AssignmentDocHistoryEntry) {
+    if (lockedEntryId) return
+    updatePreview(entry)
+  }
+
+  function handlePreviewLock(entry: AssignmentDocHistoryEntry) {
+    const success = updatePreview(entry)
+    if (success) {
+      setLockedEntryId(entry.id)
+    }
+  }
+
+  function handleExitPreview() {
+    setPreviewEntry(null)
+    setPreviewContent(null)
+    setLockedEntryId(null)
+  }
+
+  function handleHistoryMouseLeave() {
+    if (lockedEntryId) return
+    handleExitPreview()
+  }
+
+  function handleHistoryToggle() {
+    if (isHistoryOpen) {
+      handleExitPreview()
+    }
+    setIsHistoryOpen(prev => !prev)
+  }
   useEffect(() => {
     if (!isOpen) return
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        if (previewEntry) {
+          handleExitPreview()
+        } else {
+          onClose()
+        }
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isOpen, onClose])
+  }, [isOpen, onClose, previewEntry])
 
   useEffect(() => {
     if (!isOpen) return
+    handleExitPreview()
     setLoading(true)
     setError('')
     setData(null)
@@ -102,15 +159,12 @@ export function TeacherStudentWorkModal({
     loadHistory()
   }, [assignmentId, isOpen, studentId])
 
-  const maxWordCount = useMemo(() => {
-    if (historyEntries.length === 0) return 1
-    return Math.max(...historyEntries.map(entry => entry.word_count), 1)
-  }, [historyEntries])
+  const isPreviewLocked = lockedEntryId !== null
 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-2">
       <button
         type="button"
         className="absolute inset-0 bg-black/50 dark:bg-black/70"
@@ -121,28 +175,87 @@ export function TeacherStudentWorkModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-6xl h-[90vh] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl overflow-hidden flex flex-col"
+        className="relative w-full max-w-6xl h-[95vh] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl overflow-hidden flex flex-col"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-gray-200 dark:border-gray-700 p-4">
-          <div className="min-w-0">
-            <div className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
-              {data?.student?.name || data?.student?.email || 'Student submission'}
+        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                {data?.student?.name || data?.student?.email || 'Student submission'}
+              </div>
             </div>
-            {data?.student?.name && data.student.email && (
-              <div className="text-sm text-gray-600 dark:text-gray-300 truncate">{data.student.email}</div>
-            )}
+            <div className="min-w-0 max-w-[40vw] text-center">
+              <div className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+                {data?.assignment?.title || 'Assignment'}
+              </div>
+              {previewEntry && (
+                <div className="text-xs text-blue-600 dark:text-blue-400 truncate">
+                  Previewing save from {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={onGoPrev}
+                disabled={!canGoPrev}
+                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Previous student"
+              >
+                <ChevronLeftIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={onGoNext}
+                disabled={!canGoNext}
+                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Next student"
+              >
+                <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPlainText(prev => !prev)}
+                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                aria-pressed={showPlainText}
+                aria-label={showPlainText ? 'Show rich text' : 'Show plain text'}
+              >
+                {showPlainText ? (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                    <path d="M4 6h16M12 6v12" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                    <path d="M4 6h16M12 6v12" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleHistoryToggle}
+                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                aria-expanded={isHistoryOpen}
+                aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
+              >
+                {isHistoryOpen ? (
+                  <EyeSlashIcon className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <EyeIcon className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
+                aria-label="Close"
+              >
+                <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
-            aria-label="Close"
-          >
-            <XMarkIcon className="h-5 w-5" aria-hidden="true" />
-          </button>
         </div>
 
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 min-h-0 overflow-auto flex flex-col">
           {loading ? (
             <div className="flex justify-center py-12">
               <Spinner size="lg" />
@@ -152,118 +265,123 @@ export function TeacherStudentWorkModal({
           ) : !data ? (
             <div className="text-sm text-gray-600 dark:text-gray-300">No data</div>
           ) : (
-            <div className="space-y-4">
-              <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                      {data.assignment.title}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                      Due: {formatDueDate(data.assignment.due_at)}
-                    </div>
-                    {data.doc?.submitted_at && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Submitted: {formatTorontoDateTime(data.doc.submitted_at)}
+            <div className="flex flex-col gap-4 min-h-0 flex-1">
+              {/* Student Response with History Column */}
+              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col min-h-0 flex-1">
+                {/* Main Content Area: Response + History Column */}
+                <div className="flex flex-1 min-h-0 flex-col md:flex-row">
+                  {/* Student Response */}
+                  <div className={`flex-1 min-h-0 border-b md:border-b-0 border-gray-200 dark:border-gray-700 flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
+                    {data.doc && data.doc.content && !isEmpty(data.doc.content) ? (
+                      <div className="flex-1 min-h-0">
+                        <div className={previewEntry ? 'ring-2 ring-blue-400 dark:ring-blue-600 rounded-lg p-2 h-full' : 'h-full'}>
+                          <RichTextViewer
+                            content={previewContent || data.doc.content}
+                            showPlainText={showPlainText}
+                          />
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                          {countCharacters(previewContent || data.doc.content)} characters
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 min-h-0 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                        No work submitted yet
                       </div>
                     )}
-                    {data.doc?.updated_at && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Last updated: {formatTorontoDateTime(data.doc.updated_at)}
+
+                  </div>
+
+                  {/* History Column (Desktop) */}
+                  {isHistoryOpen && (
+                    <div
+                      className="hidden md:flex w-60 bg-gray-50 dark:bg-gray-950 flex-col min-h-0"
+                      onMouseLeave={handleHistoryMouseLeave}
+                    >
+                      <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                        <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                          History
+                        </h3>
+                      </div>
+                      <div className="flex-1 min-h-0 overflow-y-auto">
+                        {historyLoading ? (
+                          <div className="p-4 text-center">
+                            <Spinner size="sm" />
+                          </div>
+                        ) : historyError ? (
+                          <div className="p-4">
+                            <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                          </div>
+                        ) : historyEntries.length === 0 ? (
+                          <div className="p-4">
+                            <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                          </div>
+                        ) : (
+                          <HistoryList
+                            entries={historyEntries}
+                            activeEntryId={previewEntry?.id ?? null}
+                            onEntryClick={handlePreviewLock}
+                            onEntryHover={handlePreviewHover}
+                          />
+                        )}
+                      </div>
+                      {isPreviewLocked && previewEntry && (
+                        <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
+                          <Button onClick={handleExitPreview} variant="secondary" className="w-full">
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Mobile History Drawer */}
+                {isHistoryOpen && (
+                <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
+                  <details
+                    className="group"
+                    onToggle={(event) => {
+                      const target = event.currentTarget
+                      if (!target.open && !lockedEntryId) {
+                        handleExitPreview()
+                      }
+                    }}
+                  >
+                    <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between">
+                      <span>View History ({historyEntries.length})</span>
+                      <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </summary>
+                    <div className="px-4 pb-4 max-h-80 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+                      {historyLoading ? (
+                        <div className="p-4 text-center">
+                          <Spinner size="sm" />
+                        </div>
+                      ) : historyError ? (
+                        <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                      ) : historyEntries.length === 0 ? (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                      ) : (
+                        <HistoryList
+                          entries={historyEntries}
+                          activeEntryId={previewEntry?.id ?? null}
+                          onEntryClick={handlePreviewLock}
+                          variant="mobile"
+                        />
+                      )}
+                    {isPreviewLocked && previewEntry && (
+                      <div className="pt-4">
+                        <Button onClick={handleExitPreview} variant="secondary" className="w-full">
+                          Cancel
+                        </Button>
                       </div>
                     )}
                   </div>
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(data.status)}`}
-                  >
-                    {getAssignmentStatusLabel(data.status)}
-                  </span>
+                </details>
                 </div>
-              </div>
-
-              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Student response</span>
-                  <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 select-none">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300 dark:border-gray-600"
-                      checked={showPlainText}
-                      onChange={(e) => setShowPlainText(e.target.checked)}
-                    />
-                    Plain text
-                  </label>
-                </div>
-
-                <div className="p-4">
-                  {data.doc && data.doc.content && !isEmpty(data.doc.content) ? (
-                    <div className="min-h-[300px]">
-                      <RichTextViewer content={data.doc.content} showPlainText={showPlainText} />
-                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        {countCharacters(data.doc.content)} characters
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                      No work submitted yet
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">History timeline</span>
-                  {historyLoading && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>
-                  )}
-                </div>
-                <div className="p-4 space-y-3">
-                  {historyError && (
-                    <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
-                  )}
-                  {!historyLoading && historyEntries.length === 0 && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">No history yet.</p>
-                  )}
-                  {historyEntries.length > 0 && (
-                    <>
-                      <div className="flex items-end gap-2 h-20">
-                        {historyEntries.map(entry => (
-                          <div key={entry.id} className="flex flex-col items-center gap-1">
-                            <div
-                              className="w-3 rounded bg-blue-500 dark:bg-blue-400"
-                              style={{ height: `${Math.max(8, (entry.word_count / maxWordCount) * 100)}%` }}
-                              title={`${entry.word_count} words`}
-                            />
-                            <span className="text-[10px] text-gray-500 dark:text-gray-400">
-                              {entry.word_count}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="space-y-2">
-                        {historyEntries.map(entry => (
-                          <div
-                            key={entry.id}
-                            className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-md px-3 py-2"
-                          >
-                            <span className="font-medium text-gray-800 dark:text-gray-200">
-                              {entry.trigger}
-                            </span>
-                            <span>
-                              {new Date(entry.created_at).toLocaleString('en-CA', {
-                                timeZone: 'America/Toronto',
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })}
-                            </span>
-                            <span>{entry.word_count} words</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+                )}
               </div>
             </div>
           )}

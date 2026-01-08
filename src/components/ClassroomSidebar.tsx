@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Bars3Icon,
@@ -76,6 +76,7 @@ function writeCookie(name: string, value: string) {
 }
 
 const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
+const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
 type SidebarAssignment = {
   id: string
@@ -127,26 +128,28 @@ function Nav({
 
           return (
             <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
-              <Link
-                href={href}
-                onClick={() => {
-                  onSelectAssignment?.(null)
-                  onNavigate?.()
-                }}
-                aria-current={isActive ? 'page' : undefined}
-                title={isCollapsed ? item.label : undefined}
-                className={[
-                  'group flex items-center rounded-md text-sm font-medium transition-colors',
-                  layoutClass,
-                  isActive
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
-                ].join(' ')}
-              >
-                <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                {!isCollapsed && <span className="truncate">{item.label}</span>}
-                {isCollapsed && <span className="sr-only">{item.label}</span>}
-              </Link>
+              <div className="flex items-center">
+                <Link
+                  href={href}
+                  onClick={() => {
+                    onSelectAssignment?.(null)
+                    onNavigate?.()
+                  }}
+                  aria-current={isActive ? 'page' : undefined}
+                  title={isCollapsed ? item.label : undefined}
+                  className={[
+                    'group flex flex-1 items-center rounded-md text-sm font-medium transition-colors',
+                    layoutClass,
+                    isActive
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                  ].join(' ')}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
+                  {isCollapsed && <span className="sr-only">{item.label}</span>}
+                </Link>
+              </div>
 
               {canShowNested && assignments && assignments.length > 0 && (
                 <div className="pl-10 pr-3 space-y-1">
@@ -321,7 +324,7 @@ export function ClassroomSidebar({
   const router = useRouter()
   const searchParams = useSearchParams()
   const assignmentIdParam = searchParams.get('assignmentId')
-  const { isCollapsed, toggleCollapsed, expandedWidth, setExpandedWidth } =
+  const { isCollapsed, toggleCollapsed, expandedWidth, setExpandedWidth, setCollapsed } =
     useClassroomSidebar()
   const firstLinkRef = useRef<HTMLAnchorElement | null>(null)
   const asideRef = useRef<HTMLElement | null>(null)
@@ -363,19 +366,31 @@ export function ClassroomSidebar({
     setActiveAssignmentId(assignmentIdParam)
   }, [activeTab, assignmentIdParam, role])
 
+  const loadTeacherAssignments = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
+      const data = await response.json()
+      setAssignments((data.assignments || []).map((a: any) => ({ id: a.id, title: a.title })))
+    } catch {
+      setAssignments([])
+    }
+  }, [classroomId])
+
   useEffect(() => {
     if (role !== 'teacher') return
-    async function loadAssignments() {
-      try {
-        const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
-        const data = await response.json()
-        setAssignments((data.assignments || []).map((a: any) => ({ id: a.id, title: a.title })))
-      } catch {
-        setAssignments([])
-      }
+    loadTeacherAssignments()
+  }, [loadTeacherAssignments, role])
+
+  useEffect(() => {
+    if (role !== 'teacher') return
+    function onAssignmentsUpdated(event: Event) {
+      const detail = (event as CustomEvent<{ classroomId?: string }>).detail
+      if (!detail || detail.classroomId !== classroomId) return
+      loadTeacherAssignments()
     }
-    loadAssignments()
-  }, [classroomId, role])
+    window.addEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, onAssignmentsUpdated)
+    return () => window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, onAssignmentsUpdated)
+  }, [classroomId, loadTeacherAssignments, role])
 
   useEffect(() => {
     if (role !== 'student') return
@@ -390,6 +405,14 @@ export function ClassroomSidebar({
     }
     loadAssignments()
   }, [classroomId, role])
+
+  useEffect(() => {
+    if (role !== 'student') return
+    const sidebarCookie = readCookie('pika_sidebar')
+    if (!sidebarCookie) {
+      setCollapsed(true)
+    }
+  }, [role, setCollapsed])
 
   function toggleAssignmentsExpanded() {
     const next = !assignmentsExpanded
@@ -415,10 +438,8 @@ export function ClassroomSidebar({
 
     if (assignmentId) {
       params.set('assignmentId', assignmentId)
-      params.set('view', 'edit')
     } else {
       params.delete('assignmentId')
-      params.delete('view')
     }
 
     setActiveAssignmentId(assignmentId)
