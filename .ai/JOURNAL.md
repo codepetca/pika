@@ -2065,3 +2065,14 @@
 **Next:** Re-run ./scripts/pika codex to verify q and long labels render cleanly.
 **Blockers:** None
 ---
+## 2026-01-08 14:16 [AI - Codex]
+**Goal:** Make `pika claude` work when Claude is installed via a local alias path.
+**Completed:** Added `CLAUDE_BIN`/fallback resolution and used the resolved binary for execution.
+**Status:** completed
+**Artifacts:**
+- Branch: chore/claude-check
+- Files: scripts/pika
+**Tests:** Not run (manual testing planned).
+**Next:** Run `./scripts/pika claude` with and without `CLAUDE_BIN` set.
+**Blockers:** None
+---
