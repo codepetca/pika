@@ -1922,3 +1922,14 @@
 **Next:** Re-run `./scripts/pika codex` to confirm updated menu copy.
 **Blockers:** None
 ---
+## 2026-01-08 13:41 [AI - Codex]
+**Goal:** Reduce menu chrome in the interactive picker.
+**Completed:** Removed the "Choose" prompt line and stripped "showing" details from menu headers.
+**Status:** completed
+**Artifacts:**
+- Branch: `chore/pika-script-prompt`
+- Files: `scripts/pika`
+**Tests:** Not run (manual testing planned).
+**Next:** Re-run `./scripts/pika codex` to confirm the updated menu layout.
+**Blockers:** None
+---
