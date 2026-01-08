@@ -6,33 +6,51 @@
 
 ## 0) Worktree Workflow (MANDATORY)
 
-Never do branch work inside `$HOME/repos/pika/` (the hub checkout).
+Never do branch work inside `$HOME/Repos/pika/` (the hub checkout).
 
-If you need a branch/PR, create and use a dedicated worktree under `$HOME/repos/.worktrees/pika/`.
+If you need a branch/PR, create and use a dedicated worktree under `$HOME/Repos/.worktrees/pika/`.
 
-**Quick setup:**
+**Quick start (existing worktree):**
 ```bash
-bash scripts/wt-add.sh <branch-name>
-cd $HOME/repos/.worktrees/pika/<branch-name>
+pika ls
+pika claude <worktree>
+# or
+pika codex <worktree>
 ```
 
-This automatically:
-- Creates the worktree
-- Symlinks `.env.local` from `$HOME/repos/.env/pika/.env.local`
+**Creating a new worktree:** Follow `docs/dev-workflow.md` (authoritative).
+It covers `git worktree add` and the `.env.local` symlink to `$HOME/Repos/.env/pika/.env.local`.
 
-See: `docs/workflow/worktrees.md` and `docs/ai-instructions.md` (authoritative source)
+See: `docs/dev-workflow.md` and `docs/ai-instructions.md` (authoritative source)
+
+### Worktree Rules (Mandatory)
+
+- This repo uses git worktrees.
+- Each agent session is bound to exactly ONE worktree.
+- The active worktree path is in $PIKA_WORKTREE.
+
+Rules:
+- NEVER assume the shell cwd.
+- ALL git commands MUST use: git -C "$PIKA_WORKTREE".
+- ALL file paths MUST be absolute or prefixed with "$PIKA_WORKTREE".
+
+If you need to run hub-level git commands (add/remove worktrees), set:
+- `export PIKA_WORKTREE="$HOME/Repos/pika"`
+
+If unsure which worktree to use:
+- Ask the user to run `pika ls`.
 
 ---
 
 ## 1) Verify the Environment (1–2 min)
 
 ```bash
-bash scripts/verify-env.sh
+bash "$PIKA_WORKTREE/scripts/verify-env.sh"
 ```
 
 Optional (slower):
 ```bash
-bash scripts/verify-env.sh --full
+bash "$PIKA_WORKTREE/scripts/verify-env.sh" --full
 ```
 
 Do not start coding if verification fails.
@@ -43,11 +61,11 @@ Do not start coding if verification fails.
 
 ```bash
 # Read the last few journal entries
-tail -80 .ai/JOURNAL.md
+tail -80 "$PIKA_WORKTREE/.ai/JOURNAL.md"
 
 # Review recent code changes
-git log --oneline -10
-git status
+git -C "$PIKA_WORKTREE" log --oneline -10
+git -C "$PIKA_WORKTREE" status
 
 # Optional: recent GitHub activity
 gh pr list --state closed --limit 5
@@ -88,8 +106,8 @@ Only after this should you inspect or modify source code.
 ## 4) Check Feature Inventory (1 min)
 
 ```bash
-node scripts/features.mjs summary
-node scripts/features.mjs next
+node "$PIKA_WORKTREE/scripts/features.mjs" summary
+node "$PIKA_WORKTREE/scripts/features.mjs" next
 ```
 
 ---
@@ -124,17 +142,18 @@ Before writing code:
 
 ## End of Session (MANDATORY)
 
-1. Append a session entry to `.ai/JOURNAL.md`.
+1. Append a session entry to `$PIKA_WORKTREE/.ai/JOURNAL.md`.
 2. Update `.ai/features.json` status if anything changed:
    ```bash
-   node scripts/features.mjs pass <feature-id>
-   node scripts/features.mjs fail <feature-id>
+   node "$PIKA_WORKTREE/scripts/features.mjs" pass <feature-id>
+   node "$PIKA_WORKTREE/scripts/features.mjs" fail <feature-id>
    ```
 3. Commit and push the journal + feature changes.
 4. If the work was merged, remove the worktree and delete the local branch:
    ```bash
-   git worktree remove $HOME/repos/.worktrees/pika/<branch-name>
-   git branch -D <branch-name>
+   export PIKA_WORKTREE="$HOME/Repos/pika"
+   git -C "$PIKA_WORKTREE" worktree remove "$HOME/Repos/.worktrees/pika/<branch-name>"
+   git -C "$PIKA_WORKTREE" branch -D <branch-name>
    ```
 
 ---

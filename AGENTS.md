@@ -12,29 +12,26 @@
 **Rules:**
 - One worktree == one branch
 - Treat branch switching as directory switching
-- Main repo lives at: `$HOME/repos/pika` (hub checkout, stays on `main`)
-- Worktrees live under: `$HOME/repos/.worktrees/pika/<branch-name>`
+- Main repo lives at: `$HOME/Repos/pika` (hub checkout, stays on `main`)
+- Worktrees live under: `$HOME/Repos/.worktrees/pika/<branch-name>`
 
-**Command Sequence:**
+**Quick start (existing worktree):**
 ```bash
-git fetch
-git worktree add $HOME/repos/.worktrees/pika/<branch-name> <branch-name>
-cd $HOME/repos/.worktrees/pika/<branch-name>
+pika ls
+pika claude <worktree>
+# or
+pika codex <worktree>
 ```
 
-**Discovery:**
-- Use `git worktree list` to discover active branches
+**Creating a new worktree:**
+- Follow `docs/dev-workflow.md` (authoritative)
 
 **Cleanup:**
-- After PR is merged, remove the worktree and delete the local branch:
-  ```bash
-  git worktree remove $HOME/repos/.worktrees/pika/<branch-name>
-  git branch -D <branch-name>
-  ```
-- See `docs/workflow/worktrees.md` and `docs/ai-instructions.md` (authoritative)
+- After PR is merged, remove the worktree and delete the local branch.
+- Use the safe patterns in `docs/dev-workflow.md` (all git commands via `git -C "$PIKA_WORKTREE"`).
 
-**Helper Script:**
-- Quick setup: `bash scripts/wt-add.sh <branch-name>`
+**Legacy Helper Script (avoid):**
+- `bash scripts/wt-add.sh <branch-name>` (superseded by `docs/dev-workflow.md`)
 
 ## Environment Files (.env.local)
 
@@ -42,13 +39,13 @@ cd $HOME/repos/.worktrees/pika/<branch-name>
 
 **Canonical Location:**
 ```
-$HOME/repos/.env/pika/.env.local
+$HOME/Repos/.env/pika/.env.local
 ```
 
 **Symlink Setup:**
 Each worktree must symlink `.env.local` to the canonical file:
 ```bash
-ln -sf $HOME/repos/.env/pika/.env.local <worktree>/.env.local
+ln -sf $HOME/Repos/.env/pika/.env.local <worktree>/.env.local
 ```
 
 **Why Symlinks:**
@@ -56,8 +53,8 @@ ln -sf $HOME/repos/.env/pika/.env.local <worktree>/.env.local
 - Symlinks avoid duplication and drift across branches
 - `-s` = symbolic link, `-f` = force/replace existing file
 
-**Helper Script Handles This:**
-- `bash scripts/wt-add.sh <branch-name>` automatically creates the symlink
+**Workflow Reference:**
+- See `docs/dev-workflow.md` for the recommended setup flow
 
 ### When Branch-Specific Envs Are Allowed (Exceptions Only)
 
