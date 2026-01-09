@@ -34,7 +34,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   }, [activeClassrooms])
 
   const sortedArchived = useMemo(() => {
-    return [...archivedClassrooms].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    return [...archivedClassrooms].sort((a, b) => {
+      const aKey = a.archived_at || a.updated_at
+      const bKey = b.archived_at || b.updated_at
+      return bKey.localeCompare(aKey)
+    })
   }, [archivedClassrooms])
 
   const visibleClassrooms = view === 'active' ? sortedActive : sortedArchived

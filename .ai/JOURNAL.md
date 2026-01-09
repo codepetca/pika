@@ -2131,3 +2131,14 @@
 **Tests:** `bash scripts/verify-env.sh`
 **Next:** Apply migration in Supabase and spot-check archive/restore/delete flows in the UI.
 **Blockers:** None
+---
+## 2026-01-09 10:35 [AI - Codex]
+**Goal:** Address review feedback for archive ordering and theme flicker.
+**Completed:** Sorted archived classrooms by archived_at (fallback updated_at) and set initial theme from localStorage/document with layout effect sync.
+**Status:** completed
+**Artifacts:**
+- Branch: issue/70-feat-add-classroom-delete-archive-functi
+- Files: src/app/classrooms/TeacherClassroomsIndex.tsx, src/contexts/ThemeContext.tsx
+**Tests:** Not run (not requested).
+**Next:** Consider verifying archive list order and dark mode toggle in UI.
+**Blockers:** None
