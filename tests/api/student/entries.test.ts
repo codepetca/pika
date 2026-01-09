@@ -182,7 +182,7 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('classroom_id, date, and text are required')
+      expect(data.error).toBe('classroom_id and date are required')
     })
 
     it('should return 400 when date is missing', async () => {
@@ -198,7 +198,7 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('classroom_id, date, and text are required')
+      expect(data.error).toBe('classroom_id and date are required')
     })
 
     it('should return 400 when text is missing', async () => {
@@ -214,7 +214,7 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('classroom_id, date, and text are required')
+      expect(data.error).toBe('Entry text cannot be empty')
     })
 
     it('should return 400 when text is empty after trimming', async () => {
@@ -505,6 +505,7 @@ describe('POST /api/student/entries', () => {
         classroom_id: 'classroom-1',
         date: '2024-10-15',
         text: 'Test entry',
+        rich_content: null,
         minutes_reported: 60,
         mood: undefined,
         on_time: expect.any(Boolean),
@@ -580,6 +581,7 @@ describe('POST /api/student/entries', () => {
       expect(data.entry.text).toBe('Updated entry')
       expect(mockUpdate).toHaveBeenCalledWith({
         text: 'Updated entry',
+        rich_content: null,
         minutes_reported: undefined,
         mood: undefined,
         on_time: expect.any(Boolean),

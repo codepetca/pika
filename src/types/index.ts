@@ -79,6 +79,7 @@ export interface Entry {
   classroom_id: string
   date: string  // YYYY-MM-DD
   text: string
+  rich_content: TiptapContent | null
   minutes_reported: number | null
   mood: MoodEmoji | null
   created_at: string

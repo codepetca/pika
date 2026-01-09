@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, FormEvent, useRef, useCallback, type ChangeEvent } from 'react'
+import { useEffect, useState, FormEvent, useRef, useCallback } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
+import { RichTextEditor } from '@/components/RichTextEditor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
@@ -20,20 +21,27 @@ import {
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
 import { saveDraft, loadDraft, clearDraft } from '@/lib/draft-storage'
-import type { Classroom, ClassDay, Entry } from '@/types'
+import { countCharacters, isEmpty, extractPlainText, plainTextToTiptapContent } from '@/lib/tiptap-content'
+import type { Classroom, ClassDay, Entry, TiptapContent } from '@/types'
 
 interface Props {
   classroom: Classroom
 }
 
 export function StudentTodayTab({ classroom }: Props) {
+  // Constants
   const historyLimit = 5
   const historyCookieName = 'pika_student_today_history'
+  const AUTOSAVE_DEBOUNCE_MS = 5000
+  const AUTOSAVE_MIN_INTERVAL_MS = 15000
+  const MAX_CHARS = 2000
+
+  // State
   const [loading, setLoading] = useState(true)
   const [today, setToday] = useState('')
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [existingEntry, setExistingEntry] = useState<Entry | null>(null)
-  const [text, setText] = useState('')
+  const [content, setContent] = useState<TiptapContent>({ type: 'doc', content: [] })
   const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
   const [historyVisible, setHistoryVisible] = useState<boolean>(() =>
     readBooleanCookie(historyCookieName, true)
@@ -42,12 +50,14 @@ export function StudentTodayTab({ classroom }: Props) {
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
   const [draftRestored, setDraftRestored] = useState(false)
-  const [isDirty, setIsDirty] = useState(false)
-  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const handleTextChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
-    setText(event.target.value)
-    setIsDirty(true)
-  }, [])
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+
+  // Refs for autosave
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSavedContentRef = useRef('')
+  const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSaveAttemptAtRef = useRef(0)
+  const pendingContentRef = useRef<TiptapContent | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -71,17 +81,19 @@ export function StudentTodayTab({ classroom }: Props) {
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
           setExistingEntry(todayEntry)
 
-          // Check for draft
-          const draft = loadDraft(classroom.id, todayDate, todayEntry?.updated_at)
-          if (draft && draft.isDraftNewer) {
-            setText(draft.text)
-            setDraftRestored(true)
-            setIsDirty(false)
-            setTimeout(() => setDraftRestored(false), 3000)
+          // Load content: prefer rich_content, fall back to converted text
+          let loadedContent: TiptapContent
+          if (todayEntry?.rich_content) {
+            loadedContent = todayEntry.rich_content
+          } else if (todayEntry?.text) {
+            loadedContent = plainTextToTiptapContent(todayEntry.text)
           } else {
-            setText(todayEntry?.text || '')
-            setIsDirty(false)
+            loadedContent = { type: 'doc', content: [] }
           }
+
+          setContent(loadedContent)
+          lastSavedContentRef.current = JSON.stringify(loadedContent)
+          setSaveStatus('saved')
 
           await classDayPromise
           return
@@ -98,17 +110,19 @@ export function StudentTodayTab({ classroom }: Props) {
             const todayEntry = entries.find((e: Entry) => e.date === todayDate) || null
             setExistingEntry(todayEntry)
 
-            // Check for draft
-            const draft = loadDraft(classroom.id, todayDate, todayEntry?.updated_at)
-            if (draft && draft.isDraftNewer) {
-              setText(draft.text)
-              setDraftRestored(true)
-              setIsDirty(false)
-              setTimeout(() => setDraftRestored(false), 3000)
+            // Load content: prefer rich_content, fall back to converted text
+            let loadedContent: TiptapContent
+            if (todayEntry?.rich_content) {
+              loadedContent = todayEntry.rich_content
+            } else if (todayEntry?.text) {
+              loadedContent = plainTextToTiptapContent(todayEntry.text)
             } else {
-              setText(todayEntry?.text || '')
-              setIsDirty(false)
+              loadedContent = { type: 'doc', content: [] }
             }
+
+            setContent(loadedContent)
+            lastSavedContentRef.current = JSON.stringify(loadedContent)
+            setSaveStatus('saved')
           })
 
         await Promise.all([classDayPromise, entriesPromise])
@@ -121,49 +135,16 @@ export function StudentTodayTab({ classroom }: Props) {
     load()
   }, [classroom.id])
 
-  // Debounced autosave to localStorage
-  useEffect(() => {
-    if (!today || !isDirty) return
-
-    // Clear existing timer
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current)
-    }
-
-    if (text === '') {
-      clearDraft(classroom.id, today)
+  // Server autosave logic
+  const saveContent = useCallback(async (newContent: TiptapContent) => {
+    const newContentStr = JSON.stringify(newContent)
+    if (newContentStr === lastSavedContentRef.current) {
+      setSaveStatus('saved')
       return
     }
 
-    // Set new timer (500ms debounce)
-    autosaveTimerRef.current = setTimeout(() => {
-      saveDraft({
-        classroomId: classroom.id,
-        date: today,
-        text,
-      })
-    }, 500)
-
-    // Cleanup on unmount
-    return () => {
-      if (autosaveTimerRef.current) {
-        clearTimeout(autosaveTimerRef.current)
-      }
-    }
-  }, [classroom.id, today, text, isDirty])
-
-  const isClassDay = today ? isClassDayOnDate(classDays, today) : true
-
-  function setHistoryVisibility(next: boolean) {
-    setHistoryVisible(next)
-    writeCookie(historyCookieName, next ? '1' : '0')
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setSuccess('')
-    setSubmitting(true)
+    setSaveStatus('saving')
+    lastSaveAttemptAtRef.current = Date.now()
 
     try {
       const response = await fetch('/api/student/entries', {
@@ -172,14 +153,14 @@ export function StudentTodayTab({ classroom }: Props) {
         body: JSON.stringify({
           classroom_id: classroom.id,
           date: today,
-          text,
+          rich_content: newContent,
           mood: null,
         }),
       })
 
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save entry')
+        throw new Error(data.error || 'Failed to save')
       }
 
       setExistingEntry(data.entry)
@@ -195,17 +176,81 @@ export function StudentTodayTab({ classroom }: Props) {
         return next
       })
 
-      // Clear draft on successful save
+      lastSavedContentRef.current = newContentStr
+      setSaveStatus('saved')
       clearDraft(classroom.id, today)
-      setIsDirty(false)
-
-      setSuccess('Entry saved!')
-      setTimeout(() => setSuccess(''), 2000)
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
-    } finally {
-      setSubmitting(false)
+      console.error('Error saving:', err)
+      setSaveStatus('unsaved')
     }
+  }, [classroom.id, today, historyLimit])
+
+  const scheduleSave = useCallback((newContent: TiptapContent, options?: { force?: boolean }) => {
+    pendingContentRef.current = newContent
+
+    if (throttledSaveTimeoutRef.current) {
+      clearTimeout(throttledSaveTimeoutRef.current)
+      throttledSaveTimeoutRef.current = null
+    }
+
+    const now = Date.now()
+    const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
+
+    if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
+      void saveContent(newContent)
+      return
+    }
+
+    const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastAttempt
+    throttledSaveTimeoutRef.current = setTimeout(() => {
+      throttledSaveTimeoutRef.current = null
+      const latest = pendingContentRef.current
+      if (latest) {
+        void saveContent(latest)
+      }
+    }, waitMs)
+  }, [AUTOSAVE_MIN_INTERVAL_MS, saveContent])
+
+  function handleContentChange(newContent: TiptapContent) {
+    setContent(newContent)
+    setSaveStatus('unsaved')
+    pendingContentRef.current = newContent
+
+    // Debounce save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      scheduleSave(newContent)
+    }, AUTOSAVE_DEBOUNCE_MS)
+  }
+
+  function flushAutosave() {
+    if (saveStatus === 'unsaved' && pendingContentRef.current) {
+      scheduleSave(pendingContentRef.current, { force: true })
+    }
+  }
+
+  const isClassDay = today ? isClassDayOnDate(classDays, today) : true
+
+  function setHistoryVisibility(next: boolean) {
+    setHistoryVisible(next)
+    writeCookie(historyCookieName, next ? '1' : '0')
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+
+    // Save first if there are unsaved changes
+    if (JSON.stringify(content) !== lastSavedContentRef.current) {
+      await saveContent(content)
+    }
+
+    setSuccess('Entry saved!')
+    setTimeout(() => setSuccess(''), 2000)
   }
 
   if (loading) {
@@ -233,28 +278,37 @@ export function StudentTodayTab({ classroom }: Props) {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     What did you do today?
                   </label>
-                  <textarea
-                    value={text}
-                    onChange={handleTextChange}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <RichTextEditor
+                    content={content}
+                    onChange={handleContentChange}
+                    onBlur={flushAutosave}
                     placeholder="Write a short update..."
-                    required
                     disabled={submitting}
+                    editable={true}
+                    className="min-h-[200px]"
                   />
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className={countCharacters(content) > MAX_CHARS ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}>
+                      {countCharacters(content)} / {MAX_CHARS} characters
+                    </span>
+                    <span className={
+                      saveStatus === 'saved'
+                        ? 'text-green-600 dark:text-green-400'
+                        : saveStatus === 'saving'
+                          ? 'text-gray-500 dark:text-gray-400'
+                          : 'text-orange-600 dark:text-orange-400'
+                    }>
+                      {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+                    </span>
+                  </div>
                 </div>
 
                 {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
                 {success && (
                   <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
                 )}
-                {draftRestored && (
-                  <p className="text-sm text-blue-600 dark:text-blue-400">
-                    Draft restored from auto-save
-                  </p>
-                )}
 
-                <Button type="submit" disabled={submitting || !text}>
+                <Button type="submit" disabled={submitting || isEmpty(content) || countCharacters(content) > MAX_CHARS}>
                   {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
                 </Button>
               </form>

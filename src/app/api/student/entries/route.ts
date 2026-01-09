@@ -3,7 +3,8 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { isOnTime } from '@/lib/timezone'
 import { getTodayInToronto } from '@/lib/timezone'
-import type { MoodEmoji } from '@/types'
+import { extractPlainText, isValidTiptapContent, countCharacters } from '@/lib/tiptap-content'
+import type { MoodEmoji, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -83,17 +84,37 @@ export async function POST(request: NextRequest) {
     const user = await requireRole('student')
     const body = await request.json()
 
-    const { classroom_id, date, text, minutes_reported, mood } = body
+    const { classroom_id, date, text, rich_content, minutes_reported, mood } = body
 
-    // Validation
-    if (!classroom_id || !date || !text) {
+    // Validation - either text or rich_content must be provided
+    if (!classroom_id || !date) {
       return NextResponse.json(
-        { error: 'classroom_id, date, and text are required' },
+        { error: 'classroom_id and date are required' },
         { status: 400 }
       )
     }
 
-    if (text.trim().length === 0) {
+    // Validate rich_content if provided
+    if (rich_content) {
+      if (!isValidTiptapContent(rich_content)) {
+        return NextResponse.json(
+          { error: 'Invalid rich_content format' },
+          { status: 400 }
+        )
+      }
+
+      // Character limit enforcement (2000 chars)
+      const charCount = countCharacters(rich_content)
+      if (charCount > 2000) {
+        return NextResponse.json(
+          { error: 'Entry exceeds 2000 character limit' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // If rich_content not provided, validate text
+    if (!rich_content && (!text || text.trim().length === 0)) {
       return NextResponse.json(
         { error: 'Entry text cannot be empty' },
         { status: 400 }
@@ -170,6 +191,10 @@ export async function POST(request: NextRequest) {
     const now = new Date()
     const onTime = isOnTime(now, date)
 
+    // Prepare entry data: extract text from rich_content if provided
+    const entryText = rich_content ? extractPlainText(rich_content) : text
+    const entryRichContent = rich_content || null
+
     // Check if entry already exists
     const { data: existing } = await supabase
       .from('entries')
@@ -186,7 +211,8 @@ export async function POST(request: NextRequest) {
       const { data, error } = await supabase
         .from('entries')
         .update({
-          text,
+          text: entryText,
+          rich_content: entryRichContent,
           minutes_reported,
           mood,
           on_time: onTime, // Recalculate on update
@@ -212,7 +238,8 @@ export async function POST(request: NextRequest) {
           student_id: user.id,
           classroom_id,
           date,
-          text,
+          text: entryText,
+          rich_content: entryRichContent,
           minutes_reported,
           mood,
           on_time: onTime,

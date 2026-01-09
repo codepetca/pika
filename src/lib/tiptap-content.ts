@@ -117,3 +117,27 @@ export function sanitizeLinkHref(input: string): string | null {
 
   return null
 }
+
+/**
+ * Convert plain text to TipTap JSON content
+ * Used for backward compatibility when loading entries without rich_content
+ *
+ * @param text - Plain text string to convert
+ * @returns TipTap content with text converted to paragraphs
+ */
+export function plainTextToTiptapContent(text: string): TiptapContent {
+  if (!text || text.trim() === '') {
+    return { type: 'doc', content: [] }
+  }
+
+  // Split by newlines to create paragraphs
+  const paragraphs = text.split('\n').map(line => ({
+    type: 'paragraph' as const,
+    content: line ? [{ type: 'text' as const, text: line }] : []
+  }))
+
+  return {
+    type: 'doc',
+    content: paragraphs
+  }
+}
