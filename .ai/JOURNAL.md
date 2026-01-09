@@ -2120,3 +2120,14 @@
 **Next:** Re-run `scripts/pika ls` and `scripts/pika codex` to confirm clean labels.
 **Blockers:** None
 ---
+## 2026-01-09 12:24 [AI - Codex]
+**Goal:** Implement Student Today rich-text autosave with JSON Patch/versioning and conflict handling.
+**Completed:** Added rich_content + version migrations, built PATCH + validation flow for entries, updated Student Today autosave UI with conflict actions and character limits, and expanded tests for patch saves and content conversion.
+**Status:** completed
+**Artifacts:**
+- Branch: issue/63-student-today-autosave-rich-text-daily-l
+- Files: src/app/api/student/entries/route.ts, src/app/classrooms/[classroomId]/StudentTodayTab.tsx, src/lib/tiptap-content.ts, src/types/index.ts, supabase/migrations/016_entries_rich_content.sql, supabase/migrations/017_entries_version.sql, tests/api/student/entries.test.ts, tests/components/StudentTodayTabHistory.test.tsx, tests/helpers/mocks.ts, tests/unit/student-entry-history.test.ts, tests/unit/tiptap-content.test.ts
+**Tests:** Not run after changes (last full run before edits).
+**Next:** Run targeted tests for entries autosave and StudentTodayTab history.
+**Blockers:** None
+---

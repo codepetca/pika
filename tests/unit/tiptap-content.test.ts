@@ -5,6 +5,7 @@ import {
   countWords,
   countCharacters,
   isEmpty,
+  plainTextToTiptapContent,
 } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
@@ -267,6 +268,42 @@ describe('tiptap-content utilities', () => {
         ],
       }
       expect(isEmpty(content)).toBe(false)
+    })
+  })
+
+  describe('plainTextToTiptapContent', () => {
+    it('should return empty document for empty text', () => {
+      expect(plainTextToTiptapContent('')).toEqual({ type: 'doc', content: [] })
+    })
+
+    it('should create a paragraph for single-line text', () => {
+      const content = plainTextToTiptapContent('Hello world')
+      expect(content).toEqual({
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Hello world' }],
+          },
+        ],
+      })
+    })
+
+    it('should split multi-line text into paragraphs', () => {
+      const content = plainTextToTiptapContent('Line 1\nLine 2')
+      expect(content).toEqual({
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Line 1' }],
+          },
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Line 2' }],
+          },
+        ],
+      })
     })
   })
 

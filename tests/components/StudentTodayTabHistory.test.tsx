@@ -28,6 +28,8 @@ const entries: Entry[] = [
     classroom_id: 'c1',
     date: '2025-12-16',
     text: 'Worked on my assignment and reviewed notes.',
+    rich_content: null,
+    version: 1,
     minutes_reported: null,
     mood: null,
     created_at: '2025-12-16T01:00:00Z',
@@ -40,6 +42,8 @@ const entries: Entry[] = [
     classroom_id: 'c1',
     date: '2025-12-15',
     text: 'Had trouble focusing but completed the reading.',
+    rich_content: null,
+    version: 1,
     minutes_reported: null,
     mood: null,
     created_at: '2025-12-15T01:00:00Z',
@@ -89,14 +93,14 @@ describe('StudentTodayTab history section', () => {
     render(<StudentTodayTab classroom={classroom} />)
 
     await screen.findAllByText('Tue Dec 16')
-    await screen.findByText('History')
+    await screen.findByText('Past Logs')
 
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /hide history/i }))
+    fireEvent.click(screen.getByRole('button', { name: /hide/i }))
     expect(screen.queryByText('Mon Dec 15')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /show history/i }))
+    fireEvent.click(screen.getByRole('button', { name: /show/i }))
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
     const entryFetchCalls = fetchMock.mock.calls.filter(([arg]) =>
@@ -119,17 +123,17 @@ describe('StudentTodayTab history section', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { unmount } = render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('History')
+    await screen.findByText('Past Logs')
 
-    fireEvent.click(screen.getByRole('button', { name: /hide history/i }))
+    fireEvent.click(screen.getByRole('button', { name: /hide/i }))
     expect(document.cookie).toMatch(/pika_student_today_history=0/)
 
     unmount()
 
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('History')
+    await screen.findByText('Past Logs')
 
-    expect(screen.getByRole('button', { name: /show history/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /show/i })).toBeInTheDocument()
     expect(screen.queryByText('Mon Dec 15')).not.toBeInTheDocument()
   })
 
@@ -150,7 +154,7 @@ describe('StudentTodayTab history section', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('History')
+    await screen.findByText('Past Logs')
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
     await waitFor(() => {
