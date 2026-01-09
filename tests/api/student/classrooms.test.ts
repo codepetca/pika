@@ -134,7 +134,9 @@ describe('GET /api/student/classrooms', () => {
 
     it('should filter by student_id', async () => {
       const mockEq = vi.fn(() => ({
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        is: vi.fn(() => ({
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        })),
       }))
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
@@ -152,10 +154,12 @@ describe('GET /api/student/classrooms', () => {
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'Database error' },
-            }),
+            is: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Database error' },
+              }),
+            })),
           })),
         })),
       }))

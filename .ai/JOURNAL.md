@@ -2175,3 +2175,14 @@
 **Tests:** `npm test -- tests/api/student/classrooms.test.ts tests/api/teacher/roster.test.ts` (failed: vitest not found in this worktree)
 **Next:** Install deps in this worktree or run tests from an environment with vitest, then open PR.
 **Blockers:** None
+---
+## 2026-01-09 12:17 [AI - Codex]
+**Goal:** Fix CI failure in student classrooms test mock chain.
+**Completed:** Added missing `.is` chaining in student classrooms test mocks to align with route behavior.
+**Status:** completed
+**Artifacts:**
+- Branch: fix/ci-archive-issues
+- Files: tests/api/student/classrooms.test.ts
+**Tests:** Not run (vitest missing in worktree).
+**Next:** Install deps in this worktree or rely on CI run.
+**Blockers:** None
