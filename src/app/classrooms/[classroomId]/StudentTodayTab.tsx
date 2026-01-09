@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState, FormEvent, useRef, useCallback } from 'react'
-import { Button } from '@/components/Button'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/RichTextEditor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -239,20 +238,6 @@ export function StudentTodayTab({ classroom }: Props) {
     writeCookie(historyCookieName, next ? '1' : '0')
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setSuccess('')
-
-    // Save first if there are unsaved changes
-    if (JSON.stringify(content) !== lastSavedContentRef.current) {
-      await saveContent(content)
-    }
-
-    setSuccess('Entry saved!')
-    setTimeout(() => setSuccess(''), 2000)
-  }
-
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -273,7 +258,7 @@ export function StudentTodayTab({ classroom }: Props) {
                 <p className="text-gray-600 dark:text-gray-400">No class today</p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     What did you do today?
@@ -307,17 +292,13 @@ export function StudentTodayTab({ classroom }: Props) {
                 {success && (
                   <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
                 )}
-
-                <Button type="submit" disabled={submitting || isEmpty(content) || countCharacters(content) > MAX_CHARS}>
-                  {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
-                </Button>
-              </form>
+              </div>
             )}
           </div>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">History</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Past Logs</h3>
               <button
                 type="button"
                 className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
@@ -325,7 +306,7 @@ export function StudentTodayTab({ classroom }: Props) {
                 aria-controls={historyListId}
                 onClick={() => setHistoryVisibility(!historyVisible)}
               >
-                {historyVisible ? 'Hide history' : 'Show history'}
+                {historyVisible ? 'Hide' : 'Show'}
                 <ChevronDownIcon
                   className={[
                     'h-4 w-4 transition-transform',
