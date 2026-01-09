@@ -24,7 +24,8 @@ export async function GET(
         classrooms!inner (
           id,
           teacher_id,
-          title
+          title,
+          archived_at
         )
       `)
       .eq('id', id)
@@ -170,7 +171,8 @@ export async function PATCH(
       .select(`
         *,
         classrooms!inner (
-          teacher_id
+          teacher_id,
+          archived_at
         )
       `)
       .eq('id', id)
@@ -186,6 +188,13 @@ export async function PATCH(
     if (existing.classrooms.teacher_id !== user.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
+        { status: 403 }
+      )
+    }
+
+    if (existing.classrooms.archived_at) {
+      return NextResponse.json(
+        { error: 'Classroom is archived' },
         { status: 403 }
       )
     }
@@ -255,7 +264,8 @@ export async function DELETE(
       .select(`
         *,
         classrooms!inner (
-          teacher_id
+          teacher_id,
+          archived_at
         )
       `)
       .eq('id', id)
@@ -271,6 +281,13 @@ export async function DELETE(
     if (existing.classrooms.teacher_id !== user.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
+        { status: 403 }
+      )
+    }
+
+    if (existing.classrooms.archived_at) {
+      return NextResponse.json(
+        { error: 'Classroom is archived' },
         { status: 403 }
       )
     }

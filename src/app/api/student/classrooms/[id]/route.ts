@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,18 +17,11 @@ export async function GET(
 
     const supabase = getServiceRoleClient()
 
-    // Verify enrollment
-    const { data: enrollment, error: enrollError } = await supabase
-      .from('classroom_enrollments')
-      .select('id')
-      .eq('classroom_id', classroomId)
-      .eq('student_id', user.id)
-      .single()
-
-    if (enrollError || !enrollment) {
+    const access = await assertStudentCanAccessClassroom(user.id, classroomId)
+    if (!access.ok) {
       return NextResponse.json(
-        { error: 'Not enrolled in this classroom' },
-        { status: 403 }
+        { error: access.error },
+        { status: access.status }
       )
     }
 

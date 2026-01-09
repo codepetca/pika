@@ -19,6 +19,7 @@ interface Props {
 }
 
 export function TeacherSettingsTab({ classroom }: Props) {
+  const isReadOnly = !!classroom.archived_at
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
   const [saving, setSaving] = useState(false)
@@ -51,6 +52,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
   }
 
   async function saveAllowEnrollment(nextValue: boolean) {
+    if (isReadOnly) return
     setSaving(true)
     setEnrollmentError('')
     setEnrollmentSuccess('')
@@ -74,6 +76,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
   }
 
   async function regenerateJoinCode() {
+    if (isReadOnly) return
     setIsRegenerating(true)
     setJoinCodeError('')
     setJoinCodeSuccess('')
@@ -110,7 +113,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
               type="checkbox"
               checked={allowEnrollment}
               onChange={(e) => saveAllowEnrollment(e.target.checked)}
-              disabled={saving}
+              disabled={saving || isReadOnly}
               className="h-4 w-4"
             />
             <span className="text-gray-700 dark:text-gray-300">
@@ -147,7 +150,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
           <Button
             variant="secondary"
             onClick={() => setShowRegenerateConfirm(true)}
-            disabled={isRegenerating}
+            disabled={isRegenerating || isReadOnly}
             className="w-full sm:w-auto"
           >
             {isRegenerating ? 'Generating…' : 'New code'}
@@ -176,9 +179,9 @@ export function TeacherSettingsTab({ classroom }: Props) {
         confirmLabel={isRegenerating ? 'Generating…' : 'New code'}
         cancelLabel="Cancel"
         confirmVariant="danger"
-        isConfirmDisabled={isRegenerating}
-        isCancelDisabled={isRegenerating}
-        onCancel={() => (isRegenerating ? null : setShowRegenerateConfirm(false))}
+        isConfirmDisabled={isRegenerating || isReadOnly}
+        isCancelDisabled={isRegenerating || isReadOnly}
+        onCancel={() => (isRegenerating || isReadOnly ? null : setShowRegenerateConfirm(false))}
         onConfirm={regenerateJoinCode}
       />
       </PageContent>

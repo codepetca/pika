@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { countCharacters, countWords, isValidTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -53,18 +54,11 @@ export async function GET(
       )
     }
 
-    // Verify enrollment
-    const { data: enrollment, error: enrollmentError } = await supabase
-      .from('classroom_enrollments')
-      .select('id')
-      .eq('classroom_id', assignment.classroom_id)
-      .eq('student_id', user.id)
-      .single()
-
-    if (enrollmentError || !enrollment) {
+    const access = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
+    if (!access.ok) {
       return NextResponse.json(
-        { error: 'Not enrolled in this classroom' },
-        { status: 403 }
+        { error: access.error },
+        { status: access.status }
       )
     }
 
@@ -197,18 +191,11 @@ export async function PATCH(
       )
     }
 
-    // Verify enrollment
-    const { data: enrollment } = await supabase
-      .from('classroom_enrollments')
-      .select('id')
-      .eq('classroom_id', assignment.classroom_id)
-      .eq('student_id', user.id)
-      .single()
-
-    if (!enrollment) {
+    const access = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
+    if (!access.ok) {
       return NextResponse.json(
-        { error: 'Not enrolled in this classroom' },
-        { status: 403 }
+        { error: access.error },
+        { status: access.status }
       )
     }
 

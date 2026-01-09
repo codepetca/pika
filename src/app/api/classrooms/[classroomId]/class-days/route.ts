@@ -3,11 +3,15 @@ import { requireAuth, requireRole } from '@/lib/auth'
 import type { Semester } from '@/types'
 import { getTodayInToronto } from '@/lib/timezone'
 import {
-  assertTeacherOwnsClassroom,
   fetchClassDaysForClassroom,
   generateClassDaysForClassroom,
   upsertClassDayForClassroom,
 } from '@/lib/server/class-days'
+import {
+  assertStudentCanAccessClassroom,
+  assertTeacherCanMutateClassroom,
+  assertTeacherOwnsClassroom,
+} from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -15,11 +19,21 @@ export const revalidate = 0
 // GET /api/classrooms/:classroomId/class-days (auth required; teacher or student)
 export async function GET(_request: NextRequest, context: { params: Promise<{ classroomId: string }> }) {
   try {
-    await requireAuth()
+    const user = await requireAuth()
 
     const { classroomId } = await context.params
     if (!classroomId) {
       return NextResponse.json({ error: 'classroomId is required' }, { status: 400 })
+    }
+
+    if (user.role === 'teacher') {
+      const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+      if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: ownership.status })
+    } else if (user.role === 'student') {
+      const access = await assertStudentCanAccessClassroom(user.id, classroomId)
+      if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+    } else {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { classDays, error } = await fetchClassDaysForClassroom(classroomId)
@@ -47,7 +61,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ cl
     }
 
     const body = await request.json()
-    const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+    const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
     if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: ownership.status })
 
     const result = await generateClassDaysForClassroom({
@@ -95,7 +109,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ c
       return NextResponse.json({ error: 'Cannot modify past class days' }, { status: 400 })
     }
 
-    const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+    const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
     if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: ownership.status })
 
     const result = await upsertClassDayForClassroom({ classroomId, date, isClassDay: is_class_day })

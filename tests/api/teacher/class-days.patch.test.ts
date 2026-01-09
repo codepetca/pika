@@ -10,6 +10,12 @@ vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabas
 vi.mock('@/lib/auth', () => ({
   requireRole: vi.fn(async () => ({ id: 'teacher-1', role: 'teacher' })),
 }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertTeacherCanMutateClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'classroom-1', teacher_id: 'teacher-1', archived_at: null },
+  })),
+}))
 vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: vi.fn(() => '2024-10-15'),
 }))
@@ -112,4 +118,3 @@ describe('PATCH /api/teacher/class-days', () => {
     expect(data.class_day.is_class_day).toBe(true)
   })
 })
-

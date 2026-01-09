@@ -6,16 +6,25 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET /api/teacher/classrooms - List teacher's classrooms
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await requireRole('teacher')
     const supabase = getServiceRoleClient()
+    const { searchParams } = new URL(request.url)
+    const archivedParam = searchParams.get('archived')
 
-    const { data: classrooms, error } = await supabase
+    let query = supabase
       .from('classrooms')
       .select('*')
       .eq('teacher_id', user.id)
-      .order('updated_at', { ascending: false })
+
+    if (archivedParam === 'true') {
+      query = query.not('archived_at', 'is', null).order('archived_at', { ascending: false })
+    } else {
+      query = query.is('archived_at', null).order('updated_at', { ascending: false })
+    }
+
+    const { data: classrooms, error } = await query
 
     if (error) {
       console.error('Error fetching classrooms:', error)

@@ -15,25 +15,6 @@ export async function fetchClassDaysForClassroom(classroomId: string) {
   return { classDays: classDays || [], error }
 }
 
-export async function assertTeacherOwnsClassroom(teacherId: string, classroomId: string) {
-  const supabase = getServiceRoleClient()
-  const { data: classroom, error } = await supabase
-    .from('classrooms')
-    .select('teacher_id')
-    .eq('id', classroomId)
-    .single()
-
-  if (error || !classroom) {
-    return { ok: false as const, status: 404 as const, error: 'Classroom not found' }
-  }
-
-  if (classroom.teacher_id !== teacherId) {
-    return { ok: false as const, status: 403 as const, error: 'Forbidden' }
-  }
-
-  return { ok: true as const }
-}
-
 export async function generateClassDaysForClassroom(args: {
   classroomId: string
   semester?: Semester
@@ -175,4 +156,3 @@ export async function upsertClassDayForClassroom(args: {
 
   return { ok: true as const, classDay: updated }
 }
-

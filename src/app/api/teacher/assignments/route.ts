@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -19,22 +20,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = getServiceRoleClient()
-
-    // Verify teacher owns this classroom
-    const { data: classroom, error: classroomError } = await supabase
-      .from('classrooms')
-      .select('id')
-      .eq('id', classroomId)
-      .eq('teacher_id', user.id)
-      .single()
-
-    if (classroomError || !classroom) {
+    const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+    if (!ownership.ok) {
       return NextResponse.json(
-        { error: 'Classroom not found or unauthorized' },
-        { status: 403 }
+        { error: ownership.error },
+        { status: ownership.status }
       )
     }
+
+    const supabase = getServiceRoleClient()
 
     // Fetch assignments with submission stats.
     // Fall back to due_at ordering if the position column isn't available yet.
@@ -144,22 +138,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = getServiceRoleClient()
-
-    // Verify teacher owns this classroom
-    const { data: classroom, error: classroomError } = await supabase
-      .from('classrooms')
-      .select('id')
-      .eq('id', classroom_id)
-      .eq('teacher_id', user.id)
-      .single()
-
-    if (classroomError || !classroom) {
+    const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
+    if (!ownership.ok) {
       return NextResponse.json(
-        { error: 'Classroom not found or unauthorized' },
-        { status: 403 }
+        { error: ownership.error },
+        { status: ownership.status }
       )
     }
+
+    const supabase = getServiceRoleClient()
 
     // Create assignment
     const lastAssignmentResult = await supabase

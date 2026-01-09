@@ -2120,3 +2120,47 @@
 **Next:** Re-run `scripts/pika ls` and `scripts/pika codex` to confirm clean labels.
 **Blockers:** None
 ---
+---
+## 2026-01-09 09:46 [AI - Codex]
+**Goal:** Implement classroom archiving (soft delete) with read-only access and archived list UI.
+**Completed:** Added archived_at migration and helper guards, enforced archive gating in API routes, updated teacher/student classroom lists, added archive/restore/delete UI with read-only teacher views, and created follow-up issue for cold storage.
+**Status:** completed
+**Artifacts:**
+- Branch: issue/70-feat-add-classroom-delete-archive-functi
+- Files: supabase/migrations/016_classroom_archiving.sql, src/lib/server/classrooms.ts, src/app/classrooms/TeacherClassroomsIndex.tsx, src/app/api/teacher/classrooms/[id]/route.ts
+**Tests:** `bash scripts/verify-env.sh`
+**Next:** Apply migration in Supabase and spot-check archive/restore/delete flows in the UI.
+**Blockers:** None
+---
+## 2026-01-09 10:35 [AI - Codex]
+**Goal:** Address review feedback for archive ordering and theme flicker.
+**Completed:** Sorted archived classrooms by archived_at (fallback updated_at) and set initial theme from localStorage/document with layout effect sync.
+**Status:** completed
+**Artifacts:**
+- Branch: issue/70-feat-add-classroom-delete-archive-functi
+- Files: src/app/classrooms/TeacherClassroomsIndex.tsx, src/contexts/ThemeContext.tsx
+**Tests:** Not run (not requested).
+**Next:** Consider verifying archive list order and dark mode toggle in UI.
+**Blockers:** None
+---
+## 2026-01-09 10:39 [AI - Codex]
+**Goal:** Eliminate dark-mode flash on load by setting theme before hydration.
+**Completed:** Added a beforeInteractive theme init script in the root layout and enabled suppressHydrationWarning for html.
+**Status:** completed
+**Artifacts:**
+- Branch: issue/70-feat-add-classroom-delete-archive-functi
+- Files: src/app/layout.tsx
+**Tests:** Not run (not requested).
+**Next:** Refresh with a dark theme stored and confirm no white flash.
+**Blockers:** None
+---
+## 2026-01-09 10:44 [AI - Codex]
+**Goal:** Remove remaining white flash when loading dark theme.
+**Completed:** Inlined early theme script using localStorage or prefers-color-scheme and set initial background/color-scheme; synced ThemeProvider to update html styles on theme changes.
+**Status:** completed
+**Artifacts:**
+- Branch: issue/70-feat-add-classroom-delete-archive-functi
+- Files: src/app/layout.tsx, src/contexts/ThemeContext.tsx
+**Tests:** Not run (not requested).
+**Next:** Reload with stored dark theme and verify no flash.
+**Blockers:** None
