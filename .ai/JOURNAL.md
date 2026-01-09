@@ -2142,3 +2142,14 @@
 **Tests:** Not run (not requested).
 **Next:** Consider verifying archive list order and dark mode toggle in UI.
 **Blockers:** None
+---
+## 2026-01-09 10:39 [AI - Codex]
+**Goal:** Eliminate dark-mode flash on load by setting theme before hydration.
+**Completed:** Added a beforeInteractive theme init script in the root layout and enabled suppressHydrationWarning for html.
+**Status:** completed
+**Artifacts:**
+- Branch: issue/70-feat-add-classroom-delete-archive-functi
+- Files: src/app/layout.tsx
+**Tests:** Not run (not requested).
+**Next:** Refresh with a dark theme stored and confirm no white flash.
+**Blockers:** None
