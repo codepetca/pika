@@ -2164,3 +2164,36 @@
 **Tests:** Not run (not requested).
 **Next:** Reload with stored dark theme and verify no flash.
 **Blockers:** None
+---
+## 2026-01-09 12:14 [AI - Codex]
+**Goal:** Fix CI failures after classroom archiving merge.
+**Completed:** Guarded student classrooms mapping against null enrollments and updated roster test to mock ownership helper denial.
+**Status:** in_progress
+**Artifacts:**
+- Branch: fix/ci-archive-issues
+- Files: src/app/api/student/classrooms/route.ts, tests/api/teacher/roster.test.ts
+**Tests:** `npm test -- tests/api/student/classrooms.test.ts tests/api/teacher/roster.test.ts` (failed: vitest not found in this worktree)
+**Next:** Install deps in this worktree or run tests from an environment with vitest, then open PR.
+**Blockers:** None
+---
+## 2026-01-09 12:17 [AI - Codex]
+**Goal:** Fix CI failure in student classrooms test mock chain.
+**Completed:** Added missing `.is` chaining in student classrooms test mocks to align with route behavior.
+**Status:** completed
+**Artifacts:**
+- Branch: fix/ci-archive-issues
+- Files: tests/api/student/classrooms.test.ts
+**Tests:** Not run (vitest missing in worktree).
+**Next:** Install deps in this worktree or rely on CI run.
+**Blockers:** None
+---
+## 2026-01-09 12:19 [AI - Codex]
+**Goal:** Fix remaining student classrooms test mock chain failure.
+**Completed:** Added missing `.is` chaining for enrollment metadata test mock.
+**Status:** completed
+**Artifacts:**
+- Branch: fix/ci-archive-issues
+- Files: tests/api/student/classrooms.test.ts
+**Tests:** Not run (vitest missing in worktree).
+**Next:** Re-run CI or local tests after installing deps.
+**Blockers:** None
