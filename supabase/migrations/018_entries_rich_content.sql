@@ -3,7 +3,7 @@
 
 -- STEP 1: Add new JSONB column
 ALTER TABLE public.entries
-  ADD COLUMN rich_content JSONB;
+  ADD COLUMN IF NOT EXISTS rich_content JSONB;
 
 -- STEP 2: Set default for new entries
 ALTER TABLE public.entries

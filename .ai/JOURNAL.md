@@ -2208,3 +2208,14 @@
 **Tests:** Not run (vitest missing in worktree).
 **Next:** Re-run CI or local tests after installing deps.
 **Blockers:** None
+---
+## 2026-01-09 14:22 [AI - Codex]
+**Goal:** Resolve duplicate migration version for entries rich content.
+**Completed:** Renamed entries rich_content migration to 018 and made the column add idempotent.
+**Status:** completed
+**Artifacts:**
+- Branch: fix-entries-rich-content-migration
+- Files: supabase/migrations/018_entries_rich_content.sql
+**Tests:** Not run (migration-only change).
+**Next:** Open PR and apply migration on staging with `supabase db push --include-all`.
+**Blockers:** None
