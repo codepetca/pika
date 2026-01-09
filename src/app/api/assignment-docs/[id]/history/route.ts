@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -61,6 +62,14 @@ export async function GET(
         )
       }
       studentId = requestedStudentId
+    } else {
+      const access = await assertStudentCanAccessClassroom(user.id, assignmentData.classroom_id)
+      if (!access.ok) {
+        return NextResponse.json(
+          { error: access.error },
+          { status: access.status }
+        )
+      }
     }
 
     const { data: enrollment } = await supabase

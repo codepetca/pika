@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, requireRole } from '@/lib/auth'
 import type { Semester } from '@/types'
 import {
-  assertTeacherOwnsClassroom,
   fetchClassDaysForClassroom,
   generateClassDaysForClassroom,
   upsertClassDayForClassroom,
 } from '@/lib/server/class-days'
 import { getTodayInToronto } from '@/lib/timezone'
+import {
+  assertStudentCanAccessClassroom,
+  assertTeacherCanMutateClassroom,
+  assertTeacherOwnsClassroom,
+} from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -22,7 +26,7 @@ export const revalidate = 0
 export async function GET(request: NextRequest) {
   try {
     // Allow both teachers and students to read class days
-    await requireAuth()
+    const user = await requireAuth()
 
     const { searchParams } = new URL(request.url)
     const classroomId = searchParams.get('classroom_id')
@@ -32,6 +36,16 @@ export async function GET(request: NextRequest) {
         { error: 'classroom_id is required' },
         { status: 400 }
       )
+    }
+
+    if (user.role === 'teacher') {
+      const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+      if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: ownership.status })
+    } else if (user.role === 'student') {
+      const access = await assertStudentCanAccessClassroom(user.id, classroomId)
+      if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
+    } else {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { classDays, error } = await fetchClassDaysForClassroom(classroomId)
@@ -91,7 +105,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const ownership = await assertTeacherOwnsClassroom(user.id, classroom_id)
+    const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
     if (!ownership.ok) {
       return NextResponse.json({ error: ownership.error }, { status: ownership.status })
     }
@@ -169,7 +183,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const ownership = await assertTeacherOwnsClassroom(user.id, classroom_id)
+    const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
     if (!ownership.ok) {
       return NextResponse.json({ error: ownership.error }, { status: ownership.status })
     }

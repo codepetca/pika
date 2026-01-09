@@ -25,6 +25,7 @@ export async function GET() {
         )
       `)
       .eq('student_id', user.id)
+      .is('classrooms.archived_at', null)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -35,7 +36,7 @@ export async function GET() {
       )
     }
 
-    const classrooms = enrollments.map(e => ({
+    const classrooms = (enrollments ?? []).map(e => ({
       ...e.classrooms,
       enrollmentId: e.id,
       enrolledAt: e.created_at,

@@ -45,10 +45,12 @@ describe('GET /api/student/classrooms', () => {
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
+            is: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
+              }),
+            })),
           })),
         })),
       }))
@@ -65,33 +67,35 @@ describe('GET /api/student/classrooms', () => {
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: 'enrollment-1',
-                  created_at: '2024-09-01T10:00:00Z',
-                  classrooms: {
-                    id: 'classroom-1',
-                    title: 'Math 101',
-                    class_code: 'MATH101',
-                    term_label: 'Fall 2024',
-                    updated_at: '2024-09-01T10:00:00Z',
+            is: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: 'enrollment-1',
+                    created_at: '2024-09-01T10:00:00Z',
+                    classrooms: {
+                      id: 'classroom-1',
+                      title: 'Math 101',
+                      class_code: 'MATH101',
+                      term_label: 'Fall 2024',
+                      updated_at: '2024-09-01T10:00:00Z',
+                    },
                   },
-                },
-                {
-                  id: 'enrollment-2',
-                  created_at: '2024-09-02T10:00:00Z',
-                  classrooms: {
-                    id: 'classroom-2',
-                    title: 'Science 101',
-                    class_code: 'SCI101',
-                    term_label: 'Fall 2024',
-                    updated_at: '2024-09-02T10:00:00Z',
+                  {
+                    id: 'enrollment-2',
+                    created_at: '2024-09-02T10:00:00Z',
+                    classrooms: {
+                      id: 'classroom-2',
+                      title: 'Science 101',
+                      class_code: 'SCI101',
+                      term_label: 'Fall 2024',
+                      updated_at: '2024-09-02T10:00:00Z',
+                    },
                   },
-                },
-              ],
-              error: null,
-            }),
+                ],
+                error: null,
+              }),
+            })),
           })),
         })),
       }))
@@ -115,7 +119,9 @@ describe('GET /api/student/classrooms', () => {
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
-            order: mockOrder,
+            is: vi.fn(() => ({
+              order: mockOrder,
+            })),
           })),
         })),
       }))
@@ -128,7 +134,9 @@ describe('GET /api/student/classrooms', () => {
 
     it('should filter by student_id', async () => {
       const mockEq = vi.fn(() => ({
-        order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        is: vi.fn(() => ({
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        })),
       }))
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
@@ -146,10 +154,12 @@ describe('GET /api/student/classrooms', () => {
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'Database error' },
-            }),
+            is: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Database error' },
+              }),
+            })),
           })),
         })),
       }))
@@ -166,19 +176,21 @@ describe('GET /api/student/classrooms', () => {
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({
           eq: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: 'enrollment-1',
-                  created_at: '2024-09-01T10:00:00Z',
-                  classrooms: {
-                    id: 'classroom-1',
-                    title: 'Math 101',
+            is: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: 'enrollment-1',
+                    created_at: '2024-09-01T10:00:00Z',
+                    classrooms: {
+                      id: 'classroom-1',
+                      title: 'Math 101',
+                    },
                   },
-                },
-              ],
-              error: null,
-            }),
+                ],
+                error: null,
+              }),
+            })),
           })),
         })),
       }))

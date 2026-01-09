@@ -8,6 +8,12 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertTeacherCanMutateClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
+  })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 

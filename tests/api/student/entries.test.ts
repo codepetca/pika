@@ -32,6 +32,12 @@ vi.mock('@/lib/timezone', () => ({
   }),
   getTodayInToronto: vi.fn(() => '2024-10-15'),
 }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertStudentCanAccessClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'classroom-1', archived_at: null },
+  })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -57,32 +63,51 @@ describe('GET /api/student/entries', () => {
 
   describe('fetching entries', () => {
     it('should return all entries for the student', async () => {
-      const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          order: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: 'entry-1',
-                student_id: 'student-1',
-                classroom_id: 'classroom-1',
-                date: '2024-10-15',
-                text: 'Entry 1',
-                on_time: true,
-              },
-              {
-                id: 'entry-2',
-                student_id: 'student-1',
-                classroom_id: 'classroom-1',
-                date: '2024-10-14',
-                text: 'Entry 2',
-                on_time: true,
-              },
-            ],
-            error: null,
-          }),
-        })),
-      }))
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                is: vi.fn(() => ({
+                  data: [{ classroom_id: 'classroom-1' }],
+                  error: null,
+                })),
+              })),
+            })),
+          }
+        }
+        if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn(() => ({
+                  order: vi.fn().mockResolvedValue({
+                    data: [
+                      {
+                        id: 'entry-1',
+                        student_id: 'student-1',
+                        classroom_id: 'classroom-1',
+                        date: '2024-10-15',
+                        text: 'Entry 1',
+                        on_time: true,
+                      },
+                      {
+                        id: 'entry-2',
+                        student_id: 'student-1',
+                        classroom_id: 'classroom-1',
+                        date: '2024-10-14',
+                        text: 'Entry 2',
+                        on_time: true,
+                      },
+                    ],
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          }
+        }
+      })
       ;(mockSupabaseClient.from as any) = mockFrom
 
       const request = new NextRequest('http://localhost:3000/api/student/entries')
@@ -121,15 +146,34 @@ describe('GET /api/student/entries', () => {
     })
 
     it('should return 500 when database query fails', async () => {
-      const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          order: vi.fn().mockResolvedValue({
-            data: null,
-            error: { message: 'Database error' },
-          }),
-        })),
-      }))
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                is: vi.fn(() => ({
+                  data: [{ classroom_id: 'classroom-1' }],
+                  error: null,
+                })),
+              })),
+            })),
+          }
+        }
+        if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn(() => ({
+                  order: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: 'Database error' },
+                  }),
+                })),
+              })),
+            })),
+          }
+        }
+      })
       ;(mockSupabaseClient.from as any) = mockFrom
 
       const request = new NextRequest('http://localhost:3000/api/student/entries')
@@ -329,16 +373,12 @@ describe('POST /api/student/entries', () => {
 
   describe('enrollment verification', () => {
     it('should return 403 when student is not enrolled in classroom', async () => {
-      const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({
-            data: null,
-            error: { code: 'PGRST116' },
-          }),
-        })),
-      }))
-      ;(mockSupabaseClient.from as any) = mockFrom
+      const { assertStudentCanAccessClassroom } = await import('@/lib/server/classrooms')
+      ;(assertStudentCanAccessClassroom as any).mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        error: 'Not enrolled in this classroom',
+      })
 
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',

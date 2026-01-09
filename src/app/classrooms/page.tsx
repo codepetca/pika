@@ -22,6 +22,7 @@ export default async function ClassroomsIndexPage() {
       .from('classrooms')
       .select('*')
       .eq('teacher_id', user.id)
+      .is('archived_at', null)
       .order('updated_at', { ascending: false })
 
     return (
@@ -52,6 +53,7 @@ export default async function ClassroomsIndexPage() {
     .from('classrooms')
     .select('*')
     .in('id', classroomIds)
+    .is('archived_at', null)
     .order('updated_at', { ascending: false })
 
   return (

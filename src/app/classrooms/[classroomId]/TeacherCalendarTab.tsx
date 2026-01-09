@@ -11,6 +11,7 @@ interface Props {
 }
 
 export function TeacherCalendarTab({ classroom }: Props) {
+  const isReadOnly = !!classroom.archived_at
   const [loading, setLoading] = useState(true)
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [error, setError] = useState<string>('')
@@ -74,6 +75,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
   }, [classDays])
 
   async function generateFromRange() {
+    if (isReadOnly) return
     setSaving(true)
     setError('')
     setSuccess('')
@@ -100,6 +102,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
   }
 
   async function toggleDay(date: string, isClassDay: boolean) {
+    if (isReadOnly) return
     setError('')
     setSuccess('')
     try {
@@ -148,7 +151,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100"
-                disabled={saving}
+                disabled={saving || isReadOnly}
               />
             </div>
             <div>
@@ -158,14 +161,14 @@ export function TeacherCalendarTab({ classroom }: Props) {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="px-3 py-2 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100"
-                disabled={saving}
+                disabled={saving || isReadOnly}
               />
             </div>
             <button
               type="button"
               className="px-3 py-2 rounded-md bg-blue-600 dark:bg-blue-700 text-white text-sm hover:bg-blue-700 dark:hover:bg-blue-600 disabled:opacity-50"
               onClick={generateFromRange}
-              disabled={saving || !startDate || !endDate}
+              disabled={saving || isReadOnly || !startDate || !endDate}
             >
               {saving ? 'Generating…' : 'Generate'}
             </button>
@@ -197,7 +200,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                 <span>Past Class Day</span>
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400">
-                Click on date to toggle class days
+                {isReadOnly ? 'Read-only mode' : 'Click on date to toggle class days'}
               </div>
             </div>
           </div>
@@ -247,7 +250,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                           : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
 
                       const outlineClasses = isToday ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''
-                      const toggleDisabled = disabled || isToday
+                      const toggleDisabled = disabled || isToday || isReadOnly
                       return (
                         <button
                           key={dateString}

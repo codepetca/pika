@@ -11,30 +11,39 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light')
-  const [mounted, setMounted] = useState(false)
-
-  // Load theme from localStorage on mount
-  useEffect(() => {
-    setMounted(true)
+function getInitialTheme(): Theme {
+  if (typeof window === 'undefined') return 'light'
+  try {
     const savedTheme = localStorage.getItem('theme') as Theme | null
-    if (savedTheme) {
-      setTheme(savedTheme)
-      document.documentElement.classList.toggle('dark', savedTheme === 'dark')
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme
     }
-  }, [])
+  } catch {
+    // Ignore storage errors and fall back to document state.
+  }
+  if (document.documentElement.classList.contains('dark')) {
+    return 'dark'
+  }
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  return prefersDark ? 'dark' : 'light'
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(() => getInitialTheme())
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+    document.documentElement.style.colorScheme = theme
+    document.documentElement.style.backgroundColor = theme === 'dark' ? '#030712' : '#f9fafb'
+  }, [theme])
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light'
     setTheme(newTheme)
     localStorage.setItem('theme', newTheme)
     document.documentElement.classList.toggle('dark', newTheme === 'dark')
-  }
-
-  // Prevent flash of unstyled content
-  if (!mounted) {
-    return <>{children}</>
+    document.documentElement.style.colorScheme = newTheme
+    document.documentElement.style.backgroundColor = newTheme === 'dark' ? '#030712' : '#f9fafb'
   }
 
   return (

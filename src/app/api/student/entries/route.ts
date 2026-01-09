@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { isOnTime, getTodayInToronto } from '@/lib/timezone'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import {
   countCharacters,
   extractPlainText,
@@ -48,25 +49,6 @@ function normalizeContent(
 
 function isValidDateString(date: string) {
   return DATE_REGEX.test(date)
-}
-
-async function verifyEnrollment(
-  supabase: ReturnType<typeof getServiceRoleClient>,
-  classroomId: string,
-  studentId: string
-) {
-  const { data: enrollment, error: enrollError } = await supabase
-    .from('classroom_enrollments')
-    .select('id')
-    .eq('classroom_id', classroomId)
-    .eq('student_id', studentId)
-    .single()
-
-  if (enrollError || !enrollment) {
-    return { ok: false, response: NextResponse.json({ error: 'Not enrolled in this classroom' }, { status: 403 }) }
-  }
-
-  return { ok: true as const }
 }
 
 async function verifyClassDay(
@@ -137,17 +119,44 @@ export async function GET(request: NextRequest) {
       .from('entries')
       .select('*')
       .eq('student_id', user.id)
-      .order('date', { ascending: false })
 
     if (classroomId) {
+      const access = await assertStudentCanAccessClassroom(user.id, classroomId)
+      if (!access.ok) {
+        return NextResponse.json(
+          { error: access.error },
+          { status: access.status }
+        )
+      }
       query = query.eq('classroom_id', classroomId)
+    } else {
+      const { data: enrollments, error: enrollmentError } = await supabase
+        .from('classroom_enrollments')
+        .select('classroom_id, classrooms!inner(archived_at)')
+        .eq('student_id', user.id)
+        .is('classrooms.archived_at', null)
+
+      if (enrollmentError) {
+        console.error('Error fetching classrooms:', enrollmentError)
+        return NextResponse.json(
+          { error: 'Failed to fetch entries' },
+          { status: 500 }
+        )
+      }
+
+      const classroomIds = enrollments?.map((e: any) => e.classroom_id) || []
+      if (classroomIds.length === 0) {
+        return NextResponse.json({ entries: [] })
+      }
+
+      query = query.in('classroom_id', classroomIds)
     }
 
     if (limit !== null) {
       query = query.limit(limit)
     }
 
-    const { data: entries, error } = await query
+    const { data: entries, error } = await query.order('date', { ascending: false })
 
     if (error) {
       console.error('Error fetching entries:', error)
@@ -159,17 +168,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ entries })
   } catch (error: any) {
-    // Authentication error (401)
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Authorization error (403)
     if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // All other errors (500)
     console.error('Get entries error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -221,9 +227,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = getServiceRoleClient()
 
-    const enrollmentCheck = await verifyEnrollment(supabase, classroom_id, user.id)
-    if (!enrollmentCheck.ok) {
-      return enrollmentCheck.response
+    const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
     }
 
     const todayToronto = getTodayInToronto()
@@ -385,9 +394,12 @@ export async function PATCH(request: NextRequest) {
 
     const supabase = getServiceRoleClient()
 
-    const enrollmentCheck = await verifyEnrollment(supabase, classroom_id, user.id)
-    if (!enrollmentCheck.ok) {
-      return enrollmentCheck.response
+    const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
     }
 
     const todayToronto = getTodayInToronto()

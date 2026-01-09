@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Find classroom by code or ID
     let query = supabase
       .from('classrooms')
-      .select('id, title, class_code, term_label, allow_enrollment')
+      .select('id, title, class_code, term_label, allow_enrollment, archived_at')
 
     const looksLikeUuid =
       typeof classroomId === 'string' &&
@@ -42,6 +42,13 @@ export async function POST(request: NextRequest) {
     const { data: classroom, error: fetchError } = await query.single()
 
     if (fetchError || !classroom) {
+      return NextResponse.json(
+        { error: 'Classroom not found' },
+        { status: 404 }
+      )
+    }
+
+    if (classroom.archived_at) {
       return NextResponse.json(
         { error: 'Classroom not found' },
         { status: 404 }

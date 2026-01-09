@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,24 +17,11 @@ export async function GET(
 
     const supabase = getServiceRoleClient()
 
-    // Verify ownership
-    const { data: classroom, error: fetchError } = await supabase
-      .from('classrooms')
-      .select('teacher_id')
-      .eq('id', classroomId)
-      .single()
-
-    if (fetchError || !classroom) {
+    const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
+    if (!ownership.ok) {
       return NextResponse.json(
-        { error: 'Classroom not found' },
-        { status: 404 }
-      )
-    }
-
-    if (classroom.teacher_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
+        { error: ownership.error },
+        { status: ownership.status }
       )
     }
 
