@@ -12,6 +12,8 @@ function entry(overrides: Partial<Entry>): Entry {
     classroom_id: overrides.classroom_id ?? 'c1',
     date: overrides.date ?? '2025-12-16',
     text: overrides.text ?? 'hello',
+    rich_content: overrides.rich_content ?? null,
+    version: overrides.version ?? 1,
     minutes_reported: overrides.minutes_reported ?? null,
     mood: overrides.mood ?? null,
     created_at: overrides.created_at ?? '2025-12-16T01:00:00Z',

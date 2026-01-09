@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, FormEvent, useRef, useCallback, type ChangeEvent } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
+import { RichTextEditor } from '@/components/RichTextEditor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
@@ -19,35 +20,70 @@ import {
   getStudentEntryHistoryCacheKey,
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
-import { saveDraft, loadDraft, clearDraft } from '@/lib/draft-storage'
-import type { Classroom, ClassDay, Entry } from '@/types'
+import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
+import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import type { Classroom, ClassDay, Entry, JsonPatchOperation, TiptapContent } from '@/types'
 
-interface Props {
-  classroom: Classroom
+const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
+
+function parseSavedContent(contentString: string | null): TiptapContent {
+  if (!contentString) return EMPTY_DOC
+  try {
+    return JSON.parse(contentString) as TiptapContent
+  } catch {
+    return EMPTY_DOC
+  }
 }
 
-export function StudentTodayTab({ classroom }: Props) {
+function resolveEntryContent(entry: Entry | null): TiptapContent {
+  if (entry?.rich_content) {
+    return entry.rich_content
+  }
+  if (entry?.text) {
+    return plainTextToTiptapContent(entry.text)
+  }
+  return EMPTY_DOC
+}
+
+function validateContent(content: TiptapContent, maxChars: number) {
+  if (isEmpty(content)) {
+    return 'Entry text cannot be empty'
+  }
+  if (countCharacters(content) > maxChars) {
+    return `Entry exceeds ${maxChars} character limit`
+  }
+  return ''
+}
+
+export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
+  // Constants
   const historyLimit = 5
   const historyCookieName = 'pika_student_today_history'
+  const AUTOSAVE_DEBOUNCE_MS = 5000
+  const AUTOSAVE_MIN_INTERVAL_MS = 15000
+  const MAX_CHARS = 2000
+
+  // State
   const [loading, setLoading] = useState(true)
   const [today, setToday] = useState('')
   const [classDays, setClassDays] = useState<ClassDay[]>([])
-  const [existingEntry, setExistingEntry] = useState<Entry | null>(null)
-  const [text, setText] = useState('')
+  const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
   const [historyVisible, setHistoryVisible] = useState<boolean>(() =>
     readBooleanCookie(historyCookieName, true)
   )
-  const [submitting, setSubmitting] = useState(false)
-  const [success, setSuccess] = useState('')
-  const [error, setError] = useState('')
-  const [draftRestored, setDraftRestored] = useState(false)
-  const [isDirty, setIsDirty] = useState(false)
-  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const handleTextChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
-    setText(event.target.value)
-    setIsDirty(true)
-  }, [])
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [saveError, setSaveError] = useState('')
+  const [conflictEntry, setConflictEntry] = useState<Entry | null>(null)
+
+  // Refs for autosave
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSavedContentRef = useRef('')
+  const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSaveAttemptAtRef = useRef(0)
+  const pendingContentRef = useRef<TiptapContent | null>(null)
+  const entryIdRef = useRef<string | null>(null)
+  const entryVersionRef = useRef(1)
 
   useEffect(() => {
     async function load() {
@@ -66,23 +102,21 @@ export function StudentTodayTab({ classroom }: Props) {
           .then(r => r.json())
           .then(data => setClassDays(data.class_days || []))
 
+        const applyEntryState = (todayEntry: Entry | null) => {
+          const loadedContent = resolveEntryContent(todayEntry)
+          setContent(loadedContent)
+          lastSavedContentRef.current = JSON.stringify(loadedContent)
+          setSaveStatus('saved')
+          setSaveError('')
+          setConflictEntry(null)
+          entryIdRef.current = todayEntry?.id ?? null
+          entryVersionRef.current = todayEntry?.version ?? 1
+        }
+
         if (Array.isArray(cached)) {
           setHistoryEntries(cached)
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
-          setExistingEntry(todayEntry)
-
-          // Check for draft
-          const draft = loadDraft(classroom.id, todayDate, todayEntry?.updated_at)
-          if (draft && draft.isDraftNewer) {
-            setText(draft.text)
-            setDraftRestored(true)
-            setIsDirty(false)
-            setTimeout(() => setDraftRestored(false), 3000)
-          } else {
-            setText(todayEntry?.text || '')
-            setIsDirty(false)
-          }
-
+          applyEntryState(todayEntry)
           await classDayPromise
           return
         }
@@ -96,19 +130,7 @@ export function StudentTodayTab({ classroom }: Props) {
             setHistoryEntries(entries)
             safeSessionSetJson(historyCacheKey, entries)
             const todayEntry = entries.find((e: Entry) => e.date === todayDate) || null
-            setExistingEntry(todayEntry)
-
-            // Check for draft
-            const draft = loadDraft(classroom.id, todayDate, todayEntry?.updated_at)
-            if (draft && draft.isDraftNewer) {
-              setText(draft.text)
-              setDraftRestored(true)
-              setIsDirty(false)
-              setTimeout(() => setDraftRestored(false), 3000)
-            } else {
-              setText(todayEntry?.text || '')
-              setIsDirty(false)
-            }
+            applyEntryState(todayEntry)
           })
 
         await Promise.all([classDayPromise, entriesPromise])
@@ -118,94 +140,221 @@ export function StudentTodayTab({ classroom }: Props) {
         setLoading(false)
       }
     }
+
     load()
-  }, [classroom.id])
 
-  // Debounced autosave to localStorage
-  useEffect(() => {
-    if (!today || !isDirty) return
-
-    // Clear existing timer
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current)
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+      if (throttledSaveTimeoutRef.current) {
+        clearTimeout(throttledSaveTimeoutRef.current)
+      }
     }
+  }, [classroom.id, historyLimit])
 
-    if (text === '') {
-      clearDraft(classroom.id, today)
+  const updateHistoryEntries = useCallback((entry: Entry) => {
+    setHistoryEntries(prev => {
+      const next = upsertEntryIntoHistory(prev, entry, historyLimit)
+      safeSessionSetJson(
+        getStudentEntryHistoryCacheKey({
+          classroomId: classroom.id,
+          limit: historyLimit,
+        }),
+        next
+      )
+      return next
+    })
+  }, [classroom.id, historyLimit])
+
+  const saveContent = useCallback(async (
+    newContent: TiptapContent,
+    options?: { forceFull?: boolean }
+  ) => {
+    if (!today) return
+
+    const newContentStr = JSON.stringify(newContent)
+    if (!options?.forceFull && newContentStr === lastSavedContentRef.current) {
+      setSaveStatus('saved')
       return
     }
 
-    // Set new timer (500ms debounce)
-    autosaveTimerRef.current = setTimeout(() => {
-      saveDraft({
-        classroomId: classroom.id,
-        date: today,
-        text,
-      })
-    }, 500)
-
-    // Cleanup on unmount
-    return () => {
-      if (autosaveTimerRef.current) {
-        clearTimeout(autosaveTimerRef.current)
-      }
+    const validationError = validateContent(newContent, MAX_CHARS)
+    if (validationError) {
+      setSaveError(validationError)
+      setSaveStatus('unsaved')
+      return
     }
-  }, [classroom.id, today, text, isDirty])
+
+    setSaveStatus('saving')
+    setSaveError('')
+    lastSaveAttemptAtRef.current = Date.now()
+
+    const baseContent = parseSavedContent(lastSavedContentRef.current)
+    const patch = createJsonPatch(baseContent, newContent)
+    const shouldSendPatch =
+      !options?.forceFull &&
+      entryIdRef.current &&
+      patch.length > 0 &&
+      !shouldStoreSnapshot(patch, newContent)
+
+    const payload: {
+      classroom_id: string
+      date: string
+      entry_id?: string
+      version: number
+      rich_content?: TiptapContent
+      patch?: JsonPatchOperation[]
+    } = {
+      classroom_id: classroom.id,
+      date: today,
+      entry_id: entryIdRef.current ?? undefined,
+      version: entryVersionRef.current,
+    }
+
+    if (shouldSendPatch) {
+      payload.patch = patch
+    } else {
+      payload.rich_content = newContent
+    }
+
+    try {
+      const response = await fetch('/api/student/entries', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await response.json()
+
+      if (response.status === 409) {
+        const serverEntry = data.entry as Entry | undefined
+        if (serverEntry) {
+          setConflictEntry(serverEntry)
+        }
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current)
+        }
+        if (throttledSaveTimeoutRef.current) {
+          clearTimeout(throttledSaveTimeoutRef.current)
+          throttledSaveTimeoutRef.current = null
+        }
+        setSaveStatus('unsaved')
+        setSaveError(data.error || 'Entry updated elsewhere')
+        return
+      }
+
+      if (response.status === 404 && shouldSendPatch) {
+        await saveContent(newContent, { forceFull: true })
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save')
+      }
+
+      const savedEntry = data.entry as Entry
+      entryIdRef.current = savedEntry.id
+      entryVersionRef.current = savedEntry.version ?? entryVersionRef.current
+      updateHistoryEntries(savedEntry)
+      lastSavedContentRef.current = newContentStr
+      setSaveStatus('saved')
+      setSaveError('')
+      setConflictEntry(null)
+    } catch (err: any) {
+      console.error('Error saving:', err)
+      setSaveStatus('unsaved')
+      setSaveError(err.message || 'Failed to save')
+    }
+  }, [MAX_CHARS, classroom.id, today, updateHistoryEntries])
+
+  const scheduleSave = useCallback((
+    newContent: TiptapContent,
+    options?: { force?: boolean }
+  ) => {
+    if (conflictEntry) return
+
+    pendingContentRef.current = newContent
+
+    if (throttledSaveTimeoutRef.current) {
+      clearTimeout(throttledSaveTimeoutRef.current)
+      throttledSaveTimeoutRef.current = null
+    }
+
+    const now = Date.now()
+    const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
+
+    if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
+      void saveContent(newContent)
+      return
+    }
+
+    const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastAttempt
+    throttledSaveTimeoutRef.current = setTimeout(() => {
+      throttledSaveTimeoutRef.current = null
+      const latest = pendingContentRef.current
+      if (latest) {
+        void saveContent(latest)
+      }
+    }, waitMs)
+  }, [AUTOSAVE_MIN_INTERVAL_MS, conflictEntry, saveContent])
+
+  function handleContentChange(newContent: TiptapContent) {
+    setContent(newContent)
+    setSaveStatus('unsaved')
+    pendingContentRef.current = newContent
+
+    if (!conflictEntry) {
+      const nextCharCount = countCharacters(newContent)
+      setSaveError(
+        nextCharCount > MAX_CHARS
+          ? `Entry exceeds ${MAX_CHARS} character limit`
+          : ''
+      )
+    }
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      scheduleSave(newContent)
+    }, AUTOSAVE_DEBOUNCE_MS)
+  }
+
+  function flushAutosave() {
+    if (conflictEntry) return
+    if (saveStatus === 'unsaved' && pendingContentRef.current) {
+      scheduleSave(pendingContentRef.current, { force: true })
+    }
+  }
+
+  const resolveConflict = useCallback(() => {
+    if (!conflictEntry) return
+    const serverContent = resolveEntryContent(conflictEntry)
+    setContent(serverContent)
+    lastSavedContentRef.current = JSON.stringify(serverContent)
+    entryIdRef.current = conflictEntry.id
+    entryVersionRef.current = conflictEntry.version ?? entryVersionRef.current
+    setSaveStatus('saved')
+    setSaveError('')
+    setConflictEntry(null)
+  }, [conflictEntry])
+
+  const retryAfterConflict = useCallback(() => {
+    if (!conflictEntry) return
+    entryIdRef.current = conflictEntry.id
+    entryVersionRef.current = conflictEntry.version ?? entryVersionRef.current
+    setConflictEntry(null)
+    const latest = pendingContentRef.current ?? content
+    void saveContent(latest, { forceFull: true })
+  }, [conflictEntry, content, saveContent])
 
   const isClassDay = today ? isClassDayOnDate(classDays, today) : true
 
   function setHistoryVisibility(next: boolean) {
     setHistoryVisible(next)
     writeCookie(historyCookieName, next ? '1' : '0')
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setSuccess('')
-    setSubmitting(true)
-
-    try {
-      const response = await fetch('/api/student/entries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classroom_id: classroom.id,
-          date: today,
-          text,
-          mood: null,
-        }),
-      })
-
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save entry')
-      }
-
-      setExistingEntry(data.entry)
-      setHistoryEntries(prev => {
-        const next = upsertEntryIntoHistory(prev, data.entry, historyLimit)
-        safeSessionSetJson(
-          getStudentEntryHistoryCacheKey({
-            classroomId: classroom.id,
-            limit: historyLimit,
-          }),
-          next
-        )
-        return next
-      })
-
-      // Clear draft on successful save
-      clearDraft(classroom.id, today)
-      setIsDirty(false)
-
-      setSuccess('Entry saved!')
-      setTimeout(() => setSuccess(''), 2000)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
-    } finally {
-      setSubmitting(false)
-    }
   }
 
   if (loading) {
@@ -217,6 +366,8 @@ export function StudentTodayTab({ classroom }: Props) {
   }
 
   const historyListId = `student-today-history-${classroom.id}`
+  const charCount = countCharacters(content)
+  const isOverLimit = charCount > MAX_CHARS
 
   return (
     <PageLayout>
@@ -228,42 +379,59 @@ export function StudentTodayTab({ classroom }: Props) {
                 <p className="text-gray-600 dark:text-gray-400">No class today</p>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     What did you do today?
                   </label>
-                  <textarea
-                    value={text}
-                    onChange={handleTextChange}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  <RichTextEditor
+                    content={content}
+                    onChange={handleContentChange}
+                    onBlur={flushAutosave}
                     placeholder="Write a short update..."
-                    required
-                    disabled={submitting}
+                    editable={true}
+                    className="min-h-[200px]"
                   />
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className={isOverLimit ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}>
+                      {charCount} / {MAX_CHARS} characters
+                    </span>
+                    <span
+                      className={
+                        saveStatus === 'saved'
+                          ? 'text-green-600 dark:text-green-400'
+                          : saveStatus === 'saving'
+                            ? 'text-gray-500 dark:text-gray-400'
+                            : 'text-orange-600 dark:text-orange-400'
+                      }
+                    >
+                      {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+                    </span>
+                  </div>
                 </div>
 
-                {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-                {success && (
-                  <p className="text-sm text-green-600 dark:text-green-400">{success}</p>
+                {saveError && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-red-600 dark:text-red-400">{saveError}</p>
+                    {conflictEntry && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" size="sm" variant="secondary" onClick={resolveConflict}>
+                          Reload latest
+                        </Button>
+                        <Button type="button" size="sm" onClick={retryAfterConflict}>
+                          Retry save
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 )}
-                {draftRestored && (
-                  <p className="text-sm text-blue-600 dark:text-blue-400">
-                    Draft restored from auto-save
-                  </p>
-                )}
-
-                <Button type="submit" disabled={submitting || !text}>
-                  {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
-                </Button>
-              </form>
+              </div>
             )}
           </div>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">History</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Past Logs</h3>
               <button
                 type="button"
                 className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
@@ -271,40 +439,39 @@ export function StudentTodayTab({ classroom }: Props) {
                 aria-controls={historyListId}
                 onClick={() => setHistoryVisibility(!historyVisible)}
               >
-                {historyVisible ? 'Hide history' : 'Show history'}
+                {historyVisible ? 'Hide' : 'Show'}
                 <ChevronDownIcon
                   className={[
                     'h-4 w-4 transition-transform',
-                    historyVisible ? '-rotate-180' : 'rotate-0',
+                    historyVisible ? 'rotate-180' : 'rotate-0',
                   ].join(' ')}
-                  aria-hidden="true"
                 />
               </button>
             </div>
-
             {historyVisible && (
-              <div id={historyListId} className="divide-y divide-gray-200 dark:divide-gray-700">
-                {historyEntries.slice(0, historyLimit).map(entry => (
-                  <div key={entry.id} className="px-4 py-3">
-                    <div className="flex items-start gap-3">
-                      <div className="shrink-0">
-                        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-200">
-                          <span>{format(parseISO(entry.date), 'EEE MMM d')}</span>
+              <div id={historyListId} className="divide-y divide-gray-100 dark:divide-gray-800">
+                {historyEntries.length === 0 ? (
+                  <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
+                    No logs yet
+                  </div>
+                ) : (
+                  historyEntries.map(entry => (
+                    <div key={entry.id} className="px-4 py-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {format(parseISO(entry.date), 'EEE MMM d')}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {getEntryPreview(entry.text, 150)}
+                          </p>
+                        </div>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          {entry.on_time ? 'On time' : 'Late'}
                         </span>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-snug break-words">
-                          {getEntryPreview(entry.text, 150)}
-                        </p>
-                      </div>
                     </div>
-                  </div>
-                ))}
-
-                {historyEntries.length === 0 && (
-                  <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No past entries yet
-                  </div>
+                  ))
                 )}
               </div>
             )}

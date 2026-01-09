@@ -4,9 +4,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { GET, POST } from '@/app/api/student/entries/route'
+import { GET, POST, PATCH } from '@/app/api/student/entries/route'
 import { NextRequest } from 'next/server'
 import { mockAuthenticationError } from '../setup'
+import { createJsonPatch } from '@/lib/json-patch'
+import type { TiptapContent } from '@/types'
 
 // Mock modules
 vi.mock('@/lib/supabase', () => ({
@@ -226,7 +228,7 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('classroom_id, date, and text are required')
+      expect(data.error).toBe('classroom_id and date are required')
     })
 
     it('should return 400 when date is missing', async () => {
@@ -242,7 +244,7 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('classroom_id, date, and text are required')
+      expect(data.error).toBe('classroom_id and date are required')
     })
 
     it('should return 400 when text is missing', async () => {
@@ -258,7 +260,7 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('classroom_id, date, and text are required')
+      expect(data.error).toBe('Entry text cannot be empty')
     })
 
     it('should return 400 when text is empty after trimming', async () => {
@@ -545,6 +547,15 @@ describe('POST /api/student/entries', () => {
         classroom_id: 'classroom-1',
         date: '2024-10-15',
         text: 'Test entry',
+        rich_content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Test entry' }],
+            },
+          ],
+        },
         minutes_reported: 60,
         mood: undefined,
         on_time: expect.any(Boolean),
@@ -620,9 +631,19 @@ describe('POST /api/student/entries', () => {
       expect(data.entry.text).toBe('Updated entry')
       expect(mockUpdate).toHaveBeenCalledWith({
         text: 'Updated entry',
+        rich_content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Updated entry' }],
+            },
+          ],
+        },
         minutes_reported: undefined,
         mood: undefined,
         on_time: expect.any(Boolean),
+        version: expect.any(Number),
       })
     })
 
@@ -865,5 +886,167 @@ describe('POST /api/student/entries', () => {
       expect(response.status).toBe(500)
       expect(data.error).toBe('Failed to update entry')
     })
+  })
+})
+
+describe('PATCH /api/student/entries', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should apply patch and increment version', async () => {
+    const baseContent: TiptapContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
+    }
+    const nextContent: TiptapContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello world' }] }],
+    }
+    const patch = createJsonPatch(baseContent, nextContent)
+
+    const mockUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'entry-1',
+              version: 3,
+              text: 'Hello world',
+              rich_content: nextContent,
+              on_time: true,
+            },
+            error: null,
+          }),
+        })),
+      })),
+    }))
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'enrollment-1' },
+              error: null,
+            }),
+          })),
+        }
+      } else if (table === 'class_days') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { is_class_day: true },
+              error: null,
+            }),
+          })),
+        }
+      } else if (table === 'entries') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'entry-1',
+                version: 2,
+                text: 'Hello',
+                rich_content: baseContent,
+              },
+              error: null,
+            }),
+          })),
+          update: mockUpdate,
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/student/entries', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        classroom_id: 'classroom-1',
+        date: '2024-10-15',
+        version: 2,
+        patch,
+      }),
+    })
+
+    const response = await PATCH(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.entry.version).toBe(3)
+    expect(mockUpdate).toHaveBeenCalledWith({
+      text: 'Hello world',
+      rich_content: nextContent,
+      on_time: expect.any(Boolean),
+      version: 3,
+    })
+  })
+
+  it('should return 409 when version does not match', async () => {
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'enrollment-1' },
+              error: null,
+            }),
+          })),
+        }
+      } else if (table === 'class_days') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { is_class_day: true },
+              error: null,
+            }),
+          })),
+        }
+      } else if (table === 'entries') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: {
+                id: 'entry-1',
+                version: 3,
+                text: 'Server entry',
+                rich_content: {
+                  type: 'doc',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Server entry' }] }],
+                },
+              },
+              error: null,
+            }),
+          })),
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/student/entries', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        classroom_id: 'classroom-1',
+        date: '2024-10-15',
+        version: 2,
+        rich_content: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Local entry' }] }],
+        },
+      }),
+    })
+
+    const response = await PATCH(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(409)
+    expect(data.error).toBe('Entry has been updated elsewhere')
   })
 })
