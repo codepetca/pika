@@ -2186,3 +2186,14 @@
 **Tests:** Not run (vitest missing in worktree).
 **Next:** Install deps in this worktree or rely on CI run.
 **Blockers:** None
+---
+## 2026-01-09 12:19 [AI - Codex]
+**Goal:** Fix remaining student classrooms test mock chain failure.
+**Completed:** Added missing `.is` chaining for enrollment metadata test mock.
+**Status:** completed
+**Artifacts:**
+- Branch: fix/ci-archive-issues
+- Files: tests/api/student/classrooms.test.ts
+**Tests:** Not run (vitest missing in worktree).
+**Next:** Re-run CI or local tests after installing deps.
+**Blockers:** None
