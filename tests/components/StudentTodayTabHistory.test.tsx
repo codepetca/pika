@@ -89,14 +89,14 @@ describe('StudentTodayTab history section', () => {
     render(<StudentTodayTab classroom={classroom} />)
 
     await screen.findAllByText('Tue Dec 16')
-    await screen.findByText('History')
+    await screen.findByText('Past Logs')
 
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /hide history/i }))
+    fireEvent.click(screen.getByRole('button', { name: /hide/i }))
     expect(screen.queryByText('Mon Dec 15')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /show history/i }))
+    fireEvent.click(screen.getByRole('button', { name: /show/i }))
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
     const entryFetchCalls = fetchMock.mock.calls.filter(([arg]) =>
@@ -119,17 +119,17 @@ describe('StudentTodayTab history section', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { unmount } = render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('History')
+    await screen.findByText('Past Logs')
 
-    fireEvent.click(screen.getByRole('button', { name: /hide history/i }))
+    fireEvent.click(screen.getByRole('button', { name: /hide/i }))
     expect(document.cookie).toMatch(/pika_student_today_history=0/)
 
     unmount()
 
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('History')
+    await screen.findByText('Past Logs')
 
-    expect(screen.getByRole('button', { name: /show history/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /show/i })).toBeInTheDocument()
     expect(screen.queryByText('Mon Dec 15')).not.toBeInTheDocument()
   })
 
@@ -150,7 +150,7 @@ describe('StudentTodayTab history section', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('History')
+    await screen.findByText('Past Logs')
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
     await waitFor(() => {
