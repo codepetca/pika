@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Script from 'next/script'
 import './globals.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 
@@ -10,15 +9,16 @@ export const metadata: Metadata = {
 
 const themeInitScript = `
 (() => {
+  const root = document.documentElement;
+  let storedTheme = null;
   try {
-    const storedTheme = localStorage.getItem('theme');
-    if (storedTheme === 'dark' || storedTheme === 'light') {
-      document.documentElement.classList.toggle('dark', storedTheme === 'dark');
-      return;
-    }
+    storedTheme = localStorage.getItem('theme');
   } catch {}
-  const prefersDark = document.documentElement.classList.contains('dark');
-  document.documentElement.classList.toggle('dark', prefersDark);
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : (prefersDark ? 'dark' : 'light');
+  root.classList.toggle('dark', theme === 'dark');
+  root.style.colorScheme = theme;
+  root.style.backgroundColor = theme === 'dark' ? '#030712' : '#f9fafb';
 })();
 `
 
@@ -30,11 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: themeInitScript }}
-        />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <ThemeProvider>

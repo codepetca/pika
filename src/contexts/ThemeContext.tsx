@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useLayoutEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 
 type Theme = 'light' | 'dark'
 
@@ -21,14 +21,20 @@ function getInitialTheme(): Theme {
   } catch {
     // Ignore storage errors and fall back to document state.
   }
-  return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  if (document.documentElement.classList.contains('dark')) {
+    return 'dark'
+  }
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  return prefersDark ? 'dark' : 'light'
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => getInitialTheme())
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
+    document.documentElement.style.colorScheme = theme
+    document.documentElement.style.backgroundColor = theme === 'dark' ? '#030712' : '#f9fafb'
   }, [theme])
 
   const toggleTheme = () => {
@@ -36,6 +42,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setTheme(newTheme)
     localStorage.setItem('theme', newTheme)
     document.documentElement.classList.toggle('dark', newTheme === 'dark')
+    document.documentElement.style.colorScheme = newTheme
+    document.documentElement.style.backgroundColor = newTheme === 'dark' ? '#030712' : '#f9fafb'
   }
 
   return (

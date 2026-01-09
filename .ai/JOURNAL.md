@@ -2153,3 +2153,14 @@
 **Tests:** Not run (not requested).
 **Next:** Refresh with a dark theme stored and confirm no white flash.
 **Blockers:** None
+---
+## 2026-01-09 10:44 [AI - Codex]
+**Goal:** Remove remaining white flash when loading dark theme.
+**Completed:** Inlined early theme script using localStorage or prefers-color-scheme and set initial background/color-scheme; synced ThemeProvider to update html styles on theme changes.
+**Status:** completed
+**Artifacts:**
+- Branch: issue/70-feat-add-classroom-delete-archive-functi
+- Files: src/app/layout.tsx, src/contexts/ThemeContext.tsx
+**Tests:** Not run (not requested).
+**Next:** Reload with stored dark theme and verify no flash.
+**Blockers:** None
