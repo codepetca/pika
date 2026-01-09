@@ -36,7 +36,7 @@ export async function GET() {
       )
     }
 
-    const classrooms = enrollments.map(e => ({
+    const classrooms = (enrollments ?? []).map(e => ({
       ...e.classrooms,
       enrollmentId: e.id,
       enrolledAt: e.created_at,

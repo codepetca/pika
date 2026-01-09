@@ -2164,3 +2164,14 @@
 **Tests:** Not run (not requested).
 **Next:** Reload with stored dark theme and verify no flash.
 **Blockers:** None
+---
+## 2026-01-09 12:14 [AI - Codex]
+**Goal:** Fix CI failures after classroom archiving merge.
+**Completed:** Guarded student classrooms mapping against null enrollments and updated roster test to mock ownership helper denial.
+**Status:** in_progress
+**Artifacts:**
+- Branch: fix/ci-archive-issues
+- Files: src/app/api/student/classrooms/route.ts, tests/api/teacher/roster.test.ts
+**Tests:** `npm test -- tests/api/student/classrooms.test.ts tests/api/teacher/roster.test.ts` (failed: vitest not found in this worktree)
+**Next:** Install deps in this worktree or run tests from an environment with vitest, then open PR.
+**Blockers:** None

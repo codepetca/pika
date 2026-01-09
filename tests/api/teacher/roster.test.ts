@@ -21,14 +21,12 @@ describe('GET /api/teacher/classrooms/[id]/roster', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('should return 403 when not classroom owner', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: { teacher_id: 'other' }, error: null }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
+    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
+    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Forbidden',
+    })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster')
     const response = await GET(request, { params: { id: 'c-1' } })
