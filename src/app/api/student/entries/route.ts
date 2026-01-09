@@ -37,10 +37,13 @@ type EntryPatchPayload = {
   patch?: JsonPatchOperation[]
 }
 
-function normalizeContent(content?: TiptapContent | null, text?: string | null) {
+function normalizeContent(
+  content?: TiptapContent | null,
+  text?: string | null
+): TiptapContent {
   if (content) return content
   if (text) return plainTextToTiptapContent(text)
-  return { type: 'doc', content: [] }
+  return { type: 'doc', content: [] } as TiptapContent
 }
 
 function isValidDateString(date: string) {
