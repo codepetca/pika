@@ -20,6 +20,12 @@ vi.mock('@/lib/auth', () => ({
     throw new Error('Unauthorized')
   }),
 }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertStudentCanAccessClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'classroom-1', archived_at: null },
+  })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -42,16 +48,12 @@ describe('GET /api/student/classrooms/[id]', () => {
     })
 
     it('should return 403 when student is not enrolled', async () => {
-      const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({
-            data: null,
-            error: { code: 'PGRST116' },
-          }),
-        })),
-      }))
-      ;(mockSupabaseClient.from as any) = mockFrom
+      const { assertStudentCanAccessClassroom } = await import('@/lib/server/classrooms')
+      ;(assertStudentCanAccessClassroom as any).mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        error: 'Not enrolled in this classroom',
+      })
 
       const request = new NextRequest('http://localhost:3000/api/student/classrooms/classroom-999')
       const response = await GET(request, { params: { id: 'classroom-999' } })
@@ -65,17 +67,7 @@ describe('GET /api/student/classrooms/[id]', () => {
   describe('fetching classroom', () => {
     it('should return classroom details when enrolled', async () => {
       const mockFrom = vi.fn((table: string) => {
-        if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'enrollment-1' },
-                error: null,
-              }),
-            })),
-          }
-        } else if (table === 'classrooms') {
+        if (table === 'classrooms') {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
@@ -109,17 +101,7 @@ describe('GET /api/student/classrooms/[id]', () => {
 
     it('should return 404 when classroom does not exist', async () => {
       const mockFrom = vi.fn((table: string) => {
-        if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'enrollment-1' },
-                error: null,
-              }),
-            })),
-          }
-        } else if (table === 'classrooms') {
+        if (table === 'classrooms') {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
@@ -143,18 +125,9 @@ describe('GET /api/student/classrooms/[id]', () => {
     })
 
     it('should verify enrollment before fetching classroom', async () => {
+      const { assertStudentCanAccessClassroom } = await import('@/lib/server/classrooms')
       const mockFrom = vi.fn((table: string) => {
-        if (table === 'classroom_enrollments') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'enrollment-1' },
-                error: null,
-              }),
-            })),
-          }
-        } else if (table === 'classrooms') {
+        if (table === 'classrooms') {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
@@ -172,8 +145,7 @@ describe('GET /api/student/classrooms/[id]', () => {
       const request = new NextRequest('http://localhost:3000/api/student/classrooms/classroom-1')
       await GET(request, { params: { id: 'classroom-1' } })
 
-      // Verify enrollment was checked first
-      expect(mockFrom).toHaveBeenCalledWith('classroom_enrollments')
+      expect(assertStudentCanAccessClassroom).toHaveBeenCalledWith('student-1', 'classroom-1')
       expect(mockFrom).toHaveBeenCalledWith('classrooms')
     })
   })

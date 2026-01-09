@@ -8,6 +8,12 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertTeacherCanMutateClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
+  })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -15,14 +21,12 @@ describe('DELETE /api/teacher/classrooms/[id]/roster/[rosterId]', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('should return 403 when not classroom owner', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: { teacher_id: 'other' }, error: null }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
+    const { assertTeacherCanMutateClassroom } = await import('@/lib/server/classrooms')
+    ;(assertTeacherCanMutateClassroom as any).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Forbidden',
+    })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/s-1', {
       method: 'DELETE',

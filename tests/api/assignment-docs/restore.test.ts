@@ -4,6 +4,12 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'student-1', role: 'student' })) }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertStudentCanAccessClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'class-1', archived_at: null },
+  })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 

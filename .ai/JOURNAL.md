@@ -2120,3 +2120,14 @@
 **Next:** Re-run `scripts/pika ls` and `scripts/pika codex` to confirm clean labels.
 **Blockers:** None
 ---
+---
+## 2026-01-09 09:46 [AI - Codex]
+**Goal:** Implement classroom archiving (soft delete) with read-only access and archived list UI.
+**Completed:** Added archived_at migration and helper guards, enforced archive gating in API routes, updated teacher/student classroom lists, added archive/restore/delete UI with read-only teacher views, and created follow-up issue for cold storage.
+**Status:** completed
+**Artifacts:**
+- Branch: issue/70-feat-add-classroom-delete-archive-functi
+- Files: supabase/migrations/016_classroom_archiving.sql, src/lib/server/classrooms.ts, src/app/classrooms/TeacherClassroomsIndex.tsx, src/app/api/teacher/classrooms/[id]/route.ts
+**Tests:** `bash scripts/verify-env.sh`
+**Next:** Apply migration in Supabase and spot-check archive/restore/delete flows in the UI.
+**Blockers:** None

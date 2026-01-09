@@ -58,6 +58,7 @@ function normalizeRosterRows(raw: any[]): RosterRow[] {
 }
 
 export function TeacherRosterTab({ classroom }: Props) {
+  const isReadOnly = !!classroom.archived_at
   const [loading, setLoading] = useState(true)
   const [roster, setRoster] = useState<RosterRow[]>([])
   const [error, setError] = useState<string>('')
@@ -129,6 +130,7 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   async function confirmRemoveStudent() {
     if (!pendingRemoval) return
+    if (isReadOnly) return
     setIsRemoving(true)
     setError('')
 
@@ -162,13 +164,19 @@ export function TeacherRosterTab({ classroom }: Props) {
       <PageActionBar
         primary={
           <div className="flex gap-2">
-            <button type="button" className={ACTIONBAR_BUTTON_CLASSNAME} onClick={() => setAddModalOpen(true)}>
+            <button
+              type="button"
+              className={ACTIONBAR_BUTTON_CLASSNAME}
+              onClick={() => setAddModalOpen(true)}
+              disabled={isReadOnly}
+            >
               Add Students
             </button>
             <button
               type="button"
               className={ACTIONBAR_BUTTON_SECONDARY_CLASSNAME}
               onClick={() => setUploadModalOpen(true)}
+              disabled={isReadOnly}
             >
               Upload CSV
             </button>
@@ -227,8 +235,12 @@ export function TeacherRosterTab({ classroom }: Props) {
                   <DataTableCell align="right">
                     <button
                       type="button"
-                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
-                      onClick={() =>
+                      className={[
+                        'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200',
+                        isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
+                      ].join(' ')}
+                      onClick={() => {
+                        if (isReadOnly) return
                         setPendingRemoval({
                           rosterId: row.id,
                           email: row.email,
@@ -236,8 +248,9 @@ export function TeacherRosterTab({ classroom }: Props) {
                           lastName: row.last_name,
                           joined: row.joined,
                         })
-                      }
+                      }}
                       aria-label={`Remove ${row.email}`}
+                      disabled={isReadOnly}
                     >
                       <TrashIcon className="h-5 w-5" aria-hidden="true" />
                     </button>

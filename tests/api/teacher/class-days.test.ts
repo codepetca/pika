@@ -11,6 +11,16 @@ vi.mock('@/lib/auth', () => ({
   requireAuth: vi.fn(async () => ({ id: 'teacher-1', role: 'teacher' })),
   requireRole: vi.fn(async () => ({ id: 'teacher-1', role: 'teacher' })),
 }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertTeacherOwnsClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'c1', teacher_id: 'teacher-1', archived_at: null },
+  })),
+  assertStudentCanAccessClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'c1', archived_at: null },
+  })),
+}))
 vi.mock('@/lib/calendar', () => ({ getClassDaysForDateRange: vi.fn(() => []) }))
 
 const mockSupabaseClient = { from: vi.fn() }

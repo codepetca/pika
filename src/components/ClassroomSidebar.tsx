@@ -88,6 +88,7 @@ function Nav({
   activeTab,
   role,
   isCollapsed,
+  isReadOnly,
   onNavigate,
   assignments,
   assignmentsExpanded,
@@ -107,10 +108,12 @@ function Nav({
   activeAssignmentId?: string | null
   onSelectAssignment?: (assignmentId: string | null) => void
   onReorderAssignments?: (orderedIds: string[]) => void
+  isReadOnly?: boolean
 }) {
   const router = useRouter()
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const items = useMemo(() => getItems(role), [role])
+  const canReorderAssignments = !!onReorderAssignments && !isReadOnly
 
   return (
     <nav className="space-y-1">
@@ -237,16 +240,19 @@ function Nav({
                       <button
                         key={assignment.id}
                         type="button"
-                        draggable
+                        draggable={canReorderAssignments}
                         onDragStart={(e) => {
+                          if (!canReorderAssignments) return
                           e.dataTransfer.effectAllowed = 'move'
                           setDraggingId(assignment.id)
                         }}
                         onDragEnd={() => setDraggingId(null)}
-                        onDragOver={(e) => e.preventDefault()}
+                        onDragOver={(e) => {
+                          if (canReorderAssignments) e.preventDefault()
+                        }}
                         onDrop={(e) => {
                           e.preventDefault()
-                          if (!draggingId || draggingId === assignment.id || !onReorderAssignments) return
+                          if (!draggingId || draggingId === assignment.id || !canReorderAssignments) return
                           const ids = assignments.map((a) => a.id)
                           const from = ids.indexOf(draggingId)
                           const to = ids.indexOf(assignment.id)
@@ -312,12 +318,14 @@ export function ClassroomSidebar({
   classroomId,
   role,
   activeTab,
+  isReadOnly = false,
   isMobileOpen,
   onCloseMobile,
 }: {
   classroomId: string
   role: 'student' | 'teacher'
   activeTab: string
+  isReadOnly?: boolean
   isMobileOpen: boolean
   onCloseMobile: () => void
 }) {
@@ -448,6 +456,7 @@ export function ClassroomSidebar({
 
   async function reorderAssignments(orderedIds: string[]) {
     if (role !== 'teacher') return
+    if (isReadOnly) return
     setAssignments((prev) => {
       const byId = new Map(prev.map((a) => [a.id, a]))
       return orderedIds.map((id) => byId.get(id)).filter(Boolean) as SidebarAssignment[]
@@ -510,6 +519,7 @@ export function ClassroomSidebar({
             activeTab={activeTab}
             role={role}
             isCollapsed={isCollapsed}
+            isReadOnly={isReadOnly}
             assignments={assignments}
             assignmentsExpanded={role === 'teacher' ? assignmentsExpanded : undefined}
             onToggleAssignmentsExpanded={role === 'teacher' ? toggleAssignmentsExpanded : undefined}
@@ -524,7 +534,7 @@ export function ClassroomSidebar({
               }
             }}
             onReorderAssignments={(orderedIds) => {
-              if (role !== 'teacher' || isReorderingAssignments) return
+              if (role !== 'teacher' || isReorderingAssignments || isReadOnly) return
               reorderAssignments(orderedIds)
             }}
           />

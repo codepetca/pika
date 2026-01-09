@@ -48,16 +48,27 @@ export default function ClassroomPage() {
 
         // Load classroom based on role
         if (userData.user.role === 'teacher') {
-          const classroomRes = await fetch(`/api/teacher/classrooms`)
-          const classroomData = await classroomRes.json()
-          setTeacherClassrooms(classroomData.classrooms || [])
-          const found = classroomData.classrooms?.find((c: Classroom) => c.id === classroomId)
+          const [classroomsRes, classroomRes] = await Promise.all([
+            fetch('/api/teacher/classrooms'),
+            fetch(`/api/teacher/classrooms/${classroomId}`),
+          ])
 
-          if (!found) {
+          if (!classroomRes.ok) {
             setError('Classroom not found')
             return
           }
-          setClassroom(found)
+
+          const classroomData = await classroomRes.json()
+          const classroomsData = await classroomsRes.json().catch(() => ({ classrooms: [] }))
+          const activeClassrooms = (classroomsData.classrooms || []) as Classroom[]
+          const currentClassroom = classroomData.classroom as Classroom
+
+          setClassroom(currentClassroom)
+          if (currentClassroom.archived_at) {
+            setTeacherClassrooms([currentClassroom])
+          } else {
+            setTeacherClassrooms(activeClassrooms)
+          }
         } else {
           const classroomRes = await fetch(`/api/student/classrooms/${classroomId}`)
           if (!classroomRes.ok) {
@@ -112,6 +123,7 @@ export default function ClassroomPage() {
 
   const tab = searchParams.get('tab')
   const isTeacher = user.role === 'teacher'
+  const isArchived = isTeacher && !!classroom.archived_at
 
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
@@ -142,12 +154,18 @@ export default function ClassroomPage() {
           classroomId={classroom.id}
           role={user.role}
           activeTab={activeTab}
+          isReadOnly={isArchived}
           isMobileOpen={isMobileSidebarOpen}
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
 
         <div className="flex-1 min-w-0 min-h-0 px-4 py-3">
           <div className="max-w-7xl mx-auto h-full flex flex-col min-h-0">
+            {isArchived && (
+              <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+                This classroom is archived. You can view content, but changes are disabled until it is restored.
+              </div>
+            )}
             {isTeacher ? (
               <>
                 {activeTab === 'attendance' && (

@@ -80,6 +80,7 @@ function formatTorontoDateTime(iso: string) {
 }
 
 export function TeacherClassroomView({ classroom }: Props) {
+  const isReadOnly = !!classroom.archived_at
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -297,11 +298,13 @@ export function TeacherClassroomView({ classroom }: Props) {
         id: 'toggle-new-assignment',
         label: '+ New Assignment',
         onSelect: () => setIsCreateModalOpen(true),
+        disabled: isReadOnly,
       },
     ]
-  }, [])
+  }, [isReadOnly])
 
-  const canEditAssignment = selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading
+  const canEditAssignment =
+    selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
   const editAssignmentButton = selection.mode === 'assignment' ? (
     <button
       type="button"
@@ -366,10 +369,15 @@ export function TeacherClassroomView({ classroom }: Props) {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
+                          if (isReadOnly) return
                           setEditAssignment(assignment)
                         }}
-                        className="p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-300 dark:hover:text-gray-100 dark:hover:bg-gray-800"
+                        className={[
+                          'p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-300 dark:hover:text-gray-100 dark:hover:bg-gray-800',
+                          isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
+                        ].join(' ')}
                         aria-label={`Edit ${assignment.title}`}
+                        disabled={isReadOnly}
                       >
                         <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
                       </button>
@@ -377,10 +385,15 @@ export function TeacherClassroomView({ classroom }: Props) {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
+                          if (isReadOnly) return
                           setPendingDelete({ id: assignment.id, title: assignment.title })
                         }}
-                        className="p-2 rounded-md text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-200 dark:hover:bg-red-900/20"
+                        className={[
+                          'p-2 rounded-md text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-200 dark:hover:bg-red-900/20',
+                          isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
+                        ].join(' ')}
                         aria-label={`Delete ${assignment.title}`}
+                        disabled={isReadOnly}
                       >
                         <TrashIcon className="h-5 w-5" aria-hidden="true" />
                       </button>

@@ -25,6 +25,7 @@ export async function GET() {
         )
       `)
       .eq('student_id', user.id)
+      .is('classrooms.archived_at', null)
       .order('created_at', { ascending: false })
 
     if (error) {

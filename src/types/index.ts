@@ -45,6 +45,7 @@ export interface Classroom {
   allow_enrollment: boolean
   start_date: string | null // YYYY-MM-DD, inclusive
   end_date: string | null // YYYY-MM-DD, inclusive
+  archived_at: string | null
   created_at: string
   updated_at: string
 }

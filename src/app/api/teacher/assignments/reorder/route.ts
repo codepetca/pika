@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -25,19 +26,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'assignment_ids must be unique' }, { status: 400 })
     }
 
-    const supabase = getServiceRoleClient()
-
-    // Verify teacher owns this classroom
-    const { data: classroom, error: classroomError } = await supabase
-      .from('classrooms')
-      .select('id')
-      .eq('id', classroom_id)
-      .eq('teacher_id', user.id)
-      .single()
-
-    if (classroomError || !classroom) {
-      return NextResponse.json({ error: 'Classroom not found or unauthorized' }, { status: 403 })
+    const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
+    if (!ownership.ok) {
+      return NextResponse.json({ error: ownership.error }, { status: ownership.status })
     }
+
+    const supabase = getServiceRoleClient()
 
     // Verify all IDs belong to the classroom
     const { data: assignments, error: assignmentsError } = await supabase
@@ -77,4 +71,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-
