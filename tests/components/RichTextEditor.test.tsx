@@ -10,15 +10,18 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    expect(screen.getByText('B')).toBeInTheDocument() // Bold
-    expect(screen.getByText('I')).toBeInTheDocument() // Italic
-    expect(screen.getByText('H1')).toBeInTheDocument() // Heading 1
-    expect(screen.getByText('H2')).toBeInTheDocument() // Heading 2
-    expect(screen.getByText('H3')).toBeInTheDocument() // Heading 3
-    expect(screen.getByText('•')).toBeInTheDocument() // Bullet list
-    expect(screen.getByText('1.')).toBeInTheDocument() // Ordered list
-    expect(screen.getByText('</>')).toBeInTheDocument() // Code block
-    expect(screen.getByText('Link')).toBeInTheDocument() // Link
+    expect(screen.getByLabelText('Bold')).toBeInTheDocument()
+    expect(screen.getByLabelText('Italic')).toBeInTheDocument()
+    expect(screen.getByLabelText('Underline')).toBeInTheDocument()
+    expect(screen.getByLabelText('Heading 1')).toBeInTheDocument()
+    expect(screen.getByLabelText('Heading 2')).toBeInTheDocument()
+    expect(screen.getByLabelText('Heading 3')).toBeInTheDocument()
+    expect(screen.getByLabelText('Bullet list')).toBeInTheDocument()
+    expect(screen.getByLabelText('Ordered list')).toBeInTheDocument()
+    expect(screen.getByLabelText('Code block')).toBeInTheDocument()
+    expect(screen.getByLabelText('Link')).toBeInTheDocument()
+    expect(screen.getByLabelText('Clear formatting')).toBeInTheDocument()
+    expect(screen.getByText('Font')).toBeInTheDocument()
   })
 
   it('should apply bold formatting when Bold button is clicked', async () => {
@@ -35,7 +38,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const boldButton = screen.getByText('B')
+    const boldButton = screen.getByLabelText('Bold')
     fireEvent.click(boldButton)
 
     await waitFor(() => {
@@ -57,7 +60,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const italicButton = screen.getByText('I')
+    const italicButton = screen.getByLabelText('Italic')
     fireEvent.click(italicButton)
 
     await waitFor(() => {
@@ -79,7 +82,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const h1Button = screen.getByText('H1')
+    const h1Button = screen.getByLabelText('Heading 1')
     fireEvent.click(h1Button)
 
     await waitFor(() => {
@@ -101,7 +104,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const h2Button = screen.getByText('H2')
+    const h2Button = screen.getByLabelText('Heading 2')
     fireEvent.click(h2Button)
 
     await waitFor(() => {
@@ -123,7 +126,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const h3Button = screen.getByText('H3')
+    const h3Button = screen.getByLabelText('Heading 3')
     fireEvent.click(h3Button)
 
     await waitFor(() => {
@@ -145,7 +148,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const bulletButton = screen.getByText('•')
+    const bulletButton = screen.getByLabelText('Bullet list')
     fireEvent.click(bulletButton)
 
     await waitFor(() => {
@@ -167,7 +170,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const orderedButton = screen.getByText('1.')
+    const orderedButton = screen.getByLabelText('Ordered list')
     fireEvent.click(orderedButton)
 
     await waitFor(() => {
@@ -189,7 +192,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const codeButton = screen.getByText('</>')
+    const codeButton = screen.getByLabelText('Code block')
     fireEvent.click(codeButton)
 
     await waitFor(() => {
@@ -203,15 +206,18 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} editable={false} />)
 
-    expect(screen.getByText('B')).toBeDisabled()
-    expect(screen.getByText('I')).toBeDisabled()
-    expect(screen.getByText('H1')).toBeDisabled()
-    expect(screen.getByText('H2')).toBeDisabled()
-    expect(screen.getByText('H3')).toBeDisabled()
-    expect(screen.getByText('•')).toBeDisabled()
-    expect(screen.getByText('1.')).toBeDisabled()
-    expect(screen.getByText('</>')).toBeDisabled()
-    expect(screen.getByText('Link')).toBeDisabled()
+    expect(screen.getByLabelText('Bold')).toBeDisabled()
+    expect(screen.getByLabelText('Italic')).toBeDisabled()
+    expect(screen.getByLabelText('Underline')).toBeDisabled()
+    expect(screen.getByLabelText('Heading 1')).toBeDisabled()
+    expect(screen.getByLabelText('Heading 2')).toBeDisabled()
+    expect(screen.getByLabelText('Heading 3')).toBeDisabled()
+    expect(screen.getByLabelText('Bullet list')).toBeDisabled()
+    expect(screen.getByLabelText('Ordered list')).toBeDisabled()
+    expect(screen.getByLabelText('Code block')).toBeDisabled()
+    expect(screen.getByLabelText('Link')).toBeDisabled()
+    expect(screen.getByLabelText('Clear formatting')).toBeDisabled()
+    expect(screen.getByText('Font')).toBeDisabled()
   })
 
   it('should disable all buttons when disabled is true', () => {
@@ -220,15 +226,18 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} disabled />)
 
-    expect(screen.getByText('B')).toBeDisabled()
-    expect(screen.getByText('I')).toBeDisabled()
-    expect(screen.getByText('H1')).toBeDisabled()
-    expect(screen.getByText('H2')).toBeDisabled()
-    expect(screen.getByText('H3')).toBeDisabled()
-    expect(screen.getByText('•')).toBeDisabled()
-    expect(screen.getByText('1.')).toBeDisabled()
-    expect(screen.getByText('</>')).toBeDisabled()
-    expect(screen.getByText('Link')).toBeDisabled()
+    expect(screen.getByLabelText('Bold')).toBeDisabled()
+    expect(screen.getByLabelText('Italic')).toBeDisabled()
+    expect(screen.getByLabelText('Underline')).toBeDisabled()
+    expect(screen.getByLabelText('Heading 1')).toBeDisabled()
+    expect(screen.getByLabelText('Heading 2')).toBeDisabled()
+    expect(screen.getByLabelText('Heading 3')).toBeDisabled()
+    expect(screen.getByLabelText('Bullet list')).toBeDisabled()
+    expect(screen.getByLabelText('Ordered list')).toBeDisabled()
+    expect(screen.getByLabelText('Code block')).toBeDisabled()
+    expect(screen.getByLabelText('Link')).toBeDisabled()
+    expect(screen.getByLabelText('Clear formatting')).toBeDisabled()
+    expect(screen.getByText('Font')).toBeDisabled()
   })
 
   it('should call onChange when content is modified', async () => {
@@ -237,7 +246,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const boldButton = screen.getByText('B')
+    const boldButton = screen.getByLabelText('Bold')
     fireEvent.click(boldButton)
 
     await waitFor(() => {
@@ -290,7 +299,7 @@ describe('RichTextEditor formatting buttons', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const boldButton = screen.getByText('B')
+    const boldButton = screen.getByLabelText('Bold')
 
     // First click - apply bold
     fireEvent.click(boldButton)
@@ -328,7 +337,7 @@ describe('RichTextEditor code block behavior', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const codeButton = screen.getByText('</>')
+    const codeButton = screen.getByLabelText('Code block')
     fireEvent.click(codeButton)
 
     await waitFor(() => {
