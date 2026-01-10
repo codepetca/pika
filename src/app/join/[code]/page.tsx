@@ -15,15 +15,26 @@ export default function JoinClassroomPage() {
   useEffect(() => {
     async function joinClassroom() {
       try {
+        const trimmedCode = String(code || '').trim()
+        const isUuid =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            trimmedCode
+          )
+
         // Try to join by code or ID
         const response = await fetch('/api/student/classrooms/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            classCode: code,
-            classroomId: code, // Try both in case it's a UUID
+            classCode: trimmedCode,
+            ...(isUuid ? { classroomId: trimmedCode } : {}),
           }),
         })
+
+        if (response.status === 401) {
+          router.push(`/login?next=${encodeURIComponent(`/join/${trimmedCode}`)}`)
+          return
+        }
 
         const data = await response.json()
 
@@ -34,7 +45,7 @@ export default function JoinClassroomPage() {
           if (data?.code === 'not_on_roster') {
             throw new Error('Your email is not on the roster. Make sure you are signed in with your board email and ask your teacher to add you.')
           }
-          throw new Error(data.error || 'Failed to join classroom')
+          throw new Error(data?.error || 'Unable to join. Check your code and school email, or ask your teacher to add you.')
         }
 
         // Redirect to student dashboard with the new classroom selected
@@ -54,7 +65,7 @@ export default function JoinClassroomPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Spinner size="lg" />
-          <p className="mt-4 text-gray-600">Joining classroom...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Joining classroom...</p>
         </div>
       </div>
     )
@@ -63,12 +74,12 @@ export default function JoinClassroomPage() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+        <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8 text-center">
           <div className="text-red-600 text-5xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
             Unable to Join
           </h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <button
             onClick={() => router.push('/join')}
             className="text-blue-600 hover:underline"

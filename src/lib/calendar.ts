@@ -1,12 +1,16 @@
-import { parse, eachDayOfInterval, isWeekend, format, addDays } from 'date-fns'
+import { parse, isWeekend } from 'date-fns'
+import { formatInTimeZone, toZonedTime } from 'date-fns-tz'
 import Holidays from 'date-holidays'
 import type { Semester, SemesterRange } from '@/types'
+
+const TIMEZONE = 'America/Toronto'
+const NOON_UTC_HOUR = 12
 
 // Semester date ranges
 export const SEMESTER_RANGES: Record<Semester, SemesterRange> = {
   semester1: {
     start: '09-01', // September 1
-    end: '01-30',   // January 30
+    end: '01-31',   // January 31
   },
   semester2: {
     start: '02-01', // February 1
@@ -20,24 +24,25 @@ export const SEMESTER_RANGES: Record<Semester, SemesterRange> = {
  */
 export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
   const hd = new Holidays('CA', 'ON') // Canada, Ontario
+  hd.setTimezone(TIMEZONE)
   const holidays: string[] = []
 
   // Get all holidays in the date range
-  const allDates = eachDayOfInterval({ start: startDate, end: endDate })
+  const allDates = getUtcNoonRange(startDate, endDate)
 
   allDates.forEach(date => {
     const dateHolidays = hd.isHoliday(date)
     if (dateHolidays) {
-      holidays.push(format(date, 'yyyy-MM-dd'))
+      holidays.push(formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd'))
     }
   })
 
   // Add school-specific breaks (Winter Break and March Break)
   // These are not statutory holidays but are days when school is closed
-  const startYear = startDate.getFullYear()
-  const endYear = endDate.getFullYear()
-  const startMonth = startDate.getMonth()
-  const endMonth = endDate.getMonth()
+  const startYear = startDate.getUTCFullYear()
+  const endYear = endDate.getUTCFullYear()
+  const startMonth = startDate.getUTCMonth()
+  const endMonth = endDate.getUTCMonth()
 
   // Winter Break: Dec 23 - Jan 3 (approximately)
   // Check if date range includes December
@@ -51,32 +56,37 @@ export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
     }
   }
 
-  // Check if date range includes January (next year for winter break)
-  // This handles cases where the range spans into January of the next year
-  if (endMonth === 0 && endYear > startYear) {
-    // End date is in January of next year
-    holidays.push(`${endYear}-01-02`)
-    holidays.push(`${endYear}-01-03`)
-  } else if (startMonth === 11 && endYear > startYear) {
-    // Start is in December and end is in next year
+  // Check if date range includes January (Jan 2-3 winter break)
+  const includesJanuaryInStartYear = startMonth === 0
+  const includesJanuaryInEndYear = endMonth === 0
+  const spansYearBoundary = endYear > startYear
+
+  if (includesJanuaryInStartYear) {
+    holidays.push(`${startYear}-01-02`)
+    holidays.push(`${startYear}-01-03`)
+  }
+
+  if (includesJanuaryInEndYear || spansYearBoundary) {
     holidays.push(`${endYear}-01-02`)
     holidays.push(`${endYear}-01-03`)
   }
 
   // March Break: Second full week of March (Mon-Fri)
   // Check if date range includes March
-  if (startDate.getMonth() <= 2 && endDate.getMonth() >= 2) {
-    const marchYear = endDate.getMonth() === 2 ? endYear : startYear
+  if (startMonth <= 2 && (endYear > startYear || endMonth >= 2)) {
+    const marchYear = endMonth === 2 ? endYear : startYear
     // Find second Monday of March
-    const marchFirst = new Date(marchYear, 2, 1) // March 1
-    const firstMonday = marchFirst.getDay() === 1 ? marchFirst :
-                       addDays(marchFirst, (8 - marchFirst.getDay()) % 7)
-    const secondMonday = addDays(firstMonday, 7)
+    const marchFirst = new Date(Date.UTC(marchYear, 2, 1, NOON_UTC_HOUR)) // March 1
+    const marchFirstToronto = toZonedTime(marchFirst, TIMEZONE)
+    const marchFirstDay = marchFirstToronto.getDay()
+    const offsetToMonday = marchFirstDay === 1 ? 0 : (8 - marchFirstDay) % 7
+    const firstMonday = addDaysUtc(marchFirst, offsetToMonday)
+    const secondMonday = addDaysUtc(firstMonday, 7)
 
     // Add Monday through Friday of March Break
     for (let i = 0; i < 5; i++) {
-      const breakDay = addDays(secondMonday, i)
-      holidays.push(format(breakDay, 'yyyy-MM-dd'))
+      const breakDay = addDaysUtc(secondMonday, i)
+      holidays.push(formatInTimeZone(breakDay, TIMEZONE, 'yyyy-MM-dd'))
     }
   }
 
@@ -112,16 +122,16 @@ export function generateClassDaysFromRange(startDate: Date, endDate: Date): stri
   const holidaySet = new Set(holidays)
 
   // Get all dates in the range
-  const allDates = eachDayOfInterval({ start: startDate, end: endDate })
+  const allDates = getUtcNoonRange(startDate, endDate)
 
   // Filter out weekends and holidays
   const classDays = allDates
-    .filter(date => !isWeekend(date))
+    .filter(date => !isWeekend(toZonedTime(date, TIMEZONE)))
     .filter(date => {
-      const dateString = format(date, 'yyyy-MM-dd')
+      const dateString = formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd')
       return !holidaySet.has(dateString)
     })
-    .map(date => format(date, 'yyyy-MM-dd'))
+    .map(date => formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd'))
 
   return classDays
 }
@@ -172,4 +182,25 @@ export function getCurrentSemester(): { semester: Semester; year: number } | nul
   }
 
   return null
+}
+
+function toUtcNoon(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), NOON_UTC_HOUR))
+}
+
+function addDaysUtc(date: Date, days: number): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + days, NOON_UTC_HOUR))
+}
+
+function getUtcNoonRange(startDate: Date, endDate: Date): Date[] {
+  const dates: Date[] = []
+  let current = toUtcNoon(startDate)
+  const end = toUtcNoon(endDate)
+
+  while (current <= end) {
+    dates.push(current)
+    current = addDaysUtc(current, 1)
+  }
+
+  return dates
 }

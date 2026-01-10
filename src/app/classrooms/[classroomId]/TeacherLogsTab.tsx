@@ -1,17 +1,35 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { DateNavigator } from '@/components/DateNavigator'
+import { DateActionBar } from '@/components/DateActionBar'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import type { ClassDay, Classroom, Entry } from '@/types'
+import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  EmptyStateRow,
+  SortableHeaderCell,
+  TableCard,
+} from '@/components/DataTable'
+import { applyDirection, compareNullableStrings, toggleSort as toggleSortState } from '@/lib/table-sort'
+
+type SortColumn = 'student_first_name' | 'student_last_name'
 
 interface LogRow {
   student_id: string
   student_email: string
+  student_first_name: string
+  student_last_name: string
   entry: Entry | null
+  summary: string | null
 }
 
 interface Props {
@@ -24,12 +42,16 @@ export function TeacherLogsTab({ classroom }: Props) {
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
+    column: SortColumn
+    direction: 'asc' | 'desc'
+  }>({ column: 'student_last_name', direction: 'asc' })
 
   useEffect(() => {
     async function loadBase() {
       setLoading(true)
       try {
-        const classDaysRes = await fetch(`/api/teacher/class-days?classroom_id=${classroom.id}`)
+        const classDaysRes = await fetch(`/api/classrooms/${classroom.id}/class-days`)
         const classDaysData = await classDaysRes.json()
         const nextClassDays: ClassDay[] = classDaysData.class_days || []
         setClassDays(nextClassDays)
@@ -46,15 +68,10 @@ export function TeacherLogsTab({ classroom }: Props) {
     loadBase()
   }, [classroom.id])
 
-  const isClassDay = useMemo(() => {
-    if (!selectedDate) return true
-    return isClassDayOnDate(classDays, selectedDate)
-  }, [classDays, selectedDate])
-
   useEffect(() => {
     async function loadLogs() {
       if (!selectedDate) return
-      if (!isClassDay) {
+      if (!isClassDayOnDate(classDays, selectedDate)) {
         setLogs([])
         setExpanded(new Set())
         return
@@ -73,14 +90,24 @@ export function TeacherLogsTab({ classroom }: Props) {
       }
     }
     loadLogs()
-  }, [classroom.id, isClassDay, selectedDate])
+  }, [classroom.id, classDays, selectedDate])
 
-  const studentsWithLogs = useMemo(
-    () => logs.filter(l => Boolean(l.entry)).map(l => l.student_id),
-    [logs]
-  )
+  const isClassDay = useMemo(() => {
+    if (!selectedDate) return true
+    return isClassDayOnDate(classDays, selectedDate)
+  }, [classDays, selectedDate])
 
-  function toggle(studentId: string) {
+  const sortedRows = useMemo(() => {
+    return [...logs].sort((a, b) => {
+      const aVal = sortColumn === 'student_first_name' ? a.student_first_name : a.student_last_name
+      const bVal = sortColumn === 'student_first_name' ? b.student_first_name : b.student_last_name
+      const cmp = compareNullableStrings(aVal, bVal, { missingLast: true })
+      if (cmp !== 0) return applyDirection(cmp, sortDirection)
+      return applyDirection(a.student_email.localeCompare(b.student_email), sortDirection)
+    })
+  }, [logs, sortColumn, sortDirection])
+
+  const toggle = (studentId: string) => {
     setExpanded(prev => {
       const next = new Set(prev)
       if (next.has(studentId)) next.delete(studentId)
@@ -89,12 +116,21 @@ export function TeacherLogsTab({ classroom }: Props) {
     })
   }
 
-  function expandAll() {
-    setExpanded(new Set(studentsWithLogs))
+  const expandAll = () => {
+    setExpanded(new Set(logs.map(row => row.student_id)))
   }
 
-  function collapseAll() {
+  const collapseAll = () => {
     setExpanded(new Set())
+  }
+
+  const moveDateBy = (delta: number) => {
+    if (!selectedDate) return
+    setSelectedDate(addDaysToDateString(selectedDate, delta))
+  }
+
+  const onSort = (column: SortColumn) => {
+    setSortState((prev) => toggleSortState(prev, column))
   }
 
   if (loading && logs.length === 0) {
@@ -106,96 +142,88 @@ export function TeacherLogsTab({ classroom }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-sm p-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="text-lg font-semibold text-gray-900">Logs</h2>
-          <DateNavigator
+    <PageLayout>
+      <PageActionBar
+        primary={
+          <DateActionBar
             value={selectedDate}
             onChange={setSelectedDate}
-            shortcutLabel="Yesterday"
-            onShortcut={() => {
-              const today = getTodayInToronto()
-              const previousClassDay = getMostRecentClassDayBefore(classDays, today)
-              setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
-            }}
+            onPrev={() => moveDateBy(-1)}
+            onNext={() => moveDateBy(1)}
           />
-        </div>
+        }
+        actions={
+          isClassDay && logs.length > 0
+            ? [
+                {
+                  id: 'toggle-expand',
+                  label: expanded.size === logs.length ? 'Collapse' : 'Expand',
+                  onSelect: () => (expanded.size === logs.length ? collapseAll() : expandAll()),
+                },
+              ]
+            : []
+        }
+      />
 
-        <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
-          <div className="text-sm text-gray-600">
-            {isClassDay ? `Showing ${selectedDate}` : `No class on ${selectedDate}`}
-          </div>
-          {isClassDay && (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50"
-                onClick={expandAll}
-                disabled={studentsWithLogs.length === 0}
-              >
-                Expand all
-              </button>
-              <button
-                type="button"
-                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50"
-                onClick={collapseAll}
-                disabled={expanded.size === 0}
-              >
-                Collapse all
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
-        {(isClassDay ? logs : []).map((row) => {
-          const hasEntry = Boolean(row.entry)
-          const isExpanded = expanded.has(row.student_id)
-          return (
-            <div key={row.student_id} className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900">
-                    {row.student_email}
-                  </div>
-                  {!hasEntry ? (
-                    <div className="mt-1 text-sm text-gray-400">
-                      (missing)
-                    </div>
-                  ) : isExpanded ? (
-                    <div className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">
-                      {row.entry!.text}
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-sm text-gray-600 truncate">
-                      {row.entry!.text}
-                    </div>
-                  )}
-                </div>
-                {hasEntry && (
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50 flex-shrink-0"
-                    onClick={() => toggle(row.student_id)}
-                  >
-                    {isExpanded ? 'Collapse' : 'Expand'}
-                  </button>
-                )}
-              </div>
-            </div>
-          )
-        })}
-
-        {isClassDay && logs.length === 0 && (
-          <div className="p-6 text-center text-gray-500">No students enrolled</div>
-        )}
-        {!isClassDay && (
-          <div className="p-6 text-center text-gray-500">No class on this day</div>
-        )}
-      </div>
-    </div>
+      <PageContent>
+        <TableCard overflowX>
+          <DataTable>
+            <DataTableHead>
+              <DataTableRow>
+                <SortableHeaderCell
+                  label="First Name"
+                  isActive={sortColumn === 'student_first_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('student_first_name')}
+                />
+                <SortableHeaderCell
+                  label="Last Name"
+                  isActive={sortColumn === 'student_last_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('student_last_name')}
+                />
+                <DataTableHeaderCell>Log Summary</DataTableHeaderCell>
+              </DataTableRow>
+            </DataTableHead>
+            <DataTableBody>
+              {isClassDay &&
+                sortedRows.map(row => {
+                  const summaryText = row.summary ?? row.entry?.text ?? ''
+                  const isExpanded = expanded.has(row.student_id)
+                  return (
+                    <Fragment key={row.student_id}>
+                      <DataTableRow
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                        onClick={() => toggle(row.student_id)}
+                      >
+                        <DataTableCell>{row.student_first_name || '—'}</DataTableCell>
+                        <DataTableCell>{row.student_last_name || '—'}</DataTableCell>
+                        <DataTableCell className="text-gray-700 dark:text-gray-300">
+                          <div className="truncate" title={summaryText}>
+                            {summaryText}
+                          </div>
+                        </DataTableCell>
+                      </DataTableRow>
+                      {isExpanded && row.entry && (
+                        <DataTableRow className="bg-white dark:bg-gray-900">
+                          <DataTableCell colSpan={3} className="text-gray-900 dark:text-gray-100">
+                            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                              {row.entry.text}
+                            </p>
+                          </DataTableCell>
+                        </DataTableRow>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              {isClassDay && sortedRows.length === 0 && (
+                <EmptyStateRow colSpan={3} message="No logs for this day" />
+              )}
+              {!isClassDay && <EmptyStateRow colSpan={3} message="Not a class day" />}
+            </DataTableBody>
+          </DataTable>
+        </TableCard>
+      </PageContent>
+    </PageLayout>
   )
 }
-

@@ -1,0 +1,763 @@
+#!/bin/bash
+# pika — worktree router for agent-safe workflows (v1)
+# Usage:
+#   pika ls
+#   pika claude <worktree> [-- <args...>]
+#   pika codex <worktree> [-- <args...>]
+#   pika git <worktree> <args...>
+
+set -euo pipefail
+
+WORKTREE_ROOT="$HOME/Repos/.worktrees/pika"
+HUB_REPO="$HOME/Repos/pika"
+ENV_CANONICAL="$HOME/Repos/.env/pika/.env.local"
+HUB_SENTINEL="__hub__"
+ISSUE_FETCH_LIMIT=200
+ISSUE_PAGE_SIZE=5
+ISSUE_SLUG_MAX=40
+WORKTREE_PAGE_SIZE=5
+QUIT_SENTINEL="__pika_quit__"
+MENU_LABELS=()
+MENU_VALUES=()
+MENU_HOTKEYS=()
+MENU_HEADER_LINES=()
+MENU_GLOBAL_KEYS=()
+MENU_GLOBAL_VALUES=()
+
+die() {
+    echo "error: $1" >&2
+    echo "" >&2
+    echo "Available worktrees:" >&2
+    local has_any=0
+    while IFS= read -r worktree; do
+        [[ -n "$worktree" ]] || continue
+        echo "  $worktree" >&2
+        has_any=1
+    done < <(list_worktrees)
+    if (( has_any == 0 )); then
+        echo "  (none)" >&2
+    fi
+    exit 1
+}
+
+cmd_ls() {
+    local worktrees=()
+    while IFS= read -r worktree; do
+        [[ -n "$worktree" ]] || continue
+        worktrees+=("$worktree")
+    done < <(list_worktrees)
+    if (( ${#worktrees[@]} > 0 )); then
+        printf "%s\n" "${worktrees[@]}"
+    else
+        echo "(no worktrees found)"
+    fi
+}
+
+require_tty_or_die() {
+    local usage="$1"
+    if [[ ! -t 0 ]]; then
+        die "$usage"
+    fi
+}
+
+list_worktrees() {
+    if [[ ! -d "$WORKTREE_ROOT" ]]; then
+        return 0
+    fi
+
+    local lines=""
+    if ! lines="$(git -C "$HUB_REPO" worktree list --porcelain 2>/dev/null)"; then
+        ls -1t "$WORKTREE_ROOT" 2>/dev/null || true
+        return 0
+    fi
+
+    local paths=()
+    local line=""
+    while IFS= read -r line; do
+        case "$line" in
+            worktree\ *)
+                local path="${line#worktree }"
+                if [[ "$path" == "$WORKTREE_ROOT" || "$path" != "$WORKTREE_ROOT/"* ]]; then
+                    continue
+                fi
+                local rel="${path#"$WORKTREE_ROOT/"}"
+                if [[ -n "$rel" ]]; then
+                    paths+=("$rel")
+                fi
+                ;;
+        esac
+    done <<< "$lines"
+
+    if (( ${#paths[@]} == 0 )); then
+        return 0
+    fi
+
+    local mtime_lines=""
+    local rel=""
+    for rel in "${paths[@]}"; do
+        local path="$WORKTREE_ROOT/$rel"
+        local mtime=""
+        if mtime="$(stat -f %m "$path" 2>/dev/null)"; then
+            :
+        elif mtime="$(stat -c %Y "$path" 2>/dev/null)"; then
+            :
+        else
+            mtime=0
+        fi
+        mtime_lines+="${mtime}"$'\t'"${rel}"$'\n'
+    done
+
+    if [[ -n "$mtime_lines" ]]; then
+        printf "%s" "$mtime_lines" | sort -rn | cut -f2-
+    fi
+    return 0
+}
+
+slugify() {
+    local value=""
+    local max="${2:-}"
+    value="$(echo "$1" \
+        | tr '[:upper:]' '[:lower:]' \
+        | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g')"
+    if [[ -n "$max" && -n "$value" ]]; then
+        value="${value:0:$max}"
+        value="$(echo "$value" | sed -E 's/^-+//; s/-+$//')"
+    fi
+    echo "$value"
+}
+
+ensure_env_symlink() {
+    local path="$1"
+    if [[ -n "$ENV_CANONICAL" ]]; then
+        ln -sf "$ENV_CANONICAL" "$path/.env.local" || \
+            echo "warning: unable to link .env.local for $path" >&2
+    fi
+}
+
+resolve_claude_bin() {
+    if [[ -n "${CLAUDE_BIN:-}" ]]; then
+        if [[ -x "$CLAUDE_BIN" ]]; then
+            echo "$CLAUDE_BIN"
+            return 0
+        fi
+        echo "warning: CLAUDE_BIN is set but not executable: $CLAUDE_BIN" >&2
+    fi
+    if command -v claude >/dev/null 2>&1; then
+        local resolved=""
+        resolved="$(command -v claude)"
+        if [[ -n "$resolved" && -x "$resolved" ]]; then
+            echo "$resolved"
+            return 0
+        fi
+    fi
+    local fallback="$HOME/.claude/local/claude"
+    if [[ -x "$fallback" ]]; then
+        echo "$fallback"
+        return 0
+    fi
+    return 1
+}
+
+get_term_cols() {
+    local cols="80"
+    if command -v tput >/dev/null 2>&1; then
+        cols="$(tput cols 2>/dev/null || echo 80)"
+    fi
+    if ! [[ "$cols" =~ ^[0-9]+$ ]]; then
+        cols="80"
+    fi
+    if (( cols <= 0 )); then
+        cols="80"
+    fi
+    echo "$cols"
+}
+
+truncate_for_width() {
+    local value="$1"
+    local max_len="$2"
+    local len="${#value}"
+
+    if (( max_len <= 0 )); then
+        echo ""
+        return 0
+    fi
+    if (( len <= max_len )); then
+        echo "$value"
+        return 0
+    fi
+    if (( max_len <= 3 )); then
+        echo "${value:0:max_len}"
+        return 0
+    fi
+    echo "${value:0:$((max_len - 3))}..."
+}
+
+menu_select() {
+    local prompt="$1"
+    local selected="${2:-0}"
+    local count="${#MENU_LABELS[@]}"
+    local header_count="${#MENU_HEADER_LINES[@]}"
+    local prompt_lines=0
+    local key=""
+    local rev=""
+    local sgr0=""
+    local has_tput=0
+    local i=0
+
+    if (( count == 0 )); then
+        return 1
+    fi
+
+    if command -v tput >/dev/null 2>&1; then
+        has_tput=1
+        rev="$(tput rev 2>/dev/null || true)"
+        sgr0="$(tput sgr0 2>/dev/null || true)"
+        tput civis >&2 || true
+    fi
+
+    trap 'if (( has_tput )); then tput cnorm >&2 || true; fi' RETURN
+
+    while true; do
+        local cols=""
+        cols="$(get_term_cols)"
+        local header_width="$cols"
+        local label_width=$((cols - 2))
+        if (( label_width < 1 )); then
+            label_width=1
+        fi
+
+        for i in "${!MENU_HEADER_LINES[@]}"; do
+            local header_line=""
+            header_line="$(truncate_for_width "${MENU_HEADER_LINES[$i]}" "$header_width")"
+            printf "%s\n" "$header_line" >&2
+        done
+        if [[ -n "$prompt" ]]; then
+            local prompt_line=""
+            prompt_line="$(truncate_for_width "$prompt" "$header_width")"
+            printf "%s\n" "$prompt_line" >&2
+            prompt_lines=1
+        else
+            prompt_lines=0
+        fi
+        for i in "${!MENU_LABELS[@]}"; do
+            local label=""
+            label="$(truncate_for_width "${MENU_LABELS[$i]}" "$label_width")"
+            if (( i == selected )); then
+                printf "  %s%s%s\n" "$rev" "$label" "$sgr0" >&2
+            else
+                printf "  %s\n" "$label" >&2
+            fi
+        done
+
+        local lines=$((header_count + prompt_lines + count))
+        if ! IFS= read -r -n 1 -s key; then
+            return 1
+        fi
+
+        if [[ -z "$key" || "$key" == $'\r' || "$key" == $'\n' ]]; then
+            printf "\n" >&2
+            echo "${MENU_VALUES[$selected]}"
+            return 0
+        fi
+
+        if [[ "$key" == $'\x1b' ]]; then
+            local rest=""
+            if read -r -n 2 -s -t 1 rest; then
+                case "$rest" in
+                    "[A")
+                        if (( selected > 0 )); then
+                            selected=$((selected - 1))
+                        fi
+                        ;;
+                    "[B")
+                        if (( selected < count - 1 )); then
+                            selected=$((selected + 1))
+                        fi
+                        ;;
+                esac
+            fi
+        else
+            local key_lower=""
+            key_lower="$(echo "$key" | tr '[:upper:]' '[:lower:]')"
+            for i in "${!MENU_GLOBAL_KEYS[@]}"; do
+                local hotkey=""
+                hotkey="$(echo "${MENU_GLOBAL_KEYS[$i]}" | tr '[:upper:]' '[:lower:]')"
+                if [[ -n "$hotkey" && "$key_lower" == "$hotkey" ]]; then
+                    printf "\n" >&2
+                    echo "${MENU_GLOBAL_VALUES[$i]}"
+                    return 0
+                fi
+            done
+            for i in "${!MENU_HOTKEYS[@]}"; do
+                local hotkey=""
+                hotkey="$(echo "${MENU_HOTKEYS[$i]}" | tr '[:upper:]' '[:lower:]')"
+                if [[ -n "$hotkey" && "$key_lower" == "$hotkey" ]]; then
+                    printf "\n" >&2
+                    echo "${MENU_VALUES[$i]}"
+                    return 0
+                fi
+            done
+        fi
+
+        if (( selected < 0 )); then
+            selected=0
+        fi
+        if (( selected >= count )); then
+            selected=$((count - 1))
+        fi
+
+        if (( has_tput )); then
+            for ((i = 0; i < lines; i++)); do
+                tput cuu1 >&2 || true
+                tput el >&2 || true
+            done
+        else
+            printf "\n" >&2
+        fi
+    done
+}
+
+warn_hub_repo() {
+    echo "warning: using hub repo; avoid branch work here." >&2
+}
+
+create_worktree() {
+    local name="$1"
+    local path="$WORKTREE_ROOT/$name"
+
+    if [[ -e "$path" ]]; then
+        echo "error: worktree path already exists: $path" >&2
+        return 1
+    fi
+
+    if git -C "$HUB_REPO" show-ref --verify --quiet "refs/heads/$name"; then
+        if ! git -C "$HUB_REPO" worktree add "$path" "$name" >&2; then
+            echo "error: failed to create worktree for branch $name" >&2
+            return 1
+        fi
+    else
+        if ! git -C "$HUB_REPO" worktree add "$path" -b "$name" >&2; then
+            echo "error: failed to create worktree for new branch $name" >&2
+            return 1
+        fi
+    fi
+
+    ensure_env_symlink "$path"
+}
+
+prompt_new_worktree_name() {
+    local name=""
+    while true; do
+        printf "New worktree name: " >&2
+        if ! read -r name; then
+            return 1
+        fi
+        if [[ -z "$name" ]]; then
+            echo "Name is required." >&2
+            continue
+        fi
+        if [[ "$name" =~ [[:space:]] ]]; then
+            echo "Name cannot contain spaces." >&2
+            continue
+        fi
+        echo "$name"
+        return 0
+    done
+}
+
+prompt_worktree_from_issue() {
+    local lines=""
+    if ! lines="$(gh issue list --state open --limit "$ISSUE_FETCH_LIMIT" --json number,title,updatedAt --template '{{range .}}{{printf "%s\t%v\t%s\n" .updatedAt .number .title}}{{end}}' 2>/dev/null)"; then
+        echo "Unable to list GitHub issues." >&2
+        return 1
+    fi
+
+    if [[ -z "$lines" ]]; then
+        echo "No open GitHub issues found." >&2
+        return 1
+    fi
+
+    lines="$(echo "$lines" | sort -r)"
+
+    local issue_numbers=()
+    local issue_titles=()
+    while IFS=$'\t' read -r _updated number title; do
+        [[ -n "$number" ]] || continue
+        issue_numbers+=("$number")
+        issue_titles+=("$title")
+    done <<< "$lines"
+
+    local total="${#issue_numbers[@]}"
+    local page=0
+
+    while true; do
+        local start=$((page * ISSUE_PAGE_SIZE))
+        if (( start >= total )); then
+            start=0
+            page=0
+        fi
+        local end=$((start + ISSUE_PAGE_SIZE))
+        if (( end > total )); then
+            end="$total"
+        fi
+
+        MENU_LABELS=()
+        MENU_VALUES=()
+        MENU_HOTKEYS=()
+        MENU_GLOBAL_KEYS=()
+        MENU_GLOBAL_VALUES=()
+        MENU_HEADER_LINES=("Open issues:")
+
+        local i=0
+        for ((i = start; i < end; i++)); do
+            local display_index=$((i - start + 1))
+            MENU_LABELS+=("${display_index}) #${issue_numbers[$i]} ${issue_titles[$i]}")
+            MENU_VALUES+=("issue:${i}")
+            MENU_HOTKEYS+=("${display_index}")
+        done
+
+        if (( end < total )); then
+            MENU_LABELS+=("m) More")
+            MENU_VALUES+=("__more__")
+            MENU_HOTKEYS+=("m")
+        fi
+        if (( page > 0 )); then
+            MENU_LABELS+=("p) Previous")
+            MENU_VALUES+=("__prev__")
+            MENU_HOTKEYS+=("p")
+        fi
+        MENU_GLOBAL_KEYS+=("q")
+        MENU_GLOBAL_VALUES+=("__quit__")
+
+        local selection=""
+        if ! selection="$(menu_select "" 0)"; then
+            return 1
+        fi
+
+        case "$selection" in
+            "__more__")
+                page=$((page + 1))
+                continue
+                ;;
+            "__prev__")
+                page=$((page - 1))
+                continue
+                ;;
+            "__quit__")
+                echo "$QUIT_SENTINEL"
+                return 0
+                ;;
+            issue:*)
+                local absolute_index="${selection#issue:}"
+                local issue_number="${issue_numbers[$absolute_index]}"
+                local issue_title="${issue_titles[$absolute_index]}"
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        local slug=""
+        slug="$(slugify "$issue_title" "$ISSUE_SLUG_MAX")"
+        local default_name="issue/${issue_number}"
+        if [[ -n "$slug" ]]; then
+            default_name="issue/${issue_number}-${slug}"
+        fi
+
+        local name=""
+        printf "Worktree name [%s]: " "$default_name" >&2
+        if ! read -r name; then
+            return 1
+        fi
+        name="${name:-$default_name}"
+        if [[ "$name" =~ [[:space:]] ]]; then
+            echo "Name cannot contain spaces." >&2
+            continue
+        fi
+
+        if create_worktree "$name"; then
+            echo "$name"
+            return 0
+        fi
+
+    done
+}
+
+prompt_new_worktree_menu() {
+    while true; do
+        MENU_LABELS=(
+            "1) GitHub issue"
+            "2) Main (hub)"
+            "3) Blank"
+        )
+        MENU_VALUES=(
+            "__issue__"
+            "__hub__"
+            "__create__"
+        )
+        MENU_HOTKEYS=("1" "2" "3")
+        MENU_GLOBAL_KEYS=("q")
+        MENU_GLOBAL_VALUES=("__quit__")
+        MENU_HEADER_LINES=("New worktree from:")
+
+        local selection=""
+        if ! selection="$(menu_select "" 0)"; then
+            return 1
+        fi
+
+        case "$selection" in
+            "__issue__")
+                if command -v gh >/dev/null 2>&1 && gh auth status -h github.com >/dev/null 2>&1; then
+                    if prompt_worktree_from_issue; then
+                        return 0
+                    fi
+                else
+                    echo "GitHub CLI not available/authenticated." >&2
+                fi
+                ;;
+            "__hub__")
+                warn_hub_repo
+                echo "$HUB_SENTINEL"
+                return 0
+                ;;
+            "__create__")
+                local name=""
+                name="$(prompt_new_worktree_name)" || continue
+                if create_worktree "$name"; then
+                    echo "$name"
+                    return 0
+                fi
+                ;;
+            "__quit__")
+                echo "$QUIT_SENTINEL"
+                return 0
+                ;;
+            *)
+                echo "Invalid selection: $selection" >&2
+                ;;
+        esac
+    done
+}
+
+prompt_for_worktree() {
+    local requested="${1:-}"
+    local usage="${2:-usage: pika codex <worktree> [-- <args...>]}"
+    require_tty_or_die "$usage"
+
+    local worktrees=()
+    while IFS= read -r worktree; do
+        [[ -n "$worktree" ]] || continue
+        worktrees+=("$worktree")
+    done < <(list_worktrees)
+
+    if [[ -n "$requested" ]]; then
+        echo "worktree '$requested' does not exist." >&2
+    fi
+
+    local total="${#worktrees[@]}"
+    local page=0
+
+    while true; do
+        MENU_LABELS=()
+        MENU_VALUES=()
+        MENU_HOTKEYS=()
+        MENU_HEADER_LINES=()
+        MENU_GLOBAL_KEYS=()
+        MENU_GLOBAL_VALUES=()
+
+        if (( total > 0 )); then
+            local start=$((page * WORKTREE_PAGE_SIZE))
+            if (( start >= total )); then
+                start=0
+                page=0
+            fi
+            local end=$((start + WORKTREE_PAGE_SIZE))
+            if (( end > total )); then
+                end="$total"
+            fi
+            MENU_HEADER_LINES=("Choose one or (q)uit")
+            local i=0
+            for ((i = start; i < end; i++)); do
+                local display_index=$((i - start + 1))
+                MENU_LABELS+=("${display_index}) ${worktrees[$i]}")
+                MENU_VALUES+=("worktree:${worktrees[$i]}")
+                MENU_HOTKEYS+=("${display_index}")
+            done
+        else
+            MENU_HEADER_LINES=("Choose one or (q)uit")
+        fi
+        MENU_GLOBAL_KEYS+=("q")
+        MENU_GLOBAL_VALUES+=("__quit__")
+
+        MENU_LABELS+=("n) New worktree")
+        MENU_VALUES+=("__new__")
+        MENU_HOTKEYS+=("n")
+
+        if (( total > 0 && (page + 1) * WORKTREE_PAGE_SIZE < total )); then
+            MENU_LABELS+=("m) More")
+            MENU_VALUES+=("__more__")
+            MENU_HOTKEYS+=("m")
+        fi
+        if (( page > 0 )); then
+            MENU_LABELS+=("p) Previous")
+            MENU_VALUES+=("__prev__")
+            MENU_HOTKEYS+=("p")
+        fi
+
+        local selection=""
+        if ! selection="$(menu_select "" 0)"; then
+            return 1
+        fi
+
+        case "$selection" in
+            "__new__")
+                if prompt_new_worktree_menu; then
+                    return 0
+                fi
+                ;;
+            "__more__")
+                page=$((page + 1))
+                ;;
+            "__prev__")
+                page=$((page - 1))
+                ;;
+            "__quit__")
+                echo "$QUIT_SENTINEL"
+                return 0
+                ;;
+            worktree:*)
+                echo "${selection#worktree:}"
+                return 0
+                ;;
+            *)
+                echo "Invalid selection: $selection" >&2
+                ;;
+        esac
+    done
+}
+
+cmd_claude() {
+    local claude_bin=""
+    if ! claude_bin="$(resolve_claude_bin)"; then
+        echo "error: claude not found in PATH (set CLAUDE_BIN or install claude)" >&2
+        exit 1
+    fi
+    local name=""
+    if [[ -n "${1:-}" && "${1:-}" != "--" ]]; then
+        name="$1"
+        shift
+    fi
+    if [[ "${1:-}" == "--" ]]; then
+        shift
+    fi
+    local -a args=()
+    args=("$@")
+    if [[ -z "$name" ]]; then
+        name="$(prompt_for_worktree "" "usage: pika claude <worktree> [-- <args...>]")" || exit 1
+    elif [[ ! -d "$WORKTREE_ROOT/$name" ]]; then
+        if [[ "$name" == "main" || "$name" == "hub" ]]; then
+            name="$HUB_SENTINEL"
+        else
+            name="$(prompt_for_worktree "$name" "usage: pika claude <worktree> [-- <args...>]")" || exit 1
+        fi
+    fi
+    if [[ "$name" == "$QUIT_SENTINEL" ]]; then
+        exit 0
+    fi
+    local path=""
+    if [[ "$name" == "$HUB_SENTINEL" ]]; then
+        warn_hub_repo
+        path="$HUB_REPO"
+        name="main"
+    else
+        path="$WORKTREE_ROOT/$name"
+    fi
+
+    export PIKA_PROJECT="pika"
+    export PIKA_WORKTREE="$path"
+    export PIKA_WORKTREE_NAME="$name"
+
+    if (( ${#args[@]} > 0 )); then
+        exec "$claude_bin" --dangerously-skip-permissions "${args[@]}"
+    fi
+    exec "$claude_bin" --dangerously-skip-permissions
+}
+
+cmd_codex() {
+    local name=""
+    if [[ -n "${1:-}" && "${1:-}" != "--" ]]; then
+        name="$1"
+        shift
+    fi
+    if [[ "${1:-}" == "--" ]]; then
+        shift
+    fi
+    local -a args=()
+    args=("$@")
+    if [[ -z "$name" ]]; then
+        name="$(prompt_for_worktree "" "usage: pika codex <worktree> [-- <args...>]")" || exit 1
+    elif [[ ! -d "$WORKTREE_ROOT/$name" ]]; then
+        if [[ "$name" == "main" || "$name" == "hub" ]]; then
+            name="$HUB_SENTINEL"
+        else
+            name="$(prompt_for_worktree "$name" "usage: pika codex <worktree> [-- <args...>]")" || exit 1
+        fi
+    fi
+    if [[ "$name" == "$QUIT_SENTINEL" ]]; then
+        exit 0
+    fi
+    local path=""
+    if [[ "$name" == "$HUB_SENTINEL" ]]; then
+        warn_hub_repo
+        path="$HUB_REPO"
+        name="main"
+    else
+        path="$WORKTREE_ROOT/$name"
+    fi
+
+    export PIKA_PROJECT="pika"
+    export PIKA_WORKTREE="$path"
+    export PIKA_WORKTREE_NAME="$name"
+
+    if (( ${#args[@]} > 0 )); then
+        exec codex --yolo "${args[@]}"
+    fi
+    exec codex --yolo
+}
+
+cmd_git() {
+    local name="$1"
+    shift
+    local path="$WORKTREE_ROOT/$name"
+
+    [[ -d "$path" ]] || die "worktree '$name' does not exist"
+
+    exec git -C "$path" "$@"
+}
+
+# Main dispatch
+case "${1:-}" in
+    ls)
+        cmd_ls
+        ;;
+    ai|claude)
+        cmd_claude "${@:2}"
+        ;;
+    codex)
+        cmd_codex "${@:2}"
+        ;;
+    git)
+        [[ -n "${2:-}" ]] || die "usage: pika git <worktree> <git args...>"
+        cmd_git "${@:2}"
+        ;;
+    *)
+        echo "pika — worktree router (v1)"
+        echo ""
+        echo "Commands:"
+        echo "  pika ls                    List available worktrees"
+        echo "  pika claude <worktree>     Launch Claude in worktree context"
+        echo "  pika codex <worktree>      Launch Codex in worktree context"
+        echo "  pika git <worktree> ...    Run git command in worktree"
+        exit 1
+        ;;
+esac

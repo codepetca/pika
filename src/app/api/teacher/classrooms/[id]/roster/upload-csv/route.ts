@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -25,24 +26,11 @@ export async function POST(
 
     const supabase = getServiceRoleClient()
 
-    // Verify ownership
-    const { data: classroom, error: fetchError } = await supabase
-      .from('classrooms')
-      .select('teacher_id')
-      .eq('id', classroomId)
-      .single()
-
-    if (fetchError || !classroom) {
+    const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
+    if (!ownership.ok) {
       return NextResponse.json(
-        { error: 'Classroom not found' },
-        { status: 404 }
-      )
-    }
-
-    if (classroom.teacher_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
+        { error: ownership.error },
+        { status: ownership.status }
       )
     }
 
@@ -111,10 +99,9 @@ export async function POST(
       upsertedCount: upserted?.length ?? 0,
     })
   } catch (error: any) {
+    if (error.name === 'AuthenticationError') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error.name === 'AuthorizationError') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     console.error('Upload CSV error:', error)
-    return NextResponse.json(
-      { error: error.message || 'Unauthorized' },
-      { status: 401 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

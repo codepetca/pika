@@ -43,6 +43,18 @@ Choose the appropriate agent based on your task:
 
 ---
 
+## Worktree Workflow (MANDATORY)
+
+When doing any branch work, use a dedicated git worktree under `$HOME/Repos/.worktrees/pika/`.
+
+- One worktree = one branch = one agent/task
+- Do not switch branches inside an existing worktree; create a new worktree instead
+- Use `pika ls` + `pika claude <worktree>` or `pika codex <worktree>` to bind `PIKA_WORKTREE`
+
+See: `docs/dev-workflow.md`
+
+---
+
 ## Agent Definitions
 
 ### 1. Architect Agent

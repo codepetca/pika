@@ -1,6 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { countCharacters, countWords, isEmpty } from '@/lib/tiptap-content'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import type { TiptapContent } from '@/types'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+/**
+ * Parse content field from database, handling both JSONB and legacy TEXT columns
+ */
+function parseContentField(content: any): TiptapContent {
+  if (typeof content === 'string') {
+    try {
+      return JSON.parse(content) as TiptapContent
+    } catch {
+      return { type: 'doc', content: [] }
+    }
+  }
+  return content as TiptapContent
+}
 
 // POST /api/assignment-docs/[id]/submit - Submit assignment
 export async function POST(
@@ -26,26 +46,20 @@ export async function POST(
       )
     }
 
-    // Verify enrollment
-    const { data: enrollment } = await supabase
-      .from('classroom_enrollments')
-      .select('id')
-      .eq('classroom_id', assignment.classroom_id)
-      .eq('student_id', user.id)
-      .single()
-
-    if (!enrollment) {
+    const access = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
+    if (!access.ok) {
       return NextResponse.json(
-        { error: 'Not enrolled in this classroom' },
-        { status: 403 }
+        { error: access.error },
+        { status: access.status }
       )
     }
 
     // Check if doc exists
     const { data: existingDoc, error: docError } = await supabase
       .from('assignment_docs')
-      .select('id, student_id')
+      .select('id, student_id, content')
       .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
       .single()
 
     if (docError && docError.code === 'PGRST116') {
@@ -63,10 +77,15 @@ export async function POST(
       )
     }
 
-    if (!existingDoc || existingDoc.student_id !== user.id) {
+    // Parse content if it's a string (for backwards compatibility)
+    if (existingDoc) {
+      existingDoc.content = parseContentField(existingDoc.content)
+    }
+
+    if (!existingDoc || isEmpty(existingDoc.content)) {
       return NextResponse.json(
-        { error: 'Not authorized to submit this document' },
-        { status: 403 }
+        { error: 'No work to submit. Please write something first.' },
+        { status: 400 }
       )
     }
 
@@ -87,6 +106,24 @@ export async function POST(
         { error: 'Failed to submit' },
         { status: 500 }
       )
+    }
+
+    // Parse content if it's a string (for backwards compatibility)
+    if (doc) {
+      doc.content = parseContentField(doc.content)
+    }
+
+    try {
+      await supabase.from('assignment_doc_history').insert({
+        assignment_doc_id: existingDoc.id,
+        patch: null,
+        snapshot: existingDoc.content,
+        word_count: countWords(existingDoc.content),
+        char_count: countCharacters(existingDoc.content),
+        trigger: 'submit',
+      })
+    } catch (historyError) {
+      console.error('Error saving assignment doc history:', historyError)
     }
 
     return NextResponse.json({ doc })

@@ -119,18 +119,19 @@ This TDD approach ensures code quality and prevents regressions.
 
 1. Read ai-instructions.md (this file)
 2. Read all required docs in sequence
-3. Identify which agent role to adopt (see agents.md)
-4. Write tests FIRST for core logic
-5. Implement minimal code to pass tests
-6. Refactor for clarity
-7. Update docs if architecture changes
+3. Create a worktree for your branch (see `docs/dev-workflow.md`)
+4. Identify which agent role to adopt (see agents.md)
+5. Write tests FIRST for core logic
+6. Implement minimal code to pass tests
+7. Refactor for clarity
+8. Update docs if architecture changes
 
 ### Workflow 2: Working on an Issue
 
 1. Run: `gh issue view X --json number,title,body,labels`
 2. Follow reading order above
 3. Follow `docs/issue-worker.md` (protocol) and `docs/workflow/handle-issue.md` (quick pointer)
-4. Create branch: `issue/X-slug`
+4. Create a worktree for `issue/X-slug` (see `docs/dev-workflow.md`)
 5. Follow TDD workflow
 6. Create PR with "Closes #X"
 
@@ -145,10 +146,71 @@ This TDD approach ensures code quality and prevents regressions.
 ### Workflow 4: Fixing a Bug
 
 1. Read ai-instructions.md and relevant core docs
-2. Write a failing test that reproduces the bug
-3. Fix code to pass the test
-4. Refactor if needed
-5. Verify all tests pass
+2. Create a worktree for your branch (see `docs/dev-workflow.md`)
+3. Write a failing test that reproduces the bug
+4. Fix code to pass the test
+5. Refactor if needed
+6. Verify all tests pass
+
+---
+
+## Git Worktrees (Required Workflow)
+
+`docs/dev-workflow.md` is the single source of truth for worktree setup and usage.
+
+Summary:
+- **Hub repo:** `$HOME/Repos/pika` (stays on `main`)
+- **Worktrees:** `$HOME/Repos/.worktrees/pika/<branch>`
+- Use `pika ls` and `pika claude <worktree>` or `pika codex <worktree>` to bind `PIKA_WORKTREE`
+- All git commands must use `git -C "$PIKA_WORKTREE"` (set `PIKA_WORKTREE="$HOME/Repos/pika"` for hub-level commands)
+
+See `docs/dev-workflow.md` for create/cleanup steps and `.env.local` symlinks.
+
+---
+
+## Environment Files (.env.local)
+
+### Core Principle
+
+`.env.local` contains real secrets and must NEVER be committed. All ACTIVE repos and worktrees must symlink `.env.local` from a single canonical location to avoid duplication and drift.
+
+### File Locations
+
+- **Canonical `.env.local`:** `$HOME/Repos/.env/pika/.env.local` (contains real secrets)
+- **Example file (committed):** `.env.example` (in repo, no secrets)
+
+### Symlink Setup
+
+Each worktree must symlink `.env.local` to the canonical file:
+
+```bash
+ln -sf $HOME/Repos/.env/pika/.env.local <worktree>/.env.local
+```
+
+**Why symlinks:**
+- Worktrees do not share gitignored files
+- Symlinks avoid duplication and drift across branches
+- `-s` = symbolic link, `-f` = force/replace existing file
+
+See `docs/dev-workflow.md` for the recommended worktree setup flow.
+
+### Branch-Specific Envs (Exceptions Only)
+
+Use separate `.env.local` files ONLY in these cases:
+- Running multiple Supabase/backend instances in parallel
+- Destructive DB schema or migration experiments
+- Different external API keys, models, or cost profiles
+
+**Otherwise, shared `.env.local` is mandatory.**
+
+---
+
+## Archived Repos
+
+- Repos under `$HOME/Repos/archive/<project>` are inactive
+- Archived repos may have broken `.env.local` symlinks or missing worktrees
+- This is acceptable and intentional
+- Only active repos under `$HOME/Repos/` require valid env symlinks and worktrees
 
 ---
 

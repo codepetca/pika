@@ -8,6 +8,16 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertTeacherOwnsClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'c1', teacher_id: 'teacher-1', archived_at: null },
+  })),
+  assertTeacherCanMutateClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'c1', teacher_id: 'teacher-1', archived_at: null },
+  })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -30,11 +40,23 @@ describe('GET /api/teacher/assignments', () => {
           })),
         }
       } else if (table === 'assignments') {
+        const builder: any = {}
+        builder.order = vi
+          .fn()
+          .mockImplementationOnce(() => builder)
+          .mockResolvedValue({ data: [], error: null })
+
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              order: builder.order,
             })),
+          })),
+        }
+      } else if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
           })),
         }
       }

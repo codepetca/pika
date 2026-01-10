@@ -45,4 +45,5 @@ Before ending a session:
 - Run: `npm test`
 - If relevant: `npm run lint`, `npm run build`
 - Confirm acceptance criteria are met and documented in the PR.
-
+- If you grep for path conventions, exclude `.ai/JOURNAL.md` (append-only).
+  Example: `rg -n "\\$HOME/repos/|/Users/stew/" --glob "!**/.ai/JOURNAL.md" docs/ .ai/ scripts/`

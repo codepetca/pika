@@ -2,9 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
+import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+/**
+ * Parse content field from database, handling both JSONB and legacy TEXT columns
+ */
+function parseContentField(content: any): TiptapContent {
+  if (typeof content === 'string') {
+    try {
+      return JSON.parse(content) as TiptapContent
+    } catch {
+      return { type: 'doc', content: [] }
+    }
+  }
+  return content as TiptapContent
+}
 
 // GET /api/teacher/assignments/[id]/students/[studentId] - Get specific student's work
 export async function GET(
@@ -84,6 +99,11 @@ export async function GET(
       .eq('student_id', studentId)
       .single()
 
+    // Parse content if it's a string (for backwards compatibility)
+    if (doc) {
+      doc.content = parseContentField(doc.content)
+    }
+
     const status = calculateAssignmentStatus(assignment, doc)
 
     return NextResponse.json({
@@ -93,7 +113,10 @@ export async function GET(
         title: assignment.title,
         description: assignment.description,
         due_at: assignment.due_at,
-        created_at: assignment.created_at
+        position: assignment.position ?? 0,
+        created_by: assignment.created_by,
+        created_at: assignment.created_at,
+        updated_at: assignment.updated_at
       },
       classroom: assignment.classrooms,
       student: {

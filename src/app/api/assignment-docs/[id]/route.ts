@@ -1,9 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { countCharacters, countWords, isValidTiptapContent } from '@/lib/tiptap-content'
+import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+const HISTORY_MIN_INTERVAL_MS = 10_000
+const HISTORY_SELECT_FIELDS =
+  'id, assignment_doc_id, patch, snapshot, word_count, char_count, trigger, created_at'
+
+/**
+ * Parse content field from database, handling both JSONB and legacy TEXT columns
+ * If content is a string (from TEXT column), parse it as JSON
+ * If content is already an object (from JSONB column), return as-is
+ */
+function parseContentField(content: any): TiptapContent {
+  if (typeof content === 'string') {
+    try {
+      return JSON.parse(content) as TiptapContent
+    } catch {
+      // If parsing fails, return empty doc
+      return { type: 'doc', content: [] }
+    }
+  }
+  return content as TiptapContent
+}
 
 // GET /api/assignment-docs/[id] - Get assignment doc (creates if doesn't exist)
 // The [id] here is the assignment_id, not the doc id
@@ -30,34 +54,60 @@ export async function GET(
       )
     }
 
-    // Verify enrollment
-    const { data: enrollment, error: enrollmentError } = await supabase
-      .from('classroom_enrollments')
-      .select('id')
-      .eq('classroom_id', assignment.classroom_id)
-      .eq('student_id', user.id)
-      .single()
-
-    if (enrollmentError || !enrollment) {
+    const access = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
+    if (!access.ok) {
       return NextResponse.json(
-        { error: 'Not enrolled in this classroom' },
-        { status: 403 }
+        { error: access.error },
+        { status: access.status }
       )
     }
 
-    // Get assignment doc for this assignment (ownership checked below)
-    const { data: doc, error: docError } = await supabase
+    // Get or create assignment doc for this student
+    const { data: existingDoc, error: docError } = await supabase
       .from('assignment_docs')
       .select('*')
       .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
       .single()
 
     if (docError) {
       if (docError.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Assignment doc not found' },
-          { status: 404 }
-        )
+        const { data: created, error: createError } = await supabase
+          .from('assignment_docs')
+          .insert({
+            assignment_id: assignmentId,
+            student_id: user.id,
+            content: { type: 'doc', content: [] },
+            is_submitted: false,
+            submitted_at: null,
+          })
+          .select()
+          .single()
+
+        if (createError || !created) {
+          // If we raced another create, re-fetch.
+          if (createError?.code === '23505') {
+            const { data: raced } = await supabase
+              .from('assignment_docs')
+              .select('*')
+              .eq('assignment_id', assignmentId)
+              .eq('student_id', user.id)
+              .single()
+            // Parse content if it's a string (for backwards compatibility)
+            if (raced) {
+              raced.content = parseContentField(raced.content)
+            }
+            return NextResponse.json({ assignment, doc: raced })
+          }
+
+          console.error('Error creating assignment doc:', createError)
+          return NextResponse.json(
+            { error: 'Failed to create assignment doc' },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json({ assignment, doc: created })
       }
       console.error('Error fetching assignment doc:', docError)
       return NextResponse.json(
@@ -66,14 +116,12 @@ export async function GET(
       )
     }
 
-    if (!doc || doc.student_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Not authorized to access this document' },
-        { status: 403 }
-      )
+    // Parse content if it's a string (for backwards compatibility)
+    if (existingDoc) {
+      existingDoc.content = parseContentField(existingDoc.content)
     }
 
-    return NextResponse.json({ assignment, doc })
+    return NextResponse.json({ assignment, doc: existingDoc })
   } catch (error: any) {
     // Authentication error (401)
     if (error.name === 'AuthenticationError') {
@@ -103,7 +151,7 @@ export async function PATCH(
     const user = await requireRole('student')
     const { id: assignmentId } = params
     const body = await request.json()
-    const { content } = body
+    const { content, trigger } = body as { content: TiptapContent; trigger?: AssignmentDocHistoryTrigger }
 
     if (content === undefined) {
       return NextResponse.json(
@@ -112,7 +160,22 @@ export async function PATCH(
       )
     }
 
+    if (trigger && trigger !== 'autosave' && trigger !== 'blur') {
+      return NextResponse.json(
+        { error: 'Invalid trigger' },
+        { status: 400 }
+      )
+    }
+
+    if (!isValidTiptapContent(content)) {
+      return NextResponse.json(
+        { error: 'Invalid content format' },
+        { status: 400 }
+      )
+    }
+
     const supabase = getServiceRoleClient()
+    let historyEntry: AssignmentDocHistoryEntry | null = null
 
     // Get assignment and verify enrollment
     const { data: assignment, error: assignmentError } = await supabase
@@ -128,46 +191,73 @@ export async function PATCH(
       )
     }
 
-    // Verify enrollment
-    const { data: enrollment } = await supabase
-      .from('classroom_enrollments')
-      .select('id')
-      .eq('classroom_id', assignment.classroom_id)
-      .eq('student_id', user.id)
-      .single()
-
-    if (!enrollment) {
+    const access = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
+    if (!access.ok) {
       return NextResponse.json(
-        { error: 'Not enrolled in this classroom' },
-        { status: 403 }
+        { error: access.error },
+        { status: access.status }
       )
     }
 
     // Fetch doc to enforce ownership and submission rules
     const { data: existingDoc, error: docFetchError } = await supabase
       .from('assignment_docs')
-      .select('id, student_id, is_submitted')
+      .select('id, student_id, is_submitted, content')
       .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
       .single()
 
     if (docFetchError) {
       if (docFetchError.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Assignment doc not found' },
-          { status: 404 }
-        )
+        const { data: created, error: createError } = await supabase
+          .from('assignment_docs')
+          .insert({
+            assignment_id: assignmentId,
+            student_id: user.id,
+            content,
+            is_submitted: false,
+            submitted_at: null,
+          })
+          .select()
+          .single()
+
+        if (createError || !created) {
+          console.error('Error creating assignment doc:', createError)
+          return NextResponse.json(
+            { error: 'Failed to save' },
+            { status: 500 }
+          )
+        }
+
+        try {
+          const { data: createdHistory, error: historyError } = await supabase
+            .from('assignment_doc_history')
+            .insert({
+              assignment_doc_id: created.id,
+              patch: null,
+              snapshot: content,
+              word_count: countWords(content),
+              char_count: countCharacters(content),
+              trigger: 'baseline',
+            })
+            .select(HISTORY_SELECT_FIELDS)
+            .single()
+
+          if (historyError) {
+            throw historyError
+          }
+
+          historyEntry = createdHistory
+        } catch (historyError) {
+          console.error('Error saving assignment doc history:', historyError)
+        }
+
+        return NextResponse.json({ doc: created, historyEntry })
       }
       console.error('Error fetching assignment doc:', docFetchError)
       return NextResponse.json(
         { error: 'Failed to fetch assignment doc' },
         { status: 500 }
-      )
-    }
-
-    if (!existingDoc || existingDoc.student_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Not authorized to modify this document' },
-        { status: 403 }
       )
     }
 
@@ -177,6 +267,9 @@ export async function PATCH(
         { status: 403 }
       )
     }
+
+    const beforeContent = parseContentField(existingDoc.content)
+    const patch = createJsonPatch(beforeContent, content)
 
     const { data: doc, error } = await supabase
       .from('assignment_docs')
@@ -195,7 +288,105 @@ export async function PATCH(
       )
     }
 
-    return NextResponse.json({ doc })
+    // Parse content if it's a string (for backwards compatibility)
+    if (doc) {
+      doc.content = parseContentField(doc.content)
+    }
+
+    if (patch.length > 0) {
+      const { data: lastHistory, error: lastHistoryError } = await supabase
+        .from('assignment_doc_history')
+        .select('id, created_at, snapshot')
+        .eq('assignment_doc_id', existingDoc.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (lastHistoryError) {
+        console.error('Error fetching assignment doc history:', lastHistoryError)
+      }
+
+      const now = Date.now()
+      const lastCreatedAt = lastHistory?.created_at
+        ? new Date(lastHistory.created_at).getTime()
+        : null
+      const isRateLimited = lastCreatedAt !== null && now - lastCreatedAt < HISTORY_MIN_INTERVAL_MS
+
+      if (!lastHistory) {
+        try {
+          const { data: createdHistory, error: historyError } = await supabase
+            .from('assignment_doc_history')
+            .insert({
+              assignment_doc_id: existingDoc.id,
+              patch: null,
+              snapshot: content,
+              word_count: countWords(content),
+              char_count: countCharacters(content),
+              trigger: 'baseline',
+            })
+            .select(HISTORY_SELECT_FIELDS)
+            .single()
+
+          if (historyError) {
+            throw historyError
+          }
+
+          historyEntry = createdHistory
+        } catch (historyError) {
+          console.error('Error saving assignment doc history:', historyError)
+        }
+      } else if (isRateLimited) {
+        try {
+          const { data: updatedHistory, error: historyError } = await supabase
+            .from('assignment_doc_history')
+            .update({
+              patch: null,
+              snapshot: content,
+              word_count: countWords(content),
+              char_count: countCharacters(content),
+              trigger: trigger ?? 'autosave',
+              created_at: new Date().toISOString(),
+            })
+            .eq('id', lastHistory.id)
+            .select(HISTORY_SELECT_FIELDS)
+            .single()
+
+          if (historyError) {
+            throw historyError
+          }
+
+          historyEntry = updatedHistory
+        } catch (historyError) {
+          console.error('Error updating assignment doc history:', historyError)
+        }
+      } else {
+        const storeSnapshot = shouldStoreSnapshot(patch, content)
+        try {
+          const { data: createdHistory, error: historyError } = await supabase
+            .from('assignment_doc_history')
+            .insert({
+              assignment_doc_id: existingDoc.id,
+              patch: storeSnapshot ? null : patch,
+              snapshot: storeSnapshot ? content : null,
+              word_count: countWords(content),
+              char_count: countCharacters(content),
+              trigger: trigger ?? 'autosave',
+            })
+            .select(HISTORY_SELECT_FIELDS)
+            .single()
+
+          if (historyError) {
+            throw historyError
+          }
+
+          historyEntry = createdHistory
+        } catch (historyError) {
+          console.error('Error saving assignment doc history:', historyError)
+        }
+      }
+    }
+
+    return NextResponse.json({ doc, historyEntry })
   } catch (error: any) {
     // Authentication error (401)
     if (error.name === 'AuthenticationError') {

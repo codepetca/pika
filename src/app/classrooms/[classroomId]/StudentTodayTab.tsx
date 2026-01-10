@@ -1,28 +1,89 @@
 'use client'
 
-import { useEffect, useState, FormEvent } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
+import { RichTextEditor } from '@/components/RichTextEditor'
+import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
-import type { Classroom, ClassDay, Entry, MoodEmoji } from '@/types'
+import { format, parseISO } from 'date-fns'
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
+import {
+  readBooleanCookie,
+  safeSessionGetJson,
+  safeSessionSetJson,
+  writeCookie,
+} from '@/lib/client-storage'
+import {
+  getEntryPreview,
+  getStudentEntryHistoryCacheKey,
+  upsertEntryIntoHistory,
+} from '@/lib/student-entry-history'
+import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
+import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import type { Classroom, ClassDay, Entry, JsonPatchOperation, TiptapContent } from '@/types'
 
-const MOOD_OPTIONS: MoodEmoji[] = ['😊', '🙂', '😐']
+const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 
-interface Props {
-  classroom: Classroom
+function parseSavedContent(contentString: string | null): TiptapContent {
+  if (!contentString) return EMPTY_DOC
+  try {
+    return JSON.parse(contentString) as TiptapContent
+  } catch {
+    return EMPTY_DOC
+  }
 }
 
-export function StudentTodayTab({ classroom }: Props) {
+function resolveEntryContent(entry: Entry | null): TiptapContent {
+  if (entry?.rich_content) {
+    return entry.rich_content
+  }
+  if (entry?.text) {
+    return plainTextToTiptapContent(entry.text)
+  }
+  return EMPTY_DOC
+}
+
+function validateContent(content: TiptapContent, maxChars: number) {
+  if (isEmpty(content)) {
+    return 'Entry text cannot be empty'
+  }
+  if (countCharacters(content) > maxChars) {
+    return `Entry exceeds ${maxChars} character limit`
+  }
+  return ''
+}
+
+export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
+  // Constants
+  const historyLimit = 5
+  const historyCookieName = 'pika_student_today_history'
+  const AUTOSAVE_DEBOUNCE_MS = 5000
+  const AUTOSAVE_MIN_INTERVAL_MS = 15000
+  const MAX_CHARS = 2000
+
+  // State
   const [loading, setLoading] = useState(true)
   const [today, setToday] = useState('')
   const [classDays, setClassDays] = useState<ClassDay[]>([])
-  const [existingEntry, setExistingEntry] = useState<Entry | null>(null)
-  const [text, setText] = useState('')
-  const [mood, setMood] = useState<MoodEmoji | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [success, setSuccess] = useState('')
-  const [error, setError] = useState('')
+  const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
+  const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
+  const [historyVisible, setHistoryVisible] = useState<boolean>(() =>
+    readBooleanCookie(historyCookieName, true)
+  )
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [saveError, setSaveError] = useState('')
+  const [conflictEntry, setConflictEntry] = useState<Entry | null>(null)
+
+  // Refs for autosave
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSavedContentRef = useRef('')
+  const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSaveAttemptAtRef = useRef(0)
+  const pendingContentRef = useRef<TiptapContent | null>(null)
+  const entryIdRef = useRef<string | null>(null)
+  const entryVersionRef = useRef(1)
 
   useEffect(() => {
     async function load() {
@@ -31,59 +92,269 @@ export function StudentTodayTab({ classroom }: Props) {
         const todayDate = getTodayInToronto()
         setToday(todayDate)
 
-        const classDayRes = await fetch(`/api/teacher/class-days?classroom_id=${classroom.id}`)
-        const classDayData = await classDayRes.json()
-        setClassDays(classDayData.class_days || [])
+        const historyCacheKey = getStudentEntryHistoryCacheKey({
+          classroomId: classroom.id,
+          limit: historyLimit,
+        })
+        const cached = safeSessionGetJson<Entry[]>(historyCacheKey)
 
-        const entriesRes = await fetch(`/api/student/entries?classroom_id=${classroom.id}`)
-        const entriesData = await entriesRes.json()
-        const todayEntry = (entriesData.entries || []).find((e: Entry) => e.date === todayDate) || null
+        const classDayPromise = fetch(`/api/classrooms/${classroom.id}/class-days`)
+          .then(r => r.json())
+          .then(data => setClassDays(data.class_days || []))
 
-        setExistingEntry(todayEntry)
-        setText(todayEntry?.text || '')
-        setMood(todayEntry?.mood || null)
+        const applyEntryState = (todayEntry: Entry | null) => {
+          const loadedContent = resolveEntryContent(todayEntry)
+          setContent(loadedContent)
+          lastSavedContentRef.current = JSON.stringify(loadedContent)
+          setSaveStatus('saved')
+          setSaveError('')
+          setConflictEntry(null)
+          entryIdRef.current = todayEntry?.id ?? null
+          entryVersionRef.current = todayEntry?.version ?? 1
+        }
+
+        if (Array.isArray(cached)) {
+          setHistoryEntries(cached)
+          const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
+          applyEntryState(todayEntry)
+          await classDayPromise
+          return
+        }
+
+        const entriesPromise = fetch(
+          `/api/student/entries?classroom_id=${classroom.id}&limit=${historyLimit}`
+        )
+          .then(r => r.json())
+          .then(data => {
+            const entries: Entry[] = data.entries || []
+            setHistoryEntries(entries)
+            safeSessionSetJson(historyCacheKey, entries)
+            const todayEntry = entries.find((e: Entry) => e.date === todayDate) || null
+            applyEntryState(todayEntry)
+          })
+
+        await Promise.all([classDayPromise, entriesPromise])
       } catch (err) {
         console.error('Error loading today tab:', err)
       } finally {
         setLoading(false)
       }
     }
+
     load()
-  }, [classroom.id])
 
-  const isClassDay = today ? isClassDayOnDate(classDays, today) : true
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+      if (throttledSaveTimeoutRef.current) {
+        clearTimeout(throttledSaveTimeoutRef.current)
+      }
+    }
+  }, [classroom.id, historyLimit])
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    setError('')
-    setSuccess('')
-    setSubmitting(true)
+  const updateHistoryEntries = useCallback((entry: Entry) => {
+    setHistoryEntries(prev => {
+      const next = upsertEntryIntoHistory(prev, entry, historyLimit)
+      safeSessionSetJson(
+        getStudentEntryHistoryCacheKey({
+          classroomId: classroom.id,
+          limit: historyLimit,
+        }),
+        next
+      )
+      return next
+    })
+  }, [classroom.id, historyLimit])
+
+  const saveContent = useCallback(async (
+    newContent: TiptapContent,
+    options?: { forceFull?: boolean }
+  ) => {
+    if (!today) return
+
+    const newContentStr = JSON.stringify(newContent)
+    if (!options?.forceFull && newContentStr === lastSavedContentRef.current) {
+      setSaveStatus('saved')
+      return
+    }
+
+    const validationError = validateContent(newContent, MAX_CHARS)
+    if (validationError) {
+      setSaveError(validationError)
+      setSaveStatus('unsaved')
+      return
+    }
+
+    setSaveStatus('saving')
+    setSaveError('')
+    lastSaveAttemptAtRef.current = Date.now()
+
+    const baseContent = parseSavedContent(lastSavedContentRef.current)
+    const patch = createJsonPatch(baseContent, newContent)
+    const shouldSendPatch =
+      !options?.forceFull &&
+      entryIdRef.current &&
+      patch.length > 0 &&
+      !shouldStoreSnapshot(patch, newContent)
+
+    const payload: {
+      classroom_id: string
+      date: string
+      entry_id?: string
+      version: number
+      rich_content?: TiptapContent
+      patch?: JsonPatchOperation[]
+    } = {
+      classroom_id: classroom.id,
+      date: today,
+      entry_id: entryIdRef.current ?? undefined,
+      version: entryVersionRef.current,
+    }
+
+    if (shouldSendPatch) {
+      payload.patch = patch
+    } else {
+      payload.rich_content = newContent
+    }
 
     try {
       const response = await fetch('/api/student/entries', {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classroom_id: classroom.id,
-          date: today,
-          text,
-          mood,
-        }),
+        body: JSON.stringify(payload),
       })
 
       const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save entry')
+
+      if (response.status === 409) {
+        const serverEntry = data.entry as Entry | undefined
+        if (serverEntry) {
+          setConflictEntry(serverEntry)
+        }
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current)
+        }
+        if (throttledSaveTimeoutRef.current) {
+          clearTimeout(throttledSaveTimeoutRef.current)
+          throttledSaveTimeoutRef.current = null
+        }
+        setSaveStatus('unsaved')
+        setSaveError(data.error || 'Entry updated elsewhere')
+        return
       }
 
-      setExistingEntry(data.entry)
-      setSuccess('Entry saved!')
-      setTimeout(() => setSuccess(''), 2000)
+      if (response.status === 404 && shouldSendPatch) {
+        await saveContent(newContent, { forceFull: true })
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save')
+      }
+
+      const savedEntry = data.entry as Entry
+      entryIdRef.current = savedEntry.id
+      entryVersionRef.current = savedEntry.version ?? entryVersionRef.current
+      updateHistoryEntries(savedEntry)
+      lastSavedContentRef.current = newContentStr
+      setSaveStatus('saved')
+      setSaveError('')
+      setConflictEntry(null)
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
-    } finally {
-      setSubmitting(false)
+      console.error('Error saving:', err)
+      setSaveStatus('unsaved')
+      setSaveError(err.message || 'Failed to save')
     }
+  }, [MAX_CHARS, classroom.id, today, updateHistoryEntries])
+
+  const scheduleSave = useCallback((
+    newContent: TiptapContent,
+    options?: { force?: boolean }
+  ) => {
+    if (conflictEntry) return
+
+    pendingContentRef.current = newContent
+
+    if (throttledSaveTimeoutRef.current) {
+      clearTimeout(throttledSaveTimeoutRef.current)
+      throttledSaveTimeoutRef.current = null
+    }
+
+    const now = Date.now()
+    const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
+
+    if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
+      void saveContent(newContent)
+      return
+    }
+
+    const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastAttempt
+    throttledSaveTimeoutRef.current = setTimeout(() => {
+      throttledSaveTimeoutRef.current = null
+      const latest = pendingContentRef.current
+      if (latest) {
+        void saveContent(latest)
+      }
+    }, waitMs)
+  }, [AUTOSAVE_MIN_INTERVAL_MS, conflictEntry, saveContent])
+
+  function handleContentChange(newContent: TiptapContent) {
+    setContent(newContent)
+    setSaveStatus('unsaved')
+    pendingContentRef.current = newContent
+
+    if (!conflictEntry) {
+      const nextCharCount = countCharacters(newContent)
+      setSaveError(
+        nextCharCount > MAX_CHARS
+          ? `Entry exceeds ${MAX_CHARS} character limit`
+          : ''
+      )
+    }
+
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+      scheduleSave(newContent)
+    }, AUTOSAVE_DEBOUNCE_MS)
+  }
+
+  function flushAutosave() {
+    if (conflictEntry) return
+    if (saveStatus === 'unsaved' && pendingContentRef.current) {
+      scheduleSave(pendingContentRef.current, { force: true })
+    }
+  }
+
+  const resolveConflict = useCallback(() => {
+    if (!conflictEntry) return
+    const serverContent = resolveEntryContent(conflictEntry)
+    setContent(serverContent)
+    lastSavedContentRef.current = JSON.stringify(serverContent)
+    entryIdRef.current = conflictEntry.id
+    entryVersionRef.current = conflictEntry.version ?? entryVersionRef.current
+    setSaveStatus('saved')
+    setSaveError('')
+    setConflictEntry(null)
+  }, [conflictEntry])
+
+  const retryAfterConflict = useCallback(() => {
+    if (!conflictEntry) return
+    entryIdRef.current = conflictEntry.id
+    entryVersionRef.current = conflictEntry.version ?? entryVersionRef.current
+    setConflictEntry(null)
+    const latest = pendingContentRef.current ?? content
+    void saveContent(latest, { forceFull: true })
+  }, [conflictEntry, content, saveContent])
+
+  const isClassDay = today ? isClassDayOnDate(classDays, today) : true
+
+  function setHistoryVisibility(next: boolean) {
+    setHistoryVisible(next)
+    writeCookie(historyCookieName, next ? '1' : '0')
   }
 
   if (loading) {
@@ -94,66 +365,119 @@ export function StudentTodayTab({ classroom }: Props) {
     )
   }
 
+  const historyListId = `student-today-history-${classroom.id}`
+  const charCount = countCharacters(content)
+  const isOverLimit = charCount > MAX_CHARS
+
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Today</h2>
-        <div className="text-sm text-gray-600">{today}</div>
-      </div>
+    <PageLayout>
+      <PageContent>
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
+            {!isClassDay ? (
+              <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
+                <p className="text-gray-600 dark:text-gray-400">No class today</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    What did you do today?
+                  </label>
+                  <RichTextEditor
+                    content={content}
+                    onChange={handleContentChange}
+                    onBlur={flushAutosave}
+                    placeholder="Write a short update..."
+                    editable={true}
+                    className="min-h-[200px]"
+                  />
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className={isOverLimit ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}>
+                      {charCount} / {MAX_CHARS} characters
+                    </span>
+                    <span
+                      className={
+                        saveStatus === 'saved'
+                          ? 'text-green-600 dark:text-green-400'
+                          : saveStatus === 'saving'
+                            ? 'text-gray-500 dark:text-gray-400'
+                            : 'text-orange-600 dark:text-orange-400'
+                      }
+                    >
+                      {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+                    </span>
+                  </div>
+                </div>
 
-      {!isClassDay ? (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
-          <p className="text-gray-600">No class today</p>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              What did you do today?
-            </label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Write a short update..."
-              required
-              disabled={submitting}
-            />
+                {saveError && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-red-600 dark:text-red-400">{saveError}</p>
+                    {conflictEntry && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" size="sm" variant="secondary" onClick={resolveConflict}>
+                          Reload latest
+                        </Button>
+                        <Button type="button" size="sm" onClick={retryAfterConflict}>
+                          Retry save
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Mood (optional)
-            </label>
-            <div className="flex gap-3">
-              {MOOD_OPTIONS.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMood(m)}
-                  className={`text-3xl p-2 rounded-lg transition ${
-                    mood === m
-                      ? 'bg-blue-50 border-2 border-blue-500'
-                      : 'hover:bg-gray-50 border-2 border-transparent'
-                  }`}
-                  disabled={submitting}
-                >
-                  {m}
-                </button>
-              ))}
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Past Logs</h3>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                aria-expanded={historyVisible}
+                aria-controls={historyListId}
+                onClick={() => setHistoryVisibility(!historyVisible)}
+              >
+                {historyVisible ? 'Hide' : 'Show'}
+                <ChevronDownIcon
+                  className={[
+                    'h-4 w-4 transition-transform',
+                    historyVisible ? 'rotate-180' : 'rotate-0',
+                  ].join(' ')}
+                />
+              </button>
             </div>
+            {historyVisible && (
+              <div id={historyListId} className="divide-y divide-gray-100 dark:divide-gray-800">
+                {historyEntries.length === 0 ? (
+                  <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
+                    No logs yet
+                  </div>
+                ) : (
+                  historyEntries.map(entry => (
+                    <div key={entry.id} className="px-4 py-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {format(parseISO(entry.date), 'EEE MMM d')}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {getEntryPreview(entry.text, 150)}
+                          </p>
+                        </div>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
+                          {entry.on_time ? 'On time' : 'Late'}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {success && <p className="text-sm text-green-600">{success}</p>}
-
-          <Button type="submit" disabled={submitting || !text}>
-            {submitting ? 'Saving...' : existingEntry ? 'Update' : 'Save'}
-          </Button>
-        </form>
-      )}
-    </div>
+        </div>
+      </PageContent>
+    </PageLayout>
   )
 }
-

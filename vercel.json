@@ -1,4 +1,11 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "production": true,
+      "*": false
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/nightly-assignment-summaries",

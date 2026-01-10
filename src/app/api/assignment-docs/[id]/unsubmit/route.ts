@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import type { TiptapContent } from '@/types'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+/**
+ * Parse content field from database, handling both JSONB and legacy TEXT columns
+ */
+function parseContentField(content: any): TiptapContent {
+  if (typeof content === 'string') {
+    try {
+      return JSON.parse(content) as TiptapContent
+    } catch {
+      return { type: 'doc', content: [] }
+    }
+  }
+  return content as TiptapContent
+}
 
 // POST /api/assignment-docs/[id]/unsubmit - Unsubmit assignment
 export async function POST(
@@ -26,18 +45,11 @@ export async function POST(
       )
     }
 
-    // Verify enrollment
-    const { data: enrollment } = await supabase
-      .from('classroom_enrollments')
-      .select('id')
-      .eq('classroom_id', assignment.classroom_id)
-      .eq('student_id', user.id)
-      .single()
-
-    if (!enrollment) {
+    const access = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
+    if (!access.ok) {
       return NextResponse.json(
-        { error: 'Not enrolled in this classroom' },
-        { status: 403 }
+        { error: access.error },
+        { status: access.status }
       )
     }
 
@@ -46,6 +58,7 @@ export async function POST(
       .from('assignment_docs')
       .select('id, student_id')
       .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
       .single()
 
     if (docError && docError.code === 'PGRST116') {
@@ -60,13 +73,6 @@ export async function POST(
       return NextResponse.json(
         { error: 'Failed to fetch assignment doc' },
         { status: 500 }
-      )
-    }
-
-    if (!existingDoc || existingDoc.student_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Not authorized to unsubmit this document' },
-        { status: 403 }
       )
     }
 
@@ -87,6 +93,11 @@ export async function POST(
         { error: 'Failed to unsubmit' },
         { status: 500 }
       )
+    }
+
+    // Parse content if it's a string (for backwards compatibility)
+    if (doc) {
+      doc.content = parseContentField(doc.content)
     }
 
     return NextResponse.json({ doc })

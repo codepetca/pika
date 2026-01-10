@@ -8,44 +8,21 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'student-1', role: 'student' })) }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertStudentCanAccessClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'class-1', archived_at: null },
+  })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
 describe('POST /api/assignment-docs/[id]/submit', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('should return 404 when doc does not exist', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-999/submit', {
-      method: 'POST',
-    })
-
-    const response = await POST(request, { params: { id: 'doc-999' } })
-    expect(response.status).toBe(404)
-  })
-
-  it('should return 403 when not student owner', async () => {
+  it('should return 400 when doc does not exist', async () => {
     const mockFrom = vi.fn((table: string) => {
-      if (table === 'assignment_docs') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'doc-1', student_id: 'other-student', assignment_id: 'assign-1' },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      } else if (table === 'assignments') {
+      if (table === 'assignments') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
@@ -56,7 +33,8 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
             })),
           })),
         }
-      } else if (table === 'classroom_enrollments') {
+      }
+      if (table === 'classroom_enrollments') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
@@ -67,14 +45,69 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
           })),
         }
       }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
+          })),
+        }
+      }
     })
     ;(mockSupabaseClient.from as any) = mockFrom
 
-    const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-1/submit', {
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/submit', {
       method: 'POST',
     })
 
-    const response = await POST(request, { params: { id: 'doc-1' } })
-    expect(response.status).toBe(403)
+    const response = await POST(request, { params: { id: 'assign-1' } })
+    expect(response.status).toBe(400)
+  })
+
+  it('should return 400 when doc content is empty', async () => {
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'enroll-1' },
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'doc-1', student_id: 'student-1', assignment_id: 'assign-1', content: '   ' },
+              error: null,
+            }),
+          })),
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/submit', {
+      method: 'POST',
+    })
+
+    const response = await POST(request, { params: { id: 'assign-1' } })
+    expect(response.status).toBe(400)
   })
 })

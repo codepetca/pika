@@ -18,6 +18,8 @@ export const createMockEntry = (overrides: Partial<Entry> = {}): Entry => ({
   classroom_id: 'classroom-1',
   date: '2024-10-15',
   text: 'This is a test journal entry for today.',
+  rich_content: null,
+  version: 1,
   minutes_reported: 60,
   mood: '😊',
   created_at: '2024-10-15T20:00:00Z',

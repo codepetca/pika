@@ -17,6 +17,7 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/**/*.config.ts',
         'src/types/**',
+        'src/components/**', // UI components are not part of coverage targets
         'src/app/**', // Exclude Next.js app router files for now
       ],
       thresholds: {

@@ -20,6 +20,12 @@ vi.mock('@/lib/auth', () => ({
     throw new Error('Unauthorized')
   }),
 }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertStudentCanAccessClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'classroom-1', archived_at: null },
+  })),
+}))
 
 vi.mock('@/lib/assignments', () => ({
   calculateAssignmentStatus: vi.fn((assignment, doc) => {
@@ -65,16 +71,12 @@ describe('GET /api/student/assignments', () => {
 
   describe('enrollment verification', () => {
     it('should return 403 when student is not enrolled', async () => {
-      const mockFrom = vi.fn(() => ({
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({
-            data: null,
-            error: { code: 'PGRST116' },
-          }),
-        })),
-      }))
-      ;(mockSupabaseClient.from as any) = mockFrom
+      const { assertStudentCanAccessClassroom } = await import('@/lib/server/classrooms')
+      ;(assertStudentCanAccessClassroom as any).mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        error: 'Not enrolled in this classroom',
+      })
 
       const request = new NextRequest('http://localhost:3000/api/student/assignments?classroom_id=classroom-999')
 

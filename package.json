@@ -2,8 +2,9 @@
   "name": "pika",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.25.0",
   "engines": {
-    "node": "22.x"
+    "node": ">=22"
   },
   "scripts": {
     "dev": "next dev",
@@ -16,16 +17,25 @@
     "test:coverage": "vitest run --coverage",
     "e2e:install": "playwright install",
     "e2e:snapshots": "playwright test e2e/ui-snapshots.spec.ts",
+    "e2e:snapshots:update": "playwright test e2e/ui-snapshots.spec.ts --update-snapshots",
     "seed": "tsx scripts/seed.ts",
     "seed:fresh": "tsx scripts/clear-and-seed.ts",
     "generate:secret": "node scripts/generate-env.js"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.39.0",
+    "@tailwindcss/typography": "^0.5.19",
+    "@tiptap/core": "2.26.4",
+    "@tiptap/extension-link": "2.26.4",
+    "@tiptap/extension-placeholder": "2.26.4",
+    "@tiptap/react": "2.26.4",
+    "@tiptap/starter-kit": "2.26.4",
     "bcryptjs": "^2.4.3",
     "date-fns": "^3.3.1",
     "date-fns-tz": "^3.2.0",
     "date-holidays": "^3.26.5",
+    "fast-json-patch": "^3.1.1",
     "iron-session": "^8.0.1",
     "next": "^14.2.0",
     "react": "^18.3.0",
@@ -35,6 +45,7 @@
     "@playwright/test": "^1.57.0",
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
@@ -43,6 +54,8 @@
     "@vitest/coverage-v8": "^4.0.15",
     "autoprefixer": "^10.4.17",
     "dotenv": "^16.4.5",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.0",
     "jsdom": "^24.0.0",
     "postcss": "^8.4.33",
     "tailwindcss": "^3.4.1",

@@ -1,6 +1,9 @@
+import { sendBrevoEmail } from './brevo'
+
 /**
  * Sends an email with a signup verification code
  * In development mode (ENABLE_MOCK_EMAIL=true), logs to console instead
+ * In production/staging, sends via Brevo template
  */
 export async function sendSignupCode(email: string, code: string): Promise<void> {
   const isMockMode = process.env.ENABLE_MOCK_EMAIL === 'true'
@@ -20,14 +23,21 @@ export async function sendSignupCode(email: string, code: string): Promise<void>
     return
   }
 
-  // In production, implement actual email sending here
-  // For example, using Resend, SendGrid, or Nodemailer
-  throw new Error('Production email sending not implemented')
+  // Send via Brevo template
+  await sendBrevoEmail({
+    to: email,
+    templateParams: {
+      code,
+      expires: 10,
+      type: 'signup',
+    },
+  })
 }
 
 /**
  * Sends an email with a password reset verification code
  * In development mode (ENABLE_MOCK_EMAIL=true), logs to console instead
+ * In production/staging, sends via Brevo template
  */
 export async function sendPasswordResetCode(email: string, code: string): Promise<void> {
   const isMockMode = process.env.ENABLE_MOCK_EMAIL === 'true'
@@ -49,7 +59,13 @@ export async function sendPasswordResetCode(email: string, code: string): Promis
     return
   }
 
-  // In production, implement actual email sending here
-  // For example, using Resend, SendGrid, or Nodemailer
-  throw new Error('Production email sending not implemented')
+  // Send via Brevo template
+  await sendBrevoEmail({
+    to: email,
+    templateParams: {
+      code,
+      expires: 10,
+      type: 'password_reset',
+    },
+  })
 }

@@ -25,9 +25,15 @@ export async function POST(request: NextRequest) {
     // Find classroom by code or ID
     let query = supabase
       .from('classrooms')
-      .select('id, title, class_code, term_label, allow_enrollment')
+      .select('id, title, class_code, term_label, allow_enrollment, archived_at')
 
-    if (classroomId) {
+    const looksLikeUuid =
+      typeof classroomId === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        classroomId
+      )
+
+    if (classroomId && looksLikeUuid) {
       query = query.eq('id', classroomId)
     } else {
       query = query.eq('class_code', classCode)
@@ -36,6 +42,13 @@ export async function POST(request: NextRequest) {
     const { data: classroom, error: fetchError } = await query.single()
 
     if (fetchError || !classroom) {
+      return NextResponse.json(
+        { error: 'Classroom not found' },
+        { status: 404 }
+      )
+    }
+
+    if (classroom.archived_at) {
       return NextResponse.json(
         { error: 'Classroom not found' },
         { status: 404 }

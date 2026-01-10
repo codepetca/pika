@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomsIndex } from './TeacherClassroomsIndex'
+import { StudentClassroomsIndex } from './StudentClassroomsIndex'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -20,21 +22,43 @@ export default async function ClassroomsIndexPage() {
       .from('classrooms')
       .select('*')
       .eq('teacher_id', user.id)
+      .is('archived_at', null)
       .order('updated_at', { ascending: false })
-    return <TeacherClassroomsIndex initialClassrooms={classrooms || []} />
+
+    return (
+      <AppShell user={{ email: user.email, role: user.role }}>
+        <TeacherClassroomsIndex initialClassrooms={classrooms || []} />
+      </AppShell>
+    )
   }
 
+  // Student: fetch all enrolled classrooms
   const { data: enrollments } = await supabase
     .from('classroom_enrollments')
-    .select('classroom_id, created_at')
+    .select('classroom_id')
     .eq('student_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
 
-  const mostRecentEnrollment = enrollments?.[0]
-  if (!mostRecentEnrollment) {
-    redirect('/join')
+  const classroomIds = enrollments?.map(e => e.classroom_id) || []
+
+  if (classroomIds.length === 0) {
+    // No enrollments, show empty state
+    return (
+      <AppShell user={{ email: user.email, role: user.role }}>
+        <StudentClassroomsIndex initialClassrooms={[]} />
+      </AppShell>
+    )
   }
 
-  redirect(`/classrooms/${mostRecentEnrollment.classroom_id}?tab=today`)
+  const { data: classrooms } = await supabase
+    .from('classrooms')
+    .select('*')
+    .in('id', classroomIds)
+    .is('archived_at', null)
+    .order('updated_at', { ascending: false })
+
+  return (
+    <AppShell user={{ email: user.email, role: user.role }}>
+      <StudentClassroomsIndex initialClassrooms={classrooms || []} />
+    </AppShell>
+  )
 }

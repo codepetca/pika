@@ -2,7 +2,26 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { UploadRosterModal } from '@/components/UploadRosterModal'
+import { AddStudentsModal } from '@/components/AddStudentsModal'
+import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableRow,
+  DataTableHeaderCell,
+  EmptyStateRow,
+  SortableHeaderCell,
+  TableCard,
+} from '@/components/DataTable'
 import type { Classroom } from '@/types'
+import { CheckIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
+
+type Role = 'student' | 'teacher'
 
 interface RosterRow {
   id: string
@@ -39,17 +58,41 @@ function normalizeRosterRows(raw: any[]): RosterRow[] {
 }
 
 export function TeacherRosterTab({ classroom }: Props) {
+  const isReadOnly = !!classroom.archived_at
   const [loading, setLoading] = useState(true)
   const [roster, setRoster] = useState<RosterRow[]>([])
   const [error, setError] = useState<string>('')
-  const [success, setSuccess] = useState<string>('')
-
-  const [uploading, setUploading] = useState(false)
-  const [csvText, setCsvText] = useState('')
+  const [isUploadModalOpen, setUploadModalOpen] = useState(false)
+  const [isAddModalOpen, setAddModalOpen] = useState(false)
+  const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
+    column: 'first_name' | 'last_name'
+    direction: 'asc' | 'desc'
+  }>({ column: 'last_name', direction: 'asc' })
+  const [pendingRemoval, setPendingRemoval] = useState<{
+    rosterId: string
+    email: string
+    firstName: string | null
+    lastName: string | null
+    joined: boolean
+  } | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
 
   const sortedRoster = useMemo(() => {
-    return [...roster].sort((a, b) => a.email.localeCompare(b.email))
-  }, [roster])
+    const rows = [...roster]
+    rows.sort((a, b) => {
+      const aValue = sortColumn === 'first_name' ? a.first_name : a.last_name
+      const bValue = sortColumn === 'first_name' ? b.first_name : b.last_name
+      const cmp = compareNullableStrings(aValue, bValue, { missingLast: true })
+      if (cmp !== 0) return applyDirection(cmp, sortDirection)
+
+      return applyDirection(a.email.localeCompare(b.email), sortDirection)
+    })
+    return rows
+  }, [roster, sortColumn, sortDirection])
+
+  function onSort(column: 'first_name' | 'last_name') {
+    setSortState((prev) => toggleSort(prev, column))
+  }
 
   async function loadRoster() {
     setLoading(true)
@@ -58,6 +101,18 @@ export function TeacherRosterTab({ classroom }: Props) {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster`)
       const data = await res.json()
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          try {
+            const meRes = await fetch('/api/auth/me')
+            const meData = await meRes.json().catch(() => ({}))
+            const role = (meData?.user?.role ?? null) as Role | null
+            if (role && role !== 'teacher') {
+              throw new Error('You are not signed in as a teacher. Log out and sign back in as a teacher (student sign-in in another tab replaces the session).')
+            }
+          } catch {
+            // Fallback to generic message below
+          }
+        }
         throw new Error(data.error || 'Failed to load roster')
       }
       setRoster(normalizeRosterRows(data.roster || []))
@@ -73,63 +128,26 @@ export function TeacherRosterTab({ classroom }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroom.id])
 
-  async function onPickFile(file: File | null) {
-    if (!file) return
+  async function confirmRemoveStudent() {
+    if (!pendingRemoval) return
+    if (isReadOnly) return
+    setIsRemoving(true)
     setError('')
-    setSuccess('')
-    try {
-      const text = await file.text()
-      setCsvText(text)
-    } catch {
-      setError('Failed to read file')
-    }
-  }
-
-  async function uploadCsv() {
-    setUploading(true)
-    setError('')
-    setSuccess('')
-    try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/upload-csv`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csvData: csvText }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to upload CSV')
-      }
-      setSuccess(`Uploaded. Upserted ${data.upsertedCount ?? 0} roster rows.`)
-      await loadRoster()
-    } catch (err: any) {
-      setError(err.message || 'Failed to upload CSV')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  async function removeStudent(rosterId: string, email: string, joined: boolean) {
-    setError('')
-    setSuccess('')
-    const ok = window.confirm(
-      joined
-        ? `Remove ${email} from this classroom?\n\nThey are currently joined. This will delete their classroom data (logs and assignment docs).`
-        : `Remove ${email} from this classroom roster?\n\nThey are not joined yet.`
-    )
-    if (!ok) return
 
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${rosterId}`, {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/roster/${pendingRemoval.rosterId}`, {
         method: 'DELETE',
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         throw new Error(data.error || 'Failed to remove student')
       }
-      setSuccess(`Removed ${email}.`)
+      setPendingRemoval(null)
       await loadRoster()
     } catch (err: any) {
       setError(err.message || 'Failed to remove student')
+    } finally {
+      setIsRemoving(false)
     }
   }
 
@@ -142,78 +160,149 @@ export function TeacherRosterTab({ classroom }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-lg shadow-sm p-4 space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-lg font-semibold text-gray-900">Roster</h2>
-          <button
-            type="button"
-            className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm hover:bg-gray-50"
-            onClick={loadRoster}
-          >
-            Refresh
-          </button>
-        </div>
-
-        <div className="text-sm text-gray-600">
-          Upload CSV with columns: Student Number, First Name, Last Name, Email
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-            className="text-sm"
-            disabled={uploading}
-          />
-          <button
-            type="button"
-            className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
-            onClick={uploadCsv}
-            disabled={uploading || csvText.trim().length === 0}
-          >
-            {uploading ? 'Uploading…' : 'Upload'}
-          </button>
-        </div>
-
-        {error && <div className="text-sm text-red-600">{error}</div>}
-        {success && <div className="text-sm text-green-700">{success}</div>}
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
-        {sortedRoster.map((row) => (
-          <div key={row.id} className="p-4 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-medium text-gray-900">{row.email}</div>
-              <div className="mt-1 text-sm text-gray-600">
-                {row.first_name || row.last_name
-                  ? `${row.last_name ?? ''}${row.last_name ? ', ' : ''}${row.first_name ?? ''}`.trim()
-                  : '(no name)'}
-                {row.student_number ? ` • ${row.student_number}` : ''}
-                <span className="ml-2">
-                  {row.joined ? (
-                    <span className="text-green-700">Joined</span>
-                  ) : (
-                    <span className="text-gray-500">Not joined</span>
-                  )}
-                </span>
-              </div>
-            </div>
+    <PageLayout>
+      <PageActionBar
+        primary={
+          <div className="flex gap-2">
             <button
               type="button"
-              className="px-3 py-2 rounded-md border border-red-200 bg-white text-sm text-red-700 hover:bg-red-50 flex-shrink-0"
-              onClick={() => removeStudent(row.id, row.email, row.joined)}
+              className={ACTIONBAR_BUTTON_CLASSNAME}
+              onClick={() => setAddModalOpen(true)}
+              disabled={isReadOnly}
             >
-              Remove
+              Add Students
+            </button>
+            <button
+              type="button"
+              className={ACTIONBAR_BUTTON_SECONDARY_CLASSNAME}
+              onClick={() => setUploadModalOpen(true)}
+              disabled={isReadOnly}
+            >
+              Upload CSV
             </button>
           </div>
-        ))}
+        }
+        actions={[
+          {
+            id: 'refresh',
+            label: 'Refresh',
+            onSelect: loadRoster,
+          },
+        ]}
+      />
 
-        {sortedRoster.length === 0 && (
-          <div className="p-6 text-center text-gray-500">No students on the roster</div>
-        )}
-      </div>
-    </div>
+      <PageContent>
+        <TableCard>
+          {error && (
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+                {error}
+              </div>
+            </div>
+          )}
+
+          <DataTable>
+            <DataTableHead>
+              <DataTableRow>
+                <SortableHeaderCell
+                  label="First Name"
+                  isActive={sortColumn === 'first_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('first_name')}
+                />
+                <SortableHeaderCell
+                  label="Last Name"
+                  isActive={sortColumn === 'last_name'}
+                  direction={sortDirection}
+                  onClick={() => onSort('last_name')}
+                />
+                <DataTableHeaderCell>Email</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
+                <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
+              </DataTableRow>
+            </DataTableHead>
+            <DataTableBody>
+              {sortedRoster.map((row) => (
+                <DataTableRow key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
+                  <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
+                  <DataTableCell className="text-gray-600 dark:text-gray-400">{row.email}</DataTableCell>
+                  <DataTableCell align="center">
+                    {row.joined && (
+                      <CheckIcon className="mx-auto h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />
+                    )}
+                  </DataTableCell>
+                  <DataTableCell align="right">
+                    <button
+                      type="button"
+                      className={[
+                        'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200',
+                        isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
+                      ].join(' ')}
+                      onClick={() => {
+                        if (isReadOnly) return
+                        setPendingRemoval({
+                          rosterId: row.id,
+                          email: row.email,
+                          firstName: row.first_name,
+                          lastName: row.last_name,
+                          joined: row.joined,
+                        })
+                      }}
+                      aria-label={`Remove ${row.email}`}
+                      disabled={isReadOnly}
+                    >
+                      <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                    </button>
+                  </DataTableCell>
+                </DataTableRow>
+              ))}
+              {sortedRoster.length === 0 && (
+                <EmptyStateRow colSpan={5} message="No students on the roster" />
+              )}
+            </DataTableBody>
+          </DataTable>
+        </TableCard>
+      </PageContent>
+
+      <AddStudentsModal
+        isOpen={isAddModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        classroomId={classroom.id}
+        onSuccess={loadRoster}
+      />
+
+      <UploadRosterModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setUploadModalOpen(false)}
+        classroomId={classroom.id}
+        onSuccess={loadRoster}
+      />
+
+      <ConfirmDialog
+        isOpen={!!pendingRemoval}
+        title="Remove student?"
+        description={
+          pendingRemoval
+            ? `${
+                pendingRemoval.firstName || pendingRemoval.lastName
+                  ? `${pendingRemoval.firstName ?? ''} ${pendingRemoval.lastName ?? ''}`.trim()
+                  : 'Unnamed student'
+              }\n${pendingRemoval.email}\n\n${
+                pendingRemoval.joined
+                  ? 'They are currently joined. This will delete their classroom data (logs and assignment docs).'
+                  : 'They are not joined yet.'
+              }`
+            : undefined
+        }
+        confirmLabel={isRemoving ? 'Removing...' : 'Remove'}
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        isCancelDisabled={isRemoving}
+        isConfirmDisabled={isRemoving}
+        onCancel={() => (isRemoving ? null : setPendingRemoval(null))}
+        onConfirm={confirmRemoveStudent}
+      />
+    </PageLayout>
   )
 }

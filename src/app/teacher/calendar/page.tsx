@@ -1,19 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
+import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import type { ClassDay, Classroom } from '@/types'
 import {
   format,
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
-  isSameMonth,
   addMonths,
   parseISO
 } from 'date-fns'
+import { getTodayInToronto } from '@/lib/timezone'
 
 type WizardMode = 'preset' | 'custom'
 
@@ -93,6 +94,22 @@ export default function CalendarPage() {
     loadClassrooms()
   }, [])
 
+  const loadClassDays = useCallback(async () => {
+    const classroomId = selectedClassroom?.id
+    if (!classroomId) return
+
+    setLoadingCalendar(true)
+    try {
+      const response = await fetch(`/api/classrooms/${classroomId}/class-days`)
+      const data = await response.json()
+      setClassDays(data.class_days || [])
+    } catch (err) {
+      console.error('Error loading class days:', err)
+    } finally {
+      setLoadingCalendar(false)
+    }
+  }, [selectedClassroom?.id])
+
   // Load calendar when classroom selected
   useEffect(() => {
     if (!selectedClassroom) {
@@ -101,24 +118,7 @@ export default function CalendarPage() {
     }
 
     loadClassDays()
-  }, [selectedClassroom])
-
-  async function loadClassDays() {
-    if (!selectedClassroom) return
-
-    setLoadingCalendar(true)
-    try {
-      const response = await fetch(
-        `/api/teacher/class-days?classroom_id=${selectedClassroom.id}&semester=semester1&year=2024`
-      )
-      const data = await response.json()
-      setClassDays(data.class_days || [])
-    } catch (err) {
-      console.error('Error loading class days:', err)
-    } finally {
-      setLoadingCalendar(false)
-    }
-  }
+  }, [selectedClassroom, loadClassDays])
 
   async function handleGenerate() {
     if (!selectedClassroom) return
@@ -143,13 +143,20 @@ export default function CalendarPage() {
         body.end_date = endDate
       }
 
-      const response = await fetch('/api/teacher/class-days', {
+      const response = await fetch(`/api/classrooms/${selectedClassroom.id}/class-days`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
 
       if (response.ok) {
+        // Refresh classroom list to pick up start/end date updates.
+        const classroomsRes = await fetch('/api/teacher/classrooms')
+        const classroomsData = await classroomsRes.json()
+        const nextClassrooms: Classroom[] = classroomsData.classrooms || []
+        setClassrooms(nextClassrooms)
+        const refreshed = nextClassrooms.find(c => c.id === selectedClassroom.id) ?? null
+        if (refreshed) setSelectedClassroom(refreshed)
         await loadClassDays()
       } else {
         const data = await response.json()
@@ -167,11 +174,10 @@ export default function CalendarPage() {
     if (!selectedClassroom) return
 
     try {
-      const response = await fetch('/api/teacher/class-days', {
+      const response = await fetch(`/api/classrooms/${selectedClassroom.id}/class-days`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          classroom_id: selectedClassroom.id,
           date,
           is_class_day: !currentValue,
         }),
@@ -354,17 +360,23 @@ export default function CalendarPage() {
   }
 
   function renderCompactCalendar() {
+    if (!selectedClassroom) return null
     if (classDays.length === 0) return null
 
-    // Get date range from class days
+    // Prefer classroom range; fall back to class days range.
     const dates = classDays.map(d => parseISO(d.date))
-    const minDate = new Date(Math.min(...dates.map(d => d.getTime())))
-    const maxDate = new Date(Math.max(...dates.map(d => d.getTime())))
+    const minFromDays = new Date(Math.min(...dates.map(d => d.getTime())))
+    const maxFromDays = new Date(Math.max(...dates.map(d => d.getTime())))
+
+    const rangeStart = selectedClassroom.start_date ? parseISO(selectedClassroom.start_date) : minFromDays
+    const rangeEnd = selectedClassroom.end_date ? parseISO(selectedClassroom.end_date) : maxFromDays
+    const rangeStartStr = format(rangeStart, 'yyyy-MM-dd')
+    const rangeEndStr = format(rangeEnd, 'yyyy-MM-dd')
 
     // Generate array of months to display
     const months: Date[] = []
-    let current = startOfMonth(minDate)
-    const end = startOfMonth(maxDate)
+    let current = startOfMonth(rangeStart)
+    const end = startOfMonth(rangeEnd)
 
     while (current <= end) {
       months.push(current)
@@ -373,17 +385,10 @@ export default function CalendarPage() {
 
     const classDayMap = new Map<string, ClassDay>()
     classDays.forEach(day => classDayMap.set(day.date, day))
+    const todayToronto = getTodayInToronto()
 
     return (
       <div>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Calendar</h2>
-          <p className="text-gray-600">
-            <strong>{classDays.filter(d => d.is_class_day).length}</strong> class days configured.
-            Click any day to toggle.
-          </p>
-        </div>
-
         {/* Compact Multi-Month Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {months.map(month => {
@@ -414,20 +419,30 @@ export default function CalendarPage() {
                     const classDay = classDayMap.get(dateString)
                     const isClassDay = classDay?.is_class_day || false
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6
+                    const isBeforeToday = dateString < todayToronto
+                    const isInRange = dateString >= rangeStartStr && dateString <= rangeEndStr
+                    const disabled = !isInRange || isBeforeToday
+
+                    const colorClasses = disabled
+                      ? 'bg-gray-100 text-gray-400'
+                      : isClassDay
+                        ? 'bg-green-100 text-green-900 hover:bg-green-200'
+                        : classDay
+                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          : isWeekend
+                            ? 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                            : 'bg-red-50 text-red-700 hover:bg-red-100'
 
                     return (
                       <button
                         key={dateString}
-                        onClick={() => classDay && toggleClassDay(dateString, isClassDay)}
+                        onClick={() => toggleClassDay(dateString, isClassDay)}
                         className={`
                           aspect-square p-1 rounded text-xs font-medium transition-colors
-                          ${isClassDay ? 'bg-green-100 text-green-900 hover:bg-green-200' : ''}
-                          ${!isClassDay && classDay ? 'bg-gray-200 text-gray-600 hover:bg-gray-300' : ''}
-                          ${!classDay && isWeekend ? 'bg-gray-50 text-gray-400' : ''}
-                          ${!classDay && !isWeekend ? 'bg-red-50 text-red-600' : ''}
-                          ${!isSameMonth(day, month) ? 'opacity-30' : ''}
+                          ${colorClasses}
+                          ${disabled ? 'cursor-not-allowed' : ''}
                         `}
-                        disabled={!classDay}
+                        disabled={disabled}
                       >
                         {format(day, 'd')}
                       </button>
@@ -497,12 +512,12 @@ export default function CalendarPage() {
     <div className="flex gap-6">
       {/* Classroom List Sidebar */}
       <div className="w-64 flex-shrink-0">
-        <div className="bg-white rounded-lg shadow-sm p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">Classes</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Classes</h3>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
             >
               + New
             </button>
@@ -514,18 +529,18 @@ export default function CalendarPage() {
                 key={classroom.id}
                 className={`relative p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
-                    ? 'bg-blue-50 border-blue-200'
-                    : 'hover:bg-gray-50 border-transparent'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-transparent'
                 }`}
               >
                 <button
                   onClick={() => setSelectedClassroom(classroom)}
                   className="w-full text-left"
                 >
-                  <div className="font-medium text-gray-900 text-sm pr-6">
+                  <div className="font-medium text-gray-900 dark:text-gray-100 text-sm pr-6">
                     {classroom.title}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {classroom.class_code}
                   </div>
                 </button>
@@ -535,7 +550,7 @@ export default function CalendarPage() {
                     setSelectedClassroom(classroom)
                     handleDeleteClassroom()
                   }}
-                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                  className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
                   title="Delete classroom"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -551,17 +566,46 @@ export default function CalendarPage() {
       {/* Main Content */}
       <div className="flex-1">
         {selectedClassroom ? (
-          loadingCalendar ? (
-            <div className="flex justify-center py-12">
-              <Spinner size="lg" />
-            </div>
-          ) : classDays.length === 0 ? (
-            renderWizard()
-          ) : (
-            renderCompactCalendar()
-          )
+          <PageLayout>
+            <PageActionBar
+              primary={
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    {selectedClassroom.title}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                    <span className="font-mono">{selectedClassroom.class_code}</span>
+                    {' • '}
+                    {classDays.filter(d => d.is_class_day).length} class days
+                  </div>
+                </div>
+              }
+              actions={
+                [
+                  {
+                    id: 'delete-classroom',
+                    label: 'Delete',
+                    onSelect: handleDeleteClassroom,
+                    destructive: true,
+                  },
+                ] satisfies ActionBarItem[]
+              }
+            />
+
+            <PageContent>
+              {loadingCalendar ? (
+                <div className="flex justify-center py-12">
+                  <Spinner size="lg" />
+                </div>
+              ) : classDays.length === 0 ? (
+                renderWizard()
+              ) : (
+                renderCompactCalendar()
+              )}
+            </PageContent>
+          </PageLayout>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm p-8 text-center text-gray-600">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center text-gray-600 dark:text-gray-300">
             Select a class to manage its calendar
           </div>
         )}

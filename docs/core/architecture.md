@@ -60,6 +60,13 @@ tests/                             # Vitest unit + API suites
 
 ## Key Patterns
 
+### UI/Dark Mode (Required)
+- **All UI components MUST support both light and dark modes**
+- Uses Tailwind's `dark:` prefix with `class` strategy (`darkMode: 'class'` in config)
+- Standard pattern: `bg-white dark:bg-gray-900`, `text-gray-900 dark:text-white`, etc.
+- E2E snapshots test both light and dark modes to ensure visual consistency
+- See `docs/core/design.md` and `docs/design-system.md` for complete dark mode patterns
+
 ### Authentication (Primary)
 - **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates; `/create-password` hashes password (bcrypt), sets session.
 - **Login**: `/api/auth/login` with email/password; lockout after 5 failed attempts for 15 minutes.

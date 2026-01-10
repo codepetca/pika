@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 
-// POST /api/teacher/classrooms/[id]/roster/add - Add student(s) manually
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+// POST /api/teacher/classrooms/[id]/roster/add - Add roster allow-list rows manually (no auto-enrollment)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -22,29 +26,16 @@ export async function POST(
 
     const supabase = getServiceRoleClient()
 
-    // Verify ownership
-    const { data: classroom, error: fetchError } = await supabase
-      .from('classrooms')
-      .select('teacher_id')
-      .eq('id', classroomId)
-      .single()
-
-    if (fetchError || !classroom) {
+    const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
+    if (!ownership.ok) {
       return NextResponse.json(
-        { error: 'Classroom not found' },
-        { status: 404 }
+        { error: ownership.error },
+        { status: ownership.status }
       )
     }
 
-    if (classroom.teacher_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
-    }
-
-    const addedStudents = []
     const errors = []
+    const rosterRows = []
 
     for (const student of students) {
       const { email, firstName, lastName, studentNumber } = student
@@ -55,88 +46,44 @@ export async function POST(
       }
 
       const normalizedEmail = email.toLowerCase().trim()
+      rosterRows.push({
+        classroom_id: classroomId,
+        email: normalizedEmail,
+        first_name: firstName,
+        last_name: lastName,
+        student_number: studentNumber || null,
+      })
+    }
 
-      try {
-        // Check if user exists
-        let { data: existingUser } = await supabase
-          .from('users')
-          .select('id, role')
-          .eq('email', normalizedEmail)
-          .single()
+    if (rosterRows.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid students to add' },
+        { status: 400 }
+      )
+    }
 
-        let userId: string
+    const { data: upserted, error: upsertError } = await supabase
+      .from('classroom_roster')
+      .upsert(rosterRows, { onConflict: 'classroom_id,email' })
+      .select('id, email')
 
-        if (existingUser) {
-          userId = existingUser.id
-
-          // Update role to student if not already
-          if (existingUser.role !== 'student') {
-            await supabase
-              .from('users')
-              .update({ role: 'student' })
-              .eq('id', userId)
-          }
-        } else {
-          // Create new student user
-          const { data: newUser, error: createError } = await supabase
-            .from('users')
-            .insert({
-              email: normalizedEmail,
-              role: 'student',
-            })
-            .select('id')
-            .single()
-
-          if (createError || !newUser) {
-            errors.push({ email, error: 'Failed to create user' })
-            continue
-          }
-
-          userId = newUser.id
-        }
-
-        // Create or update student profile
-        await supabase
-          .from('student_profiles')
-          .upsert({
-            user_id: userId,
-            first_name: firstName,
-            last_name: lastName,
-            student_number: studentNumber || null,
-          }, {
-            onConflict: 'user_id'
-          })
-
-        // Add enrollment (skip if already enrolled)
-        const { error: enrollError } = await supabase
-          .from('classroom_enrollments')
-          .insert({
-            classroom_id: classroomId,
-            student_id: userId,
-          })
-
-        if (enrollError && !enrollError.message?.includes('duplicate')) {
-          errors.push({ email, error: 'Failed to enroll student' })
-          continue
-        }
-
-        addedStudents.push({ email, userId })
-      } catch (err: any) {
-        errors.push({ email, error: err.message })
-      }
+    if (upsertError) {
+      console.error('Add roster error:', upsertError)
+      return NextResponse.json(
+        { error: 'Failed to add students' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
       success: true,
-      addedCount: addedStudents.length,
-      added: addedStudents,
+      upsertedCount: upserted?.length ?? 0,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (error: any) {
+    if (error.name === 'AuthenticationError') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error.name === 'AuthorizationError') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     console.error('Add students error:', error)
-    return NextResponse.json(
-      { error: error.message || 'Unauthorized' },
-      { status: 401 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

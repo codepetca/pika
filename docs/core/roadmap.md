@@ -26,8 +26,8 @@ Phase-based tracking for **Pika**.
 - `/auth/*` pages for signup, verify, create-password, login, reset
 
 ### Phase 2 — Student Experience ✅
-- `/student/today` journal form (per classroom)
-- `/student/history` attendance indicators
+- `/classrooms/[id]?tab=today` - Daily journal form with mood tracking
+- `/student/history` - Cross-classroom attendance history
 - Student entries API with Toronto timezone handling
 
 ### Phase 3 — Teacher Dashboard ✅

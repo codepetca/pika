@@ -4,10 +4,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
-## ⚠️ Start of Session (MANDATORY)
+## 🚨 CRITICAL: Start of Session Protocol (MANDATORY)
 
-1. Read `.ai/START-HERE.md` and follow the starting ritual.
-2. Follow the required reading order in `docs/ai-instructions.md` before modifying code.
+**STOP. Before doing ANYTHING else in this session:**
+
+### Step 1: Read `.ai/START-HERE.md` FIRST
+This is **NOT OPTIONAL**. Read it now: `.ai/START-HERE.md`
+
+### Step 2: Verify Worktree Environment
+**NEVER work in the hub repo** (`$HOME/Repos/pika`). Always verify:
+
+```bash
+# Check if PIKA_WORKTREE is set
+echo $PIKA_WORKTREE
+
+# If empty or points to hub repo, STOP
+# Ask user: "Which worktree should I use? Run: pika ls"
+```
+
+### Step 3: If No Worktree Exists
+If the user wants you to work on a feature:
+- Ask: "Should I create a worktree for this? What branch name?"
+- Create worktree following `docs/dev-workflow.md`
+- Symlink `.env.local`
+
+### Step 4: Only Then Proceed
+After verifying you're in a worktree, follow the required reading order in `docs/ai-instructions.md`.
+
+**Violation of this protocol is a critical error that wastes user time.**
 
 ---
 
@@ -40,6 +64,7 @@ Pika uses two complementary layers:
 - **America/Toronto timezone** for all deadline calculations
 - **Email verification codes + password login** (NO OAuth)
 - **Tailwind CSS only** (NO component libraries)
+- **Dark mode on ALL components** (light + dark modes required)
 - **TDD-first** for core logic (write tests before implementation)
 - **Keep UI thin** (business logic in utilities/server code)
 - **Hash verification/reset codes and passwords** with bcrypt (never plaintext)
@@ -52,4 +77,27 @@ Pika uses two complementary layers:
 - Skipping tests for core logic
 - Committing secrets (`.env.local`, keys, tokens)
 - Over-engineering or unnecessary abstractions
+- **Shipping UI components without dark mode support**
+
+---
+
+## 🔄 Worktree Workflow Rules (MANDATORY)
+
+### During Every Session
+1. **All git commands MUST use**: `git -C "$PIKA_WORKTREE"`
+2. **All file paths MUST be absolute** or prefixed with `$PIKA_WORKTREE`
+3. **Before any `git checkout -b`**: Verify you're in a worktree, not hub repo
+4. **Before any commit**: Double-check you're committing in the worktree
+
+### Red Flags (STOP if you see these)
+- Running `git checkout -b` without checking `$PIKA_WORKTREE`
+- Current directory is `$HOME/Repos/pika` and you're not on main branch
+- About to commit to a feature branch in the hub repo
+
+### Recovery if You Make a Mistake
+If you realize you worked in the hub repo:
+1. Stash changes: `git stash push -u -m "description"`
+2. Create proper worktree
+3. Pop stash in worktree
+4. Commit there instead
 

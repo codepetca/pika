@@ -8,41 +8,40 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'student-1', role: 'student' })) }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertStudentCanAccessClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'class-1', archived_at: null },
+  })),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
 describe('GET /api/assignment-docs/[id]', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('should return 404 when doc does not exist', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-999')
-    const response = await GET(request, { params: { id: 'doc-999' } })
-    expect(response.status).toBe(404)
-  })
-
-  it('should return 403 when not student owner', async () => {
+  it('should return 404 when assignment does not exist', async () => {
     const mockFrom = vi.fn((table: string) => {
-      if (table === 'assignment_docs') {
+      if (table === 'assignments') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'doc-1', student_id: 'other-student', assignment_id: 'assign-1' },
-                error: null,
-              }),
+              single: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
             })),
           })),
         }
-      } else if (table === 'assignments') {
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-999')
+    const response = await GET(request, { params: { id: 'assign-999' } })
+    expect(response.status).toBe(404)
+  })
+
+  it('should create a doc when missing', async () => {
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
@@ -63,13 +62,33 @@ describe('GET /api/assignment-docs/[id]', () => {
             }),
           })),
         }
+      } else if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: null,
+              error: { code: 'PGRST116' },
+            }),
+          })),
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'doc-new', assignment_id: 'assign-1', student_id: 'student-1', content: '' },
+                error: null,
+              }),
+            })),
+          })),
+        }
       }
     })
     ;(mockSupabaseClient.from as any) = mockFrom
 
-    const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-1')
-    const response = await GET(request, { params: { id: 'doc-1' } })
-    expect(response.status).toBe(403)
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1')
+    const response = await GET(request, { params: { id: 'assign-1' } })
+    const data = await response.json()
+    expect(response.status).toBe(200)
+    expect(data.doc.id).toBe('doc-new')
   })
 })
 
@@ -81,12 +100,11 @@ describe('PATCH /api/assignment-docs/[id]', () => {
       if (table === 'assignment_docs') {
         return {
           select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'doc-1', student_id: 'student-1', is_submitted: true, assignment_id: 'assign-1' },
-                error: null,
-              }),
-            })),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'doc-1', student_id: 'student-1', is_submitted: true, assignment_id: 'assign-1' },
+              error: null,
+            }),
           })),
         }
       } else if (table === 'assignments') {
@@ -116,10 +134,122 @@ describe('PATCH /api/assignment-docs/[id]', () => {
 
     const request = new NextRequest('http://localhost:3000/api/assignment-docs/doc-1', {
       method: 'PATCH',
-      body: JSON.stringify({ content: 'new content' }),
+      body: JSON.stringify({ content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'new content' }] }] } }),
     })
 
     const response = await PATCH(request, { params: { id: 'doc-1' } })
     expect(response.status).toBe(403)
+  })
+
+  it('updates last history entry when rate-limited', async () => {
+    const now = new Date('2025-01-01T00:00:05Z').getTime()
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now)
+
+    const historyUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'history-1',
+              assignment_doc_id: 'doc-1',
+              patch: null,
+              snapshot: null,
+              word_count: 3,
+              char_count: 3,
+              trigger: 'autosave',
+              created_at: new Date(now).toISOString(),
+            },
+            error: null,
+          }),
+        })),
+      })),
+    }))
+    const historyInsert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      })),
+    }))
+
+    const beforeContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Old' }] }],
+    }
+    const newContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'New' }] }],
+    }
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'assign-1', classroom_id: 'class-1' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({ data: { id: 'enroll-1' }, error: null }),
+          })),
+        }
+      }
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'doc-1', student_id: 'student-1', is_submitted: false, content: beforeContent },
+              error: null,
+            }),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: { id: 'doc-1', content: newContent },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+        }
+      }
+      if (table === 'assignment_doc_history') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn(() => ({
+              limit: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { id: 'history-1', created_at: new Date(now - 5000).toISOString(), snapshot: null },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+          update: historyUpdate,
+          insert: historyInsert,
+        }
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/assignment-docs/assign-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ content: newContent }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'assign-1' } })
+    expect(response.status).toBe(200)
+    expect(historyUpdate).toHaveBeenCalled()
+    expect(historyInsert).not.toHaveBeenCalled()
+    dateSpy.mockRestore()
   })
 })

@@ -1,109 +1,404 @@
-import { test, expect, type Page } from '@playwright/test'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+/**
+ * UI Snapshot Tests
+ *
+ * Visual regression testing using Playwright's built-in snapshot system.
+ *
+ * Usage:
+ *   pnpm run e2e:snapshots           # Run tests and compare with baselines
+ *   pnpm run e2e:snapshots:update    # Update baselines after UI changes
+ *
+ * Snapshots are stored in e2e/__snapshots__/
+ */
+import { test, expect } from '@playwright/test'
 
-const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teacher@yrdsb.ca'
-const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL || 'student1@student.yrdsb.ca'
-const PASSWORD = process.env.E2E_PASSWORD || 'test1234'
-const SNAPSHOT_DIR = process.env.E2E_SNAPSHOT_DIR || 'artifacts/ui-snapshots'
+const TEACHER_STORAGE = '.auth/teacher.json'
+const STUDENT_STORAGE = '.auth/student.json'
 
-async function login(page: Page, email: string) {
-  await page.goto('/login')
-  await page.getByLabel('School Email').fill(email)
-  await page.getByLabel('Password').fill(PASSWORD)
-  await page.getByRole('button', { name: 'Login' }).click()
-  await page.waitForURL('**/classrooms**', { timeout: 30_000 })
-}
-
-async function snap(page: Page, name: string) {
+// Helper to wait for page to be fully loaded and ready for screenshot
+async function waitForContent(page: any) {
+  // Wait for network to settle
   await page.waitForLoadState('networkidle')
-  const path = `${SNAPSHOT_DIR}/${name}.png`
-  mkdirSync(dirname(path), { recursive: true })
-  await page.screenshot({ path, fullPage: true })
+  // Small additional delay to ensure content is rendered
+  await page.waitForTimeout(500)
 }
 
-test.describe.configure({ mode: 'serial' })
+// Helper to enable dark mode by adding the 'dark' class to html element
+async function enableDarkMode(page: any) {
+  await page.evaluate(() => {
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('theme', 'dark')
+  })
+  // Small delay to let dark mode styles apply
+  await page.waitForTimeout(200)
+}
 
-test('logged-out screens', async ({ page }) => {
-  await page.goto('/login')
-  await snap(page, 'auth/login')
+// ============================================================================
+// Logged-out Screens
+// ============================================================================
 
-  await page.goto('/signup')
-  await snap(page, 'auth/signup')
+test.describe('logged-out screens', () => {
+  test('login page', async ({ page }) => {
+    await page.goto('/login')
+    await waitForContent(page)
+    await expect(page).toHaveScreenshot('auth-login.png', { fullPage: true })
+  })
 
-  await page.goto('/forgot-password')
-  await snap(page, 'auth/forgot-password')
+  test('signup page', async ({ page }) => {
+    await page.goto('/signup')
+    await waitForContent(page)
+    await expect(page).toHaveScreenshot('auth-signup.png', { fullPage: true })
+  })
+
+  test('forgot password page', async ({ page }) => {
+    await page.goto('/forgot-password')
+    await waitForContent(page)
+    await expect(page).toHaveScreenshot('auth-forgot-password.png', { fullPage: true })
+  })
 })
 
-test('teacher screens', async ({ page }) => {
-  await login(page, TEACHER_EMAIL)
+// ============================================================================
+// Teacher Screens - Light Mode
+// ============================================================================
 
-  await page.goto('/__ui')
-  await snap(page, 'teacher/ui-gallery')
+test.describe('teacher screens - light mode', () => {
+  test.use({ storageState: TEACHER_STORAGE })
 
-  await page.goto('/classrooms')
-  await snap(page, 'teacher/classrooms-index')
+  test('classrooms index', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+    await expect(page).toHaveScreenshot('teacher-classrooms-index.png', { fullPage: true })
+  })
 
-  const openLink = page.getByRole('link', { name: 'Open' }).first()
-  await expect(openLink).toBeVisible({ timeout: 15_000 })
-  await openLink.click()
-  await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
-  await snap(page, 'teacher/classroom/attendance')
+  test('classroom attendance tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
+    await expect(classroomCard).toBeVisible({ timeout: 15_000 })
+    await classroomCard.click()
+    await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
 
-  await page.getByRole('button', { name: 'Logs' }).click()
-  await snap(page, 'teacher/classroom/logs-collapsed')
+    // Wait for attendance data to load
+    await waitForContent(page)
+    // Wait for attendance grid to be visible
+    await expect(page.getByText('student1@student.yrdsb.ca')).toBeVisible()
 
-  const expandAll = page.getByRole('button', { name: 'Expand all' })
-  if (await expandAll.isVisible()) {
-    await expandAll.click()
-  }
-  await snap(page, 'teacher/classroom/logs-expanded')
+    await expect(page).toHaveScreenshot('teacher-classroom-attendance.png', { fullPage: true })
+  })
 
-  await page.getByRole('button', { name: 'Roster' }).click()
-  await snap(page, 'teacher/classroom/roster')
+  test('classroom logs tab - collapsed', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
 
-  await page.getByRole('button', { name: 'Calendar' }).click()
-  await snap(page, 'teacher/classroom/calendar')
+    await page.getByRole('button', { name: 'Logs' }).click()
+    await waitForContent(page)
 
-  await page.getByRole('button', { name: 'Settings' }).click()
-  await snap(page, 'teacher/classroom/settings')
+    await expect(page).toHaveScreenshot('teacher-classroom-logs-collapsed.png', { fullPage: true })
+  })
 
-  await page.getByRole('button', { name: 'Assignments' }).click()
-  await snap(page, 'teacher/classroom/assignments')
+  test('classroom logs tab - expanded', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
 
-  const assignmentLink = page.locator('a[href*="/assignments/"]').first()
-  if ((await assignmentLink.count()) > 0) {
-    await assignmentLink.click()
-    await page.waitForURL('**/assignments/**', { timeout: 15_000 })
-    await snap(page, 'teacher/assignment/detail')
-  }
+    await page.getByRole('button', { name: 'Logs' }).click()
+    await waitForContent(page)
+
+    // Expand all logs if available
+    const expandAll = page.getByRole('button', { name: 'Expand all' })
+    if (await expandAll.isVisible()) {
+      await expandAll.click()
+      await page.waitForTimeout(500) // Wait for expansion animation
+    }
+
+    await expect(page).toHaveScreenshot('teacher-classroom-logs-expanded.png', { fullPage: true })
+  })
+
+  test('classroom roster tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Roster' }).click()
+    await waitForContent(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-roster.png', { fullPage: true })
+  })
+
+  test('classroom calendar tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Calendar' }).click()
+    await waitForContent(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-calendar.png', { fullPage: true })
+  })
+
+  test('classroom settings tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Settings' }).click()
+    await waitForContent(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-settings.png', { fullPage: true })
+  })
+
+  test('classroom assignments tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Assignments' }).click()
+    await waitForContent(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-assignments.png', { fullPage: true })
+  })
+
+  test('assignment detail page', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Assignments' }).click()
+    await waitForContent(page)
+
+    // Click first assignment if available
+    const assignmentLink = page.locator('a[href*="/assignments/"]').first()
+    if ((await assignmentLink.count()) > 0) {
+      await assignmentLink.click()
+      await page.waitForURL('**/assignments/**', { timeout: 15_000 })
+      await waitForContent(page)
+      await expect(page).toHaveScreenshot('teacher-assignment-detail.png', { fullPage: true })
+    }
+  })
 })
 
-test('student screens', async ({ page }) => {
-  await login(page, STUDENT_EMAIL)
+// ============================================================================
+// Student Screens - Light Mode
+// ============================================================================
 
-  await page.goto('/__ui')
-  await snap(page, 'student/ui-gallery')
+test.describe('student screens - light mode', () => {
+  test.use({ storageState: STUDENT_STORAGE })
 
-  // Student is auto-routed into their most recent classroom from /classrooms
-  await page.goto('/classrooms')
-  await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
-  await snap(page, 'student/classroom/today')
+  test('classrooms index', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+    await expect(page).toHaveScreenshot('student-classrooms-index.png', { fullPage: true })
+  })
 
-  await page.getByRole('button', { name: 'History' }).click()
-  await snap(page, 'student/classroom/history')
+  test('classroom today tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
 
-  await page.getByRole('button', { name: 'Assignments' }).click()
-  await snap(page, 'student/classroom/assignments')
+    // Click on first classroom card to enter
+    const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
+    await expect(classroomCard).toBeVisible({ timeout: 15_000 })
+    await classroomCard.click()
+    await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
 
-  const assignmentLink = page.locator('a[href*="/assignments/"]').first()
-  if ((await assignmentLink.count()) > 0) {
-    await assignmentLink.click()
-    await page.waitForURL('**/assignments/**', { timeout: 15_000 })
-    await snap(page, 'student/assignment/editor')
-  }
+    // Wait for today tab content to load
+    await waitForContent(page)
 
-  await page.goto('/join')
-  await snap(page, 'student/join')
+    await expect(page).toHaveScreenshot('student-classroom-today.png', { fullPage: true })
+  })
+
+  test('classroom history tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click on first classroom card to enter
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'History' }).click()
+    await waitForContent(page)
+
+    await expect(page).toHaveScreenshot('student-classroom-history.png', { fullPage: true })
+  })
+
+  test('classroom assignments tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click on first classroom card to enter
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Assignments' }).click()
+    await waitForContent(page)
+
+    await expect(page).toHaveScreenshot('student-classroom-assignments.png', { fullPage: true })
+  })
+
+  test('assignment editor', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click on first classroom card to enter
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Assignments' }).click()
+    await waitForContent(page)
+
+    // Click first assignment if available
+    const assignmentLink = page.locator('a[href*="/assignments/"]').first()
+    if ((await assignmentLink.count()) > 0) {
+      await assignmentLink.click()
+      await page.waitForURL('**/assignments/**', { timeout: 15_000 })
+      await waitForContent(page)
+      await expect(page).toHaveScreenshot('student-assignment-editor.png', { fullPage: true })
+    }
+  })
+
+  test('join classroom page', async ({ page }) => {
+    await page.goto('/join')
+    await waitForContent(page)
+    await expect(page).toHaveScreenshot('student-join-classroom.png', { fullPage: true })
+  })
 })
 
+// ============================================================================
+// Teacher Screens - Dark Mode
+// ============================================================================
+
+test.describe('teacher screens - dark mode', () => {
+  test.use({ storageState: TEACHER_STORAGE })
+
+  test('classrooms index', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+    await enableDarkMode(page)
+    await expect(page).toHaveScreenshot('teacher-classrooms-index-dark.png', { fullPage: true })
+  })
+
+  test('classroom attendance tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
+    await expect(classroomCard).toBeVisible({ timeout: 15_000 })
+    await classroomCard.click()
+    await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
+
+    await waitForContent(page)
+    await expect(page.getByText('student1@student.yrdsb.ca')).toBeVisible()
+    await enableDarkMode(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-attendance-dark.png', { fullPage: true })
+  })
+
+  test('classroom logs tab - collapsed', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Logs' }).click()
+    await waitForContent(page)
+    await enableDarkMode(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-logs-collapsed-dark.png', { fullPage: true })
+  })
+
+  test('classroom roster tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Roster' }).click()
+    await waitForContent(page)
+    await enableDarkMode(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-roster-dark.png', { fullPage: true })
+  })
+
+  test('classroom calendar tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Calendar' }).click()
+    await waitForContent(page)
+    await enableDarkMode(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-calendar-dark.png', { fullPage: true })
+  })
+
+  test('classroom assignments tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Assignments' }).click()
+    await waitForContent(page)
+    await enableDarkMode(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-assignments-dark.png', { fullPage: true })
+  })
+})
+
+// ============================================================================
+// Student Screens - Dark Mode
+// ============================================================================
+
+test.describe('student screens - dark mode', () => {
+  test.use({ storageState: STUDENT_STORAGE })
+
+  test('classrooms index', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+    await enableDarkMode(page)
+    await expect(page).toHaveScreenshot('student-classrooms-index-dark.png', { fullPage: true })
+  })
+
+  test('classroom today tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click on first classroom card to enter
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
+    await waitForContent(page)
+    await enableDarkMode(page)
+
+    await expect(page).toHaveScreenshot('student-classroom-today-dark.png', { fullPage: true })
+  })
+
+  test('classroom history tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click on first classroom card to enter
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'History' }).click()
+    await waitForContent(page)
+    await enableDarkMode(page)
+
+    await expect(page).toHaveScreenshot('student-classroom-history-dark.png', { fullPage: true })
+  })
+
+  test('classroom assignments tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await waitForContent(page)
+
+    // Click on first classroom card to enter
+    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('button', { name: 'Assignments' }).click()
+    await waitForContent(page)
+    await enableDarkMode(page)
+
+    await expect(page).toHaveScreenshot('student-classroom-assignments-dark.png', { fullPage: true })
+  })
+
+  test('join classroom page', async ({ page }) => {
+    await page.goto('/join')
+    await waitForContent(page)
+    await enableDarkMode(page)
+    await expect(page).toHaveScreenshot('student-join-classroom-dark.png', { fullPage: true })
+  })
+})

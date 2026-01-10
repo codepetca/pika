@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { AppShell } from '@/components/AppShell'
+import { ClassroomSidebar } from '@/components/ClassroomSidebar'
 import { Spinner } from '@/components/Spinner'
-import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { TeacherClassroomView } from './TeacherClassroomView'
 import { StudentTodayTab } from './StudentTodayTab'
-import { StudentHistoryTab } from './StudentHistoryTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherLogsTab } from './TeacherLogsTab'
@@ -32,7 +32,7 @@ export default function ClassroomPage() {
   const [teacherClassrooms, setTeacherClassrooms] = useState<Classroom[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -48,16 +48,27 @@ export default function ClassroomPage() {
 
         // Load classroom based on role
         if (userData.user.role === 'teacher') {
-          const classroomRes = await fetch(`/api/teacher/classrooms`)
-          const classroomData = await classroomRes.json()
-          setTeacherClassrooms(classroomData.classrooms || [])
-          const found = classroomData.classrooms?.find((c: Classroom) => c.id === classroomId)
+          const [classroomsRes, classroomRes] = await Promise.all([
+            fetch('/api/teacher/classrooms'),
+            fetch(`/api/teacher/classrooms/${classroomId}`),
+          ])
 
-          if (!found) {
+          if (!classroomRes.ok) {
             setError('Classroom not found')
             return
           }
-          setClassroom(found)
+
+          const classroomData = await classroomRes.json()
+          const classroomsData = await classroomsRes.json().catch(() => ({ classrooms: [] }))
+          const activeClassrooms = (classroomsData.classrooms || []) as Classroom[]
+          const currentClassroom = classroomData.classroom as Classroom
+
+          setClassroom(currentClassroom)
+          if (currentClassroom.archived_at) {
+            setTeacherClassrooms([currentClassroom])
+          } else {
+            setTeacherClassrooms(activeClassrooms)
+          }
         } else {
           const classroomRes = await fetch(`/api/student/classrooms/${classroomId}`)
           if (!classroomRes.ok) {
@@ -80,25 +91,29 @@ export default function ClassroomPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
+      <AppShell showHeader={false}>
+        <div className="flex justify-center py-12">
+          <Spinner size="lg" />
+        </div>
+      </AppShell>
     )
   }
 
   if (error) {
     return (
-      <div className="max-w-md mx-auto mt-12">
-        <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={() => router.back()}
-            className="text-blue-600 hover:text-blue-700"
-          >
-            Go back
-          </button>
+      <AppShell showHeader={false}>
+        <div className="max-w-md mx-auto mt-12">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+            <button
+              onClick={() => router.back()}
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            >
+              Go back
+            </button>
+          </div>
         </div>
-      </div>
+      </AppShell>
     )
   }
 
@@ -108,134 +123,79 @@ export default function ClassroomPage() {
 
   const tab = searchParams.get('tab')
   const isTeacher = user.role === 'teacher'
-
-  const teacherTabs = [
-    { id: 'attendance', label: 'Attendance' },
-    { id: 'logs', label: 'Logs' },
-    { id: 'assignments', label: 'Assignments' },
-    { id: 'roster', label: 'Roster' },
-    { id: 'calendar', label: 'Calendar' },
-    { id: 'settings', label: 'Settings' },
-  ] as const
-
-  const studentTabs = [
-    { id: 'today', label: 'Today' },
-    { id: 'history', label: 'History' },
-    { id: 'assignments', label: 'Assignments' },
-  ] as const
+  const isArchived = isTeacher && !!classroom.archived_at
 
   const defaultTab = isTeacher ? 'attendance' : 'today'
-  const activeTab = (tab || defaultTab) as string
+  const validTabs = isTeacher
+    ? (['attendance', 'logs', 'assignments', 'roster', 'calendar', 'settings'] as const)
+    : (['today', 'assignments'] as const)
 
-  function setTab(nextTab: string) {
-    const url = new URL(window.location.href)
-    url.searchParams.set('tab', nextTab)
-    router.replace(url.pathname + url.search)
-  }
-
-  function switchClassroom(nextId: string) {
-    const nextTab = isTeacher ? activeTab : 'today'
-    router.push(`/classrooms/${nextId}?tab=${encodeURIComponent(nextTab)}`)
-  }
+  const activeTab = validTabs.includes(tab as any) ? (tab as string) : defaultTab
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="mb-4">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{classroom.title}</h1>
-            <p className="text-gray-600 mt-1">
-              Code: <span className="font-mono">{classroom.class_code}</span>
-              {classroom.term_label && ` • ${classroom.term_label}`}
-            </p>
-          </div>
-
-          {isTeacher && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <select
-                value={classroom.id}
-                onChange={(e) => switchClassroom(e.target.value)}
-                className="px-3 py-2 rounded-md border border-gray-200 bg-white text-sm"
-              >
-                {teacherClassrooms.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700"
-                onClick={() => setShowCreateModal(true)}
-              >
-                + New
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm mb-6">
-        <div className="flex flex-wrap border-b border-gray-200">
-          {(isTeacher ? teacherTabs : studentTabs).map(t => {
-            const isActive = activeTab === t.id
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition ${
-                  isActive
-                    ? 'border-blue-600 text-blue-700'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-200'
-                }`}
-              >
-                {t.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {isTeacher ? (
-        <>
-          {activeTab === 'attendance' && (
-            <TeacherAttendanceTab classroom={classroom} />
-          )}
-          {activeTab === 'logs' && (
-            <TeacherLogsTab classroom={classroom} />
-          )}
-          {activeTab === 'assignments' && (
-            <TeacherClassroomView classroom={classroom} />
-          )}
-          {activeTab === 'roster' && (
-            <TeacherRosterTab classroom={classroom} />
-          )}
-          {activeTab === 'calendar' && (
-            <TeacherCalendarTab classroom={classroom} />
-          )}
-          {activeTab === 'settings' && (
-            <TeacherSettingsTab classroom={classroom} />
-          )}
-        </>
-      ) : (
-        <>
-          {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
-          {activeTab === 'history' && <StudentHistoryTab classroom={classroom} />}
-          {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
-        </>
-      )}
-
-      {isTeacher && (
-        <CreateClassroomModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={(created) => {
-            setShowCreateModal(false)
-            router.push(`/classrooms/${created.id}?tab=attendance`)
-          }}
+    <AppShell
+      user={user}
+      classrooms={isTeacher ? teacherClassrooms.map(c => ({
+        id: c.id,
+        title: c.title,
+        code: c.class_code
+      })) : [{
+        id: classroom.id,
+        title: classroom.title,
+        code: classroom.class_code
+      }]}
+      currentClassroomId={classroom.id}
+      currentTab={activeTab}
+      onOpenSidebar={() => setIsMobileSidebarOpen(true)}
+      mainClassName="max-w-none px-0 py-0"
+    >
+      <div className="flex min-h-[calc(100vh-3rem)]">
+        <ClassroomSidebar
+          classroomId={classroom.id}
+          role={user.role}
+          activeTab={activeTab}
+          isReadOnly={isArchived}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
-      )}
-    </div>
+
+        <div className="flex-1 min-w-0 min-h-0 px-4 py-3">
+          <div className="max-w-7xl mx-auto h-full flex flex-col min-h-0">
+            {isArchived && (
+              <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+                This classroom is archived. You can view content, but changes are disabled until it is restored.
+              </div>
+            )}
+            {isTeacher ? (
+              <>
+                {activeTab === 'attendance' && (
+                  <TeacherAttendanceTab classroom={classroom} />
+                )}
+                {activeTab === 'logs' && (
+                  <TeacherLogsTab classroom={classroom} />
+                )}
+                {activeTab === 'assignments' && (
+                  <TeacherClassroomView classroom={classroom} />
+                )}
+                {activeTab === 'roster' && (
+                  <TeacherRosterTab classroom={classroom} />
+                )}
+                {activeTab === 'calendar' && (
+                  <TeacherCalendarTab classroom={classroom} />
+                )}
+                {activeTab === 'settings' && (
+                  <TeacherSettingsTab classroom={classroom} />
+                )}
+              </>
+            ) : (
+              <>
+                {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
+                {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </AppShell>
   )
 }

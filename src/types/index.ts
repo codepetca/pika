@@ -1,3 +1,5 @@
+import type { Operation } from 'fast-json-patch'
+
 export type UserRole = 'student' | 'teacher'
 
 export type AttendanceStatus = 'present' | 'absent'
@@ -41,6 +43,9 @@ export interface Classroom {
   class_code: string
   term_label: string | null
   allow_enrollment: boolean
+  start_date: string | null // YYYY-MM-DD, inclusive
+  end_date: string | null // YYYY-MM-DD, inclusive
+  archived_at: string | null
   created_at: string
   updated_at: string
 }
@@ -75,6 +80,8 @@ export interface Entry {
   classroom_id: string
   date: string  // YYYY-MM-DD
   text: string
+  rich_content: TiptapContent | null
+  version: number
   minutes_reported: number | null
   mood: MoodEmoji | null
   created_at: string
@@ -93,6 +100,8 @@ export interface SessionData {
 export interface AttendanceRecord {
   student_email: string
   student_id: string
+  student_first_name: string
+  student_last_name: string
   dates: Record<string, AttendanceStatus>  // date -> status
   summary: {
     present: number
@@ -107,6 +116,25 @@ export interface SemesterRange {
   end: string    // MM-DD
 }
 
+// Tiptap rich text editor types
+export interface TiptapContent {
+  type: 'doc'
+  content?: TiptapNode[]
+}
+
+export interface TiptapNode {
+  type: string
+  attrs?: Record<string, any>
+  content?: TiptapNode[]
+  marks?: TiptapMark[]
+  text?: string
+}
+
+export interface TiptapMark {
+  type: string
+  attrs?: Record<string, any>
+}
+
 // Assignment types
 export interface Assignment {
   id: string
@@ -114,6 +142,7 @@ export interface Assignment {
   title: string
   description: string
   due_at: string  // ISO 8601 timestamp
+  position: number
   created_by: string
   created_at: string
   updated_at: string
@@ -123,11 +152,26 @@ export interface AssignmentDoc {
   id: string
   assignment_id: string
   student_id: string
-  content: string
+  content: TiptapContent  // Rich text content (JSONB)
   is_submitted: boolean
   submitted_at: string | null
   created_at: string
   updated_at: string
+}
+
+export type AssignmentDocHistoryTrigger = 'autosave' | 'blur' | 'submit' | 'baseline' | 'restore'
+
+export type JsonPatchOperation = Operation
+
+export interface AssignmentDocHistoryEntry {
+  id: string
+  assignment_doc_id: string
+  patch: JsonPatchOperation[] | null
+  snapshot: TiptapContent | null
+  word_count: number
+  char_count: number
+  trigger: AssignmentDocHistoryTrigger
+  created_at: string
 }
 
 // Assignment status for display

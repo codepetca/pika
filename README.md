@@ -44,7 +44,7 @@ node scripts/features.mjs next
 
 ## Prerequisites
 
-- Node.js 22.x
+- Node.js 24.x
 - Supabase project (cloud or local)
 - Git
 
@@ -58,7 +58,8 @@ cd pika
 
 2) **Install**
 ```bash
-npm install
+corepack enable
+pnpm install
 ```
 
 3) **Supabase setup**
@@ -72,7 +73,7 @@ npm install
 
 4) **Generate session secret**
 ```bash
-npm run generate:secret
+pnpm run generate:secret
 ```
 Add to `.env.local` as `SESSION_SECRET`.
 
@@ -104,17 +105,17 @@ Recommended schedule: `0 6 * * *` (06:00 UTC → 1:00am Toronto in winter, 2:00a
 
 6) **Seed data (optional)**
 ```bash
-npm run seed
+pnpm run seed
 ```
 
 If you keep multiple Supabase environments, you can point seed scripts at a specific env file:
 ```bash
-ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true npm run seed:fresh
+ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true pnpm run seed:fresh
 ```
 
 7) **Run dev server**
 ```bash
-npm run dev
+pnpm dev
 ```
 Visit http://localhost:3000
 
@@ -122,9 +123,9 @@ Visit http://localhost:3000
 
 ### Tests
 ```bash
-npm test          # all tests
-npm run test:watch
-npm run test:ui
+pnpm test
+pnpm run test:watch
+pnpm run test:ui
 ```
 
 ### UI Review (Gallery + Snapshots)

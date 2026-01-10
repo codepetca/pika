@@ -22,19 +22,23 @@ export class AuthorizationError extends Error {
   }
 }
 
-const sessionOptions = {
-  password: process.env.SESSION_SECRET!,
-  cookieName: 'pika_session',
-  cookieOptions: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'lax' as const,
-    maxAge: 14 * 24 * 60 * 60, // 14 days
-  },
-}
+function getSessionOptions() {
+  const password = process.env.SESSION_SECRET
 
-if (!sessionOptions.password || sessionOptions.password.length < 32) {
-  throw new Error('SESSION_SECRET must be at least 32 characters')
+  if (!password || password.length < 32) {
+    throw new Error('SESSION_SECRET must be at least 32 characters')
+  }
+
+  return {
+    password,
+    cookieName: 'pika_session',
+    cookieOptions: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax' as const,
+      maxAge: 14 * 24 * 60 * 60, // 14 days
+    },
+  }
 }
 
 /**
@@ -42,7 +46,7 @@ if (!sessionOptions.password || sessionOptions.password.length < 32) {
  */
 export async function getSession(): Promise<IronSession<SessionData>> {
   const cookieStore = await cookies()
-  return getIronSession<SessionData>(cookieStore, sessionOptions)
+  return getIronSession<SessionData>(cookieStore, getSessionOptions())
 }
 
 /**
@@ -102,23 +106,48 @@ export async function requireRole(role: UserRole): Promise<SessionData['user']> 
 
 /**
  * Determines if an email belongs to a teacher
+ *
  * Teachers are identified by:
- * 1. Email ending with @gapps.yrdsb.ca or @yrdsb.ca
- * 2. Email in DEV_TEACHER_EMAILS list
+ * 1. @yrdsb.ca or @gapps.yrdsb.ca with alphabetic local part (e.g., john.smith@gapps.yrdsb.ca)
+ *    - Students have numeric-only local parts (e.g., 123456789@gapps.yrdsb.ca or 123456789@yrdsb.ca)
+ * 2. Email in DEV_TEACHER_EMAILS list (for testing with other domains)
+ *
+ * @example
+ * isTeacherEmail('teacher@yrdsb.ca') // true
+ * isTeacherEmail('123456789@yrdsb.ca') // false (student)
+ * isTeacherEmail('john.smith@gapps.yrdsb.ca') // true
+ * isTeacherEmail('john.h.smith@gapps.yrdsb.ca') // true
+ * isTeacherEmail('123456789@gapps.yrdsb.ca') // false (student)
+ * isTeacherEmail('student@student.yrdsb.ca') // false
  */
 export function isTeacherEmail(email: string): boolean {
-  const teacherDomains = ['@gapps.yrdsb.ca', '@yrdsb.ca']
+  const normalizedEmail = email.toLowerCase().trim()
 
-  // Check if email ends with teacher domain
-  if (teacherDomains.some(domain => email.endsWith(domain))) {
+  // Extract local part (before @) and domain (after @)
+  const [localPart, domain] = normalizedEmail.split('@')
+
+  if (!localPart || !domain) {
+    return false
+  }
+
+  // Rule 1: @yrdsb.ca or @gapps.yrdsb.ca → check if numeric-only
+  // Students have numeric-only local parts (e.g., 123456789)
+  // Teachers have alphabetic local parts (e.g., john.smith)
+  if (domain === 'yrdsb.ca' || domain === 'gapps.yrdsb.ca') {
+    const isNumericOnly = /^\d+$/.test(localPart)
+    if (isNumericOnly) {
+      return false  // Student
+    }
+    // If not numeric-only, it's a teacher
     return true
   }
 
-  // Check dev teacher list
-  const devTeachers = process.env.DEV_TEACHER_EMAILS?.split(',').map(e => e.trim()) || []
-  if (devTeachers.includes(email)) {
+  // Rule 2: Check dev teacher list for other domains
+  const devTeachers = process.env.DEV_TEACHER_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || []
+  if (devTeachers.includes(normalizedEmail)) {
     return true
   }
 
+  // Default: student
   return false
 }

@@ -1,210 +1,511 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
-import Link from 'next/link'
-import { Button } from '@/components/Button'
-import { Input } from '@/components/Input'
+import { useCallback, useMemo, useState, useEffect } from 'react'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
+import { CreateAssignmentModal } from '@/components/CreateAssignmentModal'
+import { EditAssignmentModal } from '@/components/EditAssignmentModal'
+import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
+import {
+  ACTIONBAR_BUTTON_CLASSNAME,
+  PageActionBar,
+  PageContent,
+  PageLayout,
+  type ActionBarItem,
+} from '@/components/PageLayout'
 import { formatDueDate } from '@/lib/assignments'
-import type { Classroom, Assignment, AssignmentStats } from '@/types'
+import {
+  getAssignmentStatusBadgeClass,
+  getAssignmentStatusLabel,
+} from '@/lib/assignments'
+import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
+import { PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  EmptyStateRow,
+  SortableHeaderCell,
+  TableCard,
+} from '@/components/DataTable'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
+}
+
+type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
+
+const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
+const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
+
+interface StudentSubmissionRow {
+  student_id: string
+  student_email: string
+  student_first_name: string | null
+  student_last_name: string | null
+  status: AssignmentStatus
+  doc: { submitted_at?: string | null; updated_at?: string | null } | null
 }
 
 interface Props {
   classroom: Classroom
 }
 
+function getCookieValue(name: string) {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie
+    .split(';')
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${encodeURIComponent(name)}=`))
+  if (!match) return null
+  const value = match.split('=').slice(1).join('=')
+  return decodeURIComponent(value)
+}
+
+function setCookieValue(name: string, value: string) {
+  if (typeof document === 'undefined') return
+  const maxAgeSeconds = 60 * 60 * 24 * 365
+  document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax`
+}
+
+function formatTorontoDateTime(iso: string) {
+  return new Date(iso).toLocaleString('en-CA', {
+    timeZone: 'America/Toronto',
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
+}
+
 export function TeacherClassroomView({ classroom }: Props) {
+  const isReadOnly = !!classroom.archived_at
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [loading, setLoading] = useState(true)
-  const [showNewForm, setShowNewForm] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
 
-  // New assignment form state
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [dueAt, setDueAt] = useState('')
-  const [creating, setCreating] = useState(false)
+  const [selectedAssignmentData, setSelectedAssignmentData] = useState<{
+    assignment: Assignment
+    students: StudentSubmissionRow[]
+  } | null>(null)
+  const [selectedAssignmentLoading, setSelectedAssignmentLoading] = useState(false)
+  const [selectedAssignmentError, setSelectedAssignmentError] = useState<string>('')
+
+  const [sortColumn, setSortColumn] = useState<'first' | 'last'>('last')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    loadAssignments()
-  }, [classroom.id])
-
-  async function loadAssignments() {
+  const loadAssignments = useCallback(async () => {
+    setLoading(true)
     try {
       const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
       const data = await response.json()
       setAssignments(data.assignments || [])
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
+          detail: { classroomId: classroom.id },
+        })
+      )
     } catch (err) {
       console.error('Error loading assignments:', err)
     } finally {
       setLoading(false)
     }
+  }, [classroom.id])
+
+  useEffect(() => {
+    loadAssignments()
+  }, [loadAssignments])
+
+  useEffect(() => {
+    if (loading) return
+    const cookieName = `teacherAssignmentsSelection:${classroom.id}`
+    const value = getCookieValue(cookieName)
+    if (!value || value === 'summary') {
+      setSelection({ mode: 'summary' })
+      return
+    }
+    const exists = assignments.some((a) => a.id === value)
+    setSelection(exists ? { mode: 'assignment', assignmentId: value } : { mode: 'summary' })
+  }, [assignments, classroom.id, loading])
+
+  useEffect(() => {
+    function onSelectionEvent(e: Event) {
+      const event = e as CustomEvent<{ classroomId?: string; value?: string }>
+      if (!event.detail) return
+      if (event.detail.classroomId !== classroom.id) return
+
+      const value = event.detail.value
+      if (!value || value === 'summary') {
+        setSelection({ mode: 'summary' })
+        return
+      }
+      const exists = assignments.some((a) => a.id === value)
+      setSelection(exists ? { mode: 'assignment', assignmentId: value } : { mode: 'summary' })
+    }
+
+    window.addEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
+    return () => window.removeEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
+  }, [assignments, classroom.id])
+
+  useEffect(() => {
+    if (selection.mode !== 'assignment') {
+      setSelectedAssignmentData(null)
+      setSelectedAssignmentError('')
+      setSelectedAssignmentLoading(false)
+      return
+    }
+
+    const assignmentId = selection.assignmentId
+
+    async function loadSelectedAssignment() {
+      setSelectedAssignmentLoading(true)
+      setSelectedAssignmentError('')
+      try {
+        const response = await fetch(`/api/teacher/assignments/${assignmentId}`)
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load assignment')
+        }
+        setSelectedAssignmentData({
+          assignment: data.assignment,
+          students: (data.students || []) as StudentSubmissionRow[],
+        })
+      } catch (err: any) {
+        setSelectedAssignmentError(err.message || 'Failed to load assignment')
+        setSelectedAssignmentData(null)
+      } finally {
+        setSelectedAssignmentLoading(false)
+      }
+    }
+
+    loadSelectedAssignment()
+  }, [selection])
+
+  function handleCreateSuccess(created: Assignment) {
+    // Optimistically add the new assignment to the list
+    setAssignments((prev) => [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }])
+    // Reload to get accurate stats from server
+    loadAssignments()
   }
 
-  async function handleCreateAssignment(e: FormEvent) {
-    e.preventDefault()
+  function handleEditSuccess(updated: Assignment) {
+    // Optimistically update the assignment in the list
+    setAssignments((prev) =>
+      prev.map((assignment) =>
+        assignment.id === updated.id ? { ...assignment, ...updated } : assignment
+      )
+    )
+    // Update selected assignment if it's the one being edited
+    setSelectedAssignmentData((prev) => {
+      if (!prev || prev.assignment.id !== updated.id) return prev
+      return { ...prev, assignment: updated }
+    })
+    // Reload to ensure consistency
+    loadAssignments()
+  }
+
+  function setSelectionAndPersist(next: TeacherAssignmentSelection) {
+    const cookieName = `teacherAssignmentsSelection:${classroom.id}`
+    const cookieValue = next.mode === 'summary' ? 'summary' : next.assignmentId
+    setCookieValue(cookieName, cookieValue)
+    setSelection(next)
+    setIsSelectorOpen(false)
+  }
+
+  const sortedStudents = useMemo(() => {
+    if (!selectedAssignmentData) return []
+    const dir = sortDirection === 'asc' ? 1 : -1
+    const rows = [...selectedAssignmentData.students]
+    rows.sort((a, b) => {
+      const primaryA = sortColumn === 'first' ? a.student_first_name : a.student_last_name
+      const primaryB = sortColumn === 'first' ? b.student_first_name : b.student_last_name
+
+      const missingA = primaryA ? 0 : 1
+      const missingB = primaryB ? 0 : 1
+      if (missingA !== missingB) return (missingA - missingB) * dir
+
+      const valueA = (primaryA || '').trim()
+      const valueB = (primaryB || '').trim()
+      const cmp = valueA.localeCompare(valueB)
+      if (cmp !== 0) return cmp * dir
+
+      return a.student_email.localeCompare(b.student_email) * dir
+    })
+    return rows
+  }, [selectedAssignmentData, sortColumn, sortDirection])
+
+  const selectedStudentIndex = useMemo(() => {
+    if (!selectedStudentId) return -1
+    return sortedStudents.findIndex((student) => student.student_id === selectedStudentId)
+  }, [sortedStudents, selectedStudentId])
+
+  const canGoPrevStudent = selectedStudentIndex > 0
+  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < sortedStudents.length - 1
+
+  const handleGoPrevStudent = useCallback(() => {
+    if (selectedStudentIndex <= 0) return
+    setSelectedStudentId(sortedStudents[selectedStudentIndex - 1].student_id)
+  }, [selectedStudentIndex, sortedStudents])
+
+  const handleGoNextStudent = useCallback(() => {
+    if (selectedStudentIndex === -1 || selectedStudentIndex >= sortedStudents.length - 1) return
+    setSelectedStudentId(sortedStudents[selectedStudentIndex + 1].student_id)
+  }, [selectedStudentIndex, sortedStudents])
+
+  function toggleSort(column: 'first' | 'last') {
+    if (sortColumn !== column) {
+      setSortColumn(column)
+      setSortDirection('asc')
+      return
+    }
+    setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+  }
+
+  async function deleteAssignment() {
+    if (!pendingDelete) return
     setError('')
-    setCreating(true)
-
+    setIsDeleting(true)
     try {
-      const response = await fetch('/api/teacher/assignments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classroom_id: classroom.id,
-          title,
-          description,
-          due_at: new Date(dueAt).toISOString()
-        })
-      })
-
-      const data = await response.json()
-
+      const response = await fetch(`/api/teacher/assignments/${pendingDelete.id}`, { method: 'DELETE' })
+      const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create assignment')
+        throw new Error(data.error || 'Failed to delete assignment')
       }
-
-      // Reset form and reload
-      setTitle('')
-      setDescription('')
-      setDueAt('')
-      setShowNewForm(false)
-      loadAssignments()
+      setPendingDelete(null)
+      await loadAssignments()
+      if (selection.mode === 'assignment' && selection.assignmentId === pendingDelete.id) {
+        setSelectionAndPersist({ mode: 'summary' })
+      }
     } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      setError(err.message || 'Failed to delete assignment')
     } finally {
-      setCreating(false)
+      setIsDeleting(false)
     }
   }
 
+  const actionItems: ActionBarItem[] = useMemo(() => {
+    return [
+      {
+        id: 'toggle-new-assignment',
+        label: '+ New Assignment',
+        onSelect: () => setIsCreateModalOpen(true),
+        disabled: isReadOnly,
+      },
+    ]
+  }, [isReadOnly])
+
+  const canEditAssignment =
+    selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
+  const editAssignmentButton = selection.mode === 'assignment' ? (
+    <button
+      type="button"
+      className={ACTIONBAR_BUTTON_CLASSNAME}
+      onClick={() => {
+        if (!selectedAssignmentData) return
+        setEditAssignment(selectedAssignmentData.assignment)
+      }}
+      disabled={!canEditAssignment}
+    >
+      Edit assignment
+    </button>
+  ) : (
+    <div />
+  )
+
   return (
-    <div>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{classroom.title}</h1>
-        <p className="text-gray-600 mt-1">
-          Code: <span className="font-mono">{classroom.class_code}</span>
-          {classroom.term_label && ` • ${classroom.term_label}`}
-        </p>
-      </div>
+    <PageLayout>
+      <PageActionBar primary={editAssignmentButton} actions={actionItems} />
 
-      {/* Assignments Section */}
-      <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Assignments</h2>
-          <Button
-            onClick={() => setShowNewForm(!showNewForm)}
-            size="sm"
-          >
-            {showNewForm ? 'Cancel' : '+ New Assignment'}
-          </Button>
-        </div>
-
-        {/* New Assignment Form */}
-        {showNewForm && (
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
-            <form onSubmit={handleCreateAssignment} className="space-y-4 max-w-xl">
-              <Input
-                label="Title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                disabled={creating}
-                placeholder="Assignment title"
-              />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Assignment instructions (optional)"
-                  disabled={creating}
-                />
-              </div>
-
-              <Input
-                label="Due Date"
-                type="datetime-local"
-                value={dueAt}
-                onChange={(e) => setDueAt(e.target.value)}
-                required
-                disabled={creating}
-              />
-
-              {error && (
-                <p className="text-sm text-red-600">{error}</p>
-              )}
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={creating || !title || !dueAt}>
-                  {creating ? 'Creating...' : 'Create Assignment'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowNewForm(false)}
-                  disabled={creating}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
+      <PageContent className="space-y-4">
+        {error && (
+          <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-700 dark:text-red-200">
+            {error}
           </div>
         )}
 
-        {/* Assignments List */}
-        <div className="p-4">
+        {selection.mode === 'summary' ? (
+        <div>
           {loading ? (
             <div className="flex justify-center py-8">
               <Spinner />
             </div>
           ) : assignments.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
               No assignments yet
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {assignments.map((assignment) => (
-                <Link
+                <button
                   key={assignment.id}
-                  href={`/classrooms/${classroom.id}/assignments/${assignment.id}`}
-                  className="block p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition"
+                  type="button"
+                  onClick={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })}
+                  className="w-full text-left p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-900">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
                         {assignment.title}
                       </h3>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {assignment.stats.submitted} / {assignment.stats.total_students} submitted
+                        {assignment.stats.late > 0 ? ` • ${assignment.stats.late} late` : ''}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         Due: {formatDueDate(assignment.due_at)}
                       </p>
                     </div>
-                    <div className="text-right text-sm">
-                      <div className="text-gray-600">
-                        {assignment.stats.submitted} / {assignment.stats.total_students} submitted
-                      </div>
-                      {assignment.stats.late > 0 && (
-                        <div className="text-orange-600">
-                          {assignment.stats.late} late
-                        </div>
-                      )}
+                    <div className="flex-shrink-0 flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (isReadOnly) return
+                          setEditAssignment(assignment)
+                        }}
+                        className={[
+                          'p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-300 dark:hover:text-gray-100 dark:hover:bg-gray-800',
+                          isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
+                        ].join(' ')}
+                        aria-label={`Edit ${assignment.title}`}
+                        disabled={isReadOnly}
+                      >
+                        <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (isReadOnly) return
+                          setPendingDelete({ id: assignment.id, title: assignment.title })
+                        }}
+                        className={[
+                          'p-2 rounded-md text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-200 dark:hover:bg-red-900/20',
+                          isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
+                        ].join(' ')}
+                        aria-label={`Delete ${assignment.title}`}
+                        disabled={isReadOnly}
+                      >
+                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                      </button>
                     </div>
                   </div>
-                </Link>
+                </button>
               ))}
             </div>
           )}
         </div>
-      </div>
-    </div>
+      ) : (
+        <TableCard overflowX>
+          {selectedAssignmentLoading ? (
+            <div className="flex justify-center py-10">
+              <Spinner />
+            </div>
+          ) : selectedAssignmentError || !selectedAssignmentData ? (
+            <div className="p-4 text-sm text-red-600 dark:text-red-400">
+              {selectedAssignmentError || 'Failed to load assignment'}
+            </div>
+          ) : (
+            <DataTable>
+              <DataTableHead>
+                <DataTableRow>
+                  <SortableHeaderCell
+                    label="First Name"
+                    isActive={sortColumn === 'first'}
+                    direction={sortDirection}
+                    onClick={() => toggleSort('first')}
+                  />
+                  <SortableHeaderCell
+                    label="Last Name"
+                    isActive={sortColumn === 'last'}
+                    direction={sortDirection}
+                    onClick={() => toggleSort('last')}
+                  />
+                  <DataTableHeaderCell>Status</DataTableHeaderCell>
+                  <DataTableHeaderCell>Submitted</DataTableHeaderCell>
+                  <DataTableHeaderCell>Last updated</DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
+                {sortedStudents.map((student) => (
+                  <DataTableRow
+                    key={student.student_id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                    onClick={() => setSelectedStudentId(student.student_id)}
+                  >
+                    <DataTableCell>{student.student_first_name ?? '—'}</DataTableCell>
+                    <DataTableCell>{student.student_last_name ?? '—'}</DataTableCell>
+                    <DataTableCell>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(student.status)}`}>
+                        {getAssignmentStatusLabel(student.status)}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell className="text-gray-700 dark:text-gray-300">
+                      {student.doc?.submitted_at ? formatTorontoDateTime(student.doc.submitted_at) : '—'}
+                    </DataTableCell>
+                    <DataTableCell className="text-gray-700 dark:text-gray-300">
+                      {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
+                    </DataTableCell>
+                  </DataTableRow>
+                ))}
+                {sortedStudents.length === 0 && (
+                  <EmptyStateRow colSpan={5} message="No students enrolled" />
+                )}
+              </DataTableBody>
+            </DataTable>
+          )}
+        </TableCard>
+      )}
+
+      <ConfirmDialog
+        isOpen={!!pendingDelete}
+        title="Delete assignment?"
+        description={pendingDelete ? `${pendingDelete.title}\n\nThis cannot be undone.` : undefined}
+        confirmLabel={isDeleting ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        isConfirmDisabled={isDeleting}
+        isCancelDisabled={isDeleting}
+        onCancel={() => (isDeleting ? null : setPendingDelete(null))}
+        onConfirm={deleteAssignment}
+      />
+
+      {selection.mode === 'assignment' && selectedAssignmentData?.assignment?.id && selectedStudentId && (
+        <TeacherStudentWorkModal
+          isOpen={true}
+          assignmentId={selectedAssignmentData.assignment.id}
+          studentId={selectedStudentId}
+          canGoPrev={canGoPrevStudent}
+          canGoNext={canGoNextStudent}
+          onGoPrev={handleGoPrevStudent}
+          onGoNext={handleGoNextStudent}
+          onClose={() => setSelectedStudentId(null)}
+        />
+      )}
+
+      <EditAssignmentModal
+        isOpen={!!editAssignment}
+        assignment={editAssignment}
+        onClose={() => setEditAssignment(null)}
+        onSuccess={handleEditSuccess}
+      />
+
+      <CreateAssignmentModal
+        isOpen={isCreateModalOpen}
+        classroomId={classroom.id}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleCreateSuccess}
+      />
+      </PageContent>
+    </PageLayout>
   )
 }

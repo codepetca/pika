@@ -1,4 +1,5 @@
 import { Assignment, AssignmentDoc, AssignmentStatus } from '@/types'
+import { formatInTimeZone } from 'date-fns-tz'
 
 /**
  * Calculate the status of an assignment for a student
@@ -79,17 +80,10 @@ export function getAssignmentStatusBadgeClass(status: AssignmentStatus): string 
 
 /**
  * Format a due date for display
+ * Example: "Tue Dec 16"
  */
 export function formatDueDate(dueAt: string): string {
-  const date = new Date(dueAt)
-  return date.toLocaleDateString('en-CA', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'America/Toronto'
-  })
+  return formatInTimeZone(new Date(dueAt), 'America/Toronto', 'EEE MMM d')
 }
 
 /**

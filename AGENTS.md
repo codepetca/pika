@@ -2,7 +2,68 @@
 
 ## Start Here (MANDATORY)
 - Read `.ai/START-HERE.md` at the start of every session.
+- **`docs/ai-instructions.md` is the authoritative source** for repository layout, worktree usage, and environment file handling.
 - Follow the required reading order in `docs/ai-instructions.md` before modifying code.
+
+## Git Worktrees (Required Workflow)
+
+**Core Principle:** Never switch branches in an existing working directory. For any non-trivial task, ALWAYS create a git worktree.
+
+**Rules:**
+- One worktree == one branch
+- Treat branch switching as directory switching
+- Main repo lives at: `$HOME/Repos/pika` (hub checkout, stays on `main`)
+- Worktrees live under: `$HOME/Repos/.worktrees/pika/<branch-name>`
+
+**Quick start (existing worktree):**
+```bash
+pika ls
+pika claude <worktree>
+# or
+pika codex <worktree>
+```
+
+**Creating a new worktree:**
+- Follow `docs/dev-workflow.md` (authoritative)
+
+**Cleanup:**
+- After PR is merged, remove the worktree and delete the local branch.
+- Use the safe patterns in `docs/dev-workflow.md` (all git commands via `git -C "$PIKA_WORKTREE"`).
+
+**Legacy Helper Script (avoid):**
+- `bash scripts/wt-add.sh <branch-name>` (superseded by `docs/dev-workflow.md`)
+
+## Environment Files (.env.local)
+
+**Core Principle:** All worktrees share a single canonical `.env.local` file to avoid duplication and drift.
+
+**Canonical Location:**
+```
+$HOME/Repos/.env/pika/.env.local
+```
+
+**Symlink Setup:**
+Each worktree must symlink `.env.local` to the canonical file:
+```bash
+ln -sf $HOME/Repos/.env/pika/.env.local <worktree>/.env.local
+```
+
+**Why Symlinks:**
+- Worktrees do not share gitignored files
+- Symlinks avoid duplication and drift across branches
+- `-s` = symbolic link, `-f` = force/replace existing file
+
+**Workflow Reference:**
+- See `docs/dev-workflow.md` for the recommended setup flow
+
+### When Branch-Specific Envs Are Allowed (Exceptions Only)
+
+Use separate `.env.local` files ONLY in these cases:
+- Running multiple Supabase/backend instances in parallel
+- Destructive DB schema or migration experiments
+- Different external API keys, models, or cost profiles
+
+**Otherwise, shared `.env.local` is mandatory.**
 
 ## Project Overview
 - Next.js 14+ (App Router) + TypeScript
@@ -34,4 +95,3 @@
 4. `docs/core/design.md` (UI/UX rules)
 5. `docs/core/project-context.md` (setup and commands)
 6. `.ai/JOURNAL.md` + `docs/core/decision-log.md` (history/rationale)
-
