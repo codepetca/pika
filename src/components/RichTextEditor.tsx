@@ -4,9 +4,26 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
-import { useEffect, useRef } from 'react'
+import TextStyle from '@tiptap/extension-text-style'
+import FontFamily from '@tiptap/extension-font-family'
+import Underline from '@tiptap/extension-underline'
+import { useEffect, useRef, useState } from 'react'
+import type { Editor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref, sanitizeLinkHref } from '@/lib/tiptap-content'
+import {
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  Heading1,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  Code,
+  Link as LinkIcon,
+  RemoveFormatting,
+} from 'lucide-react'
 
 interface RichTextEditorProps {
   content: TiptapContent
@@ -16,6 +33,109 @@ interface RichTextEditorProps {
   disabled?: boolean
   editable?: boolean
   className?: string
+}
+
+interface IconButtonProps {
+  onClick: () => void
+  disabled: boolean
+  active: boolean
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  shortcut?: string
+}
+
+function IconButton({ onClick, disabled, active, icon: Icon, label, shortcut }: IconButtonProps) {
+  const title = shortcut ? `${label} (${shortcut})` : label
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-label={label}
+      title={title}
+      className={`p-2 rounded text-sm ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200 dark:hover:bg-gray-600'} ${active ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
+    >
+      <Icon className="w-4 h-4" />
+    </button>
+  )
+}
+
+function FontFamilyDropdown({ editor, disabled }: { editor: Editor; disabled: boolean }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement | null>(null)
+
+  const fonts = [
+    { label: 'Default', value: '' },
+    { label: 'Serif', value: 'Georgia, "Times New Roman", serif' },
+    { label: 'Monospace', value: 'Monaco, Courier, monospace' },
+    { label: 'Sans-serif', value: 'Arial, Helvetica, sans-serif' },
+  ]
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isOpen])
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={disabled}
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+        className={`px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-gray-700'} bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200`}
+      >
+        Font
+      </button>
+      {isOpen && (
+        <div className="absolute z-10 top-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg">
+          {fonts.map(font => (
+            <button
+              key={font.value}
+              type="button"
+              onClick={() => {
+                if (font.value) {
+                  editor.chain().focus().setFontFamily(font.value).run()
+                } else {
+                  editor.chain().focus().unsetFontFamily().run()
+                }
+                setIsOpen(false)
+              }}
+              className="block w-full px-4 py-2 text-left text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+              style={{ fontFamily: font.value }}
+            >
+              {font.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function RichTextEditor({
@@ -46,7 +166,7 @@ export function RichTextEditor({
         openOnClick: false,
         validate: href => isSafeLinkHref(href),
         HTMLAttributes: {
-          class: 'text-blue-600 underline hover:text-blue-700',
+          class: 'text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer',
           rel: 'noopener noreferrer nofollow',
           target: '_blank',
         },
@@ -54,6 +174,9 @@ export function RichTextEditor({
       Placeholder.configure({
         placeholder,
       }),
+      TextStyle,
+      FontFamily.configure({ types: ['textStyle'] }),
+      Underline,
     ],
     content: content,
     editable: canEdit,
@@ -65,6 +188,34 @@ export function RichTextEditor({
       attributes: {
         class:
           'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] h-full px-3 py-2 bg-white dark:bg-gray-900',
+      },
+      handleDOMEvents: {
+        click: (view, event) => {
+          // Get the clicked element
+          const target = event.target as HTMLElement
+
+          // Check if it's a link
+          const link = target.closest('a[href]')
+          if (!link) return false
+
+          const href = link.getAttribute('href')
+          if (!href) return false
+
+          // In edit mode: only open on Cmd/Ctrl+click
+          if (canEdit) {
+            if (event.metaKey || event.ctrlKey) {
+              event.preventDefault()
+              window.open(href, '_blank', 'noopener,noreferrer')
+              return true
+            }
+            return false // Allow default editing behavior
+          }
+
+          // In read-only mode: open on any click
+          event.preventDefault()
+          window.open(href, '_blank', 'noopener,noreferrer')
+          return true
+        },
       },
     },
   })
@@ -101,83 +252,87 @@ export function RichTextEditor({
     >
       <div className="sticky top-0 z-10 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <div className="p-2 flex flex-wrap items-center gap-1">
-          <button
-            type="button"
+          <IconButton
+            icon={Bold}
+            label="Bold"
+            shortcut="⌘B"
+            active={editor.isActive('bold')}
+            disabled={!canEdit}
             onClick={() => editor.chain().focus().toggleBold().run()}
+          />
+          <IconButton
+            icon={Italic}
+            label="Italic"
+            shortcut="⌘I"
+            active={editor.isActive('italic')}
             disabled={!canEdit}
-            aria-pressed={editor.isActive('bold')}
-            className={`px-2 py-1 rounded text-sm font-semibold ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bold') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
-          >
-            B
-          </button>
-          <button
-            type="button"
             onClick={() => editor.chain().focus().toggleItalic().run()}
+          />
+          <IconButton
+            icon={UnderlineIcon}
+            label="Underline"
+            shortcut="⌘U"
+            active={editor.isActive('underline')}
             disabled={!canEdit}
-            aria-pressed={editor.isActive('italic')}
-            className={`px-2 py-1 rounded text-sm italic ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('italic') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
-          >
-            I
-          </button>
-          <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1" />
-          <button
-            type="button"
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+          />
+          <div className="w-2" />
+          <IconButton
+            icon={Heading1}
+            label="Heading 1"
+            shortcut="⌘⌥1"
+            active={editor.isActive('heading', { level: 1 })}
+            disabled={!canEdit}
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          />
+          <IconButton
+            icon={Heading2}
+            label="Heading 2"
+            shortcut="⌘⌥2"
+            active={editor.isActive('heading', { level: 2 })}
             disabled={!canEdit}
-            aria-pressed={editor.isActive('heading', { level: 1 })}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 1 }) ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
-          >
-            H1
-          </button>
-          <button
-            type="button"
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          />
+          <IconButton
+            icon={Heading3}
+            label="Heading 3"
+            shortcut="⌘⌥3"
+            active={editor.isActive('heading', { level: 3 })}
             disabled={!canEdit}
-            aria-pressed={editor.isActive('heading', { level: 2 })}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 2 }) ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
-          >
-            H2
-          </button>
-          <button
-            type="button"
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+          />
+          <div className="w-2" />
+          <IconButton
+            icon={List}
+            label="Bullet list"
+            shortcut="⌘⇧8"
+            active={editor.isActive('bulletList')}
             disabled={!canEdit}
-            aria-pressed={editor.isActive('heading', { level: 3 })}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('heading', { level: 3 }) ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
-          >
-            H3
-          </button>
-          <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1" />
-          <button
-            type="button"
             onClick={() => editor.chain().focus().toggleBulletList().run()}
+          />
+          <IconButton
+            icon={ListOrdered}
+            label="Ordered list"
+            shortcut="⌘⇧7"
+            active={editor.isActive('orderedList')}
             disabled={!canEdit}
-            aria-pressed={editor.isActive('bulletList')}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('bulletList') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
-          >
-            •
-          </button>
-          <button
-            type="button"
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          />
+          <div className="w-2" />
+          <IconButton
+            icon={Code}
+            label="Code block"
+            shortcut="⌘⌥C"
+            active={editor.isActive('codeBlock')}
             disabled={!canEdit}
-            aria-pressed={editor.isActive('orderedList')}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('orderedList') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
-          >
-            1.
-          </button>
-          <div className="w-px bg-gray-300 dark:bg-gray-600 mx-1" />
-          <button
-            type="button"
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          />
+          <IconButton
+            icon={LinkIcon}
+            label="Link"
+            shortcut="⌘K"
+            active={editor.isActive('link')}
             disabled={!canEdit}
-            aria-pressed={editor.isActive('codeBlock')}
-            className={`px-2 py-1 rounded text-sm font-mono ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('codeBlock') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
-          >
-            {'</>'}
-          </button>
-          <button
-            type="button"
             onClick={() => {
               if (!canEdit) return
               const raw = window.prompt('Enter URL:')
@@ -193,12 +348,17 @@ export function RichTextEditor({
               }
               editor.chain().focus().setLink({ href }).run()
             }}
+          />
+          <div className="w-2" />
+          <IconButton
+            icon={RemoveFormatting}
+            label="Clear formatting"
+            active={false}
             disabled={!canEdit}
-            aria-pressed={editor.isActive('link')}
-            className={`px-2 py-1 rounded text-sm ${canEdit ? 'hover:bg-gray-200 dark:hover:bg-gray-600' : 'opacity-50 cursor-not-allowed'} ${editor.isActive('link') ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white' : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200'}`}
-          >
-            Link
-          </button>
+            onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+          />
+          <div className="flex-1" />
+          <FontFamilyDropdown editor={editor} disabled={!canEdit} />
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
