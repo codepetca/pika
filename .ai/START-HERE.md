@@ -4,6 +4,20 @@
 
 ---
 
+## Quick Checklist (2 min)
+
+```
+[ ] Verify worktree: echo $PIKA_WORKTREE (must NOT be $HOME/Repos/pika)
+[ ] Run: bash "$PIKA_WORKTREE/scripts/verify-env.sh"
+[ ] Check journal: tail -40 "$PIKA_WORKTREE/.ai/JOURNAL.md"
+[ ] Check status: git -C "$PIKA_WORKTREE" status
+[ ] Read: docs/ai-instructions.md (then follow its reading order)
+[ ] Identify task: GitHub issue, features.json, or ask user
+[ ] Plan before coding: state task, propose approach, wait for approval
+```
+
+---
+
 ## 0) Worktree Workflow (MANDATORY)
 
 Never do branch work inside `$HOME/Repos/pika/` (the hub checkout).
@@ -76,30 +90,15 @@ gh issue list --state closed --limit 5
 
 ## 3) Load Documentation (MANDATORY)
 
-`docs/ai-instructions.md` is the authoritative source of truth for:
-- repository layout
-- worktree usage
-- environment file handling (.env.local)
-- agent workflow rules
+`docs/ai-instructions.md` is the **single source of truth** for:
+- Required reading order (7 core docs)
+- Critical constraints (MANDATORY/PROHIBITED)
+- Common workflows
+- Agent selection
 
-If any instructions elsewhere (including this document) conflict,
-`docs/ai-instructions.md` MUST be followed.
+**Read `docs/ai-instructions.md` and follow its reading order.** If instructions conflict, `docs/ai-instructions.md` wins.
 
-Start with the AI orchestrator and follow its reading order:
-
-1. `docs/ai-instructions.md`
-2. `docs/core/architecture.md`
-3. `docs/core/design.md`
-4. `docs/core/project-context.md`
-5. `docs/core/agents.md`
-6. `docs/core/tests.md`
-7. `docs/core/roadmap.md`
-
-Optional (as needed):
-- `docs/core/decision-log.md` (historical rationale)
-- `CLAUDE.md` and `AGENTS.md` (tooling/agent guardrails)
-
-Only after this should you inspect or modify source code.
+Only after completing the reading order should you inspect or modify source code.
 
 ---
 

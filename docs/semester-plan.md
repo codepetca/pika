@@ -1,5 +1,7 @@
 # Pika Semester Plan
 
+**Critical Deadline**: See [`docs/core/pilot-mvp.md`](core/pilot-mvp.md) for pilot launch date (Jan 27, 2026) and feature freeze details.
+
 Comprehensive plan for running Pika during the semester with priorities:
 1. **Reliability** - Prevent data loss, handle failures gracefully
 2. **Grading efficiency** - Reduce teacher time reviewing submissions
@@ -180,49 +182,7 @@ SELECT * FROM entries WHERE date > '2025-01-01';
 
 ## Reliability Hardening
 
-### Priority 1: Entry Draft Autosave
-
-**Problem**: If network fails mid-entry, student loses work.
-
-**Solution**: LocalStorage backup with sync indicator.
-
-```typescript
-// src/lib/draft-storage.ts
-const DRAFT_KEY = 'pika_entry_draft';
-
-interface DraftEntry {
-  classroomId: string;
-  date: string;
-  content: string;
-  savedAt: number;
-}
-
-export function saveDraft(draft: DraftEntry): void {
-  localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-}
-
-export function loadDraft(classroomId: string, date: string): string | null {
-  const raw = localStorage.getItem(DRAFT_KEY);
-  if (!raw) return null;
-  const draft: DraftEntry = JSON.parse(raw);
-  if (draft.classroomId === classroomId && draft.date === date) {
-    return draft.content;
-  }
-  return null;
-}
-
-export function clearDraft(): void {
-  localStorage.removeItem(DRAFT_KEY);
-}
-```
-
-**UI Integration**:
-- Save to localStorage on every keystroke (debounced 500ms)
-- On load, check for draft newer than server version
-- Show "Draft restored" toast if found
-- Clear draft on successful submit
-
-### Priority 2: Submission Retry Queue
+### Priority 1: Submission Retry Queue
 
 **Problem**: Assignment submit fails silently on network error.
 
@@ -242,7 +202,7 @@ interface PendingSubmission {
 // Show persistent banner: "Submission pending - will retry automatically"
 ```
 
-### Priority 3: Error Boundary with Recovery
+### Priority 2: Error Boundary with Recovery
 
 Add React Error Boundary to classroom views that:
 - Catches render errors
@@ -250,7 +210,7 @@ Add React Error Boundary to classroom views that:
 - Offers "Reload" button
 - Logs error to console for debugging
 
-### Priority 4: Database Backup Procedure
+### Priority 3: Database Backup Procedure
 
 **Weekly backup (manual for free tier)**:
 1. Supabase Dashboard → Settings → Database → Backups
@@ -382,30 +342,22 @@ Copy this to GitHub Issues or your task tracker:
 ```markdown
 ## Pre-Semester Hardening
 
-- [ ] #1 Entry draft autosave
-  - [ ] Create src/lib/draft-storage.ts
-  - [ ] Integrate into StudentTodayTab
-  - [ ] Add "Draft restored" toast
-  - [ ] Test: close tab mid-entry, reopen, verify restored
-
-- [ ] #2 Submission retry queue
+- [ ] #1 Submission retry queue
   - [ ] Create src/lib/submission-queue.ts
   - [ ] Add IndexedDB storage
   - [ ] Show pending banner
   - [ ] Test: submit offline, go online, verify syncs
 
-- [ ] #3 Error boundaries
+- [ ] #2 Error boundaries
   - [ ] Create ErrorBoundary component
   - [ ] Wrap classroom views
   - [ ] Add "Reload" recovery button
 
-- [ ] #4 Documentation
+- [ ] #3 Documentation
   - [ ] Create docs/workflow/migrations.md
-  - [ ] Archive pilot-mvp.md
-  - [ ] Delete load-context*.md
   - [ ] Archive JOURNAL entries > 30 days
 
-- [ ] #5 Backup procedure
+- [ ] #4 Backup procedure
   - [ ] Document in docs/deployment/backup.md
   - [ ] Test restore to fresh project
 ```

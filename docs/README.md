@@ -183,27 +183,14 @@ Individual task files with acceptance criteria:
 
 ## Reading Order for AI Agents
 
-Before modifying code, any AI assistant must read these **in this exact order**:
+**Single source of truth:** See [ai-instructions.md](ai-instructions.md) for the authoritative reading order.
 
-0. **[/.ai/START-HERE.md](/.ai/START-HERE.md)** — session ritual (verify env, journal, feature status)
-1. **[/docs/ai-instructions.md](/docs/ai-instructions.md)** — AI orchestrator ⭐ START HERE
-2. **[/docs/core/architecture.md](/docs/core/architecture.md)** — System architecture
-3. **[/docs/core/design.md](/docs/core/design.md)** — UI/UX guidelines
-4. **[/docs/core/project-context.md](/docs/core/project-context.md)** — Tech stack & setup
-5. **[/docs/core/agents.md](/docs/core/agents.md)** — Multi-agent collaboration
-6. **[/docs/core/tests.md](/docs/core/tests.md)** — TDD requirements
-7. **[/docs/core/roadmap.md](/docs/core/roadmap.md)** — Current status
+Quick summary:
+1. `.ai/START-HERE.md` — session ritual (worktree, env, journal)
+2. `docs/ai-instructions.md` — AI orchestrator with full reading order
+3. Follow the 7 core docs listed in ai-instructions.md
 
-Optional (as needed):
-8. **[/docs/core/decision-log.md](/docs/core/decision-log.md)** — Historical decisions and rationale
-
-Then consult:
-8. Relevant **[/docs/guidance/*.md](/docs/guidance/)** files (feature specs as needed)
-9. **[/docs/workflow/handle-issue.md](/docs/workflow/handle-issue.md)** (when working on issues)
-
-**Only after these are read** should the AI inspect or modify source code.
-
-This **prevents architectural drift** and preserves the integrity of the application.
+**Only after completing the reading order** should the AI inspect or modify source code. This prevents architectural drift.
 
 ---
 
@@ -244,7 +231,7 @@ This **prevents architectural drift** and preserves the integrity of the applica
 - **Agent personas** (6 specialized roles) with clear boundaries
 
 ### 3. Reading Order Discipline
-- Same reading order mentioned in ai-instructions.md, load-context.md, README.md, and CLAUDE.md
+- Single source of truth: `ai-instructions.md` (other docs reference it)
 - Prevents architectural drift
 - Builds knowledge incrementally
 
