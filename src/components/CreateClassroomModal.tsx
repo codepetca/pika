@@ -17,9 +17,7 @@ interface CreateClassroomModalProps {
 
 export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClassroomModalProps) {
   const startMonthId = useId()
-  const startYearId = useId()
   const endMonthId = useId()
-  const endYearId = useId()
 
   const [step, setStep] = useState<WizardStep>('name')
   const [title, setTitle] = useState('')
@@ -236,7 +234,6 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                         ))}
                       </select>
                       <input
-                        id={startYearId}
                         type="number"
                         value={startYear}
                         onChange={(e) => setStartYear(parseInt(e.target.value))}
@@ -263,7 +260,6 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                         ))}
                       </select>
                       <input
-                        id={endYearId}
                         type="number"
                         value={endYear}
                         onChange={(e) => setEndYear(parseInt(e.target.value))}

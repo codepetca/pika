@@ -51,12 +51,12 @@ Package manager: pnpm (recommended via Corepack; `package.json#packageManager`)
    - `corepack enable`
    - `pnpm install`
 2. Configure `.env.local` (see README for template).
-3. Apply migrations `001`–`009` (users, verification codes, class days, entries, auth refactor, classrooms, assignments, legacy cleanup, roster allow-list + enrollment toggle) via Supabase dashboard or `supabase db push`.
+3. Apply all database migrations via Supabase dashboard or `supabase db push`.
 4. `npm run dev` and open http://localhost:3000
 5. Optional: `npm run seed`
    - To wipe + reseed against a specific env file: `ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true npm run seed:fresh`
 
-Email sending is mocked (`ENABLE_MOCK_EMAIL=true` logs codes). Wire a provider in `src/lib/email.ts` for production.
+Email sending is mocked (`ENABLE_MOCK_EMAIL=true` logs codes). For production email setup, see [`docs/deployment/BREVO-SETUP.md`](../deployment/BREVO-SETUP.md).
 
 ---
 
