@@ -18,7 +18,7 @@ import {
   TableCard,
 } from '@/components/DataTable'
 import type { Classroom } from '@/types'
-import { CheckIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { Check, Trash2 } from 'lucide-react'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 
 type Role = 'student' | 'teacher'
@@ -229,7 +229,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   <DataTableCell className="text-gray-600 dark:text-gray-400">{row.email}</DataTableCell>
                   <DataTableCell align="center">
                     {row.joined && (
-                      <CheckIcon className="mx-auto h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />
+                      <Check className="mx-auto h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />
                     )}
                   </DataTableCell>
                   <DataTableCell align="right">
@@ -252,7 +252,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                       aria-label={`Remove ${row.email}`}
                       disabled={isReadOnly}
                     >
-                      <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                      <Trash2 className="h-5 w-5" aria-hidden="true" />
                     </button>
                   </DataTableCell>
                 </DataTableRow>

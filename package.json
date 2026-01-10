@@ -37,6 +37,7 @@
     "date-holidays": "^3.26.5",
     "fast-json-patch": "^3.1.1",
     "iron-session": "^8.0.1",
+    "lucide-react": "^0.562.0",
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"

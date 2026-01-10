@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline'
+import { UserCircle, LogOut } from 'lucide-react'
 
 interface UserMenuProps {
   user?: {
@@ -52,7 +52,7 @@ export function UserMenu({ user }: UserMenuProps) {
         aria-label="User menu"
         aria-expanded={isOpen}
       >
-        <UserCircleIcon className="w-7 h-7 text-gray-600 dark:text-gray-300" />
+        <UserCircle className="w-7 h-7 text-gray-600 dark:text-gray-300" />
         <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:inline max-w-[150px] truncate">
           {user.email}
         </span>
@@ -70,7 +70,7 @@ export function UserMenu({ user }: UserMenuProps) {
             className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
             onClick={() => setIsOpen(false)}
           >
-            <ArrowRightOnRectangleIcon className="w-4 h-4" />
+            <LogOut className="w-4 h-4" />
             Logout
           </Link>
         </div>

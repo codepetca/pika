@@ -8,7 +8,7 @@ import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { format, parseISO } from 'date-fns'
-import { ChevronDownIcon } from '@heroicons/react/24/outline'
+import { ChevronDown } from 'lucide-react'
 import {
   readBooleanCookie,
   safeSessionGetJson,
@@ -440,7 +440,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
                 onClick={() => setHistoryVisibility(!historyVisible)}
               >
                 {historyVisible ? 'Hide' : 'Show'}
-                <ChevronDownIcon
+                <ChevronDown
                   className={[
                     'h-4 w-4 transition-transform',
                     historyVisible ? 'rotate-180' : 'rotate-0',
