@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useId } from 'react'
 import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -19,6 +19,7 @@ interface Props {
 }
 
 export function TeacherSettingsTab({ classroom }: Props) {
+  const allowEnrollmentId = useId()
   const isReadOnly = !!classroom.archived_at
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
@@ -105,11 +106,12 @@ export function TeacherSettingsTab({ classroom }: Props) {
     <PageLayout>
       <PageActionBar
         primary={
-          <label className="inline-flex items-center gap-3 text-sm">
-            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          <div className="inline-flex items-center gap-3 text-sm">
+            <label htmlFor={allowEnrollmentId} className="text-sm font-medium text-gray-900 dark:text-gray-100">
               Allow enrollment
-            </span>
+            </label>
             <input
+              id={allowEnrollmentId}
               type="checkbox"
               checked={allowEnrollment}
               onChange={(e) => saveAllowEnrollment(e.target.checked)}
@@ -119,7 +121,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
             <span className="text-gray-700 dark:text-gray-300">
               {allowEnrollment ? 'Enabled' : 'Disabled'}
             </span>
-          </label>
+          </div>
         }
       />
 

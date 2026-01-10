@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useId } from 'react'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { format } from 'date-fns'
@@ -16,6 +16,9 @@ interface CreateClassroomModalProps {
 }
 
 export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClassroomModalProps) {
+  const startMonthId = useId()
+  const endMonthId = useId()
+
   const [step, setStep] = useState<WizardStep>('name')
   const [title, setTitle] = useState('')
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('preset')
@@ -216,9 +219,10 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
               <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg mb-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start</label>
+                    <label htmlFor={startMonthId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start</label>
                     <div className="flex gap-2">
                       <select
+                        id={startMonthId}
                         value={startMonth}
                         onChange={(e) => setStartMonth(parseInt(e.target.value))}
                         className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
@@ -235,14 +239,16 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                         onChange={(e) => setStartYear(parseInt(e.target.value))}
                         min={2020}
                         max={2030}
+                        aria-label="Start year"
                         className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End</label>
+                    <label htmlFor={endMonthId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End</label>
                     <div className="flex gap-2">
                       <select
+                        id={endMonthId}
                         value={endMonth}
                         onChange={(e) => setEndMonth(parseInt(e.target.value))}
                         className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
@@ -259,6 +265,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                         onChange={(e) => setEndYear(parseInt(e.target.value))}
                         min={2020}
                         max={2030}
+                        aria-label="End year"
                         className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                       />
                     </div>
