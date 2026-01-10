@@ -63,6 +63,7 @@ function IconButton({ onClick, disabled, active, icon: Icon, label, shortcut }: 
 
 function FontFamilyDropdown({ editor, disabled }: { editor: Editor; disabled: boolean }) {
   const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement | null>(null)
 
   const fonts = [
     { label: 'Default', value: '' },
@@ -71,12 +72,42 @@ function FontFamilyDropdown({ editor, disabled }: { editor: Editor; disabled: bo
     { label: 'Sans-serif', value: 'Arial, Helvetica, sans-serif' },
   ]
 
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [isOpen])
+
   return (
-    <div className="relative" onMouseLeave={() => setIsOpen(false)}>
+    <div className="relative" ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         disabled={disabled}
+        aria-haspopup="true"
+        aria-expanded={isOpen}
         className={`px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-gray-700'} bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200`}
       >
         Font
@@ -132,7 +163,7 @@ export function RichTextEditor({
         },
       }),
       Link.configure({
-        openOnClick: true,
+        openOnClick: false,
         validate: href => isSafeLinkHref(href),
         HTMLAttributes: {
           class: 'text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer',
@@ -157,6 +188,34 @@ export function RichTextEditor({
       attributes: {
         class:
           'prose dark:prose-invert prose-sm max-w-none focus:outline-none min-h-[300px] h-full px-3 py-2 bg-white dark:bg-gray-900',
+      },
+      handleDOMEvents: {
+        click: (view, event) => {
+          // Get the clicked element
+          const target = event.target as HTMLElement
+
+          // Check if it's a link
+          const link = target.closest('a[href]')
+          if (!link) return false
+
+          const href = link.getAttribute('href')
+          if (!href) return false
+
+          // In edit mode: only open on Cmd/Ctrl+click
+          if (canEdit) {
+            if (event.metaKey || event.ctrlKey) {
+              event.preventDefault()
+              window.open(href, '_blank', 'noopener,noreferrer')
+              return true
+            }
+            return false // Allow default editing behavior
+          }
+
+          // In read-only mode: open on any click
+          event.preventDefault()
+          window.open(href, '_blank', 'noopener,noreferrer')
+          return true
+        },
       },
     },
   })
