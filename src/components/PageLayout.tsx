@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { EllipsisVerticalIcon } from '@heroicons/react/24/outline'
+import { MoreVertical } from 'lucide-react'
 
 export type ActionBarItem = {
   id: string
@@ -87,7 +87,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <EllipsisVerticalIcon className="h-5 w-5 text-gray-700 dark:text-gray-200" aria-hidden="true" />
+        <MoreVertical className="h-5 w-5 text-gray-700 dark:text-gray-200" aria-hidden="true" />
       </button>
 
       {open && (

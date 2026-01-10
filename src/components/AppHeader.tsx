@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Bars3Icon, MoonIcon, SunIcon } from '@heroicons/react/24/outline'
+import { Menu, Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { ClassroomDropdown } from './ClassroomDropdown'
@@ -55,7 +55,7 @@ export function AppHeader({
           aria-label="Open classroom navigation"
           title="Open navigation"
         >
-          <Bars3Icon className="w-5 h-5" />
+          <Menu className="w-5 h-5" />
         </button>
       )}
 
@@ -75,8 +75,13 @@ export function AppHeader({
 
       {/* Date */}
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
+        {/* Mobile: Short format (Tue Dec 16) */}
+        <div className="lg:hidden text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
           {formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}
+        </div>
+        {/* Desktop: Long format (January 10, 2026) */}
+        <div className="hidden lg:block text-base font-semibold text-gray-900 dark:text-gray-100">
+          {formatInTimeZone(now, 'America/Toronto', 'MMMM d, yyyy')}
         </div>
       </div>
 
@@ -88,9 +93,9 @@ export function AppHeader({
         title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       >
         {theme === 'dark' ? (
-          <SunIcon className="w-5 h-5" />
+          <Sun className="w-5 h-5" />
         ) : (
-          <MoonIcon className="w-5 h-5" />
+          <Moon className="w-5 h-5" />
         )}
       </button>
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { Eye, EyeOff } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/RichTextEditor'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -464,9 +464,9 @@ export function StudentAssignmentEditor({
                 aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
               >
                 {isHistoryOpen ? (
-                  <EyeSlashIcon className="h-4 w-4" aria-hidden="true" />
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
                 ) : (
-                  <EyeIcon className="h-4 w-4" aria-hidden="true" />
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                 )}
               </button>
             </div>

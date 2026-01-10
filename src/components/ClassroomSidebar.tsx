@@ -4,19 +4,20 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  Bars3Icon,
-  CalendarDaysIcon,
-  ClipboardDocumentListIcon,
-  Cog6ToothIcon,
-  DocumentTextIcon,
-  PencilSquareIcon,
-  TableCellsIcon,
-  UserGroupIcon,
-  XMarkIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ChevronDownIcon,
-} from '@heroicons/react/24/outline'
+  Menu,
+  CalendarDays,
+  ClipboardList,
+  Settings,
+  FileText,
+  PenSquare,
+  Table,
+  Users,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  type LucideIcon,
+} from 'lucide-react'
 import { useClassroomSidebar } from './ClassroomSidebarProvider'
 import { CLASSROOM_SIDEBAR } from '@/lib/classroom-sidebar'
 
@@ -32,21 +33,21 @@ export type ClassroomNavItemId =
 type NavItem = {
   id: ClassroomNavItemId
   label: string
-  icon: ComponentType<SVGProps<SVGSVGElement>>
+  icon: LucideIcon
 }
 
 const teacherItems: NavItem[] = [
-  { id: 'attendance', label: 'Attendance', icon: TableCellsIcon },
-  { id: 'logs', label: 'Logs', icon: DocumentTextIcon },
-  { id: 'assignments', label: 'Assignments', icon: ClipboardDocumentListIcon },
-  { id: 'roster', label: 'Roster', icon: UserGroupIcon },
-  { id: 'calendar', label: 'Calendar', icon: CalendarDaysIcon },
-  { id: 'settings', label: 'Settings', icon: Cog6ToothIcon },
+  { id: 'attendance', label: 'Attendance', icon: Table },
+  { id: 'logs', label: 'Logs', icon: FileText },
+  { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+  { id: 'roster', label: 'Roster', icon: Users },
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
 const studentItems: NavItem[] = [
-  { id: 'today', label: 'Today', icon: PencilSquareIcon },
-  { id: 'assignments', label: 'Assignments', icon: ClipboardDocumentListIcon },
+  { id: 'today', label: 'Today', icon: PenSquare },
+  { id: 'assignments', label: 'Assignments', icon: ClipboardList },
 ]
 
 function getItems(role: 'student' | 'teacher') {
@@ -220,7 +221,7 @@ function Nav({
                     className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
                     aria-label={isExpanded ? 'Collapse assignments' : 'Expand assignments'}
                   >
-                    <ChevronDownIcon
+                    <ChevronDown
                       className={[
                         'h-4 w-4 transition-transform',
                         isExpanded ? 'rotate-0' : '-rotate-90',
@@ -553,9 +554,9 @@ export function ClassroomSidebar({
             ].join(' ')}
           >
             {isCollapsed ? (
-              <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+              <ChevronRight className="h-5 w-5" aria-hidden="true" />
             ) : (
-              <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             )}
             <span className="sr-only">{isCollapsed ? 'Expand' : 'Minimize'}</span>
           </button>
@@ -637,7 +638,7 @@ export function ClassroomSidebar({
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                <Bars3Icon className="h-5 w-5 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                <Menu className="h-5 w-5 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                 <span>Navigation</span>
               </div>
               <button
@@ -646,7 +647,7 @@ export function ClassroomSidebar({
                 className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                 aria-label="Close"
               >
-                <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
 
@@ -686,7 +687,7 @@ export function ClassroomSidebar({
                           className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
                           aria-label={isExpanded ? 'Collapse assignments' : 'Expand assignments'}
                         >
-                          <ChevronDownIcon
+                          <ChevronDown
                             className={[
                               'h-4 w-4 transition-transform',
                               isExpanded ? 'rotate-0' : '-rotate-90',

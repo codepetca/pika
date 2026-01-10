@@ -19,7 +19,7 @@ import {
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
-import { PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { PenSquare, Trash2 } from 'lucide-react'
 import {
   DataTable,
   DataTableBody,
@@ -379,7 +379,7 @@ export function TeacherClassroomView({ classroom }: Props) {
                         aria-label={`Edit ${assignment.title}`}
                         disabled={isReadOnly}
                       >
-                        <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
+                        <PenSquare className="h-5 w-5" aria-hidden="true" />
                       </button>
                       <button
                         type="button"
@@ -395,7 +395,7 @@ export function TeacherClassroomView({ classroom }: Props) {
                         aria-label={`Delete ${assignment.title}`}
                         disabled={isReadOnly}
                       >
-                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
+                        <Trash2 className="h-5 w-5" aria-hidden="true" />
                       </button>
                     </div>
                   </div>

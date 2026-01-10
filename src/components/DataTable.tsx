@@ -1,7 +1,7 @@
 'use client'
 
 import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 export type DataTableDensity = 'compact' | 'normal'
 export type SortDirection = 'asc' | 'desc'
@@ -101,7 +101,7 @@ export function SortableHeaderCell({
   const alignClass =
     align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'
   const ariaSort = isActive ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
-  const Icon = direction === 'asc' ? ChevronUpIcon : ChevronDownIcon
+  const Icon = direction === 'asc' ? ChevronUp : ChevronDown
 
   return (
     <DataTableHeaderCell density={density} align={align} className="!p-0" aria-sort={ariaSort}>

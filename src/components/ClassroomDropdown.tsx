@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { ChevronDownIcon } from '@heroicons/react/20/solid'
+import { ChevronDown } from 'lucide-react'
 
 interface ClassroomDropdownProps {
   classrooms: Array<{
@@ -58,7 +58,7 @@ export function ClassroomDropdown({
           </option>
         ))}
       </select>
-      <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
+      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400 pointer-events-none" />
     </div>
   )
 }
