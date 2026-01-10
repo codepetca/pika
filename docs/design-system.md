@@ -42,7 +42,7 @@ Design tokens and component guidelines for consistent, compact UI.
 ### Headings
 
 ```tsx
-// Page title (eliminate when in classroom context - use PageHeader instead)
+// Page title (use sparingly - classroom context is in header)
 className="text-2xl font-bold text-gray-900" // Only for top-level pages
 
 // Section title
@@ -131,23 +131,7 @@ className="text-xs text-gray-500" // Helper text
 </select>
 ```
 
-### 4. PageHeader
-
-**Purpose:** Replace repeated classroom titles, provide action buttons
-
-```tsx
-// src/components/PageHeader.tsx
-<div className="flex items-center justify-between mb-4">
-  <h1 className="text-lg font-semibold text-gray-900">{title}</h1>
-  {action && <div className="flex gap-2">{action}</div>}
-</div>
-```
-
-**When to use:**
-- Use for section titles (Attendance, Logs, Roster)
-- **Do NOT repeat classroom name** (already in header dropdown)
-
-### 5. StudentRow (Compact List Item)
+### 4. StudentRow (Compact List Item)
 
 **Purpose:** Consistent student display across all views
 
@@ -184,7 +168,7 @@ className="text-xs text-gray-500" // Helper text
 - Hover: `hover:bg-gray-50`
 - Border: `border-b border-gray-200` (not card wrapper)
 
-### 6. SectionCard
+### 5. SectionCard
 
 **Purpose:** Optional card wrapper for grouped content (use sparingly)
 
@@ -366,15 +350,14 @@ xl:  1280px // Large desktop
 8. ✅ Replace roster list with compact rows
 
 ### Phase 3: Consistency (Medium Impact)
-9. ✅ Create `PageHeader` component
-10. ✅ Remove duplicate classroom titles
-11. ✅ Standardize button sizes
-12. ✅ Consistent section spacing
+9. ✅ Remove duplicate classroom titles
+10. ✅ Standardize button sizes
+11. ✅ Consistent section spacing
 
 ### Phase 4: Polish (Nice-to-have)
-13. Add avatar/user menu to header
-14. Icon library integration (Heroicons recommended)
-15. Micro-interactions and transitions
+12. Add avatar/user menu to header
+13. Icon library integration (using Lucide React)
+14. Micro-interactions and transitions
 
 ---
 
@@ -397,7 +380,7 @@ xl:  1280px // Large desktop
 
 - [x] 1. Compact titlebar (72px → 48px) with classroom dropdown, avatar, icons
 - [x] 2. Reduced vertical padding (py-8 → py-3, eliminate redundant headers)
-- [x] 3. Design consistency via shared components (AppShell, StudentRow, PageHeader)
+- [x] 3. Design consistency via shared components (AppShell, StudentRow)
 - [x] 4. Reduced horizontal padding (px-8 → px-4, tighter card spacing)
 - [x] 5. Compact student rows (60px → 36px)
 - [x] 6. Maintain minimal, professional-but-fun aesthetic
