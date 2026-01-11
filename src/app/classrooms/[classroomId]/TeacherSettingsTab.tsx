@@ -1,9 +1,12 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState, useId } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { TeacherCalendarTab } from './TeacherCalendarTab'
 import type { Classroom } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -14,11 +17,16 @@ function generateJoinCode() {
     .join('')
 }
 
+type SettingsSection = 'general' | 'class-days'
+
 interface Props {
   classroom: Classroom
 }
 
 export function TeacherSettingsTab({ classroom }: Props) {
+  const searchParams = useSearchParams()
+  const sectionParam = searchParams.get('section')
+  const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
   const allowEnrollmentId = useId()
   const isReadOnly = !!classroom.archived_at
   const [joinCode, setJoinCode] = useState(classroom.class_code)
@@ -104,89 +112,121 @@ export function TeacherSettingsTab({ classroom }: Props) {
 
   return (
     <PageLayout>
-      <PageActionBar
-        primary={
-          <div className="inline-flex items-center gap-3 text-sm">
-            <label htmlFor={allowEnrollmentId} className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              Allow enrollment
-            </label>
-            <input
-              id={allowEnrollmentId}
-              type="checkbox"
-              checked={allowEnrollment}
-              onChange={(e) => saveAllowEnrollment(e.target.checked)}
-              disabled={saving || isReadOnly}
-              className="h-4 w-4"
-            />
-            <span className="text-gray-700 dark:text-gray-300">
-              {allowEnrollment ? 'Enabled' : 'Disabled'}
-            </span>
-          </div>
-        }
-      />
-
-      <PageContent className="space-y-5">
-        {(enrollmentError || enrollmentSuccess) && (
-          <div className="space-y-2">
-            {enrollmentError && <div className="text-sm text-red-600 dark:text-red-400">{enrollmentError}</div>}
-            {enrollmentSuccess && <div className="text-sm text-green-700 dark:text-green-400">{enrollmentSuccess}</div>}
-          </div>
-        )}
-
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-        <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Join Code</div>
-        <div className="text-xs text-gray-600 dark:text-gray-400">
-          Students must be on the roster to join.
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
-          <button
-            type="button"
-            className="w-full sm:w-auto rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-base font-semibold text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={() => copyWithNotice('Join code', joinCode)}
-            aria-label="Copy join code"
-          >
-            {joinCode}
-          </button>
-
-          <Button
-            variant="secondary"
-            onClick={() => setShowRegenerateConfirm(true)}
-            disabled={isRegenerating || isReadOnly}
-            className="w-full sm:w-auto"
-          >
-            {isRegenerating ? 'Generating…' : 'New code'}
-          </Button>
-
-          <button
-            type="button"
-            className="w-full flex-1 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 truncate"
-            onClick={() => copyWithNotice('Join link', joinLink)}
-            aria-label="Copy join link"
-            title={joinLink}
-          >
-            {joinLink}
-          </button>
-        </div>
-
-        {joinCodeError && <div className="text-sm text-red-600 dark:text-red-400">{joinCodeError}</div>}
-        {joinCodeSuccess && <div className="text-sm text-green-700 dark:text-green-400">{joinCodeSuccess}</div>}
-        {copyNotice && <div className="text-xs text-blue-600 dark:text-blue-300">{copyNotice}</div>}
+      {/* Sub-tab navigation */}
+      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+        <Link
+          href={`/classrooms/${classroom.id}?tab=settings&section=general`}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            section === 'general'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+          }`}
+        >
+          General
+        </Link>
+        <Link
+          href={`/classrooms/${classroom.id}?tab=settings&section=class-days`}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            section === 'class-days'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+          }`}
+        >
+          Class Days
+        </Link>
       </div>
 
-      <ConfirmDialog
-        isOpen={showRegenerateConfirm}
-        title="Generate new join code?"
-        description="This replaces the current code. Students will need the new code/link to join."
-        confirmLabel={isRegenerating ? 'Generating…' : 'New code'}
-        cancelLabel="Cancel"
-        confirmVariant="danger"
-        isConfirmDisabled={isRegenerating || isReadOnly}
-        isCancelDisabled={isRegenerating || isReadOnly}
-        onCancel={() => (isRegenerating || isReadOnly ? null : setShowRegenerateConfirm(false))}
-        onConfirm={regenerateJoinCode}
-      />
-      </PageContent>
+      {section === 'general' ? (
+        <>
+          <PageActionBar
+            primary={
+              <div className="inline-flex items-center gap-3 text-sm">
+                <label htmlFor={allowEnrollmentId} className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  Allow enrollment
+                </label>
+                <input
+                  id={allowEnrollmentId}
+                  type="checkbox"
+                  checked={allowEnrollment}
+                  onChange={(e) => saveAllowEnrollment(e.target.checked)}
+                  disabled={saving || isReadOnly}
+                  className="h-4 w-4"
+                />
+                <span className="text-gray-700 dark:text-gray-300">
+                  {allowEnrollment ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            }
+          />
+
+          <PageContent className="space-y-5">
+            {(enrollmentError || enrollmentSuccess) && (
+              <div className="space-y-2">
+                {enrollmentError && <div className="text-sm text-red-600 dark:text-red-400">{enrollmentError}</div>}
+                {enrollmentSuccess && <div className="text-sm text-green-700 dark:text-green-400">{enrollmentSuccess}</div>}
+              </div>
+            )}
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Join Code</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Students must be on the roster to join.
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
+                <button
+                  type="button"
+                  className="w-full sm:w-auto rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-base font-semibold text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  onClick={() => copyWithNotice('Join code', joinCode)}
+                  aria-label="Copy join code"
+                >
+                  {joinCode}
+                </button>
+
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowRegenerateConfirm(true)}
+                  disabled={isRegenerating || isReadOnly}
+                  className="w-full sm:w-auto"
+                >
+                  {isRegenerating ? 'Generating…' : 'New code'}
+                </Button>
+
+                <button
+                  type="button"
+                  className="w-full flex-1 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 truncate"
+                  onClick={() => copyWithNotice('Join link', joinLink)}
+                  aria-label="Copy join link"
+                  title={joinLink}
+                >
+                  {joinLink}
+                </button>
+              </div>
+
+              {joinCodeError && <div className="text-sm text-red-600 dark:text-red-400">{joinCodeError}</div>}
+              {joinCodeSuccess && <div className="text-sm text-green-700 dark:text-green-400">{joinCodeSuccess}</div>}
+              {copyNotice && <div className="text-xs text-blue-600 dark:text-blue-300">{copyNotice}</div>}
+            </div>
+
+            <ConfirmDialog
+              isOpen={showRegenerateConfirm}
+              title="Generate new join code?"
+              description="This replaces the current code. Students will need the new code/link to join."
+              confirmLabel={isRegenerating ? 'Generating…' : 'New code'}
+              cancelLabel="Cancel"
+              confirmVariant="danger"
+              isConfirmDisabled={isRegenerating || isReadOnly}
+              isCancelDisabled={isRegenerating || isReadOnly}
+              onCancel={() => (isRegenerating || isReadOnly ? null : setShowRegenerateConfirm(false))}
+              onConfirm={regenerateJoinCode}
+            />
+          </PageContent>
+        </>
+      ) : (
+        <PageContent>
+          <TeacherCalendarTab classroom={classroom} />
+        </PageContent>
+      )}
     </PageLayout>
   )
 }
