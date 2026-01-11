@@ -80,6 +80,7 @@ const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 type SidebarAssignment = {
   id: string
   title: string
+  hasViewed?: boolean // For students: whether they've opened this assignment
 }
 
 function Nav({
@@ -97,6 +98,7 @@ function Nav({
   onReorderAssignments,
   showTodayPulse,
   showAssignmentsPulse,
+  onMarkAssignmentViewed,
 }: {
   classroomId: string
   activeTab: string
@@ -112,6 +114,7 @@ function Nav({
   isReadOnly?: boolean
   showTodayPulse?: boolean
   showAssignmentsPulse?: boolean
+  onMarkAssignmentViewed?: (assignmentId: string) => void
 }) {
   const router = useRouter()
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -167,12 +170,16 @@ function Nav({
                 <div className="pl-10 pr-3 space-y-1">
                   {assignments.map((assignment) => {
                     const isAssignmentActive = activeTab === 'assignments' && activeAssignmentId === assignment.id
+                    const isUnviewed = assignment.hasViewed === false
 
                     return (
                       <button
                         key={assignment.id}
                         type="button"
                         onClick={() => {
+                          if (!assignment.hasViewed) {
+                            onMarkAssignmentViewed?.(assignment.id)
+                          }
                           onSelectAssignment?.(assignment.id)
                           onNavigate?.()
                         }}
@@ -180,7 +187,9 @@ function Nav({
                           'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
                           isAssignmentActive
                             ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                            : isUnviewed
+                              ? 'text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                         ].join(' ')}
                         title={assignment.title}
                       >
@@ -372,6 +381,13 @@ export function ClassroomSidebar({
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null)
   const [isReorderingAssignments, setIsReorderingAssignments] = useState(false)
 
+  // Mark an assignment as viewed (optimistic update for students)
+  const markAssignmentViewed = useCallback((assignmentId: string) => {
+    setAssignments((prev) =>
+      prev.map((a) => (a.id === assignmentId ? { ...a, hasViewed: true } : a))
+    )
+  }, [])
+
   useEffect(() => {
     if (role !== 'teacher') return
     const cookieName = `pika_sidebar_assignments:${classroomId}`
@@ -431,7 +447,11 @@ export function ClassroomSidebar({
       try {
         const response = await fetch(`/api/student/assignments?classroom_id=${classroomId}`)
         const data = await response.json()
-        setAssignments((data.assignments || []).map((a: any) => ({ id: a.id, title: a.title })))
+        setAssignments((data.assignments || []).map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          hasViewed: a.doc?.viewed_at !== null && a.doc?.viewed_at !== undefined,
+        })))
       } catch {
         setAssignments([])
       }
@@ -564,6 +584,10 @@ export function ClassroomSidebar({
             }}
             showTodayPulse={showTodayPulse}
             showAssignmentsPulse={showAssignmentsPulse}
+            onMarkAssignmentViewed={(assignmentId) => {
+              markAssignmentViewed(assignmentId)
+              notifications?.decrementUnviewedCount()
+            }}
           />
 
           <div className="flex-1" />
@@ -786,11 +810,16 @@ export function ClassroomSidebar({
                         <div className="pl-11 pr-3 space-y-1">
                           {assignments.map((assignment) => {
                             const isAssignmentActive = activeTab === 'assignments' && activeAssignmentId === assignment.id
+                            const isUnviewed = assignment.hasViewed === false
                             return (
                               <button
                                 key={assignment.id}
                                 type="button"
                                 onClick={() => {
+                                  if (!assignment.hasViewed) {
+                                    markAssignmentViewed(assignment.id)
+                                    notifications?.decrementUnviewedCount()
+                                  }
                                   setStudentAssignmentsSelection(assignment.id)
                                   onCloseMobile()
                                 }}
@@ -798,7 +827,9 @@ export function ClassroomSidebar({
                                   'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
                                   isAssignmentActive
                                     ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                                    : isUnviewed
+                                      ? 'text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                                 ].join(' ')}
                                 title={assignment.title}
                               >

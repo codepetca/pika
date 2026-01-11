@@ -2,6 +2,9 @@ import type { Config } from 'tailwindcss'
 
 const config: Config = {
   darkMode: 'class', // Enable class-based dark mode
+  safelist: [
+    'animate-notification-pulse',
+  ],
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -10,17 +13,17 @@ const config: Config = {
   theme: {
     extend: {
       animation: {
-        'notification-pulse': 'notification-pulse 2s ease-in-out infinite',
+        'notification-pulse': 'notification-pulse 1.5s ease-in-out infinite',
       },
       keyframes: {
         'notification-pulse': {
           '0%, 100%': {
-            opacity: '1',
-            filter: 'drop-shadow(0 0 0 transparent)',
+            transform: 'scale(1)',
+            color: 'rgb(59 130 246)', // blue-500
           },
           '50%': {
-            opacity: '0.85',
-            filter: 'drop-shadow(0 0 8px rgb(59 130 246 / 0.6))',
+            transform: 'scale(1.2)',
+            color: 'rgb(37 99 235)', // blue-600
           },
         },
       },
