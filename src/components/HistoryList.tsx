@@ -72,7 +72,7 @@ export function HistoryList({
                           {formatInTimeZone(
                             new Date(entry.created_at),
                             'America/Toronto',
-                            'h:mm a'
+                            'h:mmaaa'
                           )}
                         </span>
                         <span
@@ -139,7 +139,7 @@ export function HistoryList({
                         {formatInTimeZone(
                           new Date(entry.created_at),
                           'America/Toronto',
-                          'h:mm a'
+                          'h:mmaaa'
                         )}
                       </span>
                       <span
