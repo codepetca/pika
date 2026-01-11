@@ -15,6 +15,7 @@ import { Superscript } from '@tiptap/extension-superscript'
 import { Selection } from '@tiptap/extensions'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Underline } from '@tiptap/extension-underline'
+import { Markdown } from '@tiptap/markdown'
 
 // --- UI Primitives ---
 import { Spacer } from '@/components/tiptap-ui-primitive/spacer'
@@ -242,6 +243,10 @@ export function RichTextEditor({
       Underline,
       Placeholder.configure({
         placeholder,
+      }),
+      Markdown.configure({
+        transformPastedText: true,  // Convert pasted markdown to rich text
+        transformCopiedText: false, // Keep rich text when copying
       }),
     ],
     content,

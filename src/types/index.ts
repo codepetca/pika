@@ -141,6 +141,7 @@ export interface Assignment {
   classroom_id: string
   title: string
   description: string
+  rich_instructions: TiptapContent | null  // Rich text instructions
   due_at: string  // ISO 8601 timestamp
   position: number
   created_by: string
