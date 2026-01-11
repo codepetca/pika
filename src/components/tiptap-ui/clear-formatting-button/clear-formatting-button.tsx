@@ -6,7 +6,7 @@ import { forwardRef, useCallback } from "react"
 import { useTiptapEditor } from "@/hooks/use-tiptap-editor"
 
 // --- Icons ---
-import { RemoveFormattingIcon } from "@/components/tiptap-icons/remove-formatting-icon"
+import { ResetFormattingIcon } from "@/components/tiptap-icons/reset-formatting-icon"
 
 // --- UI Primitives ---
 import type { ButtonProps } from "@/components/tiptap-ui-primitive/button"
@@ -46,13 +46,13 @@ export const ClearFormattingButton = forwardRef<
       data-disabled={!canClear}
       role="button"
       tabIndex={-1}
-      aria-label="Clear formatting"
-      tooltip="Clear formatting"
+      aria-label="Reset formatting"
+      tooltip="Reset formatting"
       onClick={handleClick}
       {...buttonProps}
       ref={ref}
     >
-      {children ?? <RemoveFormattingIcon className="tiptap-button-icon" />}
+      {children ?? <ResetFormattingIcon className="tiptap-button-icon" />}
     </Button>
   )
 })

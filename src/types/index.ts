@@ -155,6 +155,7 @@ export interface AssignmentDoc {
   content: TiptapContent  // Rich text content (JSONB)
   is_submitted: boolean
   submitted_at: string | null
+  viewed_at: string | null
   created_at: string
   updated_at: string
 }
