@@ -79,8 +79,6 @@ const MainToolbarContent = ({
 }) => {
   return (
     <>
-      <Spacer />
-
       <ToolbarGroup>
         <UndoRedoButton action="undo" />
         <UndoRedoButton action="redo" />
