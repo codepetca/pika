@@ -6,8 +6,8 @@
  */
 import { test as setup, expect } from '@playwright/test'
 
-const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teacher@yrdsb.ca'
-const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL || 'student1@student.yrdsb.ca'
+const TEACHER_EMAIL = process.env.E2E_TEACHER_EMAIL || 'teacher@example.com'
+const STUDENT_EMAIL = process.env.E2E_STUDENT_EMAIL || 'student1@example.com'
 const PASSWORD = process.env.E2E_PASSWORD || 'test1234'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
