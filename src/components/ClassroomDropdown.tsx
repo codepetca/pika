@@ -50,6 +50,7 @@ export function ClassroomDropdown({
       <select
         value={currentClassroomId || classrooms[0].id}
         onChange={handleChange}
+        aria-label="Select classroom"
         className="h-10 pl-3 pr-8 text-sm sm:text-base font-semibold border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none max-w-xs truncate"
       >
         {classrooms.map((classroom) => (
