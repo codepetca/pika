@@ -244,10 +244,7 @@ export function RichTextEditor({
       Placeholder.configure({
         placeholder,
       }),
-      Markdown.configure({
-        transformPastedText: true,  // Convert pasted markdown to rich text
-        transformCopiedText: false, // Keep rich text when copying
-      }),
+      Markdown,  // Enables markdown parsing for setContent/getMarkdown
     ],
     content,
     onUpdate: ({ editor }) => {
