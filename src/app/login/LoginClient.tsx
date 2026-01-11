@@ -24,11 +24,27 @@ export function LoginClient() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [reseeding, setReseeding] = useState(false)
   const isDev = process.env.NODE_ENV === 'development'
 
   function fillCredentials(creds: { email: string; password: string }) {
     setEmail(creds.email)
     setPassword(creds.password)
+  }
+
+  async function handleReseed() {
+    if (!confirm('This will wipe and reseed the database. Continue?')) return
+    setReseeding(true)
+    try {
+      const response = await fetch('/api/dev/reseed', { method: 'POST' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Reseed failed')
+      alert('Database reseeded successfully!')
+    } catch (err: any) {
+      alert(`Reseed failed: ${err.message}`)
+    } finally {
+      setReseeding(false)
+    }
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -95,6 +111,14 @@ export function LoginClient() {
                 className="px-3 py-1.5 text-sm bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-900"
               >
                 Student 2
+              </button>
+              <button
+                type="button"
+                onClick={handleReseed}
+                disabled={reseeding}
+                className="px-3 py-1.5 text-sm bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-900 disabled:opacity-50"
+              >
+                {reseeding ? 'Reseeding...' : 'Reseed DB'}
               </button>
             </div>
           </div>
