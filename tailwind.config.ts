@@ -9,6 +9,21 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      animation: {
+        'notification-pulse': 'notification-pulse 2s ease-in-out infinite',
+      },
+      keyframes: {
+        'notification-pulse': {
+          '0%, 100%': {
+            opacity: '1',
+            filter: 'drop-shadow(0 0 0 transparent)',
+          },
+          '50%': {
+            opacity: '0.85',
+            filter: 'drop-shadow(0 0 8px rgb(59 130 246 / 0.6))',
+          },
+        },
+      },
       typography: {
         DEFAULT: {
           css: {

@@ -12,6 +12,7 @@ import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherLogsTab } from './TeacherLogsTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
+import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import type { Classroom } from '@/types'
 
 interface UserInfo {
@@ -148,50 +149,63 @@ export default function ClassroomPage() {
       onOpenSidebar={() => setIsMobileSidebarOpen(true)}
       mainClassName="max-w-none px-0 py-0"
     >
-      <div className="flex min-h-[calc(100vh-3rem)]">
-        <ClassroomSidebar
-          classroomId={classroom.id}
-          role={user.role}
-          activeTab={activeTab}
-          isReadOnly={isArchived}
-          isMobileOpen={isMobileSidebarOpen}
-          onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        />
+      {isTeacher ? (
+        <div className="flex min-h-[calc(100vh-3rem)]">
+          <ClassroomSidebar
+            classroomId={classroom.id}
+            role={user.role}
+            activeTab={activeTab}
+            isReadOnly={isArchived}
+            isMobileOpen={isMobileSidebarOpen}
+            onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          />
 
-        <div className="flex-1 min-w-0 min-h-0 px-4 py-3">
-          <div className="max-w-7xl mx-auto h-full flex flex-col min-h-0">
-            {isArchived && (
-              <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
-                This classroom is archived. You can view content, but changes are disabled until it is restored.
-              </div>
-            )}
-            {isTeacher ? (
-              <>
-                {activeTab === 'attendance' && (
-                  <TeacherAttendanceTab classroom={classroom} />
-                )}
-                {activeTab === 'logs' && (
-                  <TeacherLogsTab classroom={classroom} />
-                )}
-                {activeTab === 'assignments' && (
-                  <TeacherClassroomView classroom={classroom} />
-                )}
-                {activeTab === 'roster' && (
-                  <TeacherRosterTab classroom={classroom} />
-                )}
-                {activeTab === 'settings' && (
-                  <TeacherSettingsTab classroom={classroom} />
-                )}
-              </>
-            ) : (
-              <>
-                {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
-                {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
-              </>
-            )}
+          <div className="flex-1 min-w-0 min-h-0 px-4 py-3">
+            <div className="max-w-7xl mx-auto h-full flex flex-col min-h-0">
+              {isArchived && (
+                <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+                  This classroom is archived. You can view content, but changes are disabled until it is restored.
+                </div>
+              )}
+              {activeTab === 'attendance' && (
+                <TeacherAttendanceTab classroom={classroom} />
+              )}
+              {activeTab === 'logs' && (
+                <TeacherLogsTab classroom={classroom} />
+              )}
+              {activeTab === 'assignments' && (
+                <TeacherClassroomView classroom={classroom} />
+              )}
+              {activeTab === 'roster' && (
+                <TeacherRosterTab classroom={classroom} />
+              )}
+              {activeTab === 'settings' && (
+                <TeacherSettingsTab classroom={classroom} />
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <StudentNotificationsProvider classroomId={classroom.id}>
+          <div className="flex min-h-[calc(100vh-3rem)]">
+            <ClassroomSidebar
+              classroomId={classroom.id}
+              role={user.role}
+              activeTab={activeTab}
+              isReadOnly={false}
+              isMobileOpen={isMobileSidebarOpen}
+              onCloseMobile={() => setIsMobileSidebarOpen(false)}
+            />
+
+            <div className="flex-1 min-w-0 min-h-0 px-4 py-3">
+              <div className="max-w-7xl mx-auto h-full flex flex-col min-h-0">
+                {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
+                {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
+              </div>
+            </div>
+          </div>
+        </StudentNotificationsProvider>
+      )}
     </AppShell>
   )
 }

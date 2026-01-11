@@ -18,6 +18,7 @@ import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
+import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 interface Props {
@@ -34,6 +35,7 @@ export function StudentAssignmentEditor({
   onExit,
 }: Props) {
   const router = useRouter()
+  const notifications = useStudentNotifications()
   const isEmbedded = variant === 'embedded'
 
   const AUTOSAVE_DEBOUNCE_MS = 5000
@@ -63,6 +65,7 @@ export function StudentAssignmentEditor({
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
   const draftBeforePreviewRef = useRef<TiptapContent | null>(null)
+  const didDecrementNotificationRef = useRef(false)
 
   const loadAssignment = useCallback(async () => {
     setLoading(true)
@@ -79,13 +82,19 @@ export function StudentAssignmentEditor({
       setDoc(data.doc)
       setContent(data.doc?.content || { type: 'doc', content: [] })
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
+
+      // Decrement notification count when assignment is first viewed
+      if (!didDecrementNotificationRef.current) {
+        didDecrementNotificationRef.current = true
+        notifications?.decrementUnviewedCount()
+      }
     } catch (err: any) {
       console.error('Error loading assignment:', err)
       setError(err.message || 'Failed to load assignment')
     } finally {
       setLoading(false)
     }
-  }, [assignmentId])
+  }, [assignmentId, notifications])
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true)
@@ -116,6 +125,11 @@ export function StudentAssignmentEditor({
       }
     }
   }, [loadAssignment, loadHistory])
+
+  // Reset notification decrement tracking when assignment changes
+  useEffect(() => {
+    didDecrementNotificationRef.current = false
+  }, [assignmentId])
 
   // Autosave with debouncing
   const saveContent = useCallback(async (

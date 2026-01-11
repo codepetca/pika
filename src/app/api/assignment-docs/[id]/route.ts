@@ -80,6 +80,7 @@ export async function GET(
             content: { type: 'doc', content: [] },
             is_submitted: false,
             submitted_at: null,
+            viewed_at: new Date().toISOString(),
           })
           .select()
           .single()
@@ -119,6 +120,21 @@ export async function GET(
     // Parse content if it's a string (for backwards compatibility)
     if (existingDoc) {
       existingDoc.content = parseContentField(existingDoc.content)
+    }
+
+    // Mark as viewed if not already (for notification tracking)
+    if (existingDoc && existingDoc.viewed_at === null) {
+      const { error: viewedError } = await supabase
+        .from('assignment_docs')
+        .update({ viewed_at: new Date().toISOString() })
+        .eq('id', existingDoc.id)
+
+      if (viewedError) {
+        console.error('Error updating viewed_at:', viewedError)
+        // Non-fatal: continue with response
+      } else {
+        existingDoc.viewed_at = new Date().toISOString()
+      }
     }
 
     return NextResponse.json({ assignment, doc: existingDoc })

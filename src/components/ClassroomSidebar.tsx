@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useClassroomSidebar } from './ClassroomSidebarProvider'
+import { useStudentNotifications } from './StudentNotificationsProvider'
 import { CLASSROOM_SIDEBAR } from '@/lib/classroom-sidebar'
 
 export type ClassroomNavItemId =
@@ -94,6 +95,8 @@ function Nav({
   activeAssignmentId,
   onSelectAssignment,
   onReorderAssignments,
+  showTodayPulse,
+  showAssignmentsPulse,
 }: {
   classroomId: string
   activeTab: string
@@ -107,6 +110,8 @@ function Nav({
   onSelectAssignment?: (assignmentId: string | null) => void
   onReorderAssignments?: (orderedIds: string[]) => void
   isReadOnly?: boolean
+  showTodayPulse?: boolean
+  showAssignmentsPulse?: boolean
 }) {
   const router = useRouter()
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -146,7 +151,13 @@ function Nav({
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                   ].join(' ')}
                 >
-                  <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                  <Icon
+                    className={[
+                      'h-5 w-5 flex-shrink-0',
+                      showAssignmentsPulse && 'animate-notification-pulse motion-reduce:animate-none',
+                    ].filter(Boolean).join(' ')}
+                    aria-hidden="true"
+                  />
                   {!isCollapsed && <span className="truncate">{item.label}</span>}
                   {isCollapsed && <span className="sr-only">{item.label}</span>}
                 </Link>
@@ -285,6 +296,10 @@ function Nav({
           )
         }
 
+        const shouldPulse =
+          (item.id === 'today' && showTodayPulse) ||
+          (item.id === 'assignments' && showAssignmentsPulse)
+
         return (
           <Link
             key={item.id}
@@ -302,7 +317,13 @@ function Nav({
                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
             ].join(' ')}
           >
-            <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+            <Icon
+              className={[
+                'h-5 w-5 flex-shrink-0',
+                shouldPulse && 'animate-notification-pulse motion-reduce:animate-none',
+              ].filter(Boolean).join(' ')}
+              aria-hidden="true"
+            />
             {!isCollapsed && <span className="truncate">{item.label}</span>}
             {isCollapsed && <span className="sr-only">{item.label}</span>}
           </Link>
@@ -332,6 +353,12 @@ export function ClassroomSidebar({
   const assignmentIdParam = searchParams.get('assignmentId')
   const { isCollapsed, toggleCollapsed, expandedWidth, setExpandedWidth, setCollapsed } =
     useClassroomSidebar()
+  const notifications = useStudentNotifications()
+
+  // Compute pulse states for student tabs
+  const showTodayPulse = role === 'student' && !notifications?.loading && !notifications?.hasTodayEntry
+  const showAssignmentsPulse = role === 'student' && !notifications?.loading && (notifications?.unviewedAssignmentsCount ?? 0) > 0
+
   const firstLinkRef = useRef<HTMLAnchorElement | null>(null)
   const asideRef = useRef<HTMLElement | null>(null)
   const resizeStartXRef = useRef(0)
@@ -535,6 +562,8 @@ export function ClassroomSidebar({
               if (role !== 'teacher' || isReorderingAssignments || isReadOnly) return
               reorderAssignments(orderedIds)
             }}
+            showTodayPulse={showTodayPulse}
+            showAssignmentsPulse={showAssignmentsPulse}
           />
 
           <div className="flex-1" />
@@ -743,7 +772,13 @@ export function ClassroomSidebar({
                             : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                         ].join(' ')}
                       >
-                        <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                        <Icon
+                          className={[
+                            'h-5 w-5 flex-shrink-0',
+                            showAssignmentsPulse && 'animate-notification-pulse motion-reduce:animate-none',
+                          ].filter(Boolean).join(' ')}
+                          aria-hidden="true"
+                        />
                         <span className="truncate">{item.label}</span>
                       </Link>
 
@@ -777,6 +812,10 @@ export function ClassroomSidebar({
                   )
                 }
 
+                const mobileItemPulse =
+                  (item.id === 'today' && showTodayPulse) ||
+                  (item.id === 'assignments' && showAssignmentsPulse)
+
                 return (
                   <Link
                     key={item.id}
@@ -791,7 +830,13 @@ export function ClassroomSidebar({
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                     ].join(' ')}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                    <Icon
+                      className={[
+                        'h-5 w-5 flex-shrink-0',
+                        mobileItemPulse && 'animate-notification-pulse motion-reduce:animate-none',
+                      ].filter(Boolean).join(' ')}
+                      aria-hidden="true"
+                    />
                     <span className="truncate">{item.label}</span>
                   </Link>
                 )
