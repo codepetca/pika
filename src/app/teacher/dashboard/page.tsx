@@ -7,6 +7,8 @@ import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { AlertDialog } from '@/components/AlertDialog'
 import type { Classroom, AttendanceRecord, Entry } from '@/types'
 import { getAttendanceIcon } from '@/lib/attendance'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
@@ -24,6 +26,13 @@ export default function TeacherDashboardPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showSettingsMenu, setShowSettingsMenu] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean
+    title: string
+    description?: string
+    variant?: 'default' | 'success' | 'error'
+  }>({ isOpen: false, title: '' })
 
   // Load classrooms
   useEffect(() => {
@@ -112,23 +121,23 @@ export default function TeacherDashboardPage() {
     if (!selectedClassroom) return
     const link = `${window.location.origin}/join/${selectedClassroom.id}`
     navigator.clipboard.writeText(link)
-    alert('Join link copied!')
+    setAlertDialog({ isOpen: true, title: 'Link Copied', description: 'Join link copied to clipboard!', variant: 'success' })
   }
 
   function handleCopyClassCode() {
     if (!selectedClassroom) return
     navigator.clipboard.writeText(selectedClassroom.class_code)
-    alert('Class code copied!')
+    setAlertDialog({ isOpen: true, title: 'Code Copied', description: 'Class code copied to clipboard!', variant: 'success' })
   }
 
-  async function handleDeleteClassroom() {
+  function handleDeleteClassroom() {
     if (!selectedClassroom) return
+    setDeleteConfirmOpen(true)
+  }
 
-    const confirmed = confirm(
-      `Are you sure you want to delete "${selectedClassroom.title}"?\n\nThis will permanently delete:\n- The classroom\n- All student enrollments\n- All class days and calendar\n- All student entries\n\nThis action cannot be undone.`
-    )
-
-    if (!confirmed) return
+  async function confirmDeleteClassroom() {
+    if (!selectedClassroom) return
+    setDeleteConfirmOpen(false)
 
     try {
       const response = await fetch(`/api/teacher/classrooms/${selectedClassroom.id}`, {
@@ -137,7 +146,7 @@ export default function TeacherDashboardPage() {
 
       if (!response.ok) {
         const data = await response.json()
-        alert(data.error || 'Failed to delete classroom')
+        setAlertDialog({ isOpen: true, title: 'Error', description: data.error || 'Failed to delete classroom', variant: 'error' })
         return
       }
 
@@ -148,10 +157,10 @@ export default function TeacherDashboardPage() {
       // Select first remaining classroom or null
       setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
 
-      alert('Classroom deleted successfully')
+      setAlertDialog({ isOpen: true, title: 'Deleted', description: 'Classroom deleted successfully', variant: 'success' })
     } catch (err) {
       console.error('Error deleting classroom:', err)
-      alert('An error occurred while deleting the classroom')
+      setAlertDialog({ isOpen: true, title: 'Error', description: 'An error occurred while deleting the classroom', variant: 'error' })
     }
   }
 
@@ -453,6 +462,25 @@ export default function TeacherDashboardPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="Delete Classroom"
+        description={selectedClassroom ? `Are you sure you want to delete "${selectedClassroom.title}"?\n\nThis will permanently delete:\n- The classroom\n- All student enrollments\n- All class days and calendar\n- All student entries\n\nThis action cannot be undone.` : ''}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        onConfirm={confirmDeleteClassroom}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        title={alertDialog.title}
+        description={alertDialog.description}
+        variant={alertDialog.variant}
+        onClose={() => setAlertDialog({ isOpen: false, title: '' })}
+      />
     </div>
   )
 }

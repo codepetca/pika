@@ -5,6 +5,8 @@ import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { AlertDialog } from '@/components/AlertDialog'
 import type { ClassDay, Classroom } from '@/types'
 import {
   format,
@@ -26,6 +28,13 @@ export default function CalendarPage() {
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [generating, setGenerating] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean
+    title: string
+    description?: string
+    variant?: 'default' | 'success' | 'error'
+  }>({ isOpen: false, title: '' })
 
   // Wizard state
   const [wizardMode, setWizardMode] = useState<WizardMode>('preset')
@@ -160,11 +169,11 @@ export default function CalendarPage() {
         await loadClassDays()
       } else {
         const data = await response.json()
-        alert(data.error || 'Failed to generate calendar')
+        setAlertDialog({ isOpen: true, title: 'Error', description: data.error || 'Failed to generate calendar', variant: 'error' })
       }
     } catch (err) {
       console.error('Error generating calendar:', err)
-      alert('An error occurred')
+      setAlertDialog({ isOpen: true, title: 'Error', description: 'An error occurred', variant: 'error' })
     } finally {
       setGenerating(false)
     }
@@ -196,14 +205,14 @@ export default function CalendarPage() {
     setSelectedClassroom(classroom)
   }
 
-  async function handleDeleteClassroom() {
+  function handleDeleteClassroom() {
     if (!selectedClassroom) return
+    setDeleteConfirmOpen(true)
+  }
 
-    const confirmed = confirm(
-      `Are you sure you want to delete "${selectedClassroom.title}"?\n\nThis will permanently delete:\n- The classroom\n- All student enrollments\n- All class days and calendar\n- All student entries\n\nThis action cannot be undone.`
-    )
-
-    if (!confirmed) return
+  async function confirmDeleteClassroom() {
+    if (!selectedClassroom) return
+    setDeleteConfirmOpen(false)
 
     try {
       const response = await fetch(`/api/teacher/classrooms/${selectedClassroom.id}`, {
@@ -212,7 +221,7 @@ export default function CalendarPage() {
 
       if (!response.ok) {
         const data = await response.json()
-        alert(data.error || 'Failed to delete classroom')
+        setAlertDialog({ isOpen: true, title: 'Error', description: data.error || 'Failed to delete classroom', variant: 'error' })
         return
       }
 
@@ -223,10 +232,10 @@ export default function CalendarPage() {
       // Select first remaining classroom or null
       setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
 
-      alert('Classroom deleted successfully')
+      setAlertDialog({ isOpen: true, title: 'Deleted', description: 'Classroom deleted successfully', variant: 'success' })
     } catch (err) {
       console.error('Error deleting classroom:', err)
-      alert('An error occurred while deleting the classroom')
+      setAlertDialog({ isOpen: true, title: 'Error', description: 'An error occurred while deleting the classroom', variant: 'error' })
     }
   }
 
@@ -615,6 +624,25 @@ export default function CalendarPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleClassroomCreated}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="Delete Classroom"
+        description={selectedClassroom ? `Are you sure you want to delete "${selectedClassroom.title}"?\n\nThis will permanently delete:\n- The classroom\n- All student enrollments\n- All class days and calendar\n- All student entries\n\nThis action cannot be undone.` : ''}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        onConfirm={confirmDeleteClassroom}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        title={alertDialog.title}
+        description={alertDialog.description}
+        variant={alertDialog.variant}
+        onClose={() => setAlertDialog({ isOpen: false, title: '' })}
       />
     </div>
   )
