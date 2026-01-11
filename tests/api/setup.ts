@@ -85,7 +85,7 @@ export const createMockSupabaseClient = () => {
  */
 export const mockStudentSession = (
   userId: string = 'student-1',
-  email: string = 'test@student.com',
+  email: string = 'student1@example.com',
   overrides: Record<string, any> = {}
 ) => ({
   user: {
@@ -101,7 +101,7 @@ export const mockStudentSession = (
  */
 export const mockTeacherSession = (
   userId: string = 'teacher-1',
-  email: string = 'test@gapps.yrdsb.ca',
+  email: string = 'teacher@example.com',
   overrides: Record<string, any> = {}
 ) => ({
   user: {
