@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Eye, EyeOff } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
-import { RichTextEditor } from '@/components/RichTextEditor'
+import { RichTextEditor } from '@/components/editor'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   formatDueDate,

@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
-import { RichTextEditor } from '@/components/RichTextEditor'
+import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'

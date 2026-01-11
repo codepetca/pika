@@ -11,7 +11,6 @@ import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherLogsTab } from './TeacherLogsTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
-import { TeacherCalendarTab } from './TeacherCalendarTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import type { Classroom } from '@/types'
 
@@ -127,7 +126,7 @@ export default function ClassroomPage() {
 
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
-    ? (['attendance', 'logs', 'assignments', 'roster', 'calendar', 'settings'] as const)
+    ? (['attendance', 'logs', 'assignments', 'roster', 'settings'] as const)
     : (['today', 'assignments'] as const)
 
   const activeTab = validTabs.includes(tab as any) ? (tab as string) : defaultTab
@@ -179,9 +178,6 @@ export default function ClassroomPage() {
                 )}
                 {activeTab === 'roster' && (
                   <TeacherRosterTab classroom={classroom} />
-                )}
-                {activeTab === 'calendar' && (
-                  <TeacherCalendarTab classroom={classroom} />
                 )}
                 {activeTab === 'settings' && (
                   <TeacherSettingsTab classroom={classroom} />

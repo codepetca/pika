@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function JoinPage() {
   const router = useRouter()
+  const joinCodeId = useId()
   const [code, setCode] = useState('')
 
   function submit(e: React.FormEvent) {
@@ -23,18 +24,19 @@ export default function JoinPage() {
         </p>
 
         <form className="mt-6 space-y-3" onSubmit={submit}>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label htmlFor={joinCodeId} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Join code
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="ABC123"
-              autoCapitalize="characters"
-              autoCorrect="off"
-              spellCheck={false}
-            />
           </label>
+          <input
+            id={joinCodeId}
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="ABC123"
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+          />
 
           <button
             type="submit"

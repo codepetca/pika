@@ -2219,3 +2219,25 @@
 **Tests:** Not run (migration-only change).
 **Next:** Open PR and apply migration on staging with `supabase db push --include-all`.
 **Blockers:** None
+---
+## 2026-01-11 [AI - Claude Opus 4.5]
+**Goal:** Replace custom tiptap editor with official simple-editor template.
+**Completed:** 
+- Installed Tiptap simple-editor template via `@tiptap/cli`
+- Upgraded Tiptap from v2.26.4 to v3.15.3
+- Created wrapper components (`src/components/editor/RichTextEditor.tsx`, `RichTextViewer.tsx`) preserving existing props interface
+- Added new features: undo/redo, blockquotes, checkbox lists, text alignment
+- Removed font family dropdown per user request
+- Integrated existing link security validation
+- Updated all consumer components to use new editor
+- Updated tests for new UI structure
+- Added matchMedia mock to test setup
+**Status:** completed
+**Artifacts:**
+- Branch: tiptap-simple-editor
+- Worktree: /Users/stew/Repos/.worktrees/pika/tiptap-simple-editor
+- PR: https://github.com/codepetca/pika/pull/121
+- Files: 155 files changed (new tiptap template + wrapper components)
+**Tests:** All 523 tests passing.
+**Next:** Manual testing of editor in all three consumer locations, verify dark mode.
+**Blockers:** None

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent, ChangeEvent } from 'react'
+import { useState, FormEvent, ChangeEvent, useId } from 'react'
 import { Button } from '@/components/Button'
 
 interface UploadRosterModalProps {
@@ -11,6 +11,7 @@ interface UploadRosterModalProps {
 }
 
 export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: UploadRosterModalProps) {
+  const fileInputId = useId()
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -99,8 +100,12 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                   ))}
                 </div>
               </div>
+              <label htmlFor={fileInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Choose CSV file
+              </label>
               <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">
                 <input
+                  id={fileInputId}
                   type="file"
                   accept=".csv"
                   onChange={handleFileChange}
