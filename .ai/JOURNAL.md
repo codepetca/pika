@@ -2272,3 +2272,44 @@
 **Next:** Manual testing of pulse animations in browser.
 **Blockers:** None
 **Note:** Initially worked in hub checkout by mistake; recovered using `git stash` + worktree creation per protocol.
+
+---
+## 2026-01-11 [AI - Claude Opus 4.5]
+**Goal:** Add tiptap rich text editor to assignment creation/edit for teachers (GitHub issue #114, rich text portion only).
+**Completed:**
+- Created database migration `021_assignment_rich_instructions.sql` adding `rich_instructions` jsonb column to assignments table
+- Migration converts existing plain text descriptions to TiptapContent format
+- Updated `Assignment` type to include `rich_instructions: TiptapContent | null`
+- Replaced textarea in `AssignmentForm.tsx` with `RichTextEditor` component
+- Updated `CreateAssignmentModal` to use TiptapContent state and send `rich_instructions` to API
+- Updated `EditAssignmentModal` to load/save `rich_instructions` with proper change detection
+- Updated `/api/teacher/assignments` POST to handle `rich_instructions` and maintain plain text fallback
+- Updated `/api/teacher/assignments/[id]` PATCH to handle `rich_instructions` updates
+- Updated `StudentAssignmentsTab` instructions modal to use `RichTextViewer` with fallback
+- Updated `StudentAssignmentEditor` to display rich instructions with `RichTextViewer`
+- Added `@tiptap/markdown` extension with paste support (teachers can paste markdown from ChatGPT)
+- Fixed test assertions to handle editor content normalization (textAlign attrs)
+- Fixed migration numbering conflict (renamed 019→020→021)
+**Status:** completed
+**Artifacts:**
+- Branch: add-tiptap-to-assignment-creation
+- Worktree: /Users/stew/Repos/.worktrees/pika/add-tiptap-to-assignment-creation
+- PR: https://github.com/codepetca/pika/pull/128
+- Files:
+  - supabase/migrations/021_assignment_rich_instructions.sql (new)
+  - src/types/index.ts
+  - src/components/AssignmentForm.tsx
+  - src/components/CreateAssignmentModal.tsx
+  - src/components/EditAssignmentModal.tsx
+  - src/app/api/teacher/assignments/route.ts
+  - src/app/api/teacher/assignments/[id]/route.ts
+  - src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx
+  - src/components/StudentAssignmentEditor.tsx
+  - src/components/editor/RichTextEditor.tsx
+  - tests/components/CreateAssignmentModal.test.tsx
+  - tests/components/EditAssignmentModal.test.tsx
+**Tests:** All tests passing after fixing assertions for editor normalization.
+**Migration:** Applied to Pika-staging via `supabase db push`
+**Next:** Future work to add markdown conversion utilities for AI integrations (read/write markdown for AI, store as TiptapContent).
+**Blockers:** None
+**Decision:** Keep TiptapContent JSON as storage format rather than markdown. Markdown paste already works via @tiptap/markdown extension. AI conversion layer to be added later when building AI features.
