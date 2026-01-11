@@ -19,6 +19,10 @@ export default defineConfig({
         'src/types/**',
         'src/components/**', // UI components are not part of coverage targets
         'src/app/**', // Exclude Next.js app router files for now
+        'src/hooks/**', // Tiptap template hooks
+        'src/styles/**', // SCSS/CSS variables
+        'src/contexts/**', // React contexts
+        'src/lib/tiptap-utils.ts', // Tiptap template utilities
       ],
       thresholds: {
         // Global thresholds
