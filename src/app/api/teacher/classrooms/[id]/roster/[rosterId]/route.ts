@@ -6,6 +6,80 @@ import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+// PATCH /api/teacher/classrooms/[id]/roster/[rosterId] - Update roster entry (e.g., counselor_email)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string; rosterId: string } }
+) {
+  try {
+    const user = await requireRole('teacher')
+    const classroomId = params.id
+    const rosterId = params.rosterId
+    const body = await request.json()
+
+    const supabase = getServiceRoleClient()
+
+    const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
+    if (!ownership.ok) {
+      return NextResponse.json(
+        { error: ownership.error },
+        { status: ownership.status }
+      )
+    }
+
+    // Only allow updating counselor_email for now
+    const { counselor_email } = body
+    if (counselor_email !== undefined && counselor_email !== null && typeof counselor_email !== 'string') {
+      return NextResponse.json(
+        { error: 'counselor_email must be a string or null' },
+        { status: 400 }
+      )
+    }
+
+    const updateData: { counselor_email?: string | null } = {}
+    if (counselor_email !== undefined) {
+      updateData.counselor_email = counselor_email?.trim() || null
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields to update' },
+        { status: 400 }
+      )
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('classroom_roster')
+      .update(updateData)
+      .eq('id', rosterId)
+      .eq('classroom_id', classroomId)
+      .select('id, counselor_email')
+      .single()
+
+    if (updateError) {
+      console.error('Error updating roster entry:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to update roster entry' },
+        { status: 500 }
+      )
+    }
+
+    if (!updated) {
+      return NextResponse.json(
+        { error: 'Roster entry not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ success: true, roster: updated })
+  } catch (error: any) {
+    if (error.name === 'AuthenticationError') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (error.name === 'AuthorizationError') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    console.error('Update roster entry error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 // DELETE /api/teacher/classrooms/[id]/roster/[rosterId] - Remove roster entry (and enrollment if joined)
 export async function DELETE(
   request: NextRequest,
