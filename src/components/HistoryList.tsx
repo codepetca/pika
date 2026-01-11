@@ -15,6 +15,10 @@ function getTriggerBadgeClasses(): string {
   return 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
 }
 
+function getTriggerLabel(trigger: string): string {
+  return trigger === 'autosave' ? 'save' : trigger
+}
+
 export function HistoryList({
   entries,
   activeEntryId,
@@ -74,7 +78,7 @@ export function HistoryList({
                         <span
                           className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses()}`}
                         >
-                          {entry.trigger}
+                          {getTriggerLabel(entry.trigger)}
                         </span>
                       </div>
                       <span
@@ -141,7 +145,7 @@ export function HistoryList({
                       <span
                         className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${getTriggerBadgeClasses()}`}
                       >
-                        {entry.trigger}
+                        {getTriggerLabel(entry.trigger)}
                       </span>
                     </div>
                     <span
