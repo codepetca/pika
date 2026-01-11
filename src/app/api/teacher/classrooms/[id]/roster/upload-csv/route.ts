@@ -43,7 +43,7 @@ export async function POST(
       )
     }
 
-    // Expected format: Student Number,First Name,Last Name,Email
+    // Expected format: Student Number,First Name,Last Name,Email[,Counselor Email]
     const students = []
 
     for (let i = 1; i < lines.length; i++) {
@@ -53,7 +53,7 @@ export async function POST(
       const parts = line.split(',')
       if (parts.length < 4) continue
 
-      const [studentNumber, firstName, lastName, email] = parts.map((p: string) => p.trim())
+      const [studentNumber, firstName, lastName, email, counselorEmail] = parts.map((p: string) => p.trim())
 
       if (email && firstName && lastName) {
         students.push({
@@ -61,6 +61,7 @@ export async function POST(
           firstName,
           lastName,
           studentNumber,
+          counselorEmail: counselorEmail || null,
         })
       }
     }
@@ -78,6 +79,7 @@ export async function POST(
       first_name: s.firstName || null,
       last_name: s.lastName || null,
       student_number: s.studentNumber || null,
+      counselor_email: s.counselorEmail || null,
     }))
 
     const { data: upserted, error: upsertError } = await supabase

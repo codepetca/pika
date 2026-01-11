@@ -27,7 +27,7 @@ export async function GET(
 
     const { data: rosterRows, error: rosterError } = await supabase
       .from('classroom_roster')
-      .select('id, email, student_number, first_name, last_name, created_at, updated_at')
+      .select('id, email, student_number, first_name, last_name, counselor_email, created_at, updated_at')
       .eq('classroom_id', classroomId)
 
     if (rosterError) {
@@ -74,6 +74,7 @@ export async function GET(
         student_number: r.student_number ?? null,
         first_name: r.first_name ?? null,
         last_name: r.last_name ?? null,
+        counselor_email: r.counselor_email ?? null,
         created_at: r.created_at,
         updated_at: r.updated_at,
         joined: !!joined,
