@@ -102,7 +102,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
     if (selectedAssignmentId) {
       setAssignments((prev) =>
         prev.map((a) =>
-          a.id === selectedAssignmentId
+          a.id === selectedAssignmentId && a.doc
             ? { ...a, doc: { ...a.doc, viewed_at: new Date().toISOString() } }
             : a
         )
