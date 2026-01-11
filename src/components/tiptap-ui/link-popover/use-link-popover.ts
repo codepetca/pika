@@ -15,6 +15,7 @@ import {
   isNodeTypeSelected,
   sanitizeUrl,
 } from "@/lib/tiptap-utils"
+import { sanitizeLinkHref, isSafeLinkHref } from "@/lib/tiptap-content"
 
 /**
  * Configuration for the link popover functionality
@@ -126,15 +127,22 @@ export function useLinkHandler(props: LinkHandlerProps) {
   const setLink = useCallback(() => {
     if (!url || !editor) return
 
+    // Sanitize the URL (adds https:// prefix, converts emails to mailto:, etc.)
+    const sanitizedHref = sanitizeLinkHref(url)
+    if (!sanitizedHref || !isSafeLinkHref(sanitizedHref)) {
+      // Invalid or unsafe URL - don't set the link
+      return
+    }
+
     const { selection } = editor.state
     const isEmpty = selection.empty
 
     let chain = editor.chain().focus()
 
-    chain = chain.extendMarkRange("link").setLink({ href: url })
+    chain = chain.extendMarkRange("link").setLink({ href: sanitizedHref })
 
     if (isEmpty) {
-      chain = chain.insertContent({ type: "text", text: url })
+      chain = chain.insertContent({ type: "text", text: sanitizedHref })
     }
 
     chain.run()
