@@ -584,10 +584,7 @@ export function ClassroomSidebar({
             }}
             showTodayPulse={showTodayPulse}
             showAssignmentsPulse={showAssignmentsPulse}
-            onMarkAssignmentViewed={(assignmentId) => {
-              markAssignmentViewed(assignmentId)
-              notifications?.decrementUnviewedCount()
-            }}
+            onMarkAssignmentViewed={markAssignmentViewed}
           />
 
           <div className="flex-1" />
@@ -818,7 +815,6 @@ export function ClassroomSidebar({
                                 onClick={() => {
                                   if (!assignment.hasViewed) {
                                     markAssignmentViewed(assignment.id)
-                                    notifications?.decrementUnviewedCount()
                                   }
                                   setStudentAssignmentsSelection(assignment.id)
                                   onCloseMobile()

@@ -12,21 +12,6 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      animation: {
-        'notification-pulse': 'notification-pulse 1.5s ease-in-out infinite',
-      },
-      keyframes: {
-        'notification-pulse': {
-          '0%, 100%': {
-            transform: 'scale(1)',
-            color: 'rgb(59 130 246)', // blue-500
-          },
-          '50%': {
-            transform: 'scale(1.2)',
-            color: 'rgb(37 99 235)', // blue-600
-          },
-        },
-      },
       typography: {
         DEFAULT: {
           css: {

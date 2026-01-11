@@ -124,7 +124,6 @@ export function StudentAssignmentEditor({
     }
   }, [loadAssignment, loadHistory])
 
-
   // Autosave with debouncing
   const saveContent = useCallback(async (
     newContent: TiptapContent,
