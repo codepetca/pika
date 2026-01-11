@@ -221,7 +221,9 @@ export function TeacherSettingsTab({ classroom }: Props) {
           </PageContent>
         </>
       ) : (
-        <TeacherCalendarTab classroom={classroom} />
+        <PageContent>
+          <TeacherCalendarTab classroom={classroom} />
+        </PageContent>
       )}
     </PageLayout>
   )
