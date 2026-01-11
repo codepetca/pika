@@ -188,10 +188,21 @@ describe('GET /api/student/notifications', () => {
               eq: vi.fn().mockReturnThis(),
               then: vi.fn((resolve: any) =>
                 resolve({
-                  data: [
-                    { id: 'assignment-1', assignment_docs: [] }, // No doc
-                    { id: 'assignment-2', assignment_docs: [] }, // No doc
-                  ],
+                  data: [{ id: 'assignment-1' }, { id: 'assignment-2' }],
+                  error: null,
+                })
+              ),
+            })),
+          }
+        }
+        if (table === 'assignment_docs') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              in: vi.fn().mockReturnThis(),
+              then: vi.fn((resolve: any) =>
+                resolve({
+                  data: [], // No docs exist
                   error: null,
                 })
               ),
@@ -231,9 +242,23 @@ describe('GET /api/student/notifications', () => {
               eq: vi.fn().mockReturnThis(),
               then: vi.fn((resolve: any) =>
                 resolve({
+                  data: [{ id: 'assignment-1' }, { id: 'assignment-2' }],
+                  error: null,
+                })
+              ),
+            })),
+          }
+        }
+        if (table === 'assignment_docs') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              in: vi.fn().mockReturnThis(),
+              then: vi.fn((resolve: any) =>
+                resolve({
                   data: [
-                    { id: 'assignment-1', assignment_docs: [{ viewed_at: null }] },
-                    { id: 'assignment-2', assignment_docs: [{ viewed_at: '2024-10-14T10:00:00Z' }] },
+                    { assignment_id: 'assignment-1', viewed_at: null },
+                    { assignment_id: 'assignment-2', viewed_at: '2024-10-14T10:00:00Z' },
                   ],
                   error: null,
                 })
@@ -274,9 +299,23 @@ describe('GET /api/student/notifications', () => {
               eq: vi.fn().mockReturnThis(),
               then: vi.fn((resolve: any) =>
                 resolve({
+                  data: [{ id: 'assignment-1' }, { id: 'assignment-2' }],
+                  error: null,
+                })
+              ),
+            })),
+          }
+        }
+        if (table === 'assignment_docs') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              in: vi.fn().mockReturnThis(),
+              then: vi.fn((resolve: any) =>
+                resolve({
                   data: [
-                    { id: 'assignment-1', assignment_docs: [{ viewed_at: '2024-10-14T10:00:00Z' }] },
-                    { id: 'assignment-2', assignment_docs: [{ viewed_at: '2024-10-13T08:00:00Z' }] },
+                    { assignment_id: 'assignment-1', viewed_at: '2024-10-14T10:00:00Z' },
+                    { assignment_id: 'assignment-2', viewed_at: '2024-10-13T08:00:00Z' },
                   ],
                   error: null,
                 })
@@ -385,6 +424,60 @@ describe('GET /api/student/notifications', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn().mockReturnThis(),
+              then: vi.fn((resolve: any) =>
+                resolve({
+                  data: null,
+                  error: { message: 'Database error' },
+                })
+              ),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to check notifications')
+    })
+
+    it('should return 500 when assignment_docs query fails', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'entries') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { id: 'entry-1' },
+                error: null,
+              }),
+            })),
+          }
+        }
+        if (table === 'assignments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              then: vi.fn((resolve: any) =>
+                resolve({
+                  data: [{ id: 'assignment-1' }],
+                  error: null,
+                })
+              ),
+            })),
+          }
+        }
+        if (table === 'assignment_docs') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              in: vi.fn().mockReturnThis(),
               then: vi.fn((resolve: any) =>
                 resolve({
                   data: null,

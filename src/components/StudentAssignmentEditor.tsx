@@ -65,7 +65,6 @@ export function StudentAssignmentEditor({
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
   const draftBeforePreviewRef = useRef<TiptapContent | null>(null)
-  const didDecrementNotificationRef = useRef(false)
 
   const loadAssignment = useCallback(async () => {
     setLoading(true)
@@ -83,9 +82,8 @@ export function StudentAssignmentEditor({
       setContent(data.doc?.content || { type: 'doc', content: [] })
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
 
-      // Decrement notification count when assignment is first viewed
-      if (!didDecrementNotificationRef.current) {
-        didDecrementNotificationRef.current = true
+      // Decrement notification count only if this was the first view (server confirmed)
+      if (data.wasFirstView) {
         notifications?.decrementUnviewedCount()
       }
     } catch (err: any) {
@@ -126,10 +124,6 @@ export function StudentAssignmentEditor({
     }
   }, [loadAssignment, loadHistory])
 
-  // Reset notification decrement tracking when assignment changes
-  useEffect(() => {
-    didDecrementNotificationRef.current = false
-  }, [assignmentId])
 
   // Autosave with debouncing
   const saveContent = useCallback(async (

@@ -53,6 +53,15 @@ export function StudentNotificationsProvider({
     fetchNotifications()
   }, [fetchNotifications])
 
+  // Refresh notifications when window regains focus (handles tab switches, etc.)
+  useEffect(() => {
+    const onFocus = () => {
+      fetchNotifications()
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [fetchNotifications])
+
   const refresh = useCallback(async () => {
     setLoading(true)
     await fetchNotifications()

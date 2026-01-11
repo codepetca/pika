@@ -55,16 +55,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get assignments with their docs for this student in a single query
-    // Using Supabase's foreign key relation to LEFT JOIN assignment_docs
+    // Get all assignments for this classroom
     const { data: assignments, error: assignmentsError } = await supabase
       .from('assignments')
-      .select(`
-        id,
-        assignment_docs!left(viewed_at)
-      `)
+      .select('id')
       .eq('classroom_id', classroomId)
-      .eq('assignment_docs.student_id', user.id)
 
     if (assignmentsError) {
       console.error('Error fetching assignments:', assignmentsError)
@@ -74,13 +69,35 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Count unviewed: no doc exists OR doc.viewed_at is null
+    // Count unviewed assignments
     let unviewedCount = 0
-    for (const assignment of assignments || []) {
-      const docs = assignment.assignment_docs as Array<{ viewed_at: string | null }> | null
-      // No doc for this student, or doc exists but viewed_at is null
-      if (!docs || docs.length === 0 || docs[0]?.viewed_at === null) {
-        unviewedCount++
+    const assignmentIds = assignments?.map((a) => a.id) || []
+
+    if (assignmentIds.length > 0) {
+      // Get this student's docs for these assignments
+      const { data: docs, error: docsError } = await supabase
+        .from('assignment_docs')
+        .select('assignment_id, viewed_at')
+        .eq('student_id', user.id)
+        .in('assignment_id', assignmentIds)
+
+      if (docsError) {
+        console.error('Error fetching assignment docs:', docsError)
+        return NextResponse.json(
+          { error: 'Failed to check notifications' },
+          { status: 500 }
+        )
+      }
+
+      // Build map of assignment_id -> doc
+      const docMap = new Map(docs?.map((d) => [d.assignment_id, d]) || [])
+
+      // Count: no doc exists OR doc.viewed_at is null
+      for (const assignmentId of assignmentIds) {
+        const doc = docMap.get(assignmentId)
+        if (!doc || doc.viewed_at === null) {
+          unviewedCount++
+        }
       }
     }
 
