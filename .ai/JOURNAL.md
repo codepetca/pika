@@ -2267,6 +2267,8 @@
   - src/app/classrooms/[classroomId]/StudentTodayTab.tsx
   - src/components/StudentAssignmentEditor.tsx
 **Tests:** All 527 tests passing.
-**Next:** Apply migration, manual testing of pulse animations, create PR.
+**PR:** https://github.com/codepetca/pika/pull/123
+**Migration:** Applied to Pika-staging via `supabase db push`
+**Next:** Manual testing of pulse animations in browser.
 **Blockers:** None
 **Note:** Initially worked in hub checkout by mistake; recovered using `git stash` + worktree creation per protocol.
