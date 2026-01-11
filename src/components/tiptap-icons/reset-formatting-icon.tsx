@@ -2,7 +2,7 @@ import { memo } from "react"
 
 type SvgProps = React.ComponentPropsWithoutRef<"svg">
 
-export const RemoveFormattingIcon = memo(({ className, ...props }: SvgProps) => {
+export const ResetFormattingIcon = memo(({ className, ...props }: SvgProps) => {
   return (
     <svg
       width="24"
@@ -17,13 +17,10 @@ export const RemoveFormattingIcon = memo(({ className, ...props }: SvgProps) => 
       xmlns="http://www.w3.org/2000/svg"
       {...props}
     >
-      <path d="M4 7V4h16v3" />
-      <path d="M10.5 4v6" />
-      <path d="m3 21 18-18" />
-      <path d="M13 4v8" />
-      <path d="M13 19h7" />
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
     </svg>
   )
 })
 
-RemoveFormattingIcon.displayName = "RemoveFormattingIcon"
+ResetFormattingIcon.displayName = "ResetFormattingIcon"
