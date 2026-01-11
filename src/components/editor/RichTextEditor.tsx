@@ -42,6 +42,7 @@ import { LinkPopover, LinkContent, LinkButton } from '@/components/tiptap-ui/lin
 import { MarkButton } from '@/components/tiptap-ui/mark-button'
 import { TextAlignButton } from '@/components/tiptap-ui/text-align-button'
 import { UndoRedoButton } from '@/components/tiptap-ui/undo-redo-button'
+import { ClearFormattingButton } from '@/components/tiptap-ui/clear-formatting-button'
 
 // --- Icons ---
 import { ArrowLeftIcon } from '@/components/tiptap-icons/arrow-left-icon'
@@ -121,6 +122,12 @@ const MainToolbarContent = ({
         <TextAlignButton align="center" />
         <TextAlignButton align="right" />
         <TextAlignButton align="justify" />
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      <ToolbarGroup>
+        <ClearFormattingButton />
       </ToolbarGroup>
 
       <Spacer />
