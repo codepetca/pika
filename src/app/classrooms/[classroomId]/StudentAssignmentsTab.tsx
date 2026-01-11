@@ -87,8 +87,27 @@ export function StudentAssignmentsTab({ classroom }: Props) {
     ]
   }, [selectedAssignment])
 
+  // Auto-show instructions for unviewed assignments (no doc or viewed_at is null)
   useEffect(() => {
+    if (selectedAssignment && (!selectedAssignment.doc || selectedAssignment.doc.viewed_at === null)) {
+      setShowInstructions(true)
+    } else {
+      setShowInstructions(false)
+    }
+  }, [selectedAssignment])
+
+  // Mark assignment as viewed locally when closing instructions
+  const handleCloseInstructions = useCallback(() => {
     setShowInstructions(false)
+    if (selectedAssignmentId) {
+      setAssignments((prev) =>
+        prev.map((a) =>
+          a.id === selectedAssignmentId
+            ? { ...a, doc: { ...a.doc, viewed_at: new Date().toISOString() } }
+            : a
+        )
+      )
+    }
   }, [selectedAssignmentId])
 
   return (
@@ -168,7 +187,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
             type="button"
             className="absolute inset-0 bg-black/50 dark:bg-black/70"
             aria-label="Close instructions"
-            onClick={() => setShowInstructions(false)}
+            onClick={handleCloseInstructions}
           />
           <div className="relative w-full max-w-2xl rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-6">
             <div className="flex items-start justify-between gap-3">
@@ -178,7 +197,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
               </div>
               <button
                 type="button"
-                onClick={() => setShowInstructions(false)}
+                onClick={handleCloseInstructions}
                 className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
                 aria-label="Close"
               >
@@ -197,7 +216,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
               )}
             </div>
             <div className="mt-6 flex justify-end">
-              <Button variant="secondary" onClick={() => setShowInstructions(false)}>
+              <Button variant="secondary" onClick={handleCloseInstructions}>
                 Close
               </Button>
             </div>

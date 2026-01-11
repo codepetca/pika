@@ -38,21 +38,45 @@ export async function GET(request: NextRequest) {
 
     const today = getTodayInToronto()
 
-    // Check if entry exists for today
-    const { data: todayEntry, error: entryError } = await supabase
-      .from('entries')
-      .select('id')
-      .eq('student_id', user.id)
+    // Check if today is a class day
+    const { data: classDay, error: classDayError } = await supabase
+      .from('class_days')
+      .select('is_class_day')
       .eq('classroom_id', classroomId)
       .eq('date', today)
       .maybeSingle()
 
-    if (entryError) {
-      console.error('Error checking today entry:', entryError)
+    if (classDayError) {
+      console.error('Error checking class day:', classDayError)
       return NextResponse.json(
         { error: 'Failed to check notifications' },
         { status: 500 }
       )
+    }
+
+    // If today is not a class day, no need to check for entry
+    const isClassDay = classDay?.is_class_day === true
+    let hasTodayEntry = true // Default to true (no pulse) if not a class day
+
+    if (isClassDay) {
+      // Check if entry exists for today
+      const { data: todayEntry, error: entryError } = await supabase
+        .from('entries')
+        .select('id')
+        .eq('student_id', user.id)
+        .eq('classroom_id', classroomId)
+        .eq('date', today)
+        .maybeSingle()
+
+      if (entryError) {
+        console.error('Error checking today entry:', entryError)
+        return NextResponse.json(
+          { error: 'Failed to check notifications' },
+          { status: 500 }
+        )
+      }
+
+      hasTodayEntry = todayEntry !== null
     }
 
     // Get all assignments for this classroom
@@ -102,7 +126,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      hasTodayEntry: todayEntry !== null,
+      hasTodayEntry,
       unviewedAssignmentsCount: unviewedCount,
     })
   } catch (error: any) {
