@@ -82,15 +82,16 @@ export function AlertDialog({
       <div
         role="alertdialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby={description ? 'alert-dialog-description' : undefined}
         className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-5"
       >
         <div className="flex items-center gap-3">
           {icon}
-          <div className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</div>
+          <div id="alert-dialog-title" className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</div>
         </div>
         {description && (
-          <div className={`mt-2 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line ${icon ? 'ml-9' : ''}`}>
+          <div id="alert-dialog-description" className={`mt-2 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line ${icon ? 'ml-9' : ''}`}>
             {description}
           </div>
         )}

@@ -62,12 +62,13 @@ export function ConfirmDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby={description ? 'confirm-dialog-description' : undefined}
         className="relative w-full max-w-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-5"
       >
-        <div className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</div>
+        <div id="confirm-dialog-title" className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</div>
         {description && (
-          <div className="mt-2 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">
+          <div id="confirm-dialog-description" className="mt-2 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">
             {description}
           </div>
         )}
