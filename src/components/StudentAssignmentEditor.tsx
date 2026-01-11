@@ -18,6 +18,7 @@ import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
+import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 interface Props {
@@ -34,6 +35,7 @@ export function StudentAssignmentEditor({
   onExit,
 }: Props) {
   const router = useRouter()
+  const notifications = useStudentNotifications()
   const isEmbedded = variant === 'embedded'
 
   const AUTOSAVE_DEBOUNCE_MS = 5000
@@ -79,13 +81,18 @@ export function StudentAssignmentEditor({
       setDoc(data.doc)
       setContent(data.doc?.content || { type: 'doc', content: [] })
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
+
+      // Decrement notification count only if this was the first view (server confirmed)
+      if (data.wasFirstView) {
+        notifications?.decrementUnviewedCount()
+      }
     } catch (err: any) {
       console.error('Error loading assignment:', err)
       setError(err.message || 'Failed to load assignment')
     } finally {
       setLoading(false)
     }
-  }, [assignmentId])
+  }, [assignmentId, notifications])
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true)

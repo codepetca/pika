@@ -2241,3 +2241,34 @@
 **Tests:** All 523 tests passing.
 **Next:** Manual testing of editor in all three consumer locations, verify dark mode.
 **Blockers:** None
+---
+## 2026-01-11 [AI - Claude Opus 4.5]
+**Goal:** Add notification indicators (pulse animation) to student sidebar tabs for pending actions.
+**Completed:**
+- Created database migration `019_assignment_docs_viewed_at.sql` adding `viewed_at` column to track when students first view assignments
+- Created `/api/student/notifications` endpoint returning `{ hasTodayEntry, unviewedAssignmentsCount }`
+- Modified `/api/assignment-docs/[id]` to set `viewed_at` when student opens an assignment
+- Added `animate-notification-pulse` Tailwind animation with `motion-reduce` accessibility support
+- Created `StudentNotificationsProvider` React context for notification state with optimistic updates
+- Updated `ClassroomSidebar` to show pulse animation on Today tab (until entry saved) and Assignments tab (until assignments viewed)
+- Wired up optimistic updates in `StudentTodayTab` and `StudentAssignmentEditor`
+**Status:** completed
+**Artifacts:**
+- Branch: feat/student-sidebar-notifications
+- Worktree: /Users/stew/Repos/.worktrees/pika/feat-student-sidebar-notifications
+- Files: 9 files (3 new, 6 modified)
+  - supabase/migrations/019_assignment_docs_viewed_at.sql (new)
+  - src/app/api/student/notifications/route.ts (new)
+  - src/components/StudentNotificationsProvider.tsx (new)
+  - src/app/api/assignment-docs/[id]/route.ts
+  - tailwind.config.ts
+  - src/app/classrooms/[classroomId]/page.tsx
+  - src/components/ClassroomSidebar.tsx
+  - src/app/classrooms/[classroomId]/StudentTodayTab.tsx
+  - src/components/StudentAssignmentEditor.tsx
+**Tests:** All 527 tests passing.
+**PR:** https://github.com/codepetca/pika/pull/123
+**Migration:** Applied to Pika-staging via `supabase db push`
+**Next:** Manual testing of pulse animations in browser.
+**Blockers:** None
+**Note:** Initially worked in hub checkout by mistake; recovered using `git stash` + worktree creation per protocol.

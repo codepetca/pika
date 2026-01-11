@@ -89,3 +89,19 @@
     transform: rotate(360deg);
   }
 }
+
+@keyframes notification-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    transform: scale(1.25);
+    filter: drop-shadow(0 0 6px rgb(59 130 246));
+  }
+}
+
+// Force the animation class to work
+.animate-notification-pulse {
+  animation: notification-pulse 1.5s ease-in-out infinite !important;
+}

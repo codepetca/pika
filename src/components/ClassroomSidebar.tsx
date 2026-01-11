@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useClassroomSidebar } from './ClassroomSidebarProvider'
+import { useStudentNotifications } from './StudentNotificationsProvider'
 import { CLASSROOM_SIDEBAR } from '@/lib/classroom-sidebar'
 
 export type ClassroomNavItemId =
@@ -79,6 +80,7 @@ const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 type SidebarAssignment = {
   id: string
   title: string
+  hasViewed?: boolean // For students: whether they've opened this assignment
 }
 
 function Nav({
@@ -94,6 +96,9 @@ function Nav({
   activeAssignmentId,
   onSelectAssignment,
   onReorderAssignments,
+  showTodayPulse,
+  showAssignmentsPulse,
+  onMarkAssignmentViewed,
 }: {
   classroomId: string
   activeTab: string
@@ -107,6 +112,9 @@ function Nav({
   onSelectAssignment?: (assignmentId: string | null) => void
   onReorderAssignments?: (orderedIds: string[]) => void
   isReadOnly?: boolean
+  showTodayPulse?: boolean
+  showAssignmentsPulse?: boolean
+  onMarkAssignmentViewed?: (assignmentId: string) => void
 }) {
   const router = useRouter()
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -146,7 +154,13 @@ function Nav({
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                   ].join(' ')}
                 >
-                  <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                  <Icon
+                    className={[
+                      'h-5 w-5 flex-shrink-0',
+                      showAssignmentsPulse && 'animate-notification-pulse motion-reduce:animate-none',
+                    ].filter(Boolean).join(' ')}
+                    aria-hidden="true"
+                  />
                   {!isCollapsed && <span className="truncate">{item.label}</span>}
                   {isCollapsed && <span className="sr-only">{item.label}</span>}
                 </Link>
@@ -156,12 +170,16 @@ function Nav({
                 <div className="pl-10 pr-3 space-y-1">
                   {assignments.map((assignment) => {
                     const isAssignmentActive = activeTab === 'assignments' && activeAssignmentId === assignment.id
+                    const isUnviewed = assignment.hasViewed === false
 
                     return (
                       <button
                         key={assignment.id}
                         type="button"
                         onClick={() => {
+                          if (!assignment.hasViewed) {
+                            onMarkAssignmentViewed?.(assignment.id)
+                          }
                           onSelectAssignment?.(assignment.id)
                           onNavigate?.()
                         }}
@@ -169,7 +187,9 @@ function Nav({
                           'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
                           isAssignmentActive
                             ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                            : isUnviewed
+                              ? 'text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                         ].join(' ')}
                         title={assignment.title}
                       >
@@ -285,6 +305,10 @@ function Nav({
           )
         }
 
+        const shouldPulse =
+          (item.id === 'today' && showTodayPulse) ||
+          (item.id === 'assignments' && showAssignmentsPulse)
+
         return (
           <Link
             key={item.id}
@@ -302,7 +326,13 @@ function Nav({
                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
             ].join(' ')}
           >
-            <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+            <Icon
+              className={[
+                'h-5 w-5 flex-shrink-0',
+                shouldPulse && 'animate-notification-pulse motion-reduce:animate-none',
+              ].filter(Boolean).join(' ')}
+              aria-hidden="true"
+            />
             {!isCollapsed && <span className="truncate">{item.label}</span>}
             {isCollapsed && <span className="sr-only">{item.label}</span>}
           </Link>
@@ -332,6 +362,12 @@ export function ClassroomSidebar({
   const assignmentIdParam = searchParams.get('assignmentId')
   const { isCollapsed, toggleCollapsed, expandedWidth, setExpandedWidth, setCollapsed } =
     useClassroomSidebar()
+  const notifications = useStudentNotifications()
+
+  // Compute pulse states for student tabs
+  const showTodayPulse = role === 'student' && !notifications?.loading && !notifications?.hasTodayEntry
+  const showAssignmentsPulse = role === 'student' && !notifications?.loading && (notifications?.unviewedAssignmentsCount ?? 0) > 0
+
   const firstLinkRef = useRef<HTMLAnchorElement | null>(null)
   const asideRef = useRef<HTMLElement | null>(null)
   const resizeStartXRef = useRef(0)
@@ -344,6 +380,13 @@ export function ClassroomSidebar({
   const [assignmentsExpanded, setAssignmentsExpanded] = useState(true)
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null)
   const [isReorderingAssignments, setIsReorderingAssignments] = useState(false)
+
+  // Mark an assignment as viewed (optimistic update for students)
+  const markAssignmentViewed = useCallback((assignmentId: string) => {
+    setAssignments((prev) =>
+      prev.map((a) => (a.id === assignmentId ? { ...a, hasViewed: true } : a))
+    )
+  }, [])
 
   useEffect(() => {
     if (role !== 'teacher') return
@@ -404,7 +447,11 @@ export function ClassroomSidebar({
       try {
         const response = await fetch(`/api/student/assignments?classroom_id=${classroomId}`)
         const data = await response.json()
-        setAssignments((data.assignments || []).map((a: any) => ({ id: a.id, title: a.title })))
+        setAssignments((data.assignments || []).map((a: any) => ({
+          id: a.id,
+          title: a.title,
+          hasViewed: a.doc?.viewed_at !== null && a.doc?.viewed_at !== undefined,
+        })))
       } catch {
         setAssignments([])
       }
@@ -535,6 +582,9 @@ export function ClassroomSidebar({
               if (role !== 'teacher' || isReorderingAssignments || isReadOnly) return
               reorderAssignments(orderedIds)
             }}
+            showTodayPulse={showTodayPulse}
+            showAssignmentsPulse={showAssignmentsPulse}
+            onMarkAssignmentViewed={markAssignmentViewed}
           />
 
           <div className="flex-1" />
@@ -743,7 +793,13 @@ export function ClassroomSidebar({
                             : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                         ].join(' ')}
                       >
-                        <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                        <Icon
+                          className={[
+                            'h-5 w-5 flex-shrink-0',
+                            showAssignmentsPulse && 'animate-notification-pulse motion-reduce:animate-none',
+                          ].filter(Boolean).join(' ')}
+                          aria-hidden="true"
+                        />
                         <span className="truncate">{item.label}</span>
                       </Link>
 
@@ -751,11 +807,15 @@ export function ClassroomSidebar({
                         <div className="pl-11 pr-3 space-y-1">
                           {assignments.map((assignment) => {
                             const isAssignmentActive = activeTab === 'assignments' && activeAssignmentId === assignment.id
+                            const isUnviewed = assignment.hasViewed === false
                             return (
                               <button
                                 key={assignment.id}
                                 type="button"
                                 onClick={() => {
+                                  if (!assignment.hasViewed) {
+                                    markAssignmentViewed(assignment.id)
+                                  }
                                   setStudentAssignmentsSelection(assignment.id)
                                   onCloseMobile()
                                 }}
@@ -763,7 +823,9 @@ export function ClassroomSidebar({
                                   'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
                                   isAssignmentActive
                                     ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                                    : isUnviewed
+                                      ? 'text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                                 ].join(' ')}
                                 title={assignment.title}
                               >
@@ -776,6 +838,10 @@ export function ClassroomSidebar({
                     </div>
                   )
                 }
+
+                const mobileItemPulse =
+                  (item.id === 'today' && showTodayPulse) ||
+                  (item.id === 'assignments' && showAssignmentsPulse)
 
                 return (
                   <Link
@@ -791,7 +857,13 @@ export function ClassroomSidebar({
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                     ].join(' ')}
                   >
-                    <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                    <Icon
+                      className={[
+                        'h-5 w-5 flex-shrink-0',
+                        mobileItemPulse && 'animate-notification-pulse motion-reduce:animate-none',
+                      ].filter(Boolean).join(' ')}
+                      aria-hidden="true"
+                    />
                     <span className="truncate">{item.label}</span>
                   </Link>
                 )

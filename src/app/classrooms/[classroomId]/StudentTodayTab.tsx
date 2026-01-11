@@ -20,6 +20,7 @@ import {
   getStudentEntryHistoryCacheKey,
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
+import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import type { Classroom, ClassDay, Entry, JsonPatchOperation, TiptapContent } from '@/types'
@@ -56,6 +57,8 @@ function validateContent(content: TiptapContent, maxChars: number) {
 }
 
 export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
+  const notifications = useStudentNotifications()
+
   // Constants
   const historyLimit = 5
   const historyCookieName = 'pika_student_today_history'
@@ -261,12 +264,13 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
       setSaveStatus('saved')
       setSaveError('')
       setConflictEntry(null)
+      notifications?.markTodayComplete()
     } catch (err: any) {
       console.error('Error saving:', err)
       setSaveStatus('unsaved')
       setSaveError(err.message || 'Failed to save')
     }
-  }, [MAX_CHARS, classroom.id, today, updateHistoryEntries])
+  }, [MAX_CHARS, classroom.id, today, updateHistoryEntries, notifications])
 
   const scheduleSave = useCallback((
     newContent: TiptapContent,
