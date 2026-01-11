@@ -7,6 +7,8 @@ import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { AlertDialog } from '@/components/AlertDialog'
+import { useAlertDialog } from '@/hooks/useAlertDialog'
+import { useDeleteClassroom } from '@/hooks/useDeleteClassroom'
 import type { ClassDay, Classroom } from '@/types'
 import {
   format,
@@ -28,13 +30,6 @@ export default function CalendarPage() {
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [generating, setGenerating] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-  const [alertDialog, setAlertDialog] = useState<{
-    isOpen: boolean
-    title: string
-    description?: string
-    variant?: 'default' | 'success' | 'error'
-  }>({ isOpen: false, title: '' })
 
   // Wizard state
   const [wizardMode, setWizardMode] = useState<WizardMode>('preset')
@@ -46,6 +41,24 @@ export default function CalendarPage() {
   const [startYear, setStartYear] = useState(currentYear)
   const [endMonth, setEndMonth] = useState(1) // January
   const [endYear, setEndYear] = useState(currentYear + 1)
+
+  const { alertState, showError, showSuccess, closeAlert } = useAlertDialog()
+
+  const handleDeleteSuccess = useCallback((deletedId: string) => {
+    const updatedClassrooms = classrooms.filter(c => c.id !== deletedId)
+    setClassrooms(updatedClassrooms)
+    setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
+    showSuccess('Deleted', 'Classroom deleted successfully')
+  }, [classrooms, showSuccess])
+
+  const handleDeleteError = useCallback((message: string) => {
+    showError('Error', message)
+  }, [showError])
+
+  const { requestDelete, confirmDialogProps } = useDeleteClassroom({
+    onSuccess: handleDeleteSuccess,
+    onError: handleDeleteError,
+  })
 
   // Helper function to calculate semester years based on current date
   function getSemesterYears() {
@@ -169,11 +182,11 @@ export default function CalendarPage() {
         await loadClassDays()
       } else {
         const data = await response.json()
-        setAlertDialog({ isOpen: true, title: 'Error', description: data.error || 'Failed to generate calendar', variant: 'error' })
+        showError('Error', data.error || 'Failed to generate calendar')
       }
     } catch (err) {
       console.error('Error generating calendar:', err)
-      setAlertDialog({ isOpen: true, title: 'Error', description: 'An error occurred', variant: 'error' })
+      showError('Error', 'An error occurred')
     } finally {
       setGenerating(false)
     }
@@ -207,36 +220,7 @@ export default function CalendarPage() {
 
   function handleDeleteClassroom() {
     if (!selectedClassroom) return
-    setDeleteConfirmOpen(true)
-  }
-
-  async function confirmDeleteClassroom() {
-    if (!selectedClassroom) return
-    setDeleteConfirmOpen(false)
-
-    try {
-      const response = await fetch(`/api/teacher/classrooms/${selectedClassroom.id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        setAlertDialog({ isOpen: true, title: 'Error', description: data.error || 'Failed to delete classroom', variant: 'error' })
-        return
-      }
-
-      // Remove from list
-      const updatedClassrooms = classrooms.filter(c => c.id !== selectedClassroom.id)
-      setClassrooms(updatedClassrooms)
-
-      // Select first remaining classroom or null
-      setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
-
-      setAlertDialog({ isOpen: true, title: 'Deleted', description: 'Classroom deleted successfully', variant: 'success' })
-    } catch (err) {
-      console.error('Error deleting classroom:', err)
-      setAlertDialog({ isOpen: true, title: 'Error', description: 'An error occurred while deleting the classroom', variant: 'error' })
-    }
+    requestDelete(selectedClassroom)
   }
 
   function renderWizard() {
@@ -556,8 +540,7 @@ export default function CalendarPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    setSelectedClassroom(classroom)
-                    handleDeleteClassroom()
+                    requestDelete(classroom)
                   }}
                   className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
                   title="Delete classroom"
@@ -626,24 +609,9 @@ export default function CalendarPage() {
         onSuccess={handleClassroomCreated}
       />
 
-      <ConfirmDialog
-        isOpen={deleteConfirmOpen}
-        title="Delete Classroom"
-        description={selectedClassroom ? `Are you sure you want to delete "${selectedClassroom.title}"?\n\nThis will permanently delete:\n- The classroom\n- All student enrollments\n- All class days and calendar\n- All student entries\n\nThis action cannot be undone.` : ''}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        confirmVariant="danger"
-        onConfirm={confirmDeleteClassroom}
-        onCancel={() => setDeleteConfirmOpen(false)}
-      />
+      <ConfirmDialog {...confirmDialogProps} />
 
-      <AlertDialog
-        isOpen={alertDialog.isOpen}
-        title={alertDialog.title}
-        description={alertDialog.description}
-        variant={alertDialog.variant}
-        onClose={() => setAlertDialog({ isOpen: false, title: '' })}
-      />
+      <AlertDialog {...alertState} onClose={closeAlert} />
     </div>
   )
 }

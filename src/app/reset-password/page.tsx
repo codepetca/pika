@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { AlertDialog } from '@/components/AlertDialog'
+import { useAlertDialog } from '@/hooks/useAlertDialog'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -18,12 +19,8 @@ function ResetPasswordForm() {
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [alertDialog, setAlertDialog] = useState<{
-    isOpen: boolean
-    title: string
-    description?: string
-    variant?: 'default' | 'success' | 'error'
-  }>({ isOpen: false, title: '' })
+
+  const { alertState, showSuccess, showError, closeAlert } = useAlertDialog()
 
   async function handleVerifyCode(e: FormEvent) {
     e.preventDefault()
@@ -85,9 +82,9 @@ function ResetPasswordForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      setAlertDialog({ isOpen: true, title: 'Code Sent', description: 'New reset code sent!', variant: 'success' })
+      showSuccess('Code Sent', 'New reset code sent!')
     } catch (err) {
-      setAlertDialog({ isOpen: true, title: 'Error', description: 'Failed to resend code', variant: 'error' })
+      showError('Error', 'Failed to resend code')
     }
   }
 
@@ -153,13 +150,7 @@ function ResetPasswordForm() {
           </div>
         </div>
 
-        <AlertDialog
-          isOpen={alertDialog.isOpen}
-          title={alertDialog.title}
-          description={alertDialog.description}
-          variant={alertDialog.variant}
-          onClose={() => setAlertDialog({ isOpen: false, title: '' })}
-        />
+        <AlertDialog {...alertState} onClose={closeAlert} />
       </>
     )
   }
@@ -216,13 +207,7 @@ function ResetPasswordForm() {
         </div>
       </div>
 
-      <AlertDialog
-        isOpen={alertDialog.isOpen}
-        title={alertDialog.title}
-        description={alertDialog.description}
-        variant={alertDialog.variant}
-        onClose={() => setAlertDialog({ isOpen: false, title: '' })}
-      />
+      <AlertDialog {...alertState} onClose={closeAlert} />
     </>
   )
 }
