@@ -108,11 +108,8 @@ export function NavItems({
   const [assignments, setAssignments] = useState<SidebarAssignment[]>([])
   const [assignmentsExpanded, setAssignmentsExpanded] = useState(true)
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null)
-  const [isReorderingAssignments, setIsReorderingAssignments] = useState(false)
-  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   const items = useMemo(() => getItems(role), [role])
-  const canReorderAssignments = !!role && role === 'teacher' && !isReadOnly
 
   // Mark an assignment as viewed (optimistic update for students)
   const markAssignmentViewed = useCallback((assignmentId: string) => {
@@ -246,25 +243,6 @@ export function NavItems({
 
     setActiveAssignmentId(assignmentId)
     router.push(`/classrooms/${classroomId}?${params.toString()}`)
-  }
-
-  async function reorderAssignments(orderedIds: string[]) {
-    if (role !== 'teacher') return
-    if (isReadOnly) return
-    setAssignments((prev) => {
-      const byId = new Map(prev.map((a) => [a.id, a]))
-      return orderedIds.map((id) => byId.get(id)).filter(Boolean) as SidebarAssignment[]
-    })
-    setIsReorderingAssignments(true)
-    try {
-      await fetch('/api/teacher/assignments/reorder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classroom_id: classroomId, assignment_ids: orderedIds }),
-      })
-    } finally {
-      setIsReorderingAssignments(false)
-    }
   }
 
   function onNavigate() {
@@ -410,36 +388,6 @@ export function NavItems({
                       <button
                         key={assignment.id}
                         type="button"
-                        draggable={canReorderAssignments}
-                        onDragStart={(e) => {
-                          if (!canReorderAssignments) return
-                          e.dataTransfer.effectAllowed = 'move'
-                          setDraggingId(assignment.id)
-                        }}
-                        onDragEnd={() => setDraggingId(null)}
-                        onDragOver={(e) => {
-                          if (canReorderAssignments) e.preventDefault()
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault()
-                          if (
-                            !draggingId ||
-                            draggingId === assignment.id ||
-                            !canReorderAssignments
-                          )
-                            return
-                          const ids = assignments.map((a) => a.id)
-                          const from = ids.indexOf(draggingId)
-                          const to = ids.indexOf(assignment.id)
-                          if (from === -1 || to === -1) return
-                          const next = [...ids]
-                          next.splice(from, 1)
-                          next.splice(to, 0, draggingId)
-                          if (!isReorderingAssignments) {
-                            reorderAssignments(next)
-                          }
-                          setDraggingId(null)
-                        }}
                         onClick={() => {
                           setAssignmentsSelectionCookie(assignment.id)
                           router.push(tabHref(classroomId, 'assignments'))
@@ -450,7 +398,6 @@ export function NavItems({
                           isAssignmentActive
                             ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                             : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
-                          draggingId === assignment.id ? 'opacity-60' : '',
                         ].join(' ')}
                         title={assignment.title}
                       >

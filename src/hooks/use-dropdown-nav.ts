@@ -22,7 +22,7 @@ interface UseDropdownNavReturn {
   handleMouseEnter: () => void
   handleMouseLeave: () => void
   itemRefs: React.MutableRefObject<(HTMLElement | null)[]>
-  containerRef: React.RefObject<HTMLDivElement | null>
+  containerRef: React.RefObject<HTMLDivElement>
 }
 
 /**
