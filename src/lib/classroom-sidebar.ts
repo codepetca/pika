@@ -1,6 +1,6 @@
 export const CLASSROOM_SIDEBAR = {
   width: {
-    default: 240,
+    default: 260,
     min: 96,
     max: 360,
   },

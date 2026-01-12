@@ -129,8 +129,8 @@ function Nav({
         const href = tabHref(classroomId, item.id)
 
         const layoutClass = isCollapsed
-          ? 'justify-center w-10 h-10 mx-auto'
-          : 'gap-3 px-3 py-2'
+          ? 'justify-center w-12 h-12 mx-auto'
+          : 'gap-3 px-3 h-12'
 
         if (role === 'student' && item.id === 'assignments') {
           const canShowNested = !isCollapsed
@@ -147,7 +147,7 @@ function Nav({
                   aria-current={isActive ? 'page' : undefined}
                   title={isCollapsed ? item.label : undefined}
                   className={[
-                    'group flex flex-1 items-center rounded-md text-sm font-medium transition-colors',
+                    'group flex flex-1 items-center rounded-md text-base font-medium transition-colors',
                     layoutClass,
                     isActive
                       ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
@@ -156,7 +156,7 @@ function Nav({
                 >
                   <Icon
                     className={[
-                      'h-5 w-5 flex-shrink-0',
+                      'h-6 w-6 flex-shrink-0',
                       showAssignmentsPulse && 'animate-notification-pulse motion-reduce:animate-none',
                     ].filter(Boolean).join(' ')}
                     aria-hidden="true"
@@ -220,14 +220,14 @@ function Nav({
                 aria-expanded={canShowNested ? isExpanded : undefined}
                 title={isCollapsed ? item.label : undefined}
                 className={[
-                  'group flex items-center rounded-md text-sm font-medium transition-colors',
+                  'group flex items-center rounded-md text-base font-medium transition-colors',
                   layoutClass,
                   isActive
                     ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                 ].join(' ')}
               >
-                <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                <Icon className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
                 {!isCollapsed && (
                   <>
                     <span className="truncate">{item.label}</span>
@@ -313,7 +313,7 @@ function Nav({
             aria-current={isActive ? 'page' : undefined}
             title={isCollapsed ? item.label : undefined}
             className={[
-              'group flex items-center rounded-md text-sm font-medium transition-colors',
+              'group flex items-center rounded-md text-base font-medium transition-colors',
               layoutClass,
               isActive
                 ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
@@ -322,7 +322,7 @@ function Nav({
           >
             <Icon
               className={[
-                'h-5 w-5 flex-shrink-0',
+                'h-6 w-6 flex-shrink-0',
                 shouldPulse && 'animate-notification-pulse motion-reduce:animate-none',
               ].filter(Boolean).join(' ')}
               aria-hidden="true"
@@ -552,7 +552,7 @@ export function ClassroomSidebar({
           width: isCollapsed ? CLASSROOM_SIDEBAR.collapsedWidth : expandedWidth,
         }}
       >
-        <div className={['flex w-full flex-col', isCollapsed ? 'p-1' : 'p-3'].join(' ')}>
+        <div className={['flex w-full flex-col', isCollapsed ? 'py-3 px-1' : 'p-3'].join(' ')}>
           <Nav
             classroomId={classroomId}
             activeTab={activeTab}
@@ -591,13 +591,13 @@ export function ClassroomSidebar({
             className={[
               'mt-3 flex items-center rounded-md text-sm font-medium',
               'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
-              isCollapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2',
+              isCollapsed ? 'justify-center w-12 h-12 mx-auto' : 'gap-3 px-3 h-12',
             ].join(' ')}
           >
             {isCollapsed ? (
-              <ChevronRight className="h-5 w-5" aria-hidden="true" />
+              <ChevronRight className="h-6 w-6" aria-hidden="true" />
             ) : (
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+              <ChevronLeft className="h-6 w-6" aria-hidden="true" />
             )}
             <span className="sr-only">{isCollapsed ? 'Expand' : 'Minimize'}</span>
           </button>
@@ -679,7 +679,7 @@ export function ClassroomSidebar({
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                <Menu className="h-5 w-5 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                <Menu className="h-6 w-6 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                 <span>Navigation</span>
               </div>
               <button
@@ -688,7 +688,7 @@ export function ClassroomSidebar({
                 className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                 aria-label="Close"
               >
-                <X className="h-5 w-5" aria-hidden="true" />
+                <X className="h-6 w-6" aria-hidden="true" />
               </button>
             </div>
 
@@ -720,7 +720,7 @@ export function ClassroomSidebar({
                             : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                         ].join(' ')}
                       >
-                        <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                        <Icon className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
                         <span className="truncate">{item.label}</span>
                         <ChevronDown
                           className={[
@@ -782,7 +782,7 @@ export function ClassroomSidebar({
                       >
                         <Icon
                           className={[
-                            'h-5 w-5 flex-shrink-0',
+                            'h-6 w-6 flex-shrink-0',
                             showAssignmentsPulse && 'animate-notification-pulse motion-reduce:animate-none',
                           ].filter(Boolean).join(' ')}
                           aria-hidden="true"
@@ -846,7 +846,7 @@ export function ClassroomSidebar({
                   >
                     <Icon
                       className={[
-                        'h-5 w-5 flex-shrink-0',
+                        'h-6 w-6 flex-shrink-0',
                         mobileItemPulse && 'animate-notification-pulse motion-reduce:animate-none',
                       ].filter(Boolean).join(' ')}
                       aria-hidden="true"
