@@ -11,6 +11,7 @@ interface ClassroomDropdownProps {
   }>
   currentClassroomId?: string
   currentTab?: string
+  className?: string
 }
 
 /**
@@ -22,6 +23,7 @@ export function ClassroomDropdown({
   classrooms,
   currentClassroomId,
   currentTab,
+  className = '',
 }: ClassroomDropdownProps) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
@@ -141,7 +143,7 @@ export function ClassroomDropdown({
   // If only one classroom, show as plain text
   if (classrooms.length === 1) {
     return (
-      <div className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate max-w-xs">
+      <div className={`text-xl font-bold text-gray-900 dark:text-gray-100 truncate max-w-xs ${className}`}>
         {classrooms[0].title}
       </div>
     )
@@ -150,7 +152,7 @@ export function ClassroomDropdown({
   return (
     <div
       ref={containerRef}
-      className="relative"
+      className={`relative ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
