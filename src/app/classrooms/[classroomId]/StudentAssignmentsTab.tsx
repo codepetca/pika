@@ -13,6 +13,7 @@ import {
 } from '@/lib/assignments'
 import type { AssignmentWithStatus, Classroom } from '@/types'
 import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
+import { RichTextViewer } from '@/components/editor'
 
 interface Props {
   classroom: Classroom
@@ -229,7 +230,9 @@ export function StudentAssignmentsTab({ classroom }: Props) {
               </button>
             </div>
             <div className="mt-4">
-              {selectedAssignment.description ? (
+              {selectedAssignment.rich_instructions ? (
+                <RichTextViewer content={selectedAssignment.rich_instructions} />
+              ) : selectedAssignment.description ? (
                 <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                   {selectedAssignment.description}
                 </div>

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { extractPlainText } from '@/lib/tiptap-content'
+import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -116,7 +118,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireRole('teacher')
     const body = await request.json()
-    const { classroom_id, title, description, due_at } = body
+    const { classroom_id, title, rich_instructions, due_at } = body
 
     // Validate required fields
     if (!classroom_id) {
@@ -160,10 +162,12 @@ export async function POST(request: NextRequest) {
     const nextPosition =
       typeof lastAssignmentResult.data?.position === 'number' ? lastAssignmentResult.data.position + 1 : 0
 
+    const instructions: TiptapContent = rich_instructions ?? { type: 'doc', content: [] }
     const insertBody: Record<string, any> = {
       classroom_id,
       title: title.trim(),
-      description: description || '',
+      rich_instructions: instructions,
+      description: extractPlainText(instructions),  // Keep plain text for backwards compatibility
       due_at,
       created_by: user.id,
     }

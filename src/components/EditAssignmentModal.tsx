@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import type { Assignment } from '@/types'
+import type { Assignment, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso } from '@/lib/timezone'
 import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
+
+const EMPTY_INSTRUCTIONS: TiptapContent = { type: 'doc', content: [] }
 
 interface EditAssignmentModalProps {
   isOpen: boolean
@@ -15,10 +17,10 @@ interface EditAssignmentModalProps {
 }
 
 export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: EditAssignmentModalProps) {
-  const initialValuesRef = useRef<{ title: string; description: string; dueAt: string } | null>(null)
+  const initialValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
+  const [instructions, setInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
   const [saving, setSaving] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const { dueAt, error, updateDueDate, moveDueDate, setDueAt, setError } = useAssignmentDateValidation(
@@ -28,11 +30,11 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
   useEffect(() => {
     if (!isOpen || !assignment) return
     const nextTitle = assignment.title
-    const nextDescription = assignment.description ?? ''
+    const nextInstructions = assignment.rich_instructions ?? EMPTY_INSTRUCTIONS
     const nextDueAt = formatDateInToronto(new Date(assignment.due_at))
-    initialValuesRef.current = { title: nextTitle, description: nextDescription, dueAt: nextDueAt }
+    initialValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt }
     setTitle(nextTitle)
-    setDescription(nextDescription)
+    setInstructions(nextInstructions)
     setDueAt(nextDueAt)
     setError('')
     setShowCancelConfirm(false)
@@ -56,7 +58,7 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title,
-          description,
+          rich_instructions: instructions,
           due_at: toTorontoEndOfDayIso(dueAt),
         }),
       })
@@ -81,7 +83,11 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
   function hasChanges() {
     const initial = initialValuesRef.current
     if (!initial) return false
-    return title !== initial.title || description !== initial.description || dueAt !== initial.dueAt
+    return (
+      title !== initial.title ||
+      JSON.stringify(instructions) !== JSON.stringify(initial.instructions) ||
+      dueAt !== initial.dueAt
+    )
   }
 
   function handleCancel() {
@@ -124,10 +130,10 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
 
         <AssignmentForm
           title={title}
-          description={description}
+          instructions={instructions}
           dueAt={dueAt}
           onTitleChange={setTitle}
-          onDescriptionChange={setDescription}
+          onInstructionsChange={setInstructions}
           onDueAtChange={updateDueDate}
           onPrevDate={() => moveDueDate(-1)}
           onNextDate={() => moveDueDate(1)}

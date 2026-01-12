@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Eye, EyeOff } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
-import { RichTextEditor } from '@/components/editor'
+import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   formatDueDate,
@@ -456,10 +456,14 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   const editorContent = (
     <div className="flex flex-col gap-6 h-full min-h-0">
-      {/* Description */}
-      {!isEmbedded && assignment.description && (
+      {/* Instructions */}
+      {!isEmbedded && (assignment.rich_instructions || assignment.description) && (
         <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{assignment.description}</p>
+          {assignment.rich_instructions ? (
+            <RichTextViewer content={assignment.rich_instructions} />
+          ) : (
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{assignment.description}</p>
+          )}
         </div>
       )}
 
