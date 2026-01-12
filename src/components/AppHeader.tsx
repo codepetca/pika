@@ -67,7 +67,7 @@ export function AppHeader({
       {/* Classroom Selector (teachers with multiple classrooms, or when explicitly provided) */}
       {classrooms && classrooms.length > 0 && (
         <ClassroomDropdown
-          className="ml-2"
+          className="ml-4"
           classrooms={classrooms}
           currentClassroomId={currentClassroomId}
           currentTab={currentTab}
