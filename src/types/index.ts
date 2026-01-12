@@ -36,6 +36,8 @@ export interface Session {
   created_at: string
 }
 
+export type FuturePlansVisibility = 'current' | 'next' | 'all'
+
 export interface Classroom {
   id: string
   teacher_id: string
@@ -45,6 +47,7 @@ export interface Classroom {
   allow_enrollment: boolean
   start_date: string | null // YYYY-MM-DD, inclusive
   end_date: string | null // YYYY-MM-DD, inclusive
+  future_plans_visibility: FuturePlansVisibility
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -200,4 +203,14 @@ export interface AssignmentStats {
   total_students: number
   submitted: number
   late: number
+}
+
+// Daily Plans (Weekly Plan tab)
+export interface DailyPlan {
+  id: string
+  classroom_id: string
+  date: string // YYYY-MM-DD
+  rich_content: TiptapContent
+  created_at: string
+  updated_at: string
 }

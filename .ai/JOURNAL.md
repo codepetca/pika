@@ -2313,3 +2313,50 @@
 **Next:** Future work to add markdown conversion utilities for AI integrations (read/write markdown for AI, store as TiptapContent).
 **Blockers:** None
 **Decision:** Keep TiptapContent JSON as storage format rather than markdown. Markdown paste already works via @tiptap/markdown extension. AI conversion layer to be added later when building AI features.
+
+---
+
+## 2026-01-12: Issue #136 — Weekly Plan Tab for Daily Lesson Plans (Opus 4.5)
+
+**Issue:** https://github.com/codepetca/pika/issues/136
+**Branch:** issue/136-feat-add-weekly-plan-tab-for-daily-lesso
+**Worktree:** /Users/stew/Repos/.worktrees/pika/issue/136-feat-add-weekly-plan-tab-for-daily-lesso
+
+### Summary
+Added a "Weekly Plan" tab to classrooms where teachers can create/edit daily lesson plans with rich text (Tiptap), and students can view them read-only.
+
+### Files Created
+- `supabase/migrations/022_daily_plans.sql` — Creates `daily_plans` table and adds `future_plans_visibility` column to `classrooms`
+- `src/lib/week-utils.ts` — Week calculation utilities (getWeekStartForDate, getWeekDays, canStudentViewWeek, etc.)
+- `src/lib/server/daily-plans.ts` — Server-side data access functions with visibility filtering
+- `src/app/api/classrooms/[classroomId]/daily-plans/route.ts` — API route for GET (fetch week plans) and PATCH (upsert plan, update visibility)
+- `src/components/WeekActionBar.tsx` — Week navigation bar with prev/next/today buttons and visibility dropdown
+- `src/components/DayPlanCard.tsx` — Single day card with Tiptap editor (teacher) or RichTextViewer (student)
+- `src/app/classrooms/[classroomId]/TeacherWeeklyPlanTab.tsx` — Teacher tab with Mon-Fri grid, autosave (5s debounce, 15s throttle)
+- `src/app/classrooms/[classroomId]/StudentWeeklyPlanTab.tsx` — Student tab with read-only Mon-Fri grid, navigation limits based on visibility
+- `tests/lib/week-utils.test.ts` — 30 tests for week calculation and visibility logic
+- `tests/api/classrooms/daily-plans.test.ts` — 10 tests for API route
+
+### Files Modified
+- `src/types/index.ts` — Added `DailyPlan`, `FuturePlansVisibility` types; updated `Classroom` interface
+- `src/components/ClassroomSidebar.tsx` — Added `plan` nav item for both teachers and students
+- `src/app/classrooms/[classroomId]/page.tsx` — Added routing for `plan` tab
+
+### Key Features
+- **Week-focused view**: Mon-Fri layout with week navigation
+- **Visibility control**: Teachers can set `current`, `next`, or `all` to control how far ahead students can see
+- **Autosave**: 5-second debounce, 15-second throttle (same pattern as StudentTodayTab)
+- **Rich text**: Full Tiptap editor support for lesson plans
+- **Toronto timezone**: Week calculations use America/Toronto timezone
+
+### Tests
+- All 40 new tests passing
+- TypeScript type check passing
+- ESLint passing (no warnings)
+- Build passing
+
+### Next Steps
+- Apply migration to staging: `supabase db push`
+- Create Draft PR
+
+**Blockers:** None

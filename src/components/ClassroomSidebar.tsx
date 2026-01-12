@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, 
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Menu,
+  CalendarDays,
   ClipboardList,
   Settings,
   FileText,
@@ -28,6 +29,7 @@ export type ClassroomNavItemId =
   | 'roster'
   | 'settings'
   | 'today'
+  | 'plan'
 
 type NavItem = {
   id: ClassroomNavItemId
@@ -38,6 +40,7 @@ type NavItem = {
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: Table },
   { id: 'logs', label: 'Logs', icon: FileText },
+  { id: 'plan', label: 'Weekly Plan', icon: CalendarDays },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -45,6 +48,7 @@ const teacherItems: NavItem[] = [
 
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
+  { id: 'plan', label: 'Weekly Plan', icon: CalendarDays },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
 ]
 

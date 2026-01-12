@@ -8,8 +8,10 @@ import { Spinner } from '@/components/Spinner'
 import { TeacherClassroomView } from './TeacherClassroomView'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
+import { StudentWeeklyPlanTab } from './StudentWeeklyPlanTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherLogsTab } from './TeacherLogsTab'
+import { TeacherWeeklyPlanTab } from './TeacherWeeklyPlanTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
@@ -127,8 +129,8 @@ export default function ClassroomPage() {
 
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
-    ? (['attendance', 'logs', 'assignments', 'roster', 'settings'] as const)
-    : (['today', 'assignments'] as const)
+    ? (['attendance', 'logs', 'plan', 'assignments', 'roster', 'settings'] as const)
+    : (['today', 'plan', 'assignments'] as const)
 
   const activeTab = validTabs.includes(tab as any) ? (tab as string) : defaultTab
 
@@ -173,6 +175,9 @@ export default function ClassroomPage() {
               {activeTab === 'logs' && (
                 <TeacherLogsTab classroom={classroom} />
               )}
+              {activeTab === 'plan' && (
+                <TeacherWeeklyPlanTab classroom={classroom} />
+              )}
               {activeTab === 'assignments' && (
                 <TeacherClassroomView classroom={classroom} />
               )}
@@ -200,6 +205,7 @@ export default function ClassroomPage() {
             <div className="flex-1 min-w-0 min-h-0 px-4 py-3">
               <div className="max-w-7xl mx-auto h-full flex flex-col min-h-0">
                 {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
+                {activeTab === 'plan' && <StudentWeeklyPlanTab classroom={classroom} />}
                 {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
               </div>
             </div>
