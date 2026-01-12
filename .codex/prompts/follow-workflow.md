@@ -2,8 +2,11 @@ STOP and re-read the workflow docs before continuing.
 
 You may have drifted from the required workflow. Follow these steps:
 
-1) Read `$PIKA_WORKTREE/.ai/START-HERE.md` (or `$HOME/Repos/pika/.ai/START-HERE.md` if in hub)
-2) Read `$PIKA_WORKTREE/docs/dev-workflow.md`
+1) Check environment first: `echo $PIKA_WORKTREE`
+2) Read the workflow docs:
+   - Read `$PIKA_WORKTREE/.ai/START-HERE.md`
+   - Read `$PIKA_WORKTREE/docs/dev-workflow.md`
+   (If $PIKA_WORKTREE is unset, use `$HOME/Repos/pika`)
 
 Key rules to remember:
 
