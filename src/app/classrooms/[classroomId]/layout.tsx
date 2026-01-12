@@ -1,24 +1,18 @@
 import { cookies } from 'next/headers'
-import { ClassroomSidebarProvider } from '@/components/ClassroomSidebarProvider'
-import { parseClassroomSidebarWidthCookie } from '@/lib/classroom-sidebar'
+import { LayoutInitialStateProvider } from '@/components/layout'
+import { parseLeftSidebarCookie, COOKIE_NAMES } from '@/lib/layout-config'
 
 export default function ClassroomLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const sidebarCookie = cookies().get('pika_sidebar')?.value
-  const initialCollapsed = sidebarCookie === 'collapsed'
-  const initialWidth = parseClassroomSidebarWidthCookie(
-    cookies().get('pika_sidebar_w')?.value
-  )
+  const leftSidebarCookie = cookies().get(COOKIE_NAMES.leftSidebar)?.value
+  const leftSidebarExpanded = parseLeftSidebarCookie(leftSidebarCookie)
 
   return (
-    <ClassroomSidebarProvider
-      initialCollapsed={initialCollapsed}
-      initialExpandedWidth={initialWidth}
-    >
+    <LayoutInitialStateProvider leftSidebarExpanded={leftSidebarExpanded}>
       {children}
-    </ClassroomSidebarProvider>
+    </LayoutInitialStateProvider>
   )
 }
