@@ -243,6 +243,7 @@ export function RichTextEditor({
       Underline,
       Placeholder.configure({
         placeholder,
+        includeChildren: true,  // Check child nodes for content (fixes placeholder showing after paste)
       }),
       Markdown,  // Enables markdown parsing for setContent/getMarkdown
     ],
