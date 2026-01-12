@@ -33,7 +33,7 @@ Steps:
    - Otherwise, push with `git -C "$PIKA_WORKTREE" push`.
 
 5) Create or update PR
-   - Check if PR exists: `gh pr view --repo codepetca/pika --json url` (from the worktree branch)
+   - Check if PR exists: `gh pr view --json url` (auto-detects repo from branch)
    - If PR exists: just show the PR URL (push already updated it).
    - If no PR exists: create one with `gh pr create`.
      - Title: derive from commit message or branch name.

@@ -3,6 +3,8 @@ Merge `main` into `production` via a PR branch.
 
 This is a **hub-level operation** — it must run from the hub repo, not a worktree.
 
+Note: Hub path is assumed to be `$HOME/Repos/pika`.
+
 Rules:
 - Run all commands directly (do not output copy-pasteable commands).
 - ALL git commands MUST use: `git -C "$HOME/Repos/pika"`
