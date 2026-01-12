@@ -88,14 +88,11 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
               'hover:bg-gray-100 dark:hover:bg-gray-800',
               'hover:text-gray-900 dark:hover:text-gray-100',
               'transition-colors',
-              isExpanded ? 'gap-2 px-2 py-2 w-full' : 'justify-center w-11 h-10 mx-auto',
+              'justify-center w-11 h-10 mx-auto',
             ].join(' ')}
           >
             {isExpanded ? (
-              <>
-                <ChevronLeft className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                <span className="truncate">Collapse</span>
-              </>
+              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             ) : (
               <ChevronRight className="h-5 w-5" aria-hidden="true" />
             )}
