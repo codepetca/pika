@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
+import { readCookie, writeCookie } from '@/lib/cookies'
 
 // ============================================================================
 // Types
@@ -70,24 +71,6 @@ function getItems(role: 'student' | 'teacher') {
 
 function tabHref(classroomId: string, tabId: ClassroomNavItemId) {
   return `/classrooms/${classroomId}?tab=${encodeURIComponent(tabId)}`
-}
-
-function readCookie(name: string) {
-  if (typeof document === 'undefined') return null
-  const match = document.cookie
-    .split(';')
-    .map((c) => c.trim())
-    .find((c) => c.startsWith(`${encodeURIComponent(name)}=`))
-  if (!match) return null
-  const value = match.split('=').slice(1).join('=')
-  return decodeURIComponent(value)
-}
-
-function writeCookie(name: string, value: string) {
-  const oneYearSeconds = 60 * 60 * 24 * 365
-  let cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Path=/; Max-Age=${oneYearSeconds}; SameSite=Lax`
-  if (process.env.NODE_ENV === 'production') cookie += '; Secure'
-  document.cookie = cookie
 }
 
 // ============================================================================
@@ -172,6 +155,10 @@ export function NavItems({
   const loadTeacherAssignments = useCallback(async () => {
     try {
       const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
+      if (!response.ok) {
+        setAssignments([])
+        return
+      }
       const data = await response.json()
       setAssignments(
         (data.assignments || []).map((a: { id: string; title: string }) => ({
@@ -208,6 +195,10 @@ export function NavItems({
     async function loadAssignments() {
       try {
         const response = await fetch(`/api/student/assignments?classroom_id=${classroomId}`)
+        if (!response.ok) {
+          setAssignments([])
+          return
+        }
         const data = await response.json()
         setAssignments(
           (data.assignments || []).map(

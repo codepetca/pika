@@ -17,6 +17,7 @@ import {
   getRightSidebarCookieName,
   LEFT_SIDEBAR,
 } from '@/lib/layout-config'
+import { writeCookie } from '@/lib/cookies'
 
 // ============================================================================
 // Types
@@ -61,17 +62,6 @@ type ThreePanelContextValue = {
 // ============================================================================
 
 const ThreePanelContext = createContext<ThreePanelContextValue | null>(null)
-
-// ============================================================================
-// Cookie Utilities
-// ============================================================================
-
-function writeCookie(name: string, value: string) {
-  const oneYearSeconds = 60 * 60 * 24 * 365
-  let cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Path=/; Max-Age=${oneYearSeconds}; SameSite=Lax`
-  if (process.env.NODE_ENV === 'production') cookie += '; Secure'
-  document.cookie = cookie
-}
 
 // ============================================================================
 // Provider Component
