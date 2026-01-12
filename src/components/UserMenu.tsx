@@ -1,29 +1,143 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { UserCircle, LogOut } from 'lucide-react'
+import { UserCircle, LogOut, Moon, Sun } from 'lucide-react'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface UserMenuProps {
   user?: {
     email: string
     role: 'student' | 'teacher'
+    first_name?: string | null
+    last_name?: string | null
   }
 }
 
 /**
- * User menu with avatar and dropdown for logout.
- * Shows user email and provides logout action.
+ * Generate a consistent color based on a string (name or email).
+ * Returns a Tailwind bg color class.
+ */
+function getAvatarColor(str: string): string {
+  const colors = [
+    'bg-red-500',
+    'bg-orange-500',
+    'bg-amber-500',
+    'bg-yellow-500',
+    'bg-lime-500',
+    'bg-green-500',
+    'bg-emerald-500',
+    'bg-teal-500',
+    'bg-cyan-500',
+    'bg-sky-500',
+    'bg-blue-500',
+    'bg-indigo-500',
+    'bg-violet-500',
+    'bg-purple-500',
+    'bg-fuchsia-500',
+    'bg-pink-500',
+    'bg-rose-500',
+  ]
+
+  // Simple hash function
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  return colors[Math.abs(hash) % colors.length]
+}
+
+/**
+ * Get initials from first and last name.
+ */
+function getInitials(firstName?: string | null, lastName?: string | null): string | null {
+  const first = firstName?.trim()?.[0]?.toUpperCase()
+  const last = lastName?.trim()?.[0]?.toUpperCase()
+
+  if (first && last) return `${first}${last}`
+  if (first) return first
+  if (last) return last
+  return null
+}
+
+/**
+ * User menu with colored avatar and dropdown.
+ * Shows user name, email, theme toggle, and logout.
+ * Supports keyboard navigation.
  */
 export function UserMenu({ user }: UserMenuProps) {
+  const { theme, toggleTheme } = useTheme()
   const [isOpen, setIsOpen] = useState(false)
+  const [focusedIndex, setFocusedIndex] = useState(-1)
   const menuRef = useRef<HTMLDivElement>(null)
+  const itemRefs = useRef<(HTMLButtonElement | HTMLAnchorElement | null)[]>([])
+
+  const menuItems = ['theme', 'logout'] as const
+  type MenuItem = (typeof menuItems)[number]
+
+  const handleAction = useCallback((item: MenuItem) => {
+    if (item === 'theme') {
+      toggleTheme()
+      // Don't close menu when toggling theme
+    } else if (item === 'logout') {
+      setIsOpen(false)
+      // Navigation handled by Link
+    }
+  }, [toggleTheme])
+
+  // Keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        setIsOpen(true)
+        setFocusedIndex(0)
+      }
+      return
+    }
+
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault()
+        setIsOpen(false)
+        setFocusedIndex(-1)
+        break
+      case 'ArrowDown':
+        e.preventDefault()
+        setFocusedIndex((prev) => (prev < menuItems.length - 1 ? prev + 1 : 0))
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setFocusedIndex((prev) => (prev > 0 ? prev - 1 : menuItems.length - 1))
+        break
+      case 'Enter':
+      case ' ':
+        e.preventDefault()
+        if (focusedIndex >= 0) {
+          handleAction(menuItems[focusedIndex])
+        }
+        break
+      case 'Tab':
+        setIsOpen(false)
+        setFocusedIndex(-1)
+        break
+    }
+  }, [isOpen, focusedIndex, handleAction])
+
+  // Focus management
+  useEffect(() => {
+    if (isOpen && focusedIndex >= 0 && itemRefs.current[focusedIndex]) {
+      itemRefs.current[focusedIndex]?.focus()
+    }
+  }, [isOpen, focusedIndex])
 
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false)
+        setFocusedIndex(-1)
       }
     }
 
@@ -44,37 +158,110 @@ export function UserMenu({ user }: UserMenuProps) {
     )
   }
 
+  const initials = getInitials(user.first_name, user.last_name)
+  const colorClass = getAvatarColor(user.first_name || user.last_name || user.email)
+  const fullName = user.first_name && user.last_name
+    ? `${user.first_name} ${user.last_name}`.trim()
+    : null
+
   return (
     <div className="relative" ref={menuRef}>
+      {/* Avatar trigger */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        onClick={() => {
+          setIsOpen(!isOpen)
+          if (!isOpen) setFocusedIndex(0)
+        }}
+        onKeyDown={handleKeyDown}
+        className="flex items-center justify-center w-8 h-8 rounded-full transition-all hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
         aria-label="User menu"
         aria-expanded={isOpen}
+        aria-haspopup="menu"
       >
-        <UserCircle className="w-7 h-7 text-gray-600 dark:text-gray-300" />
-        <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:inline max-w-[150px] truncate">
-          {user.email}
-        </span>
+        {initials ? (
+          <span className={`w-8 h-8 rounded-full ${colorClass} flex items-center justify-center text-white text-sm font-semibold`}>
+            {initials}
+          </span>
+        ) : (
+          <UserCircle className="w-8 h-8 text-gray-500 dark:text-gray-400" />
+        )}
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-          <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
-            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{user.email}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</p>
+      {/* Dropdown menu with animation */}
+      <div
+        className={`absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-150 ease-out origin-top-right ${
+          isOpen
+            ? 'opacity-100 scale-100 translate-y-0'
+            : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
+        }`}
+        role="menu"
+        aria-label="User menu"
+      >
+        {/* User info section */}
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            {initials ? (
+              <span className={`w-10 h-10 rounded-full ${colorClass} flex items-center justify-center text-white text-base font-semibold flex-shrink-0`}>
+                {initials}
+              </span>
+            ) : (
+              <UserCircle className="w-10 h-10 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+            )}
+            <div className="min-w-0">
+              {fullName && (
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                  {fullName}
+                </p>
+              )}
+              <p className={`text-sm text-gray-500 dark:text-gray-400 truncate ${fullName ? '' : 'font-medium text-gray-900 dark:text-gray-100'}`}>
+                {user.email}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">
+                {user.role}
+              </p>
+            </div>
           </div>
-
-          <Link
-            href="/logout"
-            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            onClick={() => setIsOpen(false)}
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </Link>
         </div>
-      )}
+
+        {/* Theme toggle */}
+        <button
+          ref={(el) => { itemRefs.current[0] = el }}
+          onClick={() => handleAction('theme')}
+          onMouseEnter={() => setFocusedIndex(0)}
+          onKeyDown={handleKeyDown}
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 transition-colors focus:outline-none ${
+            focusedIndex === 0
+              ? 'bg-gray-100 dark:bg-gray-700'
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+          role="menuitem"
+        >
+          {theme === 'dark' ? (
+            <Sun className="w-4 h-4" />
+          ) : (
+            <Moon className="w-4 h-4" />
+          )}
+          {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        </button>
+
+        {/* Logout */}
+        <Link
+          ref={(el) => { itemRefs.current[1] = el }}
+          href="/logout"
+          onClick={() => setIsOpen(false)}
+          onMouseEnter={() => setFocusedIndex(1)}
+          onKeyDown={handleKeyDown}
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 transition-colors focus:outline-none ${
+            focusedIndex === 1
+              ? 'bg-gray-100 dark:bg-gray-700'
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+          role="menuitem"
+        >
+          <LogOut className="w-4 h-4" />
+          Logout
+        </Link>
+      </div>
     </div>
   )
 }
