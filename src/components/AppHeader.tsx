@@ -76,12 +76,12 @@ export function AppHeader({
       {/* Date */}
       <div className="flex-1 flex items-center justify-center">
         {/* Mobile: Short format (Tue Dec 16) */}
-        <div className="lg:hidden text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
+        <div className="lg:hidden text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
           {formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}
         </div>
-        {/* Desktop: Long format (January 10, 2026) */}
-        <div className="hidden lg:block text-base font-semibold text-gray-900 dark:text-gray-100">
-          {formatInTimeZone(now, 'America/Toronto', 'MMMM d, yyyy')}
+        {/* Desktop: Long format (Monday January 12, 2026) */}
+        <div className="hidden lg:block text-xl font-bold text-gray-900 dark:text-gray-100">
+          {formatInTimeZone(now, 'America/Toronto', 'EEEE MMMM d, yyyy')}
         </div>
       </div>
 

@@ -229,22 +229,9 @@
 /* =====================
      PLACEHOLDER
      ===================== */
-.is-empty:not(.with-slash)[data-placeholder]:has(
-    > .ProseMirror-trailingBreak:only-child
-  )::before {
+/* Only show placeholder when the entire editor is empty */
+.tiptap.ProseMirror.is-editor-empty > .is-empty:first-child::before {
   content: attr(data-placeholder);
-}
-
-.is-empty.with-slash[data-placeholder]:has(
-    > .ProseMirror-trailingBreak:only-child
-  )::before {
-  content: "Write, type '/' for commands…";
-  font-style: italic;
-}
-
-.is-empty[data-placeholder]:has(
-    > .ProseMirror-trailingBreak:only-child
-  ):before {
   pointer-events: none;
   height: 0;
   position: absolute;
@@ -252,9 +239,6 @@
   text-align: inherit;
   left: 0;
   right: 0;
-}
-
-.is-empty[data-placeholder]:has(> .ProseMirror-trailingBreak):before {
   color: var(--placeholder-color);
 }
 
