@@ -282,7 +282,7 @@ export function NavItems({
 
   // Determine layout class based on collapsed state
   const getLayoutClass = (isCollapsed: boolean) =>
-    isCollapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2'
+    isCollapsed ? 'justify-center w-11 h-10 mx-auto' : 'gap-2 px-2 py-2'
 
   return (
     <nav className="space-y-1">

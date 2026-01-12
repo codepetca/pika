@@ -64,7 +64,7 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
         <div
           className={[
             'flex-1 overflow-y-auto overflow-x-hidden',
-            isExpanded ? 'p-3' : 'p-1',
+            isExpanded ? 'p-2' : 'py-1 px-0.5',
           ].join(' ')}
         >
           {children}
@@ -74,7 +74,7 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
         <div
           className={[
             'border-t border-gray-200 dark:border-gray-800',
-            isExpanded ? 'p-3' : 'p-1',
+            isExpanded ? 'p-2' : 'py-1 px-0.5',
           ].join(' ')}
         >
           <button
@@ -88,7 +88,7 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
               'hover:bg-gray-100 dark:hover:bg-gray-800',
               'hover:text-gray-900 dark:hover:text-gray-100',
               'transition-colors',
-              isExpanded ? 'gap-3 px-3 py-2 w-full' : 'justify-center w-10 h-10 mx-auto',
+              isExpanded ? 'gap-2 px-2 py-2 w-full' : 'justify-center w-11 h-10 mx-auto',
             ].join(' ')}
           >
             {isExpanded ? (

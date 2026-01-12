@@ -45,9 +45,9 @@ export type RouteKey =
 
 export const LEFT_SIDEBAR = {
   /** Width when collapsed (icon rail only) */
-  collapsedWidth: 64,
+  collapsedWidth: 48,
   /** Width when expanded (icons + labels) */
-  expandedWidth: 256,
+  expandedWidth: 200,
 } as const
 
 export const RIGHT_SIDEBAR_WIDTHS: Record<Exclude<RightSidebarWidth, '50%'>, number> = {
@@ -74,7 +74,7 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
   },
   settings: {
     rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 320 },
-    mainContent: { maxWidth: 'reading' },
+    mainContent: { maxWidth: 'full' },
   },
   attendance: {
     rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: 360 },

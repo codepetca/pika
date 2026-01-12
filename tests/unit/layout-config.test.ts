@@ -13,11 +13,11 @@ import {
 
 describe('LEFT_SIDEBAR constants', () => {
   it('should have correct collapsed width', () => {
-    expect(LEFT_SIDEBAR.collapsedWidth).toBe(64)
+    expect(LEFT_SIDEBAR.collapsedWidth).toBe(48)
   })
 
   it('should have correct expanded width', () => {
-    expect(LEFT_SIDEBAR.expandedWidth).toBe(256)
+    expect(LEFT_SIDEBAR.expandedWidth).toBe(200)
   })
 })
 
