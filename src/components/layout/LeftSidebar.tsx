@@ -94,10 +94,7 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
             ].join(' ')}
           >
             {isExpanded ? (
-              <>
-                <ChevronLeft className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
-                <span className="truncate">Collapse</span>
-              </>
+              <ChevronLeft className="h-6 w-6" aria-hidden="true" />
             ) : (
               <ChevronRight className="h-6 w-6" aria-hidden="true" />
             )}
