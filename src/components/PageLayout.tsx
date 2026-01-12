@@ -13,14 +13,14 @@ export type ActionBarItem = {
 }
 
 const CONTROL_BASE =
-  'rounded-md border border-blue-200 bg-blue-50 text-sm font-medium text-gray-900 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-blue-800 dark:bg-blue-900/20 dark:text-gray-100 dark:hover:bg-blue-900/30'
+  'rounded-md border border-blue-200 bg-blue-50 text-base font-medium text-gray-900 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-blue-800 dark:bg-blue-900/20 dark:text-gray-100 dark:hover:bg-blue-900/30'
 
 const CONTROL_SECONDARY_BASE =
-  'rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+  'rounded-md border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
 
-export const ACTIONBAR_BUTTON_CLASSNAME = `${CONTROL_BASE} px-3 py-1.5`
-export const ACTIONBAR_BUTTON_SECONDARY_CLASSNAME = `${CONTROL_SECONDARY_BASE} px-3 py-1.5`
-export const ACTIONBAR_ICON_BUTTON_CLASSNAME = `${CONTROL_BASE} px-2.5 py-1.5 inline-flex items-center justify-center`
+export const ACTIONBAR_BUTTON_CLASSNAME = `${CONTROL_BASE} px-3 py-2`
+export const ACTIONBAR_BUTTON_SECONDARY_CLASSNAME = `${CONTROL_SECONDARY_BASE} px-3 py-2`
+export const ACTIONBAR_ICON_BUTTON_CLASSNAME = `${CONTROL_BASE} px-2.5 py-2 inline-flex items-center justify-center`
 
 export function PageLayout({
   children,
@@ -39,7 +39,7 @@ export function PageContent({
   children: ReactNode
   className?: string
 }) {
-  return <div className={['mt-3', className].join(' ')}>{children}</div>
+  return <div className={['mt-2', className].join(' ')}>{children}</div>
 }
 
 function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
