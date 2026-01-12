@@ -209,45 +209,39 @@ function Nav({
 
           return (
             <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
-              <div className="flex items-center">
-                <Link
-                  href={href}
-                  onClick={(e) => {
-                    onSelectAssignment?.(null)
-                    onNavigate?.()
-                  }}
-                  aria-current={isActive ? 'page' : undefined}
-                  title={isCollapsed ? item.label : undefined}
-                  className={[
-                    'group flex flex-1 items-center rounded-md text-sm font-medium transition-colors',
-                    layoutClass,
-                    isActive
-                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
-                  ].join(' ')}
-                >
-                  <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                  {!isCollapsed && <span className="truncate">{item.label}</span>}
-                  {isCollapsed && <span className="sr-only">{item.label}</span>}
-                </Link>
-
-                {canShowNested && (
-                  <button
-                    type="button"
-                    onClick={onToggleAssignmentsExpanded}
-                    className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
-                    aria-label={isExpanded ? 'Collapse assignments' : 'Expand assignments'}
-                  >
+              <Link
+                href={href}
+                onClick={(e) => {
+                  onSelectAssignment?.(null)
+                  onToggleAssignmentsExpanded?.()
+                  onNavigate?.()
+                }}
+                aria-current={isActive ? 'page' : undefined}
+                aria-expanded={canShowNested ? isExpanded : undefined}
+                title={isCollapsed ? item.label : undefined}
+                className={[
+                  'group flex items-center rounded-md text-sm font-medium transition-colors',
+                  layoutClass,
+                  isActive
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                ].join(' ')}
+              >
+                <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                {!isCollapsed && (
+                  <>
+                    <span className="truncate">{item.label}</span>
                     <ChevronDown
                       className={[
-                        'h-4 w-4 transition-transform',
+                        'h-4 w-4 ml-auto text-gray-400 transition-transform',
                         isExpanded ? 'rotate-0' : '-rotate-90',
                       ].join(' ')}
                       aria-hidden="true"
                     />
-                  </button>
+                  </>
                 )}
-              </div>
+                {isCollapsed && <span className="sr-only">{item.label}</span>}
+              </Link>
 
               {canShowNested && isExpanded && assignments && assignments.length > 0 && (
                 <div className="pl-10 pr-3 space-y-1">
@@ -709,40 +703,33 @@ export function ClassroomSidebar({
 
                   return (
                     <div key={item.id} className="space-y-1">
-                      <div className="flex items-center">
-                        <Link
-                          href={href}
-                          onClick={() => {
-                            setAssignmentsSelectionCookie(null)
-                            onCloseMobile()
-                          }}
-                          ref={idx === 0 ? firstLinkRef : undefined}
-                          aria-current={isActive ? 'page' : undefined}
+                      <Link
+                        href={href}
+                        onClick={() => {
+                          setAssignmentsSelectionCookie(null)
+                          toggleAssignmentsExpanded()
+                          onCloseMobile()
+                        }}
+                        ref={idx === 0 ? firstLinkRef : undefined}
+                        aria-current={isActive ? 'page' : undefined}
+                        aria-expanded={isExpanded}
+                        className={[
+                          'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          isActive
+                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                        ].join(' ')}
+                      >
+                        <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+                        <span className="truncate">{item.label}</span>
+                        <ChevronDown
                           className={[
-                            'group flex flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                            isActive
-                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                            'h-4 w-4 ml-auto text-gray-400 transition-transform',
+                            isExpanded ? 'rotate-0' : '-rotate-90',
                           ].join(' ')}
-                        >
-                          <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                          <span className="truncate">{item.label}</span>
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={toggleAssignmentsExpanded}
-                          className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
-                          aria-label={isExpanded ? 'Collapse assignments' : 'Expand assignments'}
-                        >
-                          <ChevronDown
-                            className={[
-                              'h-4 w-4 transition-transform',
-                              isExpanded ? 'rotate-0' : '-rotate-90',
-                            ].join(' ')}
-                            aria-hidden="true"
-                          />
-                        </button>
-                      </div>
+                          aria-hidden="true"
+                        />
+                      </Link>
                       {isExpanded && assignments.length > 0 && (
                         <div className="pl-11 pr-3 space-y-1">
                           {assignments.map((assignment) => {
