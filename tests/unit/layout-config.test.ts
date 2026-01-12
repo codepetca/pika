@@ -17,7 +17,7 @@ describe('LEFT_SIDEBAR constants', () => {
   })
 
   it('should have correct expanded width', () => {
-    expect(LEFT_SIDEBAR.expandedWidth).toBe(200)
+    expect(LEFT_SIDEBAR.expandedWidth).toBe(240)
   })
 })
 
