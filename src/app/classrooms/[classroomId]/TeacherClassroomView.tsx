@@ -182,6 +182,7 @@ export function TeacherClassroomView({ classroom }: Props) {
         )
       } catch (err) {
         console.error('Failed to reorder assignments:', err)
+        setError('Failed to save assignment order. Please try again.')
         // Reload to restore server state on error
         loadAssignments()
       } finally {
@@ -424,6 +425,7 @@ export function TeacherClassroomView({ classroom }: Props) {
                       key={assignment.id}
                       assignment={assignment}
                       isReadOnly={isReadOnly}
+                      isDragDisabled={isReordering}
                       onSelect={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })}
                       onEdit={() => setEditAssignment(assignment)}
                       onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}

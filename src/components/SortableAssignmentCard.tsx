@@ -13,6 +13,7 @@ interface AssignmentWithStats extends Assignment {
 interface SortableAssignmentCardProps {
   assignment: AssignmentWithStats
   isReadOnly: boolean
+  isDragDisabled?: boolean
   onSelect: () => void
   onEdit: () => void
   onDelete: () => void
@@ -21,6 +22,7 @@ interface SortableAssignmentCardProps {
 export function SortableAssignmentCard({
   assignment,
   isReadOnly,
+  isDragDisabled = false,
   onSelect,
   onEdit,
   onDelete,
@@ -32,7 +34,7 @@ export function SortableAssignmentCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: assignment.id, disabled: isReadOnly })
+  } = useSortable({ id: assignment.id, disabled: isReadOnly || isDragDisabled })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -54,10 +56,16 @@ export function SortableAssignmentCard({
         {!isReadOnly && (
           <button
             type="button"
-            className="flex-shrink-0 p-1 -ml-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-grab active:cursor-grabbing touch-none"
+            className={[
+              'flex-shrink-0 p-1 -ml-1 touch-none transition-colors',
+              isDragDisabled
+                ? 'text-gray-300 dark:text-gray-600 cursor-default'
+                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-grab active:cursor-grabbing',
+            ].join(' ')}
             {...attributes}
             {...listeners}
             aria-label="Drag to reorder"
+            disabled={isDragDisabled}
           >
             <GripVertical className="h-5 w-5" aria-hidden="true" />
           </button>
