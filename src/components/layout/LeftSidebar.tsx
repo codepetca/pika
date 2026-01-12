@@ -64,7 +64,7 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
         <div
           className={[
             'flex-1 overflow-y-auto overflow-x-hidden',
-            isExpanded ? 'p-2' : 'py-1 px-0.5',
+            isExpanded ? 'p-3' : 'py-3 px-0.5',
           ].join(' ')}
         >
           {children}
@@ -74,7 +74,7 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
         <div
           className={[
             'border-t border-gray-200 dark:border-gray-800',
-            isExpanded ? 'p-2' : 'py-1 px-0.5',
+            isExpanded ? 'p-3' : 'py-3 px-0.5',
           ].join(' ')}
         >
           <button
@@ -88,13 +88,18 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
               'hover:bg-gray-100 dark:hover:bg-gray-800',
               'hover:text-gray-900 dark:hover:text-gray-100',
               'transition-colors',
-              'justify-center w-11 h-10 mx-auto',
+              isExpanded
+                ? 'w-full h-12 gap-3 px-3'
+                : 'justify-center w-12 h-12 mx-auto',
             ].join(' ')}
           >
             {isExpanded ? (
-              <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+              <>
+                <ChevronLeft className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                <span className="truncate">Collapse</span>
+              </>
             ) : (
-              <ChevronRight className="h-5 w-5" aria-hidden="true" />
+              <ChevronRight className="h-6 w-6" aria-hidden="true" />
             )}
           </button>
         </div>
@@ -127,7 +132,7 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
             {/* Header */}
             <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
               <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                <Menu className="h-5 w-5 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                <Menu className="h-6 w-6 text-gray-500 dark:text-gray-400" aria-hidden="true" />
                 <span>Navigation</span>
               </div>
               <button
@@ -137,7 +142,7 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
                 className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                 aria-label="Close navigation"
               >
-                <X className="h-5 w-5" aria-hidden="true" />
+                <X className="h-6 w-6" aria-hidden="true" />
               </button>
             </div>
 

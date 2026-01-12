@@ -273,7 +273,7 @@ export function NavItems({
 
   // Determine layout class based on collapsed state
   const getLayoutClass = (isCollapsed: boolean) =>
-    isCollapsed ? 'justify-center w-11 h-10 mx-auto' : 'gap-2 px-2 py-2'
+    isCollapsed ? 'justify-center w-12 h-12 mx-auto' : 'gap-3 px-3 h-12'
 
   return (
     <nav className="space-y-1">
@@ -299,7 +299,7 @@ export function NavItems({
                   aria-current={isActive ? 'page' : undefined}
                   title={!isExpanded ? item.label : undefined}
                   className={[
-                    'group flex flex-1 items-center rounded-md text-sm font-medium transition-colors',
+                    'group flex flex-1 items-center rounded-md text-base font-medium transition-colors',
                     layoutClass,
                     isActive
                       ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
@@ -308,7 +308,7 @@ export function NavItems({
                 >
                   <Icon
                     className={[
-                      'h-5 w-5 flex-shrink-0',
+                      'h-6 w-6 flex-shrink-0',
                       showAssignmentsPulse &&
                         'animate-notification-pulse motion-reduce:animate-none',
                     ]
@@ -340,7 +340,7 @@ export function NavItems({
                           onNavigate()
                         }}
                         className={[
-                          'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
+                          'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
                           isAssignmentActive
                             ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                             : isUnviewed
@@ -366,47 +366,39 @@ export function NavItems({
 
           return (
             <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
-              <div className="flex items-center">
-                <Link
-                  href={href}
-                  onClick={() => {
-                    setAssignmentsSelectionCookie(null)
-                    onNavigate()
-                  }}
-                  aria-current={isActive ? 'page' : undefined}
-                  title={!isExpanded ? item.label : undefined}
-                  className={[
-                    'group flex flex-1 items-center rounded-md text-sm font-medium transition-colors',
-                    layoutClass,
-                    isActive
-                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
-                  ].join(' ')}
-                >
-                  <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
-                  {isExpanded && <span className="truncate">{item.label}</span>}
-                  {!isExpanded && <span className="sr-only">{item.label}</span>}
-                </Link>
-
-                {canShowNested && (
-                  <button
-                    type="button"
-                    onClick={toggleAssignmentsExpanded}
-                    className="p-2 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-400"
-                    aria-label={
-                      isExpandedState ? 'Collapse assignments' : 'Expand assignments'
-                    }
-                  >
+              <Link
+                href={href}
+                onClick={() => {
+                  setAssignmentsSelectionCookie(null)
+                  toggleAssignmentsExpanded()
+                  onNavigate()
+                }}
+                aria-current={isActive ? 'page' : undefined}
+                aria-expanded={canShowNested ? isExpandedState : undefined}
+                title={!isExpanded ? item.label : undefined}
+                className={[
+                  'group flex items-center rounded-md text-base font-medium transition-colors',
+                  layoutClass,
+                  isActive
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                ].join(' ')}
+              >
+                <Icon className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                {isExpanded && (
+                  <>
+                    <span className="truncate">{item.label}</span>
                     <ChevronDown
                       className={[
-                        'h-4 w-4 transition-transform',
+                        'h-4 w-4 ml-auto text-gray-400 transition-transform',
                         isExpandedState ? 'rotate-0' : '-rotate-90',
                       ].join(' ')}
                       aria-hidden="true"
                     />
-                  </button>
+                  </>
                 )}
-              </div>
+                {!isExpanded && <span className="sr-only">{item.label}</span>}
+              </Link>
 
               {canShowNested && isExpandedState && assignments && assignments.length > 0 && (
                 <div className="pl-10 pr-3 space-y-1">
@@ -454,7 +446,7 @@ export function NavItems({
                           onNavigate()
                         }}
                         className={[
-                          'w-full text-left text-sm rounded-md px-2 py-1.5 transition-colors',
+                          'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
                           isAssignmentActive
                             ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                             : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
@@ -485,7 +477,7 @@ export function NavItems({
             aria-current={isActive ? 'page' : undefined}
             title={!isExpanded ? item.label : undefined}
             className={[
-              'group flex items-center rounded-md text-sm font-medium transition-colors',
+              'group flex items-center rounded-md text-base font-medium transition-colors',
               layoutClass,
               isActive
                 ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
@@ -494,7 +486,7 @@ export function NavItems({
           >
             <Icon
               className={[
-                'h-5 w-5 flex-shrink-0',
+                'h-6 w-6 flex-shrink-0',
                 shouldPulse && 'animate-notification-pulse motion-reduce:animate-none',
               ]
                 .filter(Boolean)
