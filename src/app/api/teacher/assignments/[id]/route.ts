@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
+import { extractPlainText } from '@/lib/tiptap-content'
+import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -123,6 +125,7 @@ export async function GET(
         classroom_id: assignment.classroom_id,
         title: assignment.title,
         description: assignment.description,
+        rich_instructions: assignment.rich_instructions,
         due_at: assignment.due_at,
         position: assignment.position ?? 0,
         created_by: assignment.created_by,
@@ -161,7 +164,7 @@ export async function PATCH(
     const user = await requireRole('teacher')
     const { id } = await params
     const body = await request.json()
-    const { title, description, due_at } = body
+    const { title, rich_instructions, due_at } = body
 
     const supabase = getServiceRoleClient()
 
@@ -202,7 +205,11 @@ export async function PATCH(
     // Build update object
     const updates: Record<string, any> = {}
     if (title !== undefined) updates.title = title.trim()
-    if (description !== undefined) updates.description = description
+    if (rich_instructions !== undefined) {
+      const instructions: TiptapContent = rich_instructions
+      updates.rich_instructions = instructions
+      updates.description = extractPlainText(instructions)  // Keep plain text in sync
+    }
     if (due_at !== undefined) updates.due_at = due_at
 
     if (Object.keys(updates).length === 0) {

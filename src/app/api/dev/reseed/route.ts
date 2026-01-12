@@ -9,10 +9,11 @@ import { promisify } from 'util'
 const execAsync = promisify(exec)
 
 export async function POST() {
-  // Only allow in development
-  if (process.env.NODE_ENV !== 'development') {
+  // Double-gate: require both development mode AND explicit opt-in
+  // This prevents accidental exposure if NODE_ENV is misconfigured
+  if (process.env.NODE_ENV !== 'development' || process.env.ALLOW_DEV_ENDPOINTS !== 'true') {
     return NextResponse.json(
-      { error: 'This endpoint is only available in development mode' },
+      { error: 'This endpoint is only available in development mode with ALLOW_DEV_ENDPOINTS=true' },
       { status: 403 }
     )
   }
