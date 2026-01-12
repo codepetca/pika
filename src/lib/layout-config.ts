@@ -47,7 +47,7 @@ export const LEFT_SIDEBAR = {
   /** Width when collapsed (icon rail only) */
   collapsedWidth: 48,
   /** Width when expanded (icons + labels) */
-  expandedWidth: 200,
+  expandedWidth: 240,
 } as const
 
 export const RIGHT_SIDEBAR_WIDTHS: Record<Exclude<RightSidebarWidth, '50%'>, number> = {

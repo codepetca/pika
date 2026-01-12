@@ -1,18 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import { Menu, Moon, Sun } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
-import { useTheme } from '@/contexts/ThemeContext'
 
 interface AppHeaderProps {
   user?: {
     email: string
     role: 'student' | 'teacher'
+    first_name?: string | null
+    last_name?: string | null
   }
   classrooms?: Array<{
     id: string
@@ -25,8 +26,7 @@ interface AppHeaderProps {
 }
 
 /**
- * Compact global header (48px) with logo, classroom selector, icon nav, and user menu.
- * Reduces from previous 64-72px height.
+ * Compact global header (48px) with logo, classroom selector, date, and user menu.
  */
 export function AppHeader({
   user,
@@ -35,8 +35,6 @@ export function AppHeader({
   currentTab,
   onOpenSidebar,
 }: AppHeaderProps) {
-  const { theme, toggleTheme } = useTheme()
-
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
@@ -67,6 +65,7 @@ export function AppHeader({
       {/* Classroom Selector (teachers with multiple classrooms, or when explicitly provided) */}
       {classrooms && classrooms.length > 0 && (
         <ClassroomDropdown
+          className="ml-4"
           classrooms={classrooms}
           currentClassroomId={currentClassroomId}
           currentTab={currentTab}
@@ -76,28 +75,14 @@ export function AppHeader({
       {/* Date */}
       <div className="flex-1 flex items-center justify-center">
         {/* Mobile: Short format (Tue Dec 16) */}
-        <div className="lg:hidden text-sm sm:text-base font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
+        <div className="lg:hidden text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
           {formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}
         </div>
-        {/* Desktop: Long format (January 10, 2026) */}
-        <div className="hidden lg:block text-base font-semibold text-gray-900 dark:text-gray-100">
-          {formatInTimeZone(now, 'America/Toronto', 'MMMM d, yyyy')}
+        {/* Desktop: Long format (Monday January 12, 2026) */}
+        <div className="hidden lg:block text-xl font-bold text-gray-900 dark:text-gray-100">
+          {formatInTimeZone(now, 'America/Toronto', 'EEEE MMMM d, yyyy')}
         </div>
       </div>
-
-      {/* Dark Mode Toggle */}
-      <button
-        onClick={toggleTheme}
-        className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      >
-        {theme === 'dark' ? (
-          <Sun className="w-5 h-5" />
-        ) : (
-          <Moon className="w-5 h-5" />
-        )}
-      </button>
 
       {/* User Menu */}
       <UserMenu user={user} />
