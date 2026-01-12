@@ -36,7 +36,7 @@ export function useDropdownNav({
 }: UseDropdownNavOptions): UseDropdownNavReturn {
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null!)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const itemRefs = useRef<(HTMLElement | null)[]>([])
 
