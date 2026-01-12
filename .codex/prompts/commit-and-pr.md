@@ -10,7 +10,7 @@ Rules:
 Steps:
 
 1) Verify repo / worktree
-   - Run: `git rev-parse --show-toplevel`, `git status -sb`, `git branch --show-current`
+   - Run: `git rev-parse --show-toplevel`, `git worktree list`, `git status -sb`, `git branch --show-current`
    - If on `main` or `production`, stop and ask me to create a feature branch.
    - If no changes (staged or unstaged), stop and tell me.
 
