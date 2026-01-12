@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Eye, EyeOff } from 'lucide-react'
@@ -14,26 +14,36 @@ import {
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
-import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import { isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
+export interface StudentAssignmentEditorHandle {
+  submit: () => Promise<void>
+  unsubmit: () => Promise<void>
+  isSubmitted: boolean
+  canSubmit: boolean
+  submitting: boolean
+}
+
 interface Props {
   classroomId: string
   assignmentId: string
   variant?: 'standalone' | 'embedded'
   onExit?: () => void
+  onStateChange?: (state: { isSubmitted: boolean; canSubmit: boolean; submitting: boolean }) => void
 }
 
-export function StudentAssignmentEditor({
+export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle, Props>(function StudentAssignmentEditor({
   classroomId,
   assignmentId,
   variant = 'standalone',
   onExit,
-}: Props) {
+  onStateChange,
+}, ref) {
   const router = useRouter()
   const notifications = useStudentNotifications()
   const isEmbedded = variant === 'embedded'
@@ -229,7 +239,7 @@ export function StudentAssignmentEditor({
     }
   }
 
-  async function handleSubmit() {
+  const handleSubmit = useCallback(async () => {
     // Save first if there are unsaved changes
     if (JSON.stringify(content) !== lastSavedContentRef.current) {
       await saveContent(content, { trigger: 'autosave' })
@@ -258,9 +268,9 @@ export function StudentAssignmentEditor({
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [assignmentId, content, saveContent])
 
-  async function handleUnsubmit() {
+  const handleUnsubmit = useCallback(async () => {
     setSubmitting(true)
 
     try {
@@ -281,7 +291,7 @@ export function StudentAssignmentEditor({
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [assignmentId])
 
   function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
     if (!draftBeforePreviewRef.current) {
@@ -374,6 +384,24 @@ export function StudentAssignmentEditor({
     }
   }
 
+  // Compute state for imperative handle (before early returns)
+  const isSubmitted = doc?.is_submitted || false
+  const canSubmit = !isEmpty(content) && !previewEntry
+
+  // Expose imperative handle for parent components
+  useImperativeHandle(ref, () => ({
+    submit: handleSubmit,
+    unsubmit: handleUnsubmit,
+    isSubmitted,
+    canSubmit,
+    submitting,
+  }), [handleSubmit, handleUnsubmit, isSubmitted, canSubmit, submitting])
+
+  // Notify parent of state changes
+  useEffect(() => {
+    onStateChange?.({ isSubmitted, canSubmit, submitting })
+  }, [isSubmitted, canSubmit, submitting, onStateChange])
+
   if (loading) {
     if (isEmbedded) {
       return (
@@ -424,7 +452,6 @@ export function StudentAssignmentEditor({
   }
 
   const status = calculateAssignmentStatus(assignment, doc)
-  const isSubmitted = doc?.is_submitted || false
   const isPreviewLocked = lockedEntryId !== null
 
   const editorContent = (
@@ -444,8 +471,8 @@ export function StudentAssignmentEditor({
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col min-h-0 flex-1">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <div className="min-w-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                 {assignment.title}
               </div>
@@ -456,7 +483,7 @@ export function StudentAssignmentEditor({
               )}
             </div>
             <div
-              className={`text-xs text-center ${
+              className={`text-xs ${
                 saveStatus === 'saved'
                   ? 'text-green-600 dark:text-green-400'
                   : saveStatus === 'saving'
@@ -466,21 +493,19 @@ export function StudentAssignmentEditor({
             >
               {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
             </div>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleHistoryToggle}
-                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                aria-expanded={isHistoryOpen}
-                aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
-              >
-                {isHistoryOpen ? (
-                  <EyeOff className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <Eye className="h-4 w-4" aria-hidden="true" />
-                )}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleHistoryToggle}
+              className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+              aria-expanded={isHistoryOpen}
+              aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
+            >
+              {isHistoryOpen ? (
+                <EyeOff className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <Eye className="h-4 w-4" aria-hidden="true" />
+              )}
+            </button>
           </div>
         </div>
 
@@ -556,25 +581,6 @@ export function StudentAssignmentEditor({
               )}
             </div>
           )}
-        </div>
-
-        {/* Footer with Actions */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {countCharacters(previewContent || content)} characters
-          </div>
-
-          <div className="flex gap-2">
-            {isSubmitted ? (
-              <Button onClick={handleUnsubmit} variant="secondary" disabled={submitting || !!previewEntry}>
-                {submitting ? 'Unsubmitting...' : 'Unsubmit'}
-              </Button>
-            ) : (
-              <Button onClick={handleSubmit} disabled={submitting || isEmpty(content) || !!previewEntry}>
-                {submitting ? 'Submitting...' : 'Submit'}
-              </Button>
-            )}
-          </div>
         </div>
 
         {/* Mobile History Drawer */}
@@ -692,9 +698,20 @@ export function StudentAssignmentEditor({
                 Due: {formatDueDate(assignment.due_at)} • {formatRelativeDueDate(assignment.due_at)}
               </div>
             </div>
-            <span className={`px-3 py-1 rounded text-sm font-medium ${getAssignmentStatusBadgeClass(status)}`}>
-              {getAssignmentStatusLabel(status)}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1 rounded text-sm font-medium ${getAssignmentStatusBadgeClass(status)}`}>
+                {getAssignmentStatusLabel(status)}
+              </span>
+              {isSubmitted ? (
+                <Button size="sm" onClick={handleUnsubmit} variant="secondary" disabled={submitting || !!previewEntry}>
+                  {submitting ? 'Unsubmitting...' : 'Unsubmit'}
+                </Button>
+              ) : (
+                <Button size="sm" onClick={handleSubmit} disabled={submitting || isEmpty(content) || !!previewEntry}>
+                  {submitting ? 'Submitting...' : 'Submit'}
+                </Button>
+              )}
+            </div>
           </div>
         }
       />
@@ -702,4 +719,4 @@ export function StudentAssignmentEditor({
       <PageContent className="flex-1 min-h-0">{editorContent}</PageContent>
     </PageLayout>
   )
-}
+})

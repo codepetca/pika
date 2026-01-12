@@ -93,7 +93,7 @@ describe('StudentTodayTab history section', () => {
     render(<StudentTodayTab classroom={classroom} />)
 
     await screen.findAllByText('Tue Dec 16')
-    await screen.findByText('Past Logs')
+    await screen.findByText('Past')
 
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
@@ -123,7 +123,7 @@ describe('StudentTodayTab history section', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const { unmount } = render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('Past Logs')
+    await screen.findByText('Past')
 
     fireEvent.click(screen.getByRole('button', { name: /hide/i }))
     expect(document.cookie).toMatch(/pika_student_today_history=0/)
@@ -131,7 +131,7 @@ describe('StudentTodayTab history section', () => {
     unmount()
 
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('Past Logs')
+    await screen.findByText('Past')
 
     expect(screen.getByRole('button', { name: /show/i })).toBeInTheDocument()
     expect(screen.queryByText('Mon Dec 15')).not.toBeInTheDocument()
@@ -154,7 +154,7 @@ describe('StudentTodayTab history section', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('Past Logs')
+    await screen.findByText('Past')
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
     await waitFor(() => {
