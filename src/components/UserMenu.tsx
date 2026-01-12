@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import Link from 'next/link'
 import { UserCircle, LogOut, Moon, Sun } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useDropdownNav } from '@/hooks/use-dropdown-nav'
 
 interface UserMenuProps {
   user?: {
@@ -68,84 +69,28 @@ function getInitials(firstName?: string | null, lastName?: string | null): strin
  */
 export function UserMenu({ user }: UserMenuProps) {
   const { theme, toggleTheme } = useTheme()
-  const [isOpen, setIsOpen] = useState(false)
-  const [focusedIndex, setFocusedIndex] = useState(-1)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const itemRefs = useRef<(HTMLButtonElement | HTMLAnchorElement | null)[]>([])
 
-  const menuItems = ['theme', 'logout'] as const
-  type MenuItem = (typeof menuItems)[number]
-
-  const handleAction = useCallback((item: MenuItem) => {
-    if (item === 'theme') {
-      toggleTheme()
-      // Don't close menu when toggling theme
-    } else if (item === 'logout') {
-      setIsOpen(false)
-      // Navigation handled by Link
-    }
+  const handleThemeToggle = useCallback(() => {
+    toggleTheme()
+    // Don't close menu when toggling theme
   }, [toggleTheme])
 
-  // Keyboard navigation
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (!isOpen) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        setIsOpen(true)
-        setFocusedIndex(0)
-      }
-      return
-    }
-
-    switch (e.key) {
-      case 'Escape':
-        e.preventDefault()
-        setIsOpen(false)
-        setFocusedIndex(-1)
-        break
-      case 'ArrowDown':
-        e.preventDefault()
-        setFocusedIndex((prev) => (prev < menuItems.length - 1 ? prev + 1 : 0))
-        break
-      case 'ArrowUp':
-        e.preventDefault()
-        setFocusedIndex((prev) => (prev > 0 ? prev - 1 : menuItems.length - 1))
-        break
-      case 'Enter':
-      case ' ':
-        e.preventDefault()
-        if (focusedIndex >= 0) {
-          handleAction(menuItems[focusedIndex])
-        }
-        break
-      case 'Tab':
-        setIsOpen(false)
-        setFocusedIndex(-1)
-        break
-    }
-  }, [isOpen, focusedIndex, handleAction])
-
-  // Focus management
-  useEffect(() => {
-    if (isOpen && focusedIndex >= 0 && itemRefs.current[focusedIndex]) {
-      itemRefs.current[focusedIndex]?.focus()
-    }
-  }, [isOpen, focusedIndex])
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-        setFocusedIndex(-1)
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen])
+  const {
+    isOpen,
+    setIsOpen,
+    focusedIndex,
+    setFocusedIndex,
+    triggerId,
+    menuId,
+    getItemId,
+    handleTriggerKeyDown,
+    handleItemKeyDown,
+    handleTriggerClick,
+    itemRefs,
+    containerRef,
+  } = useDropdownNav({
+    itemCount: 2, // theme toggle, logout
+  })
 
   if (!user) {
     return (
@@ -165,18 +110,17 @@ export function UserMenu({ user }: UserMenuProps) {
     : null
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative" ref={containerRef}>
       {/* Avatar trigger */}
       <button
-        onClick={() => {
-          setIsOpen(!isOpen)
-          if (!isOpen) setFocusedIndex(0)
-        }}
-        onKeyDown={handleKeyDown}
+        id={triggerId}
+        onClick={handleTriggerClick}
+        onKeyDown={handleTriggerKeyDown}
         className="flex items-center justify-center w-8 h-8 rounded-full transition-all hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
         aria-label="User menu"
         aria-expanded={isOpen}
         aria-haspopup="menu"
+        aria-controls={menuId}
       >
         {initials ? (
           <span className={`w-8 h-8 rounded-full ${colorClass} flex items-center justify-center text-white text-sm font-semibold`}>
@@ -189,13 +133,14 @@ export function UserMenu({ user }: UserMenuProps) {
 
       {/* Dropdown menu with animation */}
       <div
+        id={menuId}
         className={`absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-150 ease-out origin-top-right ${
           isOpen
             ? 'opacity-100 scale-100 translate-y-0'
             : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
         }`}
         role="menu"
-        aria-label="User menu"
+        aria-labelledby={triggerId}
       >
         {/* User info section */}
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
@@ -225,16 +170,18 @@ export function UserMenu({ user }: UserMenuProps) {
 
         {/* Theme toggle */}
         <button
+          id={getItemId(0)}
           ref={(el) => { itemRefs.current[0] = el }}
-          onClick={() => handleAction('theme')}
+          onClick={handleThemeToggle}
           onMouseEnter={() => setFocusedIndex(0)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={handleItemKeyDown}
           className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 transition-colors focus:outline-none ${
             focusedIndex === 0
               ? 'bg-gray-100 dark:bg-gray-700'
               : 'hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
           role="menuitem"
+          tabIndex={isOpen ? 0 : -1}
         >
           {theme === 'dark' ? (
             <Sun className="w-4 h-4" />
@@ -246,17 +193,19 @@ export function UserMenu({ user }: UserMenuProps) {
 
         {/* Logout */}
         <Link
+          id={getItemId(1)}
           ref={(el) => { itemRefs.current[1] = el }}
           href="/logout"
           onClick={() => setIsOpen(false)}
           onMouseEnter={() => setFocusedIndex(1)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={handleItemKeyDown}
           className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 transition-colors focus:outline-none ${
             focusedIndex === 1
               ? 'bg-gray-100 dark:bg-gray-700'
               : 'hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
           role="menuitem"
+          tabIndex={isOpen ? 0 : -1}
         >
           <LogOut className="w-4 h-4" />
           Logout
