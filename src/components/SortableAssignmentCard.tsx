@@ -36,7 +36,7 @@ export function SortableAssignmentCard({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? undefined : transition,
   }
 
   return (
@@ -44,10 +44,10 @@ export function SortableAssignmentCard({
       ref={setNodeRef}
       style={style}
       className={[
-        'w-full text-left p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 transition',
+        'w-full text-left p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900',
         isDragging
-          ? 'shadow-xl scale-[1.02] z-50 border-blue-400 dark:border-blue-500'
-          : 'hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+          ? 'shadow-xl scale-[1.02] z-50 border-blue-400 dark:border-blue-500 opacity-90'
+          : 'transition hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20',
       ].join(' ')}
     >
       <div className="flex items-start gap-3">
