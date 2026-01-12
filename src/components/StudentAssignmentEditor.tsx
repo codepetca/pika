@@ -239,7 +239,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     }
   }
 
-  async function handleSubmit() {
+  const handleSubmit = useCallback(async () => {
     // Save first if there are unsaved changes
     if (JSON.stringify(content) !== lastSavedContentRef.current) {
       await saveContent(content, { trigger: 'autosave' })
@@ -268,9 +268,9 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [assignmentId, content, saveContent])
 
-  async function handleUnsubmit() {
+  const handleUnsubmit = useCallback(async () => {
     setSubmitting(true)
 
     try {
@@ -291,7 +291,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [assignmentId])
 
   function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
     if (!draftBeforePreviewRef.current) {
