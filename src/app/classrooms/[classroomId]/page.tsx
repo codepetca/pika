@@ -29,6 +29,8 @@ interface UserInfo {
   id: string
   email: string
   role: 'student' | 'teacher'
+  first_name?: string | null
+  last_name?: string | null
 }
 
 export default function ClassroomPage() {
