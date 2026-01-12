@@ -140,11 +140,13 @@ export function PageActionBar({
   primary,
   actions = [],
   actionsAlign = 'end',
+  trailing,
   className = '',
 }: {
   primary: ReactNode
   actions?: ActionBarItem[]
   actionsAlign?: 'start' | 'end'
+  trailing?: ReactNode
   className?: string
 }) {
   if (actionsAlign === 'start') {
@@ -179,6 +181,7 @@ export function PageActionBar({
         )}
 
         <div className="flex-1" />
+        {trailing}
       </div>
     )
   }
@@ -212,6 +215,7 @@ export function PageActionBar({
           </div>
         </>
       )}
+      {trailing}
     </div>
   )
 }

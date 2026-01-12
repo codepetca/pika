@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
-import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   formatDueDate,
   formatRelativeDueDate,
@@ -12,7 +12,7 @@ import {
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
 import type { AssignmentWithStatus, Classroom } from '@/types'
-import { StudentAssignmentEditor } from '@/components/StudentAssignmentEditor'
+import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
 
 interface Props {
   classroom: Classroom
@@ -28,6 +28,8 @@ export function StudentAssignmentsTab({ classroom }: Props) {
   const [assignments, setAssignments] = useState<AssignmentWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [showInstructions, setShowInstructions] = useState(false)
+  const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false })
+  const editorRef = useRef<StudentAssignmentEditorHandle>(null)
 
   useEffect(() => {
     async function load() {
@@ -75,17 +77,13 @@ export function StudentAssignmentsTab({ classroom }: Props) {
     [classroom.id, router, search],
   )
 
-  const actionItems: ActionBarItem[] = useMemo(() => {
-    if (!selectedAssignment) return []
+  const handleSubmit = useCallback(async () => {
+    await editorRef.current?.submit()
+  }, [])
 
-    return [
-      {
-        id: 'view-details',
-        label: 'Instructions',
-        onSelect: () => setShowInstructions(true),
-      },
-    ]
-  }, [selectedAssignment])
+  const handleUnsubmit = useCallback(async () => {
+    await editorRef.current?.unsubmit()
+  }, [])
 
   // Auto-show instructions for unviewed assignments (no doc or viewed_at is null)
   useEffect(() => {
@@ -113,9 +111,33 @@ export function StudentAssignmentsTab({ classroom }: Props) {
   return (
     <PageLayout className="h-full flex flex-col">
       <PageActionBar
-        primary={<div />}
-        actions={actionItems}
-        actionsAlign="start"
+        primary={
+          selectedAssignment ? (
+            <button
+              type="button"
+              className={ACTIONBAR_BUTTON_CLASSNAME}
+              onClick={() => setShowInstructions(true)}
+            >
+              Instructions
+            </button>
+          ) : (
+            <div />
+          )
+        }
+        trailing={
+          selectedAssignment && (
+            <Button
+              size="sm"
+              variant={editorState.isSubmitted ? 'secondary' : 'primary'}
+              onClick={editorState.isSubmitted ? handleUnsubmit : handleSubmit}
+              disabled={editorState.submitting || (!editorState.isSubmitted && !editorState.canSubmit)}
+            >
+              {editorState.submitting
+                ? (editorState.isSubmitted ? 'Unsubmitting...' : 'Submitting...')
+                : (editorState.isSubmitted ? 'Unsubmit' : 'Submit')}
+            </Button>
+          )
+        }
       />
       <PageContent className="flex-1 min-h-0">
         <div className="min-w-0 h-full flex flex-col">
@@ -173,10 +195,12 @@ export function StudentAssignmentsTab({ classroom }: Props) {
               </div>
             ) : (
               <StudentAssignmentEditor
+                ref={editorRef}
                 classroomId={classroom.id}
                 assignmentId={selectedAssignment.id}
                 variant="embedded"
                 onExit={() => navigate({ assignmentId: null })}
+                onStateChange={setEditorState}
               />
             )}
         </div>
