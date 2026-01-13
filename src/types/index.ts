@@ -205,7 +205,7 @@ export interface AssignmentStats {
   late: number
 }
 
-// Daily Plans (Weekly Plan tab)
+// Daily Plans (Calendar tab)
 export interface DailyPlan {
   id: string
   classroom_id: string

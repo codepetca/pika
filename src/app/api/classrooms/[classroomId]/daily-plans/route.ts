@@ -3,6 +3,8 @@ import { requireAuth, requireRole } from '@/lib/auth'
 import { getWeekStartForDate } from '@/lib/week-utils'
 import {
   fetchDailyPlansForWeek,
+  fetchDailyPlanForDate,
+  fetchDatesWithPlans,
   upsertDailyPlan,
   updatePlansVisibility,
 } from '@/lib/server/daily-plans'
@@ -16,7 +18,11 @@ import type { FuturePlansVisibility, TiptapContent } from '@/types'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// GET /api/classrooms/:classroomId/daily-plans?week_start=YYYY-MM-DD
+// GET /api/classrooms/:classroomId/daily-plans
+// Query params:
+//   ?week_start=YYYY-MM-DD - fetch plans for a week
+//   ?month=YYYY-MM - fetch dates that have plans (for calendar dots)
+//   ?date=YYYY-MM-DD - fetch a single plan
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ classroomId: string }> }
@@ -44,15 +50,58 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Get week_start from query params
     const { searchParams } = new URL(request.url)
     const weekStartParam = searchParams.get('week_start')
+    const monthParam = searchParams.get('month')
+    const dateParam = searchParams.get('date')
 
-    if (!weekStartParam) {
-      return NextResponse.json({ error: 'week_start query parameter is required' }, { status: 400 })
+    // Handle month query (for calendar dots)
+    if (monthParam) {
+      const monthRegex = /^\d{4}-\d{2}$/
+      if (!monthRegex.test(monthParam)) {
+        return NextResponse.json({ error: 'Invalid month format (use YYYY-MM)' }, { status: 400 })
+      }
+
+      const result = await fetchDatesWithPlans({ classroomId, month: monthParam })
+
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: result.status })
+      }
+
+      return NextResponse.json({ dates_with_content: result.dates })
     }
 
-    // Validate and normalize week_start to Monday
+    // Handle single date query
+    if (dateParam) {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+      if (!dateRegex.test(dateParam)) {
+        return NextResponse.json({ error: 'Invalid date format (use YYYY-MM-DD)' }, { status: 400 })
+      }
+
+      const result = await fetchDailyPlanForDate({
+        classroomId,
+        date: dateParam,
+        role: user.role,
+      })
+
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error }, { status: result.status })
+      }
+
+      return NextResponse.json({
+        plan: result.plan,
+        visibility: result.visibility,
+      })
+    }
+
+    // Handle week query (default)
+    if (!weekStartParam) {
+      return NextResponse.json(
+        { error: 'One of week_start, month, or date query parameter is required' },
+        { status: 400 }
+      )
+    }
+
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/
     if (!dateRegex.test(weekStartParam)) {
       return NextResponse.json({ error: 'Invalid week_start format (use YYYY-MM-DD)' }, { status: 400 })

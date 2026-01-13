@@ -1,16 +1,14 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { format, parseISO, addWeeks } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
-import { WeekActionBar } from '@/components/WeekActionBar'
+import { MonthCalendar } from '@/components/MonthCalendar'
+import { CompactWeekStrip } from '@/components/CompactWeekStrip'
+import { DayWeekToggle, type ViewMode } from '@/components/DayWeekToggle'
 import { DayPlanCard } from '@/components/DayPlanCard'
-import {
-  getCurrentWeekStart,
-  getWeekDays,
-  getNextWeekStart,
-  getPreviousWeekStart,
-  canStudentViewWeek,
-} from '@/lib/week-utils'
+import { RichTextViewer } from '@/components/editor/RichTextViewer'
+import { getWeekStartForDate, getWeekDays, getCurrentWeekStart } from '@/lib/week-utils'
 import { getTodayInToronto } from '@/lib/timezone'
 import type { Classroom, DailyPlan, FuturePlansVisibility, TiptapContent } from '@/types'
 
@@ -21,72 +19,150 @@ interface StudentWeeklyPlanTabProps {
 }
 
 export function StudentWeeklyPlanTab({ classroom }: StudentWeeklyPlanTabProps) {
-  const [loading, setLoading] = useState(true)
-  const [weekStart, setWeekStart] = useState(() => getCurrentWeekStart())
-  const [visibility, setVisibility] = useState<FuturePlansVisibility>('current')
-  const [plans, setPlans] = useState<Record<string, DailyPlan | null>>({})
-  const [error, setError] = useState('')
-
-  const weekDays = getWeekDays(weekStart)
   const today = getTodayInToronto()
   const currentWeekStart = getCurrentWeekStart()
 
-  const loadWeekPlans = useCallback(async (week: string) => {
-    setLoading(true)
-    setError('')
+  // Core state
+  const [selectedDate, setSelectedDate] = useState(today)
+  const [currentMonth, setCurrentMonth] = useState(today)
+  const [viewMode, setViewMode] = useState<ViewMode>('day')
+  const [visibility, setVisibility] = useState<FuturePlansVisibility>(
+    classroom.future_plans_visibility || 'current'
+  )
 
+  // Data state
+  const [loading, setLoading] = useState(true)
+  const [datesWithContent, setDatesWithContent] = useState<Set<string>>(new Set())
+  const [dayPlan, setDayPlan] = useState<DailyPlan | null>(null)
+  const [weekPlans, setWeekPlans] = useState<Record<string, DailyPlan | null>>({})
+  const [error, setError] = useState('')
+
+  // Calculate max date based on visibility
+  const getMaxDate = useCallback((): string | undefined => {
+    switch (visibility) {
+      case 'current':
+        // Friday of current week
+        return getWeekDays(currentWeekStart)[4]
+      case 'next':
+        // Friday of next week
+        const nextWeekStart = format(addWeeks(parseISO(currentWeekStart), 1), 'yyyy-MM-dd')
+        return getWeekDays(nextWeekStart)[4]
+      case 'all':
+        return undefined // No limit
+      default:
+        return getWeekDays(currentWeekStart)[4]
+    }
+  }, [visibility, currentWeekStart])
+
+  // Load dates with content for calendar dots
+  const loadDatesWithContent = useCallback(async (month: string) => {
     try {
+      const monthStr = format(parseISO(month), 'yyyy-MM')
       const response = await fetch(
-        `/api/classrooms/${classroom.id}/daily-plans?week_start=${week}`
+        `/api/classrooms/${classroom.id}/daily-plans?month=${monthStr}`
       )
       const data = await response.json()
 
-      if (!response.ok) {
-        if (response.status === 403) {
-          // Week not visible - don't show error, just empty state
-          setPlans({})
-          setError('This week is not available yet.')
-          return
-        }
-        throw new Error(data.error || 'Failed to load plans')
+      if (response.ok && data.dates_with_content) {
+        setDatesWithContent(new Set(data.dates_with_content))
       }
-
-      setVisibility(data.visibility)
-      setPlans(data.plans)
-    } catch (err: any) {
-      console.error('Error loading week plans:', err)
-      setError(err.message || 'Failed to load plans')
-    } finally {
-      setLoading(false)
+    } catch (err) {
+      console.error('Error loading dates with content:', err)
     }
   }, [classroom.id])
 
-  useEffect(() => {
-    loadWeekPlans(weekStart)
-  }, [weekStart, loadWeekPlans])
+  // Load single day plan
+  const loadDayPlan = useCallback(async (date: string) => {
+    setError('')
+    try {
+      const response = await fetch(
+        `/api/classrooms/${classroom.id}/daily-plans?date=${date}`
+      )
+      const data = await response.json()
 
-  const handlePreviousWeek = useCallback(() => {
-    setWeekStart(getPreviousWeekStart(weekStart))
-  }, [weekStart])
-
-  const handleNextWeek = useCallback(() => {
-    const nextWeek = getNextWeekStart(weekStart)
-    // Check if student can navigate to next week
-    if (canStudentViewWeek(nextWeek, visibility, currentWeekStart)) {
-      setWeekStart(nextWeek)
+      if (response.ok) {
+        setDayPlan(data.plan)
+        if (data.visibility) {
+          setVisibility(data.visibility)
+        }
+      } else if (response.status === 403) {
+        setError('This date is not available yet.')
+        setDayPlan(null)
+      }
+    } catch (err) {
+      console.error('Error loading day plan:', err)
     }
-  }, [weekStart, visibility, currentWeekStart])
+  }, [classroom.id])
 
-  const handleToday = useCallback(() => {
-    setWeekStart(getCurrentWeekStart())
-  }, [])
+  // Load week plans
+  const loadWeekPlans = useCallback(async (weekStart: string) => {
+    setError('')
+    try {
+      const response = await fetch(
+        `/api/classrooms/${classroom.id}/daily-plans?week_start=${weekStart}`
+      )
+      const data = await response.json()
 
-  // Determine if student can navigate to next week
-  const canNavigateNext = canStudentViewWeek(
-    getNextWeekStart(weekStart),
-    visibility,
-    currentWeekStart
-  )
+      if (response.ok) {
+        setWeekPlans(data.plans)
+        if (data.visibility) {
+          setVisibility(data.visibility)
+        }
+      } else if (response.status === 403) {
+        setError('This week is not available yet.')
+        setWeekPlans({})
+      }
+    } catch (err) {
+      console.error('Error loading week plans:', err)
+    }
+  }, [classroom.id])
+
+  // Initial load
+  useEffect(() => {
+    async function init() {
+      setLoading(true)
+      await loadDatesWithContent(currentMonth)
+      if (viewMode === 'day') {
+        await loadDayPlan(selectedDate)
+      } else {
+        await loadWeekPlans(getWeekStartForDate(selectedDate))
+      }
+      setLoading(false)
+    }
+    init()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When month changes, reload dates with content
+  useEffect(() => {
+    loadDatesWithContent(currentMonth)
+  }, [currentMonth, loadDatesWithContent])
+
+  // When selected date changes, reload data
+  useEffect(() => {
+    if (viewMode === 'day') {
+      loadDayPlan(selectedDate)
+    }
+  }, [selectedDate, viewMode, loadDayPlan])
+
+  // When switching to week view or selected date changes in week view
+  useEffect(() => {
+    if (viewMode === 'week') {
+      loadWeekPlans(getWeekStartForDate(selectedDate))
+    }
+  }, [selectedDate, viewMode, loadWeekPlans])
+
+  // Handle date selection
+  const handleSelectDate = useCallback((date: string) => {
+    setSelectedDate(date)
+    // Update month if needed
+    if (format(parseISO(currentMonth), 'yyyy-MM') !== format(parseISO(date), 'yyyy-MM')) {
+      setCurrentMonth(format(parseISO(date), 'yyyy-MM-dd'))
+    }
+  }, [currentMonth])
+
+  const weekStart = getWeekStartForDate(selectedDate)
+  const weekDays = getWeekDays(weekStart)
+  const maxDate = getMaxDate()
 
   if (loading) {
     return (
@@ -96,59 +172,99 @@ export function StudentWeeklyPlanTab({ classroom }: StudentWeeklyPlanTabProps) {
     )
   }
 
-  if (error && !error.includes('not available')) {
-    return (
-      <div className="p-4">
-        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 text-center">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-          <button
-            type="button"
-            onClick={() => loadWeekPlans(weekStart)}
-            className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col h-full">
-      <WeekActionBar
-        weekStart={weekStart}
-        onPreviousWeek={handlePreviousWeek}
-        onNextWeek={handleNextWeek}
-        onToday={handleToday}
-        canNavigateNext={canNavigateNext}
-        isTeacher={false}
-      />
+    <div className="flex flex-col lg:flex-row h-full">
+      {/* Mobile: Compact week strip */}
+      <div className="lg:hidden border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+        <CompactWeekStrip
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          datesWithContent={datesWithContent}
+          maxDate={maxDate}
+        />
+      </div>
 
-      <div className="flex-1 overflow-auto p-4">
-        {error && error.includes('not available') ? (
-          <div className="flex items-center justify-center h-64">
-            <p className="text-gray-500 dark:text-gray-400 text-center">
-              {error}
-              <br />
-              <span className="text-sm">Check back later or navigate to an earlier week.</span>
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {weekDays.map(date => {
-              const plan = plans[date]
-              return (
-                <DayPlanCard
-                  key={date}
-                  date={date}
-                  content={plan?.rich_content ?? null}
-                  isEditable={false}
-                  isToday={date === today}
-                />
-              )
-            })}
-          </div>
-        )}
+      {/* Desktop: Month calendar sidebar */}
+      <div className="hidden lg:flex lg:flex-col w-80 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+        <MonthCalendar
+          currentMonth={currentMonth}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          onMonthChange={setCurrentMonth}
+          datesWithContent={datesWithContent}
+          maxDate={maxDate}
+        />
+      </div>
+
+      {/* Content area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header with toggle */}
+        <div className="flex items-center px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <DayWeekToggle mode={viewMode} onChange={setViewMode} />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-4">
+          {error ? (
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+                <p className="text-gray-600 dark:text-gray-400">{error}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                  Check back later or select an earlier date.
+                </p>
+              </div>
+            </div>
+          ) : viewMode === 'day' ? (
+            /* Day View: Full-width viewer */
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                {format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy')}
+              </h2>
+              {dayPlan?.rich_content ? (
+                <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <RichTextViewer content={dayPlan.rich_content} />
+                </div>
+              ) : (
+                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 text-center">
+                  <p className="text-gray-500 dark:text-gray-400 italic">
+                    No plan for this day
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Week View: Vertically stacked cards */
+            <div className="max-w-4xl mx-auto space-y-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Week of {format(parseISO(weekStart), 'MMMM d, yyyy')}
+              </h2>
+              {weekDays.map((date) => {
+                const plan = weekPlans[date]
+                const isSelected = date === selectedDate
+
+                return (
+                  <div
+                    key={date}
+                    className={[
+                      'cursor-pointer transition-all',
+                      isSelected ? 'ring-2 ring-blue-500 rounded-lg' : '',
+                    ].join(' ')}
+                    onClick={() => {
+                      setSelectedDate(date)
+                      setViewMode('day')
+                    }}
+                  >
+                    <DayPlanCard
+                      date={date}
+                      content={plan?.rich_content ?? null}
+                      isToday={date === today}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

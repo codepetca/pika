@@ -1,15 +1,14 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { format, parseISO } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
-import { WeekActionBar } from '@/components/WeekActionBar'
+import { MonthCalendar } from '@/components/MonthCalendar'
+import { CompactWeekStrip } from '@/components/CompactWeekStrip'
+import { DayWeekToggle, type ViewMode } from '@/components/DayWeekToggle'
 import { DayPlanCard } from '@/components/DayPlanCard'
-import {
-  getCurrentWeekStart,
-  getWeekDays,
-  getNextWeekStart,
-  getPreviousWeekStart,
-} from '@/lib/week-utils'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
+import { getWeekStartForDate, getWeekDays } from '@/lib/week-utils'
 import { getTodayInToronto } from '@/lib/timezone'
 import type { Classroom, DailyPlan, FuturePlansVisibility, TiptapContent } from '@/types'
 
@@ -17,103 +16,146 @@ const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 5000
 const AUTOSAVE_MIN_INTERVAL_MS = 15000
 
-interface DayState {
-  content: TiptapContent
-  saveStatus: 'saved' | 'saving' | 'unsaved'
-  lastSavedContent: string
-}
-
 interface TeacherWeeklyPlanTabProps {
   classroom: Classroom
 }
 
 export function TeacherWeeklyPlanTab({ classroom }: TeacherWeeklyPlanTabProps) {
-  const [loading, setLoading] = useState(true)
-  const [weekStart, setWeekStart] = useState(() => getCurrentWeekStart())
-  const [visibility, setVisibility] = useState<FuturePlansVisibility>('current')
-  const [dayStates, setDayStates] = useState<Record<string, DayState>>({})
-  const [error, setError] = useState('')
-
-  // Refs for autosave per day
-  const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({})
-  const throttleTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({})
-  const lastSaveAttemptRef = useRef<Record<string, number>>({})
-  const pendingContentRef = useRef<Record<string, TiptapContent>>({})
-
-  const weekDays = getWeekDays(weekStart)
   const today = getTodayInToronto()
 
-  const loadWeekPlans = useCallback(async (week: string) => {
-    setLoading(true)
-    setError('')
+  // Core state
+  const [selectedDate, setSelectedDate] = useState(today)
+  const [currentMonth, setCurrentMonth] = useState(today)
+  const [viewMode, setViewMode] = useState<ViewMode>('day')
+  const [visibility, setVisibility] = useState<FuturePlansVisibility>(
+    classroom.future_plans_visibility || 'current'
+  )
 
+  // Data state
+  const [loading, setLoading] = useState(true)
+  const [datesWithContent, setDatesWithContent] = useState<Set<string>>(new Set())
+  const [dayPlan, setDayPlan] = useState<DailyPlan | null>(null)
+  const [weekPlans, setWeekPlans] = useState<Record<string, DailyPlan | null>>({})
+  const [error, setError] = useState('')
+
+  // Autosave state for day view
+  const [dayContent, setDayContent] = useState<TiptapContent>(EMPTY_DOC)
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSaveAttemptRef = useRef(0)
+  const lastSavedContentRef = useRef('')
+  const pendingContentRef = useRef<TiptapContent | null>(null)
+
+  // Load dates with content for calendar dots
+  const loadDatesWithContent = useCallback(async (month: string) => {
     try {
+      const monthStr = format(parseISO(month), 'yyyy-MM')
       const response = await fetch(
-        `/api/classrooms/${classroom.id}/daily-plans?week_start=${week}`
+        `/api/classrooms/${classroom.id}/daily-plans?month=${monthStr}`
       )
       const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to load plans')
+      if (response.ok && data.dates_with_content) {
+        setDatesWithContent(new Set(data.dates_with_content))
       }
-
-      setVisibility(data.visibility)
-
-      // Initialize day states
-      const days = getWeekDays(week)
-      const newDayStates: Record<string, DayState> = {}
-
-      for (const date of days) {
-        const plan = data.plans[date] as DailyPlan | null
-        const content = plan?.rich_content ?? EMPTY_DOC
-        newDayStates[date] = {
-          content,
-          saveStatus: 'saved',
-          lastSavedContent: JSON.stringify(content),
-        }
-      }
-
-      setDayStates(newDayStates)
-    } catch (err: any) {
-      console.error('Error loading week plans:', err)
-      setError(err.message || 'Failed to load plans')
-    } finally {
-      setLoading(false)
+    } catch (err) {
+      console.error('Error loading dates with content:', err)
     }
   }, [classroom.id])
 
-  useEffect(() => {
-    loadWeekPlans(weekStart)
+  // Load single day plan
+  const loadDayPlan = useCallback(async (date: string) => {
+    try {
+      const response = await fetch(
+        `/api/classrooms/${classroom.id}/daily-plans?date=${date}`
+      )
+      const data = await response.json()
 
-    // Capture refs for cleanup
-    const saveTimeouts = saveTimeoutsRef.current
-    const throttleTimeouts = throttleTimeoutsRef.current
+      if (response.ok) {
+        const plan = data.plan as DailyPlan | null
+        setDayPlan(plan)
+        const content = plan?.rich_content ?? EMPTY_DOC
+        setDayContent(content)
+        lastSavedContentRef.current = JSON.stringify(content)
+        setSaveStatus('saved')
+        if (data.visibility) {
+          setVisibility(data.visibility)
+        }
+      }
+    } catch (err) {
+      console.error('Error loading day plan:', err)
+    }
+  }, [classroom.id])
+
+  // Load week plans
+  const loadWeekPlans = useCallback(async (weekStart: string) => {
+    try {
+      const response = await fetch(
+        `/api/classrooms/${classroom.id}/daily-plans?week_start=${weekStart}`
+      )
+      const data = await response.json()
+
+      if (response.ok) {
+        setWeekPlans(data.plans)
+        if (data.visibility) {
+          setVisibility(data.visibility)
+        }
+      }
+    } catch (err) {
+      console.error('Error loading week plans:', err)
+    }
+  }, [classroom.id])
+
+  // Initial load
+  useEffect(() => {
+    async function init() {
+      setLoading(true)
+      await loadDatesWithContent(currentMonth)
+      if (viewMode === 'day') {
+        await loadDayPlan(selectedDate)
+      } else {
+        await loadWeekPlans(getWeekStartForDate(selectedDate))
+      }
+      setLoading(false)
+    }
+    init()
 
     return () => {
-      // Clear all timeouts on unmount
-      Object.values(saveTimeouts).forEach(clearTimeout)
-      Object.values(throttleTimeouts).forEach(clearTimeout)
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+      if (throttleTimeoutRef.current) clearTimeout(throttleTimeoutRef.current)
     }
-  }, [weekStart, loadWeekPlans])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // When month changes, reload dates with content
+  useEffect(() => {
+    loadDatesWithContent(currentMonth)
+  }, [currentMonth, loadDatesWithContent])
+
+  // When selected date changes, reload data
+  useEffect(() => {
+    if (viewMode === 'day') {
+      loadDayPlan(selectedDate)
+    }
+  }, [selectedDate, viewMode, loadDayPlan])
+
+  // When switching to week view or selected date changes in week view
+  useEffect(() => {
+    if (viewMode === 'week') {
+      loadWeekPlans(getWeekStartForDate(selectedDate))
+    }
+  }, [selectedDate, viewMode, loadWeekPlans])
+
+  // Save plan
   const savePlan = useCallback(async (date: string, content: TiptapContent) => {
     const contentStr = JSON.stringify(content)
-    const dayState = dayStates[date]
-
-    if (dayState && contentStr === dayState.lastSavedContent) {
-      setDayStates(prev => ({
-        ...prev,
-        [date]: { ...prev[date], saveStatus: 'saved' },
-      }))
+    if (contentStr === lastSavedContentRef.current) {
+      setSaveStatus('saved')
       return
     }
 
-    setDayStates(prev => ({
-      ...prev,
-      [date]: { ...prev[date], saveStatus: 'saving' },
-    }))
-
-    lastSaveAttemptRef.current[date] = Date.now()
+    setSaveStatus('saving')
+    lastSaveAttemptRef.current = Date.now()
 
     try {
       const response = await fetch(`/api/classrooms/${classroom.id}/daily-plans`, {
@@ -122,86 +164,74 @@ export function TeacherWeeklyPlanTab({ classroom }: TeacherWeeklyPlanTabProps) {
         body: JSON.stringify({ date, rich_content: content }),
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to save')
+      if (response.ok) {
+        lastSavedContentRef.current = contentStr
+        setSaveStatus('saved')
+        // Update dates with content
+        setDatesWithContent(prev => new Set([...prev, date]))
+      } else {
+        setSaveStatus('unsaved')
       }
-
-      setDayStates(prev => ({
-        ...prev,
-        [date]: {
-          ...prev[date],
-          saveStatus: 'saved',
-          lastSavedContent: contentStr,
-        },
-      }))
-    } catch (err: any) {
-      console.error(`Error saving plan for ${date}:`, err)
-      setDayStates(prev => ({
-        ...prev,
-        [date]: { ...prev[date], saveStatus: 'unsaved' },
-      }))
+    } catch (err) {
+      console.error('Error saving plan:', err)
+      setSaveStatus('unsaved')
     }
-  }, [classroom.id, dayStates])
+  }, [classroom.id])
 
-  const scheduleSave = useCallback((date: string, content: TiptapContent, options?: { force?: boolean }) => {
-    pendingContentRef.current[date] = content
+  // Schedule save with debounce and throttle
+  const scheduleSave = useCallback((content: TiptapContent, options?: { force?: boolean }) => {
+    pendingContentRef.current = content
 
-    if (throttleTimeoutsRef.current[date]) {
-      clearTimeout(throttleTimeoutsRef.current[date])
-      delete throttleTimeoutsRef.current[date]
+    if (throttleTimeoutRef.current) {
+      clearTimeout(throttleTimeoutRef.current)
+      throttleTimeoutRef.current = null
     }
 
     const now = Date.now()
-    const lastAttempt = lastSaveAttemptRef.current[date] || 0
-    const msSinceLastAttempt = now - lastAttempt
+    const msSinceLastAttempt = now - lastSaveAttemptRef.current
 
     if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
-      void savePlan(date, content)
+      void savePlan(selectedDate, content)
       return
     }
 
     const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastAttempt
-    throttleTimeoutsRef.current[date] = setTimeout(() => {
-      delete throttleTimeoutsRef.current[date]
-      const latest = pendingContentRef.current[date]
+    throttleTimeoutRef.current = setTimeout(() => {
+      throttleTimeoutRef.current = null
+      const latest = pendingContentRef.current
       if (latest) {
-        void savePlan(date, latest)
+        void savePlan(selectedDate, latest)
       }
     }, waitMs)
-  }, [savePlan])
+  }, [savePlan, selectedDate])
 
-  const handleContentChange = useCallback((date: string, newContent: TiptapContent) => {
-    setDayStates(prev => ({
-      ...prev,
-      [date]: { ...prev[date], content: newContent, saveStatus: 'unsaved' },
-    }))
+  // Handle content change in day view
+  const handleContentChange = useCallback((newContent: TiptapContent) => {
+    setDayContent(newContent)
+    setSaveStatus('unsaved')
+    pendingContentRef.current = newContent
 
-    pendingContentRef.current[date] = newContent
-
-    if (saveTimeoutsRef.current[date]) {
-      clearTimeout(saveTimeoutsRef.current[date])
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
     }
 
-    saveTimeoutsRef.current[date] = setTimeout(() => {
-      delete saveTimeoutsRef.current[date]
-      scheduleSave(date, newContent)
+    saveTimeoutRef.current = setTimeout(() => {
+      saveTimeoutRef.current = null
+      scheduleSave(newContent)
     }, AUTOSAVE_DEBOUNCE_MS)
   }, [scheduleSave])
 
-  const handleBlur = useCallback((date: string) => {
-    const dayState = dayStates[date]
-    const pending = pendingContentRef.current[date]
-
-    if (dayState?.saveStatus === 'unsaved' && pending) {
-      scheduleSave(date, pending, { force: true })
+  // Handle blur - flush pending save
+  const handleBlur = useCallback(() => {
+    if (saveStatus === 'unsaved' && pendingContentRef.current) {
+      scheduleSave(pendingContentRef.current, { force: true })
     }
-  }, [dayStates, scheduleSave])
+  }, [saveStatus, scheduleSave])
 
+  // Handle visibility change
   const handleVisibilityChange = useCallback(async (newVisibility: FuturePlansVisibility) => {
     const prevVisibility = visibility
-    setVisibility(newVisibility) // Optimistic update
+    setVisibility(newVisibility)
 
     try {
       const response = await fetch(`/api/classrooms/${classroom.id}/daily-plans`, {
@@ -211,26 +241,25 @@ export function TeacherWeeklyPlanTab({ classroom }: TeacherWeeklyPlanTabProps) {
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to update visibility')
+        setVisibility(prevVisibility)
       }
-    } catch (err: any) {
-      console.error('Error updating visibility:', err)
-      setVisibility(prevVisibility) // Rollback
+    } catch (err) {
+      setVisibility(prevVisibility)
     }
   }, [classroom.id, visibility])
 
-  const handlePreviousWeek = useCallback(() => {
-    setWeekStart(getPreviousWeekStart(weekStart))
-  }, [weekStart])
+  // Handle date selection
+  const handleSelectDate = useCallback((date: string) => {
+    setSelectedDate(date)
+    // Update month if needed
+    const newMonth = format(parseISO(date), 'yyyy-MM-dd')
+    if (format(parseISO(currentMonth), 'yyyy-MM') !== format(parseISO(date), 'yyyy-MM')) {
+      setCurrentMonth(newMonth)
+    }
+  }, [currentMonth])
 
-  const handleNextWeek = useCallback(() => {
-    setWeekStart(getNextWeekStart(weekStart))
-  }, [weekStart])
-
-  const handleToday = useCallback(() => {
-    setWeekStart(getCurrentWeekStart())
-  }, [])
+  const weekStart = getWeekStartForDate(selectedDate)
+  const weekDays = getWeekDays(weekStart)
 
   if (loading) {
     return (
@@ -240,52 +269,116 @@ export function TeacherWeeklyPlanTab({ classroom }: TeacherWeeklyPlanTabProps) {
     )
   }
 
-  if (error) {
-    return (
-      <div className="p-4">
-        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 text-center">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-          <button
-            type="button"
-            onClick={() => loadWeekPlans(weekStart)}
-            className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col h-full">
-      <WeekActionBar
-        weekStart={weekStart}
-        onPreviousWeek={handlePreviousWeek}
-        onNextWeek={handleNextWeek}
-        onToday={handleToday}
-        visibility={visibility}
-        onVisibilityChange={handleVisibilityChange}
-        isTeacher={true}
-      />
+    <div className="flex flex-col lg:flex-row h-full">
+      {/* Mobile: Compact week strip */}
+      <div className="lg:hidden border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+        <CompactWeekStrip
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          datesWithContent={datesWithContent}
+        />
+      </div>
 
-      <div className="flex-1 overflow-auto p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          {weekDays.map(date => {
-            const dayState = dayStates[date]
-            return (
-              <DayPlanCard
-                key={date}
-                date={date}
-                content={dayState?.content ?? EMPTY_DOC}
-                onChange={(content) => handleContentChange(date, content)}
-                onBlur={() => handleBlur(date)}
-                saveStatus={dayState?.saveStatus ?? 'saved'}
-                isEditable={true}
-                isToday={date === today}
-              />
-            )
-          })}
+      {/* Desktop: Month calendar sidebar */}
+      <div className="hidden lg:flex lg:flex-col w-80 shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+        <MonthCalendar
+          currentMonth={currentMonth}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          onMonthChange={setCurrentMonth}
+          datesWithContent={datesWithContent}
+        />
+      </div>
+
+      {/* Content area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header with toggle and visibility */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <DayWeekToggle mode={viewMode} onChange={setViewMode} />
+
+          <div className="flex items-center gap-2">
+            <label htmlFor="visibility-select" className="text-sm text-gray-600 dark:text-gray-400">
+              Students see:
+            </label>
+            <select
+              id="visibility-select"
+              value={visibility}
+              onChange={(e) => handleVisibilityChange(e.target.value as FuturePlansVisibility)}
+              className="text-sm px-2 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="current">Current week only</option>
+              <option value="next">This & next week</option>
+              <option value="all">All weeks</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-4">
+          {viewMode === 'day' ? (
+            /* Day View: Full-width editor */
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {format(parseISO(selectedDate), 'EEEE, MMMM d, yyyy')}
+                </h2>
+                <span
+                  className={[
+                    'text-sm',
+                    saveStatus === 'saved'
+                      ? 'text-green-600 dark:text-green-400'
+                      : saveStatus === 'saving'
+                        ? 'text-gray-500 dark:text-gray-400'
+                        : 'text-orange-600 dark:text-orange-400',
+                  ].join(' ')}
+                >
+                  {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
+                </span>
+              </div>
+              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <RichTextEditor
+                  content={dayContent}
+                  onChange={handleContentChange}
+                  onBlur={handleBlur}
+                  placeholder="Add lesson plan for this day..."
+                  editable={true}
+                  className="min-h-[400px]"
+                />
+              </div>
+            </div>
+          ) : (
+            /* Week View: Vertically stacked cards */
+            <div className="max-w-4xl mx-auto space-y-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Week of {format(parseISO(weekStart), 'MMMM d, yyyy')}
+              </h2>
+              {weekDays.map((date) => {
+                const plan = weekPlans[date]
+                const isSelected = date === selectedDate
+
+                return (
+                  <div
+                    key={date}
+                    className={[
+                      'cursor-pointer transition-all',
+                      isSelected ? 'ring-2 ring-blue-500 rounded-lg' : '',
+                    ].join(' ')}
+                    onClick={() => {
+                      setSelectedDate(date)
+                      setViewMode('day')
+                    }}
+                  >
+                    <DayPlanCard
+                      date={date}
+                      content={plan?.rich_content ?? null}
+                      isToday={date === today}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

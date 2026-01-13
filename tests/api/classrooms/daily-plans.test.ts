@@ -51,7 +51,7 @@ describe('/api/classrooms/[classroomId]/daily-plans', () => {
   })
 
   describe('GET', () => {
-    it('returns 400 when week_start is missing', async () => {
+    it('returns 400 when no query params provided', async () => {
       vi.mocked(requireAuth).mockResolvedValue({ id: 'teacher-1', email: 'teacher@test.com', role: 'teacher' })
       vi.mocked(assertTeacherOwnsClassroom).mockResolvedValue({
         ok: true,
@@ -63,7 +63,7 @@ describe('/api/classrooms/[classroomId]/daily-plans', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('week_start query parameter is required')
+      expect(data.error).toBe('One of week_start, month, or date query parameter is required')
     })
 
     it('returns 400 when week_start format is invalid', async () => {
