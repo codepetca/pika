@@ -399,16 +399,15 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
                     {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
                   </span>
                 </div>
-                <div>
-                  <RichTextEditor
-                    content={content}
-                    onChange={handleContentChange}
-                    onBlur={flushAutosave}
-                    placeholder="Write a short update..."
-                    editable={true}
-                    className="min-h-[200px]"
-                  />
-                </div>
+                <RichTextEditor
+                  content={content}
+                  onChange={handleContentChange}
+                  onBlur={flushAutosave}
+                  placeholder="Write a short update..."
+                  editable={true}
+                  showToolbar={false}
+                  className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
+                />
 
                 {saveError && (
                   <div className="space-y-2">
