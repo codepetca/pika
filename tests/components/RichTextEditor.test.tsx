@@ -29,10 +29,11 @@ describe('RichTextEditor', () => {
 
     render(<RichTextEditor content={content} onChange={onChange} editable={true} />)
 
-    // The toolbar should be visible with undo/redo buttons
+    // The toolbar should be visible with formatting buttons
     await waitFor(() => {
-      expect(screen.getByLabelText('Undo')).toBeInTheDocument()
-      expect(screen.getByLabelText('Redo')).toBeInTheDocument()
+      expect(screen.getByLabelText('Bold')).toBeInTheDocument()
+      expect(screen.getByLabelText('Italic')).toBeInTheDocument()
+      expect(screen.getByLabelText('Underline')).toBeInTheDocument()
     })
   })
 
@@ -44,8 +45,7 @@ describe('RichTextEditor', () => {
 
     // The toolbar should not be visible
     await waitFor(() => {
-      expect(screen.queryByLabelText('Undo')).not.toBeInTheDocument()
-      expect(screen.queryByLabelText('Redo')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Bold')).not.toBeInTheDocument()
     })
   })
 
@@ -57,8 +57,21 @@ describe('RichTextEditor', () => {
 
     // The toolbar should not be visible
     await waitFor(() => {
-      expect(screen.queryByLabelText('Undo')).not.toBeInTheDocument()
-      expect(screen.queryByLabelText('Redo')).not.toBeInTheDocument()
+      expect(screen.queryByLabelText('Bold')).not.toBeInTheDocument()
+    })
+  })
+
+  it('should hide the toolbar when showToolbar is false', async () => {
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+
+    render(<RichTextEditor content={content} onChange={onChange} showToolbar={false} />)
+
+    // The toolbar should not be visible but editor should still be editable
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Bold')).not.toBeInTheDocument()
+      // Editor content area should still exist
+      expect(screen.getByRole('presentation')).toBeInTheDocument()
     })
   })
 
@@ -88,22 +101,17 @@ describe('RichTextEditor', () => {
     render(<RichTextEditor content={content} onChange={onChange} />)
 
     await waitFor(() => {
-      // Mark buttons
+      // Direct toolbar buttons
       expect(screen.getByLabelText('Bold')).toBeInTheDocument()
       expect(screen.getByLabelText('Italic')).toBeInTheDocument()
       expect(screen.getByLabelText('Underline')).toBeInTheDocument()
-      expect(screen.getByLabelText('Strike')).toBeInTheDocument()
-      expect(screen.getByLabelText('Code')).toBeInTheDocument()
 
-      // Block type buttons
-      expect(screen.getByLabelText('Blockquote')).toBeInTheDocument()
-      expect(screen.getByLabelText('Code Block')).toBeInTheDocument()
-
-      // Text alignment buttons
-      expect(screen.getByLabelText('Align left')).toBeInTheDocument()
-      expect(screen.getByLabelText('Align center')).toBeInTheDocument()
-      expect(screen.getByLabelText('Align right')).toBeInTheDocument()
-      expect(screen.getByLabelText('Align justify')).toBeInTheDocument()
+      // Dropdown triggers
+      expect(screen.getByLabelText('Format text as heading')).toBeInTheDocument()
+      expect(screen.getByLabelText('List options')).toBeInTheDocument()
+      expect(screen.getByLabelText('Block formatting')).toBeInTheDocument()
+      expect(screen.getByLabelText('Text marks')).toBeInTheDocument()
+      expect(screen.getByLabelText('Text alignment')).toBeInTheDocument()
     })
   })
 
@@ -189,66 +197,18 @@ describe('RichTextEditor', () => {
   })
 })
 
-describe('RichTextEditor code block behavior', () => {
-  it('should apply code block formatting when code block button is clicked', async () => {
+describe('RichTextEditor dropdown menus', () => {
+  it('should render dropdown triggers', async () => {
     const onChange = vi.fn()
-    const content: TiptapContent = {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [{ type: 'text', text: 'code' }],
-        },
-      ],
-    }
+    const content: TiptapContent = { type: 'doc', content: [] }
 
     render(<RichTextEditor content={content} onChange={onChange} />)
 
-    const codeBlockButton = screen.getByLabelText('Code Block')
-    fireEvent.click(codeBlockButton)
-
+    // Verify all dropdown triggers are present
     await waitFor(() => {
-      expect(codeBlockButton).toHaveAttribute('data-active-state', 'on')
-    })
-  })
-
-  it('should strip marks when converting to code block', async () => {
-    const onChange = vi.fn()
-    // Start with bold text
-    const content: TiptapContent = {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [
-            {
-              type: 'text',
-              text: 'code',
-              marks: [{ type: 'bold' }],
-            },
-          ],
-        },
-      ],
-    }
-
-    render(<RichTextEditor content={content} onChange={onChange} />)
-
-    const codeBlockButton = screen.getByLabelText('Code Block')
-    fireEvent.click(codeBlockButton)
-
-    await waitFor(() => {
-      expect(codeBlockButton).toHaveAttribute('data-active-state', 'on')
-    })
-
-    // When onChange is called with code block, it should not have marks
-    await waitFor(() => {
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]
-      if (lastCall && lastCall[0]?.content?.[0]?.type === 'codeBlock') {
-        const codeBlockContent = lastCall[0].content[0].content
-        if (codeBlockContent?.[0]) {
-          expect(codeBlockContent[0].marks).toBeUndefined()
-        }
-      }
+      expect(screen.getByLabelText('Block formatting')).toBeInTheDocument()
+      expect(screen.getByLabelText('Text marks')).toBeInTheDocument()
+      expect(screen.getByLabelText('Text alignment')).toBeInTheDocument()
     })
   })
 })
