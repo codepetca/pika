@@ -2219,3 +2219,97 @@
 **Tests:** Not run (migration-only change).
 **Next:** Open PR and apply migration on staging with `supabase db push --include-all`.
 **Blockers:** None
+---
+## 2026-01-11 [AI - Claude Opus 4.5]
+**Goal:** Replace custom tiptap editor with official simple-editor template.
+**Completed:** 
+- Installed Tiptap simple-editor template via `@tiptap/cli`
+- Upgraded Tiptap from v2.26.4 to v3.15.3
+- Created wrapper components (`src/components/editor/RichTextEditor.tsx`, `RichTextViewer.tsx`) preserving existing props interface
+- Added new features: undo/redo, blockquotes, checkbox lists, text alignment
+- Removed font family dropdown per user request
+- Integrated existing link security validation
+- Updated all consumer components to use new editor
+- Updated tests for new UI structure
+- Added matchMedia mock to test setup
+**Status:** completed
+**Artifacts:**
+- Branch: tiptap-simple-editor
+- Worktree: /Users/stew/Repos/.worktrees/pika/tiptap-simple-editor
+- PR: https://github.com/codepetca/pika/pull/121
+- Files: 155 files changed (new tiptap template + wrapper components)
+**Tests:** All 523 tests passing.
+**Next:** Manual testing of editor in all three consumer locations, verify dark mode.
+**Blockers:** None
+---
+## 2026-01-11 [AI - Claude Opus 4.5]
+**Goal:** Add notification indicators (pulse animation) to student sidebar tabs for pending actions.
+**Completed:**
+- Created database migration `019_assignment_docs_viewed_at.sql` adding `viewed_at` column to track when students first view assignments
+- Created `/api/student/notifications` endpoint returning `{ hasTodayEntry, unviewedAssignmentsCount }`
+- Modified `/api/assignment-docs/[id]` to set `viewed_at` when student opens an assignment
+- Added `animate-notification-pulse` Tailwind animation with `motion-reduce` accessibility support
+- Created `StudentNotificationsProvider` React context for notification state with optimistic updates
+- Updated `ClassroomSidebar` to show pulse animation on Today tab (until entry saved) and Assignments tab (until assignments viewed)
+- Wired up optimistic updates in `StudentTodayTab` and `StudentAssignmentEditor`
+**Status:** completed
+**Artifacts:**
+- Branch: feat/student-sidebar-notifications
+- Worktree: /Users/stew/Repos/.worktrees/pika/feat-student-sidebar-notifications
+- Files: 9 files (3 new, 6 modified)
+  - supabase/migrations/019_assignment_docs_viewed_at.sql (new)
+  - src/app/api/student/notifications/route.ts (new)
+  - src/components/StudentNotificationsProvider.tsx (new)
+  - src/app/api/assignment-docs/[id]/route.ts
+  - tailwind.config.ts
+  - src/app/classrooms/[classroomId]/page.tsx
+  - src/components/ClassroomSidebar.tsx
+  - src/app/classrooms/[classroomId]/StudentTodayTab.tsx
+  - src/components/StudentAssignmentEditor.tsx
+**Tests:** All 527 tests passing.
+**PR:** https://github.com/codepetca/pika/pull/123
+**Migration:** Applied to Pika-staging via `supabase db push`
+**Next:** Manual testing of pulse animations in browser.
+**Blockers:** None
+**Note:** Initially worked in hub checkout by mistake; recovered using `git stash` + worktree creation per protocol.
+
+---
+## 2026-01-11 [AI - Claude Opus 4.5]
+**Goal:** Add tiptap rich text editor to assignment creation/edit for teachers (GitHub issue #114, rich text portion only).
+**Completed:**
+- Created database migration `021_assignment_rich_instructions.sql` adding `rich_instructions` jsonb column to assignments table
+- Migration converts existing plain text descriptions to TiptapContent format
+- Updated `Assignment` type to include `rich_instructions: TiptapContent | null`
+- Replaced textarea in `AssignmentForm.tsx` with `RichTextEditor` component
+- Updated `CreateAssignmentModal` to use TiptapContent state and send `rich_instructions` to API
+- Updated `EditAssignmentModal` to load/save `rich_instructions` with proper change detection
+- Updated `/api/teacher/assignments` POST to handle `rich_instructions` and maintain plain text fallback
+- Updated `/api/teacher/assignments/[id]` PATCH to handle `rich_instructions` updates
+- Updated `StudentAssignmentsTab` instructions modal to use `RichTextViewer` with fallback
+- Updated `StudentAssignmentEditor` to display rich instructions with `RichTextViewer`
+- Added `@tiptap/markdown` extension with paste support (teachers can paste markdown from ChatGPT)
+- Fixed test assertions to handle editor content normalization (textAlign attrs)
+- Fixed migration numbering conflict (renamed 019→020→021)
+**Status:** completed
+**Artifacts:**
+- Branch: add-tiptap-to-assignment-creation
+- Worktree: /Users/stew/Repos/.worktrees/pika/add-tiptap-to-assignment-creation
+- PR: https://github.com/codepetca/pika/pull/128
+- Files:
+  - supabase/migrations/021_assignment_rich_instructions.sql (new)
+  - src/types/index.ts
+  - src/components/AssignmentForm.tsx
+  - src/components/CreateAssignmentModal.tsx
+  - src/components/EditAssignmentModal.tsx
+  - src/app/api/teacher/assignments/route.ts
+  - src/app/api/teacher/assignments/[id]/route.ts
+  - src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx
+  - src/components/StudentAssignmentEditor.tsx
+  - src/components/editor/RichTextEditor.tsx
+  - tests/components/CreateAssignmentModal.test.tsx
+  - tests/components/EditAssignmentModal.test.tsx
+**Tests:** All tests passing after fixing assertions for editor normalization.
+**Migration:** Applied to Pika-staging via `supabase db push`
+**Next:** Future work to add markdown conversion utilities for AI integrations (read/write markdown for AI, store as TiptapContent).
+**Blockers:** None
+**Decision:** Keep TiptapContent JSON as storage format rather than markdown. Markdown paste already works via @tiptap/markdown extension. AI conversion layer to be added later when building AI features.

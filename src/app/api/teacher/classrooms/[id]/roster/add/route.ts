@@ -15,7 +15,7 @@ export async function POST(
     const user = await requireRole('teacher')
     const classroomId = params.id
     const body = await request.json()
-    const { students } = body // Array of { email, firstName, lastName, studentNumber }
+    const { students } = body // Array of { email, firstName, lastName, studentNumber, counselorEmail }
 
     if (!students || !Array.isArray(students) || students.length === 0) {
       return NextResponse.json(
@@ -38,7 +38,7 @@ export async function POST(
     const rosterRows = []
 
     for (const student of students) {
-      const { email, firstName, lastName, studentNumber } = student
+      const { email, firstName, lastName, studentNumber, counselorEmail } = student
 
       if (!email || !firstName || !lastName) {
         errors.push({ email, error: 'Missing required fields' })
@@ -52,6 +52,7 @@ export async function POST(
         first_name: firstName,
         last_name: lastName,
         student_number: studentNumber || null,
+        counselor_email: counselorEmail?.toLowerCase().trim() || null,
       })
     }
 

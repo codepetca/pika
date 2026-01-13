@@ -19,18 +19,9 @@ This file provides:
 
 ---
 
-## Files to Load (in order)
+## Files to Load
 
-Follow the reading order specified in `ai-instructions.md`:
-
-1. **`/docs/ai-instructions.md`** — AI orchestrator (read first!)
-2. **`/docs/core/architecture.md`** — System architecture patterns
-3. **`/docs/core/design.md`** — UI/UX guidelines
-4. **`/docs/core/project-context.md`** — Tech stack & project setup
-5. **`/docs/core/agents.md`** — Multi-agent collaboration patterns
-6. **`/docs/core/tests.md`** — TDD requirements
-7. **`/docs/core/roadmap.md`** — Current implementation status
-8. **`/docs/core/decision-log.md`** — Historical decisions (optional, as needed)
+**Single source of truth:** See `/docs/ai-instructions.md` for the complete reading order (7 core docs).
 
 ---
 

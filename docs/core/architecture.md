@@ -207,4 +207,4 @@ Students: join classroom (code) -> daily entries -> open assignment -> autosave 
 
 ---
 
-For UI/UX patterns see `docs/core/design.md`; for testing approach see `docs/core/tests.md`; for setup see `docs/core/project-context.md`.
+For UI/UX patterns see `docs/core/design.md`; for testing approach see `docs/core/tests.md`; for setup see `docs/core/project-context.md`; for routing architecture see `docs/core/route-patterns.md`.

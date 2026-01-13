@@ -70,6 +70,9 @@ export async function GET(
       .eq('student_id', user.id)
       .single()
 
+    // Track whether this is the first time viewing (for notification decrement)
+    let wasFirstView = false
+
     if (docError) {
       if (docError.code === 'PGRST116') {
         const { data: created, error: createError } = await supabase
@@ -80,6 +83,7 @@ export async function GET(
             content: { type: 'doc', content: [] },
             is_submitted: false,
             submitted_at: null,
+            viewed_at: new Date().toISOString(),
           })
           .select()
           .single()
@@ -97,7 +101,8 @@ export async function GET(
             if (raced) {
               raced.content = parseContentField(raced.content)
             }
-            return NextResponse.json({ assignment, doc: raced })
+            // Race condition: another request created the doc, so this wasn't first view
+            return NextResponse.json({ assignment, doc: raced, wasFirstView: false })
           }
 
           console.error('Error creating assignment doc:', createError)
@@ -107,7 +112,8 @@ export async function GET(
           )
         }
 
-        return NextResponse.json({ assignment, doc: created })
+        // New doc created = first view
+        return NextResponse.json({ assignment, doc: created, wasFirstView: true })
       }
       console.error('Error fetching assignment doc:', docError)
       return NextResponse.json(
@@ -121,7 +127,23 @@ export async function GET(
       existingDoc.content = parseContentField(existingDoc.content)
     }
 
-    return NextResponse.json({ assignment, doc: existingDoc })
+    // Mark as viewed if not already (for notification tracking)
+    if (existingDoc && existingDoc.viewed_at === null) {
+      const { error: viewedError } = await supabase
+        .from('assignment_docs')
+        .update({ viewed_at: new Date().toISOString() })
+        .eq('id', existingDoc.id)
+
+      if (viewedError) {
+        console.error('Error updating viewed_at:', viewedError)
+        // Non-fatal: continue with response, but don't mark as first view
+      } else {
+        existingDoc.viewed_at = new Date().toISOString()
+        wasFirstView = true
+      }
+    }
+
+    return NextResponse.json({ assignment, doc: existingDoc, wasFirstView })
   } catch (error: any) {
     // Authentication error (401)
     if (error.name === 'AuthenticationError') {

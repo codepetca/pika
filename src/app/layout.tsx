@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
-import './globals.css'
+import './globals.scss'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { ProgressBarProvider } from '@/components/ProgressBarProvider'
 
 export const metadata: Metadata = {
   title: 'Pika - Student Daily Log & Attendance',
@@ -34,7 +35,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <ThemeProvider>
-          {children}
+          <ProgressBarProvider>
+            {children}
+          </ProgressBarProvider>
         </ThemeProvider>
       </body>
     </html>

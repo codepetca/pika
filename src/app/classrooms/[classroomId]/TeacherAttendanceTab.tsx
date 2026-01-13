@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { StudentRow } from '@/components/StudentRow'
 import { DateActionBar } from '@/components/DateActionBar'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -17,27 +16,45 @@ import {
   DataTableHeaderCell,
   DataTableRow,
   EmptyStateRow,
+  KeyboardNavigableTable,
   SortableHeaderCell,
   TableCard,
 } from '@/components/DataTable'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
-import type { AttendanceRecord, ClassDay, Classroom } from '@/types'
+import { useRightSidebar, useMobileDrawer, useLeftSidebar } from '@/components/layout'
+import type { ClassDay, Classroom, Entry } from '@/types'
+
+type SortColumn = 'first_name' | 'last_name' | 'id'
+
+interface LogRow {
+  student_id: string
+  student_email: string
+  student_first_name: string
+  student_last_name: string
+  email_username: string
+  entry: Entry | null
+  summary: string | null
+}
 
 interface Props {
   classroom: Classroom
+  onSelectEntry?: (entry: Entry | null, studentName: string) => void
 }
 
-type SortColumn = 'first_name' | 'last_name' | 'email'
-
-export function TeacherAttendanceTab({ classroom }: Props) {
+export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
   const [classDays, setClassDays] = useState<ClassDay[]>([])
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
+  const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string>('')
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
+
+  const { isOpen: isRightOpen, toggle: toggleRight, enabled: rightEnabled } = useRightSidebar()
+  const { openRight: openMobileRight } = useMobileDrawer()
+  const { isExpanded: isLeftExpanded } = useLeftSidebar()
 
   useEffect(() => {
     async function load() {
@@ -51,10 +68,6 @@ export function TeacherAttendanceTab({ classroom }: Props) {
         const today = getTodayInToronto()
         const previousClassDay = getMostRecentClassDayBefore(nextClassDays, today)
         setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
-
-        const attendanceRes = await fetch(`/api/teacher/attendance?classroom_id=${classroom.id}`)
-        const attendanceData = await attendanceRes.json()
-        setAttendance(attendanceData.attendance || [])
       } catch (err) {
         console.error('Error loading attendance tab:', err)
       } finally {
@@ -64,28 +77,55 @@ export function TeacherAttendanceTab({ classroom }: Props) {
     load()
   }, [classroom.id])
 
+  // Fetch logs when date changes
+  useEffect(() => {
+    async function loadLogs() {
+      if (!selectedDate) return
+      if (!isClassDayOnDate(classDays, selectedDate)) {
+        setLogs([])
+        setSelectedStudentId(null)
+        onSelectEntry?.(null, '')
+        return
+      }
+
+      setLoading(true)
+      try {
+        const res = await fetch(`/api/teacher/logs?classroom_id=${classroom.id}&date=${selectedDate}`)
+        const data = await res.json()
+        const rawLogs = data.logs || []
+        const mappedLogs = rawLogs.map((log: any) => ({
+          ...log,
+          email_username: log.student_email.split('@')[0],
+        }))
+        setLogs(mappedLogs)
+
+        // Auto-select first student
+        if (mappedLogs.length > 0) {
+          const firstLog = mappedLogs[0]
+          setSelectedStudentId(firstLog.student_id)
+          const studentName = [firstLog.student_first_name, firstLog.student_last_name].filter(Boolean).join(' ') || firstLog.email_username
+          onSelectEntry?.(firstLog.entry, studentName)
+        } else {
+          setSelectedStudentId(null)
+          onSelectEntry?.(null, '')
+        }
+      } catch (err) {
+        console.error('Error loading logs:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadLogs()
+  }, [classroom.id, classDays, selectedDate, onSelectEntry])
+
   const isClassDay = useMemo(() => {
     if (!selectedDate) return true
     return isClassDayOnDate(classDays, selectedDate)
   }, [classDays, selectedDate])
 
   const rows = useMemo(() => {
-    const emailUsername = (email: string) => email.split('@')[0]
-
-    const mappedRows = attendance.map((record) => {
-      const status = record.dates[selectedDate]
-      return {
-        student_id: record.student_id,
-        student_email: record.student_email,
-        student_first_name: record.student_first_name,
-        student_last_name: record.student_last_name,
-        email_username: emailUsername(record.student_email),
-        status: status || 'absent',
-      }
-    })
-
-    return mappedRows.sort((a, b) => {
-      if (sortColumn === 'email') {
+    return [...logs].sort((a, b) => {
+      if (sortColumn === 'id') {
         return applyDirection(a.email_username.localeCompare(b.email_username), sortDirection)
       }
       const aValue = sortColumn === 'first_name' ? a.student_first_name : a.student_last_name
@@ -94,7 +134,7 @@ export function TeacherAttendanceTab({ classroom }: Props) {
       if (cmp !== 0) return applyDirection(cmp, sortDirection)
       return applyDirection(a.email_username.localeCompare(b.email_username), sortDirection)
     })
-  }, [attendance, selectedDate, sortColumn, sortDirection])
+  }, [logs, sortColumn, sortDirection])
 
   function handleSort(column: SortColumn) {
     setSortState((prev) => toggleSort(prev, column))
@@ -107,14 +147,56 @@ export function TeacherAttendanceTab({ classroom }: Props) {
     })
   }
 
-  if (loading) {
+  function handleRowClick(row: LogRow) {
+    const newSelectedId = selectedStudentId === row.student_id ? null : row.student_id
+    setSelectedStudentId(newSelectedId)
+
+    if (newSelectedId) {
+      const studentName = [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') || row.email_username
+      onSelectEntry?.(row.entry, studentName)
+    } else {
+      onSelectEntry?.(null, '')
+    }
+  }
+
+  function handleToggleSidebar() {
+    // On desktop, toggle the sidebar
+    toggleRight()
+    // On mobile, open the drawer
+    openMobileRight()
+  }
+
+  function getLogText(row: LogRow): string {
+    if (row.summary) return row.summary
+    if (row.entry?.text) return row.entry.text
+    return '—'
+  }
+
+  // Keyboard navigation handler
+  const handleKeyboardSelect = useCallback(
+    (studentId: string) => {
+      const row = rows.find((r) => r.student_id === studentId)
+      if (!row) return
+
+      setSelectedStudentId(studentId)
+      const studentName =
+        [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') ||
+        row.email_username
+      onSelectEntry?.(row.entry, studentName)
+    },
+    [rows, onSelectEntry]
+  )
+
+  // Row keys for keyboard navigation (in sorted order)
+  const rowKeys = useMemo(() => rows.map((r) => r.student_id), [rows])
+
+  if (loading && logs.length === 0) {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
       </div>
     )
   }
-
 
   return (
     <PageLayout>
@@ -127,11 +209,27 @@ export function TeacherAttendanceTab({ classroom }: Props) {
             onNext={() => moveDateBy(1)}
           />
         }
+        actions={
+          rightEnabled
+            ? [
+                {
+                  id: 'toggle-log',
+                  label: isRightOpen ? 'Hide Log' : 'View Log',
+                  onSelect: handleToggleSidebar,
+                },
+              ]
+            : []
+        }
       />
 
       <PageContent>
-        <TableCard>
-          <DataTable>
+        <KeyboardNavigableTable
+          rowKeys={rowKeys}
+          selectedKey={selectedStudentId}
+          onSelectKey={handleKeyboardSelect}
+        >
+          <TableCard>
+            <DataTable>
             <DataTableHead>
               <DataTableRow>
                 <SortableHeaderCell
@@ -139,48 +237,76 @@ export function TeacherAttendanceTab({ classroom }: Props) {
                   isActive={sortColumn === 'first_name'}
                   direction={sortDirection}
                   onClick={() => handleSort('first_name')}
-                  density="compact"
+                  density="tight"
                 />
                 <SortableHeaderCell
                   label="Last Name"
                   isActive={sortColumn === 'last_name'}
                   direction={sortDirection}
                   onClick={() => handleSort('last_name')}
-                  density="compact"
+                  density="tight"
                 />
                 <SortableHeaderCell
-                  label="Email"
-                  isActive={sortColumn === 'email'}
+                  label="ID"
+                  isActive={sortColumn === 'id'}
                   direction={sortDirection}
-                  onClick={() => handleSort('email')}
-                  density="compact"
+                  onClick={() => handleSort('id')}
+                  density="tight"
                 />
-                <DataTableHeaderCell density="compact" align="center">
+                <DataTableHeaderCell density="tight" align="center">
                   Status
+                </DataTableHeaderCell>
+                <DataTableHeaderCell density="tight">
+                  Log
                 </DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
-              {rows.map((row) => (
-                <DataTableRow key={row.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <DataTableCell density="compact">{row.student_first_name}</DataTableCell>
-                  <DataTableCell density="compact">{row.student_last_name}</DataTableCell>
-                  <DataTableCell density="compact" className="text-gray-600 dark:text-gray-400">
-                    {row.email_username}
-                  </DataTableCell>
-                  <DataTableCell density="compact" align="center">
-                    <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
-                      {isClassDay ? getAttendanceIcon(row.status) : '—'}
-                    </div>
-                  </DataTableCell>
-                </DataTableRow>
-              ))}
+              {rows.map((row) => {
+                const isSelected = selectedStudentId === row.student_id
+                const status = row.entry ? 'present' : 'absent'
+                const logText = getLogText(row)
+
+                return (
+                  <DataTableRow
+                    key={row.student_id}
+                    className={[
+                      'cursor-pointer transition-colors',
+                      isSelected
+                        ? 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800',
+                    ].join(' ')}
+                    onClick={() => handleRowClick(row)}
+                  >
+                    <DataTableCell density="tight">{row.student_first_name || '—'}</DataTableCell>
+                    <DataTableCell density="tight">{row.student_last_name || '—'}</DataTableCell>
+                    <DataTableCell density="tight" className="text-gray-600 dark:text-gray-400">
+                      {row.email_username}
+                    </DataTableCell>
+                    <DataTableCell density="tight" align="center">
+                      <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
+                        {isClassDay ? getAttendanceIcon(status) : '—'}
+                      </div>
+                    </DataTableCell>
+                    <DataTableCell density="tight" className={isLeftExpanded ? 'max-w-xs' : 'max-w-md'}>
+                      <div className="truncate text-gray-700 dark:text-gray-300" title={logText !== '—' ? logText : undefined}>
+                        {logText}
+                      </div>
+                    </DataTableCell>
+                  </DataTableRow>
+                )
+              })}
               {rows.length === 0 && (
-                <EmptyStateRow colSpan={4} message="No students enrolled" density="compact" />
+                <EmptyStateRow
+                  colSpan={5}
+                  message={isClassDay ? 'No students enrolled' : 'Not a class day'}
+                  density="tight"
+                />
               )}
             </DataTableBody>
-          </DataTable>
-        </TableCard>
+            </DataTable>
+          </TableCard>
+        </KeyboardNavigableTable>
       </PageContent>
     </PageLayout>
   )
