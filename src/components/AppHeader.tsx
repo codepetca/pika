@@ -43,37 +43,40 @@ export function AppHeader({
   }, [])
 
   return (
-    <header className="h-12 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center px-4 gap-3">
-      {/* Mobile sidebar trigger (classroom pages) */}
-      {onOpenSidebar && (
-        <button
-          type="button"
-          onClick={onOpenSidebar}
-          className="lg:hidden p-2 -ml-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          aria-label="Open classroom navigation"
-          title="Open navigation"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-      )}
+    <header className="h-12 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 grid grid-cols-[1fr_auto_1fr] items-center px-4">
+      {/* Left section */}
+      <div className="flex items-center gap-3">
+        {/* Mobile sidebar trigger (classroom pages) */}
+        {onOpenSidebar && (
+          <button
+            type="button"
+            onClick={onOpenSidebar}
+            className="lg:hidden p-2 -ml-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            aria-label="Open classroom navigation"
+            title="Open navigation"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
 
-      {/* Logo - click to return to classrooms index */}
-      <Link href="/classrooms" aria-label="Home" title="Home" className="flex-shrink-0">
-        <PikaLogo className="w-8 h-8" />
-      </Link>
+        {/* Logo - click to return to classrooms index */}
+        <Link href="/classrooms" aria-label="Home" title="Home" className="flex-shrink-0">
+          <PikaLogo className="w-8 h-8" />
+        </Link>
 
-      {/* Classroom Selector (teachers with multiple classrooms, or when explicitly provided) */}
-      {classrooms && classrooms.length > 0 && (
-        <ClassroomDropdown
-          className="ml-4"
-          classrooms={classrooms}
-          currentClassroomId={currentClassroomId}
-          currentTab={currentTab}
-        />
-      )}
+        {/* Classroom Selector (teachers with multiple classrooms, or when explicitly provided) */}
+        {classrooms && classrooms.length > 0 && (
+          <ClassroomDropdown
+            className="ml-4"
+            classrooms={classrooms}
+            currentClassroomId={currentClassroomId}
+            currentTab={currentTab}
+          />
+        )}
+      </div>
 
-      {/* Date */}
-      <div className="flex-1 flex items-center justify-center">
+      {/* Center section - Date */}
+      <div>
         {/* Mobile: Short format (Tue Dec 16) */}
         <div className="lg:hidden text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
           {formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}
@@ -84,8 +87,10 @@ export function AppHeader({
         </div>
       </div>
 
-      {/* User Menu */}
-      <UserMenu user={user} />
+      {/* Right section */}
+      <div className="flex items-center justify-end">
+        <UserMenu user={user} />
+      </div>
     </header>
   )
 }
