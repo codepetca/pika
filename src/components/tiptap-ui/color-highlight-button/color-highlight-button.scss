@@ -5,7 +5,7 @@
   margin: 0 -0.175rem;
   border-radius: var(--tt-radius-xl);
   background-color: var(--highlight-color);
-  transition: transform 0.2s ease;
+  transition: transform var(--tt-transition-duration-default) var(--tt-transition-easing-default);
 
   &::after {
     content: "";

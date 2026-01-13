@@ -108,7 +108,7 @@
     cursor: pointer;
     position: relative;
     overflow: hidden;
-    transition: all 0.2s ease;
+    transition: all var(--tt-transition-duration-default) var(--tt-transition-easing-default);
 
     &:hover {
       border-color: var(--tiptap-image-upload-border-hover);
@@ -173,7 +173,7 @@
       position: absolute;
       inset: 0;
       background-color: var(--tiptap-image-upload-progress-bg);
-      transition: all 300ms ease-out;
+      transition: all var(--tt-transition-duration-default) var(--tt-transition-easing-default);
     }
 
     .tiptap-image-upload-preview-content {

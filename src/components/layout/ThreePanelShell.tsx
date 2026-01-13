@@ -33,7 +33,7 @@ export function ThreePanelShell({ children, className }: ThreePanelShellProps) {
         'grid grid-cols-1',
         // Desktop: 3-column grid with transitions
         'lg:grid-cols-[var(--left-width)_1fr_var(--right-width)]',
-        'lg:transition-[grid-template-columns] lg:duration-200 lg:ease-out',
+        'lg:transition-[grid-template-columns] lg:duration-200',
         className,
       ]
         .filter(Boolean)

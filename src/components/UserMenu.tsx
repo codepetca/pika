@@ -134,7 +134,7 @@ export function UserMenu({ user }: UserMenuProps) {
       {/* Dropdown menu with animation */}
       <div
         id={menuId}
-        className={`absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-150 ease-out origin-top-right ${
+        className={`absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-200 origin-top-right ${
           isOpen
             ? 'opacity-100 scale-100 translate-y-0'
             : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
