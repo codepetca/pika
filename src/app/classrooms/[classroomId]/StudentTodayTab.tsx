@@ -3,12 +3,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
-import { RichTextEditor } from '@/components/RichTextEditor'
+import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { format, parseISO } from 'date-fns'
-import { ChevronDownIcon } from '@heroicons/react/24/outline'
+import { ChevronDown } from 'lucide-react'
 import {
   readBooleanCookie,
   safeSessionGetJson,
@@ -20,6 +20,7 @@ import {
   getStudentEntryHistoryCacheKey,
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
+import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import type { Classroom, ClassDay, Entry, JsonPatchOperation, TiptapContent } from '@/types'
@@ -56,6 +57,8 @@ function validateContent(content: TiptapContent, maxChars: number) {
 }
 
 export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
+  const notifications = useStudentNotifications()
+
   // Constants
   const historyLimit = 5
   const historyCookieName = 'pika_student_today_history'
@@ -261,12 +264,13 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
       setSaveStatus('saved')
       setSaveError('')
       setConflictEntry(null)
+      notifications?.markTodayComplete()
     } catch (err: any) {
       console.error('Error saving:', err)
       setSaveStatus('unsaved')
       setSaveError(err.message || 'Failed to save')
     }
-  }, [MAX_CHARS, classroom.id, today, updateHistoryEntries])
+  }, [MAX_CHARS, classroom.id, today, updateHistoryEntries, notifications])
 
   const scheduleSave = useCallback((
     newContent: TiptapContent,
@@ -366,8 +370,6 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
   }
 
   const historyListId = `student-today-history-${classroom.id}`
-  const charCount = countCharacters(content)
-  const isOverLimit = charCount > MAX_CHARS
 
   return (
     <PageLayout>
@@ -380,35 +382,32 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
               </div>
             ) : (
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     What did you do today?
                   </label>
-                  <RichTextEditor
-                    content={content}
-                    onChange={handleContentChange}
-                    onBlur={flushAutosave}
-                    placeholder="Write a short update..."
-                    editable={true}
-                    className="min-h-[200px]"
-                  />
-                  <div className="mt-2 flex items-center justify-between text-sm">
-                    <span className={isOverLimit ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}>
-                      {charCount} / {MAX_CHARS} characters
-                    </span>
-                    <span
-                      className={
-                        saveStatus === 'saved'
-                          ? 'text-green-600 dark:text-green-400'
-                          : saveStatus === 'saving'
-                            ? 'text-gray-500 dark:text-gray-400'
-                            : 'text-orange-600 dark:text-orange-400'
-                      }
-                    >
-                      {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
-                    </span>
-                  </div>
+                  <span
+                    className={
+                      'text-sm ' +
+                      (saveStatus === 'saved'
+                        ? 'text-green-600 dark:text-green-400'
+                        : saveStatus === 'saving'
+                          ? 'text-gray-500 dark:text-gray-400'
+                          : 'text-orange-600 dark:text-orange-400')
+                    }
+                  >
+                    {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+                  </span>
                 </div>
+                <RichTextEditor
+                  content={content}
+                  onChange={handleContentChange}
+                  onBlur={flushAutosave}
+                  placeholder="Write a short update..."
+                  editable={true}
+                  showToolbar={false}
+                  className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
+                />
 
                 {saveError && (
                   <div className="space-y-2">
@@ -431,7 +430,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
 
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Past Logs</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Past</h3>
               <button
                 type="button"
                 className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
@@ -440,7 +439,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
                 onClick={() => setHistoryVisibility(!historyVisible)}
               >
                 {historyVisible ? 'Hide' : 'Show'}
-                <ChevronDownIcon
+                <ChevronDown
                   className={[
                     'h-4 w-4 transition-transform',
                     historyVisible ? 'rotate-180' : 'rotate-0',
@@ -456,20 +455,13 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
                   </div>
                 ) : (
                   historyEntries.map(entry => (
-                    <div key={entry.id} className="px-4 py-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {format(parseISO(entry.date), 'EEE MMM d')}
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {getEntryPreview(entry.text, 150)}
-                          </p>
-                        </div>
-                        <span className="text-xs text-gray-400 dark:text-gray-500">
-                          {entry.on_time ? 'On time' : 'Late'}
-                        </span>
-                      </div>
+                    <div key={entry.id} className="px-4 py-2">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {format(parseISO(entry.date), 'EEE MMM d')}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {getEntryPreview(entry.text, 150)}
+                      </p>
                     </div>
                   ))
                 )}

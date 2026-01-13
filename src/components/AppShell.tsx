@@ -7,6 +7,8 @@ interface AppShellProps {
   user?: {
     email: string
     role: 'student' | 'teacher'
+    first_name?: string | null
+    last_name?: string | null
   }
   classrooms?: Array<{
     id: string

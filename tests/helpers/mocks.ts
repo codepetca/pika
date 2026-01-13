@@ -63,8 +63,8 @@ export const createMockAssignmentDoc = (overrides: Partial<AssignmentDoc> = {}):
  */
 export const createMockClassroom = (overrides: Partial<Classroom> = {}): Classroom => ({
   id: 'classroom-1',
-  title: 'GLD2O - Learning Strategies',
-  class_code: 'ABC123',
+  title: 'Test Classroom',
+  class_code: 'TEST01',
   term_label: 'Fall 2024',
   created_by: 'teacher-1',
   created_at: '2024-09-01T10:00:00Z',
@@ -92,7 +92,7 @@ export const createMockStudent = (overrides: Partial<Student> = {}): Student => 
 export const createMockTeacher = (overrides: Partial<Teacher> = {}): Teacher => ({
   id: 'teacher-1',
   user_id: 'user-teacher-1',
-  email: 'jane.smith@gapps.yrdsb.ca',
+  email: 'teacher@example.com',
   first_name: 'Jane',
   last_name: 'Smith',
   created_at: '2024-08-15T09:00:00Z',
@@ -108,7 +108,7 @@ export const createMockUser = (
   overrides: Record<string, any> = {}
 ) => ({
   id: role === 'student' ? 'user-student-1' : 'user-teacher-1',
-  email: role === 'student' ? 'test@student.com' : 'test@gapps.yrdsb.ca',
+  email: role === 'student' ? 'student1@example.com' : 'teacher@example.com',
   role,
   ...overrides,
 })

@@ -61,6 +61,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
             firstName: s.firstName,
             lastName: s.lastName,
             studentNumber: s.studentNumber || undefined,
+            counselorEmail: s.counselorEmail || undefined,
           })),
         }),
       })
@@ -110,15 +111,16 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
                          resize-none font-mono text-sm"
               rows={8}
               placeholder={`John Doe john@example.com
-Jane Smith jane@example.com 123456`}
+Jane Smith jane@example.com 123456
+Bob Lee bob@example.com 789012 counselor@school.com`}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onBlur={handleParseInput}
               disabled={isSubmitting}
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              One student per line in this format. StudentNumber is optional:<br />
-              <span className="font-mono">First Last Email [StudentNumber]</span>
+              One student per line. StudentNumber and CounselorEmail are optional:<br />
+              <span className="font-mono">First Last Email [StudentNumber] [CounselorEmail]</span>
             </p>
           </div>
 
@@ -175,6 +177,9 @@ Jane Smith jane@example.com 123456`}
                           <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">
                             Student #
                           </th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">
+                            Counselor
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
@@ -185,6 +190,9 @@ Jane Smith jane@example.com 123456`}
                             <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{student.email}</td>
                             <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
                               {student.studentNumber || '—'}
+                            </td>
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-400">
+                              {student.counselorEmail || '—'}
                             </td>
                           </tr>
                         ))}

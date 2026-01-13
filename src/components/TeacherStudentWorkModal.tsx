@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { ChevronLeft, ChevronRight, Eye, EyeOff, X } from 'lucide-react'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
-import { RichTextViewer } from '@/components/RichTextViewer'
+import { RichTextViewer } from '@/components/editor'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
@@ -202,7 +202,7 @@ export function TeacherStudentWorkModal({
                 className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Previous student"
               >
-                <ChevronLeftIcon className="h-4 w-4" aria-hidden="true" />
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -211,7 +211,7 @@ export function TeacherStudentWorkModal({
                 className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Next student"
               >
-                <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </button>
               <button
                 type="button"
@@ -238,9 +238,9 @@ export function TeacherStudentWorkModal({
                 aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
               >
                 {isHistoryOpen ? (
-                  <EyeSlashIcon className="h-4 w-4" aria-hidden="true" />
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
                 ) : (
-                  <EyeIcon className="h-4 w-4" aria-hidden="true" />
+                  <Eye className="h-4 w-4" aria-hidden="true" />
                 )}
               </button>
               <button
@@ -249,7 +249,7 @@ export function TeacherStudentWorkModal({
                 className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
                 aria-label="Close"
               >
-                <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
           </div>

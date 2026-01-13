@@ -352,9 +352,6 @@ export default function HistoryPage() {
 
               <div className="text-sm text-gray-600 dark:text-gray-400 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <div>Submitted: {format(new Date(selectedEntry.updated_at), 'h:mm a')}</div>
-                <div>
-                  Status: {selectedEntry.on_time ? '✓ On time' : '⚠️ Late submission'}
-                </div>
               </div>
             </div>
           </div>

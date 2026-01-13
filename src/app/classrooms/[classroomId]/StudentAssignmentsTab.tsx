@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
-import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   formatDueDate,
   formatRelativeDueDate,
@@ -12,7 +12,8 @@ import {
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
 import type { AssignmentWithStatus, Classroom } from '@/types'
-import { StudentAssignmentEditor } from '@/components/StudentAssignmentEditor'
+import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
+import { RichTextViewer } from '@/components/editor'
 
 interface Props {
   classroom: Classroom
@@ -28,6 +29,8 @@ export function StudentAssignmentsTab({ classroom }: Props) {
   const [assignments, setAssignments] = useState<AssignmentWithStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [showInstructions, setShowInstructions] = useState(false)
+  const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false })
+  const editorRef = useRef<StudentAssignmentEditorHandle>(null)
 
   useEffect(() => {
     async function load() {
@@ -75,28 +78,67 @@ export function StudentAssignmentsTab({ classroom }: Props) {
     [classroom.id, router, search],
   )
 
-  const actionItems: ActionBarItem[] = useMemo(() => {
-    if (!selectedAssignment) return []
+  const handleSubmit = useCallback(async () => {
+    await editorRef.current?.submit()
+  }, [])
 
-    return [
-      {
-        id: 'view-details',
-        label: 'Instructions',
-        onSelect: () => setShowInstructions(true),
-      },
-    ]
+  const handleUnsubmit = useCallback(async () => {
+    await editorRef.current?.unsubmit()
+  }, [])
+
+  // Auto-show instructions for unviewed assignments (no doc or viewed_at is null)
+  useEffect(() => {
+    if (selectedAssignment && (!selectedAssignment.doc || selectedAssignment.doc.viewed_at === null)) {
+      setShowInstructions(true)
+    } else {
+      setShowInstructions(false)
+    }
   }, [selectedAssignment])
 
-  useEffect(() => {
+  // Mark assignment as viewed locally when closing instructions
+  const handleCloseInstructions = useCallback(() => {
     setShowInstructions(false)
+    if (selectedAssignmentId) {
+      setAssignments((prev) =>
+        prev.map((a) =>
+          a.id === selectedAssignmentId && a.doc
+            ? { ...a, doc: { ...a.doc, viewed_at: new Date().toISOString() } }
+            : a
+        )
+      )
+    }
   }, [selectedAssignmentId])
 
   return (
     <PageLayout className="h-full flex flex-col">
       <PageActionBar
-        primary={<div />}
-        actions={actionItems}
-        actionsAlign="start"
+        primary={
+          selectedAssignment ? (
+            <button
+              type="button"
+              className={ACTIONBAR_BUTTON_CLASSNAME}
+              onClick={() => setShowInstructions(true)}
+            >
+              Instructions
+            </button>
+          ) : (
+            <div />
+          )
+        }
+        trailing={
+          selectedAssignment && (
+            <Button
+              size="sm"
+              variant={editorState.isSubmitted ? 'secondary' : 'primary'}
+              onClick={editorState.isSubmitted ? handleUnsubmit : handleSubmit}
+              disabled={editorState.submitting || (!editorState.isSubmitted && !editorState.canSubmit)}
+            >
+              {editorState.submitting
+                ? (editorState.isSubmitted ? 'Unsubmitting...' : 'Submitting...')
+                : (editorState.isSubmitted ? 'Unsubmit' : 'Submit')}
+            </Button>
+          )
+        }
       />
       <PageContent className="flex-1 min-h-0">
         <div className="min-w-0 h-full flex flex-col">
@@ -154,10 +196,12 @@ export function StudentAssignmentsTab({ classroom }: Props) {
               </div>
             ) : (
               <StudentAssignmentEditor
+                ref={editorRef}
                 classroomId={classroom.id}
                 assignmentId={selectedAssignment.id}
                 variant="embedded"
                 onExit={() => navigate({ assignmentId: null })}
+                onStateChange={setEditorState}
               />
             )}
         </div>
@@ -168,7 +212,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
             type="button"
             className="absolute inset-0 bg-black/50 dark:bg-black/70"
             aria-label="Close instructions"
-            onClick={() => setShowInstructions(false)}
+            onClick={handleCloseInstructions}
           />
           <div className="relative w-full max-w-2xl rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-6">
             <div className="flex items-start justify-between gap-3">
@@ -178,7 +222,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
               </div>
               <button
                 type="button"
-                onClick={() => setShowInstructions(false)}
+                onClick={handleCloseInstructions}
                 className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
                 aria-label="Close"
               >
@@ -186,7 +230,9 @@ export function StudentAssignmentsTab({ classroom }: Props) {
               </button>
             </div>
             <div className="mt-4">
-              {selectedAssignment.description ? (
+              {selectedAssignment.rich_instructions ? (
+                <RichTextViewer content={selectedAssignment.rich_instructions} />
+              ) : selectedAssignment.description ? (
                 <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                   {selectedAssignment.description}
                 </div>
@@ -197,7 +243,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
               )}
             </div>
             <div className="mt-6 flex justify-end">
-              <Button variant="secondary" onClick={() => setShowInstructions(false)}>
+              <Button variant="secondary" onClick={handleCloseInstructions}>
                 Close
               </Button>
             </div>

@@ -5,7 +5,9 @@ import { AssignmentForm } from '@/components/AssignmentForm'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getTodayInToronto, toTorontoEndOfDayIso } from '@/lib/timezone'
 import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
-import type { Assignment } from '@/types'
+import type { Assignment, TiptapContent } from '@/types'
+
+const EMPTY_INSTRUCTIONS: TiptapContent = { type: 'doc', content: [] }
 
 interface CreateAssignmentModalProps {
   isOpen: boolean
@@ -16,7 +18,7 @@ interface CreateAssignmentModalProps {
 
 export function CreateAssignmentModal({ isOpen, classroomId, onClose, onSuccess }: CreateAssignmentModalProps) {
   const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
+  const [instructions, setInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
   const [creating, setCreating] = useState(false)
   const { dueAt, error, updateDueDate, moveDueDate, setDueAt, setError } = useAssignmentDateValidation(
     addDaysToDateString(getTodayInToronto(), 1)
@@ -26,7 +28,7 @@ export function CreateAssignmentModal({ isOpen, classroomId, onClose, onSuccess 
   useEffect(() => {
     if (!isOpen) return
     setTitle('')
-    setDescription('')
+    setInstructions(EMPTY_INSTRUCTIONS)
     setDueAt(addDaysToDateString(getTodayInToronto(), 1))
     setError('')
     setCreating(false)
@@ -49,7 +51,7 @@ export function CreateAssignmentModal({ isOpen, classroomId, onClose, onSuccess 
         body: JSON.stringify({
           classroom_id: classroomId,
           title,
-          description,
+          rich_instructions: instructions,
           due_at: toTorontoEndOfDayIso(dueAt),
         }),
       })
@@ -104,10 +106,10 @@ export function CreateAssignmentModal({ isOpen, classroomId, onClose, onSuccess 
 
         <AssignmentForm
           title={title}
-          description={description}
+          instructions={instructions}
           dueAt={dueAt}
           onTitleChange={setTitle}
-          onDescriptionChange={setDescription}
+          onInstructionsChange={setInstructions}
           onDueAtChange={updateDueDate}
           onPrevDate={() => moveDueDate(-1)}
           onNextDate={() => moveDueDate(1)}

@@ -21,12 +21,7 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
     <PageLayout className="max-w-5xl mx-auto">
       <PageActionBar
         primary={
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Classrooms</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Select a classroom to view assignments and submit your daily logs.
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Classrooms</h1>
         }
         actions={
           [
@@ -43,7 +38,6 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
         {sorted.length === 0 ? (
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-10 text-center">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">No classrooms yet</h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">Join a classroom using the code from your teacher.</p>
             <div className="mt-6">
               <button
                 type="button"

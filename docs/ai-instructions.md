@@ -267,6 +267,22 @@ When facing implementation choices:
 
 ---
 
+## Common AI Mistakes (Avoid These)
+
+**Don't:**
+- Work in `$HOME/Repos/pika` (the hub) — always use a worktree
+- Manually edit `.ai/features.json` — use `node scripts/features.mjs pass/fail <id>`
+- Commit `.env.local` or secrets — it's symlinked, not a real file
+- Skip the reading order — architectural drift happens fast
+- Start coding without a plan — state task, wait for approval
+
+**Recovery:**
+- Worked in hub by mistake? `git stash`, create worktree, `git stash pop` in worktree
+- Committed to wrong branch? `git reset --soft HEAD~1`, switch branches, recommit
+- Need to update features.json? Use the script, not manual edits
+
+---
+
 ## Quick Reference
 
 ### Key Files

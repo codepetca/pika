@@ -1,13 +1,15 @@
 'use client'
 
-import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react'
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
+import { useCallback, type HTMLAttributes, type KeyboardEvent, type ReactNode, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
-export type DataTableDensity = 'compact' | 'normal'
+export type DataTableDensity = 'tight' | 'compact' | 'normal'
 export type SortDirection = 'asc' | 'desc'
 
 function densityPadding(density: DataTableDensity) {
-  return density === 'compact' ? 'px-4 py-2' : 'px-4 py-3'
+  if (density === 'tight') return 'px-3 py-1'
+  if (density === 'compact') return 'px-4 py-2'
+  return 'px-4 py-3'
 }
 
 export function TableCard({
@@ -101,7 +103,7 @@ export function SortableHeaderCell({
   const alignClass =
     align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'
   const ariaSort = isActive ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
-  const Icon = direction === 'asc' ? ChevronUpIcon : ChevronDownIcon
+  const Icon = direction === 'asc' ? ChevronUp : ChevronDown
 
   return (
     <DataTableHeaderCell density={density} align={align} className="!p-0" aria-sort={ariaSort}>
@@ -172,5 +174,73 @@ export function EmptyStateRow({
         {message}
       </td>
     </DataTableRow>
+  )
+}
+
+/**
+ * Wrapper component that adds keyboard navigation (↑/↓ arrows) to a table.
+ * Use this to wrap TableCard when you need row selection with keyboard support.
+ */
+export function KeyboardNavigableTable<K extends string>({
+  children,
+  rowKeys,
+  selectedKey,
+  onSelectKey,
+  wrap = true,
+}: {
+  children: ReactNode
+  /** Array of row keys in display order */
+  rowKeys: K[]
+  /** Currently selected row key */
+  selectedKey: K | null
+  /** Callback when selection changes */
+  onSelectKey: (key: K) => void
+  /** Whether to wrap around at the ends (default: true) */
+  wrap?: boolean
+}) {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      if (rowKeys.length === 0) return
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+
+      e.preventDefault()
+
+      const currentIndex = selectedKey ? rowKeys.indexOf(selectedKey) : -1
+      let nextIndex: number
+
+      if (e.key === 'ArrowDown') {
+        if (currentIndex === -1) {
+          nextIndex = 0
+        } else if (currentIndex === rowKeys.length - 1) {
+          nextIndex = wrap ? 0 : currentIndex
+        } else {
+          nextIndex = currentIndex + 1
+        }
+      } else {
+        // ArrowUp
+        if (currentIndex === -1) {
+          nextIndex = rowKeys.length - 1
+        } else if (currentIndex === 0) {
+          nextIndex = wrap ? rowKeys.length - 1 : currentIndex
+        } else {
+          nextIndex = currentIndex - 1
+        }
+      }
+
+      if (nextIndex !== currentIndex) {
+        onSelectKey(rowKeys[nextIndex])
+      }
+    },
+    [rowKeys, selectedKey, onSelectKey, wrap]
+  )
+
+  return (
+    <div
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
+    >
+      {children}
+    </div>
   )
 }

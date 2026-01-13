@@ -4,13 +4,15 @@ import type { FormEvent, RefObject } from 'react'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 import { DateActionBar } from '@/components/DateActionBar'
+import { RichTextEditor } from '@/components/editor'
+import type { TiptapContent } from '@/types'
 
 interface AssignmentFormProps {
   title: string
-  description: string
+  instructions: TiptapContent
   dueAt: string
   onTitleChange: (next: string) => void
-  onDescriptionChange: (next: string) => void
+  onInstructionsChange: (next: TiptapContent) => void
   onDueAtChange: (next: string) => void
   onPrevDate: () => void
   onNextDate: () => void
@@ -25,10 +27,10 @@ interface AssignmentFormProps {
 
 export function AssignmentForm({
   title,
-  description,
+  instructions,
   dueAt,
   onTitleChange,
-  onDescriptionChange,
+  onInstructionsChange,
   onDueAtChange,
   onPrevDate,
   onNextDate,
@@ -59,14 +61,14 @@ export function AssignmentForm({
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Instructions
         </label>
-        <textarea
-          value={description}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          rows={6}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Assignment instructions (optional)"
-          disabled={disabled}
-        />
+        <div className="min-h-[200px] border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+          <RichTextEditor
+            content={instructions}
+            onChange={onInstructionsChange}
+            placeholder="Assignment instructions (optional)"
+            disabled={disabled}
+          />
+        </div>
       </div>
 
       <div>

@@ -14,6 +14,7 @@ export interface ParsedStudent {
   lastName: string
   email: string
   studentNumber?: string
+  counselorEmail?: string
 }
 
 export interface ParseError {
@@ -116,11 +117,12 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
     }
   }
 
-  // Assume format is: firstName lastName email [studentNumber]
+  // Assume format is: firstName lastName email [studentNumber] [counselorEmail]
   const firstName = tokens[0]
   const lastName = tokens[1]
   const emailCandidate = tokens[2]
   const studentNumber = tokens[3] || undefined
+  const counselorEmailCandidate = tokens[4] || undefined
 
   // Validate email format
   if (!EMAIL_REGEX.test(emailCandidate)) {
@@ -144,6 +146,14 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
 
   if (studentNumber) {
     student.studentNumber = studentNumber
+  }
+
+  // Validate counselor email if provided
+  if (counselorEmailCandidate) {
+    if (EMAIL_REGEX.test(counselorEmailCandidate)) {
+      student.counselorEmail = counselorEmailCandidate.toLowerCase()
+    }
+    // If invalid, we silently ignore it (don't fail the whole line)
   }
 
   return { student, error: null }

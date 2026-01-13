@@ -1,11 +1,27 @@
 'use client'
 
 import { useCallback, useMemo, useState, useEffect } from 'react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
 import { CreateAssignmentModal } from '@/components/CreateAssignmentModal'
 import { EditAssignmentModal } from '@/components/EditAssignmentModal'
 import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
+import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
   PageActionBar,
@@ -13,13 +29,11 @@ import {
   PageLayout,
   type ActionBarItem,
 } from '@/components/PageLayout'
-import { formatDueDate } from '@/lib/assignments'
 import {
   getAssignmentStatusBadgeClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
-import { PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
 import {
   DataTable,
   DataTableBody,
@@ -85,6 +99,18 @@ export function TeacherClassroomView({ classroom }: Props) {
   const [loading, setLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
+  const [isReordering, setIsReordering] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 3,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   const [selectedAssignmentData, setSelectedAssignmentData] = useState<{
     assignment: Assignment
@@ -124,6 +150,47 @@ export function TeacherClassroomView({ classroom }: Props) {
   useEffect(() => {
     loadAssignments()
   }, [loadAssignments])
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id || isReordering || isReadOnly) return
+
+      const oldIndex = assignments.findIndex((a) => a.id === active.id)
+      const newIndex = assignments.findIndex((a) => a.id === over.id)
+
+      if (oldIndex === -1 || newIndex === -1) return
+
+      // Optimistically update local state
+      const reordered = arrayMove(assignments, oldIndex, newIndex)
+      setAssignments(reordered)
+
+      // Persist to server
+      setIsReordering(true)
+      try {
+        const orderedIds = reordered.map((a) => a.id)
+        await fetch('/api/teacher/assignments/reorder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ classroom_id: classroom.id, assignment_ids: orderedIds }),
+        })
+        // Notify sidebar to refresh
+        window.dispatchEvent(
+          new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
+            detail: { classroomId: classroom.id },
+          })
+        )
+      } catch (err) {
+        console.error('Failed to reorder assignments:', err)
+        setError('Failed to save assignment order. Please try again.')
+        // Reload to restore server state on error
+        loadAssignments()
+      } finally {
+        setIsReordering(false)
+      }
+    },
+    [assignments, classroom.id, isReordering, isReadOnly, loadAssignments]
+  )
 
   useEffect(() => {
     if (loading) return
@@ -296,9 +363,10 @@ export function TeacherClassroomView({ classroom }: Props) {
     return [
       {
         id: 'toggle-new-assignment',
-        label: '+ New Assignment',
+        label: 'New Assignment',
         onSelect: () => setIsCreateModalOpen(true),
         disabled: isReadOnly,
+        primary: true,
       },
     ]
   }, [isReadOnly])
@@ -343,65 +411,30 @@ export function TeacherClassroomView({ classroom }: Props) {
               No assignments yet
             </div>
           ) : (
-            <div className="space-y-2">
-              {assignments.map((assignment) => (
-                <button
-                  key={assignment.id}
-                  type="button"
-                  onClick={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })}
-                  className="w-full text-left p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {assignment.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {assignment.stats.submitted} / {assignment.stats.total_students} submitted
-                        {assignment.stats.late > 0 ? ` • ${assignment.stats.late} late` : ''}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Due: {formatDueDate(assignment.due_at)}
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0 flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (isReadOnly) return
-                          setEditAssignment(assignment)
-                        }}
-                        className={[
-                          'p-2 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-300 dark:hover:text-gray-100 dark:hover:bg-gray-800',
-                          isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
-                        ].join(' ')}
-                        aria-label={`Edit ${assignment.title}`}
-                        disabled={isReadOnly}
-                      >
-                        <PencilSquareIcon className="h-5 w-5" aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (isReadOnly) return
-                          setPendingDelete({ id: assignment.id, title: assignment.title })
-                        }}
-                        className={[
-                          'p-2 rounded-md text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-200 dark:hover:bg-red-900/20',
-                          isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
-                        ].join(' ')}
-                        aria-label={`Delete ${assignment.title}`}
-                        disabled={isReadOnly}
-                      >
-                        <TrashIcon className="h-5 w-5" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={assignments.map((a) => a.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {assignments.map((assignment) => (
+                    <SortableAssignmentCard
+                      key={assignment.id}
+                      assignment={assignment}
+                      isReadOnly={isReadOnly}
+                      isDragDisabled={isReordering}
+                      onSelect={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })}
+                      onEdit={() => setEditAssignment(assignment)}
+                      onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       ) : (

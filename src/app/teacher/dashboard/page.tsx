@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { AlertDialog } from '@/components/AlertDialog'
+import { useAlertDialog } from '@/hooks/useAlertDialog'
+import { useDeleteClassroom } from '@/hooks/useDeleteClassroom'
 import type { Classroom, AttendanceRecord, Entry } from '@/types'
 import { getAttendanceIcon } from '@/lib/attendance'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
@@ -23,7 +26,24 @@ export default function TeacherDashboardPage() {
   const [loadingEntry, setLoadingEntry] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
-  const [showSettingsMenu, setShowSettingsMenu] = useState(false)
+
+  const { alertState, showSuccess, showError, closeAlert } = useAlertDialog()
+
+  const handleDeleteSuccess = useCallback((deletedId: string) => {
+    const updatedClassrooms = classrooms.filter(c => c.id !== deletedId)
+    setClassrooms(updatedClassrooms)
+    setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
+    showSuccess('Deleted', 'Classroom deleted successfully')
+  }, [classrooms, showSuccess])
+
+  const handleDeleteError = useCallback((message: string) => {
+    showError('Error', message)
+  }, [showError])
+
+  const { requestDelete, confirmDialogProps } = useDeleteClassroom({
+    onSuccess: handleDeleteSuccess,
+    onError: handleDeleteError,
+  })
 
   // Load classrooms
   useEffect(() => {
@@ -112,47 +132,18 @@ export default function TeacherDashboardPage() {
     if (!selectedClassroom) return
     const link = `${window.location.origin}/join/${selectedClassroom.id}`
     navigator.clipboard.writeText(link)
-    alert('Join link copied!')
+    showSuccess('Link Copied', 'Join link copied to clipboard!')
   }
 
   function handleCopyClassCode() {
     if (!selectedClassroom) return
     navigator.clipboard.writeText(selectedClassroom.class_code)
-    alert('Class code copied!')
+    showSuccess('Code Copied', 'Class code copied to clipboard!')
   }
 
-  async function handleDeleteClassroom() {
+  function handleDeleteClassroom() {
     if (!selectedClassroom) return
-
-    const confirmed = confirm(
-      `Are you sure you want to delete "${selectedClassroom.title}"?\n\nThis will permanently delete:\n- The classroom\n- All student enrollments\n- All class days and calendar\n- All student entries\n\nThis action cannot be undone.`
-    )
-
-    if (!confirmed) return
-
-    try {
-      const response = await fetch(`/api/teacher/classrooms/${selectedClassroom.id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        alert(data.error || 'Failed to delete classroom')
-        return
-      }
-
-      // Remove from list
-      const updatedClassrooms = classrooms.filter(c => c.id !== selectedClassroom.id)
-      setClassrooms(updatedClassrooms)
-
-      // Select first remaining classroom or null
-      setSelectedClassroom(updatedClassrooms.length > 0 ? updatedClassrooms[0] : null)
-
-      alert('Classroom deleted successfully')
-    } catch (err) {
-      console.error('Error deleting classroom:', err)
-      alert('An error occurred while deleting the classroom')
-    }
+    requestDelete(selectedClassroom)
   }
 
   if (loading) {
@@ -223,8 +214,7 @@ export default function TeacherDashboardPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    setSelectedClassroom(classroom)
-                    handleDeleteClassroom()
+                    requestDelete(classroom)
                   }}
                   className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
                   title="Delete classroom"
@@ -453,6 +443,10 @@ export default function TeacherDashboardPage() {
           }}
         />
       )}
+
+      <ConfirmDialog {...confirmDialogProps} />
+
+      <AlertDialog {...alertState} onClose={closeAlert} />
     </div>
   )
 }

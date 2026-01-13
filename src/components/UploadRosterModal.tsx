@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent, ChangeEvent } from 'react'
+import { useState, FormEvent, ChangeEvent, useId } from 'react'
 import { Button } from '@/components/Button'
 
 interface UploadRosterModalProps {
@@ -11,6 +11,7 @@ interface UploadRosterModalProps {
 }
 
 export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: UploadRosterModalProps) {
+  const fileInputId = useId()
   const [csvFile, setCsvFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -79,24 +80,32 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 CSV File Format
               </label>
               <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200 overflow-hidden max-w-full">
-                <div className="grid grid-cols-[minmax(0,_1.4fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)] gap-0 text-center text-[10px] leading-tight">
-                  {['Student Number', 'First Name', 'Last Name', 'Email'].map((label, index, arr) => {
-                    const horizontalPadding = label === 'Email' ? 'px-0' : 'px-2'
-                    return (
-                      <span
-                        key={label}
-                        className={`bg-gray-100 dark:bg-gray-800 py-2 ${horizontalPadding} font-semibold ${
-                          index < arr.length - 1 ? 'border-r border-gray-200 dark:border-gray-700' : ''
-                        } whitespace-nowrap`}
-                      >
-                        {label}
-                      </span>
-                    )
-                  })}
+                <div className="grid grid-cols-[minmax(0,_1.2fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1.2fr)] gap-0 text-center text-[10px] leading-tight">
+                  {[
+                    { label: 'Student Number', optional: false },
+                    { label: 'First Name', optional: false },
+                    { label: 'Last Name', optional: false },
+                    { label: 'Email', optional: false },
+                    { label: 'Counselor Email', optional: true },
+                  ].map(({ label, optional }, index, arr) => (
+                    <span
+                      key={label}
+                      className={`bg-gray-100 dark:bg-gray-800 py-2 px-1 font-semibold ${
+                        index < arr.length - 1 ? 'border-r border-gray-200 dark:border-gray-700' : ''
+                      } whitespace-nowrap`}
+                    >
+                      {label}
+                      {optional && <span className="text-gray-400 dark:text-gray-500 font-normal"> (opt)</span>}
+                    </span>
+                  ))}
                 </div>
               </div>
+              <label htmlFor={fileInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Choose CSV file
+              </label>
               <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">
                 <input
+                  id={fileInputId}
                   type="file"
                   accept=".csv"
                   onChange={handleFileChange}

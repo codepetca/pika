@@ -160,7 +160,7 @@ async function clearAndSeed() {
   const { data: teacher, error: teacherError } = await supabase
     .from('users')
     .upsert({
-      email: 'teacher@yrdsb.ca',
+      email: 'teacher@example.com',
       role: 'teacher',
       password_hash: passwordHash
     }, { onConflict: 'email' })
@@ -173,11 +173,11 @@ async function clearAndSeed() {
   const createdTeacher = ensureData(teacher, 'Create teacher')
 
   const students = []
-  for (let i = 1; i <= 3; i++) {
+  for (let i = 1; i <= 2; i++) {
     const { data, error } = await supabase
       .from('users')
       .upsert({
-        email: `student${i}@student.yrdsb.ca`,
+        email: `student${i}@example.com`,
         role: 'student',
         password_hash: passwordHash
       }, { onConflict: 'email' })
@@ -215,8 +215,8 @@ async function clearAndSeed() {
     .from('classrooms')
     .insert({
       teacher_id: createdTeacher.id,
-      title: 'GLD2O - Learning Strategies',
-      class_code: 'GLD2O1',
+      title: 'Test Classroom',
+      class_code: 'TEST01',
       term_label: seedCalendar.termLabel,
     })
     .select()
@@ -345,17 +345,6 @@ async function clearAndSeed() {
       mood: '😐',
       on_time: false,
     },
-
-    // Student 3 - Poor attendance
-    {
-      student_id: students[2]!.id,
-      classroom_id: createdClassroom.id,
-      date: entryDates[0],
-      text: 'First day. Getting familiar with the course structure.',
-      minutes_reported: 30,
-      mood: '😐',
-      on_time: false,
-    },
   ]
 
   const entriesWithTimestamps = sampleEntries.map(entry => {
@@ -382,12 +371,10 @@ async function clearAndSeed() {
   console.log('Classroom:')
   console.log(`  ${createdClassroom.title} (${createdClassroom.class_code})`)
   console.log('\nTest accounts (password: test1234):')
-  console.log('  Teacher: teacher@yrdsb.ca')
-  console.log('  Student 1: student1@student.yrdsb.ca (good attendance)')
-  console.log('  Student 2: student2@student.yrdsb.ca (mixed attendance)')
-  console.log('  Student 3: student3@student.yrdsb.ca (poor attendance)')
-  console.log('\nLogin options:')
-  console.log('  POST /api/auth/login with email + password')
+  console.log('  Teacher: teacher@example.com')
+  console.log('  Student 1: student1@example.com (good attendance)')
+  console.log('  Student 2: student2@example.com (mixed attendance)')
+  console.log('\nLogin at /login with email + password.')
 }
 
 clearAndSeed()

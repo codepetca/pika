@@ -15,7 +15,7 @@ export function PikaLogo({ className = 'w-8 h-8' }: PikaLogoProps) {
       width={32}
       height={32}
       priority
-      className={`${className} object-contain`}
+      className={`${className} object-contain dark:brightness-0 dark:invert dark:sepia dark:saturate-[0.3] dark:hue-rotate-[15deg]`}
     />
   )
 }

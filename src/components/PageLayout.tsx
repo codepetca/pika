@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { EllipsisVerticalIcon } from '@heroicons/react/24/outline'
+import { MoreVertical } from 'lucide-react'
 
 export type ActionBarItem = {
   id: string
@@ -10,17 +10,22 @@ export type ActionBarItem = {
   onSelect: () => void
   disabled?: boolean
   destructive?: boolean
+  primary?: boolean
 }
 
 const CONTROL_BASE =
-  'rounded-md border border-blue-200 bg-blue-50 text-sm font-medium text-gray-900 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-blue-800 dark:bg-blue-900/20 dark:text-gray-100 dark:hover:bg-blue-900/30'
+  'rounded-md border border-blue-200 bg-blue-50 text-base font-medium text-gray-900 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-blue-800 dark:bg-blue-900/20 dark:text-gray-100 dark:hover:bg-blue-900/30'
 
 const CONTROL_SECONDARY_BASE =
-  'rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+  'rounded-md border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
 
-export const ACTIONBAR_BUTTON_CLASSNAME = `${CONTROL_BASE} px-3 py-1.5`
-export const ACTIONBAR_BUTTON_SECONDARY_CLASSNAME = `${CONTROL_SECONDARY_BASE} px-3 py-1.5`
-export const ACTIONBAR_ICON_BUTTON_CLASSNAME = `${CONTROL_BASE} px-2.5 py-1.5 inline-flex items-center justify-center`
+const CONTROL_PRIMARY_BASE =
+  'rounded-md border border-transparent bg-blue-600 text-base font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-600'
+
+export const ACTIONBAR_BUTTON_CLASSNAME = `${CONTROL_BASE} px-3 py-2`
+export const ACTIONBAR_BUTTON_PRIMARY_CLASSNAME = `${CONTROL_PRIMARY_BASE} px-3 py-2`
+export const ACTIONBAR_BUTTON_SECONDARY_CLASSNAME = `${CONTROL_SECONDARY_BASE} px-3 py-2`
+export const ACTIONBAR_ICON_BUTTON_CLASSNAME = `${CONTROL_BASE} px-2.5 py-2 inline-flex items-center justify-center`
 
 export function PageLayout({
   children,
@@ -39,7 +44,7 @@ export function PageContent({
   children: ReactNode
   className?: string
 }) {
-  return <div className={['mt-3', className].join(' ')}>{children}</div>
+  return <div className={['mt-2', className].join(' ')}>{children}</div>
 }
 
 function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
@@ -87,7 +92,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <EllipsisVerticalIcon className="h-5 w-5 text-gray-700 dark:text-gray-200" aria-hidden="true" />
+        <MoreVertical className="h-5 w-5 text-gray-700 dark:text-gray-200" aria-hidden="true" />
       </button>
 
       {open && (
@@ -140,11 +145,13 @@ export function PageActionBar({
   primary,
   actions = [],
   actionsAlign = 'end',
+  trailing,
   className = '',
 }: {
   primary: ReactNode
   actions?: ActionBarItem[]
   actionsAlign?: 'start' | 'end'
+  trailing?: ReactNode
   className?: string
 }) {
   if (actionsAlign === 'start') {
@@ -160,7 +167,9 @@ export function PageActionBar({
                   key={item.id}
                   type="button"
                   className={[
-                    ACTIONBAR_BUTTON_CLASSNAME,
+                    item.primary
+                      ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
+                      : ACTIONBAR_BUTTON_CLASSNAME,
                     item.destructive
                       ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-900/30'
                       : '',
@@ -179,6 +188,7 @@ export function PageActionBar({
         )}
 
         <div className="flex-1" />
+        {trailing}
       </div>
     )
   }
@@ -195,7 +205,9 @@ export function PageActionBar({
                 key={item.id}
                 type="button"
                 className={[
-                  ACTIONBAR_BUTTON_CLASSNAME,
+                  item.primary
+                    ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
+                    : ACTIONBAR_BUTTON_CLASSNAME,
                   item.destructive
                     ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-900/30'
                     : '',
@@ -212,6 +224,7 @@ export function PageActionBar({
           </div>
         </>
       )}
+      {trailing}
     </div>
   )
 }

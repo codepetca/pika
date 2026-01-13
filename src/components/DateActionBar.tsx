@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import { format, parseISO } from 'date-fns'
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_ICON_BUTTON_CLASSNAME } from '@/components/PageLayout'
 
 interface DateActionBarProps {
@@ -22,7 +22,7 @@ export function DateActionBar({ value, onChange, onPrev, onNext, rightActions, c
     <div className={['flex w-full flex-wrap items-center justify-between gap-4', className].join(' ')}>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={ACTIONBAR_ICON_BUTTON_CLASSNAME} onClick={onPrev} aria-label="Previous day">
-          <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
         </button>
 
         <input
@@ -43,7 +43,7 @@ export function DateActionBar({ value, onChange, onPrev, onNext, rightActions, c
         </button>
 
         <button type="button" className={ACTIONBAR_ICON_BUTTON_CLASSNAME} onClick={onNext} aria-label="Next day">
-          <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+          <ChevronRight className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
 
