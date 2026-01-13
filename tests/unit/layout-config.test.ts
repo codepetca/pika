@@ -26,7 +26,7 @@ describe('getLayoutConfig', () => {
     const config = getLayoutConfig('attendance')
     expect(config).toBeDefined()
     expect(config.rightSidebar.enabled).toBe(true)
-    expect(config.mainContent.maxWidth).toBe('wide')
+    expect(config.mainContent.maxWidth).toBe('full')
   })
 
   it('should return disabled right sidebar for classrooms-list', () => {
