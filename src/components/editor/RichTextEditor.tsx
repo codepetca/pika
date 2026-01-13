@@ -37,13 +37,11 @@ import '@/components/tiptap-node/paragraph-node/paragraph-node.scss'
 // --- Tiptap UI ---
 import { HeadingDropdownMenu } from '@/components/tiptap-ui/heading-dropdown-menu'
 import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu'
-import { BlockquoteButton } from '@/components/tiptap-ui/blockquote-button'
-import { CodeBlockButton } from '@/components/tiptap-ui/code-block-button'
+import { BlocksDropdownMenu } from '@/components/tiptap-ui/blocks-dropdown-menu'
+import { MarksDropdownMenu } from '@/components/tiptap-ui/marks-dropdown-menu'
+import { AlignmentDropdownMenu } from '@/components/tiptap-ui/alignment-dropdown-menu'
 import { LinkPopover, LinkContent, LinkButton } from '@/components/tiptap-ui/link-popover'
 import { MarkButton } from '@/components/tiptap-ui/mark-button'
-import { TextAlignButton } from '@/components/tiptap-ui/text-align-button'
-import { UndoRedoButton } from '@/components/tiptap-ui/undo-redo-button'
-import { ClearFormattingButton } from '@/components/tiptap-ui/clear-formatting-button'
 
 // --- Icons ---
 import { ArrowLeftIcon } from '@/components/tiptap-icons/arrow-left-icon'
@@ -67,44 +65,22 @@ export interface RichTextEditorProps {
   placeholder?: string
   disabled?: boolean
   editable?: boolean
+  showToolbar?: boolean
   className?: string
 }
 
 const MainToolbarContent = ({
   onLinkClick,
   isMobile,
-  canEdit,
 }: {
   onLinkClick: () => void
   isMobile: boolean
-  canEdit: boolean
 }) => {
   return (
     <>
       <ToolbarGroup>
-        <UndoRedoButton action="undo" />
-        <UndoRedoButton action="redo" />
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      <ToolbarGroup>
-        <HeadingDropdownMenu levels={[1, 2, 3]} portal={isMobile} />
-        <ListDropdownMenu
-          types={['bulletList', 'orderedList', 'taskList']}
-          portal={isMobile}
-        />
-        <BlockquoteButton />
-        <CodeBlockButton />
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      <ToolbarGroup>
         <MarkButton type="bold" />
         <MarkButton type="italic" />
-        <MarkButton type="strike" />
-        <MarkButton type="code" />
         <MarkButton type="underline" />
         {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
       </ToolbarGroup>
@@ -112,23 +88,11 @@ const MainToolbarContent = ({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <MarkButton type="superscript" />
-        <MarkButton type="subscript" />
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      <ToolbarGroup>
-        <TextAlignButton align="left" />
-        <TextAlignButton align="center" />
-        <TextAlignButton align="right" />
-        <TextAlignButton align="justify" />
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      <ToolbarGroup>
-        <ClearFormattingButton />
+        <HeadingDropdownMenu levels={[1, 2, 3]} portal={isMobile} />
+        <ListDropdownMenu types={['bulletList', 'orderedList', 'taskList']} portal={isMobile} />
+        <BlocksDropdownMenu portal={isMobile} />
+        <MarksDropdownMenu portal={isMobile} />
+        <AlignmentDropdownMenu portal={isMobile} />
       </ToolbarGroup>
 
       <Spacer />
@@ -162,6 +126,7 @@ export function RichTextEditor({
   placeholder = 'Write your response here...',
   disabled = false,
   editable = true,
+  showToolbar = true,
   className = '',
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
@@ -295,7 +260,7 @@ export function RichTextEditor({
       }}
     >
       <EditorContext.Provider value={{ editor }}>
-        {canEdit && (
+        {canEdit && showToolbar && (
           <Toolbar
             ref={toolbarRef}
             style={{
@@ -310,7 +275,6 @@ export function RichTextEditor({
               <MainToolbarContent
                 onLinkClick={() => setMobileView('link')}
                 isMobile={isMobile}
-                canEdit={canEdit}
               />
             ) : (
               <MobileToolbarContent onBack={() => setMobileView('main')} />
