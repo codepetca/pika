@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState, useEffect } from 'react'
-import { useRouter } from 'next-nprogress-bar'
+import { useRouter } from 'next/navigation'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { useRouter } from 'next-nprogress-bar'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/Input'
 import { Button } from '@/components/Button'
 
