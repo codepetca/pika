@@ -49,7 +49,7 @@ describe('getLayoutConfig', () => {
 describe('getRightSidebarCookieName', () => {
   it('should generate correct cookie name', () => {
     expect(getRightSidebarCookieName('attendance')).toBe('pika_right_sidebar_attendance')
-    expect(getRightSidebarCookieName('logs')).toBe('pika_right_sidebar_logs')
+    expect(getRightSidebarCookieName('roster')).toBe('pika_right_sidebar_roster')
   })
 })
 
@@ -110,7 +110,6 @@ describe('getRightSidebarCssWidth', () => {
 describe('getRouteKeyFromTab', () => {
   it('should return correct route key for teacher tabs', () => {
     expect(getRouteKeyFromTab('attendance', 'teacher')).toBe('attendance')
-    expect(getRouteKeyFromTab('logs', 'teacher')).toBe('logs')
     expect(getRouteKeyFromTab('roster', 'teacher')).toBe('roster')
     expect(getRouteKeyFromTab('settings', 'teacher')).toBe('settings')
   })
@@ -144,7 +143,6 @@ describe('ROUTE_CONFIGS', () => {
       'classrooms-list',
       'settings',
       'attendance',
-      'logs',
       'roster',
       'today',
       'assignments-student',

@@ -363,9 +363,10 @@ export function TeacherClassroomView({ classroom }: Props) {
     return [
       {
         id: 'toggle-new-assignment',
-        label: '+ New Assignment',
+        label: 'New Assignment',
         onSelect: () => setIsCreateModalOpen(true),
         disabled: isReadOnly,
+        primary: true,
       },
     ]
   }, [isReadOnly])

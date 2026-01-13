@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ClipboardList,
   Settings,
-  FileText,
   PenSquare,
   Table,
   Users,
@@ -23,7 +22,6 @@ import { readCookie, writeCookie } from '@/lib/cookies'
 
 export type ClassroomNavItemId =
   | 'attendance'
-  | 'logs'
   | 'assignments'
   | 'roster'
   | 'settings'
@@ -47,7 +45,6 @@ type SidebarAssignment = {
 
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: Table },
-  { id: 'logs', label: 'Logs', icon: FileText },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
