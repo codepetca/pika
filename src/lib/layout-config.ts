@@ -32,7 +32,6 @@ export type RouteKey =
   | 'classrooms-list'
   | 'settings'
   | 'attendance'
-  | 'logs'
   | 'roster'
   | 'today'
   | 'assignments-student'
@@ -77,12 +76,8 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'full' },
   },
   attendance: {
-    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: 360 },
-    mainContent: { maxWidth: 'wide' },
-  },
-  logs: {
-    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: 420 },
-    mainContent: { maxWidth: 'wide' },
+    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '50%' },
+    mainContent: { maxWidth: 'full' },
   },
   roster: {
     rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: 320 },
@@ -168,7 +163,6 @@ export function getRouteKeyFromTab(
 ): RouteKey {
   if (tab === 'settings') return 'settings'
   if (tab === 'attendance') return 'attendance'
-  if (tab === 'logs') return 'logs'
   if (tab === 'roster') return 'roster'
   if (tab === 'today') return 'today'
 

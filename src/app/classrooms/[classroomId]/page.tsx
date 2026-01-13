@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { Spinner } from '@/components/Spinner'
@@ -8,7 +8,6 @@ import { TeacherClassroomView } from './TeacherClassroomView'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
-import { TeacherLogsTab } from './TeacherLogsTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
@@ -23,7 +22,7 @@ import {
   useMobileDrawer,
 } from '@/components/layout'
 import { getRouteKeyFromTab } from '@/lib/layout-config'
-import type { Classroom } from '@/types'
+import type { Classroom, Entry } from '@/types'
 
 interface UserInfo {
   id: string
@@ -139,7 +138,7 @@ export default function ClassroomPage() {
 
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
-    ? (['attendance', 'logs', 'assignments', 'roster', 'settings'] as const)
+    ? (['attendance', 'assignments', 'roster', 'settings'] as const)
     : (['today', 'assignments'] as const)
 
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
@@ -179,6 +178,15 @@ function ClassroomPageContent({
 }) {
   const { openLeft } = useMobileDrawer()
   const isTeacher = user.role === 'teacher'
+
+  // State for selected student log (teacher attendance tab)
+  const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
+  const [selectedStudentName, setSelectedStudentName] = useState<string>('')
+
+  const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
+    setSelectedEntry(entry)
+    setSelectedStudentName(studentName)
+  }, [])
 
   const content = (
     <AppShell
@@ -223,8 +231,12 @@ function ClassroomPageContent({
 
           {isTeacher ? (
             <>
-              {activeTab === 'attendance' && <TeacherAttendanceTab classroom={classroom} />}
-              {activeTab === 'logs' && <TeacherLogsTab classroom={classroom} />}
+              {activeTab === 'attendance' && (
+                <TeacherAttendanceTab
+                  classroom={classroom}
+                  onSelectEntry={handleSelectEntry}
+                />
+              )}
               {activeTab === 'assignments' && <TeacherClassroomView classroom={classroom} />}
               {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
               {activeTab === 'settings' && <TeacherSettingsTab classroom={classroom} />}
@@ -237,11 +249,24 @@ function ClassroomPageContent({
           )}
         </MainContent>
 
-        <RightSidebar title="Details">
-          {/* Right sidebar content is out of scope for this issue */}
-          <div className="p-4 text-sm text-gray-500 dark:text-gray-400">
-            Inspector panel content will be added in a future update.
-          </div>
+        <RightSidebar title={selectedStudentName || 'Student Log'}>
+          {isTeacher && activeTab === 'attendance' ? (
+            <div className="p-4">
+              {selectedEntry ? (
+                <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                  {selectedEntry.text}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Select a student to view their log.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="p-4 text-sm text-gray-500 dark:text-gray-400">
+              Inspector panel content will be added in a future update.
+            </div>
+          )}
         </RightSidebar>
       </ThreePanelShell>
     </AppShell>
