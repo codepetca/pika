@@ -145,13 +145,16 @@
     **************************************************/
 
   --tt-transition-duration-short: 0.1s;
+  --tt-transition-duration-medium: 0.15s;
   --tt-transition-duration-default: 0.2s;
   --tt-transition-duration-long: 0.64s;
+  --tt-transition-duration-pulse: 1.5s;
   --tt-transition-easing-default: cubic-bezier(0.46, 0.03, 0.52, 0.96);
   --tt-transition-easing-cubic: cubic-bezier(0.65, 0.05, 0.36, 1);
   --tt-transition-easing-quart: cubic-bezier(0.77, 0, 0.18, 1);
   --tt-transition-easing-circ: cubic-bezier(0.79, 0.14, 0.15, 0.86);
   --tt-transition-easing-back: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  --tt-transition-easing-popover: cubic-bezier(0.16, 1, 0.3, 1);
 
   /****************** 
   Contrast variables

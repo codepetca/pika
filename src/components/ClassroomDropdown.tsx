@@ -119,7 +119,7 @@ export function ClassroomDropdown({
       {/* Dropdown menu with animation */}
       <div
         id={menuId}
-        className={`absolute top-full left-0 mt-1 min-w-[200px] max-w-xs bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-150 ease-out origin-top ${
+        className={`absolute top-full left-0 mt-1 min-w-[200px] max-w-xs bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-200 origin-top ${
           isOpen && otherClassrooms.length > 0
             ? 'opacity-100 scale-100 translate-y-0'
             : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'

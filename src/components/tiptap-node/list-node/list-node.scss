@@ -121,8 +121,8 @@
           cursor: pointer;
           background-color: var(--tt-checklist-bg-color);
           transition:
-            background-color 80ms ease-out,
-            border-color 80ms ease-out;
+            background-color var(--tt-transition-duration-short) var(--tt-transition-easing-default),
+            border-color var(--tt-transition-duration-short) var(--tt-transition-easing-default);
 
           &::before {
             content: "";

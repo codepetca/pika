@@ -103,5 +103,5 @@
 
 // Force the animation class to work
 .animate-notification-pulse {
-  animation: notification-pulse 1.5s ease-in-out infinite !important;
+  animation: notification-pulse var(--tt-transition-duration-pulse) var(--tt-transition-easing-default) infinite !important;
 }
