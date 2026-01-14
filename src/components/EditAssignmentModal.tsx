@@ -17,8 +17,12 @@ interface EditAssignmentModalProps {
 }
 
 export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: EditAssignmentModalProps) {
-  const initialValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
+  const initialValuesRef = useRef<{ title: string; dueAt: string } | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
+  // Track whether TipTap has finished initializing (to ignore normalization changes)
+  const isInitializedRef = useRef(false)
+  // Track whether user has made actual edits to instructions (after initialization)
+  const instructionsChangedRef = useRef(false)
   const [title, setTitle] = useState('')
   const [instructions, setInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
   const [saving, setSaving] = useState(false)
@@ -32,7 +36,10 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
     const nextTitle = assignment.title
     const nextInstructions = assignment.rich_instructions ?? EMPTY_INSTRUCTIONS
     const nextDueAt = formatDateInToronto(new Date(assignment.due_at))
-    initialValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt }
+    initialValuesRef.current = { title: nextTitle, dueAt: nextDueAt }
+    // Reset dirty tracking refs
+    isInitializedRef.current = false
+    instructionsChangedRef.current = false
     setTitle(nextTitle)
     setInstructions(nextInstructions)
     setDueAt(nextDueAt)
@@ -44,6 +51,11 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
       titleInputRef.current?.focus()
       titleInputRef.current?.select()
     }, 100)
+
+    // Mark as initialized after TipTap has had time to normalize content
+    requestAnimationFrame(() => {
+      isInitializedRef.current = true
+    })
   }, [assignment, isOpen, setDueAt, setError])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -80,12 +92,21 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
     }
   }
 
+  function handleInstructionsChange(newInstructions: TiptapContent) {
+    // Only mark as changed if TipTap has finished initializing
+    // This prevents false positives from TipTap's content normalization
+    if (isInitializedRef.current) {
+      instructionsChangedRef.current = true
+    }
+    setInstructions(newInstructions)
+  }
+
   function hasChanges() {
     const initial = initialValuesRef.current
     if (!initial) return false
     return (
       title !== initial.title ||
-      JSON.stringify(instructions) !== JSON.stringify(initial.instructions) ||
+      instructionsChangedRef.current ||
       dueAt !== initial.dueAt
     )
   }
@@ -133,7 +154,7 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
           instructions={instructions}
           dueAt={dueAt}
           onTitleChange={setTitle}
-          onInstructionsChange={setInstructions}
+          onInstructionsChange={handleInstructionsChange}
           onDueAtChange={updateDueDate}
           onPrevDate={() => moveDueDate(-1)}
           onNextDate={() => moveDueDate(1)}

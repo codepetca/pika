@@ -101,4 +101,54 @@ describe('EditAssignmentModal', () => {
 
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
   })
+
+  describe('discard changes confirmation', () => {
+    it('does NOT show confirm dialog when canceling without changes', async () => {
+      const onClose = vi.fn()
+
+      render(
+        <EditAssignmentModal
+          isOpen={true}
+          assignment={baseAssignment}
+          onClose={onClose}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      // Wait for TipTap to initialize and any normalization to settle
+      await waitFor(() => {
+        expect(screen.getByLabelText('Title')).toHaveValue('Original title')
+      })
+
+      // Click cancel without making any changes
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      // Should close directly without showing confirm dialog
+      expect(screen.queryByText('You have unsaved changes.')).not.toBeInTheDocument()
+      expect(onClose).toHaveBeenCalled()
+    })
+
+    it('shows confirm dialog when canceling after editing title', async () => {
+      const onClose = vi.fn()
+
+      render(
+        <EditAssignmentModal
+          isOpen={true}
+          assignment={baseAssignment}
+          onClose={onClose}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      // Make a change to the title
+      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Modified title' } })
+
+      // Click cancel
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      // Should show confirm dialog
+      expect(screen.getByText('You have unsaved changes.')).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+  })
 })
