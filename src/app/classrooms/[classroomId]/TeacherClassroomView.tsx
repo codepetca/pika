@@ -32,12 +32,11 @@ import {
 } from '@/components/PageLayout'
 import { useRightSidebar, useMobileDrawer } from '@/components/layout'
 import {
-  getAssignmentStatusBadgeClass,
   getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
-import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, TiptapContent } from '@/types'
+import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, TiptapContent, SelectedStudentInfo } from '@/types'
 import {
   DataTable,
   DataTableBody,
@@ -67,16 +66,6 @@ interface StudentSubmissionRow {
   student_last_name: string | null
   status: AssignmentStatus
   doc: { submitted_at?: string | null; updated_at?: string | null } | null
-}
-
-interface SelectedStudentInfo {
-  assignmentId: string
-  assignmentTitle: string
-  studentId: string
-  canGoPrev: boolean
-  canGoNext: boolean
-  onGoPrev: () => void
-  onGoNext: () => void
 }
 
 interface Props {

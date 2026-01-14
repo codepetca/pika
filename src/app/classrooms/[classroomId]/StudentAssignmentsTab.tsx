@@ -132,13 +132,22 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
   const handleCloseInstructions = useCallback(() => {
     setShowInstructions(false)
     if (selectedAssignmentId) {
+      const now = new Date().toISOString()
       setAssignments((prev) =>
         prev.map((a) => {
           if (a.id !== selectedAssignmentId) return a
           // Create or update doc with viewed_at timestamp
           const updatedDoc = a.doc
-            ? { ...a.doc, viewed_at: new Date().toISOString() }
-            : { id: '', assignment_id: a.id, student_id: '', content: { type: 'doc', content: [] }, viewed_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+            ? { ...a.doc, viewed_at: now }
+            : {
+                id: '',
+                assignment_id: a.id,
+                student_id: '',
+                content: { type: 'doc', content: [] },
+                viewed_at: now,
+                created_at: now,
+                updated_at: now,
+              }
           return { ...a, doc: updatedDoc }
         })
       )

@@ -26,7 +26,7 @@ import { getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { Classroom, Entry, TiptapContent } from '@/types'
+import type { Classroom, Entry, TiptapContent, SelectedStudentInfo } from '@/types'
 
 interface UserInfo {
   id: string
@@ -39,16 +39,6 @@ interface UserInfo {
 interface SelectedAssignmentInstructions {
   title: string
   instructions: TiptapContent | string | null
-}
-
-interface SelectedStudentInfo {
-  assignmentId: string
-  assignmentTitle: string
-  studentId: string
-  canGoPrev: boolean
-  canGoNext: boolean
-  onGoPrev: () => void
-  onGoNext: () => void
 }
 
 export default function ClassroomPage() {
