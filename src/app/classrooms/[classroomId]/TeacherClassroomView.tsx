@@ -16,6 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { Plus } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
 import { CreateAssignmentModal } from '@/components/CreateAssignmentModal'
@@ -459,11 +460,12 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const newAssignmentButton = (
     <button
       type="button"
-      className={ACTIONBAR_BUTTON_PRIMARY_CLASSNAME}
+      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} !px-2.5`}
       onClick={() => setIsCreateModalOpen(true)}
       disabled={isReadOnly}
+      aria-label="New assignment"
     >
-      +New
+      <Plus className="h-5 w-5" aria-hidden="true" />
     </button>
   )
 
