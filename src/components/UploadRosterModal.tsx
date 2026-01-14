@@ -169,7 +169,10 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 const counselorChanged = change.current.counselorEmail !== change.incoming.counselorEmail
                 return (
                   <div key={change.email} className="px-3 py-2 text-xs">
-                    <div className="font-medium text-gray-700 dark:text-gray-300 mb-1">{change.email}</div>
+                    <div className="font-medium text-gray-700 dark:text-gray-300">
+                      {change.current.firstName} {change.current.lastName}
+                    </div>
+                    <div className="text-gray-500 dark:text-gray-400 mb-1">{change.email}</div>
                     {nameChanged && (
                       <div className="text-gray-500 dark:text-gray-400">
                         Name: <span className="line-through text-red-500 dark:text-red-400">{change.current.firstName} {change.current.lastName}</span>
