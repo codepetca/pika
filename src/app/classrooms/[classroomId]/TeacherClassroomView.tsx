@@ -396,6 +396,20 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     }
   }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent, setSidebarOpen, openMobileSidebar])
 
+  // Escape key to deselect student
+  useEffect(() => {
+    if (!selectedStudentId) return
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setSelectedStudentId(null)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [selectedStudentId])
+
   function toggleSort(column: 'first' | 'last') {
     if (sortColumn !== column) {
       setSortColumn(column)
