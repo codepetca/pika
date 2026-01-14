@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState, useEffect } from 'react'
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -36,6 +36,7 @@ import {
   getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
+import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, TiptapContent } from '@/types'
 import {
   DataTable,
@@ -112,6 +113,13 @@ function formatTorontoDateTime(iso: string) {
     minute: '2-digit',
     hour12: true,
   }).replace(' AM', ' am').replace(' PM', ' pm')
+}
+
+function getRowClassName(isSelected: boolean): string {
+  if (isSelected) {
+    return 'cursor-pointer bg-blue-100 dark:bg-blue-900/50 border-l-2 border-l-blue-500'
+  }
+  return 'cursor-pointer border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
 }
 
 export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, showInstructionsPanel, onToggleInstructions }: Props) {
@@ -283,7 +291,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     loadSelectedAssignment()
   }, [selection])
 
-  // Notify parent about selected assignment for sidebar and auto-open sidebar
+  // Notify parent about selected assignment for sidebar
   useEffect(() => {
     if (selection.mode === 'summary') {
       onSelectAssignment?.(null)
@@ -293,14 +301,22 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         title: assignment.title,
         instructions: assignment.rich_instructions || assignment.description,
       })
-      // Auto-open sidebar when assignment is selected
-      if (window.innerWidth < 1024) {
+    }
+  }, [selection.mode, selectedAssignmentData, onSelectAssignment])
+
+  // Auto-open sidebar when assignment is selected (separate effect)
+  const prevSelectionModeRef = useRef<'summary' | 'assignment'>('summary')
+  useEffect(() => {
+    // Only open sidebar when transitioning from summary to assignment view
+    if (selection.mode === 'assignment' && prevSelectionModeRef.current === 'summary' && selectedAssignmentData) {
+      if (window.innerWidth < DESKTOP_BREAKPOINT) {
         openMobileSidebar()
       } else {
         setSidebarOpen(true)
       }
     }
-  }, [selection.mode, selectedAssignmentData, onSelectAssignment, setSidebarOpen, openMobileSidebar])
+    prevSelectionModeRef.current = selection.mode
+  }, [selection.mode, selectedAssignmentData, setSidebarOpen, openMobileSidebar])
 
   function handleCreateSuccess(created: Assignment) {
     // Optimistically add the new assignment to the list
@@ -373,7 +389,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     setSelectedStudentId(sortedStudents[selectedStudentIndex + 1].student_id)
   }, [selectedStudentIndex, sortedStudents])
 
-  // Notify parent when student selection changes and auto-open sidebar
+  // Notify parent when student selection changes
   useEffect(() => {
     if (selectedStudentId && selection.mode === 'assignment' && selectedAssignmentData?.assignment?.id) {
       onSelectStudent?.({
@@ -385,16 +401,24 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         onGoPrev: handleGoPrevStudent,
         onGoNext: handleGoNextStudent,
       })
-      // Auto-open sidebar when student is selected
-      if (window.innerWidth < 1024) {
+    } else {
+      onSelectStudent?.(null)
+    }
+  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
+
+  // Auto-open sidebar when student is selected (separate effect to avoid re-opening on every dependency change)
+  const prevSelectedStudentIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    // Only open sidebar when transitioning from no selection to a selection
+    if (selectedStudentId && !prevSelectedStudentIdRef.current) {
+      if (window.innerWidth < DESKTOP_BREAKPOINT) {
         openMobileSidebar()
       } else {
         setSidebarOpen(true)
       }
-    } else {
-      onSelectStudent?.(null)
     }
-  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent, setSidebarOpen, openMobileSidebar])
+    prevSelectedStudentIdRef.current = selectedStudentId
+  }, [selectedStudentId, setSidebarOpen, openMobileSidebar])
 
   // Escape key to deselect student
   useEffect(() => {
@@ -570,7 +594,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                     return (
                     <DataTableRow
                       key={student.student_id}
-                      className={`cursor-pointer ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50 border-l-2 border-l-blue-500' : 'border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                      className={getRowClassName(isSelected)}
                       onClick={() => setSelectedStudentId(isSelected ? null : student.student_id)}
                     >
                       <DataTableCell className="max-w-[120px] truncate" title={student.student_first_name ?? undefined}>{student.student_first_name ?? '—'}</DataTableCell>

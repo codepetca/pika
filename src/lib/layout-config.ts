@@ -13,6 +13,12 @@ export type RightSidebarWidth = 320 | 360 | 420 | '40%' | '50%' | '60%' | '70%'
 
 export type MainContentMaxWidth = 'reading' | 'standard' | 'wide' | 'full'
 
+/**
+ * Tailwind 'lg' breakpoint in pixels.
+ * Used for detecting desktop vs mobile for sidebar behavior.
+ */
+export const DESKTOP_BREAKPOINT = 1024
+
 export type LayoutConfig = {
   rightSidebar: {
     /** false = no panel, no toggle button */

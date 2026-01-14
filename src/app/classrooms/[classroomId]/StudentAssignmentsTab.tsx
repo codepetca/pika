@@ -12,6 +12,7 @@ import {
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
+import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import type { AssignmentWithStatus, Classroom, TiptapContent } from '@/types'
 import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
 import { RichTextViewer } from '@/components/editor'
@@ -118,7 +119,7 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
   useEffect(() => {
     if (selectedAssignment && !isFirstTimeView) {
       // Open sidebar for viewed assignments
-      if (window.innerWidth < 1024) {
+      if (window.innerWidth < DESKTOP_BREAKPOINT) {
         openMobileSidebar()
       } else {
         setSidebarOpen(true)
@@ -159,7 +160,7 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
                 } else {
                   // For viewed assignments, toggle the sidebar
                   // On mobile, open the drawer; on desktop, toggle
-                  if (window.innerWidth < 1024) {
+                  if (window.innerWidth < DESKTOP_BREAKPOINT) {
                     openMobileSidebar()
                   } else {
                     toggleSidebar()
