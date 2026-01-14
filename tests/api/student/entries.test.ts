@@ -247,39 +247,6 @@ describe('POST /api/student/entries', () => {
       expect(data.error).toBe('classroom_id and date are required')
     })
 
-    it('should return 400 when text is missing', async () => {
-      const request = new NextRequest('http://localhost:3000/api/student/entries', {
-        method: 'POST',
-        body: JSON.stringify({
-          classroom_id: 'classroom-1',
-          date: '2024-10-15',
-        }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Entry text cannot be empty')
-    })
-
-    it('should return 400 when text is empty after trimming', async () => {
-      const request = new NextRequest('http://localhost:3000/api/student/entries', {
-        method: 'POST',
-        body: JSON.stringify({
-          classroom_id: 'classroom-1',
-          date: '2024-10-15',
-          text: '   ',
-        }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toBe('Entry text cannot be empty')
-    })
-
     it('should return 400 when date format is invalid', async () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',

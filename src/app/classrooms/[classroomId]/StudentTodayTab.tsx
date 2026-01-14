@@ -21,7 +21,7 @@ import {
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
-import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
+import { countCharacters, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import type { Classroom, ClassDay, Entry, JsonPatchOperation, TiptapContent } from '@/types'
 
@@ -46,15 +46,6 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
   return EMPTY_DOC
 }
 
-function validateContent(content: TiptapContent, maxChars: number) {
-  if (isEmpty(content)) {
-    return 'Entry text cannot be empty'
-  }
-  if (countCharacters(content) > maxChars) {
-    return `Entry exceeds ${maxChars} character limit`
-  }
-  return ''
-}
 
 export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
   const notifications = useStudentNotifications()
@@ -182,9 +173,8 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
       return
     }
 
-    const validationError = validateContent(newContent, MAX_CHARS)
-    if (validationError) {
-      setSaveError(validationError)
+    if (countCharacters(newContent) > MAX_CHARS) {
+      setSaveError(`Entry exceeds ${MAX_CHARS} character limit`)
       setSaveStatus('unsaved')
       return
     }
