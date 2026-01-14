@@ -1,11 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
+import { Button } from '@/components/Button'
 import { RichTextViewer } from '@/components/editor'
+import { HistoryList } from '@/components/HistoryList'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
-import type { Assignment, AssignmentDoc, AssignmentStatus } from '@/types'
+import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
+import { formatInTimeZone } from 'date-fns-tz'
+import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, TiptapContent } from '@/types'
 
 interface StudentWorkData {
   assignment: Assignment
@@ -36,10 +40,56 @@ export function TeacherStudentWorkPanel({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // History state
+  const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
+  const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
+  const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
+
+  function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
+    const oldestFirst = [...historyEntries].reverse()
+    const reconstructed = reconstructAssignmentDocContent(oldestFirst, entry.id)
+
+    if (reconstructed) {
+      setPreviewEntry(entry)
+      setPreviewContent(reconstructed)
+      return true
+    }
+    return false
+  }
+
+  function handlePreviewHover(entry: AssignmentDocHistoryEntry) {
+    if (lockedEntryId) return
+    updatePreview(entry)
+  }
+
+  function handlePreviewLock(entry: AssignmentDocHistoryEntry) {
+    const success = updatePreview(entry)
+    if (success) {
+      setLockedEntryId(entry.id)
+    }
+  }
+
+  function handleExitPreview() {
+    setPreviewEntry(null)
+    setPreviewContent(null)
+    setLockedEntryId(null)
+  }
+
+  function handleHistoryMouseLeave() {
+    if (lockedEntryId) return
+    handleExitPreview()
+  }
+
+  // Load student work
   useEffect(() => {
     setLoading(true)
     setError('')
     setData(null)
+    handleExitPreview()
 
     async function loadStudentWork() {
       try {
@@ -57,6 +107,32 @@ export function TeacherStudentWorkPanel({
     }
 
     loadStudentWork()
+  }, [assignmentId, studentId])
+
+  // Load history
+  useEffect(() => {
+    setHistoryLoading(true)
+    setHistoryError('')
+    setHistoryEntries([])
+
+    async function loadHistory() {
+      try {
+        const response = await fetch(
+          `/api/assignment-docs/${assignmentId}/history?student_id=${studentId}`
+        )
+        const result = await response.json()
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to load history')
+        }
+        setHistoryEntries(result.history || [])
+      } catch (err: any) {
+        setHistoryError(err.message || 'Failed to load history')
+      } finally {
+        setHistoryLoading(false)
+      }
+    }
+
+    loadHistory()
   }, [assignmentId, studentId])
 
   if (loading) {
@@ -79,6 +155,9 @@ export function TeacherStudentWorkPanel({
     )
   }
 
+  const isPreviewLocked = lockedEntryId !== null
+  const displayContent = previewContent || data.doc?.content
+
   return (
     <div className="flex flex-col h-full">
       {/* Header with student name and navigation */}
@@ -87,6 +166,11 @@ export function TeacherStudentWorkPanel({
           <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
             {data.student?.name || data.student?.email || 'Student'}
           </div>
+          {previewEntry && (
+            <div className="text-xs text-blue-600 dark:text-blue-400 truncate">
+              Previewing: {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 ml-2">
           <button
@@ -111,17 +195,72 @@ export function TeacherStudentWorkPanel({
       </div>
 
       {/* Content area */}
-      <div className="flex-1 min-h-0 overflow-auto p-4">
-        {data.doc && data.doc.content && !isEmpty(data.doc.content) ? (
+      <div className={`flex-1 min-h-0 overflow-auto p-4 ${previewEntry ? 'ring-2 ring-blue-400 dark:ring-blue-600 ring-inset' : ''}`}>
+        {displayContent && !isEmpty(displayContent) ? (
           <div>
-            <RichTextViewer content={data.doc.content} />
+            <RichTextViewer content={displayContent} />
             <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-              {countCharacters(data.doc.content)} characters
+              {countCharacters(displayContent)} characters
             </div>
           </div>
         ) : (
           <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
             No work submitted yet
+          </div>
+        )}
+      </div>
+
+      {/* History section */}
+      <div className="border-t border-gray-200 dark:border-gray-700">
+        <button
+          type="button"
+          onClick={() => {
+            if (isHistoryOpen) handleExitPreview()
+            setIsHistoryOpen(!isHistoryOpen)
+          }}
+          className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+        >
+          <span>History ({historyEntries.length})</span>
+          {isHistoryOpen ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </button>
+
+        {isHistoryOpen && (
+          <div
+            className="max-h-64 overflow-y-auto bg-gray-50 dark:bg-gray-950"
+            onMouseLeave={handleHistoryMouseLeave}
+          >
+            {historyLoading ? (
+              <div className="p-4 text-center">
+                <Spinner size="sm" />
+              </div>
+            ) : historyError ? (
+              <div className="p-4">
+                <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+              </div>
+            ) : historyEntries.length === 0 ? (
+              <div className="p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+              </div>
+            ) : (
+              <HistoryList
+                entries={historyEntries}
+                activeEntryId={previewEntry?.id ?? null}
+                onEntryClick={handlePreviewLock}
+                onEntryHover={handlePreviewHover}
+              />
+            )}
+
+            {isPreviewLocked && previewEntry && (
+              <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                <Button onClick={handleExitPreview} variant="secondary" size="sm" className="w-full">
+                  Exit preview
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
