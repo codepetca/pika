@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
+  ClipboardCheck,
   ClipboardList,
   Settings,
   PenSquare,
-  Table,
   Users,
   ChevronDown,
   type LucideIcon,
@@ -44,7 +44,7 @@ type SidebarAssignment = {
 // ============================================================================
 
 const teacherItems: NavItem[] = [
-  { id: 'attendance', label: 'Attendance', icon: Table },
+  { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
