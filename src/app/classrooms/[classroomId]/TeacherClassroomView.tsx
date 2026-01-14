@@ -557,7 +557,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                     <DataTableRow
                       key={student.student_id}
                       className={`cursor-pointer ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50 border-l-2 border-l-blue-500' : 'border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'}`}
-                      onClick={() => setSelectedStudentId(student.student_id)}
+                      onClick={() => setSelectedStudentId(isSelected ? null : student.student_id)}
                     >
                       <DataTableCell className="max-w-[120px] truncate" title={student.student_first_name ?? undefined}>{student.student_first_name ?? '—'}</DataTableCell>
                       <DataTableCell className="max-w-[120px] truncate" title={student.student_last_name ?? undefined}>{student.student_last_name ?? '—'}</DataTableCell>
