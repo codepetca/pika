@@ -2,10 +2,11 @@
 
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
-import { ACTIONBAR_BUTTON_PRIMARY_CLASSNAME, PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { ACTIONBAR_BUTTON_PRIMARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import type { Classroom } from '@/types'
 
 interface Props {
@@ -186,16 +187,16 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     await deleteClassroom(classroom)
   }
 
-  const actionItems = useMemo(() => {
-    return [
-      {
-        id: 'new-classroom',
-        label: 'New Classroom',
-        onSelect: () => setShowCreate(true),
-        primary: true,
-      },
-    ] satisfies ActionBarItem[]
-  }, [])
+  const newClassroomButton = (
+    <button
+      type="button"
+      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} !px-2.5`}
+      onClick={() => setShowCreate(true)}
+      aria-label="New classroom"
+    >
+      <Plus className="h-5 w-5" aria-hidden="true" />
+    </button>
+  )
 
   const dialogTitle = pendingAction
     ? pendingAction.mode === 'archive'
@@ -257,7 +258,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             </div>
           </div>
         }
-        actions={actionItems}
+        trailing={newClassroomButton}
       />
 
       <PageContent>
@@ -285,10 +286,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               <div className="mt-6">
                 <button
                   type="button"
-                  className={ACTIONBAR_BUTTON_PRIMARY_CLASSNAME}
+                  className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} !px-2.5`}
                   onClick={() => setShowCreate(true)}
+                  aria-label="New classroom"
                 >
-                  New Classroom
+                  <Plus className="h-5 w-5" aria-hidden="true" />
                 </button>
               </div>
             )}
