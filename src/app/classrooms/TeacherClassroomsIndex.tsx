@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
-import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { ACTIONBAR_BUTTON_PRIMARY_CLASSNAME, PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import type { Classroom } from '@/types'
 
 interface Props {
@@ -190,8 +190,9 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     return [
       {
         id: 'new-classroom',
-        label: '+ New classroom',
+        label: 'New Classroom',
         onSelect: () => setShowCreate(true),
+        primary: true,
       },
     ] satisfies ActionBarItem[]
   }, [])
@@ -284,10 +285,10 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               <div className="mt-6">
                 <button
                   type="button"
-                  className="px-4 py-2 rounded-md bg-blue-600 dark:bg-blue-700 text-white text-sm hover:bg-blue-700 dark:hover:bg-blue-600"
+                  className={ACTIONBAR_BUTTON_PRIMARY_CLASSNAME}
                   onClick={() => setShowCreate(true)}
                 >
-                  Create classroom
+                  New Classroom
                 </button>
               </div>
             )}

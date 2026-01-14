@@ -23,6 +23,7 @@ import { EditAssignmentModal } from '@/components/EditAssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
+  ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
   PageActionBar,
   PageContent,
   PageLayout,
@@ -43,6 +44,7 @@ import {
   DataTableHeaderCell,
   DataTableRow,
   EmptyStateRow,
+  KeyboardNavigableTable,
   SortableHeaderCell,
   TableCard,
 } from '@/components/DataTable'
@@ -111,8 +113,11 @@ function formatTorontoDateTime(iso: string) {
 
 export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent }: Props) {
   const isReadOnly = !!classroom.archived_at
-  const { setOpen: setSidebarOpen } = useRightSidebar()
+  const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
+
+  // Hide "Last updated" column when sidebar is 70% or wider to fit table without scrolling
+  const isCompactTable = sidebarWidth === '70%'
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -413,39 +418,39 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     }
   }
 
-  const actionItems: ActionBarItem[] = useMemo(() => {
-    return [
-      {
-        id: 'toggle-new-assignment',
-        label: 'New Assignment',
-        onSelect: () => setIsCreateModalOpen(true),
-        disabled: isReadOnly,
-        primary: true,
-      },
-    ]
-  }, [isReadOnly])
-
   const canEditAssignment =
     selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
-  const editAssignmentButton = selection.mode === 'assignment' ? (
+
+  const actionItems: ActionBarItem[] = useMemo(() => {
+    if (selection.mode !== 'assignment') return []
+    return [
+      {
+        id: 'edit-assignment',
+        label: 'Edit',
+        onSelect: () => {
+          if (selectedAssignmentData) {
+            setEditAssignment(selectedAssignmentData.assignment)
+          }
+        },
+        disabled: !canEditAssignment,
+      },
+    ]
+  }, [selection.mode, selectedAssignmentData, canEditAssignment])
+
+  const newAssignmentButton = (
     <button
       type="button"
-      className={ACTIONBAR_BUTTON_CLASSNAME}
-      onClick={() => {
-        if (!selectedAssignmentData) return
-        setEditAssignment(selectedAssignmentData.assignment)
-      }}
-      disabled={!canEditAssignment}
+      className={ACTIONBAR_BUTTON_PRIMARY_CLASSNAME}
+      onClick={() => setIsCreateModalOpen(true)}
+      disabled={isReadOnly}
     >
-      Edit assignment
+      New Assignment
     </button>
-  ) : (
-    <div />
   )
 
   return (
     <PageLayout>
-      <PageActionBar primary={editAssignmentButton} actions={actionItems} />
+      <PageActionBar primary={newAssignmentButton} actions={actionItems} />
 
       <PageContent className="space-y-4">
         {error && (
@@ -492,65 +497,73 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
           )}
         </div>
       ) : (
-        <TableCard overflowX>
-          {selectedAssignmentLoading ? (
-            <div className="flex justify-center py-10">
-              <Spinner />
-            </div>
-          ) : selectedAssignmentError || !selectedAssignmentData ? (
-            <div className="p-4 text-sm text-red-600 dark:text-red-400">
-              {selectedAssignmentError || 'Failed to load assignment'}
-            </div>
-          ) : (
-            <DataTable>
-              <DataTableHead>
-                <DataTableRow>
-                  <SortableHeaderCell
-                    label="First Name"
-                    isActive={sortColumn === 'first'}
-                    direction={sortDirection}
-                    onClick={() => toggleSort('first')}
-                  />
-                  <SortableHeaderCell
-                    label="Last Name"
-                    isActive={sortColumn === 'last'}
-                    direction={sortDirection}
-                    onClick={() => toggleSort('last')}
-                  />
-                  <DataTableHeaderCell>Status</DataTableHeaderCell>
-                  <DataTableHeaderCell>Last updated</DataTableHeaderCell>
-                </DataTableRow>
-              </DataTableHead>
-              <DataTableBody>
-                {sortedStudents.map((student) => {
-                  const isSelected = selectedStudentId === student.student_id
-                  return (
-                  <DataTableRow
-                    key={student.student_id}
-                    className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}
-                    onClick={() => setSelectedStudentId(student.student_id)}
-                  >
-                    <DataTableCell>{student.student_first_name ?? '—'}</DataTableCell>
-                    <DataTableCell>{student.student_last_name ?? '—'}</DataTableCell>
-                    <DataTableCell>
-                      <span
-                        className={`inline-block w-3 h-3 rounded-full ${getAssignmentStatusDotClass(student.status)}`}
-                        title={getAssignmentStatusLabel(student.status)}
-                      />
-                    </DataTableCell>
-                    <DataTableCell className="text-gray-700 dark:text-gray-300">
-                      {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
-                    </DataTableCell>
+        <KeyboardNavigableTable
+          rowKeys={sortedStudents.map((s) => s.student_id)}
+          selectedKey={selectedStudentId}
+          onSelectKey={setSelectedStudentId}
+        >
+          <TableCard>
+            {selectedAssignmentLoading ? (
+              <div className="flex justify-center py-10">
+                <Spinner />
+              </div>
+            ) : selectedAssignmentError || !selectedAssignmentData ? (
+              <div className="p-4 text-sm text-red-600 dark:text-red-400">
+                {selectedAssignmentError || 'Failed to load assignment'}
+              </div>
+            ) : (
+              <DataTable>
+                <DataTableHead>
+                  <DataTableRow>
+                    <SortableHeaderCell
+                      label="First Name"
+                      isActive={sortColumn === 'first'}
+                      direction={sortDirection}
+                      onClick={() => toggleSort('first')}
+                    />
+                    <SortableHeaderCell
+                      label="Last Name"
+                      isActive={sortColumn === 'last'}
+                      direction={sortDirection}
+                      onClick={() => toggleSort('last')}
+                    />
+                    <DataTableHeaderCell>{isCompactTable ? '' : 'Status'}</DataTableHeaderCell>
+                    {!isCompactTable && <DataTableHeaderCell>Last updated</DataTableHeaderCell>}
                   </DataTableRow>
-                  )
-                })}
-                {sortedStudents.length === 0 && (
-                  <EmptyStateRow colSpan={4} message="No students enrolled" />
-                )}
-              </DataTableBody>
-            </DataTable>
-          )}
-        </TableCard>
+                </DataTableHead>
+                <DataTableBody>
+                  {sortedStudents.map((student) => {
+                    const isSelected = selectedStudentId === student.student_id
+                    return (
+                    <DataTableRow
+                      key={student.student_id}
+                      className={`cursor-pointer ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50 border-l-2 border-l-blue-500' : 'border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                      onClick={() => setSelectedStudentId(student.student_id)}
+                    >
+                      <DataTableCell className="max-w-[120px] truncate" title={student.student_first_name ?? undefined}>{student.student_first_name ?? '—'}</DataTableCell>
+                      <DataTableCell className="max-w-[120px] truncate" title={student.student_last_name ?? undefined}>{student.student_last_name ?? '—'}</DataTableCell>
+                      <DataTableCell>
+                        <span
+                          className={`inline-block w-3 h-3 rounded-full ${getAssignmentStatusDotClass(student.status)}`}
+                          title={getAssignmentStatusLabel(student.status)}
+                        />
+                      </DataTableCell>
+                      {!isCompactTable && (
+                        <DataTableCell className="text-gray-700 dark:text-gray-300">
+                          {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
+                        </DataTableCell>
+                      )}
+                    </DataTableRow>
+                    )
+                  })}
+                  {sortedStudents.length === 0 && (
+                    <EmptyStateRow colSpan={isCompactTable ? 3 : 4} message="No students enrolled" />
+                  )}
+                </DataTableBody>
+              </DataTable>
+            )}
+          </TableCard>
+        </KeyboardNavigableTable>
       )}
 
       <ConfirmDialog

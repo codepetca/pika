@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { Button } from '@/components/Button'
 import { RichTextViewer } from '@/components/editor'
@@ -22,19 +21,11 @@ interface StudentWorkData {
 interface TeacherStudentWorkPanelProps {
   assignmentId: string
   studentId: string
-  canGoPrev?: boolean
-  canGoNext?: boolean
-  onGoPrev?: () => void
-  onGoNext?: () => void
 }
 
 export function TeacherStudentWorkPanel({
   assignmentId,
   studentId,
-  canGoPrev = false,
-  canGoNext = false,
-  onGoPrev,
-  onGoNext,
 }: TeacherStudentWorkPanelProps) {
   const [data, setData] = useState<StudentWorkData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -159,36 +150,14 @@ export function TeacherStudentWorkPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with navigation */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-        <div className="min-w-0 flex-1">
-          {previewEntry && (
-            <div className="text-xs text-blue-600 dark:text-blue-400 truncate">
-              Previewing: {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
-            </div>
-          )}
+      {/* Preview banner */}
+      {previewEntry && (
+        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-800">
+          <div className="text-xs text-blue-700 dark:text-blue-300">
+            Previewing: {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onGoPrev}
-            disabled={!canGoPrev}
-            className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Previous student"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={onGoNext}
-            disabled={!canGoNext}
-            className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Next student"
-          >
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Main content area: Student work + History side by side */}
       <div className="flex-1 min-h-0 flex">

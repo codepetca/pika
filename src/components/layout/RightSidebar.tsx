@@ -9,6 +9,8 @@ export interface RightSidebarProps {
   className?: string
   /** Title shown in mobile drawer header */
   title?: string
+  /** Optional action buttons shown in header next to title */
+  headerActions?: ReactNode
 }
 
 /**
@@ -18,7 +20,7 @@ export interface RightSidebarProps {
  * - Hidden when closed (w-0, no border, overflow-hidden)
  * - No toggle button when disabled for a view
  */
-export function RightSidebar({ children, className, title = 'Details' }: RightSidebarProps) {
+export function RightSidebar({ children, className, title = 'Details', headerActions }: RightSidebarProps) {
   const { isOpen, enabled, toggle } = useRightSidebar()
   const { isRightOpen, close } = useMobileDrawer()
   const firstFocusableRef = useRef<HTMLButtonElement | null>(null)
@@ -89,11 +91,15 @@ export function RightSidebar({ children, className, title = 'Details' }: RightSi
             <ChevronRight className="h-5 w-5" aria-hidden="true" />
           </button>
           {isOpen && (
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate flex-1 text-center">
               {title}
             </span>
           )}
-          <div className="w-9" /> {/* Spacer for alignment */}
+          {isOpen && headerActions ? (
+            <div className="flex items-center gap-1">{headerActions}</div>
+          ) : (
+            <div className="w-9" /> /* Spacer for alignment */
+          )}
         </div>
 
         {/* Content */}
@@ -126,9 +132,12 @@ export function RightSidebar({ children, className, title = 'Details' }: RightSi
           >
             {/* Header */}
             <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
                 {title}
               </span>
+              {headerActions && (
+                <div className="flex items-center gap-1 mx-2">{headerActions}</div>
+              )}
               <button
                 ref={firstFocusableRef}
                 type="button"

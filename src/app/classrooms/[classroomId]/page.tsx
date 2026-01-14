@@ -25,6 +25,7 @@ import {
 import { getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Classroom, Entry, TiptapContent } from '@/types'
 
 interface UserInfo {
@@ -310,6 +311,30 @@ function ClassroomPageContent({
               ? (selectedAssignment?.title || 'Instructions')
               : (selectedStudentName || 'Student Log')
           }
+          headerActions={
+            isTeacher && activeTab === 'assignments' && selectedStudent ? (
+              <>
+                <button
+                  type="button"
+                  onClick={selectedStudent.onGoPrev}
+                  disabled={!selectedStudent.canGoPrev}
+                  className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Previous student"
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={selectedStudent.onGoNext}
+                  disabled={!selectedStudent.canGoNext}
+                  className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Next student"
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </>
+            ) : undefined
+          }
         >
           {isTeacher && activeTab === 'attendance' ? (
             <div className="p-4">
@@ -327,10 +352,6 @@ function ClassroomPageContent({
             <TeacherStudentWorkPanel
               assignmentId={selectedStudent.assignmentId}
               studentId={selectedStudent.studentId}
-              canGoPrev={selectedStudent.canGoPrev}
-              canGoNext={selectedStudent.canGoNext}
-              onGoPrev={selectedStudent.onGoPrev}
-              onGoNext={selectedStudent.onGoNext}
             />
           ) : activeTab === 'assignments' ? (
             <div className="p-4">
