@@ -370,7 +370,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     setSelectedStudentId(sortedStudents[selectedStudentIndex + 1].student_id)
   }, [selectedStudentIndex, sortedStudents])
 
-  // Notify parent when student selection changes
+  // Notify parent when student selection changes and auto-open sidebar
   useEffect(() => {
     if (selectedStudentId && selection.mode === 'assignment' && selectedAssignmentData?.assignment?.id) {
       onSelectStudent?.({
@@ -382,10 +382,16 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         onGoPrev: handleGoPrevStudent,
         onGoNext: handleGoNextStudent,
       })
+      // Auto-open sidebar when student is selected
+      if (window.innerWidth < 1024) {
+        openMobileSidebar()
+      } else {
+        setSidebarOpen(true)
+      }
     } else {
       onSelectStudent?.(null)
     }
-  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
+  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent, setSidebarOpen, openMobileSidebar])
 
   function toggleSort(column: 'first' | 'last') {
     if (sortColumn !== column) {
