@@ -6,6 +6,14 @@ import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+interface ParsedStudent {
+  email: string
+  firstName: string
+  lastName: string
+  studentNumber: string
+  counselorEmail: string | null
+}
+
 // POST /api/teacher/classrooms/[id]/roster/upload-csv - Upload CSV roster
 export async function POST(
   request: NextRequest,
@@ -44,7 +52,7 @@ export async function POST(
     }
 
     // Expected format: Student Number,First Name,Last Name,Email[,Counselor Email]
-    const students = []
+    const students: ParsedStudent[] = []
 
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim()
@@ -90,14 +98,33 @@ export async function POST(
         )
       }
 
-      // If there are existing students, return confirmation request
+      // If there are existing students, return confirmation request with diff
       if (existingStudents && existingStudents.length > 0) {
-        const existingEmails = new Set(existingStudents.map(s => s.email))
-        const newCount = students.filter(s => !existingEmails.has(s.email)).length
+        const existingByEmail = new Map(existingStudents.map(s => [s.email, s]))
+        const studentsByEmail = new Map(students.map(s => [s.email, s]))
+        const newCount = students.filter(s => !existingByEmail.has(s.email)).length
+
+        // Build comparison data showing old vs new values
+        const changes = existingStudents.map(existing => {
+          const incoming = studentsByEmail.get(existing.email)!
+          return {
+            email: existing.email,
+            current: {
+              firstName: existing.first_name,
+              lastName: existing.last_name,
+              studentNumber: existing.student_number,
+            },
+            incoming: {
+              firstName: incoming.firstName,
+              lastName: incoming.lastName,
+              studentNumber: incoming.studentNumber,
+            },
+          }
+        })
 
         return NextResponse.json({
           needsConfirmation: true,
-          existingStudents,
+          changes,
           updateCount: existingStudents.length,
           newCount,
           totalCount: students.length,
@@ -106,7 +133,7 @@ export async function POST(
     }
 
     // Proceed with upsert (either no existing students, or confirmed)
-    const rosterRows = students.map((s: any) => ({
+    const rosterRows = students.map((s) => ({
       classroom_id: classroomId,
       email: s.email,
       first_name: s.firstName || null,

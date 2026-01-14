@@ -3,16 +3,22 @@
 import { useState, FormEvent, ChangeEvent, useId } from 'react'
 import { Button } from '@/components/Button'
 
-interface ExistingStudent {
-  id: string
+interface StudentChange {
   email: string
-  first_name: string | null
-  last_name: string | null
-  student_number: string | null
+  current: {
+    firstName: string | null
+    lastName: string | null
+    studentNumber: string | null
+  }
+  incoming: {
+    firstName: string
+    lastName: string
+    studentNumber: string
+  }
 }
 
 interface ConfirmationData {
-  existingStudents: ExistingStudent[]
+  changes: StudentChange[]
   updateCount: number
   newCount: number
   totalCount: number
@@ -69,7 +75,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
       // Check if confirmation is needed
       if (data.needsConfirmation) {
         setConfirmationData({
-          existingStudents: data.existingStudents,
+          changes: data.changes,
           updateCount: data.updateCount,
           newCount: data.newCount,
           totalCount: data.totalCount,
@@ -151,29 +157,36 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
 
           <div className="mb-4">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Students to be updated:
+              Changes to be made:
             </p>
-            <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
-                  <tr>
-                    <th className="px-2 py-1 text-left text-gray-600 dark:text-gray-400">Name</th>
-                    <th className="px-2 py-1 text-left text-gray-600 dark:text-gray-400">Email</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {confirmationData.existingStudents.map((student) => (
-                    <tr key={student.id}>
-                      <td className="px-2 py-1 text-gray-900 dark:text-gray-300">
-                        {student.first_name} {student.last_name}
-                      </td>
-                      <td className="px-2 py-1 text-gray-600 dark:text-gray-400">
-                        {student.email}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded divide-y divide-gray-100 dark:divide-gray-800">
+              {confirmationData.changes.map((change) => {
+                const nameChanged = change.current.firstName !== change.incoming.firstName ||
+                                   change.current.lastName !== change.incoming.lastName
+                const numberChanged = change.current.studentNumber !== change.incoming.studentNumber
+                return (
+                  <div key={change.email} className="px-3 py-2 text-xs">
+                    <div className="font-medium text-gray-700 dark:text-gray-300 mb-1">{change.email}</div>
+                    {nameChanged && (
+                      <div className="text-gray-500 dark:text-gray-400">
+                        <span className="line-through text-red-500 dark:text-red-400">{change.current.firstName} {change.current.lastName}</span>
+                        {' → '}
+                        <span className="text-green-600 dark:text-green-400">{change.incoming.firstName} {change.incoming.lastName}</span>
+                      </div>
+                    )}
+                    {numberChanged && (
+                      <div className="text-gray-500 dark:text-gray-400">
+                        <span className="line-through text-red-500 dark:text-red-400">{change.current.studentNumber || '(none)'}</span>
+                        {' → '}
+                        <span className="text-green-600 dark:text-green-400">{change.incoming.studentNumber || '(none)'}</span>
+                      </div>
+                    )}
+                    {!nameChanged && !numberChanged && (
+                      <div className="text-gray-400 dark:text-gray-500 italic">No visible changes</div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
 

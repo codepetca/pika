@@ -34,7 +34,7 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
   })
 
   describe('preview mode (no confirmed flag)', () => {
-    it('returns needsConfirmation with existing students when some already exist', async () => {
+    it('returns needsConfirmation with changes when some students already exist', async () => {
       const existingStudents = [
         { id: 'r-1', email: 'existing@student.com', first_name: 'Old', last_name: 'Name', student_number: '111' },
       ]
@@ -61,8 +61,10 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
 
       expect(response.status).toBe(200)
       expect(data.needsConfirmation).toBe(true)
-      expect(data.existingStudents).toHaveLength(1)
-      expect(data.existingStudents[0].email).toBe('existing@student.com')
+      expect(data.changes).toHaveLength(1)
+      expect(data.changes[0].email).toBe('existing@student.com')
+      expect(data.changes[0].current).toEqual({ firstName: 'Old', lastName: 'Name', studentNumber: '111' })
+      expect(data.changes[0].incoming).toEqual({ firstName: 'New', lastName: 'Name', studentNumber: '111' })
       expect(data.newCount).toBe(1)
       expect(data.updateCount).toBe(1)
     })
