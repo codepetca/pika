@@ -183,11 +183,9 @@ export function UserMenu({ user }: UserMenuProps) {
           role="menuitem"
           tabIndex={isOpen ? 0 : -1}
         >
-          {mounted ? (
-            theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />
-          ) : (
-            <span className="w-4 h-4" />
-          )}
+          <span className="w-4 h-4 flex items-center justify-center">
+            {mounted && (theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />)}
+          </span>
           {mounted ? (theme === 'dark' ? 'Light mode' : 'Dark mode') : 'Toggle theme'}
         </button>
 

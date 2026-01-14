@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useMemo, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
@@ -20,6 +20,8 @@ type PendingAction =
 
 export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const lastPathRef = useRef(pathname)
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>(initialClassrooms)
   const [archivedClassrooms, setArchivedClassrooms] = useState<Classroom[]>([])
   const [view, setView] = useState<ViewMode>('active')
@@ -73,7 +75,21 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
   }, [])
 
-  // Refresh data on mount to handle navigation back with stale router cache
+  // Sync from server-provided data when it changes
+  useEffect(() => {
+    setActiveClassrooms(initialClassrooms)
+  }, [initialClassrooms])
+
+  // Refetch when navigating back to this page
+  useEffect(() => {
+    // Only refetch if we navigated back (pathname changed from something else to /classrooms)
+    if (pathname === '/classrooms' && lastPathRef.current !== '/classrooms') {
+      refreshActiveClassrooms()
+    }
+    lastPathRef.current = pathname
+  }, [pathname, refreshActiveClassrooms])
+
+  // Also fetch on initial mount
   useEffect(() => {
     refreshActiveClassrooms()
   }, [refreshActiveClassrooms])
