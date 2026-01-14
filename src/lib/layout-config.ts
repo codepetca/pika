@@ -9,7 +9,7 @@
 // Types
 // ============================================================================
 
-export type RightSidebarWidth = 320 | 360 | 420 | '50%'
+export type RightSidebarWidth = 320 | 360 | 420 | '50%' | '60%' | '70%'
 
 export type MainContentMaxWidth = 'reading' | 'standard' | 'wide' | 'full'
 
@@ -149,7 +149,7 @@ export function parseRightSidebarCookie(value: string | undefined): boolean {
  * Calculate the CSS width value for right sidebar
  */
 export function getRightSidebarCssWidth(width: RightSidebarWidth): string {
-  if (width === '50%') return '50%'
+  if (typeof width === 'string') return width // percentage values
   return `${width}px`
 }
 
