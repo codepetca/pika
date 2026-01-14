@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { EditAssignmentModal } from '@/components/EditAssignmentModal'
 import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
@@ -148,6 +148,53 @@ describe('EditAssignmentModal', () => {
 
       // Should show confirm dialog
       expect(screen.getByText('You have unsaved changes.')).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('shows confirm dialog when canceling after editing instructions', async () => {
+      const onClose = vi.fn()
+
+      render(
+        <EditAssignmentModal
+          isOpen={true}
+          assignment={baseAssignment}
+          onClose={onClose}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      // Wait for TipTap to initialize
+      await waitFor(() => {
+        expect(screen.getByLabelText('Title')).toHaveValue('Original title')
+      })
+
+      // Wait for requestAnimationFrame to complete (isInitializedRef becomes true)
+      await act(async () => {
+        await new Promise((resolve) => requestAnimationFrame(resolve))
+      })
+
+      // Find the ProseMirror contenteditable element and modify it
+      // This triggers TipTap's internal mutation observer which calls onChange
+      const proseMirrorElement = document.querySelector('.ProseMirror')
+      expect(proseMirrorElement).not.toBeNull()
+
+      // Modify the content to trigger onChange
+      await act(async () => {
+        const paragraph = proseMirrorElement!.querySelector('p')
+        if (paragraph) {
+          paragraph.textContent = 'Modified instructions'
+          // Dispatch input event to trigger TipTap's handlers
+          proseMirrorElement!.dispatchEvent(new InputEvent('input', { bubbles: true }))
+        }
+      })
+
+      // Click cancel
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      // Should show confirm dialog
+      await waitFor(() => {
+        expect(screen.getByText('You have unsaved changes.')).toBeInTheDocument()
+      })
       expect(onClose).not.toHaveBeenCalled()
     })
   })
