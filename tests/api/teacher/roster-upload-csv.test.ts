@@ -36,7 +36,7 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
   describe('preview mode (no confirmed flag)', () => {
     it('returns needsConfirmation with changes when some students already exist', async () => {
       const existingStudents = [
-        { id: 'r-1', email: 'existing@student.com', first_name: 'Old', last_name: 'Name', student_number: '111' },
+        { id: 'r-1', email: 'existing@student.com', first_name: 'Old', last_name: 'Name', student_number: '111', counselor_email: null },
       ]
       const mockFrom = vi.fn((table: string) => {
         if (table === 'classroom_roster') {
@@ -63,8 +63,8 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
       expect(data.needsConfirmation).toBe(true)
       expect(data.changes).toHaveLength(1)
       expect(data.changes[0].email).toBe('existing@student.com')
-      expect(data.changes[0].current).toEqual({ firstName: 'Old', lastName: 'Name', studentNumber: '111' })
-      expect(data.changes[0].incoming).toEqual({ firstName: 'New', lastName: 'Name', studentNumber: '111' })
+      expect(data.changes[0].current).toEqual({ firstName: 'Old', lastName: 'Name', studentNumber: '111', counselorEmail: null })
+      expect(data.changes[0].incoming).toEqual({ firstName: 'New', lastName: 'Name', studentNumber: '111', counselorEmail: null })
       expect(data.newCount).toBe(1)
       expect(data.updateCount).toBe(1)
     })

@@ -9,11 +9,13 @@ interface StudentChange {
     firstName: string | null
     lastName: string | null
     studentNumber: string | null
+    counselorEmail: string | null
   }
   incoming: {
     firstName: string
     lastName: string
     studentNumber: string
+    counselorEmail: string | null
   }
 }
 
@@ -164,25 +166,34 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 const nameChanged = change.current.firstName !== change.incoming.firstName ||
                                    change.current.lastName !== change.incoming.lastName
                 const numberChanged = change.current.studentNumber !== change.incoming.studentNumber
+                const counselorChanged = change.current.counselorEmail !== change.incoming.counselorEmail
+                const hasChanges = nameChanged || numberChanged || counselorChanged
                 return (
                   <div key={change.email} className="px-3 py-2 text-xs">
                     <div className="font-medium text-gray-700 dark:text-gray-300 mb-1">{change.email}</div>
                     {nameChanged && (
                       <div className="text-gray-500 dark:text-gray-400">
-                        <span className="line-through text-red-500 dark:text-red-400">{change.current.firstName} {change.current.lastName}</span>
+                        Name: <span className="line-through text-red-500 dark:text-red-400">{change.current.firstName} {change.current.lastName}</span>
                         {' → '}
                         <span className="text-green-600 dark:text-green-400">{change.incoming.firstName} {change.incoming.lastName}</span>
                       </div>
                     )}
                     {numberChanged && (
                       <div className="text-gray-500 dark:text-gray-400">
-                        <span className="line-through text-red-500 dark:text-red-400">{change.current.studentNumber || '(none)'}</span>
+                        Student #: <span className="line-through text-red-500 dark:text-red-400">{change.current.studentNumber || '(none)'}</span>
                         {' → '}
                         <span className="text-green-600 dark:text-green-400">{change.incoming.studentNumber || '(none)'}</span>
                       </div>
                     )}
-                    {!nameChanged && !numberChanged && (
-                      <div className="text-gray-400 dark:text-gray-500 italic">No visible changes</div>
+                    {counselorChanged && (
+                      <div className="text-gray-500 dark:text-gray-400">
+                        Counselor: <span className="line-through text-red-500 dark:text-red-400">{change.current.counselorEmail || '(none)'}</span>
+                        {' → '}
+                        <span className="text-green-600 dark:text-green-400">{change.incoming.counselorEmail || '(none)'}</span>
+                      </div>
+                    )}
+                    {!hasChanges && (
+                      <div className="text-gray-400 dark:text-gray-500 italic">No changes</div>
                     )}
                   </div>
                 )

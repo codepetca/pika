@@ -86,7 +86,7 @@ export async function POST(
       const emails = students.map(s => s.email)
       const { data: existingStudents, error: selectError } = await supabase
         .from('classroom_roster')
-        .select('id, email, first_name, last_name, student_number')
+        .select('id, email, first_name, last_name, student_number, counselor_email')
         .eq('classroom_id', classroomId)
         .in('email', emails)
 
@@ -113,11 +113,13 @@ export async function POST(
               firstName: existing.first_name,
               lastName: existing.last_name,
               studentNumber: existing.student_number,
+              counselorEmail: existing.counselor_email,
             },
             incoming: {
               firstName: incoming.firstName,
               lastName: incoming.lastName,
               studentNumber: incoming.studentNumber,
+              counselorEmail: incoming.counselorEmail,
             },
           }
         })
