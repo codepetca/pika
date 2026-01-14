@@ -9,7 +9,7 @@
 // Types
 // ============================================================================
 
-export type RightSidebarWidth = 320 | 360 | 420 | '50%' | '60%' | '70%'
+export type RightSidebarWidth = 320 | 360 | 420 | '40%' | '50%' | '60%' | '70%'
 
 export type MainContentMaxWidth = 'reading' | 'standard' | 'wide' | 'full'
 
@@ -88,15 +88,15 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'reading' },
   },
   'assignments-student': {
-    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '50%' },
+    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '40%' },
     mainContent: { maxWidth: 'full' },
   },
   'assignments-teacher-list': {
-    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '40%' },
     mainContent: { maxWidth: 'full' },
   },
   'assignments-teacher-viewing': {
-    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '40%' },
     mainContent: { maxWidth: 'full' },
   },
 }
