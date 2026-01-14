@@ -63,11 +63,11 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
           'hidden lg:flex flex-col',
           'sticky top-12 h-[calc(100vh-3rem)]',
           'bg-white dark:bg-gray-900',
-          'transition-[width,opacity,border-width] duration-200 ease-out',
+          'transition-opacity duration-200 ease-out',
           // When closed: completely hidden
           isOpen
             ? 'border-l border-gray-200 dark:border-gray-800 opacity-100'
-            : 'border-l-0 opacity-0 overflow-hidden',
+            : 'border-l-0 opacity-0 overflow-hidden pointer-events-none',
           className,
         ]
           .filter(Boolean)
