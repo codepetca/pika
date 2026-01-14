@@ -32,6 +32,7 @@ import {
 import { useRightSidebar, useMobileDrawer } from '@/components/layout'
 import {
   getAssignmentStatusBadgeClass,
+  getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, TiptapContent } from '@/types'
@@ -501,9 +502,10 @@ export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
                     <DataTableCell>{student.student_first_name ?? '—'}</DataTableCell>
                     <DataTableCell>{student.student_last_name ?? '—'}</DataTableCell>
                     <DataTableCell>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(student.status)}`}>
-                        {getAssignmentStatusLabel(student.status)}
-                      </span>
+                      <span
+                        className={`inline-block w-3 h-3 rounded-full ${getAssignmentStatusDotClass(student.status)}`}
+                        title={getAssignmentStatusLabel(student.status)}
+                      />
                     </DataTableCell>
                     <DataTableCell className="text-gray-700 dark:text-gray-300">
                       {student.doc?.submitted_at ? formatTorontoDateTime(student.doc.submitted_at) : '—'}
