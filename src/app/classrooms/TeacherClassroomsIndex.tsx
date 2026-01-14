@@ -60,6 +60,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
   }, [])
 
+  // Sync local state when server-provided data changes (e.g., on navigation back)
+  useEffect(() => {
+    setActiveClassrooms(initialClassrooms)
+  }, [initialClassrooms])
+
   useEffect(() => {
     if (view !== 'archived') return
     loadArchived()
