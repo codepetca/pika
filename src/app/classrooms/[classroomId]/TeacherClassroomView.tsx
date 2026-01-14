@@ -29,6 +29,7 @@ import {
   PageLayout,
   type ActionBarItem,
 } from '@/components/PageLayout'
+import { useRightSidebar, useMobileDrawer } from '@/components/layout'
 import {
   getAssignmentStatusBadgeClass,
   getAssignmentStatusLabel,
@@ -96,6 +97,8 @@ function formatTorontoDateTime(iso: string) {
 
 export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
   const isReadOnly = !!classroom.archived_at
+  const { setOpen: setSidebarOpen } = useRightSidebar()
+  const { openRight: openMobileSidebar } = useMobileDrawer()
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -258,7 +261,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
     loadSelectedAssignment()
   }, [selection])
 
-  // Notify parent about selected assignment for sidebar
+  // Notify parent about selected assignment for sidebar and auto-open sidebar
   useEffect(() => {
     if (selection.mode === 'summary') {
       onSelectAssignment?.(null)
@@ -268,8 +271,14 @@ export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
         title: assignment.title,
         instructions: assignment.rich_instructions || assignment.description,
       })
+      // Auto-open sidebar when assignment is selected
+      if (window.innerWidth < 1024) {
+        openMobileSidebar()
+      } else {
+        setSidebarOpen(true)
+      }
     }
-  }, [selection.mode, selectedAssignmentData, onSelectAssignment])
+  }, [selection.mode, selectedAssignmentData, onSelectAssignment, setSidebarOpen, openMobileSidebar])
 
   function handleCreateSuccess(created: Assignment) {
     // Optimistically add the new assignment to the list

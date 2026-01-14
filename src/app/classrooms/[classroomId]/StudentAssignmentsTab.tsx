@@ -27,7 +27,7 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
   const router = useRouter()
   const searchParams = useSearchParams()
   const search = searchParams.toString()
-  const { toggle: toggleSidebar } = useRightSidebar()
+  const { toggle: toggleSidebar, setOpen: setSidebarOpen } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
 
   const [assignments, setAssignments] = useState<AssignmentWithStatus[]>([])
@@ -114,16 +114,32 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
     }
   }, [selectedAssignment, onSelectAssignment])
 
+  // Auto-open sidebar for previously viewed assignments (not first-time)
+  useEffect(() => {
+    if (selectedAssignment && !isFirstTimeView) {
+      // Open sidebar for viewed assignments
+      if (window.innerWidth < 1024) {
+        openMobileSidebar()
+      } else {
+        setSidebarOpen(true)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when assignment changes
+  }, [selectedAssignment?.id])
+
   // Mark assignment as viewed locally when closing instructions
   const handleCloseInstructions = useCallback(() => {
     setShowInstructions(false)
     if (selectedAssignmentId) {
       setAssignments((prev) =>
-        prev.map((a) =>
-          a.id === selectedAssignmentId && a.doc
-            ? { ...a, doc: { ...a.doc, viewed_at: new Date().toISOString() } }
-            : a
-        )
+        prev.map((a) => {
+          if (a.id !== selectedAssignmentId) return a
+          // Create or update doc with viewed_at timestamp
+          const updatedDoc = a.doc
+            ? { ...a.doc, viewed_at: new Date().toISOString() }
+            : { id: '', assignment_id: a.id, student_id: '', content: { type: 'doc', content: [] }, viewed_at: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+          return { ...a, doc: updatedDoc }
+        })
       )
     }
   }, [selectedAssignmentId])
