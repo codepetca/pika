@@ -17,61 +17,142 @@ vi.mock('@/lib/server/classrooms', () => ({
 
 const mockSupabaseClient = { from: vi.fn() }
 
+function createRequest(body: object) {
+  return new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/upload-csv', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
 describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('should return 400 when csvData is missing', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: { teacher_id: 'teacher-1' }, error: null }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/upload-csv', {
-      method: 'POST',
-      body: JSON.stringify({}),
-    })
-
+    const request = createRequest({})
     const response = await POST(request, { params: { id: 'c-1' } })
     expect(response.status).toBe(400)
   })
 
-  it('upserts into classroom_roster (no auto-enrollment)', async () => {
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'classrooms') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({ data: { teacher_id: 'teacher-1' }, error: null }),
+  describe('preview mode (no confirmed flag)', () => {
+    it('returns needsConfirmation with existing students when some already exist', async () => {
+      const existingStudents = [
+        { id: 'r-1', email: 'existing@student.com', first_name: 'Old', last_name: 'Name', student_number: '111' },
+      ]
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_roster') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn().mockResolvedValue({ data: existingStudents, error: null }),
+              })),
             })),
-          })),
+          }
         }
-      }
-      if (table === 'classroom_roster') {
-        return {
-          upsert: vi.fn(() => ({
-            select: vi.fn().mockResolvedValue({ data: [{ id: 'r-1', email: 'a@student.com' }], error: null }),
-          })),
-        }
-      }
-      throw new Error(`Unexpected table: ${table}`)
-    })
-    ;(mockSupabaseClient.from as any) = mockFrom
+        throw new Error(`Unexpected table: ${table}`)
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1/roster/upload-csv', {
-      method: 'POST',
-      body: JSON.stringify({
+      const request = createRequest({
+        csvData: 'Student Number,First Name,Last Name,Email\n111,New,Name,existing@student.com\n222,Brand,New,new@student.com\n',
+      })
+
+      const response = await POST(request, { params: { id: 'c-1' } })
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.needsConfirmation).toBe(true)
+      expect(data.existingStudents).toHaveLength(1)
+      expect(data.existingStudents[0].email).toBe('existing@student.com')
+      expect(data.newCount).toBe(1)
+      expect(data.updateCount).toBe(1)
+    })
+
+    it('proceeds directly when no existing students found', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_roster') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn().mockResolvedValue({ data: [], error: null }),
+              })),
+            })),
+            upsert: vi.fn(() => ({
+              select: vi.fn().mockResolvedValue({ data: [{ id: 'r-1', email: 'new@student.com' }], error: null }),
+            })),
+          }
+        }
+        throw new Error(`Unexpected table: ${table}`)
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = createRequest({
+        csvData: 'Student Number,First Name,Last Name,Email\n123,New,Student,new@student.com\n',
+      })
+
+      const response = await POST(request, { params: { id: 'c-1' } })
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.needsConfirmation).toBeUndefined()
+      expect(data.success).toBe(true)
+      expect(data.upsertedCount).toBe(1)
+    })
+  })
+
+  describe('confirmed mode', () => {
+    it('upserts into classroom_roster when confirmed is true', async () => {
+      const upsertMock = vi.fn(() => ({
+        select: vi.fn().mockResolvedValue({ data: [{ id: 'r-1', email: 'a@student.com' }], error: null }),
+      }))
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_roster') {
+          return { upsert: upsertMock }
+        }
+        throw new Error(`Unexpected table: ${table}`)
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = createRequest({
         csvData: 'Student Number,First Name,Last Name,Email\n123,A,B,a@student.com\n',
-      }),
+        confirmed: true,
+      })
+
+      const response = await POST(request, { params: { id: 'c-1' } })
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.upsertedCount).toBe(1)
+      expect(upsertMock).toHaveBeenCalled()
     })
 
-    const response = await POST(request, { params: { id: 'c-1' } })
-    const data = await response.json()
+    it('skips preview check when confirmed is true', async () => {
+      const selectMock = vi.fn()
+      const upsertMock = vi.fn(() => ({
+        select: vi.fn().mockResolvedValue({ data: [{ id: 'r-1', email: 'a@student.com' }], error: null }),
+      }))
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_roster') {
+          return {
+            select: selectMock,
+            upsert: upsertMock,
+          }
+        }
+        throw new Error(`Unexpected table: ${table}`)
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
 
-    expect(response.status).toBe(200)
-    expect(data.upsertedCount).toBe(1)
+      const request = createRequest({
+        csvData: 'Student Number,First Name,Last Name,Email\n123,A,B,a@student.com\n',
+        confirmed: true,
+      })
+
+      await POST(request, { params: { id: 'c-1' } })
+
+      // Should NOT have called select to check for existing students
+      expect(selectMock).not.toHaveBeenCalled()
+      // Should have called upsert directly
+      expect(upsertMock).toHaveBeenCalled()
+    })
   })
 })

@@ -3,6 +3,22 @@
 import { useState, FormEvent, ChangeEvent, useId } from 'react'
 import { Button } from '@/components/Button'
 
+interface ExistingStudent {
+  id: string
+  email: string
+  first_name: string | null
+  last_name: string | null
+  student_number: string | null
+}
+
+interface ConfirmationData {
+  existingStudents: ExistingStudent[]
+  updateCount: number
+  newCount: number
+  totalCount: number
+  csvText: string
+}
+
 interface UploadRosterModalProps {
   isOpen: boolean
   onClose: () => void
@@ -16,6 +32,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
+  const [confirmationData, setConfirmationData] = useState<ConfirmationData | null>(null)
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -23,6 +40,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
       setCsvFile(file)
       setError('')
       setResult(null)
+      setConfirmationData(null)
     }
   }
 
@@ -48,6 +66,18 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
         throw new Error(data.error || 'Failed to upload roster')
       }
 
+      // Check if confirmation is needed
+      if (data.needsConfirmation) {
+        setConfirmationData({
+          existingStudents: data.existingStudents,
+          updateCount: data.updateCount,
+          newCount: data.newCount,
+          totalCount: data.totalCount,
+          csvText: text,
+        })
+        return
+      }
+
       setResult(data)
       await onSuccess()
       handleClose()
@@ -59,14 +89,128 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
     }
   }
 
+  async function handleConfirmUpload() {
+    if (!confirmationData) return
+
+    setError('')
+    setLoading(true)
+
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroomId}/roster/upload-csv`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csvData: confirmationData.csvText, confirmed: true }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to upload roster')
+      }
+
+      setResult(data)
+      setConfirmationData(null)
+      await onSuccess()
+      handleClose()
+    } catch (err: any) {
+      setError(err.message || 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleCancelConfirmation() {
+    setConfirmationData(null)
+  }
+
   function handleClose() {
     setCsvFile(null)
     setError('')
     setResult(null)
+    setConfirmationData(null)
     onClose()
   }
 
   if (!isOpen) return null
+
+  // Confirmation screen - show when existing students would be overwritten
+  if (confirmationData) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full p-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm Roster Update</h2>
+
+          <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
+              {confirmationData.updateCount} student{confirmationData.updateCount !== 1 ? 's' : ''} will be updated
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              {confirmationData.newCount} new student{confirmationData.newCount !== 1 ? 's' : ''} will be added
+            </p>
+          </div>
+
+          <div className="mb-4">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Students to be updated:
+            </p>
+            <div className="max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                  <tr>
+                    <th className="px-2 py-1 text-left text-gray-600 dark:text-gray-400">Name</th>
+                    <th className="px-2 py-1 text-left text-gray-600 dark:text-gray-400">Email</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {confirmationData.existingStudents.map((student) => (
+                    <tr key={student.id}>
+                      <td className="px-2 py-1 text-gray-900 dark:text-gray-300">
+                        {student.first_name} {student.last_name}
+                      </td>
+                      <td className="px-2 py-1 text-gray-600 dark:text-gray-400">
+                        {student.email}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Updating roster entries will change student metadata (name, student number, counselor email).
+            Student submissions and enrollments are not affected.
+          </p>
+
+          {error && (
+            <div className="mb-4 text-sm text-red-600 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleCancelConfirmation}
+              disabled={loading}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmUpload}
+              disabled={loading}
+              className="flex-1"
+            >
+              {loading ? 'Uploading...' : 'Confirm Update'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
@@ -152,7 +296,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 Successfully processed {result.totalProcessed} students
               </p>
               <p className="text-sm text-green-800 dark:text-green-300">
-                Added {result.addedCount} students to roster
+                Added {result.upsertedCount} students to roster
               </p>
             </div>
 

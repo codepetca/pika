@@ -15,7 +15,7 @@ export async function POST(
     const user = await requireRole('teacher')
     const classroomId = params.id
     const body = await request.json()
-    const { csvData } = body // CSV as string
+    const { csvData, confirmed } = body // CSV as string, confirmed flag for overwrite
 
     if (!csvData) {
       return NextResponse.json(
@@ -57,7 +57,7 @@ export async function POST(
 
       if (email && firstName && lastName) {
         students.push({
-          email,
+          email: email.toLowerCase().trim(),
           firstName,
           lastName,
           studentNumber,
@@ -73,9 +73,42 @@ export async function POST(
       )
     }
 
+    // If not confirmed, check for existing students that would be overwritten
+    if (!confirmed) {
+      const emails = students.map(s => s.email)
+      const { data: existingStudents, error: selectError } = await supabase
+        .from('classroom_roster')
+        .select('id, email, first_name, last_name, student_number')
+        .eq('classroom_id', classroomId)
+        .in('email', emails)
+
+      if (selectError) {
+        console.error('Error checking existing students:', selectError)
+        return NextResponse.json(
+          { error: 'Failed to check existing roster' },
+          { status: 500 }
+        )
+      }
+
+      // If there are existing students, return confirmation request
+      if (existingStudents && existingStudents.length > 0) {
+        const existingEmails = new Set(existingStudents.map(s => s.email))
+        const newCount = students.filter(s => !existingEmails.has(s.email)).length
+
+        return NextResponse.json({
+          needsConfirmation: true,
+          existingStudents,
+          updateCount: existingStudents.length,
+          newCount,
+          totalCount: students.length,
+        })
+      }
+    }
+
+    // Proceed with upsert (either no existing students, or confirmed)
     const rosterRows = students.map((s: any) => ({
       classroom_id: classroomId,
-      email: s.email.toLowerCase().trim(),
+      email: s.email,
       first_name: s.firstName || null,
       last_name: s.lastName || null,
       student_number: s.studentNumber || null,
