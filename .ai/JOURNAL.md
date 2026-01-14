@@ -2313,3 +2313,26 @@
 **Next:** Future work to add markdown conversion utilities for AI integrations (read/write markdown for AI, store as TiptapContent).
 **Blockers:** None
 **Decision:** Keep TiptapContent JSON as storage format rather than markdown. Markdown paste already works via @tiptap/markdown extension. AI conversion layer to be added later when building AI features.
+
+---
+## 2026-01-14 [AI - Claude Opus 4.5]
+**Goal:** Implement roster upload confirmation dialog (GitHub issue #153)
+**Completed:**
+- Added preview mode to roster upload API that checks for existing students before upserting
+- API returns `needsConfirmation: true` with list of existing students when matches found
+- Added confirmation dialog in UploadRosterModal showing students that will be updated
+- Teacher can review, confirm, or cancel before changes are made
+- Added `confirmed` flag to API to skip preview and proceed with upsert
+- Added 3 new tests for preview mode behavior
+**Status:** completed
+**Artifacts:**
+- Branch: issue/153-roster-upload-should-confirm-if-overwrit
+- Worktree: /Users/stew/Repos/.worktrees/pika/issue/153-roster-upload-should-confirm-if-overwrit
+- PR: https://github.com/codepetca/pika/pull/157
+- Files:
+  - src/app/api/teacher/classrooms/[id]/roster/upload-csv/route.ts
+  - src/components/UploadRosterModal.tsx
+  - tests/api/teacher/roster-upload-csv.test.ts
+**Tests:** All 556 tests passing
+**Data Loss Assessment:** Roster updates only affect metadata (name, student_number, counselor_email). Student submissions (entries) and enrollments are in separate tables and NOT affected by roster changes.
+**Blockers:** None
