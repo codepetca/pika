@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { Button } from '@/components/Button'
 import { RichTextViewer } from '@/components/editor'
@@ -44,7 +44,6 @@ export function TeacherStudentWorkPanel({
   const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState('')
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
@@ -194,55 +193,45 @@ export function TeacherStudentWorkPanel({
         </div>
       </div>
 
-      {/* Content area */}
-      <div className={`flex-1 min-h-0 overflow-auto p-4 ${previewEntry ? 'ring-2 ring-blue-400 dark:ring-blue-600 ring-inset' : ''}`}>
-        {displayContent && !isEmpty(displayContent) ? (
-          <div>
-            <RichTextViewer content={displayContent} />
-            <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-              {countCharacters(displayContent)} characters
+      {/* Main content area: Student work + History side by side */}
+      <div className="flex-1 min-h-0 flex">
+        {/* Student work content */}
+        <div className={`flex-1 min-h-0 overflow-auto p-4 ${previewEntry ? 'ring-2 ring-blue-400 dark:ring-blue-600 ring-inset' : ''}`}>
+          {displayContent && !isEmpty(displayContent) ? (
+            <div>
+              <RichTextViewer content={displayContent} />
+              <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+                {countCharacters(displayContent)} characters
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
-            No work submitted yet
-          </div>
-        )}
-      </div>
-
-      {/* History section */}
-      <div className="border-t border-gray-200 dark:border-gray-700">
-        <button
-          type="button"
-          onClick={() => {
-            if (isHistoryOpen) handleExitPreview()
-            setIsHistoryOpen(!isHistoryOpen)
-          }}
-          className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-        >
-          <span>History ({historyEntries.length})</span>
-          {isHistoryOpen ? (
-            <ChevronUp className="h-4 w-4" />
           ) : (
-            <ChevronDown className="h-4 w-4" />
+            <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400">
+              No work submitted yet
+            </div>
           )}
-        </button>
+        </div>
 
-        {isHistoryOpen && (
-          <div
-            className="max-h-64 overflow-y-auto bg-gray-50 dark:bg-gray-950"
-            onMouseLeave={handleHistoryMouseLeave}
-          >
+        {/* History panel */}
+        <div
+          className="w-48 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 flex flex-col min-h-0"
+          onMouseLeave={handleHistoryMouseLeave}
+        >
+          <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+              History
+            </h3>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
             {historyLoading ? (
               <div className="p-4 text-center">
                 <Spinner size="sm" />
               </div>
             ) : historyError ? (
-              <div className="p-4">
+              <div className="p-3">
                 <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
               </div>
             ) : historyEntries.length === 0 ? (
-              <div className="p-4">
+              <div className="p-3">
                 <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
               </div>
             ) : (
@@ -253,16 +242,15 @@ export function TeacherStudentWorkPanel({
                 onEntryHover={handlePreviewHover}
               />
             )}
-
-            {isPreviewLocked && previewEntry && (
-              <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                <Button onClick={handleExitPreview} variant="secondary" size="sm" className="w-full">
-                  Exit preview
-                </Button>
-              </div>
-            )}
           </div>
-        )}
+          {isPreviewLocked && previewEntry && (
+            <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-700">
+              <Button onClick={handleExitPreview} variant="secondary" size="sm" className="w-full">
+                Exit preview
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
