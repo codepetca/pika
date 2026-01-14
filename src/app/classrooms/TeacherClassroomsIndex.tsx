@@ -60,10 +60,23 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
   }, [])
 
-  // Sync local state when server-provided data changes (e.g., on navigation back)
+  // Fetch fresh classroom data to handle stale router cache
+  const refreshActiveClassrooms = useCallback(async () => {
+    try {
+      const res = await fetch('/api/teacher/classrooms')
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.classrooms) {
+        setActiveClassrooms(data.classrooms)
+      }
+    } catch {
+      // Silently fail - we still have initialClassrooms
+    }
+  }, [])
+
+  // Refresh data on mount to handle navigation back with stale router cache
   useEffect(() => {
-    setActiveClassrooms(initialClassrooms)
-  }, [initialClassrooms])
+    refreshActiveClassrooms()
+  }, [refreshActiveClassrooms])
 
   useEffect(() => {
     if (view !== 'archived') return
