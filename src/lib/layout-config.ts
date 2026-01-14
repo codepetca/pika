@@ -55,7 +55,7 @@ export const LEFT_SIDEBAR = {
   expandedWidth: 240,
 } as const
 
-export const RIGHT_SIDEBAR_WIDTHS: Record<Exclude<RightSidebarWidth, '50%'>, number> = {
+export const RIGHT_SIDEBAR_WIDTHS: Record<320 | 360 | 420, number> = {
   320: 320,
   360: 360,
   420: 420,
