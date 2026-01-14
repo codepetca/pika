@@ -491,7 +491,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                     : 'text-orange-600 dark:text-orange-400'
               }`}
             >
-              {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+              {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
             </div>
             <button
               type="button"

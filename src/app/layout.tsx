@@ -4,7 +4,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ProgressBarProvider } from '@/components/ProgressBarProvider'
 
 export const metadata: Metadata = {
-  title: 'Pika - Student Daily Log & Attendance',
+  title: 'Pika',
   description: 'Online high school student daily log and attendance tracking',
 }
 
