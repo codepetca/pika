@@ -209,6 +209,9 @@ function ClassroomPageContent({
   // State for selected student (teacher assignments tab - viewing student work)
   const [selectedStudent, setSelectedStudent] = useState<SelectedStudentInfo | null>(null)
 
+  // State for showing instructions panel instead of student work
+  const [showInstructionsPanel, setShowInstructionsPanel] = useState(false)
+
   const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
     setSelectedEntry(entry)
     setSelectedStudentName(studentName)
@@ -220,16 +223,22 @@ function ClassroomPageContent({
 
   const handleSelectStudent = useCallback((student: SelectedStudentInfo | null) => {
     setSelectedStudent(student)
+    // Reset instructions panel when student selection changes
+    setShowInstructionsPanel(false)
   }, [])
 
-  // Change right sidebar width to 70% when viewing student work
+  const handleToggleInstructions = useCallback(() => {
+    setShowInstructionsPanel((prev) => !prev)
+  }, [])
+
+  // Change right sidebar width to 70% when viewing student work, 40% for instructions
   useEffect(() => {
-    if (isTeacher && activeTab === 'assignments' && selectedStudent) {
+    if (isTeacher && activeTab === 'assignments' && selectedStudent && !showInstructionsPanel) {
       setRightSidebarWidth('70%')
     } else if (isTeacher && activeTab === 'assignments') {
       setRightSidebarWidth('40%')
     }
-  }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
+  }, [isTeacher, activeTab, selectedStudent, showInstructionsPanel, setRightSidebarWidth])
 
   const content = (
     <AppShell
@@ -285,6 +294,8 @@ function ClassroomPageContent({
                   classroom={classroom}
                   onSelectAssignment={handleSelectAssignment}
                   onSelectStudent={handleSelectStudent}
+                  showInstructionsPanel={showInstructionsPanel}
+                  onToggleInstructions={handleToggleInstructions}
                 />
               )}
               {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
@@ -305,7 +316,9 @@ function ClassroomPageContent({
 
         <RightSidebar
           title={
-            isTeacher && activeTab === 'assignments' && selectedStudent
+            isTeacher && activeTab === 'assignments' && selectedStudent && showInstructionsPanel
+              ? 'Instructions'
+              : isTeacher && activeTab === 'assignments' && selectedStudent
               ? selectedStudent.assignmentTitle
               : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
@@ -348,7 +361,7 @@ function ClassroomPageContent({
                 </p>
               )}
             </div>
-          ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
+          ) : isTeacher && activeTab === 'assignments' && selectedStudent && !showInstructionsPanel ? (
             <TeacherStudentWorkPanel
               assignmentId={selectedStudent.assignmentId}
               studentId={selectedStudent.studentId}

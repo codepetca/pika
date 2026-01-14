@@ -81,6 +81,8 @@ interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onSelectStudent?: (student: SelectedStudentInfo | null) => void
+  showInstructionsPanel?: boolean
+  onToggleInstructions?: () => void
 }
 
 function getCookieValue(name: string) {
@@ -111,7 +113,7 @@ function formatTorontoDateTime(iso: string) {
   }).replace(' AM', ' am').replace(' PM', ' pm')
 }
 
-export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent }: Props) {
+export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, showInstructionsPanel, onToggleInstructions }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
@@ -429,7 +431,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
   const actionItems: ActionBarItem[] = useMemo(() => {
     if (selection.mode !== 'assignment') return []
-    return [
+    const items: ActionBarItem[] = [
       {
         id: 'edit-assignment',
         label: 'Edit',
@@ -441,7 +443,16 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         disabled: !canEditAssignment,
       },
     ]
-  }, [selection.mode, selectedAssignmentData, canEditAssignment])
+    // Add Instructions toggle when a student is selected
+    if (selectedStudentId && onToggleInstructions) {
+      items.push({
+        id: 'toggle-instructions',
+        label: showInstructionsPanel ? 'Student Work' : 'Instructions',
+        onSelect: onToggleInstructions,
+      })
+    }
+    return items
+  }, [selection.mode, selectedAssignmentData, canEditAssignment, selectedStudentId, showInstructionsPanel, onToggleInstructions])
 
   const newAssignmentButton = (
     <button
