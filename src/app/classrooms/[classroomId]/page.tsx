@@ -196,7 +196,7 @@ function ClassroomPageContent({
   isArchived: boolean
 }) {
   const { openLeft } = useMobileDrawer()
-  const { setWidth: setRightSidebarWidth } = useRightSidebar()
+  const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const isTeacher = user.role === 'teacher'
 
   // State for selected student log (teacher attendance tab)
@@ -228,8 +228,20 @@ function ClassroomPageContent({
   }, [])
 
   const handleToggleInstructions = useCallback(() => {
-    setShowInstructionsPanel((prev) => !prev)
-  }, [])
+    if (selectedStudent && !showInstructionsPanel) {
+      // Student is selected and showing student work → show instructions
+      setShowInstructionsPanel(true)
+      setRightSidebarOpen(true)
+    } else if (showInstructionsPanel && isRightSidebarOpen) {
+      // Instructions are showing and panel is open → close panel
+      setRightSidebarOpen(false)
+      setShowInstructionsPanel(false)
+    } else {
+      // Panel is closed or showing something else → open and show instructions
+      setShowInstructionsPanel(true)
+      setRightSidebarOpen(true)
+    }
+  }, [selectedStudent, showInstructionsPanel, isRightSidebarOpen, setRightSidebarOpen])
 
   // Change right sidebar width to 70% when viewing student work, 40% for instructions
   useEffect(() => {
