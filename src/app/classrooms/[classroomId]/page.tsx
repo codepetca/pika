@@ -22,7 +22,8 @@ import {
   useMobileDrawer,
 } from '@/components/layout'
 import { getRouteKeyFromTab } from '@/lib/layout-config'
-import type { Classroom, Entry } from '@/types'
+import { RichTextViewer } from '@/components/editor'
+import type { Classroom, Entry, TiptapContent } from '@/types'
 
 interface UserInfo {
   id: string
@@ -30,6 +31,11 @@ interface UserInfo {
   role: 'student' | 'teacher'
   first_name?: string | null
   last_name?: string | null
+}
+
+interface SelectedAssignmentInstructions {
+  title: string
+  instructions: TiptapContent | string | null
 }
 
 export default function ClassroomPage() {
@@ -183,9 +189,16 @@ function ClassroomPageContent({
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
   const [selectedStudentName, setSelectedStudentName] = useState<string>('')
 
+  // State for selected assignment instructions (assignments tab)
+  const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
+
   const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
     setSelectedEntry(entry)
     setSelectedStudentName(studentName)
+  }, [])
+
+  const handleSelectAssignment = useCallback((assignment: SelectedAssignmentInstructions | null) => {
+    setSelectedAssignment(assignment)
   }, [])
 
   const content = (
@@ -237,19 +250,35 @@ function ClassroomPageContent({
                   onSelectEntry={handleSelectEntry}
                 />
               )}
-              {activeTab === 'assignments' && <TeacherClassroomView classroom={classroom} />}
+              {activeTab === 'assignments' && (
+                <TeacherClassroomView
+                  classroom={classroom}
+                  onSelectAssignment={handleSelectAssignment}
+                />
+              )}
               {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
               {activeTab === 'settings' && <TeacherSettingsTab classroom={classroom} />}
             </>
           ) : (
             <>
               {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
-              {activeTab === 'assignments' && <StudentAssignmentsTab classroom={classroom} />}
+              {activeTab === 'assignments' && (
+                <StudentAssignmentsTab
+                  classroom={classroom}
+                  onSelectAssignment={handleSelectAssignment}
+                />
+              )}
             </>
           )}
         </MainContent>
 
-        <RightSidebar title={selectedStudentName || 'Student Log'}>
+        <RightSidebar
+          title={
+            activeTab === 'assignments'
+              ? (selectedAssignment?.title || 'Instructions')
+              : (selectedStudentName || 'Student Log')
+          }
+        >
           {isTeacher && activeTab === 'attendance' ? (
             <div className="p-4">
               {selectedEntry ? (
@@ -259,6 +288,28 @@ function ClassroomPageContent({
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Select a student to view their log.
+                </p>
+              )}
+            </div>
+          ) : activeTab === 'assignments' ? (
+            <div className="p-4">
+              {selectedAssignment ? (
+                selectedAssignment.instructions ? (
+                  typeof selectedAssignment.instructions === 'string' ? (
+                    <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                      {selectedAssignment.instructions}
+                    </p>
+                  ) : (
+                    <RichTextViewer content={selectedAssignment.instructions} />
+                  )
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No instructions provided.
+                  </p>
+                )
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Select an assignment to view instructions.
                 </p>
               )}
             </div>

@@ -381,6 +381,121 @@ Usage:
 <div className="flex justify-center items-center">
 ```
 
+### 3-Panel Layout System
+
+The app uses a 3-panel layout for classroom views, implemented in `src/components/layout/`:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                         AppHeader                            │
+├────────┬─────────────────────────────────┬───────────────────┤
+│        │                                 │                   │
+│  Left  │          MainContent            │    RightSidebar   │
+│ Sidebar│                                 │   (Inspector)     │
+│        │                                 │                   │
+│ (nav)  │                                 │                   │
+│        │                                 │                   │
+└────────┴─────────────────────────────────┴───────────────────┘
+```
+
+#### Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `ThreePanelProvider` | `layout/ThreePanelProvider.tsx` | Context provider for layout state |
+| `ThreePanelShell` | `layout/ThreePanelShell.tsx` | CSS Grid container |
+| `LeftSidebar` | `layout/LeftSidebar.tsx` | Navigation rail (collapsible) |
+| `MainContent` | `layout/MainContent.tsx` | Primary content area |
+| `RightSidebar` | `layout/RightSidebar.tsx` | Inspector/details panel |
+
+#### Configuration
+
+Route-specific layout is configured in `src/lib/layout-config.ts`:
+
+```typescript
+type RouteKey =
+  | 'classrooms-list'
+  | 'settings'
+  | 'attendance'
+  | 'roster'
+  | 'today'
+  | 'assignments-student'
+  | 'assignments-teacher-list'
+  | 'assignments-teacher-viewing'
+
+// Example config
+ROUTE_CONFIGS['attendance'] = {
+  rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '50%' },
+  mainContent: { maxWidth: 'full' },
+}
+```
+
+#### Usage Pattern
+
+```tsx
+// In page.tsx
+import { ThreePanelProvider, ThreePanelShell, LeftSidebar, MainContent, RightSidebar } from '@/components/layout'
+import { getRouteKeyFromTab } from '@/lib/layout-config'
+
+const routeKey = getRouteKeyFromTab(activeTab, user.role)
+
+<ThreePanelProvider routeKey={routeKey} initialLeftExpanded={...}>
+  <ThreePanelShell>
+    <LeftSidebar>
+      <NavItems ... />
+    </LeftSidebar>
+
+    <MainContent>
+      {/* Tab content */}
+    </MainContent>
+
+    <RightSidebar title="Details">
+      {/* Inspector content - varies by tab */}
+    </RightSidebar>
+  </ThreePanelShell>
+</ThreePanelProvider>
+```
+
+#### Passing Content to RightSidebar
+
+Content is passed to RightSidebar at the page level via callbacks:
+
+```tsx
+// State at page level
+const [selectedItem, setSelectedItem] = useState<Item | null>(null)
+
+// Pass callback to tab component
+<TabComponent onSelect={setSelectedItem} />
+
+// Render in RightSidebar
+<RightSidebar title={selectedItem?.name || 'Details'}>
+  {selectedItem ? (
+    <ItemDetails item={selectedItem} />
+  ) : (
+    <p>Select an item to view details.</p>
+  )}
+</RightSidebar>
+```
+
+#### Responsive Behavior
+
+- **Desktop (lg+)**: 3-column grid with smooth width transitions
+- **Mobile**: Single column, sidebars become overlay drawers
+- Use `useMobileDrawer()` hook to control mobile drawer state
+- Use `useRightSidebar()` hook to toggle/control right panel
+
+#### Hooks
+
+```typescript
+import { useLeftSidebar, useRightSidebar, useMobileDrawer } from '@/components/layout'
+
+// Toggle right sidebar
+const { isOpen, toggle, enabled } = useRightSidebar()
+
+// Mobile drawer control
+const { openLeft, openRight, close } = useMobileDrawer()
+```
+
 ---
 
 ## Page-Specific Patterns

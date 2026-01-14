@@ -5,26 +5,30 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { useRightSidebar, useMobileDrawer } from '@/components/layout'
 import {
   formatDueDate,
   formatRelativeDueDate,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
-import type { AssignmentWithStatus, Classroom } from '@/types'
+import type { AssignmentWithStatus, Classroom, TiptapContent } from '@/types'
 import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
 import { RichTextViewer } from '@/components/editor'
 
 interface Props {
   classroom: Classroom
+  onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
 }
 
 type StudentAssignmentsView = 'summary' | 'edit'
 
-export function StudentAssignmentsTab({ classroom }: Props) {
+export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const search = searchParams.toString()
+  const { toggle: toggleSidebar } = useRightSidebar()
+  const { openRight: openMobileSidebar } = useMobileDrawer()
 
   const [assignments, setAssignments] = useState<AssignmentWithStatus[]>([])
   const [loading, setLoading] = useState(true)
@@ -86,14 +90,29 @@ export function StudentAssignmentsTab({ classroom }: Props) {
     await editorRef.current?.unsubmit()
   }, [])
 
-  // Auto-show instructions for unviewed assignments (no doc or viewed_at is null)
+  // Determine if this is a first-time view (needs modal)
+  const isFirstTimeView = selectedAssignment && (!selectedAssignment.doc || selectedAssignment.doc.viewed_at === null)
+
+  // Auto-show instructions modal for unviewed assignments only
   useEffect(() => {
-    if (selectedAssignment && (!selectedAssignment.doc || selectedAssignment.doc.viewed_at === null)) {
+    if (isFirstTimeView) {
       setShowInstructions(true)
     } else {
       setShowInstructions(false)
     }
-  }, [selectedAssignment])
+  }, [isFirstTimeView])
+
+  // Notify parent about selected assignment for sidebar
+  useEffect(() => {
+    if (selectedAssignment) {
+      onSelectAssignment?.({
+        title: selectedAssignment.title,
+        instructions: selectedAssignment.rich_instructions || selectedAssignment.description,
+      })
+    } else {
+      onSelectAssignment?.(null)
+    }
+  }, [selectedAssignment, onSelectAssignment])
 
   // Mark assignment as viewed locally when closing instructions
   const handleCloseInstructions = useCallback(() => {
@@ -117,7 +136,20 @@ export function StudentAssignmentsTab({ classroom }: Props) {
             <button
               type="button"
               className={ACTIONBAR_BUTTON_CLASSNAME}
-              onClick={() => setShowInstructions(true)}
+              onClick={() => {
+                if (isFirstTimeView) {
+                  // Still showing first-time modal - do nothing or close it
+                  setShowInstructions(false)
+                } else {
+                  // For viewed assignments, toggle the sidebar
+                  // On mobile, open the drawer; on desktop, toggle
+                  if (window.innerWidth < 1024) {
+                    openMobileSidebar()
+                  } else {
+                    toggleSidebar()
+                  }
+                }
+              }}
             >
               Instructions
             </button>
@@ -206,7 +238,8 @@ export function StudentAssignmentsTab({ classroom }: Props) {
             )}
         </div>
       </PageContent>
-      {showInstructions && selectedAssignment && (
+      {/* Modal only shows for first-time views (unviewed assignments) */}
+      {showInstructions && isFirstTimeView && selectedAssignment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             type="button"

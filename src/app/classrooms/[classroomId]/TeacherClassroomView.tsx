@@ -33,7 +33,7 @@ import {
   getAssignmentStatusBadgeClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
-import type { Classroom, Assignment, AssignmentStats, AssignmentStatus } from '@/types'
+import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, TiptapContent } from '@/types'
 import {
   DataTable,
   DataTableBody,
@@ -66,6 +66,7 @@ interface StudentSubmissionRow {
 
 interface Props {
   classroom: Classroom
+  onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
 }
 
 function getCookieValue(name: string) {
@@ -93,7 +94,7 @@ function formatTorontoDateTime(iso: string) {
   })
 }
 
-export function TeacherClassroomView({ classroom }: Props) {
+export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
   const isReadOnly = !!classroom.archived_at
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [loading, setLoading] = useState(true)
@@ -256,6 +257,19 @@ export function TeacherClassroomView({ classroom }: Props) {
 
     loadSelectedAssignment()
   }, [selection])
+
+  // Notify parent about selected assignment for sidebar
+  useEffect(() => {
+    if (selection.mode === 'summary') {
+      onSelectAssignment?.(null)
+    } else if (selectedAssignmentData) {
+      const { assignment } = selectedAssignmentData
+      onSelectAssignment?.({
+        title: assignment.title,
+        instructions: assignment.rich_instructions || assignment.description,
+      })
+    }
+  }, [selection.mode, selectedAssignmentData, onSelectAssignment])
 
   function handleCreateSuccess(created: Assignment) {
     // Optimistically add the new assignment to the list
