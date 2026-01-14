@@ -448,14 +448,12 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     if (onToggleInstructions) {
       items.push({
         id: 'toggle-instructions',
-        label: showInstructionsPanel ? 'Student Work' : 'Instructions',
+        label: 'Instructions',
         onSelect: onToggleInstructions,
-        // Disable "Student Work" button if no student is selected
-        disabled: showInstructionsPanel && !selectedStudentId,
       })
     }
     return items
-  }, [selection.mode, selectedAssignmentData, canEditAssignment, selectedStudentId, showInstructionsPanel, onToggleInstructions])
+  }, [selection.mode, selectedAssignmentData, canEditAssignment, onToggleInstructions])
 
   const newAssignmentButton = (
     <button
