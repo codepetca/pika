@@ -20,9 +20,11 @@ import {
   NavItems,
   useLayoutInitialState,
   useMobileDrawer,
+  useRightSidebar,
 } from '@/components/layout'
 import { getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
+import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import type { Classroom, Entry, TiptapContent } from '@/types'
 
 interface UserInfo {
@@ -36,6 +38,15 @@ interface UserInfo {
 interface SelectedAssignmentInstructions {
   title: string
   instructions: TiptapContent | string | null
+}
+
+interface SelectedStudentInfo {
+  assignmentId: string
+  studentId: string
+  canGoPrev: boolean
+  canGoNext: boolean
+  onGoPrev: () => void
+  onGoNext: () => void
 }
 
 export default function ClassroomPage() {
@@ -183,6 +194,7 @@ function ClassroomPageContent({
   isArchived: boolean
 }) {
   const { openLeft } = useMobileDrawer()
+  const { setWidth: setRightSidebarWidth } = useRightSidebar()
   const isTeacher = user.role === 'teacher'
 
   // State for selected student log (teacher attendance tab)
@@ -192,6 +204,9 @@ function ClassroomPageContent({
   // State for selected assignment instructions (assignments tab)
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
 
+  // State for selected student (teacher assignments tab - viewing student work)
+  const [selectedStudent, setSelectedStudent] = useState<SelectedStudentInfo | null>(null)
+
   const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
     setSelectedEntry(entry)
     setSelectedStudentName(studentName)
@@ -200,6 +215,19 @@ function ClassroomPageContent({
   const handleSelectAssignment = useCallback((assignment: SelectedAssignmentInstructions | null) => {
     setSelectedAssignment(assignment)
   }, [])
+
+  const handleSelectStudent = useCallback((student: SelectedStudentInfo | null) => {
+    setSelectedStudent(student)
+  }, [])
+
+  // Change right sidebar width to 70% when viewing student work
+  useEffect(() => {
+    if (isTeacher && activeTab === 'assignments' && selectedStudent) {
+      setRightSidebarWidth('70%')
+    } else if (isTeacher && activeTab === 'assignments') {
+      setRightSidebarWidth('40%')
+    }
+  }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
 
   const content = (
     <AppShell
@@ -254,6 +282,7 @@ function ClassroomPageContent({
                 <TeacherClassroomView
                   classroom={classroom}
                   onSelectAssignment={handleSelectAssignment}
+                  onSelectStudent={handleSelectStudent}
                 />
               )}
               {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
@@ -274,7 +303,9 @@ function ClassroomPageContent({
 
         <RightSidebar
           title={
-            activeTab === 'assignments'
+            isTeacher && activeTab === 'assignments' && selectedStudent
+              ? 'Student Work'
+              : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
               : (selectedStudentName || 'Student Log')
           }
@@ -291,6 +322,15 @@ function ClassroomPageContent({
                 </p>
               )}
             </div>
+          ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
+            <TeacherStudentWorkPanel
+              assignmentId={selectedStudent.assignmentId}
+              studentId={selectedStudent.studentId}
+              canGoPrev={selectedStudent.canGoPrev}
+              canGoNext={selectedStudent.canGoNext}
+              onGoPrev={selectedStudent.onGoPrev}
+              onGoNext={selectedStudent.onGoNext}
+            />
           ) : activeTab === 'assignments' ? (
             <div className="p-4">
               {selectedAssignment ? (

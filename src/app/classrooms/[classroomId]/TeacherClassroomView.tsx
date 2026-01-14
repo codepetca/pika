@@ -20,7 +20,6 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
 import { CreateAssignmentModal } from '@/components/CreateAssignmentModal'
 import { EditAssignmentModal } from '@/components/EditAssignmentModal'
-import { TeacherStudentWorkModal } from '@/components/TeacherStudentWorkModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
@@ -66,9 +65,19 @@ interface StudentSubmissionRow {
   doc: { submitted_at?: string | null; updated_at?: string | null } | null
 }
 
+interface SelectedStudentInfo {
+  assignmentId: string
+  studentId: string
+  canGoPrev: boolean
+  canGoNext: boolean
+  onGoPrev: () => void
+  onGoNext: () => void
+}
+
 interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
+  onSelectStudent?: (student: SelectedStudentInfo | null) => void
 }
 
 function getCookieValue(name: string) {
@@ -99,7 +108,7 @@ function formatTorontoDateTime(iso: string) {
   }).replace(' AM', ' am').replace(' PM', ' pm')
 }
 
-export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
+export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
@@ -355,6 +364,22 @@ export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
     setSelectedStudentId(sortedStudents[selectedStudentIndex + 1].student_id)
   }, [selectedStudentIndex, sortedStudents])
 
+  // Notify parent when student selection changes
+  useEffect(() => {
+    if (selectedStudentId && selection.mode === 'assignment' && selectedAssignmentData?.assignment?.id) {
+      onSelectStudent?.({
+        assignmentId: selectedAssignmentData.assignment.id,
+        studentId: selectedStudentId,
+        canGoPrev: canGoPrevStudent,
+        canGoNext: canGoNextStudent,
+        onGoPrev: handleGoPrevStudent,
+        onGoNext: handleGoNextStudent,
+      })
+    } else {
+      onSelectStudent?.(null)
+    }
+  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
+
   function toggleSort(column: 'first' | 'last') {
     if (sortColumn !== column) {
       setSortColumn(column)
@@ -536,18 +561,6 @@ export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
         onConfirm={deleteAssignment}
       />
 
-      {selection.mode === 'assignment' && selectedAssignmentData?.assignment?.id && selectedStudentId && (
-        <TeacherStudentWorkModal
-          isOpen={true}
-          assignmentId={selectedAssignmentData.assignment.id}
-          studentId={selectedStudentId}
-          canGoPrev={canGoPrevStudent}
-          canGoNext={canGoNextStudent}
-          onGoPrev={handleGoPrevStudent}
-          onGoNext={handleGoNextStudent}
-          onClose={() => setSelectedStudentId(null)}
-        />
-      )}
 
       <EditAssignmentModal
         isOpen={!!editAssignment}
