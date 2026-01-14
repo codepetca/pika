@@ -68,7 +68,7 @@ function getInitials(firstName?: string | null, lastName?: string | null): strin
  * Supports keyboard navigation.
  */
 export function UserMenu({ user }: UserMenuProps) {
-  const { theme, toggleTheme } = useTheme()
+  const { theme, mounted, toggleTheme } = useTheme()
 
   const handleThemeToggle = useCallback(() => {
     toggleTheme()
@@ -183,12 +183,12 @@ export function UserMenu({ user }: UserMenuProps) {
           role="menuitem"
           tabIndex={isOpen ? 0 : -1}
         >
-          {theme === 'dark' ? (
-            <Sun className="w-4 h-4" />
+          {mounted ? (
+            theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />
           ) : (
-            <Moon className="w-4 h-4" />
+            <span className="w-4 h-4" />
           )}
-          {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          {mounted ? (theme === 'dark' ? 'Light mode' : 'Dark mode') : 'Toggle theme'}
         </button>
 
         {/* Logout */}
