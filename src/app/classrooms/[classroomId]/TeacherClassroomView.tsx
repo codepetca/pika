@@ -443,12 +443,14 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         disabled: !canEditAssignment,
       },
     ]
-    // Add Instructions toggle when a student is selected
-    if (selectedStudentId && onToggleInstructions) {
+    // Add Instructions toggle (always visible when viewing an assignment)
+    if (onToggleInstructions) {
       items.push({
         id: 'toggle-instructions',
         label: showInstructionsPanel ? 'Student Work' : 'Instructions',
         onSelect: onToggleInstructions,
+        // Disable "Student Work" button if no student is selected
+        disabled: showInstructionsPanel && !selectedStudentId,
       })
     }
     return items
@@ -461,7 +463,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       onClick={() => setIsCreateModalOpen(true)}
       disabled={isReadOnly}
     >
-      New Assignment
+      +New
     </button>
   )
 
