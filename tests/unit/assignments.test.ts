@@ -8,6 +8,7 @@ import {
   calculateAssignmentStatus,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
+  getAssignmentStatusDotClass,
   formatDueDate,
   isPastDue,
   formatRelativeDueDate,
@@ -289,6 +290,36 @@ describe('assignment utilities', () => {
       // Should have background and text classes
       expect(classes).toMatch(/bg-\w+/)
       expect(classes).toMatch(/text-\w+/)
+    })
+  })
+
+  // ==========================================================================
+  // getAssignmentStatusDotClass()
+  // ==========================================================================
+
+  describe('getAssignmentStatusDotClass', () => {
+    it('should return gray for not_started', () => {
+      expect(getAssignmentStatusDotClass('not_started')).toBe('bg-gray-400')
+    })
+
+    it('should return yellow for in_progress', () => {
+      expect(getAssignmentStatusDotClass('in_progress')).toBe('bg-yellow-400')
+    })
+
+    it('should return red for in_progress_late', () => {
+      expect(getAssignmentStatusDotClass('in_progress_late')).toBe('bg-red-500')
+    })
+
+    it('should return green for submitted_on_time', () => {
+      expect(getAssignmentStatusDotClass('submitted_on_time')).toBe('bg-green-500')
+    })
+
+    it('should return red for submitted_late', () => {
+      expect(getAssignmentStatusDotClass('submitted_late')).toBe('bg-red-500')
+    })
+
+    it('should return gray for invalid status', () => {
+      expect(getAssignmentStatusDotClass('invalid_status' as any)).toBe('bg-gray-400')
     })
   })
 

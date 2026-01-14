@@ -9,9 +9,15 @@
 // Types
 // ============================================================================
 
-export type RightSidebarWidth = 320 | 360 | 420 | '50%'
+export type RightSidebarWidth = 320 | 360 | 420 | '40%' | '50%' | '60%' | '70%'
 
 export type MainContentMaxWidth = 'reading' | 'standard' | 'wide' | 'full'
+
+/**
+ * Tailwind 'lg' breakpoint in pixels.
+ * Used for detecting desktop vs mobile for sidebar behavior.
+ */
+export const DESKTOP_BREAKPOINT = 1024
 
 export type LayoutConfig = {
   rightSidebar: {
@@ -49,7 +55,7 @@ export const LEFT_SIDEBAR = {
   expandedWidth: 240,
 } as const
 
-export const RIGHT_SIDEBAR_WIDTHS: Record<Exclude<RightSidebarWidth, '50%'>, number> = {
+export const RIGHT_SIDEBAR_WIDTHS: Record<320 | 360 | 420, number> = {
   320: 320,
   360: 360,
   420: 420,
@@ -88,15 +94,15 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'reading' },
   },
   'assignments-student': {
-    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: 360 },
-    mainContent: { maxWidth: 'standard' },
+    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '40%' },
+    mainContent: { maxWidth: 'full' },
   },
   'assignments-teacher-list': {
-    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: 420 },
-    mainContent: { maxWidth: 'wide' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '40%' },
+    mainContent: { maxWidth: 'full' },
   },
   'assignments-teacher-viewing': {
-    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '40%' },
     mainContent: { maxWidth: 'full' },
   },
 }
@@ -149,7 +155,7 @@ export function parseRightSidebarCookie(value: string | undefined): boolean {
  * Calculate the CSS width value for right sidebar
  */
 export function getRightSidebarCssWidth(width: RightSidebarWidth): string {
-  if (width === '50%') return '50%'
+  if (typeof width === 'string') return width // percentage values
   return `${width}px`
 }
 

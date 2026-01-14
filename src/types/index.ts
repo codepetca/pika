@@ -201,3 +201,17 @@ export interface AssignmentStats {
   submitted: number
   late: number
 }
+
+/**
+ * Info about a selected student in teacher assignments view.
+ * Used to display student work in the right sidebar.
+ */
+export interface SelectedStudentInfo {
+  assignmentId: string
+  assignmentTitle: string
+  studentId: string
+  canGoPrev: boolean
+  canGoNext: boolean
+  onGoPrev: () => void
+  onGoNext: () => void
+}
