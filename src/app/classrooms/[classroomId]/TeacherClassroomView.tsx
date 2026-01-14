@@ -89,11 +89,14 @@ function setCookieValue(name: string, value: string) {
 }
 
 function formatTorontoDateTime(iso: string) {
-  return new Date(iso).toLocaleString('en-CA', {
+  return new Date(iso).toLocaleString('en-US', {
     timeZone: 'America/Toronto',
-    dateStyle: 'short',
-    timeStyle: 'short',
-  })
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).replace(' AM', ' am').replace(' PM', ' pm')
 }
 
 export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
@@ -488,7 +491,6 @@ export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
                     onClick={() => toggleSort('last')}
                   />
                   <DataTableHeaderCell>Status</DataTableHeaderCell>
-                  <DataTableHeaderCell>Submitted</DataTableHeaderCell>
                   <DataTableHeaderCell>Last updated</DataTableHeaderCell>
                 </DataTableRow>
               </DataTableHead>
@@ -508,15 +510,12 @@ export function TeacherClassroomView({ classroom, onSelectAssignment }: Props) {
                       />
                     </DataTableCell>
                     <DataTableCell className="text-gray-700 dark:text-gray-300">
-                      {student.doc?.submitted_at ? formatTorontoDateTime(student.doc.submitted_at) : '—'}
-                    </DataTableCell>
-                    <DataTableCell className="text-gray-700 dark:text-gray-300">
                       {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
                     </DataTableCell>
                   </DataTableRow>
                 ))}
                 {sortedStudents.length === 0 && (
-                  <EmptyStateRow colSpan={5} message="No students enrolled" />
+                  <EmptyStateRow colSpan={4} message="No students enrolled" />
                 )}
               </DataTableBody>
             </DataTable>
