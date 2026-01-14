@@ -69,6 +69,42 @@ describe('POST /api/teacher/classrooms/[id]/roster/upload-csv', () => {
       expect(data.updateCount).toBe(1)
     })
 
+    it('proceeds directly when existing students have no actual changes', async () => {
+      const existingStudents = [
+        { id: 'r-1', email: 'same@student.com', first_name: 'Same', last_name: 'Name', student_number: '111', counselor_email: null },
+      ]
+      const upsertMock = vi.fn(() => ({
+        select: vi.fn().mockResolvedValue({ data: [{ id: 'r-1', email: 'same@student.com' }], error: null }),
+      }))
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_roster') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn().mockResolvedValue({ data: existingStudents, error: null }),
+              })),
+            })),
+            upsert: upsertMock,
+          }
+        }
+        throw new Error(`Unexpected table: ${table}`)
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      // CSV has identical data to existing
+      const request = createRequest({
+        csvData: 'Student Number,First Name,Last Name,Email\n111,Same,Name,same@student.com\n',
+      })
+
+      const response = await POST(request, { params: { id: 'c-1' } })
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.needsConfirmation).toBeUndefined()
+      expect(data.success).toBe(true)
+      expect(upsertMock).toHaveBeenCalled()
+    })
+
     it('proceeds directly when no existing students found', async () => {
       const mockFrom = vi.fn((table: string) => {
         if (table === 'classroom_roster') {

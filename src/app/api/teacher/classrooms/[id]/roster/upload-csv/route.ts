@@ -98,39 +98,52 @@ export async function POST(
         )
       }
 
-      // If there are existing students, return confirmation request with diff
+      // If there are existing students, check if any have actual changes
       if (existingStudents && existingStudents.length > 0) {
         const existingByEmail = new Map(existingStudents.map(s => [s.email, s]))
         const studentsByEmail = new Map(students.map(s => [s.email, s]))
         const newCount = students.filter(s => !existingByEmail.has(s.email)).length
 
-        // Build comparison data showing old vs new values
-        const changes = existingStudents.map(existing => {
-          const incoming = studentsByEmail.get(existing.email)!
-          return {
-            email: existing.email,
-            current: {
-              firstName: existing.first_name,
-              lastName: existing.last_name,
-              studentNumber: existing.student_number,
-              counselorEmail: existing.counselor_email,
-            },
-            incoming: {
-              firstName: incoming.firstName,
-              lastName: incoming.lastName,
-              studentNumber: incoming.studentNumber,
-              counselorEmail: incoming.counselorEmail,
-            },
-          }
-        })
+        // Build comparison data, only including students with actual changes
+        const changes = existingStudents
+          .map(existing => {
+            const incoming = studentsByEmail.get(existing.email)!
+            const hasChanges =
+              existing.first_name !== incoming.firstName ||
+              existing.last_name !== incoming.lastName ||
+              existing.student_number !== incoming.studentNumber ||
+              existing.counselor_email !== incoming.counselorEmail
 
-        return NextResponse.json({
-          needsConfirmation: true,
-          changes,
-          updateCount: existingStudents.length,
-          newCount,
-          totalCount: students.length,
-        })
+            if (!hasChanges) return null
+
+            return {
+              email: existing.email,
+              current: {
+                firstName: existing.first_name,
+                lastName: existing.last_name,
+                studentNumber: existing.student_number,
+                counselorEmail: existing.counselor_email,
+              },
+              incoming: {
+                firstName: incoming.firstName,
+                lastName: incoming.lastName,
+                studentNumber: incoming.studentNumber,
+                counselorEmail: incoming.counselorEmail,
+              },
+            }
+          })
+          .filter((change): change is NonNullable<typeof change> => change !== null)
+
+        // Only require confirmation if there are actual changes
+        if (changes.length > 0) {
+          return NextResponse.json({
+            needsConfirmation: true,
+            changes,
+            updateCount: changes.length,
+            newCount,
+            totalCount: students.length,
+          })
+        }
       }
     }
 
