@@ -67,6 +67,7 @@ interface StudentSubmissionRow {
 
 interface SelectedStudentInfo {
   assignmentId: string
+  assignmentTitle: string
   studentId: string
   canGoPrev: boolean
   canGoNext: boolean
@@ -369,6 +370,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     if (selectedStudentId && selection.mode === 'assignment' && selectedAssignmentData?.assignment?.id) {
       onSelectStudent?.({
         assignmentId: selectedAssignmentData.assignment.id,
+        assignmentTitle: selectedAssignmentData.assignment.title,
         studentId: selectedStudentId,
         canGoPrev: canGoPrevStudent,
         canGoNext: canGoNextStudent,
@@ -520,10 +522,12 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                 </DataTableRow>
               </DataTableHead>
               <DataTableBody>
-                {sortedStudents.map((student) => (
+                {sortedStudents.map((student) => {
+                  const isSelected = selectedStudentId === student.student_id
+                  return (
                   <DataTableRow
                     key={student.student_id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                    className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}
                     onClick={() => setSelectedStudentId(student.student_id)}
                   >
                     <DataTableCell>{student.student_first_name ?? '—'}</DataTableCell>
@@ -538,7 +542,8 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
                     </DataTableCell>
                   </DataTableRow>
-                ))}
+                  )
+                })}
                 {sortedStudents.length === 0 && (
                   <EmptyStateRow colSpan={4} message="No students enrolled" />
                 )}

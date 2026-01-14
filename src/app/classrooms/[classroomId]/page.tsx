@@ -42,6 +42,7 @@ interface SelectedAssignmentInstructions {
 
 interface SelectedStudentInfo {
   assignmentId: string
+  assignmentTitle: string
   studentId: string
   canGoPrev: boolean
   canGoNext: boolean
@@ -304,7 +305,7 @@ function ClassroomPageContent({
         <RightSidebar
           title={
             isTeacher && activeTab === 'assignments' && selectedStudent
-              ? 'Student Work'
+              ? selectedStudent.assignmentTitle
               : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
               : (selectedStudentName || 'Student Log')
