@@ -188,7 +188,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                       </div>
                     )}
                     {counselorChanged && (
-                      <div className="text-gray-500 dark:text-gray-400">
+                      <div className="text-gray-500 dark:text-gray-400 truncate">
                         Counselor: <span className="line-through text-red-500 dark:text-red-400">{change.current.counselorEmail || '(none)'}</span>
                         {' → '}
                         <span className="text-green-600 dark:text-green-400">{change.incoming.counselorEmail || '(none)'}</span>
