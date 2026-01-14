@@ -160,6 +160,20 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
     <PageLayout className="h-full flex flex-col">
       <PageActionBar
         primary={
+          selectedAssignment && (
+            <Button
+              size="sm"
+              variant={editorState.isSubmitted ? 'secondary' : 'primary'}
+              onClick={editorState.isSubmitted ? handleUnsubmit : handleSubmit}
+              disabled={editorState.submitting || (!editorState.isSubmitted && !editorState.canSubmit)}
+            >
+              {editorState.submitting
+                ? (editorState.isSubmitted ? 'Unsubmitting...' : 'Submitting...')
+                : (editorState.isSubmitted ? 'Unsubmit' : 'Submit')}
+            </Button>
+          )
+        }
+        trailing={
           selectedAssignment ? (
             <button
               type="button"
@@ -183,20 +197,6 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
             </button>
           ) : (
             <div />
-          )
-        }
-        trailing={
-          selectedAssignment && (
-            <Button
-              size="sm"
-              variant={editorState.isSubmitted ? 'secondary' : 'primary'}
-              onClick={editorState.isSubmitted ? handleUnsubmit : handleSubmit}
-              disabled={editorState.submitting || (!editorState.isSubmitted && !editorState.canSubmit)}
-            >
-              {editorState.submitting
-                ? (editorState.isSubmitted ? 'Unsubmitting...' : 'Submitting...')
-                : (editorState.isSubmitted ? 'Unsubmit' : 'Submit')}
-            </Button>
           )
         }
       />
