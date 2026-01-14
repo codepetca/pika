@@ -431,13 +431,6 @@ export function TeacherRosterTab({ classroom }: Props) {
             )}
           </div>
         }
-        actions={[
-          {
-            id: 'refresh',
-            label: 'Refresh',
-            onSelect: loadRoster,
-          },
-        ]}
       />
 
       <PageContent>

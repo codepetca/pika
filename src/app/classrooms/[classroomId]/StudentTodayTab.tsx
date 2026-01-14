@@ -419,19 +419,18 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
           </div>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Past</h3>
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-end">
               <button
                 type="button"
-                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                className="inline-flex items-center p-1 text-blue-600 dark:text-blue-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
                 aria-expanded={historyVisible}
                 aria-controls={historyListId}
+                aria-label={historyVisible ? 'Hide history' : 'Show history'}
                 onClick={() => setHistoryVisibility(!historyVisible)}
               >
-                {historyVisible ? 'Hide' : 'Show'}
                 <ChevronDown
                   className={[
-                    'h-4 w-4 transition-transform',
+                    'h-5 w-5 transition-transform',
                     historyVisible ? 'rotate-180' : 'rotate-0',
                   ].join(' ')}
                 />
