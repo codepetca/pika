@@ -233,7 +233,7 @@ export function LessonCalendar({
                 <ChevronLeft className="w-5 h-5" />
               </button>
             )}
-            <span className="text-lg font-semibold text-gray-900 dark:text-gray-100 mx-1">
+            <span className="text-lg font-semibold text-gray-900 dark:text-gray-100 mx-1 min-w-[160px] text-center">
               {headerLabel}
             </span>
             {viewMode !== 'all' && (
