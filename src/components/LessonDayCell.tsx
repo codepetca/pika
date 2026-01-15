@@ -63,16 +63,20 @@ export const LessonDayCell = memo(function LessonDayCell({
             {format(day, 'd')}
           </span>
           {hasAssignments && (
-            <div
-              className="mx-auto mt-0.5 w-2 h-2 rounded-full bg-blue-500 cursor-pointer"
-              title={assignmentTitles}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (assignments.length === 1) {
-                  onAssignmentClick?.(assignments[0])
-                }
-              }}
-            />
+            <div className="relative group mx-auto mt-0.5">
+              <div
+                className="w-2 h-2 rounded-full bg-blue-500 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (assignments.length === 1) {
+                    onAssignmentClick?.(assignments[0])
+                  }
+                }}
+              />
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 text-xs bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50">
+                {assignmentTitles}
+              </div>
+            </div>
           )}
         </div>
       </div>
