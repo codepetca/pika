@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { startOfWeek, endOfWeek, format, startOfMonth, endOfMonth } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
@@ -8,7 +9,7 @@ import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getOntarioHolidays } from '@/lib/calendar'
 import { useRightSidebar } from '@/components/layout'
 import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
-import type { Classroom, LessonPlan, TiptapContent } from '@/types'
+import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
@@ -18,7 +19,9 @@ interface Props {
 }
 
 export function TeacherLessonCalendarTab({ classroom }: Props) {
+  const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
+  const [assignments, setAssignments] = useState<Assignment[]>([])
   const [allLessonPlans, setAllLessonPlans] = useState<LessonPlan[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -68,6 +71,20 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
     }
     loadLessonPlans()
   }, [classroom.id, fetchRange.start, fetchRange.end])
+
+  // Fetch assignments for the classroom
+  useEffect(() => {
+    async function loadAssignments() {
+      try {
+        const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+        const data = await res.json()
+        setAssignments(data.assignments || [])
+      } catch (err) {
+        console.error('Error loading assignments:', err)
+      }
+    }
+    loadAssignments()
+  }, [classroom.id])
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(
@@ -218,6 +235,14 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
     navigator.clipboard.writeText(markdownContent)
   }, [markdownContent])
 
+  // Handle assignment click - navigate to assignments tab
+  const handleAssignmentClick = useCallback(
+    (assignment: Assignment) => {
+      router.push(`/classrooms/${classroom.id}?tab=assignments`)
+    },
+    [router, classroom.id]
+  )
+
   if (loading && lessonPlans.length === 0) {
     return (
       <PageLayout>
@@ -236,6 +261,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}
+          assignments={assignments}
           viewMode={viewMode}
           currentDate={currentDate}
           editable={!classroom.archived_at}
@@ -243,6 +269,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
           onDateChange={setCurrentDate}
           onViewModeChange={setViewMode}
           onContentChange={handleContentChange}
+          onAssignmentClick={handleAssignmentClick}
           onMarkdownToggle={handleMarkdownToggle}
           holidays={holidays}
         />

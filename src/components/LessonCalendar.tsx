@@ -5,7 +5,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, 
 import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, Code, CircleDot } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
-import type { LessonPlan, TiptapContent, Classroom } from '@/types'
+import type { LessonPlan, TiptapContent, Classroom, Assignment } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
 
@@ -14,6 +14,7 @@ export type CalendarViewMode = 'week' | 'month' | 'all'
 interface LessonCalendarProps {
   classroom: Classroom
   lessonPlans: LessonPlan[]
+  assignments?: Assignment[]
   viewMode: CalendarViewMode
   currentDate: Date
   editable: boolean
@@ -22,6 +23,7 @@ interface LessonCalendarProps {
   onDateChange: (date: Date) => void
   onViewModeChange: (mode: CalendarViewMode) => void
   onContentChange?: (date: string, content: TiptapContent) => void
+  onAssignmentClick?: (assignment: Assignment) => void
   onMarkdownToggle?: () => void
   holidays?: Set<string>
 }
@@ -61,6 +63,7 @@ function getWeekMonth(week: Date[]): { key: string; name: string } {
 export function LessonCalendar({
   classroom,
   lessonPlans,
+  assignments = [],
   viewMode,
   currentDate,
   editable,
@@ -69,6 +72,7 @@ export function LessonCalendar({
   onDateChange,
   onViewModeChange,
   onContentChange,
+  onAssignmentClick,
   onMarkdownToggle,
   holidays = new Set(),
 }: LessonCalendarProps) {
@@ -83,6 +87,22 @@ export function LessonCalendar({
     })
     return map
   }, [lessonPlans])
+
+  // Build a map of date -> assignments for quick lookup
+  const assignmentsByDate = useMemo(() => {
+    const map = new Map<string, Assignment[]>()
+    assignments.forEach((assignment) => {
+      // Extract date from due_at timestamp (YYYY-MM-DD)
+      const dueDate = assignment.due_at.split('T')[0]
+      const existing = map.get(dueDate)
+      if (existing) {
+        existing.push(assignment)
+      } else {
+        map.set(dueDate, [assignment])
+      }
+    })
+    return map
+  }, [assignments])
 
   // Calculate days to display based on view mode
   const days = useMemo(() => {
@@ -382,12 +402,14 @@ export function LessonCalendar({
                   date={dateString}
                   day={day}
                   lessonPlan={lessonPlan}
+                  assignments={assignmentsByDate.get(dateString) || []}
                   isWeekend={isWeekendDay}
                   isToday={isToday}
                   isHoliday={isHoliday}
                   editable={editable && !isWeekendDay}
                   compact={viewMode !== 'week' && !isExpanded}
                   onContentChange={onContentChange}
+                  onAssignmentClick={onAssignmentClick}
                 />
               </div>
             )

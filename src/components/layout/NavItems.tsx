@@ -48,7 +48,7 @@ type SidebarAssignment = {
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
-  { id: 'calendar', label: 'Lessons', icon: Calendar },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -56,7 +56,7 @@ const teacherItems: NavItem[] = [
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
-  { id: 'calendar', label: 'Lessons', icon: Calendar },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
 ]
 
 const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'

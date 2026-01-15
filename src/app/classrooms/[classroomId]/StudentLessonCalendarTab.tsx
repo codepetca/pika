@@ -1,19 +1,22 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { startOfWeek, endOfWeek, format, startOfMonth, endOfMonth } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getOntarioHolidays } from '@/lib/calendar'
-import type { Classroom, LessonPlan } from '@/types'
+import type { Classroom, LessonPlan, Assignment } from '@/types'
 
 interface Props {
   classroom: Classroom
 }
 
 export function StudentLessonCalendarTab({ classroom }: Props) {
+  const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
+  const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -54,6 +57,28 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
     loadLessonPlans()
   }, [classroom.id, fetchRange.start, fetchRange.end])
 
+  // Fetch assignments for the classroom
+  useEffect(() => {
+    async function loadAssignments() {
+      try {
+        const res = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
+        const data = await res.json()
+        setAssignments(data.assignments || [])
+      } catch (err) {
+        console.error('Error loading assignments:', err)
+      }
+    }
+    loadAssignments()
+  }, [classroom.id])
+
+  // Handle assignment click - navigate to assignments tab with the assignment selected
+  const handleAssignmentClick = useCallback(
+    (assignment: Assignment) => {
+      router.push(`/classrooms/${classroom.id}?tab=assignments&assignmentId=${assignment.id}`)
+    },
+    [router, classroom.id]
+  )
+
   // Prevent navigation beyond max date
   const handleDateChange = (newDate: Date) => {
     if (maxDate) {
@@ -84,11 +109,13 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}
+          assignments={assignments}
           viewMode={viewMode}
           currentDate={currentDate}
           editable={false}
           onDateChange={handleDateChange}
           onViewModeChange={setViewMode}
+          onAssignmentClick={handleAssignmentClick}
           holidays={holidays}
         />
       </PageContent>
