@@ -73,7 +73,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                   }
                 }}
               />
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 text-xs bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50">
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-1 text-xs bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-[100]">
                 {assignmentTitles}
               </div>
             </div>

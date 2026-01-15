@@ -395,7 +395,8 @@ export function LessonCalendar({
                 style={{
                   gridColumn: colStart,
                   gridRow: weekIdx + 1,
-                  overflow: isCompactView && !isExpanded ? 'hidden' : undefined,
+                  // Allow overflow on weekends for assignment tooltips
+                  overflow: isCompactView && !isExpanded && !isWeekendDay ? 'hidden' : undefined,
                 }}
                 onClick={isCompactView ? () => setExpandedWeekIdx(isExpanded ? null : weekIdx) : undefined}
               >
