@@ -250,12 +250,33 @@ See: `docs/dev-workflow.md`
 - Maintain consistent visual patterns
 - Ensure accessibility standards (WCAG 2.1)
 - Optimize for performance (lazy loading, code splitting)
+- **VERIFY ALL UI CHANGES VISUALLY** using Playwright MCP (see below)
+
+#### Visual Verification (MANDATORY)
+
+After ANY UI change, you MUST verify visually:
+
+```bash
+# 1. Ensure dev server is running
+pnpm dev
+
+# 2. Refresh auth if needed
+pnpm e2e:auth
+
+# 3. Start browser and verify BOTH roles
+pnpm e2e:mcp --teacher   # Teacher view (teacher@example.com)
+pnpm e2e:mcp --student   # Student view (student1@example.com)
+```
+
+Use MCP tools to navigate, inspect, and screenshot. Iterate on styling until satisfied.
+See `docs/guides/ai-ui-testing.md` for detailed workflow.
 
 #### Must Read Before Starting
 1. [/docs/ai-instructions.md](/docs/ai-instructions.md) — AI orchestrator
 2. [/docs/core/design.md](/docs/core/design.md) — UI/UX guidelines
 3. [/docs/core/architecture.md](/docs/core/architecture.md) — Component patterns
-4. Existing components in `/src/components/`
+4. [/docs/guides/ai-ui-testing.md](/docs/guides/ai-ui-testing.md) — Visual verification
+5. Existing components in `/src/components/`
 
 #### Must NOT
 - ❌ Add business logic to components (use utilities)
@@ -265,6 +286,7 @@ See: `docs/dev-workflow.md`
 - ❌ Add verbose instructional text (keep minimal)
 - ❌ Ignore accessibility (keyboard nav, ARIA labels)
 - ❌ Create components without reusability in mind
+- ❌ **Commit UI changes without visual verification**
 
 #### Example Tasks
 - Build student journal entry form
