@@ -92,8 +92,9 @@ export function LessonCalendar({
   const assignmentsByDate = useMemo(() => {
     const map = new Map<string, Assignment[]>()
     assignments.forEach((assignment) => {
-      // Extract date from due_at timestamp (YYYY-MM-DD)
-      const dueDate = assignment.due_at.split('T')[0]
+      // Convert due_at to Toronto timezone before extracting date
+      const dueInToronto = toZonedTime(new Date(assignment.due_at), TIMEZONE)
+      const dueDate = format(dueInToronto, 'yyyy-MM-dd')
       const existing = map.get(dueDate)
       if (existing) {
         existing.push(assignment)
