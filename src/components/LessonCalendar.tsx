@@ -26,6 +26,9 @@ interface LessonCalendarProps {
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+// Grid: weekends ~4%, weekdays ~18.4% each (totals 100%)
+const GRID_COLUMNS = '4% 18.4% 18.4% 18.4% 18.4% 18.4% 4%'
+
 export function LessonCalendar({
   classroom,
   lessonPlans,
@@ -186,7 +189,7 @@ export function LessonCalendar({
       {/* Day headers */}
       <div
         className="grid border-b border-gray-200 dark:border-gray-700"
-        style={{ gridTemplateColumns: '0.1fr 1fr 1fr 1fr 1fr 1fr 0.1fr' }}
+        style={{ gridTemplateColumns: GRID_COLUMNS }}
       >
         {DAY_LABELS.map((label, idx) => {
           const isWeekendDay = idx === 0 || idx === 6
@@ -212,7 +215,7 @@ export function LessonCalendar({
             key={weekIdx}
             className="grid border-b border-gray-200 dark:border-gray-700 last:border-b-0"
             style={{
-              gridTemplateColumns: '0.1fr 1fr 1fr 1fr 1fr 1fr 0.1fr',
+              gridTemplateColumns: '4% 18.4% 18.4% 18.4% 18.4% 18.4% 4%',
               minHeight: viewMode === 'week' ? '120px' : '80px',
             }}
           >
