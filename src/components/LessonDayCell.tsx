@@ -48,6 +48,9 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   // Weekend cells are narrow and minimal
   if (isWeekend) {
+    const hasAssignments = assignments.length > 0
+    const assignmentTitles = assignments.map(a => a.title).join(', ')
+
     return (
       <div
         className={`
@@ -59,6 +62,18 @@ export const LessonDayCell = memo(function LessonDayCell({
           <span className="text-sm font-medium text-gray-400 dark:text-gray-500">
             {format(day, 'd')}
           </span>
+          {hasAssignments && (
+            <div
+              className="mx-auto mt-0.5 w-2 h-2 rounded-full bg-blue-500 cursor-pointer"
+              title={assignmentTitles}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (assignments.length === 1) {
+                  onAssignmentClick?.(assignments[0])
+                }
+              }}
+            />
+          )}
         </div>
       </div>
     )
