@@ -7,6 +7,7 @@ const config: Config = {
     // Assignment status dot colors
     'bg-gray-400',
     'bg-yellow-400',
+    'bg-lime-600',
     // Avatar colors - dynamically generated based on user name/email hash
     'bg-red-500',
     'bg-orange-500',

@@ -314,8 +314,8 @@ describe('assignment utilities', () => {
       expect(getAssignmentStatusDotClass('submitted_on_time')).toBe('bg-green-500')
     })
 
-    it('should return red for submitted_late', () => {
-      expect(getAssignmentStatusDotClass('submitted_late')).toBe('bg-red-500')
+    it('should return lime for submitted_late', () => {
+      expect(getAssignmentStatusDotClass('submitted_late')).toBe('bg-lime-600')
     })
 
     it('should return gray for invalid status', () => {
