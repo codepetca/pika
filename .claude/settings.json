@@ -1,13 +1,6 @@
 {
   "mcpServers": {
-    "playwright-test": {
-      "command": "npx",
-      "args": [
-        "playwright",
-        "run-test-mcp-server"
-      ]
-    },
-    "pika-teacher": {
+    "pika-browser-teacher": {
       "command": "npx",
       "args": [
         "@playwright/mcp",
@@ -16,7 +9,7 @@
         "--storage-state", ".auth/teacher.json"
       ]
     },
-    "pika-student": {
+    "pika-browser-student": {
       "command": "npx",
       "args": [
         "@playwright/mcp",
