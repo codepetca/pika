@@ -32,7 +32,33 @@ Do not proceed until the user approves the plan.
 - Keep business logic out of UI components.
 - Do not add dependencies without explicit approval.
 
-## 6) Update AI Continuity Layer
+## 6) AI UI Verification (Recommended)
+
+After implementing UI changes, verify them using the Playwright MCP:
+
+```bash
+# 1. Ensure dev server is running
+pnpm dev
+
+# 2. Refresh auth states if needed
+pnpm e2e:auth
+
+# 3. Start MCP server with appropriate role
+pnpm e2e:mcp --teacher  # or --student
+
+# 4. Use browser tools to verify the implementation
+# 5. Optionally run verification scripts
+pnpm e2e:verify <scenario>
+```
+
+This step is recommended but not blocking. Use it when:
+- Implementing new UI features
+- Fixing visual bugs
+- Changing user flows
+
+See `docs/guides/ai-ui-testing.md` for detailed patterns.
+
+## 7) Update AI Continuity Layer
 Before ending a session:
 - Append to `.ai/JOURNAL.md` (append-only).
 - Update `.ai/features.json` if feature status changed:
@@ -41,7 +67,7 @@ Before ending a session:
   node scripts/features.mjs fail <feature-id>
   ```
 
-## 7) Validation
+## 8) Validation
 - Run: `npm test`
 - If relevant: `npm run lint`, `npm run build`
 - Confirm acceptance criteria are met and documented in the PR.

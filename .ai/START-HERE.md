@@ -136,6 +136,7 @@ Before writing code:
 - Keep UI thin; move business logic into utilities/server actions.
 - Do not add dependencies unless explicitly approved.
 - Do not commit secrets or `.env.local`.
+- **UI Verification**: After UI changes, consider `pnpm e2e:mcp --teacher` to verify interactively (see `docs/guides/ai-ui-testing.md`).
 
 ---
 

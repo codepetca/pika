@@ -146,6 +146,38 @@ For visual review (spacing/aesthetics), we also support a **manual** Playwright 
 - Output (local): `artifacts/ui-snapshots/` (screenshots) and `playwright-report/` (HTML report)
 - Gallery (web): `/__ui` (gated by `ENABLE_UI_GALLERY=true`)
 
+### AI-Assisted UI Testing (Playwright MCP)
+
+For interactive UI verification during development, use the Playwright MCP server. This allows AI agents (Claude Code) to navigate and interact with the running application.
+
+**Quick Start:**
+
+```bash
+# 1. Start the dev server (in one terminal)
+pnpm dev
+
+# 2. Generate auth states (if needed)
+pnpm e2e:auth
+
+# 3. Start MCP server as teacher or student
+pnpm e2e:mcp --teacher
+pnpm e2e:mcp --student
+```
+
+**Verification Scripts:**
+
+Run predefined verification scenarios:
+
+```bash
+pnpm e2e:verify --help                    # List available scenarios
+pnpm e2e:verify add-students-modal        # Verify add students modal
+pnpm e2e:verify create-classroom-wizard   # Verify classroom creation
+```
+
+Scripts output JSON with pass/fail status and can be used to validate UI changes.
+
+See `docs/guides/ai-ui-testing.md` for detailed usage patterns and MCP tool reference.
+
 ---
 
 ## 6. Component Tests (Optional)
