@@ -10,6 +10,7 @@ import { getOntarioHolidays } from '@/lib/calendar'
 import { useRightSidebar } from '@/components/layout'
 import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
+import { writeCookie } from '@/lib/cookies'
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
@@ -235,9 +236,18 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
     navigator.clipboard.writeText(markdownContent)
   }, [markdownContent])
 
-  // Handle assignment click - navigate to assignments tab
+  // Handle assignment click - navigate to assignments tab with assignment selected
   const handleAssignmentClick = useCallback(
     (assignment: Assignment) => {
+      // Set cookie for teacher assignment selection
+      const cookieName = `teacherAssignmentsSelection:${classroom.id}`
+      writeCookie(cookieName, assignment.id)
+      // Dispatch event so NavItems updates
+      window.dispatchEvent(
+        new CustomEvent('pika:teacherAssignmentsSelection', {
+          detail: { classroomId: classroom.id, value: assignment.id },
+        })
+      )
       router.push(`/classrooms/${classroom.id}?tab=assignments`)
     },
     [router, classroom.id]
