@@ -28,8 +28,8 @@ export const createClassroomWizard: VerificationScript = {
       passed: true,
     })
 
-    // Look for Create Classroom button
-    const createButton = page.getByRole('button', { name: /create.*classroom/i })
+    // Look for New Classroom button (aria-label is "New classroom")
+    const createButton = page.getByRole('button', { name: /new.*classroom/i })
     const hasCreateButton = await createButton.isVisible().catch(() => false)
 
     checks.push({
@@ -44,11 +44,11 @@ export const createClassroomWizard: VerificationScript = {
 
     // Click to open wizard
     await createButton.click()
-    await page.waitForTimeout(300) // Wait for modal animation
+    await page.waitForTimeout(500) // Wait for modal animation
 
-    // Check wizard/modal is open
-    const wizard = page.getByRole('dialog')
-    const wizardOpen = await wizard.isVisible().catch(() => false)
+    // Check wizard/modal is open (modal has heading "Create Classroom")
+    const modalHeading = page.getByRole('heading', { name: 'Create Classroom' })
+    const wizardOpen = await modalHeading.isVisible().catch(() => false)
 
     checks.push({
       name: 'Wizard opens on click',
@@ -60,8 +60,8 @@ export const createClassroomWizard: VerificationScript = {
       return { scenario: 'create-classroom-wizard', passed: false, checks }
     }
 
-    // Check for name input (Step 1)
-    const nameInput = wizard.locator('input').first()
+    // Check for name input (Step 1) - find input with label "Classroom Name"
+    const nameInput = page.getByLabel('Classroom Name')
     const hasNameInput = await nameInput.isVisible().catch(() => false)
 
     checks.push({

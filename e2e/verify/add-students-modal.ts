@@ -23,11 +23,13 @@ export const addStudentsModal: VerificationScript = {
     await page.goto(`${baseUrl}/classrooms`)
     await page.waitForLoadState('networkidle')
 
-    // Click first classroom
+    // Click first classroom card
     const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
-    const hasClassroom = await classroomCard.isVisible().catch(() => false)
 
-    if (!hasClassroom) {
+    // Wait for card to be visible (with longer timeout)
+    try {
+      await classroomCard.waitFor({ state: 'visible', timeout: 10000 })
+    } catch {
       checks.push({
         name: 'Classroom card visible',
         passed: false,
@@ -36,8 +38,14 @@ export const addStudentsModal: VerificationScript = {
       return { scenario: 'add-students-modal', passed: false, checks }
     }
 
+    checks.push({
+      name: 'Classroom card visible',
+      passed: true,
+    })
+
     await classroomCard.click()
-    await page.waitForURL('**/classrooms/**')
+    // Wait for classroom detail page (URL has a UUID after /classrooms/)
+    await page.waitForURL(/\/classrooms\/[a-f0-9-]+/, { timeout: 15000 })
 
     // Go to Roster tab
     await page.getByRole('button', { name: 'Roster' }).click()
@@ -64,11 +72,11 @@ export const addStudentsModal: VerificationScript = {
 
     // Click to open modal
     await addButton.first().click()
-    await page.waitForTimeout(300) // Wait for modal animation
+    await page.waitForTimeout(500) // Wait for modal animation
 
-    // Check modal is open (dialog role or modal class)
-    const modal = page.getByRole('dialog')
-    const modalOpen = await modal.isVisible().catch(() => false)
+    // Check modal is open (modal has heading "Add Students")
+    const modalHeading = page.getByRole('heading', { name: 'Add Students' })
+    const modalOpen = await modalHeading.isVisible().catch(() => false)
 
     checks.push({
       name: 'Modal opens on click',
