@@ -306,8 +306,8 @@ describe('assignment utilities', () => {
       expect(getAssignmentStatusDotClass('in_progress')).toBe('bg-yellow-400')
     })
 
-    it('should return red for in_progress_late', () => {
-      expect(getAssignmentStatusDotClass('in_progress_late')).toBe('bg-red-500')
+    it('should return yellow for in_progress_late', () => {
+      expect(getAssignmentStatusDotClass('in_progress_late')).toBe('bg-yellow-400')
     })
 
     it('should return green for submitted_on_time', () => {
