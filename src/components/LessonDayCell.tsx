@@ -47,7 +47,7 @@ export const LessonDayCell = memo(function LessonDayCell({
     return (
       <div
         className={`
-          border-r border-gray-200 dark:border-gray-700 last:border-r-0
+          border-r border-b border-gray-200 dark:border-gray-700
           bg-gray-50 dark:bg-gray-900
           ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         `}
@@ -64,7 +64,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   return (
     <div
       className={`
-        relative border-r border-gray-200 dark:border-gray-700 last:border-r-0
+        relative border-r border-b border-gray-200 dark:border-gray-700
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         ${isHoliday ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
         ${!editable && !hasContent ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
