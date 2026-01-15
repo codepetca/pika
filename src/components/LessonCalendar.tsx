@@ -320,13 +320,13 @@ export function LessonCalendar({
         style={{ gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7 }}
       >
         {/* Empty cell for month column (only in 'all' mode) */}
-        {viewMode === 'all' && <div />}
+        {viewMode === 'all' && <div className="border-r border-gray-200 dark:border-gray-700" />}
         {DAY_LABELS.map((label, idx) => {
           const isWeekendDay = idx === 0 || idx === 6
           return (
             <div
               key={label}
-              className={`py-2 text-center text-sm font-medium ${
+              className={`py-2 text-center text-sm font-medium border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${
                 isWeekendDay
                   ? 'text-gray-400 dark:text-gray-500'
                   : 'text-gray-700 dark:text-gray-300'
