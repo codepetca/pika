@@ -130,7 +130,7 @@ export const LessonDayCell = memo(function LessonDayCell({
 
       {/* Assignment due dates */}
       {assignments.length > 0 && !compact && (
-        <div className={`${compact ? 'px-1' : 'px-2'} pb-1 flex flex-wrap gap-1`}>
+        <div className={`${compact ? 'px-1' : 'px-1'} pb-1 space-y-1`}>
           {assignments.map((assignment) => (
             <button
               key={assignment.id}
@@ -139,7 +139,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                 e.stopPropagation()
                 onAssignmentClick?.(assignment)
               }}
-              className="text-xs px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 truncate max-w-full"
+              className="w-full text-xs px-2 py-1 rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 truncate text-left"
               title={assignment.title}
             >
               {assignment.title}
