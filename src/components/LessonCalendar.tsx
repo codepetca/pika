@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Code, CircleDot } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
 import type { LessonPlan, TiptapContent, Classroom } from '@/types'
 
@@ -17,17 +17,45 @@ interface LessonCalendarProps {
   viewMode: CalendarViewMode
   currentDate: Date
   editable: boolean
+  saving?: boolean
+  showHeader?: boolean
   onDateChange: (date: Date) => void
   onViewModeChange: (mode: CalendarViewMode) => void
   onContentChange?: (date: string, content: TiptapContent) => void
-  onCopy?: (fromDate: string) => void
+  onMarkdownToggle?: () => void
   holidays?: Set<string>
 }
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// Grid: weekends ~4%, weekdays ~18.4% each (totals 100%)
-const GRID_COLUMNS = '4% 18.4% 18.4% 18.4% 18.4% 18.4% 4%'
+// Grid: weekends ~2.5%, weekdays ~19% each
+const GRID_COLUMNS = '2.5% 19% 19% 19% 19% 19% 2.5%'
+const MONTH_COLUMN_WIDTH = '24px'
+
+// Determine which month a week belongs to (month with 3+ days wins)
+function getWeekMonth(week: Date[]): { key: string; name: string } {
+  const monthCounts = new Map<string, { count: number; date: Date }>()
+  for (const day of week) {
+    const monthKey = format(day, 'yyyy-MM')
+    const existing = monthCounts.get(monthKey)
+    if (existing) {
+      existing.count++
+    } else {
+      monthCounts.set(monthKey, { count: 1, date: day })
+    }
+  }
+  let maxMonth = ''
+  let maxCount = 0
+  let monthDate: Date = week[0]
+  for (const [month, data] of monthCounts) {
+    if (data.count > maxCount) {
+      maxCount = data.count
+      maxMonth = month
+      monthDate = data.date
+    }
+  }
+  return { key: maxMonth, name: format(monthDate, 'MMMM') }
+}
 
 export function LessonCalendar({
   classroom,
@@ -35,13 +63,16 @@ export function LessonCalendar({
   viewMode,
   currentDate,
   editable,
+  saving = false,
+  showHeader = true,
   onDateChange,
   onViewModeChange,
   onContentChange,
-  onCopy,
+  onMarkdownToggle,
   holidays = new Set(),
 }: LessonCalendarProps) {
   const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [])
+  const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
 
   // Build a map of date -> lesson plan for quick lookup
   const plansByDate = useMemo(() => {
@@ -96,6 +127,71 @@ export function LessonCalendar({
     return result
   }, [days])
 
+  // Find the index of the week containing today
+  const todayWeekIdx = useMemo(() => {
+    for (let i = 0; i < weeks.length; i++) {
+      if (weeks[i].some(day => isSameDay(day, today))) {
+        return i
+      }
+    }
+    return null
+  }, [weeks, today])
+
+  // Set expanded week to current week when view mode changes (for month/all views)
+  useEffect(() => {
+    if (viewMode === 'week') {
+      setExpandedWeekIdx(null)
+    } else {
+      setExpandedWeekIdx(todayWeekIdx)
+    }
+  }, [viewMode, todayWeekIdx])
+
+  // Calculate month spans for the month label column
+  // Returns array of { month: string, monthName: string, startIdx: number, count: number }
+  const monthSpans = useMemo(() => {
+    if (weeks.length === 0) return []
+
+    const spans: { month: string; monthName: string; startIdx: number; count: number }[] = []
+    let current = getWeekMonth(weeks[0])
+    let startIdx = 0
+    let count = 1
+
+    for (let i = 1; i < weeks.length; i++) {
+      const weekMonth = getWeekMonth(weeks[i])
+      if (weekMonth.key === current.key) {
+        count++
+      } else {
+        spans.push({
+          month: current.key,
+          monthName: current.name,
+          startIdx,
+          count,
+        })
+        current = weekMonth
+        startIdx = i
+        count = 1
+      }
+    }
+    // Push the last span
+    spans.push({
+      month: current.key,
+      monthName: current.name,
+      startIdx,
+      count,
+    })
+
+    return spans
+  }, [weeks])
+
+  // Create a map from week index to month span info (only for first week of each span)
+  const weekToMonthSpan = useMemo(() => {
+    const map = new Map<number, { monthName: string; rowSpan: number }>()
+    for (const span of monthSpans) {
+      map.set(span.startIdx, { monthName: span.monthName, rowSpan: span.count })
+    }
+    return map
+  }, [monthSpans])
+
   // Navigation handlers
   const handlePrev = () => {
     if (viewMode === 'week') {
@@ -119,12 +215,7 @@ export function LessonCalendar({
 
   // Format header label
   const headerLabel = useMemo(() => {
-    if (viewMode === 'week') {
-      const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
-      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
-      return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`
-    }
-    if (viewMode === 'month') {
+    if (viewMode === 'week' || viewMode === 'month') {
       return format(currentDate, 'MMMM yyyy')
     }
     // 'all' mode
@@ -135,12 +226,13 @@ export function LessonCalendar({
   }, [viewMode, currentDate, classroom.start_date, classroom.end_date])
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header with navigation and view mode selector */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2">
-          {viewMode !== 'all' && (
-            <>
+    <div className="flex flex-col">
+      {/* Header with navigation, view mode selector, and actions */}
+      {showHeader && (
+        <div className="flex items-center px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          {/* Left: Navigation with month label */}
+          <div className="flex items-center gap-1 flex-1">
+            {viewMode !== 'all' && (
               <button
                 onClick={handlePrev}
                 className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -148,102 +240,169 @@ export function LessonCalendar({
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <button
-                onClick={handleNext}
-                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label="Next"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              <button
-                onClick={handleToday}
-                className="px-3 py-1.5 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                Today
-              </button>
-            </>
-          )}
-          <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
-            {headerLabel}
-          </span>
-        </div>
+            )}
+            <span className="text-lg font-semibold text-gray-900 dark:text-gray-100 mx-1">
+              {headerLabel}
+            </span>
+            {viewMode !== 'all' && (
+              <>
+                <button
+                  onClick={handleNext}
+                  className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  aria-label="Next"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={handleToday}
+                  className="ml-2 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  aria-label="Go to today"
+                  title="Today"
+                >
+                  <CircleDot className="w-5 h-5" />
+                </button>
+              </>
+            )}
+          </div>
 
-        {/* View mode selector */}
-        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-          {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => onViewModeChange(mode)}
-              className={`px-3 py-1 text-sm rounded-md capitalize transition-colors ${
-                viewMode === mode
-                  ? 'bg-white dark:bg-gray-700 shadow-sm font-medium'
-                  : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {mode}
-            </button>
-          ))}
+          {/* Center: View mode selector */}
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => onViewModeChange(mode)}
+                className={`px-3 py-1 text-sm rounded-md capitalize transition-colors ${
+                  viewMode === mode
+                    ? 'bg-white dark:bg-gray-700 shadow-sm font-medium'
+                    : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2 flex-1 justify-end">
+            {saving && (
+              <span className="text-sm text-gray-500">Saving...</span>
+            )}
+            {onMarkdownToggle && (
+              <button
+                onClick={onMarkdownToggle}
+                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                aria-label="Edit as Markdown"
+                title="Edit as Markdown"
+              >
+                <Code className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Day headers */}
-      <div
-        className="grid border-b border-gray-200 dark:border-gray-700"
-        style={{ gridTemplateColumns: GRID_COLUMNS }}
-      >
-        {DAY_LABELS.map((label, idx) => {
-          const isWeekendDay = idx === 0 || idx === 6
-          return (
-            <div
-              key={label}
-              className={`py-2 text-center text-sm font-medium ${
-                isWeekendDay
-                  ? 'text-gray-400 dark:text-gray-500'
-                  : 'text-gray-700 dark:text-gray-300'
-              }`}
-            >
-              {isWeekendDay ? label.charAt(0) : label}
-            </div>
-          )
-        })}
+      <div className="flex border-b border-gray-200 dark:border-gray-700">
+        {/* Empty cell for month column (only in 'all' mode) */}
+        {viewMode === 'all' && <div style={{ width: MONTH_COLUMN_WIDTH, flexShrink: 0 }} />}
+        <div className="flex-1 grid" style={{ gridTemplateColumns: GRID_COLUMNS }}>
+          {DAY_LABELS.map((label, idx) => {
+            const isWeekendDay = idx === 0 || idx === 6
+            return (
+              <div
+                key={label}
+                className={`py-2 text-center text-sm font-medium ${
+                  isWeekendDay
+                    ? 'text-gray-400 dark:text-gray-500'
+                    : 'text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                {isWeekendDay ? label.charAt(0) : label}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
-      {/* Calendar grid */}
-      <div className="flex-1 overflow-auto">
-        {weeks.map((week, weekIdx) => (
-          <div
-            key={weekIdx}
-            className="grid border-b border-gray-200 dark:border-gray-700 last:border-b-0"
-            style={{
-              gridTemplateColumns: GRID_COLUMNS,
-              minHeight: '80px',
-            }}
-          >
-            {week.map((day) => {
-              const dateString = format(day, 'yyyy-MM-dd')
-              const lessonPlan = plansByDate.get(dateString) || null
-              const isToday = isSameDay(day, today)
-              const isWeekendDay = isWeekend(day)
-              const isHoliday = holidays.has(dateString)
-
-              return (
-                <LessonDayCell
-                  key={dateString}
-                  date={dateString}
-                  day={day}
-                  lessonPlan={lessonPlan}
-                  isWeekend={isWeekendDay}
-                  isToday={isToday}
-                  isHoliday={isHoliday}
-                  editable={editable && !isWeekendDay}
-                  compact={viewMode !== 'week'}
-                  onContentChange={onContentChange}
-                  onCopy={onCopy}
-                />
-              )
-            })}
+      {/* Calendar grid with month labels */}
+      <div className="flex overflow-auto">
+        {/* Month labels column (only in 'all' mode) */}
+        {viewMode === 'all' && (
+          <div className="flex flex-col" style={{ width: MONTH_COLUMN_WIDTH, flexShrink: 0 }}>
+            {monthSpans.map((span) => (
+              <div
+                key={span.month}
+                className="relative border-b border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                style={{
+                  flex: `${span.count} 0 0`,
+                  minHeight: `${span.count * 32}px`,
+                }}
+              >
+                <span
+                  className="absolute text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap"
+                  style={{
+                    writingMode: 'vertical-rl',
+                    transform: 'rotate(180deg)',
+                    left: '50%',
+                    top: '50%',
+                    marginLeft: '-0.5em',
+                    marginTop: '-50%',
+                  }}
+                >
+                  {span.monthName}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
+
+        {/* Calendar weeks */}
+        <div className="flex-1 flex flex-col">
+          {weeks.map((week, weekIdx) => {
+            const isExpanded = expandedWeekIdx === weekIdx
+            const isCompactView = viewMode !== 'week'
+            const shouldConstrain = isCompactView && !isExpanded
+
+            return (
+              <div
+                key={weekIdx}
+                className={`grid border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
+                  isCompactView ? 'cursor-pointer' : ''
+                }`}
+                style={{
+                  gridTemplateColumns: GRID_COLUMNS,
+                  minHeight: viewMode === 'week' ? '80px' : '32px',
+                  maxHeight: shouldConstrain ? '80px' : undefined,
+                  overflow: shouldConstrain ? 'hidden' : undefined,
+                }}
+                onClick={isCompactView ? () => setExpandedWeekIdx(isExpanded ? null : weekIdx) : undefined}
+              >
+                {week.map((day) => {
+                  const dateString = format(day, 'yyyy-MM-dd')
+                  const lessonPlan = plansByDate.get(dateString) || null
+                  const isToday = isSameDay(day, today)
+                  const isWeekendDay = isWeekend(day)
+                  const isHoliday = holidays.has(dateString)
+
+                  return (
+                    <LessonDayCell
+                      key={dateString}
+                      date={dateString}
+                      day={day}
+                      lessonPlan={lessonPlan}
+                      isWeekend={isWeekendDay}
+                      isToday={isToday}
+                      isHoliday={isHoliday}
+                      editable={editable && !isWeekendDay}
+                      compact={viewMode !== 'week' && !isExpanded}
+                      onContentChange={onContentChange}
+                    />
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

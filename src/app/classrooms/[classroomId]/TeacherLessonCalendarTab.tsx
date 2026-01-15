@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { startOfWeek, endOfWeek, format, startOfMonth, endOfMonth } from 'date-fns'
-import { FileText } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
-import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getOntarioHolidays } from '@/lib/calendar'
 import { useRightSidebar } from '@/components/layout'
 import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
@@ -36,46 +35,28 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAtRef = useRef<number>(0)
 
-  // Calculate date range for fetching
-  const dateRange = useMemo(() => {
-    if (viewMode === 'week') {
-      const start = startOfWeek(currentDate, { weekStartsOn: 0 })
-      const end = endOfWeek(currentDate, { weekStartsOn: 0 })
-      return { start: format(start, 'yyyy-MM-dd'), end: format(end, 'yyyy-MM-dd') }
-    }
-    if (viewMode === 'month') {
-      const start = startOfMonth(currentDate)
-      const end = endOfMonth(currentDate)
-      return { start: format(start, 'yyyy-MM-dd'), end: format(end, 'yyyy-MM-dd') }
-    }
-    // 'all' mode: use classroom term dates or default to wide range
-    const start = classroom.start_date || '2020-01-01'
-    const end = classroom.end_date || '2030-12-31'
+  // Always fetch the full term - switching views is then instant
+  const fetchRange = useMemo(() => {
+    const start = classroom.start_date || format(startOfMonth(currentDate), 'yyyy-MM-dd')
+    const end = classroom.end_date || format(endOfMonth(currentDate), 'yyyy-MM-dd')
     return { start, end }
-  }, [viewMode, currentDate, classroom.start_date, classroom.end_date])
+  }, [classroom.start_date, classroom.end_date, currentDate])
 
-  // Holidays for the displayed range (including overflow days in month/all views)
+  // Holidays for the full term (computed once)
   const holidays = useMemo(() => {
-    let startDate = new Date(dateRange.start)
-    let endDate = new Date(dateRange.end)
-
-    // Extend to full weeks to include overflow days
-    if (viewMode === 'month' || viewMode === 'all') {
-      startDate = startOfWeek(startDate, { weekStartsOn: 0 })
-      endDate = endOfWeek(endDate, { weekStartsOn: 0 })
-    }
-
+    const startDate = startOfWeek(new Date(fetchRange.start), { weekStartsOn: 0 })
+    const endDate = endOfWeek(new Date(fetchRange.end), { weekStartsOn: 0 })
     const holidayList = getOntarioHolidays(startDate, endDate)
     return new Set(holidayList)
-  }, [dateRange, viewMode])
+  }, [fetchRange])
 
-  // Fetch lesson plans when date range changes
+  // Fetch all lesson plans for the term once
   useEffect(() => {
     async function loadLessonPlans() {
       setLoading(true)
       try {
         const res = await fetch(
-          `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${dateRange.start}&end=${dateRange.end}`
+          `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`
         )
         const data = await res.json()
         setLessonPlans(data.lesson_plans || [])
@@ -86,7 +67,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
       }
     }
     loadLessonPlans()
-  }, [classroom.id, dateRange.start, dateRange.end])
+  }, [classroom.id, fetchRange.start, fetchRange.end])
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(
@@ -153,12 +134,6 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
     [scheduleSave]
   )
 
-  // Handle copy
-  const handleCopy = useCallback((fromDate: string) => {
-    // TODO: Implement copy modal
-    console.log('Copy from:', fromDate)
-  }, [])
-
   // Flush on unmount
   useEffect(() => {
     return () => {
@@ -176,8 +151,8 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
       setMarkdownError(null)
       try {
         // Fetch all lesson plans for the term
-        const start = classroom.start_date || dateRange.start
-        const end = classroom.end_date || dateRange.end
+        const start = classroom.start_date || fetchRange.start
+        const end = classroom.end_date || fetchRange.end
         const res = await fetch(
           `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${start}&end=${end}`
         )
@@ -196,7 +171,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
       }
     }
     toggleSidebar()
-  }, [isSidebarOpen, toggleSidebar, classroom, dateRange])
+  }, [isSidebarOpen, toggleSidebar, classroom, fetchRange])
 
   // Handle markdown save
   const handleMarkdownSave = useCallback(async () => {
@@ -257,33 +232,18 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
 
   return (
     <PageLayout>
-      <PageActionBar
-        primary={
-          <div className="flex items-center gap-2">
-            {saving && <span className="text-sm text-gray-500">Saving...</span>}
-          </div>
-        }
-        trailing={
-          <button
-            onClick={handleMarkdownToggle}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            <FileText className="w-4 h-4" />
-            Edit as Markdown
-          </button>
-        }
-      />
-      <PageContent>
+      <PageContent className="-mt-2">
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}
           viewMode={viewMode}
           currentDate={currentDate}
           editable={!classroom.archived_at}
+          saving={saving}
           onDateChange={setCurrentDate}
           onViewModeChange={setViewMode}
           onContentChange={handleContentChange}
-          onCopy={handleCopy}
+          onMarkdownToggle={handleMarkdownToggle}
           holidays={holidays}
         />
       </PageContent>
