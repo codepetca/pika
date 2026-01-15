@@ -139,10 +139,10 @@ export const LessonDayCell = memo(function LessonDayCell({
                 e.stopPropagation()
                 onAssignmentClick?.(assignment)
               }}
-              className="w-full text-xs px-2 py-1 rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 truncate text-left"
+              className="w-full text-xs px-2 py-1 rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 text-center overflow-hidden text-ellipsis whitespace-nowrap"
               title={assignment.title}
             >
-              {assignment.title}
+              Due: {assignment.title}
             </button>
           ))}
         </div>
