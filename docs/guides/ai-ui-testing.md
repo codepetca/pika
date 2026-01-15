@@ -2,11 +2,23 @@
 
 This guide explains how to use the Playwright MCP integration for AI-assisted UI verification in Pika.
 
+## MANDATORY: Visual Verification for UI Changes
+
+**After ANY UI/UX change, AI agents MUST:**
+
+1. Start the MCP browser and visually verify the change
+2. Check **BOTH** teacher (`teacher@example.com`) AND student (`student1@example.com`) views
+3. Iterate on aesthetics/styling until it looks good
+4. Take screenshots as evidence before committing
+
+This ensures UI changes are properly reviewed before being committed.
+
 ## Overview
 
 The Playwright MCP server allows AI agents (Claude Code, Codex) to:
 - Navigate and interact with the running application
 - Verify UI behavior after implementing changes
+- **Iterate on aesthetics** - fix styling issues and refresh to verify
 - Run predefined verification scenarios
 - Capture screenshots as evidence
 
@@ -15,6 +27,9 @@ The Playwright MCP server allows AI agents (Claude Code, Codex) to:
 1. **Dev server running**: `pnpm dev`
 2. **Auth states generated**: `pnpm e2e:auth`
 3. **Test accounts exist**: Ensure test users exist in the database (run `pnpm seed` if needed)
+4. **Test accounts**:
+   - Teacher: `teacher@example.com` / `test1234`
+   - Student: `student1@example.com` / `test1234`
 
 ## Starting the MCP Server
 
@@ -127,20 +142,64 @@ For ad-hoc testing during development:
 7. browser_snapshot  (verify success)
 ```
 
+## Aesthetics Iteration Workflow
+
+When implementing UI changes, use this workflow to iterate on styling:
+
+### Step 1: Make the UI change
+Edit the component/page code (e.g., `src/app/classrooms/page.tsx`)
+
+### Step 2: View in browser
+```
+browser_navigate url="http://localhost:3000/classrooms"
+browser_screenshot  (capture current state)
+```
+
+### Step 3: Assess and iterate
+- Look at the screenshot for visual issues
+- Check spacing, alignment, colors, typography
+- If something looks off, edit the code and refresh:
+  ```
+  browser_navigate url="http://localhost:3000/classrooms"  (refresh)
+  browser_screenshot  (capture updated state)
+  ```
+
+### Step 4: Check both roles
+```bash
+# Terminal 1: Teacher view
+pnpm e2e:mcp --teacher
+# Navigate and screenshot
+
+# Terminal 2: Student view
+pnpm e2e:mcp --student
+# Navigate and screenshot
+```
+
+### Step 5: Verify interactions
+```
+browser_click element="Button you added"
+browser_snapshot  (verify expected behavior)
+```
+
+### Step 6: Commit with evidence
+Only commit once the UI looks correct in both teacher and student views.
+
 ## Best Practices
 
-### When to Use AI UI Verification
+### ALWAYS Use AI UI Verification For
 
-- After implementing new UI features
-- Before committing UI changes
-- When debugging visual issues
-- For acceptance testing documentation
+- **Any UI component changes** - MANDATORY visual check
+- **Any styling/CSS changes** - MANDATORY check both roles
+- **New UI features** - Iterate until it looks right
+- **Debugging visual issues** - Screenshot before/after
+- **Layout changes** - Check at viewport 1440x900
 
 ### When NOT to Use
 
 - For unit tests (use Vitest)
 - For visual regression (use `pnpm e2e:snapshots`)
 - In CI/CD (MCP is for interactive development)
+- For non-UI code changes (backend, utilities, etc.)
 
 ### Tips
 
