@@ -28,9 +28,10 @@ interface LessonCalendarProps {
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// Grid: weekends ~2.5%, weekdays ~19% each
-const GRID_COLUMNS = '2.5% 19% 19% 19% 19% 19% 2.5%'
-const MONTH_COLUMN_WIDTH = '24px'
+// Grid columns: weekends ~2.5%, weekdays ~19% each
+const GRID_COLUMNS_7 = '2.5% 19% 19% 19% 19% 19% 2.5%'
+// Grid with month column: 24px for month, then same proportions
+const GRID_COLUMNS_8 = '24px 2.4% 18.52% 18.52% 18.52% 18.52% 18.52% 2.4%'
 
 // Determine which month a week belongs to (month with 3+ days wins)
 function getWeekMonth(week: Date[]): { key: string; name: string } {
@@ -183,15 +184,6 @@ export function LessonCalendar({
     return spans
   }, [weeks])
 
-  // Create a map from week index to month span info (only for first week of each span)
-  const weekToMonthSpan = useMemo(() => {
-    const map = new Map<number, { monthName: string; rowSpan: number }>()
-    for (const span of monthSpans) {
-      map.set(span.startIdx, { monthName: span.monthName, rowSpan: span.count })
-    }
-    return map
-  }, [monthSpans])
-
   // Navigation handlers
   const handlePrev = () => {
     if (viewMode === 'week') {
@@ -302,107 +294,105 @@ export function LessonCalendar({
       )}
 
       {/* Day headers */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700">
+      <div
+        className="grid border-b border-gray-200 dark:border-gray-700"
+        style={{ gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7 }}
+      >
         {/* Empty cell for month column (only in 'all' mode) */}
-        {viewMode === 'all' && <div style={{ width: MONTH_COLUMN_WIDTH, flexShrink: 0 }} />}
-        <div className="flex-1 grid" style={{ gridTemplateColumns: GRID_COLUMNS }}>
-          {DAY_LABELS.map((label, idx) => {
-            const isWeekendDay = idx === 0 || idx === 6
-            return (
-              <div
-                key={label}
-                className={`py-2 text-center text-sm font-medium ${
-                  isWeekendDay
-                    ? 'text-gray-400 dark:text-gray-500'
-                    : 'text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                {isWeekendDay ? label.charAt(0) : label}
-              </div>
-            )
-          })}
-        </div>
+        {viewMode === 'all' && <div />}
+        {DAY_LABELS.map((label, idx) => {
+          const isWeekendDay = idx === 0 || idx === 6
+          return (
+            <div
+              key={label}
+              className={`py-2 text-center text-sm font-medium ${
+                isWeekendDay
+                  ? 'text-gray-400 dark:text-gray-500'
+                  : 'text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              {isWeekendDay ? label.charAt(0) : label}
+            </div>
+          )
+        })}
       </div>
 
-      {/* Calendar grid with month labels */}
-      <div className="flex overflow-auto">
-        {/* Month labels column (only in 'all' mode) */}
-        {viewMode === 'all' && (
-          <div className="flex flex-col" style={{ width: MONTH_COLUMN_WIDTH, flexShrink: 0 }}>
-            {monthSpans.map((span) => (
-              <div
-                key={span.month}
-                className="relative border-b border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
-                style={{
-                  flex: `${span.count} 0 0`,
-                  minHeight: `${span.count * 32}px`,
-                }}
-              >
-                <span
-                  className="absolute text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap"
-                  style={{
-                    writingMode: 'vertical-rl',
-                    transform: 'rotate(180deg)',
-                    left: '50%',
-                    top: '50%',
-                    marginLeft: '-0.5em',
-                    marginTop: '-50%',
-                  }}
-                >
-                  {span.monthName}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Calendar weeks */}
-        <div className="flex-1 flex flex-col">
-          {weeks.map((week, weekIdx) => {
-            const isExpanded = expandedWeekIdx === weekIdx
+      {/* Calendar grid */}
+      <div
+        className="grid overflow-auto"
+        style={{
+          gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7,
+          gridTemplateRows: weeks.map((_, idx) => {
+            const isExpanded = expandedWeekIdx === idx
             const isCompactView = viewMode !== 'week'
-            const shouldConstrain = isCompactView && !isExpanded
+            if (viewMode === 'week') return 'minmax(80px, auto)'
+            if (isExpanded) return 'minmax(80px, auto)'
+            return 'minmax(32px, 80px)'
+          }).join(' '),
+        }}
+      >
+        {/* Render month labels first (they span rows) - only in 'all' mode */}
+        {viewMode === 'all' && monthSpans.map((span) => (
+          <div
+            key={span.month}
+            className="relative border-b border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-center"
+            style={{
+              gridColumn: 1,
+              gridRow: `${span.startIdx + 1} / span ${span.count}`,
+            }}
+          >
+            <span
+              className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap"
+              style={{
+                writingMode: 'vertical-rl',
+                transform: 'rotate(180deg)',
+              }}
+            >
+              {span.monthName}
+            </span>
+          </div>
+        ))}
+
+        {/* Render all day cells */}
+        {weeks.map((week, weekIdx) => {
+          const isExpanded = expandedWeekIdx === weekIdx
+          const isCompactView = viewMode !== 'week'
+
+          return week.map((day, dayIdx) => {
+            const dateString = format(day, 'yyyy-MM-dd')
+            const lessonPlan = plansByDate.get(dateString) || null
+            const isToday = isSameDay(day, today)
+            const isWeekendDay = isWeekend(day)
+            const isHoliday = holidays.has(dateString)
+            // In 'all' mode, column starts at 2 (after month column)
+            const colStart = viewMode === 'all' ? dayIdx + 2 : dayIdx + 1
 
             return (
               <div
-                key={weekIdx}
-                className={`grid border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
-                  isCompactView ? 'cursor-pointer' : ''
-                }`}
+                key={dateString}
+                className={isCompactView ? 'cursor-pointer' : ''}
                 style={{
-                  gridTemplateColumns: GRID_COLUMNS,
-                  minHeight: viewMode === 'week' ? '80px' : '32px',
-                  maxHeight: shouldConstrain ? '80px' : undefined,
-                  overflow: shouldConstrain ? 'hidden' : undefined,
+                  gridColumn: colStart,
+                  gridRow: weekIdx + 1,
+                  overflow: isCompactView && !isExpanded ? 'hidden' : undefined,
                 }}
                 onClick={isCompactView ? () => setExpandedWeekIdx(isExpanded ? null : weekIdx) : undefined}
               >
-                {week.map((day) => {
-                  const dateString = format(day, 'yyyy-MM-dd')
-                  const lessonPlan = plansByDate.get(dateString) || null
-                  const isToday = isSameDay(day, today)
-                  const isWeekendDay = isWeekend(day)
-                  const isHoliday = holidays.has(dateString)
-
-                  return (
-                    <LessonDayCell
-                      key={dateString}
-                      date={dateString}
-                      day={day}
-                      lessonPlan={lessonPlan}
-                      isWeekend={isWeekendDay}
-                      isToday={isToday}
-                      isHoliday={isHoliday}
-                      editable={editable && !isWeekendDay}
-                      compact={viewMode !== 'week' && !isExpanded}
-                      onContentChange={onContentChange}
-                    />
-                  )
-                })}
+                <LessonDayCell
+                  date={dateString}
+                  day={day}
+                  lessonPlan={lessonPlan}
+                  isWeekend={isWeekendDay}
+                  isToday={isToday}
+                  isHoliday={isHoliday}
+                  editable={editable && !isWeekendDay}
+                  compact={viewMode !== 'week' && !isExpanded}
+                  onContentChange={onContentChange}
+                />
               </div>
             )
-          })}
-        </div>
+          })
+        })}
       </div>
     </div>
   )
