@@ -32,9 +32,9 @@ Do not proceed until the user approves the plan.
 - Keep business logic out of UI components.
 - Do not add dependencies without explicit approval.
 
-## 6) AI UI Verification (Recommended)
+## 6) AI UI Verification (MANDATORY for UI Changes)
 
-After implementing UI changes, verify them visually:
+After implementing UI changes, you MUST verify them visually:
 
 ```bash
 # 1. Ensure dev server is running
@@ -43,20 +43,24 @@ pnpm dev
 # 2. Refresh auth states if needed
 pnpm e2e:auth
 
-# 3. Take screenshots
-npx playwright screenshot http://localhost:3000/<page> /tmp/screenshot.png \
+# 3. Take screenshots for BOTH roles
+npx playwright screenshot http://localhost:3000/<page> /tmp/teacher.png \
   --load-storage .auth/teacher.json --viewport-size 1440,900
 
-# 4. View screenshot with Read tool, iterate if needed
+npx playwright screenshot http://localhost:3000/<page> /tmp/student.png \
+  --load-storage .auth/student.json --viewport-size 1440,900
 
-# 5. Optionally run verification scripts
+# 4. View screenshot with Read tool, iterate until satisfied
+
+# 5. Run verification scripts if applicable
 pnpm e2e:verify <scenario>
 ```
 
-This step is recommended but not blocking. Use it when:
-- Implementing new UI features
-- Fixing visual bugs
-- Changing user flows
+**This is mandatory for:**
+- Any UI component changes
+- Any styling/CSS changes
+- New UI features
+- Layout changes
 
 See `docs/guides/ai-ui-testing.md` for detailed patterns.
 

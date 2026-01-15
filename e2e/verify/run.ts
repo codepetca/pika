@@ -43,8 +43,14 @@ async function main() {
 
   const script = scenarios[scenarioName]
   if (!script) {
-    console.error(`Unknown scenario: ${scenarioName}`)
-    console.error('Run "pnpm e2e:verify --help" for available scenarios.')
+    // Output JSON error for programmatic consumers
+    const errorResult: VerificationResult = {
+      scenario: scenarioName,
+      passed: false,
+      checks: [],
+      error: `Unknown scenario: ${scenarioName}. Available: ${Object.keys(scenarios).join(', ')}`,
+    }
+    console.log(JSON.stringify(errorResult, null, 2))
     process.exit(1)
   }
 
@@ -53,8 +59,14 @@ async function main() {
   if (script.role !== 'unauthenticated') {
     const authFile = path.join(AUTH_DIR, `${script.role}.json`)
     if (!fs.existsSync(authFile)) {
-      console.error(`Auth state not found: ${authFile}`)
-      console.error('Run "pnpm e2e:auth" first to generate auth states.')
+      // Output JSON error for programmatic consumers
+      const errorResult: VerificationResult = {
+        scenario: scenarioName,
+        passed: false,
+        checks: [],
+        error: `Auth state not found: ${authFile}. Run "pnpm e2e:auth" first.`,
+      }
+      console.log(JSON.stringify(errorResult, null, 2))
       process.exit(1)
     }
     storageState = authFile

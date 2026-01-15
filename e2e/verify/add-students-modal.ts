@@ -10,6 +10,7 @@
  * 3. Modal opens when button is clicked
  */
 import type { VerificationScript, VerificationResult, VerificationCheck } from './types'
+import { TIMEOUTS } from './types'
 
 export const addStudentsModal: VerificationScript = {
   name: 'add-students-modal',
@@ -26,9 +27,9 @@ export const addStudentsModal: VerificationScript = {
     // Click first classroom card
     const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
 
-    // Wait for card to be visible (with longer timeout)
+    // Wait for card to be visible
     try {
-      await classroomCard.waitFor({ state: 'visible', timeout: 10000 })
+      await classroomCard.waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE })
     } catch {
       checks.push({
         name: 'Classroom card visible',
@@ -45,7 +46,7 @@ export const addStudentsModal: VerificationScript = {
 
     await classroomCard.click()
     // Wait for classroom detail page (URL has a UUID after /classrooms/)
-    await page.waitForURL(/\/classrooms\/[a-f0-9-]+/, { timeout: 15000 })
+    await page.waitForURL(/\/classrooms\/[a-f0-9-]+/, { timeout: TIMEOUTS.NAVIGATION })
 
     // Go to Roster tab
     await page.getByRole('button', { name: 'Roster' }).click()
@@ -72,11 +73,14 @@ export const addStudentsModal: VerificationScript = {
 
     // Click to open modal
     await addButton.first().click()
-    await page.waitForTimeout(500) // Wait for modal animation
 
     // Check modal is open (modal has heading "Add Students")
     const modalHeading = page.getByRole('heading', { name: 'Add Students' })
-    const modalOpen = await modalHeading.isVisible().catch(() => false)
+    // Wait for modal to appear instead of using fixed timeout
+    const modalOpen = await modalHeading
+      .waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE })
+      .then(() => true)
+      .catch(() => false)
 
     checks.push({
       name: 'Modal opens on click',

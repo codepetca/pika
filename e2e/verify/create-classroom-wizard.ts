@@ -10,6 +10,7 @@
  * 4. Name input field is present
  */
 import type { VerificationScript, VerificationResult, VerificationCheck } from './types'
+import { TIMEOUTS } from './types'
 
 export const createClassroomWizard: VerificationScript = {
   name: 'create-classroom-wizard',
@@ -44,11 +45,14 @@ export const createClassroomWizard: VerificationScript = {
 
     // Click to open wizard
     await createButton.click()
-    await page.waitForTimeout(500) // Wait for modal animation
 
     // Check wizard/modal is open (modal has heading "Create Classroom")
     const modalHeading = page.getByRole('heading', { name: 'Create Classroom' })
-    const wizardOpen = await modalHeading.isVisible().catch(() => false)
+    // Wait for modal to appear instead of using fixed timeout
+    const wizardOpen = await modalHeading
+      .waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE })
+      .then(() => true)
+      .catch(() => false)
 
     checks.push({
       name: 'Wizard opens on click',
