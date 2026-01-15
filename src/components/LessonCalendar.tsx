@@ -370,7 +370,7 @@ export function LessonCalendar({
             return (
               <div
                 key={dateString}
-                className={isCompactView ? 'cursor-pointer' : ''}
+                className={`border-r border-b border-gray-200 dark:border-gray-700 ${isCompactView ? 'cursor-pointer' : ''}`}
                 style={{
                   gridColumn: colStart,
                   gridRow: weekIdx + 1,
