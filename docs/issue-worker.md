@@ -32,7 +32,39 @@ Do not proceed until the user approves the plan.
 - Keep business logic out of UI components.
 - Do not add dependencies without explicit approval.
 
-## 6) Update AI Continuity Layer
+## 6) AI UI Verification (MANDATORY for UI Changes)
+
+After implementing UI changes, you MUST verify them visually:
+
+```bash
+# 1. Ensure dev server is running
+pnpm dev
+
+# 2. Refresh auth states if needed
+pnpm e2e:auth
+
+# 3. Take screenshots for BOTH roles
+npx playwright screenshot http://localhost:3000/<page> /tmp/teacher.png \
+  --load-storage .auth/teacher.json --viewport-size 1440,900
+
+npx playwright screenshot http://localhost:3000/<page> /tmp/student.png \
+  --load-storage .auth/student.json --viewport-size 1440,900
+
+# 4. View screenshot with Read tool, iterate until satisfied
+
+# 5. Run verification scripts if applicable
+pnpm e2e:verify <scenario>
+```
+
+**This is mandatory for:**
+- Any UI component changes
+- Any styling/CSS changes
+- New UI features
+- Layout changes
+
+See `docs/guides/ai-ui-testing.md` for detailed patterns.
+
+## 7) Update AI Continuity Layer
 Before ending a session:
 - Append to `.ai/JOURNAL.md` (append-only).
 - Update `.ai/features.json` if feature status changed:
@@ -41,7 +73,7 @@ Before ending a session:
   node scripts/features.mjs fail <feature-id>
   ```
 
-## 7) Validation
+## 8) Validation
 - Run: `npm test`
 - If relevant: `npm run lint`, `npm run build`
 - Confirm acceptance criteria are met and documented in the PR.
