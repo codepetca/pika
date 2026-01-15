@@ -1,6 +1,7 @@
 /**
  * Types for AI-invokable verification scripts
  */
+import type { Page } from '@playwright/test'
 
 export interface VerificationCheck {
   name: string
@@ -20,5 +21,5 @@ export interface VerificationScript {
   name: string
   description: string
   role: 'teacher' | 'student' | 'unauthenticated'
-  run: (page: any, baseUrl: string) => Promise<VerificationResult>
+  run: (page: Page, baseUrl: string) => Promise<VerificationResult>
 }

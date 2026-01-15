@@ -21,7 +21,7 @@ export const createClassroomWizard: VerificationScript = {
 
     // Navigate to classrooms
     await page.goto(`${baseUrl}/classrooms`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     checks.push({
       name: 'Navigate to classrooms page',

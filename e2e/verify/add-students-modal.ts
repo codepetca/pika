@@ -21,7 +21,7 @@ export const addStudentsModal: VerificationScript = {
 
     // Navigate to classrooms
     await page.goto(`${baseUrl}/classrooms`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Click first classroom card
     const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
@@ -49,7 +49,7 @@ export const addStudentsModal: VerificationScript = {
 
     // Go to Roster tab
     await page.getByRole('button', { name: 'Roster' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     checks.push({
       name: 'Navigate to roster tab',
