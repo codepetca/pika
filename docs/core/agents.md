@@ -250,7 +250,7 @@ See: `docs/dev-workflow.md`
 - Maintain consistent visual patterns
 - Ensure accessibility standards (WCAG 2.1)
 - Optimize for performance (lazy loading, code splitting)
-- **VERIFY ALL UI CHANGES VISUALLY** using Playwright MCP (see below)
+- **VERIFY ALL UI CHANGES VISUALLY** using Playwright (see below)
 
 #### Visual Verification (MANDATORY)
 
@@ -263,12 +263,16 @@ pnpm dev
 # 2. Refresh auth if needed
 pnpm e2e:auth
 
-# 3. Start browser and verify BOTH roles
-pnpm e2e:mcp --teacher   # Teacher view (teacher@example.com)
-pnpm e2e:mcp --student   # Student view (student1@example.com)
+# 3. Take screenshots for BOTH roles
+npx playwright screenshot http://localhost:3000/<page> /tmp/teacher.png \
+  --load-storage .auth/teacher.json --viewport-size 1440,900
+
+npx playwright screenshot http://localhost:3000/<page> /tmp/student.png \
+  --load-storage .auth/student.json --viewport-size 1440,900
+
+# 4. View screenshots with Read tool, iterate until satisfied
 ```
 
-Use MCP tools to navigate, inspect, and screenshot. Iterate on styling until satisfied.
 See `docs/guides/ai-ui-testing.md` for detailed workflow.
 
 #### Must Read Before Starting

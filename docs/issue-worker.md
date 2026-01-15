@@ -34,7 +34,7 @@ Do not proceed until the user approves the plan.
 
 ## 6) AI UI Verification (Recommended)
 
-After implementing UI changes, verify them using the Playwright MCP:
+After implementing UI changes, verify them visually:
 
 ```bash
 # 1. Ensure dev server is running
@@ -43,10 +43,12 @@ pnpm dev
 # 2. Refresh auth states if needed
 pnpm e2e:auth
 
-# 3. Start MCP server with appropriate role
-pnpm e2e:mcp --teacher  # or --student
+# 3. Take screenshots
+npx playwright screenshot http://localhost:3000/<page> /tmp/screenshot.png \
+  --load-storage .auth/teacher.json --viewport-size 1440,900
 
-# 4. Use browser tools to verify the implementation
+# 4. View screenshot with Read tool, iterate if needed
+
 # 5. Optionally run verification scripts
 pnpm e2e:verify <scenario>
 ```
