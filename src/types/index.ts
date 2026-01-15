@@ -36,6 +36,8 @@ export interface Session {
   created_at: string
 }
 
+export type LessonPlanVisibility = 'current_week' | 'one_week_ahead' | 'all'
+
 export interface Classroom {
   id: string
   teacher_id: string
@@ -45,7 +47,17 @@ export interface Classroom {
   allow_enrollment: boolean
   start_date: string | null // YYYY-MM-DD, inclusive
   end_date: string | null // YYYY-MM-DD, inclusive
+  lesson_plan_visibility: LessonPlanVisibility
   archived_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LessonPlan {
+  id: string
+  classroom_id: string
+  date: string // YYYY-MM-DD
+  content: TiptapContent
   created_at: string
   updated_at: string
 }

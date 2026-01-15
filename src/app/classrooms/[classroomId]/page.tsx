@@ -10,6 +10,8 @@ import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
+import { TeacherLessonCalendarTab } from './TeacherLessonCalendarTab'
+import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import {
   ThreePanelProvider,
@@ -147,8 +149,8 @@ export default function ClassroomPage() {
 
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
-    ? (['attendance', 'assignments', 'roster', 'settings'] as const)
-    : (['today', 'assignments'] as const)
+    ? (['attendance', 'assignments', 'calendar', 'roster', 'settings'] as const)
+    : (['today', 'assignments', 'calendar'] as const)
 
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
 
@@ -300,6 +302,7 @@ function ClassroomPageContent({
                   onToggleInstructions={handleToggleInstructions}
                 />
               )}
+              {activeTab === 'calendar' && <TeacherLessonCalendarTab classroom={classroom} />}
               {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
               {activeTab === 'settings' && <TeacherSettingsTab classroom={classroom} />}
             </>
@@ -312,6 +315,7 @@ function ClassroomPageContent({
                   onSelectAssignment={handleSelectAssignment}
                 />
               )}
+              {activeTab === 'calendar' && <StudentLessonCalendarTab classroom={classroom} />}
             </>
           )}
         </MainContent>

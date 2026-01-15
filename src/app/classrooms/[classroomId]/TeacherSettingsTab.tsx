@@ -7,7 +7,7 @@ import { Button } from '@/components/Button'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
-import type { Classroom } from '@/types'
+import type { Classroom, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
@@ -39,6 +39,13 @@ export function TeacherSettingsTab({ classroom }: Props) {
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [copyNotice, setCopyNotice] = useState<string>('')
+  const [lessonPlanVisibility, setLessonPlanVisibility] = useState<LessonPlanVisibility>(
+    classroom.lesson_plan_visibility || 'current_week'
+  )
+  const [visibilityError, setVisibilityError] = useState<string>('')
+  const [visibilitySuccess, setVisibilitySuccess] = useState<string>('')
+  const [visibilitySaving, setVisibilitySaving] = useState(false)
+  const visibilityId = useId()
 
   const origin = useMemo(() => {
     if (typeof window === 'undefined') return ''
@@ -107,6 +114,30 @@ export function TeacherSettingsTab({ classroom }: Props) {
     } finally {
       setIsRegenerating(false)
       setShowRegenerateConfirm(false)
+    }
+  }
+
+  async function saveLessonPlanVisibility(value: LessonPlanVisibility) {
+    if (isReadOnly) return
+    setVisibilitySaving(true)
+    setVisibilityError('')
+    setVisibilitySuccess('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lessonPlanVisibility: value }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update visibility setting')
+      }
+      setLessonPlanVisibility(data.classroom?.lesson_plan_visibility || value)
+      setVisibilitySuccess('Calendar visibility updated.')
+    } catch (err: any) {
+      setVisibilityError(err.message || 'Failed to update visibility setting')
+    } finally {
+      setVisibilitySaving(false)
     }
   }
 
@@ -206,6 +237,34 @@ export function TeacherSettingsTab({ classroom }: Props) {
               {joinCodeError && <div className="text-sm text-red-600 dark:text-red-400">{joinCodeError}</div>}
               {joinCodeSuccess && <div className="text-sm text-green-700 dark:text-green-400">{joinCodeSuccess}</div>}
               {copyNotice && <div className="text-xs text-blue-600 dark:text-blue-300">{copyNotice}</div>}
+            </div>
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Calendar Visibility</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Control how far ahead students can see lesson plans on the Calendar tab.
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <label htmlFor={visibilityId} className="sr-only">
+                  Calendar visibility
+                </label>
+                <select
+                  id={visibilityId}
+                  value={lessonPlanVisibility}
+                  onChange={(e) => saveLessonPlanVisibility(e.target.value as LessonPlanVisibility)}
+                  disabled={visibilitySaving || isReadOnly}
+                  className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="current_week">Current week (and all previous)</option>
+                  <option value="one_week_ahead">1 week ahead</option>
+                  <option value="all">All (no restrictions)</option>
+                </select>
+                {visibilitySaving && <span className="text-sm text-gray-500">Saving...</span>}
+              </div>
+
+              {visibilityError && <div className="text-sm text-red-600 dark:text-red-400">{visibilityError}</div>}
+              {visibilitySuccess && <div className="text-sm text-green-700 dark:text-green-400">{visibilitySuccess}</div>}
             </div>
 
             <ConfirmDialog
