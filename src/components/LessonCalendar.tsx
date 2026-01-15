@@ -316,7 +316,7 @@ export function LessonCalendar({
 
       {/* Day headers */}
       <div
-        className="grid border-b border-gray-200 dark:border-gray-700"
+        className="grid border-b-2 border-gray-200 dark:border-gray-700"
         style={{ gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7 }}
       >
         {/* Empty cell for month column (only in 'all' mode) */}
