@@ -38,13 +38,20 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
     return { start, end }
   }, [viewMode, currentDate, classroom.start_date, classroom.end_date])
 
-  // Holidays for the current view range
+  // Holidays for the displayed range (including overflow days in month/all views)
   const holidays = useMemo(() => {
-    const startDate = new Date(dateRange.start)
-    const endDate = new Date(dateRange.end)
+    let startDate = new Date(dateRange.start)
+    let endDate = new Date(dateRange.end)
+
+    // Extend to full weeks to include overflow days
+    if (viewMode === 'month' || viewMode === 'all') {
+      startDate = startOfWeek(startDate, { weekStartsOn: 0 })
+      endDate = endOfWeek(endDate, { weekStartsOn: 0 })
+    }
+
     const holidayList = getOntarioHolidays(startDate, endDate)
     return new Set(holidayList)
-  }, [dateRange])
+  }, [dateRange, viewMode])
 
   // Fetch lesson plans when date range changes
   useEffect(() => {

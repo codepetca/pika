@@ -215,8 +215,8 @@ export function LessonCalendar({
             key={weekIdx}
             className="grid border-b border-gray-200 dark:border-gray-700 last:border-b-0"
             style={{
-              gridTemplateColumns: '4% 18.4% 18.4% 18.4% 18.4% 18.4% 4%',
-              minHeight: viewMode === 'week' ? '120px' : '80px',
+              gridTemplateColumns: GRID_COLUMNS,
+              minHeight: '80px',
             }}
           >
             {week.map((day) => {

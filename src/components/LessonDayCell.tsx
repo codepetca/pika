@@ -105,8 +105,8 @@ export function LessonDayCell({
         )}
       </div>
 
-      {/* Content area */}
-      <div className={`${compact ? 'p-1' : 'p-2'} ${compact ? 'min-h-[40px]' : 'min-h-[80px]'}`}>
+      {/* Content area - short by default, grows with content */}
+      <div className={`${compact ? 'p-1' : 'p-2'} min-h-[40px]`}>
         {editable ? (
           <RichTextEditor
             content={content}
