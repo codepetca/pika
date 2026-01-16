@@ -36,7 +36,7 @@ function getSessionOptions() {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       sameSite: 'lax' as const,
-      maxAge: 14 * 24 * 60 * 60, // 14 days
+      maxAge: 180 * 24 * 60 * 60, // 6 months
     },
   }
 }
