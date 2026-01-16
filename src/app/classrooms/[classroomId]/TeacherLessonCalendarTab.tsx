@@ -23,7 +23,6 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
   const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [allLessonPlans, setAllLessonPlans] = useState<LessonPlan[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week')
@@ -176,7 +175,6 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
         )
         const data = await res.json()
         const plans = data.lesson_plans || []
-        setAllLessonPlans(plans)
 
         // Generate markdown
         const markdown = lessonPlansToMarkdown(classroom, plans, start, end)

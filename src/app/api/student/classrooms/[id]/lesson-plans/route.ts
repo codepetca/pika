@@ -25,8 +25,8 @@ function getMaxAllowedDate(visibility: LessonPlanVisibility): string | null {
   const dayOfWeek = now.getDay() // 0 = Sunday, 6 = Saturday
 
   // Find end of current week (Saturday)
-  // If today is Saturday (6), add 7 days to get next Saturday
-  const daysUntilSaturday = (6 - dayOfWeek + 7) % 7 || 7
+  // If today is Saturday, daysUntilSaturday = 0 (we're at the end of the week)
+  const daysUntilSaturday = (6 - dayOfWeek + 7) % 7
   const endOfCurrentWeek = new Date(now)
   endOfCurrentWeek.setDate(now.getDate() + daysUntilSaturday)
 

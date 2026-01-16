@@ -276,6 +276,7 @@ export function NavItems({
                     onNavigate()
                   }}
                   aria-current={isActive ? 'page' : undefined}
+                  aria-label={item.label}
                   title={!isExpanded ? item.label : undefined}
                   className={[
                     'group flex flex-1 items-center rounded-md text-base font-medium transition-colors',
@@ -354,6 +355,7 @@ export function NavItems({
                 }}
                 aria-current={isActive ? 'page' : undefined}
                 aria-expanded={canShowNested ? isExpandedState : undefined}
+                aria-label={item.label}
                 title={!isExpanded ? item.label : undefined}
                 className={[
                   'group flex items-center rounded-md text-base font-medium transition-colors',
@@ -423,6 +425,7 @@ export function NavItems({
             href={href}
             onClick={onNavigate}
             aria-current={isActive ? 'page' : undefined}
+            aria-label={item.label}
             title={!isExpanded ? item.label : undefined}
             className={[
               'group flex items-center rounded-md text-base font-medium transition-colors',

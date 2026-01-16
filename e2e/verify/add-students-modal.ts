@@ -25,7 +25,7 @@ export const addStudentsModal: VerificationScript = {
     await page.waitForLoadState('domcontentloaded')
 
     // Click first classroom card
-    const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
+    const classroomCard = page.locator('[data-testid="classroom-card"]').first()
 
     // Wait for card to be visible
     try {
@@ -49,7 +49,7 @@ export const addStudentsModal: VerificationScript = {
     await page.waitForURL(/\/classrooms\/[a-f0-9-]+/, { timeout: TIMEOUTS.NAVIGATION })
 
     // Go to Roster tab
-    await page.getByRole('button', { name: 'Roster' }).click()
+    await page.getByRole('link', { name: 'Roster' }).click()
     await page.waitForLoadState('domcontentloaded')
 
     checks.push({

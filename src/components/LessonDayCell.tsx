@@ -1,8 +1,9 @@
 'use client'
 
-import { useCallback, memo } from 'react'
+import { useCallback, useMemo, memo } from 'react'
 import { format } from 'date-fns'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
+import { extractTextFromTiptap } from '@/lib/lesson-plan-markdown'
 import type { LessonPlan, TiptapContent, Assignment } from '@/types'
 
 const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
@@ -45,6 +46,12 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   // Check if content is empty
   const hasContent = content.content && content.content.length > 0
+
+  // For compact mode, extract plain text (avoids creating heavy Tiptap editor instances)
+  const plainText = useMemo(() => {
+    if (!compact || !hasContent) return ''
+    return extractTextFromTiptap(content)
+  }, [compact, hasContent, content])
 
   // Weekend cells are narrow and minimal
   if (isWeekend) {
@@ -134,16 +141,10 @@ export const LessonDayCell = memo(function LessonDayCell({
       {/* Content area */}
       <div className={`${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
         {compact ? (
-          // Compact mode: only show content if exists (no editor/placeholder)
+          // Compact mode: plain text preview (avoids heavy Tiptap editor instances)
           hasContent && (
-            <div className="text-sm text-gray-700 dark:text-gray-300">
-              <RichTextEditor
-                content={content}
-                onChange={() => {}}
-                editable={false}
-                showToolbar={false}
-                className="text-sm"
-              />
+            <div className="text-[10px] leading-tight text-gray-600 dark:text-gray-400 line-clamp-3 whitespace-pre-wrap">
+              {plainText}
             </div>
           )
         ) : editable ? (

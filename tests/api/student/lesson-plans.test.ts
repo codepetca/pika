@@ -306,4 +306,92 @@ describe('GET /api/student/classrooms/[id]/lesson-plans', () => {
     expect(data.visibility).toBe('current_week')
     expect(data.max_date).toBe('2025-01-18')
   })
+
+  it('should return max_date as today when today is Saturday (current_week)', async () => {
+    // Override nowInToronto to return Saturday Jan 18, 2025
+    const { nowInToronto } = await import('@/lib/timezone')
+    ;(nowInToronto as any).mockReturnValueOnce(new Date('2025-01-18T12:00:00')) // Saturday
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { lesson_plan_visibility: 'current_week' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            gte: vi.fn(() => ({
+              lte: vi.fn(() => ({
+                order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              })),
+            })),
+          })),
+        })),
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/student/classrooms/c-1/lesson-plans?start=2025-01-13&end=2025-01-31'
+    )
+    const response = await GET(request, { params: Promise.resolve({ id: 'c-1' }) })
+    expect(response.status).toBe(200)
+
+    const data = await response.json()
+    expect(data.visibility).toBe('current_week')
+    // On Saturday, max_date should be today (Saturday Jan 18), not next Saturday (Jan 25)
+    expect(data.max_date).toBe('2025-01-18')
+  })
+
+  it('should return max_date as next Saturday when today is Sunday (current_week)', async () => {
+    // Override nowInToronto to return Sunday Jan 19, 2025 (start of new week)
+    const { nowInToronto } = await import('@/lib/timezone')
+    ;(nowInToronto as any).mockReturnValueOnce(new Date('2025-01-19T12:00:00')) // Sunday
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { lesson_plan_visibility: 'current_week' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            gte: vi.fn(() => ({
+              lte: vi.fn(() => ({
+                order: vi.fn().mockResolvedValue({ data: [], error: null }),
+              })),
+            })),
+          })),
+        })),
+      }
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/student/classrooms/c-1/lesson-plans?start=2025-01-13&end=2025-01-31'
+    )
+    const response = await GET(request, { params: Promise.resolve({ id: 'c-1' }) })
+    expect(response.status).toBe(200)
+
+    const data = await response.json()
+    expect(data.visibility).toBe('current_week')
+    // On Sunday Jan 19, the end of current week is Saturday Jan 25
+    expect(data.max_date).toBe('2025-01-25')
+  })
 })
