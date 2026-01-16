@@ -21,7 +21,7 @@ gh issue view <number> --json number,title,body,labels,comments
 Produce a short plan:
 - Files to change/add
 - Approach and edge cases
-- Testing plan (`npm test` + targeted tests)
+- Testing plan (`pnpm test` + targeted tests)
 
 Do not proceed until the user approves the plan.
 
@@ -74,8 +74,8 @@ Before ending a session:
   ```
 
 ## 8) Validation
-- Run: `npm test`
-- If relevant: `npm run lint`, `npm run build`
+- Run: `pnpm test`
+- If relevant: `pnpm lint`, `pnpm build`
 - Confirm acceptance criteria are met and documented in the PR.
 - If you grep for path conventions, exclude `.ai/JOURNAL.md` (append-only).
   Example: `rg -n "\\$HOME/repos/|/Users/stew/" --glob "!**/.ai/JOURNAL.md" docs/ .ai/ scripts/`
