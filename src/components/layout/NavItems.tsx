@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
+  Calendar,
   ClipboardCheck,
   ClipboardList,
   Settings,
@@ -23,6 +24,7 @@ import { readCookie, writeCookie } from '@/lib/cookies'
 export type ClassroomNavItemId =
   | 'attendance'
   | 'assignments'
+  | 'calendar'
   | 'roster'
   | 'settings'
   | 'today'
@@ -46,6 +48,7 @@ type SidebarAssignment = {
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -53,6 +56,7 @@ const teacherItems: NavItem[] = [
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
 ]
 
 const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
@@ -272,6 +276,7 @@ export function NavItems({
                     onNavigate()
                   }}
                   aria-current={isActive ? 'page' : undefined}
+                  aria-label={item.label}
                   title={!isExpanded ? item.label : undefined}
                   className={[
                     'group flex flex-1 items-center rounded-md text-base font-medium transition-colors',
@@ -350,6 +355,7 @@ export function NavItems({
                 }}
                 aria-current={isActive ? 'page' : undefined}
                 aria-expanded={canShowNested ? isExpandedState : undefined}
+                aria-label={item.label}
                 title={!isExpanded ? item.label : undefined}
                 className={[
                   'group flex items-center rounded-md text-base font-medium transition-colors',
@@ -419,6 +425,7 @@ export function NavItems({
             href={href}
             onClick={onNavigate}
             aria-current={isActive ? 'page' : undefined}
+            aria-label={item.label}
             title={!isExpanded ? item.label : undefined}
             className={[
               'group flex items-center rounded-md text-base font-medium transition-colors',

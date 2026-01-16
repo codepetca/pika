@@ -67,7 +67,7 @@ export async function PATCH(
 ) {
   // Parse request body
   const body = await request.json()
-  const { title, classCode, termLabel, allowEnrollment, archived } = body
+  const { title, classCode, termLabel, allowEnrollment, archived, lessonPlanVisibility } = body
 
   // Validate: at least one field must be provided
   if (
@@ -75,10 +75,20 @@ export async function PATCH(
     classCode === undefined &&
     termLabel === undefined &&
     allowEnrollment === undefined &&
-    archived === undefined
+    archived === undefined &&
+    lessonPlanVisibility === undefined
   ) {
     return NextResponse.json(
       { error: 'No fields to update' },
+      { status: 400 }
+    )
+  }
+
+  // Validate lessonPlanVisibility if provided
+  const validVisibilityValues = ['current_week', 'one_week_ahead', 'all']
+  if (lessonPlanVisibility !== undefined && !validVisibilityValues.includes(lessonPlanVisibility)) {
+    return NextResponse.json(
+      { error: 'Invalid lessonPlanVisibility value' },
       { status: 400 }
     )
   }
@@ -110,7 +120,8 @@ export async function PATCH(
       title !== undefined ||
       classCode !== undefined ||
       termLabel !== undefined ||
-      allowEnrollment !== undefined
+      allowEnrollment !== undefined ||
+      lessonPlanVisibility !== undefined
 
     if (hasArchiveToggle && hasOtherUpdates) {
       return NextResponse.json(
@@ -132,6 +143,7 @@ export async function PATCH(
     if (classCode !== undefined) updates.class_code = classCode
     if (termLabel !== undefined) updates.term_label = termLabel
     if (allowEnrollment !== undefined) updates.allow_enrollment = !!allowEnrollment
+    if (lessonPlanVisibility !== undefined) updates.lesson_plan_visibility = lessonPlanVisibility
     if (hasArchiveToggle) {
       if (archived && isArchived) {
         return NextResponse.json(

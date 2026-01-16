@@ -71,7 +71,7 @@ test.describe('teacher screens - light mode', () => {
 
   test('classroom attendance tab', async ({ page }) => {
     await page.goto('/classrooms')
-    const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
+    const classroomCard = page.locator('[data-testid="classroom-card"]').first()
     await expect(classroomCard).toBeVisible({ timeout: 15_000 })
     await classroomCard.click()
     await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
@@ -79,46 +79,17 @@ test.describe('teacher screens - light mode', () => {
     // Wait for attendance data to load
     await waitForContent(page)
     // Wait for attendance grid to be visible
-    await expect(page.getByText('student1@example.com')).toBeVisible()
+    await expect(page.getByText('student1')).toBeVisible()
 
     await expect(page).toHaveScreenshot('teacher-classroom-attendance.png', { fullPage: true })
   })
 
-  test('classroom logs tab - collapsed', async ({ page }) => {
-    await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
-    await page.waitForURL('**/classrooms/**')
-
-    await page.getByRole('button', { name: 'Logs' }).click()
-    await waitForContent(page)
-
-    await expect(page).toHaveScreenshot('teacher-classroom-logs-collapsed.png', { fullPage: true })
-  })
-
-  test('classroom logs tab - expanded', async ({ page }) => {
-    await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
-    await page.waitForURL('**/classrooms/**')
-
-    await page.getByRole('button', { name: 'Logs' }).click()
-    await waitForContent(page)
-
-    // Expand all logs if available
-    const expandAll = page.getByRole('button', { name: 'Expand all' })
-    if (await expandAll.isVisible()) {
-      await expandAll.click()
-      await page.waitForTimeout(500) // Wait for expansion animation
-    }
-
-    await expect(page).toHaveScreenshot('teacher-classroom-logs-expanded.png', { fullPage: true })
-  })
-
   test('classroom roster tab', async ({ page }) => {
     await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Roster' }).click()
+    await page.getByRole('link', { name: 'Roster' }).click()
     await waitForContent(page)
 
     await expect(page).toHaveScreenshot('teacher-classroom-roster.png', { fullPage: true })
@@ -126,10 +97,10 @@ test.describe('teacher screens - light mode', () => {
 
   test('classroom calendar tab', async ({ page }) => {
     await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Calendar' }).click()
+    await page.getByRole('link', { name: 'Calendar' }).click()
     await waitForContent(page)
 
     await expect(page).toHaveScreenshot('teacher-classroom-calendar.png', { fullPage: true })
@@ -137,10 +108,10 @@ test.describe('teacher screens - light mode', () => {
 
   test('classroom settings tab', async ({ page }) => {
     await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Settings' }).click()
+    await page.getByRole('link', { name: 'Settings' }).click()
     await waitForContent(page)
 
     await expect(page).toHaveScreenshot('teacher-classroom-settings.png', { fullPage: true })
@@ -148,10 +119,10 @@ test.describe('teacher screens - light mode', () => {
 
   test('classroom assignments tab', async ({ page }) => {
     await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Assignments' }).click()
+    await page.getByRole('link', { name: 'Assignments' }).click()
     await waitForContent(page)
 
     await expect(page).toHaveScreenshot('teacher-classroom-assignments.png', { fullPage: true })
@@ -159,10 +130,10 @@ test.describe('teacher screens - light mode', () => {
 
   test('assignment detail page', async ({ page }) => {
     await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Assignments' }).click()
+    await page.getByRole('link', { name: 'Assignments' }).click()
     await waitForContent(page)
 
     // Click first assignment if available
@@ -194,7 +165,7 @@ test.describe('student screens - light mode', () => {
     await waitForContent(page)
 
     // Click on first classroom card to enter
-    const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
+    const classroomCard = page.locator('[data-testid="classroom-card"]').first()
     await expect(classroomCard).toBeVisible({ timeout: 15_000 })
     await classroomCard.click()
     await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
@@ -205,29 +176,15 @@ test.describe('student screens - light mode', () => {
     await expect(page).toHaveScreenshot('student-classroom-today.png', { fullPage: true })
   })
 
-  test('classroom history tab', async ({ page }) => {
-    await page.goto('/classrooms')
-    await waitForContent(page)
-
-    // Click on first classroom card to enter
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
-    await page.waitForURL('**/classrooms/**')
-
-    await page.getByRole('button', { name: 'History' }).click()
-    await waitForContent(page)
-
-    await expect(page).toHaveScreenshot('student-classroom-history.png', { fullPage: true })
-  })
-
   test('classroom assignments tab', async ({ page }) => {
     await page.goto('/classrooms')
     await waitForContent(page)
 
     // Click on first classroom card to enter
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Assignments' }).click()
+    await page.getByRole('link', { name: 'Assignments' }).click()
     await waitForContent(page)
 
     await expect(page).toHaveScreenshot('student-classroom-assignments.png', { fullPage: true })
@@ -238,10 +195,10 @@ test.describe('student screens - light mode', () => {
     await waitForContent(page)
 
     // Click on first classroom card to enter
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Assignments' }).click()
+    await page.getByRole('link', { name: 'Assignments' }).click()
     await waitForContent(page)
 
     // Click first assignment if available
@@ -277,36 +234,24 @@ test.describe('teacher screens - dark mode', () => {
 
   test('classroom attendance tab', async ({ page }) => {
     await page.goto('/classrooms')
-    const classroomCard = page.locator('.bg-white.dark\\:bg-gray-900 button').first()
+    const classroomCard = page.locator('[data-testid="classroom-card"]').first()
     await expect(classroomCard).toBeVisible({ timeout: 15_000 })
     await classroomCard.click()
     await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
 
     await waitForContent(page)
-    await expect(page.getByText('student1@example.com')).toBeVisible()
+    await expect(page.getByText('student1')).toBeVisible()
     await enableDarkMode(page)
 
     await expect(page).toHaveScreenshot('teacher-classroom-attendance-dark.png', { fullPage: true })
   })
 
-  test('classroom logs tab - collapsed', async ({ page }) => {
-    await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
-    await page.waitForURL('**/classrooms/**')
-
-    await page.getByRole('button', { name: 'Logs' }).click()
-    await waitForContent(page)
-    await enableDarkMode(page)
-
-    await expect(page).toHaveScreenshot('teacher-classroom-logs-collapsed-dark.png', { fullPage: true })
-  })
-
   test('classroom roster tab', async ({ page }) => {
     await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Roster' }).click()
+    await page.getByRole('link', { name: 'Roster' }).click()
     await waitForContent(page)
     await enableDarkMode(page)
 
@@ -315,10 +260,10 @@ test.describe('teacher screens - dark mode', () => {
 
   test('classroom calendar tab', async ({ page }) => {
     await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Calendar' }).click()
+    await page.getByRole('link', { name: 'Calendar' }).click()
     await waitForContent(page)
     await enableDarkMode(page)
 
@@ -327,10 +272,10 @@ test.describe('teacher screens - dark mode', () => {
 
   test('classroom assignments tab', async ({ page }) => {
     await page.goto('/classrooms')
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Assignments' }).click()
+    await page.getByRole('link', { name: 'Assignments' }).click()
     await waitForContent(page)
     await enableDarkMode(page)
 
@@ -357,7 +302,7 @@ test.describe('student screens - dark mode', () => {
     await waitForContent(page)
 
     // Click on first classroom card to enter
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
     await waitForContent(page)
     await enableDarkMode(page)
@@ -365,30 +310,15 @@ test.describe('student screens - dark mode', () => {
     await expect(page).toHaveScreenshot('student-classroom-today-dark.png', { fullPage: true })
   })
 
-  test('classroom history tab', async ({ page }) => {
-    await page.goto('/classrooms')
-    await waitForContent(page)
-
-    // Click on first classroom card to enter
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
-    await page.waitForURL('**/classrooms/**')
-
-    await page.getByRole('button', { name: 'History' }).click()
-    await waitForContent(page)
-    await enableDarkMode(page)
-
-    await expect(page).toHaveScreenshot('student-classroom-history-dark.png', { fullPage: true })
-  })
-
   test('classroom assignments tab', async ({ page }) => {
     await page.goto('/classrooms')
     await waitForContent(page)
 
     // Click on first classroom card to enter
-    await page.locator('.bg-white.dark\\:bg-gray-900 button').first().click()
+    await page.locator('[data-testid="classroom-card"]').first().click()
     await page.waitForURL('**/classrooms/**')
 
-    await page.getByRole('button', { name: 'Assignments' }).click()
+    await page.getByRole('link', { name: 'Assignments' }).click()
     await waitForContent(page)
     await enableDarkMode(page)
 

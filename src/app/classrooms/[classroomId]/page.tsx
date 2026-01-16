@@ -10,6 +10,8 @@ import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
+import { TeacherLessonCalendarTab } from './TeacherLessonCalendarTab'
+import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import {
   ThreePanelProvider,
@@ -26,7 +28,7 @@ import { getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { Classroom, Entry, TiptapContent, SelectedStudentInfo } from '@/types'
+import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo } from '@/types'
 
 interface UserInfo {
   id: string
@@ -147,8 +149,8 @@ export default function ClassroomPage() {
 
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
-    ? (['attendance', 'assignments', 'roster', 'settings'] as const)
-    : (['today', 'assignments'] as const)
+    ? (['attendance', 'assignments', 'calendar', 'roster', 'settings'] as const)
+    : (['today', 'assignments', 'calendar'] as const)
 
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
 
@@ -202,6 +204,9 @@ function ClassroomPageContent({
   // State for showing instructions panel instead of student work
   const [showInstructionsPanel, setShowInstructionsPanel] = useState(false)
 
+  // State for today's lesson plan (student today tab)
+  const [todayLessonPlan, setTodayLessonPlan] = useState<LessonPlan | null>(null)
+
   const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
     setSelectedEntry(entry)
     setSelectedStudentName(studentName)
@@ -215,6 +220,10 @@ function ClassroomPageContent({
     setSelectedStudent(student)
     // Reset instructions panel when student selection changes
     setShowInstructionsPanel(false)
+  }, [])
+
+  const handleSetLessonPlan = useCallback((plan: LessonPlan | null) => {
+    setTodayLessonPlan(plan)
   }, [])
 
   const handleToggleInstructions = useCallback(() => {
@@ -300,18 +309,25 @@ function ClassroomPageContent({
                   onToggleInstructions={handleToggleInstructions}
                 />
               )}
+              {activeTab === 'calendar' && <TeacherLessonCalendarTab classroom={classroom} />}
               {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
               {activeTab === 'settings' && <TeacherSettingsTab classroom={classroom} />}
             </>
           ) : (
             <>
-              {activeTab === 'today' && <StudentTodayTab classroom={classroom} />}
+              {activeTab === 'today' && (
+                <StudentTodayTab
+                  classroom={classroom}
+                  onLessonPlanLoad={handleSetLessonPlan}
+                />
+              )}
               {activeTab === 'assignments' && (
                 <StudentAssignmentsTab
                   classroom={classroom}
                   onSelectAssignment={handleSelectAssignment}
                 />
               )}
+              {activeTab === 'calendar' && <StudentLessonCalendarTab classroom={classroom} />}
             </>
           )}
         </MainContent>
@@ -324,6 +340,8 @@ function ClassroomPageContent({
               ? selectedStudent.assignmentTitle
               : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
+              : activeTab === 'today'
+              ? "Today's Plan"
               : (selectedStudentName || 'Student Log')
           }
           headerActions={
@@ -387,6 +405,18 @@ function ClassroomPageContent({
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Select an assignment to view instructions.
+                </p>
+              )}
+            </div>
+          ) : activeTab === 'today' ? (
+            <div className="p-4">
+              {todayLessonPlan?.content &&
+              todayLessonPlan.content.content &&
+              todayLessonPlan.content.content.length > 0 ? (
+                <RichTextViewer content={todayLessonPlan.content} />
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No lesson plan for today.
                 </p>
               )}
             </div>

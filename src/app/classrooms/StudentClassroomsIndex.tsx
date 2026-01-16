@@ -53,6 +53,7 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
             {sorted.map((c) => (
               <button
                 key={c.id}
+                data-testid="classroom-card"
                 onClick={() => router.push(`/classrooms/${c.id}?tab=today`)}
                 className="w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
               >

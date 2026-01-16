@@ -190,11 +190,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const newClassroomButton = (
     <button
       type="button"
-      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} !px-2.5`}
+      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
       onClick={() => setShowCreate(true)}
       aria-label="New classroom"
     >
       <Plus className="h-5 w-5" aria-hidden="true" />
+      <span>New</span>
     </button>
   )
 
@@ -286,11 +287,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               <div className="mt-6">
                 <button
                   type="button"
-                  className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} !px-2.5`}
+                  className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
                   onClick={() => setShowCreate(true)}
                   aria-label="New classroom"
                 >
                   <Plus className="h-5 w-5" aria-hidden="true" />
+                  <span>New</span>
                 </button>
               </div>
             )}
@@ -301,6 +303,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               <div key={c.id} className="flex items-center gap-4 p-4">
                 <button
                   type="button"
+                  data-testid="classroom-card"
                   onClick={() => router.push(`/classrooms/${c.id}?tab=attendance`)}
                   className="flex-1 text-left rounded-md -m-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >

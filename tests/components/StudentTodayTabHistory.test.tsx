@@ -86,6 +86,9 @@ describe('StudentTodayTab history section', () => {
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=5`)) {
         return mockJson({ entries })
       }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
       throw new Error(`Unhandled fetch: ${url}`)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -118,6 +121,9 @@ describe('StudentTodayTab history section', () => {
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=5`)) {
         return mockJson({ entries })
       }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
       throw new Error(`Unhandled fetch: ${url}`)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -148,6 +154,9 @@ describe('StudentTodayTab history section', () => {
       }
       if (url.startsWith(`/api/student/entries?`)) {
         return mockJson({ entries })
+      }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
       }
       throw new Error(`Unhandled fetch: ${url}`)
     })
