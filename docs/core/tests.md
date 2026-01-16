@@ -241,16 +241,16 @@ For **new features**, follow this sequence:
 
 ```bash
 # Run all tests
-npm run test
+pnpm test
 
 # Watch mode (for TDD)
-npm run test:watch
+pnpm test:watch
 
 # UI mode (interactive)
-npm run test:ui
+pnpm test:ui
 
 # Coverage report
-npm run test:coverage
+pnpm test:coverage
 ```
 
 ---

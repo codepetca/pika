@@ -324,9 +324,9 @@ When facing implementation choices:
 
 ### Common Commands
 ```bash
-npm run dev              # Start dev server
-npm run test:watch       # TDD mode
-npm run test:coverage    # Check coverage
+pnpm dev                 # Start dev server
+pnpm test:watch          # TDD mode
+pnpm test:coverage       # Check coverage
 gh issue view X          # View issue details
 ```
 

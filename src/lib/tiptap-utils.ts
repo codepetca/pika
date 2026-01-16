@@ -251,8 +251,6 @@ export function findNodePosition(props: {
     let foundNode: PMNode | null = null
 
     editor.state.doc.descendants((currentNode, pos) => {
-      // TODO: Needed?
-      // if (currentNode.type && currentNode.type.name === node!.type.name) {
       if (currentNode === node) {
         foundPos = pos
         foundNode = currentNode
@@ -349,42 +347,6 @@ export function selectionWithinConvertibleTypes(
   }
 
   return false
-}
-
-/**
- * Handles image upload with progress tracking and abort capability
- * @param file The file to upload
- * @param onProgress Optional callback for tracking upload progress
- * @param abortSignal Optional AbortSignal for cancelling the upload
- * @returns Promise resolving to the URL of the uploaded image
- */
-export const handleImageUpload = async (
-  file: File,
-  onProgress?: (event: { progress: number }) => void,
-  abortSignal?: AbortSignal
-): Promise<string> => {
-  // Validate file
-  if (!file) {
-    throw new Error("No file provided")
-  }
-
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error(
-      `File size exceeds maximum allowed (${MAX_FILE_SIZE / (1024 * 1024)}MB)`
-    )
-  }
-
-  // For demo/testing: Simulate upload progress. In production, replace the following code
-  // with your own upload implementation.
-  for (let progress = 0; progress <= 100; progress += 10) {
-    if (abortSignal?.aborted) {
-      throw new Error("Upload cancelled")
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    onProgress?.({ progress })
-  }
-
-  return "/images/tiptap-ui-placeholder-image.jpg"
 }
 
 type ProtocolOptions = {
@@ -515,47 +477,6 @@ export function updateNodesAttr<A extends string = string, V = unknown>(
   }
 
   return changed
-}
-
-/**
- * Selects the entire content of the current block node if the selection is empty.
- * If the selection is not empty, it does nothing.
- * @param editor The Tiptap editor instance
- */
-export function selectCurrentBlockContent(editor: Editor) {
-  const { selection, doc } = editor.state
-
-  if (!selection.empty) return
-
-  const $pos = selection.$from
-  let blockNode = null
-  let blockPos = -1
-
-  for (let depth = $pos.depth; depth >= 0; depth--) {
-    const node = $pos.node(depth)
-    const pos = $pos.start(depth)
-
-    if (node.isBlock && node.textContent.trim()) {
-      blockNode = node
-      blockPos = pos
-      break
-    }
-  }
-
-  if (blockNode && blockPos >= 0) {
-    const from = blockPos
-    const to = blockPos + blockNode.nodeSize - 2 // -2 to exclude the closing tag
-
-    if (from < to) {
-      const $from = doc.resolve(from)
-      const $to = doc.resolve(to)
-      const newSelection = TextSelection.between($from, $to, 1)
-
-      if (newSelection && !selection.eq(newSelection)) {
-        editor.view.dispatch(editor.state.tr.setSelection(newSelection))
-      }
-    }
-  }
 }
 
 /**
