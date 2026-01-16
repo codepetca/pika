@@ -407,8 +407,9 @@ export function LessonCalendar({
                   isWeekend={isWeekendDay}
                   isToday={isToday}
                   isHoliday={isHoliday}
-                  editable={editable && !isWeekendDay}
+                  editable={editable && !isWeekendDay && viewMode !== 'all'}
                   compact={viewMode !== 'week' && !isExpanded}
+                  plainTextOnly={viewMode === 'all'}
                   onContentChange={onContentChange}
                   onAssignmentClick={onAssignmentClick}
                 />

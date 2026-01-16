@@ -18,6 +18,7 @@ interface LessonDayCellProps {
   isHoliday: boolean
   editable: boolean
   compact?: boolean
+  plainTextOnly?: boolean // Force plain text rendering (for 'all' view performance)
   onContentChange?: (date: string, content: TiptapContent) => void
   onAssignmentClick?: (assignment: Assignment) => void
 }
@@ -32,6 +33,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   isHoliday,
   editable,
   compact = false,
+  plainTextOnly = false,
   onContentChange,
   onAssignmentClick,
 }: LessonDayCellProps) {
@@ -47,11 +49,11 @@ export const LessonDayCell = memo(function LessonDayCell({
   // Check if content is empty
   const hasContent = content.content && content.content.length > 0
 
-  // For compact mode, extract plain text (avoids creating heavy Tiptap editor instances)
+  // For plain text mode, extract text (avoids creating heavy Tiptap editor instances)
   const plainText = useMemo(() => {
-    if (!compact || !hasContent) return ''
+    if (!plainTextOnly || !hasContent) return ''
     return extractTextFromTiptap(content)
-  }, [compact, hasContent, content])
+  }, [plainTextOnly, hasContent, content])
 
   // Weekend cells are narrow and minimal
   if (isWeekend) {
@@ -140,8 +142,8 @@ export const LessonDayCell = memo(function LessonDayCell({
 
       {/* Content area */}
       <div className={`${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
-        {compact ? (
-          // Compact mode: plain text preview (avoids heavy Tiptap editor instances)
+        {plainTextOnly ? (
+          // Plain text mode: lightweight rendering for 'all' view performance
           hasContent && (
             <div className="text-[10px] leading-tight text-gray-600 dark:text-gray-400 line-clamp-3 whitespace-pre-wrap">
               {plainText}
@@ -154,16 +156,16 @@ export const LessonDayCell = memo(function LessonDayCell({
             placeholder="Add lesson plan..."
             editable={true}
             showToolbar={false}
-            className="text-sm"
+            className={compact ? 'text-xs' : 'text-sm'}
           />
         ) : hasContent ? (
-          <div className="text-sm text-gray-700 dark:text-gray-300">
+          <div className={`${compact ? 'text-xs' : 'text-sm'} text-gray-700 dark:text-gray-300`}>
             <RichTextEditor
               content={content}
               onChange={() => {}}
               editable={false}
               showToolbar={false}
-              className="text-sm"
+              className={compact ? 'text-xs' : 'text-sm'}
             />
           </div>
         ) : null}
