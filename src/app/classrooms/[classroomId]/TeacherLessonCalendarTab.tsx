@@ -151,14 +151,37 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
     [scheduleSave]
   )
 
-  // Flush on unmount
+  // Flush on unmount and handle page close
   useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Synchronously save any pending changes before page unload
+      if (pendingChangesRef.current.size > 0) {
+        const entries = Array.from(pendingChangesRef.current.entries())
+        for (const [date, content] of entries) {
+          // Use sendBeacon for reliable delivery during page unload
+          navigator.sendBeacon(
+            `/api/teacher/classrooms/${classroom.id}/lesson-plans/${date}`,
+            new Blob([JSON.stringify({ content })], { type: 'application/json' })
+          )
+        }
+        pendingChangesRef.current.clear()
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
+      // Flush any pending changes on component unmount (e.g., navigation)
+      // The fetch will complete even after unmount
+      if (pendingChangesRef.current.size > 0) {
+        flushPendingSaves()
+      }
     }
-  }, [])
+  }, [classroom.id, flushPendingSaves])
 
   // Handle markdown panel toggle
   const handleMarkdownToggle = useCallback(async () => {
