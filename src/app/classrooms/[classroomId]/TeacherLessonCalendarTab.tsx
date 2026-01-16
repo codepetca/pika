@@ -292,7 +292,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}
-          assignments={assignments}
+          assignments={assignments.filter((a) => !a.is_draft)}
           viewMode={viewMode}
           currentDate={currentDate}
           editable={!classroom.archived_at}
