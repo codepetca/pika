@@ -78,6 +78,19 @@ describe('auth utilities', () => {
         })
       )
     })
+
+    it('should set session maxAge to 180 days (6 months)', async () => {
+      await getSession()
+      const expectedMaxAge = 180 * 24 * 60 * 60 // 180 days in seconds = 15552000
+      expect(getIronSession).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          cookieOptions: expect.objectContaining({
+            maxAge: expectedMaxAge,
+          }),
+        })
+      )
+    })
   })
 
   // ==========================================================================

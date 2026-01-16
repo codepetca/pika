@@ -72,6 +72,106 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
     const response = await PATCH(request, { params: { id: 'c-1' } })
     expect(response.status).toBe(400)
   })
+
+  it('should archive classroom when archived: true', async () => {
+    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
+    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
+      ok: true,
+      classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
+    })
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'c-1', teacher_id: 'teacher-1', archived_at: '2024-01-15T10:00:00Z' },
+            error: null,
+          }),
+        }),
+      }),
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ update: mockUpdate }))
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ archived: true }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'c-1' } })
+    expect(response.status).toBe(200)
+
+    const data = await response.json()
+    expect(data.classroom.archived_at).toBeTruthy()
+  })
+
+  it('should unarchive classroom when archived: false', async () => {
+    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
+    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
+      ok: true,
+      classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: '2024-01-10T10:00:00Z' },
+    })
+
+    const mockUpdate = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
+            error: null,
+          }),
+        }),
+      }),
+    })
+    ;(mockSupabaseClient.from as any) = vi.fn(() => ({ update: mockUpdate }))
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ archived: false }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'c-1' } })
+    expect(response.status).toBe(200)
+
+    const data = await response.json()
+    expect(data.classroom.archived_at).toBeNull()
+  })
+
+  it('should return 400 when trying to archive already archived classroom', async () => {
+    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
+    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
+      ok: true,
+      classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: '2024-01-10T10:00:00Z' },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ archived: true }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'c-1' } })
+    expect(response.status).toBe(400)
+
+    const data = await response.json()
+    expect(data.error).toBe('Classroom is already archived')
+  })
+
+  it('should return 400 when trying to unarchive non-archived classroom', async () => {
+    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
+    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
+      ok: true,
+      classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ archived: false }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'c-1' } })
+    expect(response.status).toBe(400)
+
+    const data = await response.json()
+    expect(data.error).toBe('Classroom is not archived')
+  })
 })
 
 describe('DELETE /api/teacher/classrooms/[id]', () => {

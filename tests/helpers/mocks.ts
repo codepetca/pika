@@ -3,7 +3,7 @@
  * Provides reusable mock objects for testing throughout the application
  */
 
-import type { Entry, Assignment, AssignmentDoc, Classroom, Student, Teacher } from '@/types'
+import type { Entry, Assignment, AssignmentDoc, Classroom, Student, Teacher, TiptapContent } from '@/types'
 
 // ============================================================================
 // Mock Data Factories
@@ -36,7 +36,9 @@ export const createMockAssignment = (overrides: Partial<Assignment> = {}): Assig
   classroom_id: 'classroom-1',
   title: 'Test Assignment',
   description: 'Complete the reading and answer the questions.',
+  rich_instructions: null,
   due_at: '2024-10-20T23:59:59-04:00',
+  position: 0,
   created_by: 'teacher-1',
   created_at: '2024-10-10T10:00:00Z',
   updated_at: '2024-10-10T10:00:00Z',
@@ -50,9 +52,10 @@ export const createMockAssignmentDoc = (overrides: Partial<AssignmentDoc> = {}):
   id: 'doc-1',
   assignment_id: 'assignment-1',
   student_id: 'student-1',
-  content: 'This is my assignment submission.',
+  content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'This is my assignment submission.' }] }] },
   is_submitted: false,
   submitted_at: null,
+  viewed_at: null,
   created_at: '2024-10-15T10:00:00Z',
   updated_at: '2024-10-15T10:00:00Z',
   ...overrides,
@@ -63,10 +66,15 @@ export const createMockAssignmentDoc = (overrides: Partial<AssignmentDoc> = {}):
  */
 export const createMockClassroom = (overrides: Partial<Classroom> = {}): Classroom => ({
   id: 'classroom-1',
+  teacher_id: 'teacher-1',
   title: 'Test Classroom',
   class_code: 'TEST01',
   term_label: 'Fall 2024',
-  created_by: 'teacher-1',
+  allow_enrollment: true,
+  start_date: null,
+  end_date: null,
+  lesson_plan_visibility: 'current_week',
+  archived_at: null,
   created_at: '2024-09-01T10:00:00Z',
   updated_at: '2024-09-01T10:00:00Z',
   ...overrides,
@@ -231,19 +239,19 @@ export const mockAssignmentDocsSet = {
   notStarted: null, // No doc exists
   inProgress: createMockAssignmentDoc({
     id: 'doc-in-progress',
-    content: 'Work in progress...',
+    content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Work in progress...' }] }] },
     is_submitted: false,
     submitted_at: null,
   }),
   submittedOnTime: createMockAssignmentDoc({
     id: 'doc-submitted-on-time',
-    content: 'Completed assignment.',
+    content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Completed assignment.' }] }] },
     is_submitted: true,
     submitted_at: '2024-10-18T20:00:00Z',
   }),
   submittedLate: createMockAssignmentDoc({
     id: 'doc-submitted-late',
-    content: 'Completed assignment (late).',
+    content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Completed assignment (late).' }] }] },
     is_submitted: true,
     submitted_at: '2024-10-26T10:00:00Z',
   }),
