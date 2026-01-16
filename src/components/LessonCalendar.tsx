@@ -30,10 +30,11 @@ interface LessonCalendarProps {
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// Grid columns: weekends ~2.5%, weekdays ~19% each
-const GRID_COLUMNS_7 = '2.5% 19% 19% 19% 19% 19% 2.5%'
+// Grid columns using fr units for consistent alignment
+// Weekends get 0.5fr, weekdays get 2fr each
+const GRID_COLUMNS_7 = '0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 // Grid with month column: 24px for month, then same proportions
-const GRID_COLUMNS_8 = '24px 2.4% 18.52% 18.52% 18.52% 18.52% 18.52% 2.4%'
+const GRID_COLUMNS_8 = '24px 0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 
 // Determine which month a week belongs to (month with 3+ days wins)
 function getWeekMonth(week: Date[]): { key: string; name: string } {
@@ -159,14 +160,10 @@ export function LessonCalendar({
     return null
   }, [weeks, today])
 
-  // Set expanded week to current week when view mode changes (for month/all views)
+  // Don't auto-expand any week in month/all views - let user click to expand
   useEffect(() => {
-    if (viewMode === 'week') {
-      setExpandedWeekIdx(null)
-    } else {
-      setExpandedWeekIdx(todayWeekIdx)
-    }
-  }, [viewMode, todayWeekIdx])
+    setExpandedWeekIdx(null)
+  }, [viewMode])
 
   // Calculate month spans for the month label column
   // Returns array of { month: string, monthName: string, startIdx: number, count: number }
@@ -323,10 +320,11 @@ export function LessonCalendar({
         {viewMode === 'all' && <div className="border-r border-gray-200 dark:border-gray-700" />}
         {DAY_LABELS.map((label, idx) => {
           const isWeekendDay = idx === 0 || idx === 6
+          const isCompactView = viewMode !== 'week'
           return (
             <div
               key={label}
-              className={`py-2 text-center text-sm font-medium border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${
+              className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${
                 isWeekendDay
                   ? 'text-gray-400 dark:text-gray-500'
                   : 'text-gray-700 dark:text-gray-300'
@@ -340,16 +338,19 @@ export function LessonCalendar({
 
       {/* Calendar grid */}
       <div
-        className="grid overflow-auto"
+        className="grid overflow-visible"
         style={{
           gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7,
-          gridTemplateRows: weeks.map((_, idx) => {
-            const isExpanded = expandedWeekIdx === idx
-            const isCompactView = viewMode !== 'week'
-            if (viewMode === 'week') return 'minmax(80px, auto)'
-            if (isExpanded) return 'minmax(80px, auto)'
-            return 'minmax(32px, 80px)'
-          }).join(' '),
+          gridTemplateRows: viewMode === 'week'
+            ? '1fr'
+            : weeks.map((_, idx) => {
+                const isExpanded = expandedWeekIdx === idx
+                if (isExpanded) return 'minmax(60px, 1.5fr)'
+                return 'minmax(0, 1fr)'
+              }).join(' '),
+          // In month/all view, calculate height to fit all weeks
+          height: viewMode === 'week' ? 'auto' : `calc(100vh - 120px)`,
+          minHeight: viewMode === 'week' ? '200px' : undefined,
         }}
       >
         {/* Render month labels first (they span rows) - only in 'all' mode */}
@@ -391,12 +392,10 @@ export function LessonCalendar({
             return (
               <div
                 key={dateString}
-                className={`border-r border-b border-gray-200 dark:border-gray-700 ${isCompactView ? 'cursor-pointer' : ''}`}
+                className={`border-r border-b border-gray-200 dark:border-gray-700 overflow-visible ${isCompactView ? 'cursor-pointer' : ''}`}
                 style={{
                   gridColumn: colStart,
                   gridRow: weekIdx + 1,
-                  // Allow overflow on weekends for assignment tooltips
-                  overflow: isCompactView && !isExpanded && !isWeekendDay ? 'hidden' : undefined,
                 }}
                 onClick={isCompactView ? () => setExpandedWeekIdx(isExpanded ? null : weekIdx) : undefined}
               >

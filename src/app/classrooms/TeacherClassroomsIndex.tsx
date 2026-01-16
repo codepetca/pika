@@ -190,11 +190,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const newClassroomButton = (
     <button
       type="button"
-      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} !px-2.5`}
+      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
       onClick={() => setShowCreate(true)}
       aria-label="New classroom"
     >
       <Plus className="h-5 w-5" aria-hidden="true" />
+      <span>New</span>
     </button>
   )
 
@@ -286,11 +287,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               <div className="mt-6">
                 <button
                   type="button"
-                  className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} !px-2.5`}
+                  className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
                   onClick={() => setShowCreate(true)}
                   aria-label="New classroom"
                 >
                   <Plus className="h-5 w-5" aria-hidden="true" />
+                  <span>New</span>
                 </button>
               </div>
             )}

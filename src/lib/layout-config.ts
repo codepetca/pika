@@ -92,7 +92,7 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'wide' },
   },
   today: {
-    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: 360 },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: 360 },
     mainContent: { maxWidth: 'reading' },
   },
   'assignments-student': {

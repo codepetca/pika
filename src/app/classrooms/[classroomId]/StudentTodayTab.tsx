@@ -23,7 +23,7 @@ import {
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { countCharacters, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
-import type { Classroom, ClassDay, Entry, JsonPatchOperation, TiptapContent } from '@/types'
+import type { Classroom, ClassDay, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 
@@ -47,7 +47,12 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
 }
 
 
-export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
+interface StudentTodayTabProps {
+  classroom: Classroom
+  onLessonPlanLoad?: (plan: LessonPlan | null) => void
+}
+
+export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
 
   // Constants
@@ -96,6 +101,21 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
           .then(r => r.json())
           .then(data => setClassDays(data.class_days || []))
 
+        // Fetch today's lesson plan
+        const lessonPlanPromise = fetch(
+          `/api/student/classrooms/${classroom.id}/lesson-plans?start=${todayDate}&end=${todayDate}`
+        )
+          .then(r => r.json())
+          .then(data => {
+            const plans = data.lesson_plans || []
+            const todayPlan = plans.find((p: LessonPlan) => p.date === todayDate) || null
+            onLessonPlanLoad?.(todayPlan)
+          })
+          .catch(err => {
+            console.error('Error loading lesson plan:', err)
+            onLessonPlanLoad?.(null)
+          })
+
         const applyEntryState = (todayEntry: Entry | null) => {
           const loadedContent = resolveEntryContent(todayEntry)
           setContent(loadedContent)
@@ -111,7 +131,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
           setHistoryEntries(cached)
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
           applyEntryState(todayEntry)
-          await classDayPromise
+          await Promise.all([classDayPromise, lessonPlanPromise])
           return
         }
 
@@ -127,7 +147,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
             applyEntryState(todayEntry)
           })
 
-        await Promise.all([classDayPromise, entriesPromise])
+        await Promise.all([classDayPromise, entriesPromise, lessonPlanPromise])
       } catch (err) {
         console.error('Error loading today tab:', err)
       } finally {
@@ -145,7 +165,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
         clearTimeout(throttledSaveTimeoutRef.current)
       }
     }
-  }, [classroom.id, historyLimit])
+  }, [classroom.id, historyLimit, onLessonPlanLoad])
 
   const updateHistoryEntries = useCallback((entry: Entry) => {
     setHistoryEntries(prev => {

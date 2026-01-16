@@ -485,12 +485,13 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const newAssignmentButton = (
     <button
       type="button"
-      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} !px-2.5`}
+      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
       onClick={() => setIsCreateModalOpen(true)}
       disabled={isReadOnly}
       aria-label="New assignment"
     >
       <Plus className="h-5 w-5" aria-hidden="true" />
+      <span>New</span>
     </button>
   )
 

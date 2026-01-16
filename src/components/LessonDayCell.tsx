@@ -7,6 +7,23 @@ import type { LessonPlan, TiptapContent, Assignment } from '@/types'
 
 const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
 
+// Extract plain text from TiptapContent for compact display
+function getPlainTextFromContent(content: TiptapContent): string {
+  if (!content.content) return ''
+
+  const extractText = (node: TiptapContent): string => {
+    if (node.type === 'text' && node.text) {
+      return node.text
+    }
+    if (node.content) {
+      return node.content.map(extractText).join(' ')
+    }
+    return ''
+  }
+
+  return content.content.map(extractText).join(' ').trim()
+}
+
 interface LessonDayCellProps {
   date: string // YYYY-MM-DD
   day: Date
@@ -48,7 +65,6 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   // Weekend cells are narrow and minimal
   if (isWeekend) {
-    const hasAssignments = assignments.length > 0
     const assignmentTitles = assignments.map(a => a.title).join(', ')
 
     return (
@@ -58,27 +74,32 @@ export const LessonDayCell = memo(function LessonDayCell({
           ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         `}
       >
-        <div className={`px-1 ${compact ? 'py-0' : 'py-0.5'} text-center`}>
-          <span className="text-sm font-medium text-gray-400 dark:text-gray-500">
+        <div className={`px-0.5 ${compact ? 'py-0' : 'py-0.5'} text-center`}>
+          <span className={`font-medium text-gray-400 dark:text-gray-500 ${compact ? 'text-[10px]' : 'text-sm'}`}>
             {format(day, 'd')}
           </span>
-          {hasAssignments && (
-            <div className="relative group mx-auto mt-0.5">
-              <div
-                className="w-2 h-2 rounded-full bg-blue-500 cursor-pointer"
+        </div>
+        {/* Weekend assignment pill - no text, tooltip on hover */}
+        {assignments.length > 0 && (
+          <div className="px-0.5 flex items-start justify-center">
+            <div className="relative group">
+              <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation()
                   if (assignments.length === 1) {
                     onAssignmentClick?.(assignments[0])
                   }
                 }}
+                className={`w-full min-w-[12px] rounded bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700 cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
+                title={assignmentTitles}
               />
               <div className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-1 text-xs bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-[100]">
                 {assignmentTitles}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -86,17 +107,18 @@ export const LessonDayCell = memo(function LessonDayCell({
   return (
     <div
       className={`
-        relative h-full
+        relative h-full overflow-hidden
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         ${isHoliday ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
         ${!editable && !hasContent ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
       `}
     >
       {/* Date header */}
-      <div className={`px-1 ${compact ? 'py-0' : 'py-0.5'} text-center`}>
+      <div className={`px-1 ${compact ? 'py-0' : 'py-0.5'} text-right`}>
         <span
           className={`
-            text-sm font-medium
+            font-medium
+            ${compact ? 'text-[10px]' : 'text-sm'}
             ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}
           `}
         >
@@ -104,9 +126,44 @@ export const LessonDayCell = memo(function LessonDayCell({
         </span>
       </div>
 
+      {/* Assignment due dates - shown first */}
+      {assignments.length > 0 && (
+        <div className={compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}>
+          {assignments.map((assignment) => (
+            <button
+              key={assignment.id}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onAssignmentClick?.(assignment)
+              }}
+              className={`w-full rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 text-center overflow-hidden text-ellipsis whitespace-nowrap ${
+                compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
+              }`}
+              title={assignment.title}
+            >
+              {compact ? assignment.title : `Due: ${assignment.title}`}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Content area */}
-      <div className={`${compact ? 'px-1' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0`}>
-        {editable ? (
+      <div className={`${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
+        {compact ? (
+          // Compact mode: only show content if exists (no editor/placeholder)
+          hasContent && (
+            <div className="text-sm text-gray-700 dark:text-gray-300">
+              <RichTextEditor
+                content={content}
+                onChange={() => {}}
+                editable={false}
+                showToolbar={false}
+                className="text-sm"
+              />
+            </div>
+          )
+        ) : editable ? (
           <RichTextEditor
             content={content}
             onChange={handleContentChange}
@@ -127,26 +184,6 @@ export const LessonDayCell = memo(function LessonDayCell({
           </div>
         ) : null}
       </div>
-
-      {/* Assignment due dates */}
-      {assignments.length > 0 && !compact && (
-        <div className={`${compact ? 'px-1' : 'px-1'} pb-1 space-y-1`}>
-          {assignments.map((assignment) => (
-            <button
-              key={assignment.id}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onAssignmentClick?.(assignment)
-              }}
-              className="w-full text-xs px-2 py-1 rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 text-center overflow-hidden text-ellipsis whitespace-nowrap"
-              title={assignment.title}
-            >
-              Due: {assignment.title}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   )
 })
