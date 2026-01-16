@@ -156,6 +156,8 @@ export interface Assignment {
   rich_instructions: TiptapContent | null  // Rich text instructions
   due_at: string  // ISO 8601 timestamp
   position: number
+  is_draft: boolean  // Whether assignment is a draft (not visible to students)
+  released_at: string | null  // When the assignment was released to students
   created_by: string
   created_at: string
   updated_at: string

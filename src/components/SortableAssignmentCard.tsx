@@ -2,7 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, PenSquare, Trash2 } from 'lucide-react'
+import { GripVertical, PenSquare, Trash2, Send } from 'lucide-react'
 import { formatDueDate } from '@/lib/assignments'
 import type { Assignment, AssignmentStats } from '@/types'
 
@@ -14,18 +14,22 @@ interface SortableAssignmentCardProps {
   assignment: AssignmentWithStats
   isReadOnly: boolean
   isDragDisabled?: boolean
+  isReleasing?: boolean
   onSelect: () => void
   onEdit: () => void
   onDelete: () => void
+  onRelease?: () => void
 }
 
 export function SortableAssignmentCard({
   assignment,
   isReadOnly,
   isDragDisabled = false,
+  isReleasing = false,
   onSelect,
   onEdit,
   onDelete,
+  onRelease,
 }: SortableAssignmentCardProps) {
   const {
     attributes,
@@ -75,9 +79,16 @@ export function SortableAssignmentCard({
           onClick={onSelect}
           className="flex-1 min-w-0 text-left"
         >
-          <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
-            {assignment.title}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
+              {assignment.title}
+            </h3>
+            {assignment.is_draft && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+                Draft
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             {assignment.stats.submitted} / {assignment.stats.total_students} submitted
             {assignment.stats.late > 0 ? ` • ${assignment.stats.late} late` : ''}
@@ -87,6 +98,24 @@ export function SortableAssignmentCard({
           </p>
         </button>
         <div className="flex-shrink-0 flex items-center gap-1">
+          {assignment.is_draft && onRelease && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (isReadOnly || isReleasing) return
+                onRelease()
+              }}
+              className={[
+                'p-2 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-200 dark:hover:bg-blue-900/20',
+                isReadOnly || isReleasing ? 'opacity-50 cursor-not-allowed' : '',
+              ].join(' ')}
+              aria-label={`Release ${assignment.title}`}
+              disabled={isReadOnly || isReleasing}
+            >
+              <Send className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
           <button
             type="button"
             onClick={(e) => {

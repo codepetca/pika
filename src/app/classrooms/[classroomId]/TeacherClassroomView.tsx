@@ -147,6 +147,8 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [pendingRelease, setPendingRelease] = useState<{ id: string; title: string } | null>(null)
+  const [isReleasing, setIsReleasing] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
@@ -454,6 +456,25 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     }
   }
 
+  async function releaseAssignment() {
+    if (!pendingRelease) return
+    setError('')
+    setIsReleasing(true)
+    try {
+      const response = await fetch(`/api/teacher/assignments/${pendingRelease.id}/release`, { method: 'POST' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to release assignment')
+      }
+      setPendingRelease(null)
+      await loadAssignments()
+    } catch (err: any) {
+      setError(err.message || 'Failed to release assignment')
+    } finally {
+      setIsReleasing(false)
+    }
+  }
+
   const canEditAssignment =
     selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
 
@@ -533,9 +554,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       assignment={assignment}
                       isReadOnly={isReadOnly}
                       isDragDisabled={isReordering}
+                      isReleasing={isReleasing && pendingRelease?.id === assignment.id}
                       onSelect={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })}
                       onEdit={() => setEditAssignment(assignment)}
                       onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
+                      onRelease={() => setPendingRelease({ id: assignment.id, title: assignment.title })}
                     />
                   ))}
                 </div>
@@ -626,6 +649,17 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         onConfirm={deleteAssignment}
       />
 
+      <ConfirmDialog
+        isOpen={!!pendingRelease}
+        title="Release assignment?"
+        description={pendingRelease ? `${pendingRelease.title}\n\nOnce released, students will be able to see this assignment. This cannot be undone.` : undefined}
+        confirmLabel={isReleasing ? 'Releasing...' : 'Release'}
+        cancelLabel="Cancel"
+        isConfirmDisabled={isReleasing}
+        isCancelDisabled={isReleasing}
+        onCancel={() => (isReleasing ? null : setPendingRelease(null))}
+        onConfirm={releaseAssignment}
+      />
 
       <EditAssignmentModal
         isOpen={!!editAssignment}
