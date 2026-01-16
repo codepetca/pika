@@ -79,12 +79,12 @@ export function SortableAssignmentCard({
           onClick={onSelect}
           className="flex-1 min-w-0 text-left"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
               {assignment.title}
             </h3>
             {assignment.is_draft && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+              <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
                 Draft
               </span>
             )}
