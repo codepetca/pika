@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { format } from 'date-fns'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { nowInToronto } from '@/lib/timezone'
 import type { LessonPlanVisibility } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -18,22 +20,24 @@ function getMaxAllowedDate(visibility: LessonPlanVisibility): string | null {
     return null
   }
 
-  const now = new Date()
+  // Use Toronto timezone for consistency with the rest of the app
+  const now = nowInToronto()
   const dayOfWeek = now.getDay() // 0 = Sunday, 6 = Saturday
 
   // Find end of current week (Saturday)
+  // If today is Saturday (6), add 7 days to get next Saturday
   const daysUntilSaturday = (6 - dayOfWeek + 7) % 7 || 7
   const endOfCurrentWeek = new Date(now)
   endOfCurrentWeek.setDate(now.getDate() + daysUntilSaturday)
 
   if (visibility === 'current_week') {
-    return endOfCurrentWeek.toISOString().split('T')[0]
+    return format(endOfCurrentWeek, 'yyyy-MM-dd')
   }
 
   // one_week_ahead: add 7 more days
   const endOfNextWeek = new Date(endOfCurrentWeek)
   endOfNextWeek.setDate(endOfCurrentWeek.getDate() + 7)
-  return endOfNextWeek.toISOString().split('T')[0]
+  return format(endOfNextWeek, 'yyyy-MM-dd')
 }
 
 // GET /api/student/classrooms/[id]/lesson-plans?start=YYYY-MM-DD&end=YYYY-MM-DD

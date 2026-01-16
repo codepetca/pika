@@ -30,6 +30,14 @@ export async function PUT(
       )
     }
 
+    const MAX_PLANS = 250
+    if (plans.length > MAX_PLANS) {
+      return NextResponse.json(
+        { error: `Too many plans. Maximum is ${MAX_PLANS} per request.` },
+        { status: 400 }
+      )
+    }
+
     const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
     if (!ownership.ok) {
       return NextResponse.json(

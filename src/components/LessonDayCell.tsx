@@ -7,23 +7,6 @@ import type { LessonPlan, TiptapContent, Assignment } from '@/types'
 
 const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
 
-// Extract plain text from TiptapContent for compact display
-function getPlainTextFromContent(content: TiptapContent): string {
-  if (!content.content) return ''
-
-  const extractText = (node: TiptapContent): string => {
-    if (node.type === 'text' && node.text) {
-      return node.text
-    }
-    if (node.content) {
-      return node.content.map(extractText).join(' ')
-    }
-    return ''
-  }
-
-  return content.content.map(extractText).join(' ').trim()
-}
-
 interface LessonDayCellProps {
   date: string // YYYY-MM-DD
   day: Date
