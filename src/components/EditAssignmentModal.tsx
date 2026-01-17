@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Send } from 'lucide-react'
 import type { Assignment, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -27,6 +28,8 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
   const [instructions, setInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
   const [saving, setSaving] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [showReleaseConfirm, setShowReleaseConfirm] = useState(false)
+  const [releasing, setReleasing] = useState(false)
   const { dueAt, error, updateDueDate, moveDueDate, setDueAt, setError } = useAssignmentDateValidation(
     getTodayInToronto()
   )
@@ -45,6 +48,8 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
     setDueAt(nextDueAt)
     setError('')
     setShowCancelConfirm(false)
+    setShowReleaseConfirm(false)
+    setReleasing(false)
 
     // Focus the title input when modal opens
     setTimeout(() => {
@@ -89,6 +94,30 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
       setError(err.message || 'Failed to update assignment')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleRelease() {
+    if (!assignment) return
+    setError('')
+    setReleasing(true)
+
+    try {
+      const response = await fetch(`/api/teacher/assignments/${assignment.id}/release`, {
+        method: 'POST',
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to release assignment')
+      }
+
+      onSuccess(data.assignment)
+      onClose()
+    } catch (err: any) {
+      setError(err.message || 'Failed to release assignment')
+    } finally {
+      setReleasing(false)
+      setShowReleaseConfirm(false)
     }
   }
 
@@ -145,9 +174,22 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
         aria-modal="true"
         aria-labelledby="edit-assignment-modal-title"
       >
-        <h2 id="edit-assignment-modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Edit Assignment
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 id="edit-assignment-modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            Edit Assignment
+          </h2>
+          {assignment.is_draft && (
+            <button
+              type="button"
+              onClick={() => setShowReleaseConfirm(true)}
+              disabled={releasing || saving}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-md transition-colors"
+            >
+              <Send className="h-4 w-4" aria-hidden="true" />
+              Release to Students
+            </button>
+          )}
+        </div>
 
         <AssignmentForm
           title={title}
@@ -178,6 +220,18 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
           setShowCancelConfirm(false)
           onClose()
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={showReleaseConfirm}
+        title="Release assignment to students?"
+        description="Once released, students will be able to see this assignment. This cannot be undone."
+        confirmLabel={releasing ? 'Releasing...' : 'Release'}
+        cancelLabel="Cancel"
+        isConfirmDisabled={releasing}
+        isCancelDisabled={releasing}
+        onCancel={() => setShowReleaseConfirm(false)}
+        onConfirm={handleRelease}
       />
     </div>
   )
