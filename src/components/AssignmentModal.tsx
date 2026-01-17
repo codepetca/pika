@@ -179,12 +179,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           titleInputRef.current?.select()
         }, 100)
       } else {
-        setSaveStatus('unsaved')
+        // Creation failed - close modal (error is already set by createAssignment)
+        onClose()
       }
     }
 
     void createDraft()
-  }, [creating, createAssignment, defaultDueAt, setDueAt])
+  }, [creating, createAssignment, defaultDueAt, setDueAt, onClose])
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
@@ -341,6 +342,38 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
   }
 
+  // Helper to clear pending timeouts and save any unsaved changes
+  async function flushPendingChanges(): Promise<void> {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+    }
+    if (throttledSaveTimeoutRef.current) {
+      clearTimeout(throttledSaveTimeoutRef.current)
+      throttledSaveTimeoutRef.current = null
+    }
+
+    if ((saveStatus === 'unsaved' || pendingValuesRef.current) && currentAssignment) {
+      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+      const changedFields = getChangedFields(valuesToSave)
+
+      if (changedFields) {
+        const response = await fetch(`/api/teacher/assignments/${currentAssignment.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(changedFields),
+        })
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || 'Failed to save changes')
+        }
+        lastSavedValuesRef.current = { ...valuesToSave }
+      }
+      pendingValuesRef.current = null
+      setSaveStatus('saved')
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (saveTimeoutRef.current) {
@@ -388,32 +421,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
     try {
       // Save any pending changes before releasing
-      if (saveStatus === 'unsaved' || pendingValuesRef.current) {
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current)
-          saveTimeoutRef.current = null
-        }
-        if (throttledSaveTimeoutRef.current) {
-          clearTimeout(throttledSaveTimeoutRef.current)
-          throttledSaveTimeoutRef.current = null
-        }
-
-        const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
-        const changedFields = getChangedFields(valuesToSave)
-
-        if (changedFields) {
-          const saveResponse = await fetch(`/api/teacher/assignments/${assignmentToRelease.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(changedFields),
-          })
-          if (!saveResponse.ok) {
-            const saveData = await saveResponse.json()
-            throw new Error(saveData.error || 'Failed to save changes before posting')
-          }
-        }
-        pendingValuesRef.current = null
-      }
+      await flushPendingChanges()
 
       // Now release the assignment
       const response = await fetch(`/api/teacher/assignments/${assignmentToRelease.id}/release`, {
