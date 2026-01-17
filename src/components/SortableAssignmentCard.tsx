@@ -82,14 +82,30 @@ export function SortableAssignmentCard({
           onClick={onSelect}
           className="flex-1 min-w-0 text-left"
         >
-          <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
-            {assignment.title}
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className={[
+              'font-medium truncate',
+              isDraft ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
+            ].join(' ')}>
+              {assignment.title}
+            </h3>
+            {isDraft && (
+              <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300">
+                Draft
+              </span>
+            )}
+          </div>
+          <p className={[
+            'text-sm mt-1',
+            isDraft ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'
+          ].join(' ')}>
             {assignment.stats.submitted} / {assignment.stats.total_students} submitted
             {assignment.stats.late > 0 ? ` • ${assignment.stats.late} late` : ''}
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className={[
+            'text-xs mt-1',
+            isDraft ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'
+          ].join(' ')}>
             Due: {formatDueDate(assignment.due_at)}
           </p>
         </button>
