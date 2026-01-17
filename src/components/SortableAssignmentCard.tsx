@@ -50,12 +50,12 @@ export function SortableAssignmentCard({
       className={[
         'w-full text-left p-4 border rounded-lg',
         isDraft
-          ? 'border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800/50'
+          ? 'border-gray-400 dark:border-gray-500 bg-gray-200 dark:bg-gray-700'
           : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900',
         isDragging
           ? 'shadow-xl scale-[1.02] z-50 border-blue-400 dark:border-blue-500 opacity-90'
           : isDraft
-            ? 'transition hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800'
+            ? 'transition hover:border-gray-500 dark:hover:border-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'
             : 'transition hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20',
       ].join(' ')}
     >
