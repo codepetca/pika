@@ -484,29 +484,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           <h2 id="assignment-modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100">
             {modalTitle}
           </h2>
-          <div className="flex items-center gap-3">
-            <span
-              className={`text-xs ${
-                saveStatus === 'saved'
-                  ? 'text-green-600 dark:text-green-400'
-                  : saveStatus === 'saving'
-                    ? 'text-gray-500 dark:text-gray-400'
-                    : 'text-orange-600 dark:text-orange-400'
-              }`}
-            >
-              {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
-            </span>
-            <button
-              type="button"
-              onClick={() => void handleClose()}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              aria-label="Close"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+          <span
+            className={`text-xs ${
+              saveStatus === 'saved'
+                ? 'text-green-600 dark:text-green-400'
+                : saveStatus === 'saving'
+                  ? 'text-gray-500 dark:text-gray-400'
+                  : 'text-orange-600 dark:text-orange-400'
+            }`}
+          >
+            {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
+          </span>
         </div>
 
         <AssignmentForm
@@ -520,7 +508,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           onPrevDate={handlePrevDate}
           onNextDate={handleNextDate}
           onSubmit={handleSubmit}
-          submitLabel={saving ? 'Saving...' : saveStatus === 'saved' ? 'Close' : 'Save'}
+          submitLabel={saving ? 'Saving...' : saveStatus === 'saved' ? 'Done' : 'Save'}
           disabled={saving || releasing || creating}
           error={error}
           titleInputRef={titleInputRef}

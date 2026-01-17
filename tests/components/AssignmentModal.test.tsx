@@ -117,7 +117,7 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     })
 
-    it('shows Close button when no changes have been made', () => {
+    it('shows Done button when no changes have been made', () => {
       render(
         <AssignmentModal
           isOpen={true}
@@ -128,9 +128,7 @@ describe('AssignmentModal', () => {
         />
       )
 
-      const closeButtons = screen.getAllByRole('button', { name: 'Close' })
-      const submitButton = closeButtons.find(btn => btn.getAttribute('type') === 'submit')
-      expect(submitButton).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     })
   })
