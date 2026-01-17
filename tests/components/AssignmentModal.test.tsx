@@ -194,6 +194,34 @@ describe('AssignmentModal', () => {
       })
     })
 
+    it('closes modal on auto-create failure', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: 'Failed to create assignment' }),
+      })
+
+      const onClose = vi.fn()
+      const onSuccess = vi.fn()
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      )
+
+      // Should close modal after failed creation
+      await waitFor(() => {
+        expect(onClose).toHaveBeenCalled()
+      })
+
+      // onSuccess should not be called
+      expect(onSuccess).not.toHaveBeenCalled()
+    })
+
     it('updates draft and closes on save', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' }
