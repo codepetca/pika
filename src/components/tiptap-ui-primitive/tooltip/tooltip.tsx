@@ -71,7 +71,7 @@ function useTooltip({
   placement = "top",
   open: controlledOpen,
   onOpenChange: setControlledOpen,
-  delay = 600,
+  delay = 100,
   closeDelay = 0,
 }: Omit<TooltipProviderProps, "children"> = {}) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState<boolean>(initialOpen)
