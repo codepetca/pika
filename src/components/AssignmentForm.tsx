@@ -30,19 +30,19 @@ function getRelativeDays(dueAt: string, classDays?: ClassDay[]): { text: string;
 
     if (dueAt === today) return { text: 'today', isPast: false }
     if (absCount === 0) {
-      // No class days between, but not today - show as next/last class day
+      // No classes between, but not today - show as next/last class
       return isPast
-        ? { text: 'last class day', isPast: true }
-        : { text: 'next class day', isPast: false }
+        ? { text: 'last class', isPast: true }
+        : { text: 'next class', isPast: false }
     }
     if (absCount === 1) {
       return isPast
-        ? { text: '1 class day ago', isPast: true }
-        : { text: 'in 1 class day', isPast: false }
+        ? { text: '1 class ago', isPast: true }
+        : { text: 'in 1 class', isPast: false }
     }
     return isPast
-      ? { text: `${absCount} class days ago`, isPast: true }
-      : { text: `in ${absCount} class days`, isPast: false }
+      ? { text: `${absCount} classes ago`, isPast: true }
+      : { text: `in ${absCount} classes`, isPast: false }
   }
 
   // Fallback to calendar days if no class days provided
