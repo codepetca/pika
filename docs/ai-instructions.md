@@ -152,6 +152,30 @@ This TDD approach ensures code quality and prevents regressions.
 5. Refactor if needed
 6. Verify all tests pass
 
+### Workflow 5: AI UI Verification (MANDATORY for UI Changes)
+
+**After ANY UI/UX change, you MUST visually verify using Playwright:**
+
+1. Ensure dev server is running: `pnpm dev`
+2. Generate auth states if needed: `pnpm e2e:auth`
+3. Take screenshots for **BOTH roles** when applicable:
+   ```bash
+   # Teacher view
+   npx playwright screenshot http://localhost:3000/<page> /tmp/teacher.png \
+     --load-storage .auth/teacher.json --viewport-size 1440,900
+
+   # Student view
+   npx playwright screenshot http://localhost:3000/<page> /tmp/student.png \
+     --load-storage .auth/student.json --viewport-size 1440,900
+   ```
+4. View the screenshots using the Read tool
+5. **Iterate on aesthetics**: If something looks off, fix the code and take another screenshot
+6. For automated verifications: `pnpm e2e:verify <scenario>`
+
+**This is not optional.** UI changes must be visually confirmed before committing.
+
+See `docs/guides/ai-ui-testing.md` for detailed patterns.
+
 ---
 
 ## Git Worktrees (Required Workflow)
@@ -300,9 +324,9 @@ When facing implementation choices:
 
 ### Common Commands
 ```bash
-npm run dev              # Start dev server
-npm run test:watch       # TDD mode
-npm run test:coverage    # Check coverage
+pnpm dev                 # Start dev server
+pnpm test:watch          # TDD mode
+pnpm test:coverage       # Check coverage
 gh issue view X          # View issue details
 ```
 

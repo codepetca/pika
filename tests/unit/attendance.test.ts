@@ -4,6 +4,7 @@ import {
   computeAttendanceRecords,
   getAttendanceIcon,
   getAttendanceLabel,
+  getAttendanceDotClass,
 } from '@/lib/attendance'
 import type { ClassDay, Entry } from '@/types'
 
@@ -183,6 +184,16 @@ describe('attendance utilities', () => {
     it('should return correct labels', () => {
       expect(getAttendanceLabel('present')).toBe('Present')
       expect(getAttendanceLabel('absent')).toBe('Absent')
+    })
+  })
+
+  describe('getAttendanceDotClass', () => {
+    it('should return green for present', () => {
+      expect(getAttendanceDotClass('present')).toBe('bg-green-500')
+    })
+
+    it('should return red for absent', () => {
+      expect(getAttendanceDotClass('absent')).toBe('bg-red-500')
     })
   })
 })

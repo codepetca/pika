@@ -36,7 +36,7 @@ export function DateActionBar({ value, onChange, onPrev, onNext, rightActions, c
 
         <button
           type="button"
-          className={ACTIONBAR_BUTTON_CLASSNAME}
+          className={`${ACTIONBAR_BUTTON_CLASSNAME} min-w-[7rem] text-center`}
           onClick={() => dateInputRef.current?.showPicker()}
         >
           {formattedDate || 'Select date'}

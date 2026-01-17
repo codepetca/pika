@@ -6,6 +6,14 @@ import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+interface ParsedStudent {
+  email: string
+  firstName: string
+  lastName: string
+  studentNumber: string
+  counselorEmail: string | null
+}
+
 // POST /api/teacher/classrooms/[id]/roster/upload-csv - Upload CSV roster
 export async function POST(
   request: NextRequest,
@@ -15,7 +23,7 @@ export async function POST(
     const user = await requireRole('teacher')
     const classroomId = params.id
     const body = await request.json()
-    const { csvData } = body // CSV as string
+    const { csvData, confirmed } = body // CSV as string, confirmed flag for overwrite
 
     if (!csvData) {
       return NextResponse.json(
@@ -44,7 +52,7 @@ export async function POST(
     }
 
     // Expected format: Student Number,First Name,Last Name,Email[,Counselor Email]
-    const students = []
+    const students: ParsedStudent[] = []
 
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim()
@@ -57,7 +65,7 @@ export async function POST(
 
       if (email && firstName && lastName) {
         students.push({
-          email,
+          email: email.toLowerCase().trim(),
           firstName,
           lastName,
           studentNumber,
@@ -73,9 +81,76 @@ export async function POST(
       )
     }
 
-    const rosterRows = students.map((s: any) => ({
+    // If not confirmed, check for existing students that would be overwritten
+    if (!confirmed) {
+      const emails = students.map(s => s.email)
+      const { data: existingStudents, error: selectError } = await supabase
+        .from('classroom_roster')
+        .select('id, email, first_name, last_name, student_number, counselor_email')
+        .eq('classroom_id', classroomId)
+        .in('email', emails)
+
+      if (selectError) {
+        console.error('Error checking existing students:', selectError)
+        return NextResponse.json(
+          { error: 'Failed to check existing roster' },
+          { status: 500 }
+        )
+      }
+
+      // If there are existing students, check if any have actual changes
+      if (existingStudents && existingStudents.length > 0) {
+        const existingByEmail = new Map(existingStudents.map(s => [s.email, s]))
+        const studentsByEmail = new Map(students.map(s => [s.email, s]))
+        const newCount = students.filter(s => !existingByEmail.has(s.email)).length
+
+        // Build comparison data, only including students with actual changes
+        const changes = existingStudents
+          .map(existing => {
+            const incoming = studentsByEmail.get(existing.email)!
+            const hasChanges =
+              existing.first_name !== incoming.firstName ||
+              existing.last_name !== incoming.lastName ||
+              existing.student_number !== incoming.studentNumber ||
+              existing.counselor_email !== incoming.counselorEmail
+
+            if (!hasChanges) return null
+
+            return {
+              email: existing.email,
+              current: {
+                firstName: existing.first_name,
+                lastName: existing.last_name,
+                studentNumber: existing.student_number,
+                counselorEmail: existing.counselor_email,
+              },
+              incoming: {
+                firstName: incoming.firstName,
+                lastName: incoming.lastName,
+                studentNumber: incoming.studentNumber,
+                counselorEmail: incoming.counselorEmail,
+              },
+            }
+          })
+          .filter((change): change is NonNullable<typeof change> => change !== null)
+
+        // Only require confirmation if there are actual changes
+        if (changes.length > 0) {
+          return NextResponse.json({
+            needsConfirmation: true,
+            changes,
+            updateCount: changes.length,
+            newCount,
+            totalCount: students.length,
+          })
+        }
+      }
+    }
+
+    // Proceed with upsert (either no existing students, or confirmed)
+    const rosterRows = students.map((s) => ({
       classroom_id: classroomId,
-      email: s.email.toLowerCase().trim(),
+      email: s.email,
       first_name: s.firstName || null,
       last_name: s.lastName || null,
       student_number: s.studentNumber || null,

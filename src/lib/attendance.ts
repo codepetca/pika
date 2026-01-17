@@ -70,7 +70,7 @@ export function computeAttendanceRecords(
 }
 
 /**
- * Gets icon for attendance status
+ * Gets icon for attendance status (emoji)
  */
 export function getAttendanceIcon(status: AttendanceStatus): string {
   switch (status) {
@@ -78,6 +78,19 @@ export function getAttendanceIcon(status: AttendanceStatus): string {
       return '🟢'
     case 'absent':
       return '🔴'
+  }
+}
+
+/**
+ * Gets dot color class for attendance status indicator
+ * Green = present, Red = absent
+ */
+export function getAttendanceDotClass(status: AttendanceStatus): string {
+  switch (status) {
+    case 'present':
+      return 'bg-green-500'
+    case 'absent':
+      return 'bg-red-500'
   }
 }
 

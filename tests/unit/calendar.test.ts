@@ -18,9 +18,6 @@ import {
 import {
   findFirstDayOfWeekInMonth,
   findNthDayOfWeekInMonth,
-  findNextWeekday,
-  findNextSaturday,
-  findNextSunday,
   addDays,
   formatDate,
   getWeekRangeFromMonday,

@@ -6,7 +6,6 @@ import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import {
   countCharacters,
   extractPlainText,
-  isEmpty,
   isValidTiptapContent,
   plainTextToTiptapContent,
 } from '@/lib/tiptap-content'
@@ -81,10 +80,6 @@ async function verifyClassDay(
 function validateContentPayload(content: TiptapContent) {
   if (!isValidTiptapContent(content)) {
     return { ok: false, error: 'Invalid rich_content format' }
-  }
-
-  if (isEmpty(content)) {
-    return { ok: false, error: 'Entry text cannot be empty' }
   }
 
   if (countCharacters(content) > MAX_CHARS) {

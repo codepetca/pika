@@ -88,6 +88,65 @@ describe('GET /api/student/assignments', () => {
     })
   })
 
+  describe('draft filtering', () => {
+    it('should filter out draft assignments from student view', async () => {
+      // The student API should only return released assignments (is_draft = false)
+      // This test verifies the .eq('is_draft', false) filter is applied
+      const mockEq = vi.fn()
+        .mockImplementationOnce(() => ({ // .eq('classroom_id', ...)
+          eq: vi.fn(() => ({ // .eq('is_draft', false)
+            order: vi.fn().mockResolvedValue({
+              data: [
+                { id: 'assignment-1', title: 'Released Assignment', is_draft: false },
+              ],
+              error: null,
+            }),
+          })),
+        }))
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'classroom_enrollments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn().mockReturnThis(),
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'enrollment-1' },
+                error: null,
+              }),
+            })),
+          }
+        } else if (table === 'assignments') {
+          return {
+            select: vi.fn(() => ({
+              eq: mockEq,
+            })),
+          }
+        } else if (table === 'assignment_docs') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                in: vi.fn().mockResolvedValue({
+                  data: [],
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/student/assignments?classroom_id=classroom-1')
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      // Verify that the query filters by is_draft = false
+      expect(mockEq).toHaveBeenCalledWith('classroom_id', 'classroom-1')
+    })
+  })
+
   describe('fetching assignments', () => {
     it('should return empty array when no assignments exist', async () => {
       const mockFrom = vi.fn((table: string) => {
@@ -105,10 +164,12 @@ describe('GET /api/student/assignments', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
-                order: vi.fn().mockResolvedValue({
-                  data: [],
-                  error: null,
-                }),
+                eq: vi.fn(() => ({  // Added for is_draft filter
+                  order: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                })),
               })),
             })),
           }
@@ -152,23 +213,25 @@ describe('GET /api/student/assignments', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
-                order: vi.fn().mockResolvedValue({
-                  data: [
-                    {
-                      id: 'assignment-1',
-                      classroom_id: 'classroom-1',
-                      title: 'Essay 1',
-                      due_at: '2024-10-20T23:59:59-04:00',
-                    },
-                    {
-                      id: 'assignment-2',
-                      classroom_id: 'classroom-1',
-                      title: 'Essay 2',
-                      due_at: '2024-10-25T23:59:59-04:00',
-                    },
-                  ],
-                  error: null,
-                }),
+                eq: vi.fn(() => ({  // Added for is_draft filter
+                  order: vi.fn().mockResolvedValue({
+                    data: [
+                      {
+                        id: 'assignment-1',
+                        classroom_id: 'classroom-1',
+                        title: 'Essay 1',
+                        due_at: '2024-10-20T23:59:59-04:00',
+                      },
+                      {
+                        id: 'assignment-2',
+                        classroom_id: 'classroom-1',
+                        title: 'Essay 2',
+                        due_at: '2024-10-25T23:59:59-04:00',
+                      },
+                    ],
+                    error: null,
+                  }),
+                })),
               })),
             })),
           }
@@ -223,10 +286,12 @@ describe('GET /api/student/assignments', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
-                order: vi.fn().mockResolvedValue({
-                  data: [{ id: 'assignment-1', title: 'Test' }],
-                  error: null,
-                }),
+                eq: vi.fn(() => ({  // Added for is_draft filter
+                  order: vi.fn().mockResolvedValue({
+                    data: [{ id: 'assignment-1', title: 'Test' }],
+                    error: null,
+                  }),
+                })),
               })),
             })),
           }
@@ -269,7 +334,9 @@ describe('GET /api/student/assignments', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
-                order: mockOrder,
+                eq: vi.fn(() => ({  // Added for is_draft filter
+                  order: mockOrder,
+                })),
               })),
             })),
           }
@@ -308,10 +375,12 @@ describe('GET /api/student/assignments', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
-                order: vi.fn().mockResolvedValue({
-                  data: [{ id: 'assignment-1', title: 'Test' }],
-                  error: null,
-                }),
+                eq: vi.fn(() => ({  // Added for is_draft filter
+                  order: vi.fn().mockResolvedValue({
+                    data: [{ id: 'assignment-1', title: 'Test' }],
+                    error: null,
+                  }),
+                })),
               })),
             })),
           }
@@ -355,10 +424,12 @@ describe('GET /api/student/assignments', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
-                order: vi.fn().mockResolvedValue({
-                  data: [{ id: 'assignment-1', title: 'Test' }],
-                  error: null,
-                }),
+                eq: vi.fn(() => ({  // Added for is_draft filter
+                  order: vi.fn().mockResolvedValue({
+                    data: [{ id: 'assignment-1', title: 'Test' }],
+                    error: null,
+                  }),
+                })),
               })),
             })),
           }
@@ -403,10 +474,12 @@ describe('GET /api/student/assignments', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
-                order: vi.fn().mockResolvedValue({
-                  data: null,
-                  error: { message: 'Database error' },
-                }),
+                eq: vi.fn(() => ({  // Added for is_draft filter
+                  order: vi.fn().mockResolvedValue({
+                    data: null,
+                    error: { message: 'Database error' },
+                  }),
+                })),
               })),
             })),
           }

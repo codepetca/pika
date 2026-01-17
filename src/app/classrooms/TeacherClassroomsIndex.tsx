@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useMemo, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
-import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
+import { ACTIONBAR_BUTTON_PRIMARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import type { Classroom } from '@/types'
 
 interface Props {
@@ -20,6 +21,8 @@ type PendingAction =
 
 export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const lastPathRef = useRef(pathname)
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>(initialClassrooms)
   const [archivedClassrooms, setArchivedClassrooms] = useState<Classroom[]>([])
   const [view, setView] = useState<ViewMode>('active')
@@ -59,6 +62,38 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       setIsLoadingArchived(false)
     }
   }, [])
+
+  // Fetch fresh classroom data to handle stale router cache
+  const refreshActiveClassrooms = useCallback(async () => {
+    try {
+      const res = await fetch('/api/teacher/classrooms')
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.classrooms) {
+        setActiveClassrooms(data.classrooms)
+      }
+    } catch {
+      // Silently fail - we still have initialClassrooms
+    }
+  }, [])
+
+  // Sync from server-provided data when it changes
+  useEffect(() => {
+    setActiveClassrooms(initialClassrooms)
+  }, [initialClassrooms])
+
+  // Refetch when navigating back to this page
+  useEffect(() => {
+    // Only refetch if we navigated back (pathname changed from something else to /classrooms)
+    if (pathname === '/classrooms' && lastPathRef.current !== '/classrooms') {
+      refreshActiveClassrooms()
+    }
+    lastPathRef.current = pathname
+  }, [pathname, refreshActiveClassrooms])
+
+  // Also fetch on initial mount
+  useEffect(() => {
+    refreshActiveClassrooms()
+  }, [refreshActiveClassrooms])
 
   useEffect(() => {
     if (view !== 'archived') return
@@ -152,15 +187,17 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     await deleteClassroom(classroom)
   }
 
-  const actionItems = useMemo(() => {
-    return [
-      {
-        id: 'new-classroom',
-        label: '+ New classroom',
-        onSelect: () => setShowCreate(true),
-      },
-    ] satisfies ActionBarItem[]
-  }, [])
+  const newClassroomButton = (
+    <button
+      type="button"
+      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
+      onClick={() => setShowCreate(true)}
+      aria-label="New classroom"
+    >
+      <Plus className="h-5 w-5" aria-hidden="true" />
+      <span>New</span>
+    </button>
+  )
 
   const dialogTitle = pendingAction
     ? pendingAction.mode === 'archive'
@@ -222,7 +259,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             </div>
           </div>
         }
-        actions={actionItems}
+        trailing={newClassroomButton}
       />
 
       <PageContent>
@@ -250,10 +287,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               <div className="mt-6">
                 <button
                   type="button"
-                  className="px-4 py-2 rounded-md bg-blue-600 dark:bg-blue-700 text-white text-sm hover:bg-blue-700 dark:hover:bg-blue-600"
+                  className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
                   onClick={() => setShowCreate(true)}
+                  aria-label="New classroom"
                 >
-                  Create classroom
+                  <Plus className="h-5 w-5" aria-hidden="true" />
+                  <span>New</span>
                 </button>
               </div>
             )}
@@ -264,6 +303,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               <div key={c.id} className="flex items-center gap-4 p-4">
                 <button
                   type="button"
+                  data-testid="classroom-card"
                   onClick={() => router.push(`/classrooms/${c.id}?tab=attendance`)}
                   className="flex-1 text-left rounded-md -m-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
