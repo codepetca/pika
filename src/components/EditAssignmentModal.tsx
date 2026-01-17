@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Send } from 'lucide-react'
 import type { Assignment, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -174,22 +173,9 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
         aria-modal="true"
         aria-labelledby="edit-assignment-modal-title"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 id="edit-assignment-modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100">
-            Edit Assignment
-          </h2>
-          {assignment.is_draft && (
-            <button
-              type="button"
-              onClick={() => setShowReleaseConfirm(true)}
-              disabled={releasing || saving}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-md transition-colors"
-            >
-              <Send className="h-4 w-4" aria-hidden="true" />
-              Release to Students
-            </button>
-          )}
-        </div>
+        <h2 id="edit-assignment-modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          {assignment.is_draft ? 'Edit Draft' : 'Edit Assignment'}
+        </h2>
 
         <AssignmentForm
           title={title}
@@ -202,10 +188,15 @@ export function EditAssignmentModal({ isOpen, assignment, onClose, onSuccess }: 
           onNextDate={() => moveDueDate(1)}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
-          submitLabel={saving ? 'Saving...' : 'Save changes'}
-          disabled={saving}
+          submitLabel={saving ? 'Saving...' : assignment.is_draft ? 'Save draft' : 'Save changes'}
+          disabled={saving || releasing}
           error={error}
           titleInputRef={titleInputRef}
+          extraAction={assignment.is_draft ? {
+            label: releasing ? 'Releasing...' : 'Release',
+            onClick: () => setShowReleaseConfirm(true),
+            variant: 'success',
+          } : undefined}
         />
       </div>
 

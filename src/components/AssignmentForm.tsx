@@ -23,6 +23,12 @@ interface AssignmentFormProps {
   disabled?: boolean
   error?: string
   titleInputRef?: RefObject<HTMLInputElement>
+  // Optional extra action button (e.g., Release for drafts)
+  extraAction?: {
+    label: string
+    onClick: () => void
+    variant?: 'primary' | 'success'
+  }
 }
 
 export function AssignmentForm({
@@ -41,6 +47,7 @@ export function AssignmentForm({
   disabled = false,
   error,
   titleInputRef,
+  extraAction,
 }: AssignmentFormProps) {
   const isSubmitDisabled = disabled || !title || !dueAt
 
@@ -87,6 +94,17 @@ export function AssignmentForm({
         {onCancel && (
           <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled}>
             {cancelLabel}
+          </Button>
+        )}
+        {extraAction && (
+          <Button
+            type="button"
+            variant={extraAction.variant === 'success' ? 'primary' : 'secondary'}
+            onClick={extraAction.onClick}
+            disabled={disabled}
+            className={extraAction.variant === 'success' ? 'bg-green-600 hover:bg-green-700' : ''}
+          >
+            {extraAction.label}
           </Button>
         )}
       </div>
