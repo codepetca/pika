@@ -19,8 +19,7 @@ import {
 import { Plus } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
-import { CreateAssignmentModal } from '@/components/CreateAssignmentModal'
-import { EditAssignmentModal } from '@/components/EditAssignmentModal'
+import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
@@ -36,7 +35,7 @@ import {
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
-import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, TiptapContent, SelectedStudentInfo } from '@/types'
+import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
 import {
   DataTable,
   DataTableBody,
@@ -119,6 +118,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   // Hide "Last updated" column when sidebar is 70% or wider to fit table without scrolling
   const isCompactTable = sidebarWidth === '70%'
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
+  const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
@@ -155,9 +155,14 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const loadAssignments = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
-      const data = await response.json()
-      setAssignments(data.assignments || [])
+      const [assignmentsRes, classDaysRes] = await Promise.all([
+        fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`),
+        fetch(`/api/classrooms/${classroom.id}/class-days`),
+      ])
+      const assignmentsData = await assignmentsRes.json()
+      const classDaysData = await classDaysRes.json().catch(() => ({ class_days: [] }))
+      setAssignments(assignmentsData.assignments || [])
+      setClassDays(classDaysData.class_days || [])
       window.dispatchEvent(
         new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
           detail: { classroomId: classroom.id },
@@ -634,18 +639,24 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       />
 
 
-      <EditAssignmentModal
-        isOpen={!!editAssignment}
-        assignment={editAssignment}
-        onClose={() => setEditAssignment(null)}
-        onSuccess={handleEditSuccess}
-      />
-
-      <CreateAssignmentModal
-        isOpen={isCreateModalOpen}
+      <AssignmentModal
+        isOpen={isCreateModalOpen || !!editAssignment}
         classroomId={classroom.id}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={handleCreateSuccess}
+        assignment={editAssignment}
+        classDays={classDays}
+        onClose={() => {
+          setEditAssignment(null)
+          setIsCreateModalOpen(false)
+        }}
+        onSuccess={(assignment) => {
+          if (editAssignment) {
+            handleEditSuccess(assignment)
+          } else {
+            handleCreateSuccess(assignment)
+          }
+          setEditAssignment(null)
+          setIsCreateModalOpen(false)
+        }}
       />
       </PageContent>
     </PageLayout>
