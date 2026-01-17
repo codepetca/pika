@@ -239,11 +239,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       pendingValuesRef.current = null
       setSaveStatus('saved')
 
+      // Only notify parent and close when explicitly requested (manual save)
+      // Autosaves should happen silently in the background
       if (options?.closeAfter) {
         onSuccess(savedAssignment!)
         onClose()
-      } else {
-        onSuccess(savedAssignment!)
       }
     } catch (err: any) {
       setError(err.message || 'Failed to save assignment')
