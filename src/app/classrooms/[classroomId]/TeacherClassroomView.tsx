@@ -228,8 +228,18 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       setSelection({ mode: 'summary' })
       return
     }
-    const exists = assignments.some((a) => a.id === value)
-    setSelection(exists ? { mode: 'assignment', assignmentId: value } : { mode: 'summary' })
+    const assignment = assignments.find((a) => a.id === value)
+    if (!assignment) {
+      setSelection({ mode: 'summary' })
+      return
+    }
+    // Draft assignments should open edit modal instead of detail view
+    if (assignment.is_draft) {
+      setEditAssignment(assignment)
+      setSelection({ mode: 'summary' })
+    } else {
+      setSelection({ mode: 'assignment', assignmentId: value })
+    }
   }, [assignments, classroom.id, loading])
 
   useEffect(() => {
@@ -243,8 +253,18 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         setSelection({ mode: 'summary' })
         return
       }
-      const exists = assignments.some((a) => a.id === value)
-      setSelection(exists ? { mode: 'assignment', assignmentId: value } : { mode: 'summary' })
+      const assignment = assignments.find((a) => a.id === value)
+      if (!assignment) {
+        setSelection({ mode: 'summary' })
+        return
+      }
+      // Draft assignments should open edit modal instead of detail view
+      if (assignment.is_draft) {
+        setEditAssignment(assignment)
+        setSelection({ mode: 'summary' })
+      } else {
+        setSelection({ mode: 'assignment', assignmentId: value })
+      }
     }
 
     window.addEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
