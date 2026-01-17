@@ -37,8 +37,8 @@ function getRelativeDays(dueAt: string, classDays?: ClassDay[]): { text: string;
     }
     if (absCount === 1) {
       return isPast
-        ? { text: '1 class ago', isPast: true }
-        : { text: 'in 1 class', isPast: false }
+        ? { text: 'last class', isPast: true }
+        : { text: 'next class', isPast: false }
     }
     return isPast
       ? { text: `${absCount} classes ago`, isPast: true }
