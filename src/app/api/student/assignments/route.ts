@@ -31,11 +31,12 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch all assignments for the classroom
+    // Fetch all released assignments for the classroom (exclude drafts)
     const { data: assignments, error } = await supabase
       .from('assignments')
       .select('*')
       .eq('classroom_id', classroomId)
+      .eq('is_draft', false)
       .order('due_at', { ascending: true })
 
     if (error) {

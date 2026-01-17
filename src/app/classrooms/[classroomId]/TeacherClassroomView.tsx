@@ -19,8 +19,7 @@ import {
 import { Plus } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
-import { CreateAssignmentModal } from '@/components/CreateAssignmentModal'
-import { EditAssignmentModal } from '@/components/EditAssignmentModal'
+import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
@@ -30,13 +29,13 @@ import {
   PageLayout,
   type ActionBarItem,
 } from '@/components/PageLayout'
-import { useRightSidebar, useMobileDrawer } from '@/components/layout'
+import { useRightSidebar, useMobileDrawer, useLeftSidebar } from '@/components/layout'
 import {
   getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
-import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, TiptapContent, SelectedStudentInfo } from '@/types'
+import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
 import {
   DataTable,
   DataTableBody,
@@ -115,10 +114,12 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
+  const { setExpanded: setLeftSidebarExpanded } = useLeftSidebar()
 
   // Hide "Last updated" column when sidebar is 70% or wider to fit table without scrolling
   const isCompactTable = sidebarWidth === '70%'
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
+  const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
@@ -155,9 +156,14 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const loadAssignments = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
-      const data = await response.json()
-      setAssignments(data.assignments || [])
+      const [assignmentsRes, classDaysRes] = await Promise.all([
+        fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`),
+        fetch(`/api/classrooms/${classroom.id}/class-days`),
+      ])
+      const assignmentsData = await assignmentsRes.json()
+      const classDaysData = await classDaysRes.json().catch(() => ({ class_days: [] }))
+      setAssignments(assignmentsData.assignments || [])
+      setClassDays(classDaysData.class_days || [])
       window.dispatchEvent(
         new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
           detail: { classroomId: classroom.id },
@@ -223,8 +229,18 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       setSelection({ mode: 'summary' })
       return
     }
-    const exists = assignments.some((a) => a.id === value)
-    setSelection(exists ? { mode: 'assignment', assignmentId: value } : { mode: 'summary' })
+    const assignment = assignments.find((a) => a.id === value)
+    if (!assignment) {
+      setSelection({ mode: 'summary' })
+      return
+    }
+    // Draft assignments should open edit modal instead of detail view
+    if (assignment.is_draft) {
+      setEditAssignment(assignment)
+      setSelection({ mode: 'summary' })
+    } else {
+      setSelection({ mode: 'assignment', assignmentId: value })
+    }
   }, [assignments, classroom.id, loading])
 
   useEffect(() => {
@@ -238,8 +254,18 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         setSelection({ mode: 'summary' })
         return
       }
-      const exists = assignments.some((a) => a.id === value)
-      setSelection(exists ? { mode: 'assignment', assignmentId: value } : { mode: 'summary' })
+      const assignment = assignments.find((a) => a.id === value)
+      if (!assignment) {
+        setSelection({ mode: 'summary' })
+        return
+      }
+      // Draft assignments should open edit modal instead of detail view
+      if (assignment.is_draft) {
+        setEditAssignment(assignment)
+        setSelection({ mode: 'summary' })
+      } else {
+        setSelection({ mode: 'assignment', assignmentId: value })
+      }
     }
 
     window.addEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
@@ -395,19 +421,21 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     }
   }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
 
-  // Auto-open sidebar when student is selected (separate effect to avoid re-opening on every dependency change)
+  // Auto-open right sidebar and collapse left sidebar when student is selected
   const prevSelectedStudentIdRef = useRef<string | null>(null)
   useEffect(() => {
-    // Only open sidebar when transitioning from no selection to a selection
+    // Only act when transitioning from no selection to a selection
     if (selectedStudentId && !prevSelectedStudentIdRef.current) {
       if (window.innerWidth < DESKTOP_BREAKPOINT) {
         openMobileSidebar()
       } else {
         setSidebarOpen(true)
+        // Collapse left sidebar to make room for the right sidebar content
+        setLeftSidebarExpanded(false)
       }
     }
     prevSelectedStudentIdRef.current = selectedStudentId
-  }, [selectedStudentId, setSidebarOpen, openMobileSidebar])
+  }, [selectedStudentId, setSidebarOpen, openMobileSidebar, setLeftSidebarExpanded])
 
   // Escape key to deselect student
   useEffect(() => {
@@ -533,7 +561,14 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       assignment={assignment}
                       isReadOnly={isReadOnly}
                       isDragDisabled={isReordering}
-                      onSelect={() => setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })}
+                      onSelect={() => {
+                        // Draft assignments open edit modal instead of detail view
+                        if (assignment.is_draft) {
+                          setEditAssignment(assignment)
+                        } else {
+                          setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })
+                        }
+                      }}
                       onEdit={() => setEditAssignment(assignment)}
                       onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
                     />
@@ -627,18 +662,24 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       />
 
 
-      <EditAssignmentModal
-        isOpen={!!editAssignment}
-        assignment={editAssignment}
-        onClose={() => setEditAssignment(null)}
-        onSuccess={handleEditSuccess}
-      />
-
-      <CreateAssignmentModal
-        isOpen={isCreateModalOpen}
+      <AssignmentModal
+        isOpen={isCreateModalOpen || !!editAssignment}
         classroomId={classroom.id}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={handleCreateSuccess}
+        assignment={editAssignment}
+        classDays={classDays}
+        onClose={() => {
+          setEditAssignment(null)
+          setIsCreateModalOpen(false)
+        }}
+        onSuccess={(assignment) => {
+          if (editAssignment) {
+            handleEditSuccess(assignment)
+          } else {
+            handleCreateSuccess(assignment)
+          }
+          setEditAssignment(null)
+          setIsCreateModalOpen(false)
+        }}
       />
       </PageContent>
     </PageLayout>
