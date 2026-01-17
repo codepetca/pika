@@ -29,7 +29,7 @@ import {
   PageLayout,
   type ActionBarItem,
 } from '@/components/PageLayout'
-import { useRightSidebar, useMobileDrawer } from '@/components/layout'
+import { useRightSidebar, useMobileDrawer, useLeftSidebar } from '@/components/layout'
 import {
   getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
@@ -114,6 +114,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
+  const { setExpanded: setLeftSidebarExpanded } = useLeftSidebar()
 
   // Hide "Last updated" column when sidebar is 70% or wider to fit table without scrolling
   const isCompactTable = sidebarWidth === '70%'
@@ -420,19 +421,21 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     }
   }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
 
-  // Auto-open sidebar when student is selected (separate effect to avoid re-opening on every dependency change)
+  // Auto-open right sidebar and collapse left sidebar when student is selected
   const prevSelectedStudentIdRef = useRef<string | null>(null)
   useEffect(() => {
-    // Only open sidebar when transitioning from no selection to a selection
+    // Only act when transitioning from no selection to a selection
     if (selectedStudentId && !prevSelectedStudentIdRef.current) {
       if (window.innerWidth < DESKTOP_BREAKPOINT) {
         openMobileSidebar()
       } else {
         setSidebarOpen(true)
+        // Collapse left sidebar to make room for the right sidebar content
+        setLeftSidebarExpanded(false)
       }
     }
     prevSelectedStudentIdRef.current = selectedStudentId
-  }, [selectedStudentId, setSidebarOpen, openMobileSidebar])
+  }, [selectedStudentId, setSidebarOpen, openMobileSidebar, setLeftSidebarExpanded])
 
   // Escape key to deselect student
   useEffect(() => {
