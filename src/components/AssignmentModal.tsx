@@ -387,6 +387,35 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     setReleasing(true)
 
     try {
+      // Save any pending changes before releasing
+      if (saveStatus === 'unsaved' || pendingValuesRef.current) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current)
+          saveTimeoutRef.current = null
+        }
+        if (throttledSaveTimeoutRef.current) {
+          clearTimeout(throttledSaveTimeoutRef.current)
+          throttledSaveTimeoutRef.current = null
+        }
+
+        const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+        const changedFields = getChangedFields(valuesToSave)
+
+        if (changedFields) {
+          const saveResponse = await fetch(`/api/teacher/assignments/${assignmentToRelease.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(changedFields),
+          })
+          if (!saveResponse.ok) {
+            const saveData = await saveResponse.json()
+            throw new Error(saveData.error || 'Failed to save changes before posting')
+          }
+        }
+        pendingValuesRef.current = null
+      }
+
+      // Now release the assignment
       const response = await fetch(`/api/teacher/assignments/${assignmentToRelease.id}/release`, {
         method: 'POST',
       })
