@@ -251,6 +251,13 @@ function ClassroomPageContent({
     }
   }, [isTeacher, activeTab, selectedStudent, showInstructionsPanel, setRightSidebarWidth])
 
+  // Close right sidebar when switching to tabs without inspector content
+  useEffect(() => {
+    if (activeTab === 'calendar' || activeTab === 'roster') {
+      setRightSidebarOpen(false)
+    }
+  }, [activeTab, setRightSidebarOpen])
+
   const content = (
     <AppShell
       user={user}
