@@ -7,7 +7,7 @@ import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
-import { getAttendanceIcon } from '@/lib/attendance'
+import { getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import {
   DataTable,
   DataTableBody,
@@ -284,9 +284,14 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                       {row.email_username}
                     </DataTableCell>
                     <DataTableCell density="tight" align="center">
-                      <div className={`text-xl ${isClassDay ? '' : 'opacity-40'}`}>
-                        {isClassDay ? getAttendanceIcon(status) : '—'}
-                      </div>
+                      {isClassDay ? (
+                        <span
+                          className={`inline-block w-3 h-3 rounded-full ${getAttendanceDotClass(status)}`}
+                          title={getAttendanceLabel(status)}
+                        />
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </DataTableCell>
                     <DataTableCell density="tight" className={isLeftExpanded ? 'max-w-xs' : 'max-w-md'}>
                       <div className="truncate text-gray-700 dark:text-gray-300" title={logText !== '—' ? logText : undefined}>

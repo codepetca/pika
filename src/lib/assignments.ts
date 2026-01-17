@@ -79,6 +79,28 @@ export function getAssignmentStatusBadgeClass(status: AssignmentStatus): string 
 }
 
 /**
+ * Get dot color class for assignment status indicator
+ * Gray = not started, Yellow = in progress (on time or late),
+ * Green = submitted on time, Lime = submitted late
+ */
+export function getAssignmentStatusDotClass(status: AssignmentStatus): string {
+  switch (status) {
+    case 'not_started':
+      return 'bg-gray-400'
+    case 'in_progress':
+      return 'bg-yellow-400'
+    case 'in_progress_late':
+      return 'bg-yellow-400'
+    case 'submitted_on_time':
+      return 'bg-green-500'
+    case 'submitted_late':
+      return 'bg-lime-600'
+    default:
+      return 'bg-gray-400'
+  }
+}
+
+/**
  * Format a due date for display
  * Example: "Tue Dec 16"
  */

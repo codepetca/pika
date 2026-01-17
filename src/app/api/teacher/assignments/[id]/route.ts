@@ -128,6 +128,8 @@ export async function GET(
         rich_instructions: assignment.rich_instructions,
         due_at: assignment.due_at,
         position: assignment.position ?? 0,
+        is_draft: assignment.is_draft ?? false,
+        released_at: assignment.released_at ?? null,
         created_by: assignment.created_by,
         created_at: assignment.created_at,
         updated_at: assignment.updated_at

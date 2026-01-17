@@ -86,6 +86,9 @@ describe('StudentTodayTab history section', () => {
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=5`)) {
         return mockJson({ entries })
       }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
       throw new Error(`Unhandled fetch: ${url}`)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -93,7 +96,7 @@ describe('StudentTodayTab history section', () => {
     render(<StudentTodayTab classroom={classroom} />)
 
     await screen.findAllByText('Tue Dec 16')
-    await screen.findByText('Past')
+    await screen.findByRole('button', { name: /history/i })
 
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
@@ -118,12 +121,15 @@ describe('StudentTodayTab history section', () => {
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=5`)) {
         return mockJson({ entries })
       }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
       throw new Error(`Unhandled fetch: ${url}`)
     })
     vi.stubGlobal('fetch', fetchMock)
 
     const { unmount } = render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('Past')
+    await screen.findByRole('button', { name: /history/i })
 
     fireEvent.click(screen.getByRole('button', { name: /hide/i }))
     expect(document.cookie).toMatch(/pika_student_today_history=0/)
@@ -131,7 +137,7 @@ describe('StudentTodayTab history section', () => {
     unmount()
 
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('Past')
+    await screen.findByRole('button', { name: /history/i })
 
     expect(screen.getByRole('button', { name: /show/i })).toBeInTheDocument()
     expect(screen.queryByText('Mon Dec 15')).not.toBeInTheDocument()
@@ -149,12 +155,15 @@ describe('StudentTodayTab history section', () => {
       if (url.startsWith(`/api/student/entries?`)) {
         return mockJson({ entries })
       }
+      if (url.includes('/lesson-plans')) {
+        return mockJson({ lessonPlans: [] })
+      }
       throw new Error(`Unhandled fetch: ${url}`)
     })
     vi.stubGlobal('fetch', fetchMock)
 
     render(<StudentTodayTab classroom={classroom} />)
-    await screen.findByText('Past')
+    await screen.findByRole('button', { name: /history/i })
     expect(screen.getByText('Mon Dec 15')).toBeInTheDocument()
 
     await waitFor(() => {

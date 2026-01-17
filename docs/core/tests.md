@@ -146,6 +146,38 @@ For visual review (spacing/aesthetics), we also support a **manual** Playwright 
 - Output (local): `artifacts/ui-snapshots/` (screenshots) and `playwright-report/` (HTML report)
 - Gallery (web): `/__ui` (gated by `ENABLE_UI_GALLERY=true`)
 
+### AI-Assisted UI Testing (Playwright CLI)
+
+For visual UI verification during development, AI agents can use the Playwright CLI to take screenshots.
+
+**Quick Start:**
+
+```bash
+# 1. Start the dev server (in one terminal)
+pnpm dev
+
+# 2. Generate auth states (if needed)
+pnpm e2e:auth
+
+# 3. Take screenshot as teacher or student
+npx playwright screenshot http://localhost:3000/classrooms /tmp/screenshot.png \
+  --load-storage .auth/teacher.json --viewport-size 1440,900
+```
+
+**Verification Scripts:**
+
+Run predefined verification scenarios:
+
+```bash
+pnpm e2e:verify --help                    # List available scenarios
+pnpm e2e:verify add-students-modal        # Verify add students modal
+pnpm e2e:verify create-classroom-wizard   # Verify classroom creation
+```
+
+Scripts output JSON with pass/fail status and can be used to validate UI changes.
+
+See `docs/guides/ai-ui-testing.md` for detailed usage patterns.
+
 ---
 
 ## 6. Component Tests (Optional)
@@ -209,16 +241,16 @@ For **new features**, follow this sequence:
 
 ```bash
 # Run all tests
-npm run test
+pnpm test
 
 # Watch mode (for TDD)
-npm run test:watch
+pnpm test:watch
 
 # UI mode (interactive)
-npm run test:ui
+pnpm test:ui
 
 # Coverage report
-npm run test:coverage
+pnpm test:coverage
 ```
 
 ---

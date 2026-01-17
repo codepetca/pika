@@ -155,8 +155,8 @@ export function ThreePanelProvider({
     let rightWidthCss: string
     if (!config.rightSidebar.enabled || !rightOpen) {
       rightWidthCss = '0px'
-    } else if (rightWidth === '50%') {
-      rightWidthCss = '50%'
+    } else if (typeof rightWidth === 'string') {
+      rightWidthCss = rightWidth // percentage values like '50%', '60%', '70%'
     } else {
       rightWidthCss = `${rightWidth}px`
     }

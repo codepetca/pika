@@ -3,7 +3,7 @@
  * Provides reusable mock objects for testing throughout the application
  */
 
-import type { Entry, Assignment, AssignmentDoc, Classroom, Student, Teacher } from '@/types'
+import type { Entry, Assignment, AssignmentDoc, Classroom, Student, Teacher, TiptapContent } from '@/types'
 
 // ============================================================================
 // Mock Data Factories
@@ -36,7 +36,9 @@ export const createMockAssignment = (overrides: Partial<Assignment> = {}): Assig
   classroom_id: 'classroom-1',
   title: 'Test Assignment',
   description: 'Complete the reading and answer the questions.',
+  rich_instructions: null,
   due_at: '2024-10-20T23:59:59-04:00',
+  position: 0,
   created_by: 'teacher-1',
   created_at: '2024-10-10T10:00:00Z',
   updated_at: '2024-10-10T10:00:00Z',
@@ -50,9 +52,10 @@ export const createMockAssignmentDoc = (overrides: Partial<AssignmentDoc> = {}):
   id: 'doc-1',
   assignment_id: 'assignment-1',
   student_id: 'student-1',
-  content: 'This is my assignment submission.',
+  content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'This is my assignment submission.' }] }] },
   is_submitted: false,
   submitted_at: null,
+  viewed_at: null,
   created_at: '2024-10-15T10:00:00Z',
   updated_at: '2024-10-15T10:00:00Z',
   ...overrides,
@@ -63,10 +66,15 @@ export const createMockAssignmentDoc = (overrides: Partial<AssignmentDoc> = {}):
  */
 export const createMockClassroom = (overrides: Partial<Classroom> = {}): Classroom => ({
   id: 'classroom-1',
+  teacher_id: 'teacher-1',
   title: 'Test Classroom',
   class_code: 'TEST01',
   term_label: 'Fall 2024',
-  created_by: 'teacher-1',
+  allow_enrollment: true,
+  start_date: null,
+  end_date: null,
+  lesson_plan_visibility: 'current_week',
+  archived_at: null,
   created_at: '2024-09-01T10:00:00Z',
   updated_at: '2024-09-01T10:00:00Z',
   ...overrides,
@@ -173,146 +181,3 @@ export const torontoMidnight = (dateString: string): string => {
  */
 export const DST_SPRING_FORWARD_2024 = '2024-03-10T02:00:00-05:00' // 2 AM → 3 AM
 export const DST_FALL_BACK_2024 = '2024-11-03T02:00:00-04:00' // 2 AM → 1 AM
-
-// ============================================================================
-// Common Test Data Sets
-// ============================================================================
-
-/**
- * Collection of mock entries for testing attendance calculations
- */
-export const mockEntriesSet = {
-  onTime: createMockEntry({
-    id: 'entry-on-time',
-    date: '2024-10-15',
-    on_time: true,
-    updated_at: '2024-10-15T22:00:00Z',
-  }),
-  late: createMockEntry({
-    id: 'entry-late',
-    date: '2024-10-16',
-    on_time: false,
-    updated_at: '2024-10-17T01:00:00Z',
-  }),
-  future: createMockEntry({
-    id: 'entry-future',
-    date: '2024-12-01',
-    on_time: true,
-    updated_at: '2024-12-01T20:00:00Z',
-  }),
-}
-
-/**
- * Collection of mock assignments with various statuses
- */
-export const mockAssignmentsSet = {
-  notStarted: createMockAssignment({
-    id: 'assignment-not-started',
-    due_at: '2024-10-25T23:59:59-04:00',
-  }),
-  inProgress: createMockAssignment({
-    id: 'assignment-in-progress',
-    due_at: '2024-10-25T23:59:59-04:00',
-  }),
-  overdue: createMockAssignment({
-    id: 'assignment-overdue',
-    due_at: '2024-10-10T23:59:59-04:00',
-  }),
-  submitted: createMockAssignment({
-    id: 'assignment-submitted',
-    due_at: '2024-10-25T23:59:59-04:00',
-  }),
-}
-
-/**
- * Collection of mock assignment docs with various statuses
- */
-export const mockAssignmentDocsSet = {
-  notStarted: null, // No doc exists
-  inProgress: createMockAssignmentDoc({
-    id: 'doc-in-progress',
-    content: 'Work in progress...',
-    is_submitted: false,
-    submitted_at: null,
-  }),
-  submittedOnTime: createMockAssignmentDoc({
-    id: 'doc-submitted-on-time',
-    content: 'Completed assignment.',
-    is_submitted: true,
-    submitted_at: '2024-10-18T20:00:00Z',
-  }),
-  submittedLate: createMockAssignmentDoc({
-    id: 'doc-submitted-late',
-    content: 'Completed assignment (late).',
-    is_submitted: true,
-    submitted_at: '2024-10-26T10:00:00Z',
-  }),
-}
-
-/**
- * Mock classroom with students for roster tests
- */
-export const mockClassroomWithStudents = {
-  classroom: createMockClassroom({
-    id: 'classroom-with-students',
-    title: 'Test Classroom',
-  }),
-  students: [
-    createMockStudent({
-      id: 'student-1',
-      email: 'student1@example.com',
-      first_name: 'Alice',
-      last_name: 'Anderson',
-    }),
-    createMockStudent({
-      id: 'student-2',
-      email: 'student2@example.com',
-      first_name: 'Bob',
-      last_name: 'Brown',
-    }),
-    createMockStudent({
-      id: 'student-3',
-      email: 'student3@example.com',
-      first_name: 'Charlie',
-      last_name: 'Chen',
-    }),
-  ],
-}
-
-// ============================================================================
-// Validation Helpers
-// ============================================================================
-
-/**
- * Common email addresses for testing email validation
- */
-export const TEST_EMAILS = {
-  student: 'test@student.com',
-  teacherYRDSB: 'teacher@gapps.yrdsb.ca',
-  teacherYRDSBDirect: 'teacher@yrdsb.ca',
-  invalid: 'not-an-email',
-  empty: '',
-  withSpaces: '  test@student.com  ',
-}
-
-/**
- * Common passwords for testing password validation
- */
-export const TEST_PASSWORDS = {
-  valid: 'SecurePass123',
-  tooShort: 'Short1',
-  empty: '',
-  long: 'ThisIsAVeryLongPasswordThatShouldStillWork123!',
-}
-
-/**
- * Common verification codes for testing
- */
-export const TEST_CODES = {
-  valid: '12345',
-  validSixDigit: '123456',
-  invalid: 'ZZZZZ',
-  empty: '',
-  tooShort: '123',
-  tooLong: '1234567890',
-}

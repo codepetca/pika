@@ -5,26 +5,31 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/Button'
 import { Spinner } from '@/components/Spinner'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { useRightSidebar, useMobileDrawer } from '@/components/layout'
 import {
   formatDueDate,
   formatRelativeDueDate,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
-import type { AssignmentWithStatus, Classroom } from '@/types'
+import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
+import type { AssignmentWithStatus, Classroom, TiptapContent } from '@/types'
 import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
 import { RichTextViewer } from '@/components/editor'
 
 interface Props {
   classroom: Classroom
+  onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
 }
 
 type StudentAssignmentsView = 'summary' | 'edit'
 
-export function StudentAssignmentsTab({ classroom }: Props) {
+export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const search = searchParams.toString()
+  const { toggle: toggleSidebar, setOpen: setSidebarOpen } = useRightSidebar()
+  const { openRight: openMobileSidebar } = useMobileDrawer()
 
   const [assignments, setAssignments] = useState<AssignmentWithStatus[]>([])
   const [loading, setLoading] = useState(true)
@@ -86,25 +91,67 @@ export function StudentAssignmentsTab({ classroom }: Props) {
     await editorRef.current?.unsubmit()
   }, [])
 
-  // Auto-show instructions for unviewed assignments (no doc or viewed_at is null)
+  // Determine if this is a first-time view (needs modal)
+  const isFirstTimeView = selectedAssignment && (!selectedAssignment.doc || selectedAssignment.doc.viewed_at === null)
+
+  // Auto-show instructions modal for unviewed assignments only
   useEffect(() => {
-    if (selectedAssignment && (!selectedAssignment.doc || selectedAssignment.doc.viewed_at === null)) {
+    if (isFirstTimeView) {
       setShowInstructions(true)
     } else {
       setShowInstructions(false)
     }
-  }, [selectedAssignment])
+  }, [isFirstTimeView])
+
+  // Notify parent about selected assignment for sidebar
+  useEffect(() => {
+    if (selectedAssignment) {
+      onSelectAssignment?.({
+        title: selectedAssignment.title,
+        instructions: selectedAssignment.rich_instructions || selectedAssignment.description,
+      })
+    } else {
+      onSelectAssignment?.(null)
+    }
+  }, [selectedAssignment, onSelectAssignment])
+
+  // Auto-open sidebar for previously viewed assignments (not first-time)
+  useEffect(() => {
+    if (selectedAssignment && !isFirstTimeView) {
+      // Open sidebar for viewed assignments
+      if (window.innerWidth < DESKTOP_BREAKPOINT) {
+        openMobileSidebar()
+      } else {
+        setSidebarOpen(true)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when assignment changes
+  }, [selectedAssignment?.id])
 
   // Mark assignment as viewed locally when closing instructions
   const handleCloseInstructions = useCallback(() => {
     setShowInstructions(false)
     if (selectedAssignmentId) {
+      const now = new Date().toISOString()
       setAssignments((prev) =>
-        prev.map((a) =>
-          a.id === selectedAssignmentId && a.doc
-            ? { ...a, doc: { ...a.doc, viewed_at: new Date().toISOString() } }
-            : a
-        )
+        prev.map((a) => {
+          if (a.id !== selectedAssignmentId) return a
+          // Create or update doc with viewed_at timestamp
+          const updatedDoc = a.doc
+            ? { ...a.doc, viewed_at: now }
+            : {
+                id: '',
+                assignment_id: a.id,
+                student_id: '',
+                content: { type: 'doc', content: [] } as TiptapContent,
+                is_submitted: false,
+                submitted_at: null,
+                viewed_at: now,
+                created_at: now,
+                updated_at: now,
+              }
+          return { ...a, doc: updatedDoc }
+        })
       )
     }
   }, [selectedAssignmentId])
@@ -113,19 +160,6 @@ export function StudentAssignmentsTab({ classroom }: Props) {
     <PageLayout className="h-full flex flex-col">
       <PageActionBar
         primary={
-          selectedAssignment ? (
-            <button
-              type="button"
-              className={ACTIONBAR_BUTTON_CLASSNAME}
-              onClick={() => setShowInstructions(true)}
-            >
-              Instructions
-            </button>
-          ) : (
-            <div />
-          )
-        }
-        trailing={
           selectedAssignment && (
             <Button
               size="sm"
@@ -137,6 +171,32 @@ export function StudentAssignmentsTab({ classroom }: Props) {
                 ? (editorState.isSubmitted ? 'Unsubmitting...' : 'Submitting...')
                 : (editorState.isSubmitted ? 'Unsubmit' : 'Submit')}
             </Button>
+          )
+        }
+        trailing={
+          selectedAssignment ? (
+            <button
+              type="button"
+              className={ACTIONBAR_BUTTON_CLASSNAME}
+              onClick={() => {
+                if (isFirstTimeView) {
+                  // Still showing first-time modal - do nothing or close it
+                  setShowInstructions(false)
+                } else {
+                  // For viewed assignments, toggle the sidebar
+                  // On mobile, open the drawer; on desktop, toggle
+                  if (window.innerWidth < DESKTOP_BREAKPOINT) {
+                    openMobileSidebar()
+                  } else {
+                    toggleSidebar()
+                  }
+                }
+              }}
+            >
+              Instructions
+            </button>
+          ) : (
+            <div />
           )
         }
       />
@@ -206,7 +266,8 @@ export function StudentAssignmentsTab({ classroom }: Props) {
             )}
         </div>
       </PageContent>
-      {showInstructions && selectedAssignment && (
+      {/* Modal only shows for first-time views (unviewed assignments) */}
+      {showInstructions && isFirstTimeView && selectedAssignment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             type="button"

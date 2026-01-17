@@ -21,9 +21,9 @@ import {
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
-import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
+import { countCharacters, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
-import type { Classroom, ClassDay, Entry, JsonPatchOperation, TiptapContent } from '@/types'
+import type { Classroom, ClassDay, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 
@@ -46,17 +46,13 @@ function resolveEntryContent(entry: Entry | null): TiptapContent {
   return EMPTY_DOC
 }
 
-function validateContent(content: TiptapContent, maxChars: number) {
-  if (isEmpty(content)) {
-    return 'Entry text cannot be empty'
-  }
-  if (countCharacters(content) > maxChars) {
-    return `Entry exceeds ${maxChars} character limit`
-  }
-  return ''
+
+interface StudentTodayTabProps {
+  classroom: Classroom
+  onLessonPlanLoad?: (plan: LessonPlan | null) => void
 }
 
-export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
+export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
 
   // Constants
@@ -105,6 +101,21 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
           .then(r => r.json())
           .then(data => setClassDays(data.class_days || []))
 
+        // Fetch today's lesson plan
+        const lessonPlanPromise = fetch(
+          `/api/student/classrooms/${classroom.id}/lesson-plans?start=${todayDate}&end=${todayDate}`
+        )
+          .then(r => r.json())
+          .then(data => {
+            const plans = data.lesson_plans || []
+            const todayPlan = plans.find((p: LessonPlan) => p.date === todayDate) || null
+            onLessonPlanLoad?.(todayPlan)
+          })
+          .catch(err => {
+            console.error('Error loading lesson plan:', err)
+            onLessonPlanLoad?.(null)
+          })
+
         const applyEntryState = (todayEntry: Entry | null) => {
           const loadedContent = resolveEntryContent(todayEntry)
           setContent(loadedContent)
@@ -120,7 +131,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
           setHistoryEntries(cached)
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
           applyEntryState(todayEntry)
-          await classDayPromise
+          await Promise.all([classDayPromise, lessonPlanPromise])
           return
         }
 
@@ -136,7 +147,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
             applyEntryState(todayEntry)
           })
 
-        await Promise.all([classDayPromise, entriesPromise])
+        await Promise.all([classDayPromise, entriesPromise, lessonPlanPromise])
       } catch (err) {
         console.error('Error loading today tab:', err)
       } finally {
@@ -154,7 +165,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
         clearTimeout(throttledSaveTimeoutRef.current)
       }
     }
-  }, [classroom.id, historyLimit])
+  }, [classroom.id, historyLimit, onLessonPlanLoad])
 
   const updateHistoryEntries = useCallback((entry: Entry) => {
     setHistoryEntries(prev => {
@@ -182,9 +193,8 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
       return
     }
 
-    const validationError = validateContent(newContent, MAX_CHARS)
-    if (validationError) {
-      setSaveError(validationError)
+    if (countCharacters(newContent) > MAX_CHARS) {
+      setSaveError(`Entry exceeds ${MAX_CHARS} character limit`)
       setSaveStatus('unsaved')
       return
     }
@@ -396,7 +406,7 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
                           : 'text-orange-600 dark:text-orange-400')
                     }
                   >
-                    {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved changes'}
+                    {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
                   </span>
                 </div>
                 <RichTextEditor
@@ -429,19 +439,18 @@ export function StudentTodayTab({ classroom }: { classroom: Classroom }) {
           </div>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white">Past</h3>
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-end">
               <button
                 type="button"
-                className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-300 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                className="inline-flex items-center p-1 text-blue-600 dark:text-blue-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
                 aria-expanded={historyVisible}
                 aria-controls={historyListId}
+                aria-label={historyVisible ? 'Hide history' : 'Show history'}
                 onClick={() => setHistoryVisibility(!historyVisible)}
               >
-                {historyVisible ? 'Hide' : 'Show'}
                 <ChevronDown
                   className={[
-                    'h-4 w-4 transition-transform',
+                    'h-5 w-5 transition-transform',
                     historyVisible ? 'rotate-180' : 'rotate-0',
                   ].join(' ')}
                 />

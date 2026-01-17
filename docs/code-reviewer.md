@@ -24,7 +24,7 @@ Use this protocol whenever asked to review a PR or code change.
 - **Supabase access**: prefer least-privilege; ensure ownership/enrollment checks are enforced server-side.
 - **Auth/session**: `iron-session` cookie settings, role checks, lockout/rate limiting behavior.
 - **UI**: minimal, mobile-first, Tailwind-only; no business logic embedded in components.
-- **Tests**: changes include appropriate unit/API tests; run `npm test` locally where feasible.
+- **Tests**: changes include appropriate unit/API tests; run `pnpm test` locally where feasible.
 
 ### 4) Output Format (Required)
 Respond with:

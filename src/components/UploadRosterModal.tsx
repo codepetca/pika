@@ -3,6 +3,30 @@
 import { useState, FormEvent, ChangeEvent, useId } from 'react'
 import { Button } from '@/components/Button'
 
+interface StudentChange {
+  email: string
+  current: {
+    firstName: string | null
+    lastName: string | null
+    studentNumber: string | null
+    counselorEmail: string | null
+  }
+  incoming: {
+    firstName: string
+    lastName: string
+    studentNumber: string
+    counselorEmail: string | null
+  }
+}
+
+interface ConfirmationData {
+  changes: StudentChange[]
+  updateCount: number
+  newCount: number
+  totalCount: number
+  csvText: string
+}
+
 interface UploadRosterModalProps {
   isOpen: boolean
   onClose: () => void
@@ -16,6 +40,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<any>(null)
+  const [confirmationData, setConfirmationData] = useState<ConfirmationData | null>(null)
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -23,6 +48,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
       setCsvFile(file)
       setError('')
       setResult(null)
+      setConfirmationData(null)
     }
   }
 
@@ -48,6 +74,18 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
         throw new Error(data.error || 'Failed to upload roster')
       }
 
+      // Check if confirmation is needed
+      if (data.needsConfirmation) {
+        setConfirmationData({
+          changes: data.changes,
+          updateCount: data.updateCount,
+          newCount: data.newCount,
+          totalCount: data.totalCount,
+          csvText: text,
+        })
+        return
+      }
+
       setResult(data)
       await onSuccess()
       handleClose()
@@ -59,14 +97,143 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
     }
   }
 
+  async function handleConfirmUpload() {
+    if (!confirmationData) return
+
+    setError('')
+    setLoading(true)
+
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroomId}/roster/upload-csv`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csvData: confirmationData.csvText, confirmed: true }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to upload roster')
+      }
+
+      setResult(data)
+      setConfirmationData(null)
+      await onSuccess()
+      handleClose()
+    } catch (err: any) {
+      setError(err.message || 'An error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleCancelConfirmation() {
+    setConfirmationData(null)
+  }
+
   function handleClose() {
     setCsvFile(null)
     setError('')
     setResult(null)
+    setConfirmationData(null)
     onClose()
   }
 
   if (!isOpen) return null
+
+  // Confirmation screen - show when existing students would be overwritten
+  if (confirmationData) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full p-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm Roster Update</h2>
+
+          <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
+              {confirmationData.updateCount} student{confirmationData.updateCount !== 1 ? 's' : ''} will be updated
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              {confirmationData.newCount} new student{confirmationData.newCount !== 1 ? 's' : ''} will be added
+            </p>
+          </div>
+
+          <div className="mb-4">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Changes to be made:
+            </p>
+            <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded divide-y divide-gray-100 dark:divide-gray-800">
+              {confirmationData.changes.map((change) => {
+                const nameChanged = change.current.firstName !== change.incoming.firstName ||
+                                   change.current.lastName !== change.incoming.lastName
+                const numberChanged = change.current.studentNumber !== change.incoming.studentNumber
+                const counselorChanged = change.current.counselorEmail !== change.incoming.counselorEmail
+                return (
+                  <div key={change.email} className="px-3 py-2 text-xs">
+                    <div className="font-medium text-gray-700 dark:text-gray-300">
+                      {change.current.firstName} {change.current.lastName}
+                    </div>
+                    <div className="text-gray-500 dark:text-gray-400 mb-1">{change.email}</div>
+                    {nameChanged && (
+                      <div className="text-gray-500 dark:text-gray-400">
+                        Name: <span className="line-through text-red-500 dark:text-red-400">{change.current.firstName} {change.current.lastName}</span>
+                        {' → '}
+                        <span className="text-green-600 dark:text-green-400">{change.incoming.firstName} {change.incoming.lastName}</span>
+                      </div>
+                    )}
+                    {numberChanged && (
+                      <div className="text-gray-500 dark:text-gray-400">
+                        Student #: <span className="line-through text-red-500 dark:text-red-400">{change.current.studentNumber || '(none)'}</span>
+                        {' → '}
+                        <span className="text-green-600 dark:text-green-400">{change.incoming.studentNumber || '(none)'}</span>
+                      </div>
+                    )}
+                    {counselorChanged && (
+                      <div className="text-gray-500 dark:text-gray-400 truncate">
+                        Counselor: <span className="line-through text-red-500 dark:text-red-400">{change.current.counselorEmail || '(none)'}</span>
+                        {' → '}
+                        <span className="text-green-600 dark:text-green-400">{change.incoming.counselorEmail || '(none)'}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Updating roster entries will change student metadata (name, student number, counselor email).
+            Student submissions and enrollments are not affected.
+          </p>
+
+          {error && (
+            <div className="mb-4 text-sm text-red-600 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleCancelConfirmation}
+              disabled={loading}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmUpload}
+              disabled={loading}
+              className="flex-1"
+            >
+              {loading ? 'Uploading...' : 'Confirm Update'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
@@ -152,7 +319,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 Successfully processed {result.totalProcessed} students
               </p>
               <p className="text-sm text-green-800 dark:text-green-300">
-                Added {result.addedCount} students to roster
+                Added {result.upsertedCount} students to roster
               </p>
             </div>
 

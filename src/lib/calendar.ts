@@ -44,14 +44,14 @@ export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
   const startMonth = startDate.getUTCMonth()
   const endMonth = endDate.getUTCMonth()
 
-  // Winter Break: Dec 23 - Jan 3 (approximately)
+  // Winter Break: Dec 22 - Jan 3 (approximately)
   // Check if date range includes December
   // Range includes December if:
   // 1. Start month is December (11), OR
   // 2. End month is December (11), OR
   // 3. Start is before December and end is in next year (spans December)
   if (startMonth === 11 || endMonth === 11 || (startMonth < 11 && endYear > startYear)) {
-    for (let day = 23; day <= 31; day++) {
+    for (let day = 22; day <= 31; day++) {
       holidays.push(`${startYear}-12-${String(day).padStart(2, '0')}`)
     }
   }

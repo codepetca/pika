@@ -39,9 +39,9 @@ describe('getLayoutConfig', () => {
     expect(config.rightSidebar.enabled).toBe(false)
   })
 
-  it('should return 50% width for assignments-teacher-viewing', () => {
+  it('should return 40% default width for assignments-teacher-viewing (dynamically set to 70% for student work)', () => {
     const config = getLayoutConfig('assignments-teacher-viewing')
-    expect(config.rightSidebar.defaultWidth).toBe('50%')
+    expect(config.rightSidebar.defaultWidth).toBe('40%')
     expect(config.rightSidebar.defaultOpen).toBe(true)
   })
 })
