@@ -7,7 +7,8 @@ import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getOntarioHolidays } from '@/lib/calendar'
-import type { ClassDay, Classroom, LessonPlan, Assignment } from '@/types'
+import { useClassDays } from '@/hooks/useClassDays'
+import type { Classroom, LessonPlan, Assignment } from '@/types'
 
 interface Props {
   classroom: Classroom
@@ -17,7 +18,7 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
   const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [classDays, setClassDays] = useState<ClassDay[]>([])
+  const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -70,20 +71,6 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
       }
     }
     loadAssignments()
-  }, [classroom.id])
-
-  // Fetch class days for the classroom
-  useEffect(() => {
-    async function loadClassDays() {
-      try {
-        const res = await fetch(`/api/classrooms/${classroom.id}/class-days`)
-        const data = await res.json()
-        setClassDays(data.class_days || [])
-      } catch (err) {
-        console.error('Error loading class days:', err)
-      }
-    }
-    loadClassDays()
   }, [classroom.id])
 
   // Handle assignment click - navigate to assignments tab with the assignment selected

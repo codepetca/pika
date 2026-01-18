@@ -99,7 +99,8 @@ export const LessonDayCell = memo(function LessonDayCell({
   }
 
   // Non-class day (explicitly false, not undefined) gets a gray background
-  const isNonClassDay = isClassDay === false
+  // Holiday styling takes precedence over non-class-day styling
+  const isNonClassDay = isClassDay === false && !isHoliday
 
   return (
     <div
@@ -108,7 +109,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         ${isHoliday ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
         ${isNonClassDay ? 'bg-gray-100 dark:bg-gray-800/50' : ''}
-        ${!editable && !hasContent && !isNonClassDay ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
+        ${!editable && !hasContent && !isNonClassDay && !isHoliday ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
       `}
     >
       {/* Date header */}
