@@ -27,7 +27,6 @@ import {
   PageActionBar,
   PageContent,
   PageLayout,
-  type ActionBarItem,
 } from '@/components/PageLayout'
 import { useRightSidebar, useMobileDrawer, useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import {
@@ -71,8 +70,6 @@ interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onSelectStudent?: (student: SelectedStudentInfo | null) => void
-  onMarkdownToggle?: () => void
-  isMarkdownMode?: boolean
 }
 
 function getCookieValue(name: string) {
@@ -110,7 +107,7 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
 }
 
-export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onMarkdownToggle, isMarkdownMode }: Props) {
+export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
@@ -514,22 +511,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       </button>
     )
 
-  // Action items for summary mode (Markdown button)
-  const actionItems: ActionBarItem[] = useMemo(() => {
-    if (selection.mode !== 'summary' || !onMarkdownToggle) return []
-    return [
-      {
-        id: 'markdown-toggle',
-        label: 'Markdown',
-        onSelect: onMarkdownToggle,
-        disabled: isReadOnly,
-      },
-    ]
-  }, [selection.mode, onMarkdownToggle, isReadOnly])
-
   return (
     <PageLayout>
-      <PageActionBar primary={primaryButtons} actions={actionItems} trailing={<RightSidebarToggle />} />
+      <PageActionBar primary={primaryButtons} actions={[]} trailing={<RightSidebarToggle />} />
 
       <PageContent className="space-y-4">
         {error && (

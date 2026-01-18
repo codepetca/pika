@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { Spinner } from '@/components/Spinner'
@@ -222,6 +222,9 @@ function ClassroomPageContent({
   const [hasRichContent, setHasRichContent] = useState(false)
   const [assignmentsCache, setAssignmentsCache] = useState<Assignment[]>([])
 
+  // Track previous sidebar open state for detecting transitions
+  const prevSidebarOpenRef = useRef(false)
+
   const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
     setSelectedEntry(entry)
     setSelectedStudentName(studentName)
@@ -239,38 +242,46 @@ function ClassroomPageContent({
     setTodayLessonPlan(plan)
   }, [])
 
-  // Handle markdown toggle - fetch assignments and generate markdown
-  const handleMarkdownToggle = useCallback(async () => {
-    if (!isMarkdownMode) {
-      // Opening: fetch assignments and generate markdown
-      setMarkdownError(null)
-      setMarkdownWarning(null)
-      setWarningsAcknowledged(false)
+  // Load assignments and generate markdown content
+  const loadAssignmentsMarkdown = useCallback(async () => {
+    setMarkdownError(null)
+    setMarkdownWarning(null)
+    setWarningsAcknowledged(false)
 
-      try {
-        const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
-        const data = await res.json()
-        const assignments = (data.assignments || []) as Assignment[]
-        setAssignmentsCache(assignments)
+    try {
+      const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+      const data = await res.json()
+      const assignments = (data.assignments || []) as Assignment[]
+      setAssignmentsCache(assignments)
 
-        // Generate markdown
-        const result = assignmentsToMarkdown(classroom.title, assignments)
-        setMarkdownContent(result.markdown)
-        setHasRichContent(result.hasRichContent)
-
-        setIsMarkdownMode(true)
-        setRightSidebarOpen(true)
-        setRightSidebarWidth('50%')
-      } catch (err) {
-        console.error('Error fetching assignments:', err)
-        setMarkdownError('Failed to load assignments')
-      }
-    } else {
-      // Closing
-      setIsMarkdownMode(false)
-      setRightSidebarOpen(false)
+      // Generate markdown
+      const result = assignmentsToMarkdown(classroom.title, assignments)
+      setMarkdownContent(result.markdown)
+      setHasRichContent(result.hasRichContent)
+      setIsMarkdownMode(true)
+      setRightSidebarWidth('50%')
+    } catch (err) {
+      console.error('Error fetching assignments:', err)
+      setMarkdownError('Failed to load assignments')
     }
-  }, [isMarkdownMode, classroom.id, classroom.title, setRightSidebarOpen, setRightSidebarWidth])
+  }, [classroom.id, classroom.title, setRightSidebarWidth])
+
+  // Detect sidebar open/close transitions for assignments tab
+  useEffect(() => {
+    const wasOpen = prevSidebarOpenRef.current
+    prevSidebarOpenRef.current = isRightSidebarOpen
+
+    // Only handle transitions for assignments tab
+    if (!isTeacher || activeTab !== 'assignments') return
+
+    if (isRightSidebarOpen && !wasOpen) {
+      // Sidebar just opened - load markdown content
+      loadAssignmentsMarkdown()
+    } else if (!isRightSidebarOpen && wasOpen) {
+      // Sidebar just closed - reset markdown mode
+      setIsMarkdownMode(false)
+    }
+  }, [isRightSidebarOpen, isTeacher, activeTab, loadAssignmentsMarkdown])
 
   // Handle markdown content change
   const handleMarkdownContentChange = useCallback((content: string) => {
@@ -418,8 +429,6 @@ function ClassroomPageContent({
                   classroom={classroom}
                   onSelectAssignment={handleSelectAssignment}
                   onSelectStudent={handleSelectStudent}
-                  onMarkdownToggle={handleMarkdownToggle}
-                  isMarkdownMode={isMarkdownMode}
                 />
               )}
               {activeTab === 'calendar' && (
