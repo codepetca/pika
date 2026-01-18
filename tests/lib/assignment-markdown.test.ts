@@ -29,40 +29,40 @@ function makeAssignment(overrides: Partial<Assignment> = {}): Assignment {
 }
 
 describe('assignmentsToMarkdown', () => {
-  it('should generate markdown with header', () => {
-    const result = assignmentsToMarkdown('Biology 101', [])
-    expect(result.markdown).toContain('# Assignments: Biology 101')
+  it('should generate empty markdown for no assignments', () => {
+    const result = assignmentsToMarkdown([])
+    expect(result.markdown).toBe('')
     expect(result.hasRichContent).toBe(false)
   })
 
   it('should include assignment title as h2', () => {
     const assignments = [makeAssignment({ title: 'Homework 1' })]
-    const result = assignmentsToMarkdown('Biology 101', assignments)
+    const result = assignmentsToMarkdown(assignments)
     expect(result.markdown).toContain('## Homework 1')
   })
 
   it('should include [DRAFT] marker for draft assignments', () => {
     const assignments = [makeAssignment({ title: 'Homework 1', is_draft: true, released_at: null })]
-    const result = assignmentsToMarkdown('Biology 101', assignments)
+    const result = assignmentsToMarkdown(assignments)
     expect(result.markdown).toContain('## Homework 1 [DRAFT]')
   })
 
   it('should format due date in Toronto timezone', () => {
     const assignments = [makeAssignment({ due_at: '2025-01-20T23:59:00Z' })]
-    const result = assignmentsToMarkdown('Biology 101', assignments)
+    const result = assignmentsToMarkdown(assignments)
     // Jan 20, 2025 at 23:59 UTC = Jan 20, 2025 at 6:59 PM EST
     expect(result.markdown).toMatch(/Due: Mon, Jan 20, 2025 at \d{1,2}:\d{2} [AP]M/)
   })
 
   it('should include assignment ID', () => {
     const assignments = [makeAssignment({ id: 'abc123-def456' })]
-    const result = assignmentsToMarkdown('Biology 101', assignments)
+    const result = assignmentsToMarkdown(assignments)
     expect(result.markdown).toContain('ID: abc123-def456')
   })
 
   it('should include plain text instructions', () => {
     const assignments = [makeAssignment({ description: 'Complete problems 1-10' })]
-    const result = assignmentsToMarkdown('Biology 101', assignments)
+    const result = assignmentsToMarkdown(assignments)
     expect(result.markdown).toContain('Complete problems 1-10')
   })
 
@@ -81,7 +81,7 @@ describe('assignmentsToMarkdown', () => {
       ],
     }
     const assignments = [makeAssignment({ rich_instructions: richInstructions })]
-    const result = assignmentsToMarkdown('Biology 101', assignments)
+    const result = assignmentsToMarkdown(assignments)
     expect(result.markdown).toContain('First paragraph.')
     expect(result.markdown).toContain('Second paragraph.')
   })
@@ -99,7 +99,7 @@ describe('assignmentsToMarkdown', () => {
       ],
     }
     const assignments = [makeAssignment({ rich_instructions: richInstructions })]
-    const result = assignmentsToMarkdown('Biology 101', assignments)
+    const result = assignmentsToMarkdown(assignments)
     expect(result.hasRichContent).toBe(true)
   })
 
@@ -108,7 +108,7 @@ describe('assignmentsToMarkdown', () => {
       makeAssignment({ id: 'a-1', title: 'Assignment 1', position: 0 }),
       makeAssignment({ id: 'a-2', title: 'Assignment 2', position: 1 }),
     ]
-    const result = assignmentsToMarkdown('Biology 101', assignments)
+    const result = assignmentsToMarkdown(assignments)
     expect(result.markdown).toContain('---')
   })
 
@@ -118,7 +118,7 @@ describe('assignmentsToMarkdown', () => {
       makeAssignment({ id: 'a-2', title: 'Second', position: 1 }),
       makeAssignment({ id: 'a-3', title: 'Third', position: 2 }),
     ]
-    const result = assignmentsToMarkdown('Biology 101', assignments)
+    const result = assignmentsToMarkdown(assignments)
     const firstIndex = result.markdown.indexOf('First')
     const secondIndex = result.markdown.indexOf('Second')
     const thirdIndex = result.markdown.indexOf('Third')

@@ -265,7 +265,7 @@ function ClassroomPageContent({
       setAssignmentsCache(assignments)
 
       // Generate markdown
-      const result = assignmentsToMarkdown(classroom.title, assignments)
+      const result = assignmentsToMarkdown(assignments)
       setMarkdownContent(result.markdown)
       setHasRichContent(result.hasRichContent)
       setIsMarkdownMode(true)

@@ -38,10 +38,9 @@ export interface MarkdownSerializeResult {
  * Convert assignments to markdown format for editing
  */
 export function assignmentsToMarkdown(
-  classroomTitle: string,
   assignments: Assignment[]
 ): MarkdownSerializeResult {
-  const lines: string[] = [`# Assignments: ${classroomTitle}`, '']
+  const lines: string[] = []
   let hasRichContent = false
 
   for (let i = 0; i < assignments.length; i++) {
