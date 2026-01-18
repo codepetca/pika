@@ -15,6 +15,7 @@ import { writeCookie } from '@/lib/cookies'
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
+const MARKDOWN_SYNC_DEBOUNCE_MS = 300
 
 export interface CalendarSidebarState {
   markdownContent: string
@@ -51,6 +52,8 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   const lastSaveAtRef = useRef<number>(0)
   const prevSidebarOpenRef = useRef(false)
   const needsRefreshRef = useRef(true) // Force refresh on first open or after save
+  const markdownContentRef = useRef('') // Ref to avoid stale closure in save handler
+  const markdownSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Always fetch the full term - switching views is then instant
   const fetchRange = useMemo(() => {
@@ -189,6 +192,9 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
+      if (markdownSyncTimeoutRef.current) {
+        clearTimeout(markdownSyncTimeoutRef.current)
+      }
       // Flush any pending changes on component unmount (e.g., navigation)
       // The fetch will complete even after unmount
       if (pendingChangesRef.current.size > 0) {
@@ -208,12 +214,14 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
         `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${start}&end=${end}`
       )
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`)
+        const body = await res.text().catch(() => '')
+        throw new Error(`HTTP ${res.status}${body ? `: ${body}` : ''}`)
       }
       const data = await res.json()
       const plans = data.lesson_plans || []
       const markdown = lessonPlansToMarkdown(classroom, plans, start, end)
       setMarkdownContent(markdown)
+      markdownContentRef.current = markdown
       needsRefreshRef.current = false
     } catch (err) {
       console.error('Error generating markdown:', err)
@@ -227,6 +235,20 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   const handleMarkdownToggle = useCallback(() => {
     toggleSidebar()
   }, [toggleSidebar])
+
+  // Handle markdown content change - ref updates immediately, state updates debounced
+  const handleMarkdownChange = useCallback((content: string) => {
+    // Always update ref immediately so save has latest content
+    markdownContentRef.current = content
+
+    // Debounce state update to reduce parent re-renders
+    if (markdownSyncTimeoutRef.current) {
+      clearTimeout(markdownSyncTimeoutRef.current)
+    }
+    markdownSyncTimeoutRef.current = setTimeout(() => {
+      setMarkdownContent(content)
+    }, MARKDOWN_SYNC_DEBOUNCE_MS)
+  }, [])
 
   // Load markdown content when sidebar opens (handles both button click and keyboard shortcut)
   useEffect(() => {
@@ -245,7 +267,8 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
     setBulkSaving(true)
 
     try {
-      const result = markdownToLessonPlans(markdownContent, classroom)
+      // Use ref to get latest content (avoids stale closure)
+      const result = markdownToLessonPlans(markdownContentRef.current, classroom)
 
       if (result.errors.length > 0) {
         setMarkdownError(result.errors.join('\n'))
@@ -277,7 +300,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
     } finally {
       setBulkSaving(false)
     }
-  }, [markdownContent, classroom, setSidebarOpen])
+  }, [classroom, setSidebarOpen])
 
   // Handle assignment click - navigate to assignments tab with assignment selected
   const handleAssignmentClick = useCallback(
@@ -298,20 +321,21 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
 
   // Notify parent when sidebar opens/closes or error/saving state changes
   // Note: markdownContent is intentionally excluded to avoid cursor jump on every keystroke
+  // The save handler reads from markdownContentRef to get the latest content
   useEffect(() => {
     if (isSidebarOpen) {
       onSidebarStateChange?.({
         markdownContent,
         markdownError,
         bulkSaving,
-        onMarkdownChange: setMarkdownContent,
+        onMarkdownChange: handleMarkdownChange,
         onSave: handleMarkdownSave,
       })
     } else {
       onSidebarStateChange?.(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSidebarOpen, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave])
+  }, [isSidebarOpen, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave, handleMarkdownChange])
 
   if (loading && lessonPlans.length === 0) {
     return (
@@ -367,15 +391,27 @@ export function TeacherLessonCalendarSidebar({
 }) {
   // Local state for textarea to avoid cursor jumping
   const [localContent, setLocalContent] = useState(initialContent)
+  // Track if user has made local edits (dirty state)
+  const [isDirty, setIsDirty] = useState(false)
+  // Track the last synced content to detect external changes
+  const lastSyncedContentRef = useRef(initialContent)
 
   // Sync local state when initialContent changes (e.g., on sidebar reopen)
+  // Only sync if user hasn't made local edits OR if content is completely different
+  // (indicating a fresh load rather than a race condition)
   useEffect(() => {
-    setLocalContent(initialContent)
-  }, [initialContent])
+    const isCompletelyDifferent = initialContent !== lastSyncedContentRef.current
+    if (!isDirty || isCompletelyDifferent) {
+      setLocalContent(initialContent)
+      lastSyncedContentRef.current = initialContent
+      setIsDirty(false)
+    }
+  }, [initialContent, isDirty])
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value
     setLocalContent(newContent)
+    setIsDirty(true)
     onMarkdownChange(newContent)
   }
 

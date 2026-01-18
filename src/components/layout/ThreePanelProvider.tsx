@@ -211,11 +211,11 @@ export function ThreePanelProvider({
     ]
   )
 
-  // Keyboard shortcuts: Cmd/Ctrl+B for left panel, Cmd/Ctrl+Shift+B for right panel
+  // Keyboard shortcuts: Cmd/Ctrl+\ for right panel, Cmd/Ctrl+Shift+\ for left panel
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // Check for Cmd (Mac) or Ctrl (Windows/Linux) + B
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+      // Check for Cmd (Mac) or Ctrl (Windows/Linux) + \
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         // Don't trigger if user is typing in an input/textarea
         const target = e.target as HTMLElement
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
@@ -225,11 +225,11 @@ export function ThreePanelProvider({
         e.preventDefault()
 
         if (e.shiftKey) {
-          // Cmd/Ctrl+Shift+B: toggle right panel
-          toggleRight()
-        } else {
-          // Cmd/Ctrl+B: toggle left panel
+          // Cmd/Ctrl+Shift+\: toggle left panel
           toggleLeft()
+        } else {
+          // Cmd/Ctrl+\: toggle right panel
+          toggleRight()
         }
       }
     }

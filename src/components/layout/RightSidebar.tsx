@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, type ReactNode } from 'react'
-import { PanelRight, Square, X } from 'lucide-react'
+import { PanelRight, PanelRightClose, X } from 'lucide-react'
 import { useRightSidebar, useMobileDrawer, useThreePanel } from './ThreePanelProvider'
 
 export interface RightSidebarProps {
@@ -169,7 +169,7 @@ export function RightSidebarToggle({ className }: { className?: string }) {
           .join(' ')}
       >
         {isOpen ? (
-          <Square className="h-5 w-5" aria-hidden="true" />
+          <PanelRightClose className="h-5 w-5" aria-hidden="true" />
         ) : (
           <PanelRight className="h-5 w-5" aria-hidden="true" />
         )}

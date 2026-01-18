@@ -199,6 +199,10 @@ function ClassroomPageContent({
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
 
   // State for selected student (teacher assignments tab - viewing student work)
+  // TODO: Re-add instructions panel toggle using BidirectionalSidebarContent pattern
+  // Previously there was a showInstructionsPanel state that let teachers toggle between
+  // viewing student work and assignment instructions. This was removed in favor of the
+  // new bidirectional sidebar pattern used in calendar tab. Plan to re-add as a future feature.
   const [selectedStudent, setSelectedStudent] = useState<SelectedStudentInfo | null>(null)
 
   // State for today's lesson plan (student today tab)

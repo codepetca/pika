@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
-import { ChevronLeft, ChevronRight, PanelRight, Square, CircleDot } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose, CircleDot } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
 import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment } from '@/types'
 
@@ -322,7 +322,7 @@ export function LessonCalendar({
                 title={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
               >
                 {isSidebarOpen ? (
-                  <Square className="w-5 h-5" />
+                  <PanelRightClose className="w-5 h-5" />
                 ) : (
                   <PanelRight className="w-5 h-5" />
                 )}
