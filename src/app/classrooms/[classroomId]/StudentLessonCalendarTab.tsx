@@ -7,6 +7,7 @@ import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getOntarioHolidays } from '@/lib/calendar'
+import { useClassDays } from '@/hooks/useClassDays'
 import type { Classroom, LessonPlan, Assignment } from '@/types'
 
 interface Props {
@@ -17,6 +18,7 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
   const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -110,6 +112,7 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
           classroom={classroom}
           lessonPlans={lessonPlans}
           assignments={assignments}
+          classDays={classDays}
           viewMode={viewMode}
           currentDate={currentDate}
           editable={false}

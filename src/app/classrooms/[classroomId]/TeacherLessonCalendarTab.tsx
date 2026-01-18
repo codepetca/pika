@@ -9,6 +9,7 @@ import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getOntarioHolidays } from '@/lib/calendar'
 import { useRightSidebar } from '@/components/layout'
 import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
+import { useClassDays } from '@/hooks/useClassDays'
 import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
 import { writeCookie } from '@/lib/cookies'
 
@@ -23,6 +24,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
   const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week')
@@ -293,6 +295,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
           classroom={classroom}
           lessonPlans={lessonPlans}
           assignments={assignments.filter((a) => !a.is_draft)}
+          classDays={classDays}
           viewMode={viewMode}
           currentDate={currentDate}
           editable={!classroom.archived_at}

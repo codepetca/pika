@@ -5,7 +5,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, 
 import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, Code, CircleDot } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
-import type { LessonPlan, TiptapContent, Classroom, Assignment } from '@/types'
+import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
 
@@ -15,6 +15,7 @@ interface LessonCalendarProps {
   classroom: Classroom
   lessonPlans: LessonPlan[]
   assignments?: Assignment[]
+  classDays?: ClassDay[]
   viewMode: CalendarViewMode
   currentDate: Date
   editable: boolean
@@ -65,6 +66,7 @@ export function LessonCalendar({
   classroom,
   lessonPlans,
   assignments = [],
+  classDays = [],
   viewMode,
   currentDate,
   editable,
@@ -105,6 +107,17 @@ export function LessonCalendar({
     })
     return map
   }, [assignments])
+
+  // Build a set of class day dates for quick lookup
+  const classDayDates = useMemo(() => {
+    const set = new Set<string>()
+    classDays.forEach((classDay) => {
+      if (classDay.is_class_day) {
+        set.add(classDay.date)
+      }
+    })
+    return set
+  }, [classDays])
 
   // Calculate days to display based on view mode
   const days = useMemo(() => {
@@ -386,6 +399,8 @@ export function LessonCalendar({
             const isToday = isSameDay(day, today)
             const isWeekendDay = isWeekend(day)
             const isHoliday = holidays.has(dateString)
+            // Only determine class day status if we have class days data
+            const isClassDay = classDays.length > 0 ? classDayDates.has(dateString) : undefined
             // In 'all' mode, column starts at 2 (after month column)
             const colStart = viewMode === 'all' ? dayIdx + 2 : dayIdx + 1
 
@@ -407,6 +422,7 @@ export function LessonCalendar({
                   isWeekend={isWeekendDay}
                   isToday={isToday}
                   isHoliday={isHoliday}
+                  isClassDay={isClassDay}
                   editable={editable && !isWeekendDay && viewMode !== 'all'}
                   compact={viewMode !== 'week' && !isExpanded}
                   plainTextOnly={viewMode === 'all'}
