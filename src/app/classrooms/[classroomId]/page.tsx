@@ -223,8 +223,9 @@ function ClassroomPageContent({
   const [hasRichContent, setHasRichContent] = useState(false)
   const [assignmentsCache, setAssignmentsCache] = useState<Assignment[]>([])
 
-  // Track previous sidebar open state for detecting transitions
+  // Track previous states for detecting transitions
   const prevSidebarOpenRef = useRef(false)
+  const prevViewModeRef = useRef<AssignmentViewMode>('summary')
 
   const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
     setSelectedEntry(entry)
@@ -275,16 +276,21 @@ function ClassroomPageContent({
     }
   }, [classroom.id, classroom.title, setRightSidebarWidth])
 
-  // Detect sidebar open/close transitions for assignments tab in summary mode
+  // Detect sidebar open/close and view mode transitions for assignments tab
   useEffect(() => {
     const wasOpen = prevSidebarOpenRef.current
+    const wasViewMode = prevViewModeRef.current
     prevSidebarOpenRef.current = isRightSidebarOpen
+    prevViewModeRef.current = assignmentViewMode
 
-    // Only handle transitions for assignments tab in summary mode
+    // Only handle transitions for assignments tab
     if (!isTeacher || activeTab !== 'assignments') return
 
-    if (isRightSidebarOpen && !wasOpen && assignmentViewMode === 'summary') {
-      // Sidebar just opened in summary mode - load markdown content
+    const sidebarJustOpened = isRightSidebarOpen && !wasOpen
+    const returnedToSummary = assignmentViewMode === 'summary' && wasViewMode === 'assignment'
+
+    if (assignmentViewMode === 'summary' && (sidebarJustOpened || (returnedToSummary && isRightSidebarOpen))) {
+      // Sidebar just opened in summary mode, or returned to summary with sidebar open
       loadAssignmentsMarkdown()
     } else if (!isRightSidebarOpen && wasOpen) {
       // Sidebar just closed - reset markdown mode
