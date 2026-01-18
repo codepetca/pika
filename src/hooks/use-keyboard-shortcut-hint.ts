@@ -17,9 +17,9 @@ export function useKeyboardShortcutHint() {
   return {
     /** Modifier key symbol (⌘ or Ctrl+) */
     mod,
-    /** Right sidebar toggle: ⌘\ or Ctrl+\ */
-    rightPanel: `${mod}\\`,
-    /** Left sidebar toggle: ⌘⇧\ or Ctrl+Shift+\ */
-    leftPanel: isMac ? '⌘⇧\\' : 'Ctrl+Shift+\\',
+    /** Left sidebar toggle: ⌘\ or Ctrl+\ */
+    leftPanel: `${mod}\\`,
+    /** Right sidebar toggle: ⌘⇧\ or Ctrl+Shift+\ */
+    rightPanel: isMac ? '⌘⇧\\' : 'Ctrl+Shift+\\',
   }
 }

@@ -2,8 +2,8 @@
  * Keyboard Shortcuts E2E Tests
  *
  * Tests for panel toggle keyboard shortcuts:
- * - Cmd/Ctrl+\: Toggle right sidebar
- * - Cmd/Ctrl+Shift+\: Toggle left sidebar
+ * - Cmd/Ctrl+\: Toggle left sidebar
+ * - Cmd/Ctrl+Shift+\: Toggle right sidebar
  */
 import { test, expect } from '@playwright/test'
 
@@ -24,7 +24,7 @@ function getModifier(page: any): 'Meta' | 'Control' {
 test.describe('keyboard shortcuts', () => {
   test.use({ storageState: TEACHER_STORAGE })
 
-  test('Cmd/Ctrl+Shift+\\ toggles left sidebar', async ({ page }) => {
+  test('Cmd/Ctrl+\\ toggles left sidebar', async ({ page }) => {
     await page.goto('/classrooms')
     const classroomCard = page.locator('[data-testid="classroom-card"]').first()
     await expect(classroomCard).toBeVisible({ timeout: 15_000 })
@@ -36,9 +36,9 @@ test.describe('keyboard shortcuts', () => {
     const navText = page.getByRole('link', { name: 'Attendance' })
     const initiallyExpanded = await navText.isVisible()
 
-    // Press Cmd/Ctrl+Shift+\ to toggle left sidebar
+    // Press Cmd/Ctrl+\ to toggle left sidebar
     const modifier = getModifier(page)
-    await page.keyboard.press(`${modifier}+Shift+\\`)
+    await page.keyboard.press(`${modifier}+\\`)
     await page.waitForTimeout(300)
 
     // Verify state changed
@@ -51,7 +51,7 @@ test.describe('keyboard shortcuts', () => {
     }
 
     // Press again to toggle back
-    await page.keyboard.press(`${modifier}+Shift+\\`)
+    await page.keyboard.press(`${modifier}+\\`)
     await page.waitForTimeout(300)
 
     // Verify back to original state
@@ -62,7 +62,7 @@ test.describe('keyboard shortcuts', () => {
     }
   })
 
-  test('Cmd/Ctrl+\\ toggles right sidebar on calendar tab', async ({ page }) => {
+  test('Cmd/Ctrl+Shift+\\ toggles right sidebar on calendar tab', async ({ page }) => {
     await page.goto('/classrooms')
     const classroomCard = page.locator('[data-testid="classroom-card"]').first()
     await expect(classroomCard).toBeVisible({ timeout: 15_000 })
@@ -73,9 +73,9 @@ test.describe('keyboard shortcuts', () => {
     await page.getByRole('link', { name: 'Calendar' }).click()
     await waitForContent(page)
 
-    // Press Cmd/Ctrl+\ to open right sidebar
+    // Press Cmd/Ctrl+Shift+\ to open right sidebar
     const modifier = getModifier(page)
-    await page.keyboard.press(`${modifier}+\\`)
+    await page.keyboard.press(`${modifier}+Shift+\\`)
     await page.waitForTimeout(500)
 
     // Verify sidebar opened - look for the Save button in sidebar header
@@ -83,7 +83,7 @@ test.describe('keyboard shortcuts', () => {
     await expect(saveButton).toBeVisible({ timeout: 5000 })
 
     // Press again to close
-    await page.keyboard.press(`${modifier}+\\`)
+    await page.keyboard.press(`${modifier}+Shift+\\`)
     await page.waitForTimeout(300)
 
     // Verify sidebar closed
@@ -101,9 +101,9 @@ test.describe('keyboard shortcuts', () => {
     await page.getByRole('link', { name: 'Calendar' }).click()
     await waitForContent(page)
 
-    // Open the sidebar first
+    // Open the sidebar first using Cmd/Ctrl+Shift+\
     const modifier = getModifier(page)
-    await page.keyboard.press(`${modifier}+\\`)
+    await page.keyboard.press(`${modifier}+Shift+\\`)
     await page.waitForTimeout(500)
 
     // Find and focus the textarea
@@ -115,8 +115,8 @@ test.describe('keyboard shortcuts', () => {
     const saveButton = page.getByRole('button', { name: 'Save' })
     await expect(saveButton).toBeVisible()
 
-    // Try pressing Cmd/Ctrl+\ while in textarea - should NOT close sidebar
-    await page.keyboard.press(`${modifier}+\\`)
+    // Try pressing Cmd/Ctrl+Shift+\ while in textarea - should NOT close sidebar
+    await page.keyboard.press(`${modifier}+Shift+\\`)
     await page.waitForTimeout(300)
 
     // Sidebar should still be open (shortcut was ignored)
