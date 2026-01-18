@@ -31,8 +31,7 @@ export function lessonPlansToMarkdown(
     // Skip weekends
     if (!isWeekend(current)) {
       const dateStr = format(current, 'yyyy-MM-dd')
-      const dayLabel = format(current, 'EEE, MMM d, yyyy')
-      lines.push(`## ${dayLabel}`)
+      lines.push(`## ${dateStr}`)
 
       const plan = planMap.get(dateStr)
       if (plan && plan.content.content && plan.content.content.length > 0) {
@@ -64,7 +63,7 @@ export function markdownToLessonPlans(
   let currentDate: string | null = null
   let currentContent: string[] = []
 
-  const datePattern = /^## \w+, (\w+ \d+, \d{4})$/
+  const datePattern = /^## (\d{4}-\d{2}-\d{2})$/
 
   function flushCurrentPlan() {
     if (currentDate) {
@@ -88,14 +87,13 @@ export function markdownToLessonPlans(
 
       // Parse the date
       try {
-        const parsed = parse(match[1], 'MMM d, yyyy', new Date())
+        const dateStr = match[1]
+        const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
         if (isNaN(parsed.getTime())) {
-          errors.push(`Invalid date: ${match[1]}`)
+          errors.push(`Invalid date: ${dateStr}`)
           currentDate = null
           continue
         }
-
-        const dateStr = format(parsed, 'yyyy-MM-dd')
 
         // Check for duplicate
         if (seenDates.has(dateStr)) {

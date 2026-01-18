@@ -16,11 +16,20 @@ import { writeCookie } from '@/lib/cookies'
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
 
-interface Props {
-  classroom: Classroom
+export interface CalendarSidebarState {
+  markdownContent: string
+  markdownError: string | null
+  bulkSaving: boolean
+  onMarkdownChange: (content: string) => void
+  onSave: () => void
 }
 
-export function TeacherLessonCalendarTab({ classroom }: Props) {
+interface Props {
+  classroom: Classroom
+  onSidebarStateChange?: (state: CalendarSidebarState | null) => void
+}
+
+export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Props) {
   const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
@@ -32,6 +41,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
   const [markdownContent, setMarkdownContent] = useState('')
   const [markdownError, setMarkdownError] = useState<string | null>(null)
   const [bulkSaving, setBulkSaving] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const { toggle: toggleSidebar, isOpen: isSidebarOpen, setOpen: setSidebarOpen } = useRightSidebar()
 
@@ -39,6 +49,8 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
   const pendingChangesRef = useRef<Map<string, TiptapContent>>(new Map())
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAtRef = useRef<number>(0)
+  const prevSidebarOpenRef = useRef(false)
+  const needsRefreshRef = useRef(true) // Force refresh on first open or after save
 
   // Always fetch the full term - switching views is then instant
   const fetchRange = useMemo(() => {
@@ -72,7 +84,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
       }
     }
     loadLessonPlans()
-  }, [classroom.id, fetchRange.start, fetchRange.end])
+  }, [classroom.id, fetchRange.start, fetchRange.end, refreshKey])
 
   // Fetch assignments for the classroom
   useEffect(() => {
@@ -185,34 +197,47 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
     }
   }, [classroom.id, flushPendingSaves])
 
-  // Handle markdown panel toggle
-  const handleMarkdownToggle = useCallback(async () => {
-    if (!isSidebarOpen) {
-      // Opening: generate markdown from all term lesson plans
-      setLoading(true)
-      setMarkdownError(null)
-      try {
-        // Fetch all lesson plans for the term
-        const start = classroom.start_date || fetchRange.start
-        const end = classroom.end_date || fetchRange.end
-        const res = await fetch(
-          `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${start}&end=${end}`
-        )
-        const data = await res.json()
-        const plans = data.lesson_plans || []
-
-        // Generate markdown
-        const markdown = lessonPlansToMarkdown(classroom, plans, start, end)
-        setMarkdownContent(markdown)
-      } catch (err) {
-        console.error('Error generating markdown:', err)
-        setMarkdownError('Failed to load lesson plans')
-      } finally {
-        setLoading(false)
+  // Fetch and generate markdown content
+  const loadMarkdownContent = useCallback(async () => {
+    setLoading(true)
+    setMarkdownError(null)
+    try {
+      const start = classroom.start_date || fetchRange.start
+      const end = classroom.end_date || fetchRange.end
+      const res = await fetch(
+        `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${start}&end=${end}`
+      )
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
       }
+      const data = await res.json()
+      const plans = data.lesson_plans || []
+      const markdown = lessonPlansToMarkdown(classroom, plans, start, end)
+      setMarkdownContent(markdown)
+      needsRefreshRef.current = false
+    } catch (err) {
+      console.error('Error generating markdown:', err)
+      setMarkdownError('Failed to load lesson plans')
+    } finally {
+      setLoading(false)
     }
+  }, [classroom, fetchRange])
+
+  // Handle markdown panel toggle - just toggle, effect handles loading
+  const handleMarkdownToggle = useCallback(() => {
     toggleSidebar()
-  }, [isSidebarOpen, toggleSidebar, classroom, fetchRange])
+  }, [toggleSidebar])
+
+  // Load markdown content when sidebar opens (handles both button click and keyboard shortcut)
+  useEffect(() => {
+    const wasOpen = prevSidebarOpenRef.current
+    prevSidebarOpenRef.current = isSidebarOpen
+
+    // Only load when transitioning from closed to open AND we need a refresh
+    if (isSidebarOpen && !wasOpen && needsRefreshRef.current) {
+      loadMarkdownContent()
+    }
+  }, [isSidebarOpen, loadMarkdownContent])
 
   // Handle markdown save
   const handleMarkdownSave = useCallback(async () => {
@@ -242,22 +267,17 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
         return
       }
 
-      // Success - close panel and refresh
+      // Success - close panel and refresh calendar
+      needsRefreshRef.current = true // Force refresh on next sidebar open
       setSidebarOpen(false)
-      // Trigger re-fetch
-      setCurrentDate(new Date(currentDate))
+      setRefreshKey((k) => k + 1)
     } catch (err) {
       console.error('Error saving markdown:', err)
       setMarkdownError('Failed to save lesson plans')
     } finally {
       setBulkSaving(false)
     }
-  }, [markdownContent, classroom, setSidebarOpen, currentDate])
-
-  // Handle copy to clipboard
-  const handleCopyToClipboard = useCallback(() => {
-    navigator.clipboard.writeText(markdownContent)
-  }, [markdownContent])
+  }, [markdownContent, classroom, setSidebarOpen])
 
   // Handle assignment click - navigate to assignments tab with assignment selected
   const handleAssignmentClick = useCallback(
@@ -275,6 +295,23 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
     },
     [router, classroom.id]
   )
+
+  // Notify parent when sidebar opens/closes or error/saving state changes
+  // Note: markdownContent is intentionally excluded to avoid cursor jump on every keystroke
+  useEffect(() => {
+    if (isSidebarOpen) {
+      onSidebarStateChange?.({
+        markdownContent,
+        markdownError,
+        bulkSaving,
+        onMarkdownChange: setMarkdownContent,
+        onSave: handleMarkdownSave,
+      })
+    } else {
+      onSidebarStateChange?.(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSidebarOpen, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave])
 
   if (loading && lessonPlans.length === 0) {
     return (
@@ -305,6 +342,7 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
           onContentChange={handleContentChange}
           onAssignmentClick={handleAssignmentClick}
           onMarkdownToggle={handleMarkdownToggle}
+          isSidebarOpen={isSidebarOpen}
           holidays={holidays}
         />
       </PageContent>
@@ -313,54 +351,57 @@ export function TeacherLessonCalendarTab({ classroom }: Props) {
 }
 
 // Sidebar content component - rendered via page.tsx
+// Uses local state to avoid cursor jump issues from parent re-renders
 export function TeacherLessonCalendarSidebar({
-  markdownContent,
+  markdownContent: initialContent,
   markdownError,
   bulkSaving,
   onMarkdownChange,
   onSave,
-  onCopyToClipboard,
 }: {
   markdownContent: string
   markdownError: string | null
   bulkSaving: boolean
   onMarkdownChange: (content: string) => void
   onSave: () => void
-  onCopyToClipboard: () => void
 }) {
-  return (
-    <div className="flex flex-col h-full p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Lesson Plans (Markdown)
-        </h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onCopyToClipboard}
-            className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            Copy
-          </button>
-          <button
-            onClick={onSave}
-            disabled={bulkSaving}
-            className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {bulkSaving ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </div>
+  // Local state for textarea to avoid cursor jumping
+  const [localContent, setLocalContent] = useState(initialContent)
 
+  // Sync local state when initialContent changes (e.g., on sidebar reopen)
+  useEffect(() => {
+    setLocalContent(initialContent)
+  }, [initialContent])
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value
+    setLocalContent(newContent)
+    onMarkdownChange(newContent)
+  }
+
+  // Cmd+S / Ctrl+S to save
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault()
+      if (!bulkSaving) {
+        onSave()
+      }
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full">
       {markdownError && (
-        <div className="mb-3 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
+        <div className="mx-2 mt-2 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
           {markdownError}
         </div>
       )}
 
       <textarea
-        value={markdownContent}
-        onChange={(e) => onMarkdownChange(e.target.value)}
-        className="flex-1 w-full p-3 font-mono text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none"
+        value={localContent}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none focus:outline-none"
         placeholder="Loading..."
       />
     </div>

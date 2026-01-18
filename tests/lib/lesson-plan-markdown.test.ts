@@ -39,11 +39,11 @@ describe('lessonPlansToMarkdown', () => {
     // Jan 8-14, 2025: Wed-Tue (includes Sat Jan 11 and Sun Jan 12)
     const result = lessonPlansToMarkdown(mockClassroom, plans, '2025-01-08', '2025-01-14')
 
-    // Check for weekday entries (note: date strings may shift -1 day in local TZ)
-    expect(result).not.toContain('Sat,')
-    expect(result).not.toContain('Sun,')
+    // Check for weekday entries - weekends (Jan 11, 12) should not appear
+    expect(result).not.toContain('## 2025-01-11')
+    expect(result).not.toContain('## 2025-01-12')
     // Should have 5 weekday entries
-    const weekdayMatches = result.match(/## \w+,/g)
+    const weekdayMatches = result.match(/## \d{4}-\d{2}-\d{2}/g)
     expect(weekdayMatches?.length).toBe(5)
   })
 
@@ -107,10 +107,10 @@ describe('markdownToLessonPlans', () => {
     const markdown = `# Lesson Plans: Biology 101
 Term: 2025-01-07 - 2025-01-10
 
-## Tue, Jan 7, 2025
+## 2025-01-07
 Introduction to cells
 
-## Wed, Jan 8, 2025
+## 2025-01-08
 Cell membrane structure
 `
     const { plans, errors } = markdownToLessonPlans(markdown, mockClassroom)
@@ -125,10 +125,10 @@ Cell membrane structure
     const markdown = `# Lesson Plans: Biology 101
 Term: 2025-01-07 - 2025-01-10
 
-## Tue, Jan 7, 2025
+## 2025-01-07
 (empty)
 
-## Wed, Jan 8, 2025
+## 2025-01-08
 Actual content here
 `
     const { plans, errors } = markdownToLessonPlans(markdown, mockClassroom)
@@ -142,7 +142,7 @@ Actual content here
     const markdown = `# Lesson Plans: Biology 101
 Term: 2025-01-07 - 2025-01-10
 
-## Tue, Foo 99, 2025
+## 2025-99-99
 Some content
 `
     const { plans, errors } = markdownToLessonPlans(markdown, mockClassroom)
@@ -155,10 +155,10 @@ Some content
     const markdown = `# Lesson Plans: Biology 101
 Term: 2025-01-07 - 2025-01-10
 
-## Tue, Jan 7, 2025
+## 2025-01-07
 First content
 
-## Tue, Jan 7, 2025
+## 2025-01-07
 Duplicate content
 `
     const { plans, errors } = markdownToLessonPlans(markdown, mockClassroom)
@@ -172,7 +172,7 @@ Duplicate content
     const markdown = `# Lesson Plans: Biology 101
 Term: 2025-01-07 - 2025-01-12
 
-## Sat, Jan 11, 2025
+## 2025-01-11
 Weekend content
 `
     const { plans, errors } = markdownToLessonPlans(markdown, classroomNoTermDates)
@@ -185,7 +185,7 @@ Weekend content
     const markdown = `# Lesson Plans: Biology 101
 Term: 2025-01-07 - 2025-01-17
 
-## Fri, Jan 3, 2025
+## 2025-01-03
 Content before term
 `
     const { plans, errors } = markdownToLessonPlans(markdown, mockClassroom)
@@ -198,7 +198,7 @@ Content before term
     const markdown = `# Lesson Plans: Biology 101
 Term: 2025-01-07 - 2025-01-17
 
-## Tue, Jan 21, 2025
+## 2025-01-21
 Content after term
 `
     const { plans, errors } = markdownToLessonPlans(markdown, mockClassroom)
@@ -212,10 +212,10 @@ Content after term
     const markdown = `# Lesson Plans: Biology 101
 Term: 2025-01-07 - 2025-06-30
 
-## Tue, Jan 7, 2025
+## 2025-01-07
 Content
 
-## Mon, Jun 30, 2025
+## 2025-06-30
 Far future content
 `
     const { plans, errors } = markdownToLessonPlans(markdown, classroomNoTermDates)
