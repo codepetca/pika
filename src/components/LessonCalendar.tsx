@@ -5,6 +5,7 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, 
 import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose, CircleDot } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
+import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
@@ -83,6 +84,7 @@ export function LessonCalendar({
 }: LessonCalendarProps) {
   const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [])
   const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
+  const { rightPanel: shortcutHint } = useKeyboardShortcutHint()
 
   // Build a map of date -> lesson plan for quick lookup
   const plansByDate = useMemo(() => {
@@ -319,7 +321,7 @@ export function LessonCalendar({
                 onClick={onMarkdownToggle}
                 className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
                 aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
-                title={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
+                title={isSidebarOpen ? `Close sidebar (${shortcutHint})` : `Edit as Markdown (${shortcutHint})`}
               >
                 {isSidebarOpen ? (
                   <PanelRightClose className="w-5 h-5" />

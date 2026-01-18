@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { PanelRight, PanelRightClose, X } from 'lucide-react'
 import { useRightSidebar, useMobileDrawer, useThreePanel } from './ThreePanelProvider'
+import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 
 export interface RightSidebarProps {
   children: ReactNode
@@ -145,8 +146,12 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
 export function RightSidebarToggle({ className }: { className?: string }) {
   const { isOpen, enabled, toggle } = useRightSidebar()
   const { openRight } = useMobileDrawer()
+  const { rightPanel } = useKeyboardShortcutHint()
 
   if (!enabled) return null
+
+  const openTitle = `Open panel (${rightPanel})`
+  const closeTitle = `Close panel (${rightPanel})`
 
   return (
     <>
@@ -154,7 +159,7 @@ export function RightSidebarToggle({ className }: { className?: string }) {
       <button
         type="button"
         onClick={toggle}
-        title={isOpen ? 'Close panel' : 'Open panel'}
+        title={isOpen ? closeTitle : openTitle}
         aria-label={isOpen ? 'Close panel' : 'Open panel'}
         className={[
           'hidden lg:flex items-center justify-center',
