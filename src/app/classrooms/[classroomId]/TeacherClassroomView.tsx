@@ -66,10 +66,13 @@ interface StudentSubmissionRow {
   doc: { submitted_at?: string | null; updated_at?: string | null } | null
 }
 
+export type AssignmentViewMode = 'summary' | 'assignment'
+
 interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onSelectStudent?: (student: SelectedStudentInfo | null) => void
+  onViewModeChange?: (mode: AssignmentViewMode) => void
 }
 
 function getCookieValue(name: string) {
@@ -107,7 +110,7 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
 }
 
-export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent }: Props) {
+export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
@@ -315,6 +318,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       })
     }
   }, [selection.mode, selectedAssignmentData, onSelectAssignment])
+
+  // Notify parent of view mode changes
+  useEffect(() => {
+    onViewModeChange?.(selection.mode)
+  }, [selection.mode, onViewModeChange])
 
   // Auto-open sidebar when assignment is selected (separate effect)
   const prevSelectionModeRef = useRef<'summary' | 'assignment'>('summary')

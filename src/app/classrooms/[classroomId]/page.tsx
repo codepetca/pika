@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { Spinner } from '@/components/Spinner'
-import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar } from './TeacherClassroomView'
+import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type AssignmentViewMode } from './TeacherClassroomView'
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
@@ -212,7 +212,8 @@ function ClassroomPageContent({
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
 
-  // State for markdown mode (teacher assignments tab)
+  // State for markdown mode (teacher assignments tab - summary view only)
+  const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
   const [isMarkdownMode, setIsMarkdownMode] = useState(false)
   const [markdownContent, setMarkdownContent] = useState('')
   const [markdownError, setMarkdownError] = useState<string | null>(null)
@@ -242,6 +243,14 @@ function ClassroomPageContent({
     setTodayLessonPlan(plan)
   }, [])
 
+  const handleViewModeChange = useCallback((mode: AssignmentViewMode) => {
+    setAssignmentViewMode(mode)
+    // Reset markdown mode when switching to assignment view
+    if (mode === 'assignment') {
+      setIsMarkdownMode(false)
+    }
+  }, [])
+
   // Load assignments and generate markdown content
   const loadAssignmentsMarkdown = useCallback(async () => {
     setMarkdownError(null)
@@ -266,22 +275,22 @@ function ClassroomPageContent({
     }
   }, [classroom.id, classroom.title, setRightSidebarWidth])
 
-  // Detect sidebar open/close transitions for assignments tab
+  // Detect sidebar open/close transitions for assignments tab in summary mode
   useEffect(() => {
     const wasOpen = prevSidebarOpenRef.current
     prevSidebarOpenRef.current = isRightSidebarOpen
 
-    // Only handle transitions for assignments tab
+    // Only handle transitions for assignments tab in summary mode
     if (!isTeacher || activeTab !== 'assignments') return
 
-    if (isRightSidebarOpen && !wasOpen) {
-      // Sidebar just opened - load markdown content
+    if (isRightSidebarOpen && !wasOpen && assignmentViewMode === 'summary') {
+      // Sidebar just opened in summary mode - load markdown content
       loadAssignmentsMarkdown()
     } else if (!isRightSidebarOpen && wasOpen) {
       // Sidebar just closed - reset markdown mode
       setIsMarkdownMode(false)
     }
-  }, [isRightSidebarOpen, isTeacher, activeTab, loadAssignmentsMarkdown])
+  }, [isRightSidebarOpen, isTeacher, activeTab, assignmentViewMode, loadAssignmentsMarkdown])
 
   // Handle markdown content change
   const handleMarkdownContentChange = useCallback((content: string) => {
@@ -429,6 +438,7 @@ function ClassroomPageContent({
                   classroom={classroom}
                   onSelectAssignment={handleSelectAssignment}
                   onSelectStudent={handleSelectStudent}
+                  onViewModeChange={handleViewModeChange}
                 />
               )}
               {activeTab === 'calendar' && (
