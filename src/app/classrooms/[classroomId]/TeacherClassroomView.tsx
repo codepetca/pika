@@ -27,6 +27,7 @@ import {
   PageActionBar,
   PageContent,
   PageLayout,
+  type ActionBarItem,
 } from '@/components/PageLayout'
 import { useRightSidebar, useMobileDrawer, useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import {
@@ -70,6 +71,8 @@ interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onSelectStudent?: (student: SelectedStudentInfo | null) => void
+  onMarkdownToggle?: () => void
+  isMarkdownMode?: boolean
 }
 
 function getCookieValue(name: string) {
@@ -107,7 +110,7 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
 }
 
-export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent }: Props) {
+export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onMarkdownToggle, isMarkdownMode }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
@@ -511,9 +514,22 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       </button>
     )
 
+  // Action items for summary mode (Markdown button)
+  const actionItems: ActionBarItem[] = useMemo(() => {
+    if (selection.mode !== 'summary' || !onMarkdownToggle) return []
+    return [
+      {
+        id: 'markdown-toggle',
+        label: 'Markdown',
+        onSelect: onMarkdownToggle,
+        disabled: isReadOnly,
+      },
+    ]
+  }, [selection.mode, onMarkdownToggle, isReadOnly])
+
   return (
     <PageLayout>
-      <PageActionBar primary={primaryButtons} trailing={<RightSidebarToggle />} />
+      <PageActionBar primary={primaryButtons} actions={actionItems} trailing={<RightSidebarToggle />} />
 
       <PageContent className="space-y-4">
         {error && (
@@ -671,5 +687,97 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       />
       </PageContent>
     </PageLayout>
+  )
+}
+
+// Sidebar content component - rendered via page.tsx
+export function TeacherAssignmentsMarkdownSidebar({
+  markdownContent,
+  markdownError,
+  markdownWarning,
+  warningsAcknowledged,
+  bulkSaving,
+  hasRichContent,
+  onMarkdownChange,
+  onSave,
+  onAcknowledgeWarnings,
+  onCopyToClipboard,
+}: {
+  markdownContent: string
+  markdownError: string | null
+  markdownWarning: string | null
+  warningsAcknowledged: boolean
+  bulkSaving: boolean
+  hasRichContent: boolean
+  onMarkdownChange: (content: string) => void
+  onSave: () => void
+  onAcknowledgeWarnings: () => void
+  onCopyToClipboard: () => void
+}) {
+  // Show "Save Anyway" when there are warnings that need acknowledgment
+  const showSaveAnyway = markdownWarning && !warningsAcknowledged
+
+  return (
+    <div className="flex flex-col h-full p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Assignments (Markdown)
+        </h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onCopyToClipboard}
+            className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            Copy
+          </button>
+          {showSaveAnyway ? (
+            <button
+              onClick={() => {
+                onAcknowledgeWarnings()
+                // Trigger save after acknowledgment
+                setTimeout(onSave, 0)
+              }}
+              disabled={bulkSaving}
+              className="px-2 py-1 text-xs rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              Save Anyway
+            </button>
+          ) : (
+            <button
+              onClick={onSave}
+              disabled={bulkSaving}
+              className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {bulkSaving ? 'Saving...' : 'Save'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {hasRichContent && (
+        <div className="mb-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400">
+          Some assignments have rich formatting that will be lost when editing as plain text.
+        </div>
+      )}
+
+      {markdownWarning && (
+        <div className="mb-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400 whitespace-pre-wrap">
+          <strong>Warning:</strong> {markdownWarning}
+        </div>
+      )}
+
+      {markdownError && (
+        <div className="mb-3 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
+          {markdownError}
+        </div>
+      )}
+
+      <textarea
+        value={markdownContent}
+        onChange={(e) => onMarkdownChange(e.target.value)}
+        className="flex-1 w-full p-3 font-mono text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none"
+        placeholder="Loading..."
+      />
+    </div>
   )
 }

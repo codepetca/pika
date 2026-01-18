@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { Spinner } from '@/components/Spinner'
-import { TeacherClassroomView } from './TeacherClassroomView'
+import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar } from './TeacherClassroomView'
+import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
@@ -28,7 +29,7 @@ import { getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo } from '@/types'
+import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo, Assignment } from '@/types'
 
 interface UserInfo {
   id: string
@@ -211,6 +212,16 @@ function ClassroomPageContent({
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
 
+  // State for markdown mode (teacher assignments tab)
+  const [isMarkdownMode, setIsMarkdownMode] = useState(false)
+  const [markdownContent, setMarkdownContent] = useState('')
+  const [markdownError, setMarkdownError] = useState<string | null>(null)
+  const [markdownWarning, setMarkdownWarning] = useState<string | null>(null)
+  const [warningsAcknowledged, setWarningsAcknowledged] = useState(false)
+  const [bulkSaving, setBulkSaving] = useState(false)
+  const [hasRichContent, setHasRichContent] = useState(false)
+  const [assignmentsCache, setAssignmentsCache] = useState<Assignment[]>([])
+
   const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
     setSelectedEntry(entry)
     setSelectedStudentName(studentName)
@@ -227,6 +238,115 @@ function ClassroomPageContent({
   const handleSetLessonPlan = useCallback((plan: LessonPlan | null) => {
     setTodayLessonPlan(plan)
   }, [])
+
+  // Handle markdown toggle - fetch assignments and generate markdown
+  const handleMarkdownToggle = useCallback(async () => {
+    if (!isMarkdownMode) {
+      // Opening: fetch assignments and generate markdown
+      setMarkdownError(null)
+      setMarkdownWarning(null)
+      setWarningsAcknowledged(false)
+
+      try {
+        const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+        const data = await res.json()
+        const assignments = (data.assignments || []) as Assignment[]
+        setAssignmentsCache(assignments)
+
+        // Generate markdown
+        const result = assignmentsToMarkdown(classroom.title, assignments)
+        setMarkdownContent(result.markdown)
+        setHasRichContent(result.hasRichContent)
+
+        setIsMarkdownMode(true)
+        setRightSidebarOpen(true)
+        setRightSidebarWidth('50%')
+      } catch (err) {
+        console.error('Error fetching assignments:', err)
+        setMarkdownError('Failed to load assignments')
+      }
+    } else {
+      // Closing
+      setIsMarkdownMode(false)
+      setRightSidebarOpen(false)
+    }
+  }, [isMarkdownMode, classroom.id, classroom.title, setRightSidebarOpen, setRightSidebarWidth])
+
+  // Handle markdown content change
+  const handleMarkdownContentChange = useCallback((content: string) => {
+    setMarkdownContent(content)
+    setMarkdownError(null)
+    setMarkdownWarning(null)
+    setWarningsAcknowledged(false)
+  }, [])
+
+  // Handle markdown save
+  const handleMarkdownSave = useCallback(async () => {
+    setMarkdownError(null)
+    setBulkSaving(true)
+
+    try {
+      const result = markdownToAssignments(markdownContent, assignmentsCache)
+
+      if (result.errors.length > 0) {
+        setMarkdownError(result.errors.join('\n'))
+        setBulkSaving(false)
+        return
+      }
+
+      // If there are warnings and not yet acknowledged, show warnings and block save
+      if (result.warnings.length > 0 && !warningsAcknowledged) {
+        setMarkdownWarning(result.warnings.join('\n'))
+        setBulkSaving(false)
+        return
+      }
+
+      // Bulk save via API
+      const res = await fetch('/api/teacher/assignments/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classroom_id: classroom.id,
+          assignments: result.assignments,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setMarkdownError(data.errors?.join('\n') || data.error || 'Failed to save')
+        setBulkSaving(false)
+        return
+      }
+
+      // Success - close markdown mode and trigger refresh
+      setIsMarkdownMode(false)
+      setRightSidebarOpen(false)
+      setMarkdownWarning(null)
+      setWarningsAcknowledged(false)
+
+      // Dispatch event to refresh assignments in TeacherClassroomView
+      window.dispatchEvent(
+        new CustomEvent('pika:teacherAssignmentsUpdated', {
+          detail: { classroomId: classroom.id },
+        })
+      )
+    } catch (err) {
+      console.error('Error saving assignments:', err)
+      setMarkdownError('Failed to save assignments')
+    } finally {
+      setBulkSaving(false)
+    }
+  }, [markdownContent, assignmentsCache, classroom.id, setRightSidebarOpen, warningsAcknowledged])
+
+  // Handle acknowledging warnings to proceed with save
+  const handleAcknowledgeWarnings = useCallback(() => {
+    setWarningsAcknowledged(true)
+  }, [])
+
+  // Handle copy to clipboard
+  const handleCopyToClipboard = useCallback(() => {
+    navigator.clipboard.writeText(markdownContent)
+  }, [markdownContent])
 
   // Change right sidebar width to 70% when viewing student work, 40% otherwise
   useEffect(() => {
@@ -298,6 +418,8 @@ function ClassroomPageContent({
                   classroom={classroom}
                   onSelectAssignment={handleSelectAssignment}
                   onSelectStudent={handleSelectStudent}
+                  onMarkdownToggle={handleMarkdownToggle}
+                  isMarkdownMode={isMarkdownMode}
                 />
               )}
               {activeTab === 'calendar' && (
@@ -330,7 +452,9 @@ function ClassroomPageContent({
 
         <RightSidebar
           title={
-            isTeacher && activeTab === 'calendar' && calendarSidebarState
+            isTeacher && activeTab === 'assignments' && isMarkdownMode
+              ? 'Assignments (Markdown)'
+              : isTeacher && activeTab === 'calendar' && calendarSidebarState
               ? 'Calendar'
               : isTeacher && activeTab === 'assignments' && selectedStudent
               ? selectedStudent.assignmentTitle
@@ -341,7 +465,9 @@ function ClassroomPageContent({
               : (selectedStudentName || 'Student Log')
           }
           headerActions={
-            isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
+            isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
+              undefined
+            ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
               <button
                 type="button"
                 onClick={calendarSidebarState.onSave}
@@ -374,7 +500,20 @@ function ClassroomPageContent({
             ) : undefined
           }
         >
-          {isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
+          {isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
+            <TeacherAssignmentsMarkdownSidebar
+              markdownContent={markdownContent}
+              markdownError={markdownError}
+              markdownWarning={markdownWarning}
+              warningsAcknowledged={warningsAcknowledged}
+              bulkSaving={bulkSaving}
+              hasRichContent={hasRichContent}
+              onMarkdownChange={handleMarkdownContentChange}
+              onSave={handleMarkdownSave}
+              onAcknowledgeWarnings={handleAcknowledgeWarnings}
+              onCopyToClipboard={handleCopyToClipboard}
+            />
+          ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
           ) : isTeacher && activeTab === 'attendance' ? (
             <div className="p-4">
