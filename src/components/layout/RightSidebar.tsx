@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, type ReactNode } from 'react'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { PanelRight, PanelRightClose, X } from 'lucide-react'
 import { useRightSidebar, useMobileDrawer, useThreePanel } from './ThreePanelProvider'
+import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 
 export interface RightSidebarProps {
   children: ReactNode
@@ -21,7 +22,7 @@ export interface RightSidebarProps {
  * - No toggle button when disabled for a view
  */
 export function RightSidebar({ children, className, title = 'Details', headerActions }: RightSidebarProps) {
-  const { isOpen, enabled, toggle } = useRightSidebar()
+  const { isOpen, enabled } = useRightSidebar()
   const { isRightOpen, close } = useMobileDrawer()
   const firstFocusableRef = useRef<HTMLButtonElement | null>(null)
 
@@ -56,55 +57,34 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside
-        aria-expanded={isOpen}
-        className={[
-          'hidden lg:flex flex-col',
-          'sticky top-12 h-[calc(100vh-3rem)]',
-          'bg-white dark:bg-gray-900',
-          'transition-opacity duration-200 ease-out',
-          // When closed: completely hidden
-          isOpen
-            ? 'border-l border-gray-200 dark:border-gray-800 opacity-100'
-            : 'border-l-0 opacity-0 overflow-hidden pointer-events-none',
-          className,
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        {/* Toggle button */}
-        <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-800">
-          <button
-            type="button"
-            onClick={toggle}
-            title={isOpen ? 'Close panel' : 'Open panel'}
-            aria-label={isOpen ? 'Close panel' : 'Open panel'}
-            className={[
-              'p-2 rounded-md text-sm',
-              'text-gray-600 dark:text-gray-300',
-              'hover:bg-gray-100 dark:hover:bg-gray-800',
-              'hover:text-gray-900 dark:hover:text-gray-100',
-              'transition-colors',
-            ].join(' ')}
-          >
-            <ChevronRight className="h-5 w-5" aria-hidden="true" />
-          </button>
-          {isOpen && (
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate flex-1 text-center">
+      {/* Desktop sidebar - only render when open */}
+      {isOpen && (
+        <aside
+          aria-expanded={isOpen}
+          className={[
+            'hidden lg:flex flex-col',
+            'sticky top-12 h-[calc(100vh-3rem)]',
+            'bg-white dark:bg-gray-900',
+            'border-l border-gray-200 dark:border-gray-800',
+            className,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-800">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate flex-1 px-2">
               {title}
             </span>
-          )}
-          {isOpen && headerActions ? (
-            <div className="flex items-center gap-1">{headerActions}</div>
-          ) : (
-            <div className="w-9" /> /* Spacer for alignment */
-          )}
-        </div>
+            {headerActions && (
+              <div className="flex items-center gap-1">{headerActions}</div>
+            )}
+          </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">{children}</div>
-      </aside>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">{children}</div>
+        </aside>
+      )}
 
       {/* Mobile drawer */}
       {isRightOpen && (
@@ -166,8 +146,12 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
 export function RightSidebarToggle({ className }: { className?: string }) {
   const { isOpen, enabled, toggle } = useRightSidebar()
   const { openRight } = useMobileDrawer()
+  const { rightPanel } = useKeyboardShortcutHint()
 
   if (!enabled) return null
+
+  const openTitle = `Open panel (${rightPanel})`
+  const closeTitle = `Close panel (${rightPanel})`
 
   return (
     <>
@@ -175,7 +159,7 @@ export function RightSidebarToggle({ className }: { className?: string }) {
       <button
         type="button"
         onClick={toggle}
-        title={isOpen ? 'Close panel' : 'Open panel'}
+        title={isOpen ? closeTitle : openTitle}
         aria-label={isOpen ? 'Close panel' : 'Open panel'}
         className={[
           'hidden lg:flex items-center justify-center',
@@ -190,9 +174,9 @@ export function RightSidebarToggle({ className }: { className?: string }) {
           .join(' ')}
       >
         {isOpen ? (
-          <ChevronRight className="h-5 w-5" aria-hidden="true" />
+          <PanelRightClose className="h-5 w-5" aria-hidden="true" />
         ) : (
-          <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+          <PanelRight className="h-5 w-5" aria-hidden="true" />
         )}
       </button>
 
@@ -214,7 +198,7 @@ export function RightSidebarToggle({ className }: { className?: string }) {
           .filter(Boolean)
           .join(' ')}
       >
-        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+        <PanelRight className="h-5 w-5" aria-hidden="true" />
       </button>
     </>
   )

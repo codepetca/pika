@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -27,9 +27,8 @@ import {
   PageActionBar,
   PageContent,
   PageLayout,
-  type ActionBarItem,
 } from '@/components/PageLayout'
-import { useRightSidebar, useMobileDrawer, useLeftSidebar } from '@/components/layout'
+import { useRightSidebar, useMobileDrawer, useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import {
   getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
@@ -71,8 +70,6 @@ interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onSelectStudent?: (student: SelectedStudentInfo | null) => void
-  showInstructionsPanel?: boolean
-  onToggleInstructions?: () => void
 }
 
 function getCookieValue(name: string) {
@@ -110,7 +107,7 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
 }
 
-export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, showInstructionsPanel, onToggleInstructions }: Props) {
+export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
@@ -485,47 +482,38 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const canEditAssignment =
     selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
 
-  const actionItems: ActionBarItem[] = useMemo(() => {
-    if (selection.mode !== 'assignment') return []
-    const items: ActionBarItem[] = [
-      {
-        id: 'edit-assignment',
-        label: 'Edit',
-        onSelect: () => {
+  const primaryButtons =
+    selection.mode === 'summary' ? (
+      <button
+        type="button"
+        className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
+        onClick={() => setIsCreateModalOpen(true)}
+        disabled={isReadOnly}
+        aria-label="New assignment"
+      >
+        <Plus className="h-5 w-5" aria-hidden="true" />
+        <span>New</span>
+      </button>
+    ) : (
+      <button
+        type="button"
+        className={`${ACTIONBAR_BUTTON_CLASSNAME} flex items-center gap-1`}
+        onClick={() => {
           if (selectedAssignmentData) {
             setEditAssignment(selectedAssignmentData.assignment)
           }
-        },
-        disabled: !canEditAssignment,
-      },
-    ]
-    // Add Instructions toggle (always visible when viewing an assignment)
-    if (onToggleInstructions) {
-      items.push({
-        id: 'toggle-instructions',
-        label: 'Instructions',
-        onSelect: onToggleInstructions,
-      })
-    }
-    return items
-  }, [selection.mode, selectedAssignmentData, canEditAssignment, onToggleInstructions])
-
-  const newAssignmentButton = (
-    <button
-      type="button"
-      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
-      onClick={() => setIsCreateModalOpen(true)}
-      disabled={isReadOnly}
-      aria-label="New assignment"
-    >
-      <Plus className="h-5 w-5" aria-hidden="true" />
-      <span>New</span>
-    </button>
-  )
+        }}
+        disabled={!canEditAssignment}
+        aria-label="Edit assignment"
+      >
+        <Pencil className="h-5 w-5" aria-hidden="true" />
+        <span>Edit</span>
+      </button>
+    )
 
   return (
     <PageLayout>
-      <PageActionBar primary={newAssignmentButton} actions={actionItems} />
+      <PageActionBar primary={primaryButtons} trailing={<RightSidebarToggle />} />
 
       <PageContent className="space-y-4">
         {error && (

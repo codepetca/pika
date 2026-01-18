@@ -105,7 +105,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   return (
     <div
       className={`
-        relative h-full overflow-hidden
+        relative h-full min-w-0 overflow-hidden
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         ${isHoliday ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
         ${isNonClassDay ? 'bg-gray-100 dark:bg-gray-800/50' : ''}
@@ -127,7 +127,7 @@ export const LessonDayCell = memo(function LessonDayCell({
 
       {/* Assignment due dates - shown first */}
       {assignments.length > 0 && (
-        <div className={compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}>
+        <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
           {assignments.map((assignment) => (
             <button
               key={assignment.id}
@@ -136,7 +136,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                 e.stopPropagation()
                 onAssignmentClick?.(assignment)
               }}
-              className={`w-full rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 text-center overflow-hidden text-ellipsis whitespace-nowrap ${
+              className={`w-full min-w-0 rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 text-center truncate ${
                 compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
               }`}
               title={assignment.title}

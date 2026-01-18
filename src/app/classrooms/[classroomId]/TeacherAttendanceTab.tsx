@@ -21,7 +21,7 @@ import {
   TableCard,
 } from '@/components/DataTable'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
-import { useRightSidebar, useMobileDrawer, useLeftSidebar } from '@/components/layout'
+import { useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import type { ClassDay, Classroom, Entry } from '@/types'
 
 type SortColumn = 'first_name' | 'last_name' | 'id'
@@ -52,8 +52,6 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
 
-  const { isOpen: isRightOpen, toggle: toggleRight, enabled: rightEnabled } = useRightSidebar()
-  const { openRight: openMobileRight } = useMobileDrawer()
   const { isExpanded: isLeftExpanded } = useLeftSidebar()
 
   useEffect(() => {
@@ -159,13 +157,6 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     }
   }
 
-  function handleToggleSidebar() {
-    // On desktop, toggle the sidebar
-    toggleRight()
-    // On mobile, open the drawer
-    openMobileRight()
-  }
-
   function getLogText(row: LogRow): string {
     if (row.summary) return row.summary
     if (row.entry?.text) return row.entry.text
@@ -209,17 +200,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
             onNext={() => moveDateBy(1)}
           />
         }
-        actions={
-          rightEnabled
-            ? [
-                {
-                  id: 'toggle-log',
-                  label: isRightOpen ? 'Hide Log' : 'View Log',
-                  onSelect: handleToggleSidebar,
-                },
-              ]
-            : []
-        }
+        trailing={<RightSidebarToggle />}
       />
 
       <PageContent>

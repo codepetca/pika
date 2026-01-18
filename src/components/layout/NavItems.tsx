@@ -282,7 +282,7 @@ export function NavItems({
                     'group flex flex-1 items-center rounded-md text-base font-medium transition-colors',
                     layoutClass,
                     isActive
-                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                      ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                   ].join(' ')}
                 >
@@ -322,7 +322,7 @@ export function NavItems({
                         className={[
                           'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
                           isAssignmentActive
-                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                             : isUnviewed
                               ? 'text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20'
                               : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
@@ -361,7 +361,7 @@ export function NavItems({
                   'group flex items-center rounded-md text-base font-medium transition-colors',
                   layoutClass,
                   isActive
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                 ].join(' ')}
               >
@@ -399,7 +399,7 @@ export function NavItems({
                         className={[
                           'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
                           isAssignmentActive
-                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                             : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                         ].join(' ')}
                         title={assignment.title}
@@ -431,7 +431,7 @@ export function NavItems({
               'group flex items-center rounded-md text-base font-medium transition-colors',
               layoutClass,
               isActive
-                ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
             ].join(' ')}
           >

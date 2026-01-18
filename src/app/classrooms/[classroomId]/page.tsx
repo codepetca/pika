@@ -10,7 +10,7 @@ import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
-import { TeacherLessonCalendarTab } from './TeacherLessonCalendarTab'
+import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import {
@@ -199,13 +199,17 @@ function ClassroomPageContent({
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
 
   // State for selected student (teacher assignments tab - viewing student work)
+  // TODO: Re-add instructions panel toggle using BidirectionalSidebarContent pattern
+  // Previously there was a showInstructionsPanel state that let teachers toggle between
+  // viewing student work and assignment instructions. This was removed in favor of the
+  // new bidirectional sidebar pattern used in calendar tab. Plan to re-add as a future feature.
   const [selectedStudent, setSelectedStudent] = useState<SelectedStudentInfo | null>(null)
-
-  // State for showing instructions panel instead of student work
-  const [showInstructionsPanel, setShowInstructionsPanel] = useState(false)
 
   // State for today's lesson plan (student today tab)
   const [todayLessonPlan, setTodayLessonPlan] = useState<LessonPlan | null>(null)
+
+  // State for calendar sidebar (teacher calendar tab)
+  const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
 
   const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
     setSelectedEntry(entry)
@@ -218,42 +222,24 @@ function ClassroomPageContent({
 
   const handleSelectStudent = useCallback((student: SelectedStudentInfo | null) => {
     setSelectedStudent(student)
-    // Reset instructions panel when student selection changes
-    setShowInstructionsPanel(false)
   }, [])
 
   const handleSetLessonPlan = useCallback((plan: LessonPlan | null) => {
     setTodayLessonPlan(plan)
   }, [])
 
-  const handleToggleInstructions = useCallback(() => {
-    if (selectedStudent && !showInstructionsPanel) {
-      // Student is selected and showing student work → show instructions
-      setShowInstructionsPanel(true)
-      setRightSidebarOpen(true)
-    } else if (showInstructionsPanel && isRightSidebarOpen) {
-      // Instructions are showing and panel is open → close panel
-      setRightSidebarOpen(false)
-      setShowInstructionsPanel(false)
-    } else {
-      // Panel is closed or showing something else → open and show instructions
-      setShowInstructionsPanel(true)
-      setRightSidebarOpen(true)
-    }
-  }, [selectedStudent, showInstructionsPanel, isRightSidebarOpen, setRightSidebarOpen])
-
-  // Change right sidebar width to 70% when viewing student work, 40% for instructions
+  // Change right sidebar width to 70% when viewing student work, 40% otherwise
   useEffect(() => {
-    if (isTeacher && activeTab === 'assignments' && selectedStudent && !showInstructionsPanel) {
+    if (isTeacher && activeTab === 'assignments' && selectedStudent) {
       setRightSidebarWidth('70%')
     } else if (isTeacher && activeTab === 'assignments') {
       setRightSidebarWidth('40%')
     }
-  }, [isTeacher, activeTab, selectedStudent, showInstructionsPanel, setRightSidebarWidth])
+  }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
 
   // Close right sidebar when switching to tabs without inspector content
   useEffect(() => {
-    if (activeTab === 'calendar' || activeTab === 'roster') {
+    if (activeTab === 'roster') {
       setRightSidebarOpen(false)
     }
   }, [activeTab, setRightSidebarOpen])
@@ -312,11 +298,14 @@ function ClassroomPageContent({
                   classroom={classroom}
                   onSelectAssignment={handleSelectAssignment}
                   onSelectStudent={handleSelectStudent}
-                  showInstructionsPanel={showInstructionsPanel}
-                  onToggleInstructions={handleToggleInstructions}
                 />
               )}
-              {activeTab === 'calendar' && <TeacherLessonCalendarTab classroom={classroom} />}
+              {activeTab === 'calendar' && (
+                <TeacherLessonCalendarTab
+                  classroom={classroom}
+                  onSidebarStateChange={setCalendarSidebarState}
+                />
+              )}
               {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
               {activeTab === 'settings' && <TeacherSettingsTab classroom={classroom} />}
             </>
@@ -341,8 +330,8 @@ function ClassroomPageContent({
 
         <RightSidebar
           title={
-            isTeacher && activeTab === 'assignments' && selectedStudent && showInstructionsPanel
-              ? 'Instructions'
+            isTeacher && activeTab === 'calendar' && calendarSidebarState
+              ? 'Calendar'
               : isTeacher && activeTab === 'assignments' && selectedStudent
               ? selectedStudent.assignmentTitle
               : activeTab === 'assignments'
@@ -352,7 +341,16 @@ function ClassroomPageContent({
               : (selectedStudentName || 'Student Log')
           }
           headerActions={
-            isTeacher && activeTab === 'assignments' && selectedStudent ? (
+            isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
+              <button
+                type="button"
+                onClick={calendarSidebarState.onSave}
+                disabled={calendarSidebarState.bulkSaving}
+                className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {calendarSidebarState.bulkSaving ? 'Saving...' : 'Save'}
+              </button>
+            ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
               <>
                 <button
                   type="button"
@@ -376,7 +374,9 @@ function ClassroomPageContent({
             ) : undefined
           }
         >
-          {isTeacher && activeTab === 'attendance' ? (
+          {isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
+            <TeacherLessonCalendarSidebar {...calendarSidebarState} />
+          ) : isTeacher && activeTab === 'attendance' ? (
             <div className="p-4">
               {selectedEntry ? (
                 <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
@@ -388,7 +388,7 @@ function ClassroomPageContent({
                 </p>
               )}
             </div>
-          ) : isTeacher && activeTab === 'assignments' && selectedStudent && !showInstructionsPanel ? (
+          ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
             <TeacherStudentWorkPanel
               assignmentId={selectedStudent.assignmentId}
               studentId={selectedStudent.studentId}
