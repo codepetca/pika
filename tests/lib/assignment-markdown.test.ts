@@ -54,10 +54,10 @@ describe('assignmentsToMarkdown', () => {
     expect(result.markdown).toMatch(/Due: Mon, Jan 20, 2025 at \d{1,2}:\d{2} [AP]M/)
   })
 
-  it('should include assignment ID', () => {
+  it('should not include assignment ID', () => {
     const assignments = [makeAssignment({ id: 'abc123-def456' })]
     const result = assignmentsToMarkdown(assignments)
-    expect(result.markdown).toContain('ID: abc123-def456')
+    expect(result.markdown).not.toContain('ID:')
   })
 
   it('should include plain text instructions', () => {
@@ -132,12 +132,9 @@ describe('markdownToAssignments', () => {
     makeAssignment({ id: 'a-1', title: 'Existing Assignment' }),
   ]
 
-  it('should parse assignment with existing ID', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Existing Assignment
+  it('should match assignment by title', () => {
+    const markdown = `## Existing Assignment
 Due: Mon, Jan 20, 2025 at 6:59 PM
-ID: a-1
 
 Updated instructions here.
 
@@ -150,10 +147,22 @@ Updated instructions here.
     expect(result.assignments[0].title).toBe('Existing Assignment')
   })
 
-  it('should parse new assignment without ID', () => {
-    const markdown = `# Assignments: Biology 101
+  it('should match assignment by title case-insensitively', () => {
+    const markdown = `## EXISTING ASSIGNMENT
+Due: Mon, Jan 20, 2025 at 6:59 PM
 
-## New Assignment
+Updated instructions here.
+
+---
+`
+    const result = markdownToAssignments(markdown, existingAssignments)
+    expect(result.errors).toHaveLength(0)
+    expect(result.assignments).toHaveLength(1)
+    expect(result.assignments[0].id).toBe('a-1')
+  })
+
+  it('should parse new assignment without matching title', () => {
+    const markdown = `## New Assignment
 Due: Tue, Jan 21, 2025 at 11:59 PM
 
 Instructions for new assignment.
@@ -168,18 +177,35 @@ Instructions for new assignment.
     expect(result.assignments[0].is_draft).toBe(true) // New assignments are drafts
   })
 
-  it('should parse [DRAFT] marker as draft status', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Draft Assignment [DRAFT]
+  it('should return error for duplicate titles', () => {
+    const markdown = `## Assignment One
 Due: Mon, Jan 20, 2025 at 6:59 PM
-ID: a-1
+
+Instructions.
+
+---
+
+## Assignment One
+Due: Tue, Jan 21, 2025 at 11:59 PM
+
+More instructions.
+
+---
+`
+    const result = markdownToAssignments(markdown, [])
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toContain('Duplicate assignment title')
+  })
+
+  it('should parse [DRAFT] marker as draft status', () => {
+    const markdown = `## Draft Assignment [DRAFT]
+Due: Mon, Jan 20, 2025 at 6:59 PM
 
 Instructions.
 
 ---
 `
-    const draftAssignment = makeAssignment({ id: 'a-1', is_draft: true, released_at: null })
+    const draftAssignment = makeAssignment({ id: 'a-1', title: 'Draft Assignment', is_draft: true, released_at: null })
     const result = markdownToAssignments(markdown, [draftAssignment])
     expect(result.errors).toHaveLength(0)
     expect(result.assignments[0].is_draft).toBe(true)
@@ -187,28 +213,22 @@ Instructions.
   })
 
   it('should allow removing [DRAFT] to release assignment', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Released Assignment
+    const markdown = `## Released Assignment
 Due: Mon, Jan 20, 2025 at 6:59 PM
-ID: a-1
 
 Instructions.
 
 ---
 `
-    const draftAssignment = makeAssignment({ id: 'a-1', is_draft: true, released_at: null })
+    const draftAssignment = makeAssignment({ id: 'a-1', title: 'Released Assignment', is_draft: true, released_at: null })
     const result = markdownToAssignments(markdown, [draftAssignment])
     expect(result.errors).toHaveLength(0)
     expect(result.assignments[0].is_draft).toBe(false)
   })
 
   it('should return error when trying to un-release assignment', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Assignment [DRAFT]
+    const markdown = `## Assignment [DRAFT]
 Due: Mon, Jan 20, 2025 at 6:59 PM
-ID: a-1
 
 Instructions.
 
@@ -275,28 +295,9 @@ Instructions.
     expect(result.errors[0]).toContain('Invalid due date')
   })
 
-  it('should return error for unknown ID', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Assignment
-Due: Mon, Jan 20, 2025 at 6:59 PM
-ID: unknown-id
-
-Instructions.
-
----
-`
-    const result = markdownToAssignments(markdown, [])
-    expect(result.errors.length).toBeGreaterThan(0)
-    expect(result.errors[0]).toContain('Assignment ID not found')
-  })
-
   it('should parse multi-line instructions', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Assignment
+    const markdown = `## Assignment
 Due: Mon, Jan 20, 2025 at 6:59 PM
-ID: a-1
 
 First paragraph of instructions.
 
@@ -306,7 +307,7 @@ Third paragraph.
 
 ---
 `
-    const result = markdownToAssignments(markdown, existingAssignments)
+    const result = markdownToAssignments(markdown, [makeAssignment({ id: 'a-1', title: 'Assignment' })])
     expect(result.errors).toHaveLength(0)
     expect(result.assignments[0].instructions).toContain('First paragraph')
     expect(result.assignments[0].instructions).toContain('Second paragraph')
@@ -314,9 +315,7 @@ Third paragraph.
   })
 
   it('should maintain position based on order in markdown', () => {
-    const markdown = `# Assignments: Biology 101
-
-## First Assignment
+    const markdown = `## First Assignment
 Due: Mon, Jan 20, 2025 at 6:59 PM
 
 Instructions.
@@ -345,11 +344,8 @@ Instructions.
   })
 
   it('should handle assignment without instructions', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Assignment
+    const markdown = `## Existing Assignment
 Due: Mon, Jan 20, 2025 at 6:59 PM
-ID: a-1
 
 ---
 `
@@ -359,9 +355,7 @@ ID: a-1
   })
 
   it('should warn when existing assignment is not in markdown', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Different Assignment
+    const markdown = `## Different Assignment
 Due: Mon, Jan 20, 2025 at 6:59 PM
 
 Instructions.
@@ -371,7 +365,7 @@ Instructions.
     const result = markdownToAssignments(markdown, existingAssignments)
     // This should still succeed (add-only means we don't delete)
     expect(result.errors).toHaveLength(0)
-    expect(result.warnings).toContain('Assignment "Existing Assignment" (a-1) not in markdown - will be preserved')
+    expect(result.warnings).toContain('Assignment "Existing Assignment" not in markdown - will be preserved')
   })
 
   it('should parse multiple assignments correctly', () => {
@@ -379,19 +373,15 @@ Instructions.
       makeAssignment({ id: 'a-1', title: 'First' }),
       makeAssignment({ id: 'a-2', title: 'Second' }),
     ]
-    const markdown = `# Assignments: Biology 101
-
-## First Updated
+    const markdown = `## First
 Due: Mon, Jan 20, 2025 at 6:59 PM
-ID: a-1
 
 Instructions 1.
 
 ---
 
-## Second Updated
+## Second
 Due: Tue, Jan 21, 2025 at 6:59 PM
-ID: a-2
 
 Instructions 2.
 
@@ -400,8 +390,10 @@ Instructions 2.
     const result = markdownToAssignments(markdown, existing)
     expect(result.errors).toHaveLength(0)
     expect(result.assignments).toHaveLength(2)
-    expect(result.assignments[0].title).toBe('First Updated')
-    expect(result.assignments[1].title).toBe('Second Updated')
+    expect(result.assignments[0].id).toBe('a-1')
+    expect(result.assignments[1].id).toBe('a-2')
+    expect(result.assignments[0].title).toBe('First')
+    expect(result.assignments[1].title).toBe('Second')
   })
 })
 

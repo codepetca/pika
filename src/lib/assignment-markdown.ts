@@ -59,9 +59,6 @@ export function assignmentsToMarkdown(
     const dueDate = toZonedTime(new Date(assignment.due_at), TORONTO_TZ)
     const formattedDate = format(dueDate, "EEE, MMM d, yyyy 'at' h:mm a")
     lines.push(`Due: ${formattedDate}`)
-
-    // ID for existing assignments
-    lines.push(`ID: ${assignment.id}`)
     lines.push('')
 
     // Instructions (extract plain text from rich content if available)
@@ -95,10 +92,10 @@ export function markdownToAssignments(
   const warnings: string[] = []
   const assignments: ParsedAssignment[] = []
 
-  // Build lookup map for existing assignments
-  const existingById = new Map<string, Assignment>()
+  // Build lookup map for existing assignments by title
+  const existingByTitle = new Map<string, Assignment>()
   for (const a of existingAssignments) {
-    existingById.set(a.id, a)
+    existingByTitle.set(a.title.toLowerCase(), a)
   }
 
   const lines = markdown.split('\n')
@@ -106,7 +103,7 @@ export function markdownToAssignments(
   let currentInstructionLines: string[] = []
   let lineNumber = 0
   let assignmentStartLine = 0
-  const seenIds = new Set<string>()
+  const seenTitles = new Set<string>()
 
   function flushAssignment() {
     if (!currentAssignment) return
@@ -119,6 +116,16 @@ export function markdownToAssignments(
       return
     }
 
+    const titleLower = currentAssignment.title.toLowerCase()
+
+    // Check for duplicate titles in markdown
+    if (seenTitles.has(titleLower)) {
+      errors.push(`Duplicate assignment title: "${currentAssignment.title}"`)
+      currentAssignment = null
+      currentInstructionLines = []
+      return
+    }
+
     if (!currentAssignment.due_at) {
       errors.push(`Assignment "${currentAssignment.title}" has no due date`)
       currentAssignment = null
@@ -126,15 +133,10 @@ export function markdownToAssignments(
       return
     }
 
-    // If there's an ID, validate it exists
-    if (currentAssignment.id) {
-      const existing = existingById.get(currentAssignment.id)
-      if (!existing) {
-        errors.push(`Assignment ID not found: ${currentAssignment.id}`)
-        currentAssignment = null
-        currentInstructionLines = []
-        return
-      }
+    // Match to existing assignment by title
+    const existing = existingByTitle.get(titleLower)
+    if (existing) {
+      currentAssignment.id = existing.id
 
       // Check for un-release attempt
       if (!existing.is_draft && currentAssignment.is_draft) {
@@ -143,9 +145,9 @@ export function markdownToAssignments(
         currentInstructionLines = []
         return
       }
-
-      seenIds.add(currentAssignment.id)
     }
+
+    seenTitles.add(titleLower)
 
     // Set instructions from accumulated lines
     currentAssignment.instructions = currentInstructionLines.join('\n').trim()
@@ -153,7 +155,7 @@ export function markdownToAssignments(
     // Set position based on order
     currentAssignment.position = assignments.length
 
-    // New assignments (no ID) are always drafts
+    // New assignments (no existing match) are always drafts
     if (!currentAssignment.id) {
       currentAssignment.is_draft = true
     }
@@ -202,13 +204,6 @@ export function markdownToAssignments(
       continue
     }
 
-    // Check for ID line
-    const idMatch = line.match(/^ID:\s*(.+)$/)
-    if (idMatch) {
-      currentAssignment.id = idMatch[1].trim()
-      continue
-    }
-
     // Check for separator
     if (line.trim() === '---') {
       flushAssignment()
@@ -229,8 +224,8 @@ export function markdownToAssignments(
 
   // Check for existing assignments not in markdown (add warning)
   for (const existing of existingAssignments) {
-    if (!seenIds.has(existing.id)) {
-      warnings.push(`Assignment "${existing.title}" (${existing.id}) not in markdown - will be preserved`)
+    if (!seenTitles.has(existing.title.toLowerCase())) {
+      warnings.push(`Assignment "${existing.title}" not in markdown - will be preserved`)
     }
   }
 
