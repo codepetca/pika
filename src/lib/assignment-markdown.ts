@@ -55,9 +55,9 @@ export function assignmentsToMarkdown(
     const draftMarker = assignment.is_draft ? ' [DRAFT]' : ''
     lines.push(`## ${assignment.title}${draftMarker}`)
 
-    // Due date in Toronto timezone
+    // Due date in YYYY-MM-DD format (Toronto timezone)
     const dueDate = toZonedTime(new Date(assignment.due_at), TORONTO_TZ)
-    const formattedDate = format(dueDate, "EEE, MMM d, yyyy 'at' h:mm a")
+    const formattedDate = format(dueDate, 'yyyy-MM-dd')
     lines.push(`Due: ${formattedDate}`)
     lines.push('')
 
@@ -234,19 +234,22 @@ export function markdownToAssignments(
 
 /**
  * Parse due date string back to ISO format
- * Expects format: "EEE, MMM d, yyyy 'at' h:mm a" (e.g., "Mon, Jan 20, 2025 at 11:59 PM")
+ * Expects format: "yyyy-MM-dd" (e.g., "2025-01-20")
+ * Returns end of day in Toronto timezone converted to UTC
  */
 function parseDueDate(dateStr: string): string | null {
   try {
-    // Try parsing the expected format
-    const parsed = parse(dateStr, "EEE, MMM d, yyyy 'at' h:mm a", new Date())
+    // Try parsing YYYY-MM-DD format
+    const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
 
     if (!isValid(parsed)) {
       return null
     }
 
-    // Convert from Toronto time to UTC
-    const utcDate = fromZonedTime(parsed, TORONTO_TZ)
+    // Set to end of day (11:59 PM) in Toronto timezone, then convert to UTC
+    const endOfDay = new Date(parsed)
+    endOfDay.setHours(23, 59, 0, 0)
+    const utcDate = fromZonedTime(endOfDay, TORONTO_TZ)
     return utcDate.toISOString()
   } catch {
     return null

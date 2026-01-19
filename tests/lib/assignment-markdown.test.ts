@@ -47,11 +47,11 @@ describe('assignmentsToMarkdown', () => {
     expect(result.markdown).toContain('## Homework 1 [DRAFT]')
   })
 
-  it('should format due date in Toronto timezone', () => {
+  it('should format due date in YYYY-MM-DD format', () => {
     const assignments = [makeAssignment({ due_at: '2025-01-20T23:59:00Z' })]
     const result = assignmentsToMarkdown(assignments)
     // Jan 20, 2025 at 23:59 UTC = Jan 20, 2025 at 6:59 PM EST
-    expect(result.markdown).toMatch(/Due: Mon, Jan 20, 2025 at \d{1,2}:\d{2} [AP]M/)
+    expect(result.markdown).toContain('Due: 2025-01-20')
   })
 
   it('should not include assignment ID', () => {
@@ -134,7 +134,7 @@ describe('markdownToAssignments', () => {
 
   it('should match assignment by title', () => {
     const markdown = `## Existing Assignment
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 Updated instructions here.
 
@@ -149,7 +149,7 @@ Updated instructions here.
 
   it('should match assignment by title case-insensitively', () => {
     const markdown = `## EXISTING ASSIGNMENT
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 Updated instructions here.
 
@@ -163,7 +163,7 @@ Updated instructions here.
 
   it('should parse new assignment without matching title', () => {
     const markdown = `## New Assignment
-Due: Tue, Jan 21, 2025 at 11:59 PM
+Due: 2025-01-21
 
 Instructions for new assignment.
 
@@ -179,14 +179,14 @@ Instructions for new assignment.
 
   it('should return error for duplicate titles', () => {
     const markdown = `## Assignment One
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 Instructions.
 
 ---
 
 ## Assignment One
-Due: Tue, Jan 21, 2025 at 11:59 PM
+Due: 2025-01-21
 
 More instructions.
 
@@ -199,7 +199,7 @@ More instructions.
 
   it('should parse [DRAFT] marker as draft status', () => {
     const markdown = `## Draft Assignment [DRAFT]
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 Instructions.
 
@@ -214,7 +214,7 @@ Instructions.
 
   it('should allow removing [DRAFT] to release assignment', () => {
     const markdown = `## Released Assignment
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 Instructions.
 
@@ -228,7 +228,7 @@ Instructions.
 
   it('should return error when trying to un-release assignment', () => {
     const markdown = `## Assignment [DRAFT]
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 Instructions.
 
@@ -246,10 +246,8 @@ Instructions.
   })
 
   it('should parse due date correctly', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Assignment
-Due: Tue, Jan 21, 2025 at 11:59 PM
+    const markdown = `## Assignment
+Due: 2025-01-21
 
 Instructions.
 
@@ -266,10 +264,8 @@ Instructions.
   })
 
   it('should return error for missing title', () => {
-    const markdown = `# Assignments: Biology 101
-
-##
-Due: Mon, Jan 20, 2025 at 6:59 PM
+    const markdown = `##
+Due: 2025-01-20
 
 Instructions.
 
@@ -281,9 +277,7 @@ Instructions.
   })
 
   it('should return error for invalid due date', () => {
-    const markdown = `# Assignments: Biology 101
-
-## Assignment
+    const markdown = `## Assignment
 Due: Invalid Date Format
 
 Instructions.
@@ -297,7 +291,7 @@ Instructions.
 
   it('should parse multi-line instructions', () => {
     const markdown = `## Assignment
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 First paragraph of instructions.
 
@@ -316,21 +310,21 @@ Third paragraph.
 
   it('should maintain position based on order in markdown', () => {
     const markdown = `## First Assignment
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 Instructions.
 
 ---
 
 ## Second Assignment
-Due: Tue, Jan 21, 2025 at 6:59 PM
+Due: 2025-01-21
 
 Instructions.
 
 ---
 
 ## Third Assignment
-Due: Wed, Jan 22, 2025 at 6:59 PM
+Due: 2025-01-22
 
 Instructions.
 
@@ -345,7 +339,7 @@ Instructions.
 
   it('should handle assignment without instructions', () => {
     const markdown = `## Existing Assignment
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 ---
 `
@@ -356,7 +350,7 @@ Due: Mon, Jan 20, 2025 at 6:59 PM
 
   it('should warn when existing assignment is not in markdown', () => {
     const markdown = `## Different Assignment
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 Instructions.
 
@@ -374,14 +368,14 @@ Instructions.
       makeAssignment({ id: 'a-2', title: 'Second' }),
     ]
     const markdown = `## First
-Due: Mon, Jan 20, 2025 at 6:59 PM
+Due: 2025-01-20
 
 Instructions 1.
 
 ---
 
 ## Second
-Due: Tue, Jan 21, 2025 at 6:59 PM
+Due: 2025-01-21
 
 Instructions 2.
 

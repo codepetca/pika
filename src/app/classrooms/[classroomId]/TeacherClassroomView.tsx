@@ -720,7 +720,6 @@ export function TeacherAssignmentsMarkdownSidebar({
         value={markdownContent}
         onChange={(e) => onMarkdownChange(e.target.value)}
         className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none border-0 focus:ring-0 focus:outline-none"
-        placeholder="Loading..."
       />
     </div>
   )

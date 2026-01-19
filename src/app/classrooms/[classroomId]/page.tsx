@@ -264,7 +264,7 @@ function ClassroomPageContent({
       const assignments = (data.assignments || []) as Assignment[]
       setAssignmentsCache(assignments)
 
-      // Generate markdown
+      // Generate markdown (empty if no assignments)
       const result = assignmentsToMarkdown(assignments)
       setMarkdownContent(result.markdown)
       setHasRichContent(result.hasRichContent)
@@ -274,7 +274,7 @@ function ClassroomPageContent({
       console.error('Error fetching assignments:', err)
       setMarkdownError('Failed to load assignments')
     }
-  }, [classroom.id, classroom.title, setRightSidebarWidth])
+  }, [classroom.id, setRightSidebarWidth, setRightSidebarOpen])
 
   // Detect sidebar open/close and view mode transitions for assignments tab
   useEffect(() => {

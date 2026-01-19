@@ -276,6 +276,14 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
         return
       }
 
+      // If no plans with content, just close (nothing to save)
+      if (result.plans.length === 0) {
+        needsRefreshRef.current = true
+        setSidebarOpen(false)
+        setRefreshKey((k) => k + 1)
+        return
+      }
+
       // Bulk save
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/bulk`, {
         method: 'PUT',
@@ -438,7 +446,6 @@ export function TeacherLessonCalendarSidebar({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none focus:outline-none"
-        placeholder="Loading..."
       />
     </div>
   )

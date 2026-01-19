@@ -25,13 +25,16 @@ const mockClassroom: Classroom = {
 }
 
 describe('lessonPlansToMarkdown', () => {
-  it('should generate markdown with header and term range', () => {
+  it('should generate markdown with date headers only', () => {
     const plans: LessonPlan[] = []
     // Use dates that won't shift due to timezone - Jan 8 is Wed UTC, stays Wed in EST
     const result = lessonPlansToMarkdown(mockClassroom, plans, '2025-01-08', '2025-01-10')
 
-    expect(result).toContain('# Lesson Plans: Biology 101')
-    expect(result).toContain('Term: 2025-01-08 - 2025-01-10')
+    // Should not have title/term header
+    expect(result).not.toContain('# Lesson Plans:')
+    expect(result).not.toContain('Term:')
+    // Should have date headers
+    expect(result).toContain('## 2025-01-08')
   })
 
   it('should skip weekends', () => {
@@ -78,14 +81,16 @@ describe('lessonPlansToMarkdown', () => {
     expect(result).toContain('Introduction to cells')
   })
 
-  it('should show (empty) for days without content', () => {
+  it('should leave days without content blank', () => {
     const plans: LessonPlan[] = []
     const result = lessonPlansToMarkdown(mockClassroom, plans, '2025-01-09', '2025-01-09')
 
-    expect(result).toContain('(empty)')
+    // Should have a date header but no (empty) marker
+    expect(result).toMatch(/## \d{4}-\d{2}-\d{2}/)
+    expect(result).not.toContain('(empty)')
   })
 
-  it('should show (empty) for plans with empty content array', () => {
+  it('should leave days with empty content array blank', () => {
     const plans: LessonPlan[] = [
       {
         id: 'lp-1',
@@ -98,7 +103,9 @@ describe('lessonPlansToMarkdown', () => {
     ]
     const result = lessonPlansToMarkdown(mockClassroom, plans, '2025-01-09', '2025-01-09')
 
-    expect(result).toContain('(empty)')
+    // Should have a date header but no (empty) marker
+    expect(result).toMatch(/## \d{4}-\d{2}-\d{2}/)
+    expect(result).not.toContain('(empty)')
   })
 })
 
@@ -126,7 +133,6 @@ Cell membrane structure
 Term: 2025-01-07 - 2025-01-10
 
 ## 2025-01-07
-(empty)
 
 ## 2025-01-08
 Actual content here
