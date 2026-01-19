@@ -256,11 +256,9 @@ Instructions.
     const result = markdownToAssignments(markdown, [])
     expect(result.errors).toHaveLength(0)
     expect(result.assignments[0].due_at).toBeDefined()
-    // The date should be parsed to a valid ISO string
-    const dueDate = new Date(result.assignments[0].due_at!)
-    expect(dueDate.getFullYear()).toBe(2025)
-    expect(dueDate.getMonth()).toBe(0) // January
-    expect(dueDate.getDate()).toBe(21)
+    // The date should be parsed to a valid ISO string (end of day in Toronto = next day in UTC)
+    // 2025-01-21 23:59 Toronto = 2025-01-22 04:59 UTC
+    expect(result.assignments[0].due_at).toMatch(/^2025-01-22T04:59:00/)
   })
 
   it('should return error for missing title', () => {
