@@ -687,65 +687,17 @@ export function TeacherAssignmentsMarkdownSidebar({
   markdownContent,
   markdownError,
   markdownWarning,
-  warningsAcknowledged,
-  bulkSaving,
   hasRichContent,
   onMarkdownChange,
-  onSave,
-  onAcknowledgeWarnings,
-  onCopyToClipboard,
 }: {
   markdownContent: string
   markdownError: string | null
   markdownWarning: string | null
-  warningsAcknowledged: boolean
-  bulkSaving: boolean
   hasRichContent: boolean
   onMarkdownChange: (content: string) => void
-  onSave: () => void
-  onAcknowledgeWarnings: () => void
-  onCopyToClipboard: () => void
 }) {
-  // Show "Save Anyway" when there are warnings that need acknowledgment
-  const showSaveAnyway = markdownWarning && !warningsAcknowledged
-
   return (
     <div className="flex flex-col h-full p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Assignments (Markdown)
-        </h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onCopyToClipboard}
-            className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
-          >
-            Copy
-          </button>
-          {showSaveAnyway ? (
-            <button
-              onClick={() => {
-                onAcknowledgeWarnings()
-                // Trigger save after acknowledgment
-                setTimeout(onSave, 0)
-              }}
-              disabled={bulkSaving}
-              className="px-2 py-1 text-xs rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
-            >
-              Save Anyway
-            </button>
-          ) : (
-            <button
-              onClick={onSave}
-              disabled={bulkSaving}
-              className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {bulkSaving ? 'Saving...' : 'Save'}
-            </button>
-          )}
-        </div>
-      </div>
-
       {hasRichContent && (
         <div className="mb-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400">
           Some assignments have rich formatting that will be lost when editing as plain text.

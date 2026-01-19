@@ -298,6 +298,20 @@ function ClassroomPageContent({
     }
   }, [isRightSidebarOpen, isTeacher, activeTab, assignmentViewMode, loadAssignmentsMarkdown])
 
+  // Refresh markdown when assignments are updated (e.g., new assignment created)
+  useEffect(() => {
+    if (!isTeacher || activeTab !== 'assignments' || !isMarkdownMode) return
+
+    const handleAssignmentsUpdated = () => {
+      loadAssignmentsMarkdown()
+    }
+
+    window.addEventListener('pika:teacherAssignmentsUpdated', handleAssignmentsUpdated)
+    return () => {
+      window.removeEventListener('pika:teacherAssignmentsUpdated', handleAssignmentsUpdated)
+    }
+  }, [isTeacher, activeTab, isMarkdownMode, loadAssignmentsMarkdown])
+
   // Handle markdown content change
   const handleMarkdownContentChange = useCallback((content: string) => {
     setMarkdownContent(content)
@@ -368,11 +382,6 @@ function ClassroomPageContent({
   const handleAcknowledgeWarnings = useCallback(() => {
     setWarningsAcknowledged(true)
   }, [])
-
-  // Handle copy to clipboard
-  const handleCopyToClipboard = useCallback(() => {
-    navigator.clipboard.writeText(markdownContent)
-  }, [markdownContent])
 
   // Change right sidebar width to 70% when viewing student work, 40% otherwise
   useEffect(() => {
@@ -478,7 +487,7 @@ function ClassroomPageContent({
         <RightSidebar
           title={
             isTeacher && activeTab === 'assignments' && isMarkdownMode
-              ? 'Assignments (Markdown)'
+              ? 'Assignments'
               : isTeacher && activeTab === 'calendar' && calendarSidebarState
               ? 'Calendar'
               : isTeacher && activeTab === 'assignments' && selectedStudent
@@ -491,7 +500,28 @@ function ClassroomPageContent({
           }
           headerActions={
             isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
-              undefined
+              markdownWarning && !warningsAcknowledged ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleAcknowledgeWarnings()
+                    setTimeout(handleMarkdownSave, 0)
+                  }}
+                  disabled={bulkSaving}
+                  className="px-2 py-1 text-xs rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                >
+                  Save Anyway
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleMarkdownSave}
+                  disabled={bulkSaving}
+                  className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {bulkSaving ? 'Saving...' : 'Save'}
+                </button>
+              )
             ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
               <button
                 type="button"
@@ -530,13 +560,8 @@ function ClassroomPageContent({
               markdownContent={markdownContent}
               markdownError={markdownError}
               markdownWarning={markdownWarning}
-              warningsAcknowledged={warningsAcknowledged}
-              bulkSaving={bulkSaving}
               hasRichContent={hasRichContent}
               onMarkdownChange={handleMarkdownContentChange}
-              onSave={handleMarkdownSave}
-              onAcknowledgeWarnings={handleAcknowledgeWarnings}
-              onCopyToClipboard={handleCopyToClipboard}
             />
           ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
