@@ -697,21 +697,21 @@ export function TeacherAssignmentsMarkdownSidebar({
   onMarkdownChange: (content: string) => void
 }) {
   return (
-    <div className="flex flex-col h-full p-4">
+    <div className="flex flex-col h-full">
       {hasRichContent && (
-        <div className="mb-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400">
+        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400">
           Some assignments have rich formatting that will be lost when editing as plain text.
         </div>
       )}
 
       {markdownWarning && (
-        <div className="mb-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400 whitespace-pre-wrap">
+        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400 whitespace-pre-wrap">
           <strong>Warning:</strong> {markdownWarning}
         </div>
       )}
 
       {markdownError && (
-        <div className="mb-3 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
+        <div className="mx-3 mt-3 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
           {markdownError}
         </div>
       )}
@@ -719,7 +719,7 @@ export function TeacherAssignmentsMarkdownSidebar({
       <textarea
         value={markdownContent}
         onChange={(e) => onMarkdownChange(e.target.value)}
-        className="flex-1 w-full p-3 font-mono text-sm border border-gray-200 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none"
+        className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none border-0 focus:ring-0 focus:outline-none"
         placeholder="Loading..."
       />
     </div>
