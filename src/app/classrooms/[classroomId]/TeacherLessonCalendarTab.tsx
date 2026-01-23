@@ -11,6 +11,7 @@ import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-
 import { useClassDays } from '@/hooks/useClassDays'
 import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
 import { writeCookie } from '@/lib/cookies'
+import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
@@ -309,7 +310,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
       writeCookie(cookieName, assignment.id)
       // Dispatch event so NavItems updates
       window.dispatchEvent(
-        new CustomEvent('pika:teacherAssignmentsSelection', {
+        new CustomEvent(TEACHER_ASSIGNMENTS_SELECTION_EVENT, {
           detail: { classroomId: classroom.id, value: assignment.id },
         })
       )

@@ -47,15 +47,16 @@ import {
   SortableHeaderCell,
   TableCard,
 } from '@/components/DataTable'
+import {
+  TEACHER_ASSIGNMENTS_SELECTION_EVENT,
+  TEACHER_ASSIGNMENTS_UPDATED_EVENT,
+} from '@/lib/events'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
 }
 
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
-
-const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
-const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
 interface StudentSubmissionRow {
   student_id: string
@@ -688,14 +689,28 @@ export function TeacherAssignmentsMarkdownSidebar({
   markdownError,
   markdownWarning,
   hasRichContent,
+  bulkSaving,
   onMarkdownChange,
+  onSave,
 }: {
   markdownContent: string
   markdownError: string | null
   markdownWarning: string | null
   hasRichContent: boolean
+  bulkSaving: boolean
   onMarkdownChange: (content: string) => void
+  onSave: () => void
 }) {
+  // Cmd+S / Ctrl+S to save
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault()
+      if (!bulkSaving) {
+        onSave()
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       {hasRichContent && (
@@ -719,6 +734,7 @@ export function TeacherAssignmentsMarkdownSidebar({
       <textarea
         value={markdownContent}
         onChange={(e) => onMarkdownChange(e.target.value)}
+        onKeyDown={handleKeyDown}
         className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none border-0 focus:ring-0 focus:outline-none"
       />
     </div>

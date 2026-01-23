@@ -16,6 +16,10 @@ import {
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { readCookie, writeCookie } from '@/lib/cookies'
+import {
+  TEACHER_ASSIGNMENTS_SELECTION_EVENT,
+  TEACHER_ASSIGNMENTS_UPDATED_EVENT,
+} from '@/lib/events'
 
 // ============================================================================
 // Types
@@ -58,9 +62,6 @@ const studentItems: NavItem[] = [
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
 ]
-
-const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
-const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
 // ============================================================================
 // Utilities

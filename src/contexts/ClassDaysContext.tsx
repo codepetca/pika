@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { ClassDay } from '@/types'
+import { CLASS_DAYS_UPDATED_EVENT } from '@/lib/events'
 
 interface ClassDaysContextValue {
   classDays: ClassDay[]
@@ -49,9 +50,9 @@ export function ClassDaysProvider({ classroomId, children }: ClassDaysProviderPr
       }
     }
 
-    window.addEventListener('pika:classDaysUpdated', handleClassDaysUpdated as EventListener)
+    window.addEventListener(CLASS_DAYS_UPDATED_EVENT, handleClassDaysUpdated as EventListener)
     return () => {
-      window.removeEventListener('pika:classDaysUpdated', handleClassDaysUpdated as EventListener)
+      window.removeEventListener(CLASS_DAYS_UPDATED_EVENT, handleClassDaysUpdated as EventListener)
     }
   }, [classroomId, loadClassDays])
 
@@ -107,9 +108,9 @@ export function useClassDays(classroomId: string): ClassDay[] {
       }
     }
 
-    window.addEventListener('pika:classDaysUpdated', handleClassDaysUpdated as EventListener)
+    window.addEventListener(CLASS_DAYS_UPDATED_EVENT, handleClassDaysUpdated as EventListener)
     return () => {
-      window.removeEventListener('pika:classDaysUpdated', handleClassDaysUpdated as EventListener)
+      window.removeEventListener(CLASS_DAYS_UPDATED_EVENT, handleClassDaysUpdated as EventListener)
     }
   }, [classroomId])
 

@@ -6,6 +6,7 @@ import { Copy } from 'lucide-react'
 import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
 import { getTodayInToronto } from '@/lib/timezone'
+import { CLASS_DAYS_UPDATED_EVENT } from '@/lib/events'
 
 interface Props {
   classroom: Classroom
@@ -97,7 +98,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
       setSuccess(`Generated ${data.count ?? 0} class days.`)
       await load()
       // Notify other components (e.g., calendar) that class days changed
-      window.dispatchEvent(new CustomEvent('pika:classDaysUpdated', { detail: { classroomId: classroom.id } }))
+      window.dispatchEvent(new CustomEvent(CLASS_DAYS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     } catch (err: any) {
       setError(err.message || 'Failed to generate class days')
     } finally {
@@ -148,7 +149,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
         return next
       })
       // Notify other components (e.g., calendar) that class days changed
-      window.dispatchEvent(new CustomEvent('pika:classDaysUpdated', { detail: { classroomId: classroom.id } }))
+      window.dispatchEvent(new CustomEvent(CLASS_DAYS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     } catch (err: any) {
       setError(err.message || 'Failed to update day')
     }
