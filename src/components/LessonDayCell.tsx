@@ -15,7 +15,6 @@ interface LessonDayCellProps {
   assignments?: Assignment[]
   isWeekend: boolean
   isToday: boolean
-  isHoliday: boolean
   isClassDay?: boolean // undefined means class days not initialized
   editable: boolean
   compact?: boolean
@@ -31,7 +30,6 @@ export const LessonDayCell = memo(function LessonDayCell({
   assignments = [],
   isWeekend,
   isToday,
-  isHoliday,
   isClassDay,
   editable,
   compact = false,

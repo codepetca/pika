@@ -14,6 +14,7 @@ import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
+import { ClassDaysProvider } from '@/hooks/useClassDays'
 import {
   ThreePanelProvider,
   ThreePanelShell,
@@ -163,13 +164,15 @@ export default function ClassroomPage() {
       routeKey={routeKey}
       initialLeftExpanded={leftSidebarExpanded}
     >
-      <ClassroomPageContent
-        classroom={classroom}
-        user={user}
-        teacherClassrooms={teacherClassrooms}
-        activeTab={activeTab}
-        isArchived={isArchived}
-      />
+      <ClassDaysProvider classroomId={classroom.id}>
+        <ClassroomPageContent
+          classroom={classroom}
+          user={user}
+          teacherClassrooms={teacherClassrooms}
+          activeTab={activeTab}
+          isArchived={isArchived}
+        />
+      </ClassDaysProvider>
     </ThreePanelProvider>
   )
 }
