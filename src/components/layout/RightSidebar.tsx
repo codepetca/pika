@@ -4,6 +4,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { PanelRight, PanelRightClose, X } from 'lucide-react'
 import { useRightSidebar, useMobileDrawer, useThreePanel } from './ThreePanelProvider'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
+import { Tooltip } from '@/components/Tooltip'
 
 export interface RightSidebarProps {
   children: ReactNode
@@ -155,50 +156,52 @@ export function RightSidebarToggle({ className }: { className?: string }) {
   return (
     <>
       {/* Desktop toggle */}
-      <button
-        type="button"
-        onClick={toggle}
-        title={isOpen ? closeTitle : openTitle}
-        aria-label={isOpen ? 'Close panel' : 'Open panel'}
-        className={[
-          'hidden lg:flex items-center justify-center',
-          'p-2 rounded-md text-sm',
-          'text-gray-500 dark:text-gray-400',
-          'hover:bg-gray-100 dark:hover:bg-gray-800',
-          'hover:text-gray-700 dark:hover:text-gray-200',
-          'transition-colors',
-          className,
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        {isOpen ? (
-          <PanelRightClose className="h-5 w-5" aria-hidden="true" />
-        ) : (
-          <PanelRight className="h-5 w-5" aria-hidden="true" />
-        )}
-      </button>
+      <Tooltip content={isOpen ? closeTitle : openTitle}>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={isOpen ? 'Close panel' : 'Open panel'}
+          className={[
+            'hidden lg:flex items-center justify-center',
+            'p-2 rounded-md text-sm',
+            'text-gray-500 dark:text-gray-400',
+            'hover:bg-gray-100 dark:hover:bg-gray-800',
+            'hover:text-gray-700 dark:hover:text-gray-200',
+            'transition-colors',
+            className,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {isOpen ? (
+            <PanelRightClose className="h-5 w-5" aria-hidden="true" />
+          ) : (
+            <PanelRight className="h-5 w-5" aria-hidden="true" />
+          )}
+        </button>
+      </Tooltip>
 
       {/* Mobile toggle */}
-      <button
-        type="button"
-        onClick={openRight}
-        title="Open panel"
-        aria-label="Open panel"
-        className={[
-          'lg:hidden flex items-center justify-center',
-          'p-2 rounded-md text-sm',
-          'text-gray-500 dark:text-gray-400',
-          'hover:bg-gray-100 dark:hover:bg-gray-800',
-          'hover:text-gray-700 dark:hover:text-gray-200',
-          'transition-colors',
-          className,
-        ]
-          .filter(Boolean)
-          .join(' ')}
-      >
-        <PanelRight className="h-5 w-5" aria-hidden="true" />
-      </button>
+      <Tooltip content="Open panel">
+        <button
+          type="button"
+          onClick={openRight}
+          aria-label="Open panel"
+          className={[
+            'lg:hidden flex items-center justify-center',
+            'p-2 rounded-md text-sm',
+            'text-gray-500 dark:text-gray-400',
+            'hover:bg-gray-100 dark:hover:bg-gray-800',
+            'hover:text-gray-700 dark:hover:text-gray-200',
+            'transition-colors',
+            className,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          <PanelRight className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </Tooltip>
     </>
   )
 }
