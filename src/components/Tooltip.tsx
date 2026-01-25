@@ -29,7 +29,7 @@ export function Tooltip({
   content,
   children,
   delayDuration = 100,
-  side = 'top',
+  side = 'bottom',
   align = 'center',
 }: TooltipProps) {
   return (
@@ -39,11 +39,10 @@ export function Tooltip({
         <TooltipPrimitive.Content
           side={side}
           align={align}
-          sideOffset={6}
-          className="z-50 rounded-md bg-gray-900 dark:bg-gray-100 px-2.5 py-1.5 text-xs text-white dark:text-gray-900 shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+          sideOffset={4}
+          className="z-50 rounded px-2 py-1 text-[11px] leading-tight bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm border border-gray-200 dark:border-gray-600"
         >
           {content}
-          <TooltipPrimitive.Arrow className="fill-gray-900 dark:fill-gray-100" />
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>
