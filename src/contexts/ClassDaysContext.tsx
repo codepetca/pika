@@ -81,21 +81,20 @@ export function useClassDaysContext(): ClassDaysContextValue {
  */
 export function useClassDays(classroomId: string): ClassDay[] {
   const context = useContext(ClassDaysContext)
+  const hasContext = context !== null
 
-  // If we're inside a provider, use the context
-  if (context) {
-    return context.classDays
-  }
-
-  // Fallback: fetch directly (for components not wrapped in provider)
-  const [classDays, setClassDays] = useState<ClassDay[]>([])
+  // Fallback state for when not wrapped in provider
+  const [fallbackClassDays, setFallbackClassDays] = useState<ClassDay[]>([])
 
   useEffect(() => {
+    // Skip fetching if we have context - provider handles it
+    if (hasContext) return
+
     async function loadClassDays() {
       try {
         const res = await fetch(`/api/classrooms/${classroomId}/class-days`)
         const data = await res.json()
-        setClassDays(data.class_days || [])
+        setFallbackClassDays(data.class_days || [])
       } catch (err) {
         console.error('Error loading class days:', err)
       }
@@ -112,7 +111,8 @@ export function useClassDays(classroomId: string): ClassDay[] {
     return () => {
       window.removeEventListener(CLASS_DAYS_UPDATED_EVENT, handleClassDaysUpdated as EventListener)
     }
-  }, [classroomId])
+  }, [classroomId, hasContext])
 
-  return classDays
+  // Return context data if available, otherwise fallback
+  return hasContext ? context.classDays : fallbackClassDays
 }

@@ -179,6 +179,9 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
 
     window.addEventListener('beforeunload', handleBeforeUnload)
 
+    // Capture ref value for cleanup
+    const pendingChanges = pendingChangesRef.current
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       if (saveTimeoutRef.current) {
@@ -189,7 +192,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
       }
       // Flush any pending changes on component unmount (e.g., navigation)
       // The fetch will complete even after unmount
-      if (pendingChangesRef.current.size > 0) {
+      if (pendingChanges.size > 0) {
         flushPendingSaves()
       }
     }

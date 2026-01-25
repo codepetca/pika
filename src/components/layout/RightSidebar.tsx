@@ -60,7 +60,6 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
       {/* Desktop sidebar - only render when open */}
       {isOpen && (
         <aside
-          aria-expanded={isOpen}
           className={[
             'hidden lg:flex flex-col',
             'sticky top-12 h-[calc(100vh-3rem)]',

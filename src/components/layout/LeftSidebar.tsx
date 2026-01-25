@@ -47,7 +47,6 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
     <>
       {/* Desktop sidebar */}
       <aside
-        aria-expanded={isExpanded}
         className={[
           'hidden lg:flex flex-col',
           'sticky top-12 h-[calc(100vh-3rem)]',

@@ -425,7 +425,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     } else {
       onSelectStudent?.(null)
     }
-  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
+  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, selectedAssignmentData?.assignment?.title, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
 
   // Auto-open right sidebar and collapse left sidebar when student is selected
   const prevSelectedStudentIdRef = useRef<string | null>(null)
