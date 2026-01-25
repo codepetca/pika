@@ -12,11 +12,7 @@ export function lessonPlansToMarkdown(
   startDate: string,
   endDate: string
 ): string {
-  const lines: string[] = [
-    `# Lesson Plans: ${classroom.title}`,
-    `Term: ${startDate} - ${endDate}`,
-    '',
-  ]
+  const lines: string[] = []
 
   // Create a map for quick lookup
   const planMap = new Map<string, LessonPlan>()
@@ -36,9 +32,9 @@ export function lessonPlansToMarkdown(
       const plan = planMap.get(dateStr)
       if (plan && plan.content.content && plan.content.content.length > 0) {
         const text = extractTextFromTiptap(plan.content)
-        lines.push(text || '(empty)')
-      } else {
-        lines.push('(empty)')
+        if (text) {
+          lines.push(text)
+        }
       }
       lines.push('')
     }
@@ -59,7 +55,7 @@ export function markdownToLessonPlans(
   const plans: Array<{ date: string; content: TiptapContent }> = []
   const seenDates = new Set<string>()
 
-  const lines = markdown.split('\n')
+  const lines = markdown.split('\n').map(line => line.replace(/\r$/, ''))
   let currentDate: string | null = null
   let currentContent: string[] = []
 
@@ -68,7 +64,7 @@ export function markdownToLessonPlans(
   function flushCurrentPlan() {
     if (currentDate) {
       const text = currentContent.join('\n').trim()
-      if (text && text !== '(empty)') {
+      if (text) {
         plans.push({
           date: currentDate,
           content: textToTiptapContent(text),

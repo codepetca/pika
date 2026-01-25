@@ -28,7 +28,6 @@ interface LessonCalendarProps {
   onAssignmentClick?: (assignment: Assignment) => void
   onMarkdownToggle?: () => void
   isSidebarOpen?: boolean
-  holidays?: Set<string>
 }
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -80,7 +79,6 @@ export function LessonCalendar({
   onAssignmentClick,
   onMarkdownToggle,
   isSidebarOpen = false,
-  holidays = new Set(),
 }: LessonCalendarProps) {
   const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [])
   const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
@@ -408,7 +406,6 @@ export function LessonCalendar({
             const lessonPlan = plansByDate.get(dateString) || null
             const isToday = isSameDay(day, today)
             const isWeekendDay = isWeekend(day)
-            const isHoliday = holidays.has(dateString)
             // Only determine class day status if we have class days data
             const isClassDay = classDays.length > 0 ? classDayDates.has(dateString) : undefined
             // In 'all' mode, column starts at 2 (after month column)
@@ -431,7 +428,6 @@ export function LessonCalendar({
                   assignments={assignmentsByDate.get(dateString) || []}
                   isWeekend={isWeekendDay}
                   isToday={isToday}
-                  isHoliday={isHoliday}
                   isClassDay={isClassDay}
                   editable={editable && !isWeekendDay && viewMode !== 'all'}
                   compact={viewMode !== 'week' && !isExpanded}

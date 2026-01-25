@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/AppShell'
 import { Spinner } from '@/components/Spinner'
-import { TeacherClassroomView } from './TeacherClassroomView'
+import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type AssignmentViewMode } from './TeacherClassroomView'
+import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab } from './TeacherAttendanceTab'
@@ -13,6 +14,7 @@ import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
+import { ClassDaysProvider } from '@/hooks/useClassDays'
 import {
   ThreePanelProvider,
   ThreePanelShell,
@@ -28,7 +30,8 @@ import { getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo } from '@/types'
+import { TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
+import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo, Assignment } from '@/types'
 
 interface UserInfo {
   id: string
@@ -162,13 +165,15 @@ export default function ClassroomPage() {
       routeKey={routeKey}
       initialLeftExpanded={leftSidebarExpanded}
     >
-      <ClassroomPageContent
-        classroom={classroom}
-        user={user}
-        teacherClassrooms={teacherClassrooms}
-        activeTab={activeTab}
-        isArchived={isArchived}
-      />
+      <ClassDaysProvider classroomId={classroom.id}>
+        <ClassroomPageContent
+          classroom={classroom}
+          user={user}
+          teacherClassrooms={teacherClassrooms}
+          activeTab={activeTab}
+          isArchived={isArchived}
+        />
+      </ClassDaysProvider>
     </ThreePanelProvider>
   )
 }
@@ -211,6 +216,23 @@ function ClassroomPageContent({
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
 
+  // State for markdown mode (teacher assignments tab - summary view only)
+  const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
+  const [isMarkdownMode, setIsMarkdownMode] = useState(false)
+  const [markdownContent, setMarkdownContent] = useState('')
+  const [markdownError, setMarkdownError] = useState<string | null>(null)
+  const [markdownWarning, setMarkdownWarning] = useState<string | null>(null)
+  const [warningsAcknowledged, setWarningsAcknowledged] = useState(false)
+  const [bulkSaving, setBulkSaving] = useState(false)
+  const [markdownLoading, setMarkdownLoading] = useState(false)
+  const [hasRichContent, setHasRichContent] = useState(false)
+  const [assignmentsCache, setAssignmentsCache] = useState<Assignment[]>([])
+
+  // Track previous states for detecting transitions
+  const prevSidebarOpenRef = useRef(false)
+  const prevViewModeRef = useRef<AssignmentViewMode>('summary')
+  const abortControllerRef = useRef<AbortController | null>(null)
+
   const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
     setSelectedEntry(entry)
     setSelectedStudentName(studentName)
@@ -226,6 +248,160 @@ function ClassroomPageContent({
 
   const handleSetLessonPlan = useCallback((plan: LessonPlan | null) => {
     setTodayLessonPlan(plan)
+  }, [])
+
+  const handleViewModeChange = useCallback((mode: AssignmentViewMode) => {
+    setAssignmentViewMode(mode)
+    // Reset markdown mode when switching to assignment view
+    if (mode === 'assignment') {
+      setIsMarkdownMode(false)
+    }
+  }, [])
+
+  // Load assignments and generate markdown content
+  const loadAssignmentsMarkdown = useCallback(async () => {
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    abortControllerRef.current = new AbortController()
+
+    setMarkdownError(null)
+    setMarkdownWarning(null)
+    setWarningsAcknowledged(false)
+    setMarkdownLoading(true)
+
+    try {
+      const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`, {
+        signal: abortControllerRef.current.signal,
+      })
+      const data = await res.json()
+      const assignments = (data.assignments || []) as Assignment[]
+      setAssignmentsCache(assignments)
+
+      // Generate markdown (empty if no assignments)
+      const result = assignmentsToMarkdown(assignments)
+      setMarkdownContent(result.markdown)
+      setHasRichContent(result.hasRichContent)
+      setIsMarkdownMode(true)
+      setRightSidebarWidth('50%')
+    } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') {
+        return
+      }
+      console.error('Error fetching assignments:', err)
+      setMarkdownError('Failed to load assignments')
+    } finally {
+      setMarkdownLoading(false)
+    }
+  }, [classroom.id, setRightSidebarWidth])
+
+  // Detect sidebar open/close and view mode transitions for assignments tab
+  useEffect(() => {
+    const wasOpen = prevSidebarOpenRef.current
+    const wasViewMode = prevViewModeRef.current
+    prevSidebarOpenRef.current = isRightSidebarOpen
+    prevViewModeRef.current = assignmentViewMode
+
+    // Only handle transitions for assignments tab
+    if (!isTeacher || activeTab !== 'assignments') return
+
+    const sidebarJustOpened = isRightSidebarOpen && !wasOpen
+    const returnedToSummary = assignmentViewMode === 'summary' && wasViewMode === 'assignment'
+
+    if (assignmentViewMode === 'summary' && (sidebarJustOpened || (returnedToSummary && isRightSidebarOpen))) {
+      // Sidebar just opened in summary mode, or returned to summary with sidebar open
+      loadAssignmentsMarkdown()
+    } else if (!isRightSidebarOpen && wasOpen) {
+      // Sidebar just closed - reset markdown mode
+      setIsMarkdownMode(false)
+    }
+  }, [isRightSidebarOpen, isTeacher, activeTab, assignmentViewMode, loadAssignmentsMarkdown])
+
+  // Refresh markdown when assignments are updated (e.g., new assignment created)
+  useEffect(() => {
+    if (!isTeacher || activeTab !== 'assignments' || !isMarkdownMode) return
+
+    const handleAssignmentsUpdated = () => {
+      loadAssignmentsMarkdown()
+    }
+
+    window.addEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
+    return () => {
+      window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
+    }
+  }, [isTeacher, activeTab, isMarkdownMode, loadAssignmentsMarkdown])
+
+  // Handle markdown content change
+  const handleMarkdownContentChange = useCallback((content: string) => {
+    setMarkdownContent(content)
+    setMarkdownError(null)
+    setMarkdownWarning(null)
+    setWarningsAcknowledged(false)
+  }, [])
+
+  // Handle markdown save
+  const handleMarkdownSave = useCallback(async () => {
+    setMarkdownError(null)
+    setBulkSaving(true)
+
+    try {
+      const result = markdownToAssignments(markdownContent, assignmentsCache)
+
+      if (result.errors.length > 0) {
+        setMarkdownError(result.errors.join('\n'))
+        setBulkSaving(false)
+        return
+      }
+
+      // If there are warnings and not yet acknowledged, show warnings and block save
+      if (result.warnings.length > 0 && !warningsAcknowledged) {
+        setMarkdownWarning(result.warnings.join('\n'))
+        setBulkSaving(false)
+        return
+      }
+
+      // Bulk save via API
+      const res = await fetch('/api/teacher/assignments/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classroom_id: classroom.id,
+          assignments: result.assignments,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        setMarkdownError(data.errors?.join('\n') || data.error || 'Failed to save')
+        setBulkSaving(false)
+        return
+      }
+
+      // Success - close markdown mode and trigger refresh
+      setIsMarkdownMode(false)
+      setRightSidebarOpen(false)
+      setMarkdownWarning(null)
+      setWarningsAcknowledged(false)
+
+      // Dispatch event to refresh assignments in TeacherClassroomView
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
+          detail: { classroomId: classroom.id },
+        })
+      )
+    } catch (err) {
+      console.error('Error saving assignments:', err)
+      setMarkdownError('Failed to save assignments')
+    } finally {
+      setBulkSaving(false)
+    }
+  }, [markdownContent, assignmentsCache, classroom.id, setRightSidebarOpen, warningsAcknowledged])
+
+  // Handle acknowledging warnings to proceed with save
+  const handleAcknowledgeWarnings = useCallback(() => {
+    setWarningsAcknowledged(true)
   }, [])
 
   // Change right sidebar width to 70% when viewing student work, 40% otherwise
@@ -298,6 +474,7 @@ function ClassroomPageContent({
                   classroom={classroom}
                   onSelectAssignment={handleSelectAssignment}
                   onSelectStudent={handleSelectStudent}
+                  onViewModeChange={handleViewModeChange}
                 />
               )}
               {activeTab === 'calendar' && (
@@ -330,7 +507,9 @@ function ClassroomPageContent({
 
         <RightSidebar
           title={
-            isTeacher && activeTab === 'calendar' && calendarSidebarState
+            isTeacher && activeTab === 'assignments' && isMarkdownMode
+              ? 'Assignments'
+              : isTeacher && activeTab === 'calendar' && calendarSidebarState
               ? 'Calendar'
               : isTeacher && activeTab === 'assignments' && selectedStudent
               ? selectedStudent.assignmentTitle
@@ -341,7 +520,30 @@ function ClassroomPageContent({
               : (selectedStudentName || 'Student Log')
           }
           headerActions={
-            isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
+            isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
+              markdownWarning && !warningsAcknowledged ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleAcknowledgeWarnings()
+                    setTimeout(handleMarkdownSave, 0)
+                  }}
+                  disabled={bulkSaving}
+                  className="px-2 py-1 text-xs rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                >
+                  Save Anyway
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleMarkdownSave}
+                  disabled={bulkSaving}
+                  className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {bulkSaving ? 'Saving...' : 'Save'}
+                </button>
+              )
+            ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
               <button
                 type="button"
                 onClick={calendarSidebarState.onSave}
@@ -374,7 +576,23 @@ function ClassroomPageContent({
             ) : undefined
           }
         >
-          {isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
+          {isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
+            markdownLoading ? (
+              <div className="flex items-center justify-center h-32">
+                <Spinner />
+              </div>
+            ) : (
+              <TeacherAssignmentsMarkdownSidebar
+                markdownContent={markdownContent}
+                markdownError={markdownError}
+                markdownWarning={markdownWarning}
+                hasRichContent={hasRichContent}
+                bulkSaving={bulkSaving}
+                onMarkdownChange={handleMarkdownContentChange}
+                onSave={handleMarkdownSave}
+              />
+            )
+          ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
           ) : isTeacher && activeTab === 'attendance' ? (
             <div className="p-4">

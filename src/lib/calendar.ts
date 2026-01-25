@@ -33,7 +33,11 @@ export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
   allDates.forEach(date => {
     const dateHolidays = hd.isHoliday(date)
     if (dateHolidays) {
-      holidays.push(formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd'))
+      // Only include public/statutory holidays, not observances
+      const hasPublicHoliday = dateHolidays.some(h => h.type === 'public')
+      if (hasPublicHoliday) {
+        holidays.push(formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd'))
+      }
     }
   })
 

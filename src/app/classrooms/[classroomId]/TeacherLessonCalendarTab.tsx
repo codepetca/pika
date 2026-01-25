@@ -2,16 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { startOfWeek, endOfWeek, format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
-import { getOntarioHolidays } from '@/lib/calendar'
 import { useRightSidebar } from '@/components/layout'
 import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDays } from '@/hooks/useClassDays'
 import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
 import { writeCookie } from '@/lib/cookies'
+import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
@@ -61,14 +61,6 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
     const end = classroom.end_date || format(endOfMonth(currentDate), 'yyyy-MM-dd')
     return { start, end }
   }, [classroom.start_date, classroom.end_date, currentDate])
-
-  // Holidays for the full term (computed once)
-  const holidays = useMemo(() => {
-    const startDate = startOfWeek(new Date(fetchRange.start), { weekStartsOn: 0 })
-    const endDate = endOfWeek(new Date(fetchRange.end), { weekStartsOn: 0 })
-    const holidayList = getOntarioHolidays(startDate, endDate)
-    return new Set(holidayList)
-  }, [fetchRange])
 
   // Fetch all lesson plans for the term once
   useEffect(() => {
@@ -187,6 +179,9 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
 
     window.addEventListener('beforeunload', handleBeforeUnload)
 
+    // Capture ref value for cleanup
+    const pendingChanges = pendingChangesRef.current
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       if (saveTimeoutRef.current) {
@@ -197,7 +192,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
       }
       // Flush any pending changes on component unmount (e.g., navigation)
       // The fetch will complete even after unmount
-      if (pendingChangesRef.current.size > 0) {
+      if (pendingChanges.size > 0) {
         flushPendingSaves()
       }
     }
@@ -276,6 +271,14 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
         return
       }
 
+      // If no plans with content, just close (nothing to save)
+      if (result.plans.length === 0) {
+        needsRefreshRef.current = true
+        setSidebarOpen(false)
+        setRefreshKey((k) => k + 1)
+        return
+      }
+
       // Bulk save
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/bulk`, {
         method: 'PUT',
@@ -310,7 +313,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
       writeCookie(cookieName, assignment.id)
       // Dispatch event so NavItems updates
       window.dispatchEvent(
-        new CustomEvent('pika:teacherAssignmentsSelection', {
+        new CustomEvent(TEACHER_ASSIGNMENTS_SELECTION_EVENT, {
           detail: { classroomId: classroom.id, value: assignment.id },
         })
       )
@@ -367,7 +370,6 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
           onAssignmentClick={handleAssignmentClick}
           onMarkdownToggle={handleMarkdownToggle}
           isSidebarOpen={isSidebarOpen}
-          holidays={holidays}
         />
       </PageContent>
     </PageLayout>
@@ -438,7 +440,6 @@ export function TeacherLessonCalendarSidebar({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none focus:outline-none"
-        placeholder="Loading..."
       />
     </div>
   )

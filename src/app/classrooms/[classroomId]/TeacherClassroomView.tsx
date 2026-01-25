@@ -47,15 +47,16 @@ import {
   SortableHeaderCell,
   TableCard,
 } from '@/components/DataTable'
+import {
+  TEACHER_ASSIGNMENTS_SELECTION_EVENT,
+  TEACHER_ASSIGNMENTS_UPDATED_EVENT,
+} from '@/lib/events'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
 }
 
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
-
-const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
-const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
 interface StudentSubmissionRow {
   student_id: string
@@ -66,10 +67,13 @@ interface StudentSubmissionRow {
   doc: { submitted_at?: string | null; updated_at?: string | null } | null
 }
 
+export type AssignmentViewMode = 'summary' | 'assignment'
+
 interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onSelectStudent?: (student: SelectedStudentInfo | null) => void
+  onViewModeChange?: (mode: AssignmentViewMode) => void
 }
 
 function getCookieValue(name: string) {
@@ -107,7 +111,7 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
 }
 
-export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent }: Props) {
+export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
@@ -316,6 +320,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     }
   }, [selection.mode, selectedAssignmentData, onSelectAssignment])
 
+  // Notify parent of view mode changes
+  useEffect(() => {
+    onViewModeChange?.(selection.mode)
+  }, [selection.mode, onViewModeChange])
+
   // Auto-open sidebar when assignment is selected (separate effect)
   const prevSelectionModeRef = useRef<'summary' | 'assignment'>('summary')
   useEffect(() => {
@@ -416,7 +425,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     } else {
       onSelectStudent?.(null)
     }
-  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
+  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, selectedAssignmentData?.assignment?.title, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
 
   // Auto-open right sidebar and collapse left sidebar when student is selected
   const prevSelectedStudentIdRef = useRef<string | null>(null)
@@ -513,7 +522,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
   return (
     <PageLayout>
-      <PageActionBar primary={primaryButtons} trailing={<RightSidebarToggle />} />
+      <PageActionBar primary={primaryButtons} actions={[]} trailing={<RightSidebarToggle />} />
 
       <PageContent className="space-y-4">
         {error && (
@@ -671,5 +680,63 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       />
       </PageContent>
     </PageLayout>
+  )
+}
+
+// Sidebar content component - rendered via page.tsx
+export function TeacherAssignmentsMarkdownSidebar({
+  markdownContent,
+  markdownError,
+  markdownWarning,
+  hasRichContent,
+  bulkSaving,
+  onMarkdownChange,
+  onSave,
+}: {
+  markdownContent: string
+  markdownError: string | null
+  markdownWarning: string | null
+  hasRichContent: boolean
+  bulkSaving: boolean
+  onMarkdownChange: (content: string) => void
+  onSave: () => void
+}) {
+  // Cmd+S / Ctrl+S to save
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault()
+      if (!bulkSaving) {
+        onSave()
+      }
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {hasRichContent && (
+        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400">
+          Some assignments have rich formatting that will be lost when editing as plain text.
+        </div>
+      )}
+
+      {markdownWarning && (
+        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400 whitespace-pre-wrap">
+          <strong>Warning:</strong> {markdownWarning}
+        </div>
+      )}
+
+      {markdownError && (
+        <div className="mx-3 mt-3 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
+          {markdownError}
+        </div>
+      )}
+
+      <textarea
+        value={markdownContent}
+        onChange={(e) => onMarkdownChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none border-0 focus:ring-0 focus:outline-none"
+      />
+    </div>
   )
 }

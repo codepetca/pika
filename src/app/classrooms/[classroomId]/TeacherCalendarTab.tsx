@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { Copy } from 'lucide-react'
 import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
 import { getTodayInToronto } from '@/lib/timezone'
+import { CLASS_DAYS_UPDATED_EVENT } from '@/lib/events'
 
 interface Props {
   classroom: Classroom
@@ -19,6 +21,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [saving, setSaving] = useState(false)
+  const [copyNotice, setCopyNotice] = useState<string>('')
 
   async function load() {
     setLoading(true)
@@ -94,11 +97,31 @@ export function TeacherCalendarTab({ classroom }: Props) {
       }
       setSuccess(`Generated ${data.count ?? 0} class days.`)
       await load()
+      // Notify other components (e.g., calendar) that class days changed
+      window.dispatchEvent(new CustomEvent(CLASS_DAYS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     } catch (err: any) {
       setError(err.message || 'Failed to generate class days')
     } finally {
       setSaving(false)
     }
+  }
+
+  async function copyClassDays() {
+    const activeClassDays = classDays
+      .filter(d => d.is_class_day)
+      .map(d => d.date)
+      .sort()
+
+    if (activeClassDays.length === 0) {
+      setCopyNotice('No class days to copy')
+      setTimeout(() => setCopyNotice(''), 2000)
+      return
+    }
+
+    const markdown = activeClassDays.map(date => `- ${date}`).join('\n')
+    await navigator.clipboard.writeText(markdown)
+    setCopyNotice('Copied!')
+    setTimeout(() => setCopyNotice(''), 2000)
   }
 
   async function toggleDay(date: string, isClassDay: boolean) {
@@ -125,6 +148,8 @@ export function TeacherCalendarTab({ classroom }: Props) {
         next[existingIndex] = data.class_day
         return next
       })
+      // Notify other components (e.g., calendar) that class days changed
+      window.dispatchEvent(new CustomEvent(CLASS_DAYS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     } catch (err: any) {
       setError(err.message || 'Failed to update day')
     }
@@ -202,6 +227,15 @@ export function TeacherCalendarTab({ classroom }: Props) {
               <div className="text-xs text-gray-500 dark:text-gray-400">
                 {isReadOnly ? 'Read-only mode' : 'Click on date to toggle class days'}
               </div>
+              <button
+                type="button"
+                onClick={copyClassDays}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                title="Copy class days as markdown"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>{copyNotice || 'Copy'}</span>
+              </button>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

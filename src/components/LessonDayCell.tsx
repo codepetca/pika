@@ -15,7 +15,6 @@ interface LessonDayCellProps {
   assignments?: Assignment[]
   isWeekend: boolean
   isToday: boolean
-  isHoliday: boolean
   isClassDay?: boolean // undefined means class days not initialized
   editable: boolean
   compact?: boolean
@@ -31,7 +30,6 @@ export const LessonDayCell = memo(function LessonDayCell({
   assignments = [],
   isWeekend,
   isToday,
-  isHoliday,
   isClassDay,
   editable,
   compact = false,
@@ -99,17 +97,16 @@ export const LessonDayCell = memo(function LessonDayCell({
   }
 
   // Non-class day (explicitly false, not undefined) gets a gray background
-  // Holiday styling takes precedence over non-class-day styling
-  const isNonClassDay = isClassDay === false && !isHoliday
+  // Class days data is the source of truth - no special holiday styling
+  const isNonClassDay = isClassDay === false
 
   return (
     <div
       className={`
         relative h-full min-w-0 overflow-hidden
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
-        ${isHoliday ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
         ${isNonClassDay ? 'bg-gray-100 dark:bg-gray-800/50' : ''}
-        ${!editable && !hasContent && !isNonClassDay && !isHoliday ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
+        ${!editable && !hasContent && !isNonClassDay ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
       `}
     >
       {/* Date header */}
