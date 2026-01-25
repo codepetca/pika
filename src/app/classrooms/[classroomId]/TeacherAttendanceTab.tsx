@@ -8,6 +8,7 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
+import type { AttendanceStatus } from '@/types'
 import {
   DataTable,
   DataTableBody,
@@ -120,6 +121,8 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     if (!selectedDate) return true
     return isClassDayOnDate(classDays, selectedDate)
   }, [classDays, selectedDate])
+
+  const today = useMemo(() => getTodayInToronto(), [])
 
   const rows = useMemo(() => {
     return [...logs].sort((a, b) => {
@@ -245,7 +248,11 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
             <DataTableBody>
               {rows.map((row) => {
                 const isSelected = selectedStudentId === row.student_id
-                const status = row.entry ? 'present' : 'absent'
+                const status: AttendanceStatus = row.entry
+                  ? 'present'
+                  : selectedDate >= today
+                    ? 'pending'
+                    : 'absent'
                 const logText = getLogText(row)
 
                 return (
