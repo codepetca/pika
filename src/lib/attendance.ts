@@ -3,10 +3,20 @@ import type { AttendanceStatus, ClassDay, Entry, AttendanceRecord } from '@/type
 /**
  * Computes attendance status for a single student across all class days
  * Pure function - no side effects
+ *
+ * @param classDays - All class days for the classroom
+ * @param entries - All entries for the student
+ * @param today - Today's date in YYYY-MM-DD format (Toronto timezone)
+ *
+ * Status logic:
+ * - present: entry exists for that class day
+ * - absent: past class day with no entry
+ * - pending: today or future class day with no entry yet
  */
 export function computeAttendanceStatusForStudent(
   classDays: ClassDay[],
-  entries: Entry[]
+  entries: Entry[],
+  today: string
 ): Record<string, AttendanceStatus> {
   const result: Record<string, AttendanceStatus> = {}
 
@@ -23,10 +33,14 @@ export function computeAttendanceStatusForStudent(
   actualClassDays.forEach(classDay => {
     const entry = entryMap.get(classDay.date)
 
-    if (!entry) {
-      result[classDay.date] = 'absent'
-    } else {
+    if (entry) {
       result[classDay.date] = 'present'
+    } else if (classDay.date >= today) {
+      // Today or future: pending (student still has time to submit)
+      result[classDay.date] = 'pending'
+    } else {
+      // Past class day with no entry: absent
+      result[classDay.date] = 'absent'
     }
   })
 
@@ -35,27 +49,35 @@ export function computeAttendanceStatusForStudent(
 
 /**
  * Computes attendance records for multiple students
+ *
+ * @param students - Students to compute attendance for
+ * @param classDays - All class days for the classroom
+ * @param allEntries - All entries for the classroom
+ * @param today - Today's date in YYYY-MM-DD format (Toronto timezone)
  */
 export function computeAttendanceRecords(
   students: Array<{ id: string; email: string; first_name: string; last_name: string }>,
   classDays: ClassDay[],
-  allEntries: Entry[]
+  allEntries: Entry[],
+  today: string
 ): AttendanceRecord[] {
   return students.map(student => {
     // Filter entries for this student
     const studentEntries = allEntries.filter(e => e.student_id === student.id)
 
     // Compute attendance status
-    const dates = computeAttendanceStatusForStudent(classDays, studentEntries)
+    const dates = computeAttendanceStatusForStudent(classDays, studentEntries, today)
 
-    // Calculate summary stats
+    // Calculate summary stats (only count present and absent, not pending)
     const summary = {
       present: 0,
       absent: 0
     }
 
     Object.values(dates).forEach(status => {
-      summary[status]++
+      if (status === 'present' || status === 'absent') {
+        summary[status]++
+      }
     })
 
     return {
@@ -78,12 +100,14 @@ export function getAttendanceIcon(status: AttendanceStatus): string {
       return '🟢'
     case 'absent':
       return '🔴'
+    case 'pending':
+      return '⚪'
   }
 }
 
 /**
  * Gets dot color class for attendance status indicator
- * Green = present, Red = absent
+ * Green = present, Red = absent, Gray = pending
  */
 export function getAttendanceDotClass(status: AttendanceStatus): string {
   switch (status) {
@@ -91,6 +115,8 @@ export function getAttendanceDotClass(status: AttendanceStatus): string {
       return 'bg-green-500'
     case 'absent':
       return 'bg-red-500'
+    case 'pending':
+      return 'bg-gray-400'
   }
 }
 
@@ -103,5 +129,7 @@ export function getAttendanceLabel(status: AttendanceStatus): string {
       return 'Present'
     case 'absent':
       return 'Absent'
+    case 'pending':
+      return 'Pending'
   }
 }

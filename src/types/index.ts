@@ -2,7 +2,7 @@ import type { Operation } from 'fast-json-patch'
 
 export type UserRole = 'student' | 'teacher'
 
-export type AttendanceStatus = 'present' | 'absent'
+export type AttendanceStatus = 'present' | 'absent' | 'pending'
 
 export type MoodEmoji = '😊' | '🙂' | '😐' | '😟' | '😢'
 
