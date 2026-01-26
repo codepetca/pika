@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, FormEvent, ChangeEvent, useId } from 'react'
-import { Button } from '@/components/Button'
+import { Button } from '@/ui'
 
 interface StudentChange {
   email: string
@@ -145,7 +145,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   if (confirmationData) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full p-6">
+        <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm Roster Update</h2>
 
           <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded">
@@ -158,10 +158,10 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
           </div>
 
           <div className="mb-4">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <p className="text-sm font-medium text-text-muted mb-2">
               Changes to be made:
             </p>
-            <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="max-h-64 overflow-y-auto border border-border rounded divide-y divide-gray-100 dark:divide-gray-800">
               {confirmationData.changes.map((change) => {
                 const nameChanged = change.current.firstName !== change.incoming.firstName ||
                                    change.current.lastName !== change.incoming.lastName
@@ -169,26 +169,26 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 const counselorChanged = change.current.counselorEmail !== change.incoming.counselorEmail
                 return (
                   <div key={change.email} className="px-3 py-2 text-xs">
-                    <div className="font-medium text-gray-700 dark:text-gray-300">
+                    <div className="font-medium text-text-muted">
                       {change.current.firstName} {change.current.lastName}
                     </div>
-                    <div className="text-gray-500 dark:text-gray-400 mb-1">{change.email}</div>
+                    <div className="text-text-muted mb-1">{change.email}</div>
                     {nameChanged && (
-                      <div className="text-gray-500 dark:text-gray-400">
+                      <div className="text-text-muted">
                         Name: <span className="line-through text-red-500 dark:text-red-400">{change.current.firstName} {change.current.lastName}</span>
                         {' → '}
                         <span className="text-green-600 dark:text-green-400">{change.incoming.firstName} {change.incoming.lastName}</span>
                       </div>
                     )}
                     {numberChanged && (
-                      <div className="text-gray-500 dark:text-gray-400">
+                      <div className="text-text-muted">
                         Student #: <span className="line-through text-red-500 dark:text-red-400">{change.current.studentNumber || '(none)'}</span>
                         {' → '}
                         <span className="text-green-600 dark:text-green-400">{change.incoming.studentNumber || '(none)'}</span>
                       </div>
                     )}
                     {counselorChanged && (
-                      <div className="text-gray-500 dark:text-gray-400 truncate">
+                      <div className="text-text-muted truncate">
                         Counselor: <span className="line-through text-red-500 dark:text-red-400">{change.current.counselorEmail || '(none)'}</span>
                         {' → '}
                         <span className="text-green-600 dark:text-green-400">{change.incoming.counselorEmail || '(none)'}</span>
@@ -200,7 +200,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
             </div>
           </div>
 
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          <p className="text-xs text-text-muted mb-4">
             Updating roster entries will change student metadata (name, student number, counselor email).
             Student submissions and enrollments are not affected.
           </p>
@@ -237,16 +237,16 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full p-6">
+      <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Upload Roster</h2>
 
         {!result ? (
           <form onSubmit={handleSubmit}>
             <div className="mb-4 space-y-3">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="block text-sm font-medium text-text-muted">
                 CSV File Format
               </label>
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-xs text-gray-800 dark:text-gray-200 overflow-hidden max-w-full">
+              <div className="rounded-md border border-border bg-surface text-xs text-gray-800 dark:text-gray-200 overflow-hidden max-w-full">
                 <div className="grid grid-cols-[minmax(0,_1.2fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1.2fr)] gap-0 text-center text-[10px] leading-tight">
                   {[
                     { label: 'Student Number', optional: false },
@@ -257,8 +257,8 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                   ].map(({ label, optional }, index, arr) => (
                     <span
                       key={label}
-                      className={`bg-gray-100 dark:bg-gray-800 py-2 px-1 font-semibold ${
-                        index < arr.length - 1 ? 'border-r border-gray-200 dark:border-gray-700' : ''
+                      className={`bg-surface-2 py-2 px-1 font-semibold ${
+                        index < arr.length - 1 ? 'border-r border-border' : ''
                       } whitespace-nowrap`}
                     >
                       {label}
@@ -267,7 +267,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                   ))}
                 </div>
               </div>
-              <label htmlFor={fileInputId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor={fileInputId} className="block text-sm font-medium text-text-muted mb-2">
                 Choose CSV file
               </label>
               <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">

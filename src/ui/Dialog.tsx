@@ -1,0 +1,254 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
+import { cva } from 'class-variance-authority'
+import { Button } from './Button'
+
+// Dialog panel styles with CVA
+const dialogPanelStyles = cva([
+  'relative w-full max-w-sm',
+  'rounded-dialog border shadow-dialog p-dialog',
+  'bg-white dark:bg-gray-900',
+  'border-gray-200 dark:border-gray-700',
+])
+
+const dialogBackdropStyles = 'absolute inset-0 bg-black/50 dark:bg-black/70'
+const dialogTitleStyles = 'text-base font-semibold text-gray-900 dark:text-gray-100'
+const dialogDescriptionStyles = 'mt-2 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line'
+
+// ============================================================================
+// AlertDialog
+// ============================================================================
+
+export type AlertDialogVariant = 'default' | 'success' | 'error'
+
+export interface AlertDialogState {
+  isOpen: boolean
+  title: string
+  description?: string
+  variant?: AlertDialogVariant
+  autoDismiss?: boolean
+}
+
+export interface AlertDialogProps extends AlertDialogState {
+  buttonLabel?: string
+  onClose: () => void
+}
+
+function SuccessIcon() {
+  return (
+    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+
+function ErrorIcon() {
+  return (
+    <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  )
+}
+
+/**
+ * AlertDialog for displaying messages with a single action button.
+ *
+ * @example
+ * <AlertDialog
+ *   isOpen={showAlert}
+ *   onClose={() => setShowAlert(false)}
+ *   title="Success!"
+ *   description="Your changes have been saved."
+ *   variant="success"
+ * />
+ */
+export function AlertDialog({
+  isOpen,
+  title,
+  description,
+  buttonLabel = 'OK',
+  variant = 'default',
+  autoDismiss = false,
+  onClose,
+}: AlertDialogProps) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    buttonRef.current?.focus()
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' || e.key === 'Enter') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
+  // Auto-dismiss for success messages
+  useEffect(() => {
+    if (!isOpen || !autoDismiss) return
+    const timer = setTimeout(onClose, 2000)
+    return () => clearTimeout(timer)
+  }, [isOpen, autoDismiss, onClose])
+
+  if (!isOpen) return null
+
+  const buttonVariant = variant === 'error' ? 'danger' : 'primary'
+  const icon = variant === 'success' ? <SuccessIcon /> : variant === 'error' ? <ErrorIcon /> : null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        className={dialogBackdropStyles}
+        aria-label="Close dialog"
+        onClick={onClose}
+      />
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="alert-dialog-title"
+        aria-describedby={description ? 'alert-dialog-description' : undefined}
+        className={dialogPanelStyles()}
+      >
+        <div className="flex items-center gap-3">
+          {icon}
+          <div id="alert-dialog-title" className={dialogTitleStyles}>{title}</div>
+        </div>
+        {description && (
+          <div id="alert-dialog-description" className={`${dialogDescriptionStyles} ${icon ? 'ml-9' : ''}`}>
+            {description}
+          </div>
+        )}
+        <div className={`mt-4 ${icon ? 'ml-9' : ''}`}>
+          <Button
+            ref={buttonRef}
+            type="button"
+            variant={buttonVariant}
+            className="w-full"
+            onClick={onClose}
+          >
+            {buttonLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// ConfirmDialog
+// ============================================================================
+
+type ConfirmDialogVariant = 'default' | 'danger'
+
+export interface ConfirmDialogProps {
+  isOpen: boolean
+  title: string
+  description?: string
+  confirmLabel?: string
+  cancelLabel?: string
+  confirmVariant?: ConfirmDialogVariant
+  isCancelDisabled?: boolean
+  isConfirmDisabled?: boolean
+  onConfirm: () => void | Promise<void>
+  onCancel: () => void
+}
+
+/**
+ * ConfirmDialog for actions that require user confirmation.
+ *
+ * @example
+ * <ConfirmDialog
+ *   isOpen={showConfirm}
+ *   onCancel={() => setShowConfirm(false)}
+ *   onConfirm={handleDelete}
+ *   title="Delete item?"
+ *   description="This action cannot be undone."
+ *   confirmLabel="Delete"
+ *   confirmVariant="danger"
+ * />
+ */
+export function ConfirmDialog({
+  isOpen,
+  title,
+  description,
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+  confirmVariant = 'default',
+  isCancelDisabled = false,
+  isConfirmDisabled = false,
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    cancelButtonRef.current?.focus()
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !isCancelDisabled) onCancel()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, isCancelDisabled, onCancel])
+
+  if (!isOpen) return null
+
+  const confirmButtonVariant = confirmVariant === 'danger' ? 'danger' : 'primary'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        className={dialogBackdropStyles}
+        aria-label="Close dialog"
+        disabled={isCancelDisabled}
+        onClick={onCancel}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+        aria-describedby={description ? 'confirm-dialog-description' : undefined}
+        className={dialogPanelStyles()}
+      >
+        <div id="confirm-dialog-title" className={dialogTitleStyles}>{title}</div>
+        {description && (
+          <div id="confirm-dialog-description" className={dialogDescriptionStyles}>
+            {description}
+          </div>
+        )}
+        <div className="mt-4 flex gap-control">
+          <Button
+            ref={cancelButtonRef}
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            disabled={isCancelDisabled}
+            onClick={onCancel}
+          >
+            {cancelLabel}
+          </Button>
+          <Button
+            type="button"
+            variant={confirmButtonVariant}
+            className="flex-1"
+            disabled={isConfirmDisabled}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}

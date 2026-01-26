@@ -1,8 +1,7 @@
 'use client'
 
 import type { FormEvent, ReactNode, RefObject } from 'react'
-import { Input } from '@/components/Input'
-import { Button } from '@/components/Button'
+import { Input, Button, FormField } from '@/ui'
 import { DateActionBar } from '@/components/DateActionBar'
 import { RichTextEditor } from '@/components/editor'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -110,23 +109,24 @@ export function AssignmentForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3 w-full">
-      <Input
-        ref={titleInputRef}
-        label="Title"
-        type="text"
-        value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
-        onBlur={onBlur}
-        required
-        disabled={disabled}
-        placeholder="Assignment title"
-      />
+      <FormField label="Title" required>
+        <Input
+          ref={titleInputRef}
+          type="text"
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          onBlur={onBlur}
+          required
+          disabled={disabled}
+          placeholder="Assignment title"
+        />
+      </FormField>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label className="block text-sm font-medium text-text-muted mb-1">
           Instructions
         </label>
-        <div className="min-h-[200px] border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+        <div className="min-h-[200px] border border-border-strong rounded-lg overflow-hidden">
           <RichTextEditor
             content={instructions}
             onChange={onInstructionsChange}
@@ -144,8 +144,8 @@ export function AssignmentForm({
           const colorClass = relative
             ? relative.isPast
               ? 'text-yellow-600 dark:text-yellow-400'
-              : 'text-blue-600 dark:text-blue-400'
-            : 'text-gray-700 dark:text-gray-300'
+              : 'text-primary'
+            : 'text-text-muted'
           return (
             <label className={`block text-sm font-medium mb-1 ${colorClass}`}>
               {labelText}

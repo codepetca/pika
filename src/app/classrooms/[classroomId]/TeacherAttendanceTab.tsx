@@ -8,7 +8,7 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
-import { Tooltip } from '@/components/Tooltip'
+import { Tooltip } from '@/ui'
 import type { AttendanceStatus } from '@/types'
 import {
   DataTable,
@@ -263,13 +263,13 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                       'cursor-pointer transition-colors',
                       isSelected
                         ? 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
-                        : 'hover:bg-gray-50 dark:hover:bg-gray-800',
+                        : 'hover:bg-surface-hover',
                     ].join(' ')}
                     onClick={() => handleRowClick(row)}
                   >
                     <DataTableCell density="tight">{row.student_first_name || '—'}</DataTableCell>
                     <DataTableCell density="tight">{row.student_last_name || '—'}</DataTableCell>
-                    <DataTableCell density="tight" className="text-gray-600 dark:text-gray-400">
+                    <DataTableCell density="tight" className="text-text-muted">
                       {row.email_username}
                     </DataTableCell>
                     <DataTableCell density="tight" align="center">
@@ -286,12 +286,12 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                     <DataTableCell density="tight" className={isLeftExpanded ? 'max-w-xs' : 'max-w-md'}>
                       {logText !== '—' ? (
                         <Tooltip content={logText}>
-                          <div className="truncate text-gray-700 dark:text-gray-300">
+                          <div className="truncate text-text-muted">
                             {logText}
                           </div>
                         </Tooltip>
                       ) : (
-                        <div className="text-gray-700 dark:text-gray-300">—</div>
+                        <div className="text-text-muted">—</div>
                       )}
                     </DataTableCell>
                   </DataTableRow>

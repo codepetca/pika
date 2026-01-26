@@ -7,7 +7,7 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
-import { Tooltip } from '@/components/Tooltip'
+import { Tooltip } from '@/ui'
 
 interface AppHeaderProps {
   user?: {
@@ -44,7 +44,7 @@ export function AppHeader({
   }, [])
 
   return (
-    <header className="h-12 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 grid grid-cols-[1fr_auto_1fr] items-center px-4">
+    <header className="h-12 bg-surface border-b border-border grid grid-cols-[1fr_auto_1fr] items-center px-4">
       {/* Left section */}
       <div className="flex items-center gap-3">
         {/* Mobile sidebar trigger (classroom pages) */}
@@ -53,7 +53,7 @@ export function AppHeader({
             <button
               type="button"
               onClick={onOpenSidebar}
-              className="lg:hidden p-2 -ml-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="lg:hidden p-2 -ml-2 rounded-md text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-surface-hover transition-colors"
               aria-label="Open classroom navigation"
             >
               <Menu className="w-5 h-5" />
@@ -82,11 +82,11 @@ export function AppHeader({
       {/* Center section - Date */}
       <div>
         {/* Mobile: Short format (Tue Dec 16) */}
-        <div className="lg:hidden text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+        <div className="lg:hidden text-lg sm:text-xl font-bold text-text-default tabular-nums">
           {formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}
         </div>
         {/* Desktop: Long format (Monday January 12, 2026) */}
-        <div className="hidden lg:block text-xl font-bold text-gray-900 dark:text-gray-100">
+        <div className="hidden lg:block text-xl font-bold text-text-default">
           {formatInTimeZone(now, 'America/Toronto', 'EEEE MMMM d, yyyy')}
         </div>
       </div>

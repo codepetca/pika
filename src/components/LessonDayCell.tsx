@@ -4,7 +4,7 @@ import { useCallback, useMemo, memo } from 'react'
 import { format } from 'date-fns'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { extractTextFromTiptap } from '@/lib/lesson-plan-markdown'
-import { Tooltip } from '@/components/Tooltip'
+import { Tooltip } from '@/ui'
 import type { LessonPlan, TiptapContent, Assignment } from '@/types'
 
 const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
@@ -102,7 +102,7 @@ export const LessonDayCell = memo(function LessonDayCell({
       className={`
         relative h-full min-w-0 overflow-hidden
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
-        ${isNonClassDay ? 'bg-gray-100 dark:bg-gray-800/50' : ''}
+        ${isNonClassDay ? 'bg-surface-2/50' : ''}
         ${!editable && !hasContent && !isNonClassDay ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
       `}
     >
@@ -112,7 +112,7 @@ export const LessonDayCell = memo(function LessonDayCell({
           className={`
             font-medium
             ${compact ? 'text-[10px]' : 'text-sm'}
-            ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}
+            ${isToday ? 'text-primary' : 'text-text-muted'}
           `}
         >
           {format(day, 'd')}
@@ -146,7 +146,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         {plainTextOnly ? (
           // Plain text mode: lightweight rendering for 'all' view performance
           hasContent && (
-            <div className="text-[10px] leading-tight text-gray-600 dark:text-gray-400 line-clamp-3 whitespace-pre-wrap">
+            <div className="text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap">
               {plainText}
             </div>
           )
@@ -160,7 +160,7 @@ export const LessonDayCell = memo(function LessonDayCell({
             className={compact ? 'text-xs' : 'text-sm'}
           />
         ) : hasContent ? (
-          <div className={`${compact ? 'text-xs' : 'text-sm'} text-gray-700 dark:text-gray-300`}>
+          <div className={`${compact ? 'text-xs' : 'text-sm'} text-text-muted`}>
             <RichTextEditor
               content={content}
               onChange={() => {}}

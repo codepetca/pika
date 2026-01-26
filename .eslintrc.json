@@ -1,5 +1,42 @@
 {
   "root": true,
-  "extends": ["next/core-web-vitals"]
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["@/components/Button", "@/components/Button.tsx"],
+            "message": "Import Button from '@/ui' instead."
+          },
+          {
+            "group": ["@/components/Input", "@/components/Input.tsx"],
+            "message": "Import Input from '@/ui' instead."
+          },
+          {
+            "group": ["@/components/AlertDialog", "@/components/AlertDialog.tsx"],
+            "message": "Import AlertDialog from '@/ui' instead."
+          },
+          {
+            "group": ["@/components/ConfirmDialog", "@/components/ConfirmDialog.tsx"],
+            "message": "Import ConfirmDialog from '@/ui' instead."
+          },
+          {
+            "group": ["@/components/Tooltip", "@/components/Tooltip.tsx"],
+            "message": "Import Tooltip/TooltipProvider from '@/ui' instead."
+          }
+        ]
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/components/AlertDialog.tsx", "src/components/ConfirmDialog.tsx", "src/components/tiptap-ui/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
 }
 

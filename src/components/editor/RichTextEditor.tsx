@@ -185,7 +185,7 @@ export function RichTextEditor({
           validate: (href) => isSafeLinkHref(href),
           HTMLAttributes: {
             class:
-              'text-blue-600 dark:text-blue-400 underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer',
+              'text-primary underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer',
             rel: 'noopener noreferrer nofollow',
             target: '_blank',
           },

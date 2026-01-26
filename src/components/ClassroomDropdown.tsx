@@ -87,7 +87,7 @@ export function ClassroomDropdown({
   // If only one classroom, show as plain text
   if (classrooms.length === 1) {
     return (
-      <div className={`text-xl font-bold text-gray-900 dark:text-gray-100 truncate max-w-xs ${className}`}>
+      <div className={`text-xl font-bold text-text-default truncate max-w-xs ${className}`}>
         {classrooms[0].title}
       </div>
     )
@@ -107,7 +107,7 @@ export function ClassroomDropdown({
         onClick={handleClick}
         onTouchStart={handleTouchStart}
         onKeyDown={handleTriggerKeyDown}
-        className="px-2 py-1 -mx-2 text-xl font-bold text-gray-900 dark:text-gray-100 truncate max-w-xs rounded-md transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+        className="px-2 py-1 -mx-2 text-xl font-bold text-text-default truncate max-w-xs rounded-md transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-controls={menuId}
@@ -119,7 +119,7 @@ export function ClassroomDropdown({
       {/* Dropdown menu with animation */}
       <div
         id={menuId}
-        className={`absolute top-full left-0 mt-1 min-w-[200px] max-w-xs bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-200 origin-top ${
+        className={`absolute top-full left-0 mt-1 min-w-[200px] max-w-xs bg-surface rounded-lg shadow-lg border border-border py-1 z-50 transition-all duration-200 origin-top ${
           isOpen && otherClassrooms.length > 0
             ? 'opacity-100 scale-100 translate-y-0'
             : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
@@ -139,7 +139,7 @@ export function ClassroomDropdown({
             className={`w-full px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors truncate focus:outline-none ${
               focusedIndex === index
                 ? 'bg-gray-100 dark:bg-gray-700'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                : 'hover:bg-surface-hover'
             }`}
             role="option"
             aria-selected={focusedIndex === index}

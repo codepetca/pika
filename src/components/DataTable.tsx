@@ -20,7 +20,7 @@ export function TableCard({
   overflowX?: boolean
 }) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="bg-surface rounded-lg border border-border overflow-hidden">
       <div className={overflowX ? 'overflow-x-auto' : undefined}>{children}</div>
     </div>
   )
@@ -33,7 +33,7 @@ export function DataTable({ children }: { children: ReactNode }) {
 export function DataTableHead({ children }: { children: ReactNode }) {
   return (
     <thead
-      className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700"
+      className="bg-surface-2 border-b border-border"
     >
       {children}
     </thead>
@@ -75,7 +75,7 @@ export function DataTableHeaderCell({
       className={[
         densityPadding(density),
         alignClass,
-        'text-sm font-medium text-gray-700 dark:text-gray-300',
+        'text-sm font-medium text-text-muted',
         className,
       ].join(' ')}
       {...props}
@@ -114,14 +114,14 @@ export function SortableHeaderCell({
           densityPadding(density),
           'w-full flex items-center gap-1',
           alignClass,
-          'hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
+          'hover:bg-surface-hover transition-colors',
         ].join(' ')}
       >
         <span className="truncate">{label}</span>
         <Icon
           className={[
             'h-4 w-4 flex-shrink-0',
-            isActive ? 'text-gray-500 dark:text-gray-400' : 'opacity-0',
+            isActive ? 'text-text-muted' : 'opacity-0',
           ].join(' ')}
           aria-hidden="true"
         />
@@ -149,7 +149,7 @@ export function DataTableCell({
       className={[
         densityPadding(density),
         alignClass,
-        'text-sm text-gray-900 dark:text-gray-100',
+        'text-sm text-text-default',
         className,
       ].join(' ')}
       {...props}
@@ -170,7 +170,7 @@ export function EmptyStateRow({
 }) {
   return (
     <DataTableRow>
-      <td colSpan={colSpan} className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+      <td colSpan={colSpan} className="py-12 text-center text-sm text-text-muted">
         {message}
       </td>
     </DataTableRow>

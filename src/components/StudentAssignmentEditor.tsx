@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/Button'
+import { Button } from '@/ui'
 import { Eye, EyeOff } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
@@ -405,7 +405,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   if (loading) {
     if (isEmbedded) {
       return (
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-surface rounded-lg shadow-sm border border-border">
           <div className="p-6 flex justify-center">
             <Spinner size="lg" />
           </div>
@@ -423,11 +423,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     const exit = onExit ?? (() => router.push(`/classrooms/${classroomId}?tab=assignments`))
     if (isEmbedded) {
       return (
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+        <div className="bg-surface rounded-lg shadow-sm border border-border p-8 text-center">
           <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
           <button
             onClick={exit}
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            className="text-primary hover:text-blue-700 dark:hover:text-blue-300"
           >
             Back to assignments
           </button>
@@ -435,7 +435,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       )
     }
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center">
+      <div className="bg-surface rounded-lg shadow-sm p-8 text-center">
         <p className="text-red-600 mb-4">{error}</p>
         <button
           onClick={() => router.back()}
@@ -458,22 +458,22 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     <div className="flex flex-col gap-6 h-full min-h-0">
       {/* Instructions */}
       {!isEmbedded && (assignment.rich_instructions || assignment.description) && (
-        <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div className="bg-page border border-border rounded-lg p-4">
           {assignment.rich_instructions ? (
             <RichTextViewer content={assignment.rich_instructions} />
           ) : (
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{assignment.description}</p>
+            <p className="text-text-muted whitespace-pre-wrap">{assignment.description}</p>
           )}
         </div>
       )}
 
       {/* Editor with History Column */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col min-h-0 flex-1">
+      <div className="bg-surface rounded-lg shadow-sm border border-border flex flex-col min-h-0 flex-1">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+              <div className="text-sm font-medium text-text-muted truncate">
                 {assignment.title}
               </div>
               {previewEntry && (
@@ -487,7 +487,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 saveStatus === 'saved'
                   ? 'text-green-600 dark:text-green-400'
                   : saveStatus === 'saving'
-                    ? 'text-gray-500 dark:text-gray-400'
+                    ? 'text-text-muted'
                     : 'text-orange-600 dark:text-orange-400'
               }`}
             >
@@ -496,7 +496,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             <button
               type="button"
               onClick={handleHistoryToggle}
-              className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover"
               aria-expanded={isHistoryOpen}
               aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
             >
@@ -512,7 +512,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         {/* Main Content Area: Editor + History Column */}
         <div className="flex flex-1 min-h-0 flex-col md:flex-row">
           {/* Editor */}
-          <div className={`flex-1 min-h-0 border-b md:border-b-0 border-gray-200 dark:border-gray-700 flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
+          <div className={`flex-1 min-h-0 border-b md:border-b-0 border-border flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
             <div className={previewEntry ? 'ring-2 ring-yellow-400 dark:ring-yellow-600 rounded-lg flex-1 min-h-0' : 'flex-1 min-h-0'}>
               <RichTextEditor
                 content={previewContent || content}
@@ -535,11 +535,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
           {/* History Column (Desktop) */}
           {isHistoryOpen && (
             <div
-              className="hidden md:flex w-60 bg-gray-50 dark:bg-gray-950 flex-col min-h-0"
+              className="hidden md:flex w-60 bg-page flex-col min-h-0"
               onMouseLeave={handleHistoryMouseLeave}
             >
-              <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+              <div className="p-3 border-b border-border">
+                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
                   History
                 </h3>
               </div>
@@ -554,7 +554,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </div>
                 ) : historyEntries.length === 0 ? (
                   <div className="p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                    <p className="text-xs text-text-muted">No saves yet</p>
                   </div>
                 ) : (
                   <HistoryList
@@ -566,7 +566,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 )}
               </div>
               {isPreviewLocked && previewEntry && (
-                <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="px-3 py-3 border-t border-border">
                   <div className="flex flex-col gap-2">
                     {!isSubmitted && (
                       <Button onClick={handleRestoreClick} disabled={restoringId !== null}>
@@ -585,7 +585,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
         {/* Mobile History Drawer */}
         {isHistoryOpen && (
-          <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
+          <div className="md:hidden border-t border-border">
           <details
             className="group"
             onToggle={(event) => {
@@ -595,13 +595,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               }
             }}
           >
-            <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between">
+            <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-text-muted hover:bg-surface-hover flex items-center justify-between">
               <span>View History ({historyEntries.length})</span>
               <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </summary>
-            <div className="px-4 pb-4 max-h-80 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+            <div className="px-4 pb-4 max-h-80 overflow-y-auto bg-page">
               {historyLoading ? (
                 <div className="p-4 text-center">
                   <Spinner size="sm" />
@@ -609,7 +609,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               ) : historyError ? (
                 <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
               ) : historyEntries.length === 0 ? (
-                <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                <p className="text-xs text-text-muted">No saves yet</p>
               ) : (
                 <HistoryList
                   entries={historyEntries}
@@ -639,11 +639,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       {/* Restore Confirmation Modal */}
       {showRestoreModal && previewEntry && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <div className="bg-surface rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-text-default mb-2">
               Restore this version?
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-sm text-text-muted mb-4">
               This will replace your current draft with the version saved on{' '}
               {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, yyyy')} at{' '}
               {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'h:mm a')}.
@@ -662,7 +662,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
       {/* Submission info */}
       {isSubmitted && doc?.submitted_at && (
-        <div className="text-sm text-gray-600 dark:text-gray-400 text-center">
+        <div className="text-sm text-text-muted text-center">
           Submitted on{' '}
           {new Date(doc.submitted_at).toLocaleString('en-CA', {
             timeZone: 'America/Toronto',
@@ -691,10 +691,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               >
                 Back to classroom
               </button>
-              <div className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+              <div className="mt-2 text-sm font-medium text-text-default truncate">
                 {assignment.title}
               </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+              <div className="text-xs text-text-muted truncate">
                 Due: {formatDueDate(assignment.due_at)} • {formatRelativeDueDate(assignment.due_at)}
               </div>
             </div>

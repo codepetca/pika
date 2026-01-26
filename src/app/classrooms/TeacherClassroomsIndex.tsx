@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ACTIONBAR_BUTTON_PRIMARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import type { Classroom } from '@/types'
@@ -230,8 +230,8 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       <PageActionBar
         primary={
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Classrooms</h1>
-            <div className="inline-flex rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <h1 className="text-2xl font-bold text-text-default">Classrooms</h1>
+            <div className="inline-flex rounded-md border border-border bg-surface">
               <button
                 type="button"
                 onClick={() => setView('active')}
@@ -239,7 +239,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                   'px-3 py-1.5 text-sm font-medium rounded-l-md',
                   view === 'active'
                     ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
+                    : 'text-text-muted hover:bg-surface-hover',
                 ].join(' ')}
               >
                 Active
@@ -251,7 +251,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                   'px-3 py-1.5 text-sm font-medium rounded-r-md',
                   view === 'archived'
                     ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800',
+                    : 'text-text-muted hover:bg-surface-hover',
                 ].join(' ')}
               >
                 Archived
@@ -274,11 +274,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             <Spinner size="lg" />
           </div>
         ) : visibleClassrooms.length === 0 ? (
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-10 text-center">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <div className="bg-surface rounded-lg shadow-sm border border-border p-10 text-center">
+            <h2 className="text-lg font-semibold text-text-default">
               {view === 'active' ? 'No classrooms yet' : 'No archived classrooms'}
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-text-muted mt-2">
               {view === 'active'
                 ? 'Create your first classroom to get started.'
                 : 'Archived classrooms will appear here.'}
@@ -298,17 +298,17 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             )}
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+          <div className="bg-surface rounded-lg shadow-sm border border-border divide-y divide-gray-100 dark:divide-gray-700">
             {visibleClassrooms.map((c) => (
               <div key={c.id} className="flex items-center gap-4 p-4">
                 <button
                   type="button"
                   data-testid="classroom-card"
                   onClick={() => router.push(`/classrooms/${c.id}?tab=attendance`)}
-                  className="flex-1 text-left rounded-md -m-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="flex-1 text-left rounded-md -m-2 p-2 hover:bg-surface-hover"
                 >
-                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{c.title}</div>
-                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm font-semibold text-text-default">{c.title}</div>
+                  <div className="mt-1 text-sm text-text-muted">
                     Code: <span className="font-mono">{c.class_code}</span>
                     {c.term_label ? ` • ${c.term_label}` : ''}
                   </div>
@@ -318,7 +318,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                     <button
                       type="button"
                       onClick={() => setPendingAction({ mode: 'archive', classroom: c })}
-                      className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="px-3 py-1.5 rounded-md text-xs font-medium border border-border text-gray-700 dark:text-gray-200 hover:bg-surface-hover"
                     >
                       Archive
                     </button>
@@ -327,7 +327,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                       <button
                         type="button"
                         onClick={() => setPendingAction({ mode: 'restore', classroom: c })}
-                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-border text-gray-700 dark:text-gray-200 hover:bg-surface-hover"
                       >
                         Restore
                       </button>

@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { Pencil, Plus } from 'lucide-react'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ConfirmDialog, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
@@ -33,7 +33,6 @@ import {
   getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
-import { Tooltip } from '@/components/Tooltip'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
 import {
@@ -109,7 +108,7 @@ function getRowClassName(isSelected: boolean): string {
   if (isSelected) {
     return 'cursor-pointer bg-blue-100 dark:bg-blue-900/50 border-l-2 border-l-blue-500'
   }
-  return 'cursor-pointer border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
+  return 'cursor-pointer border-l-2 border-l-transparent hover:bg-surface-hover'
 }
 
 export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
@@ -539,7 +538,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
               <Spinner />
             </div>
           ) : assignments.length === 0 ? (
-            <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-center py-6 text-sm text-text-muted">
               No assignments yet
             </div>
           ) : (
@@ -642,7 +641,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                         </Tooltip>
                       </DataTableCell>
                       {!isCompactTable && (
-                        <DataTableCell className="text-gray-700 dark:text-gray-300">
+                        <DataTableCell className="text-text-muted">
                           {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
                         </DataTableCell>
                       )}
@@ -749,7 +748,7 @@ export function TeacherAssignmentsMarkdownSidebar({
         value={markdownContent}
         onChange={(e) => onMarkdownChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none border-0 focus:ring-0 focus:outline-none"
+        className="flex-1 w-full p-3 font-mono text-sm bg-surface text-text-default resize-none border-0 focus:ring-0 focus:outline-none"
       />
     </div>
   )

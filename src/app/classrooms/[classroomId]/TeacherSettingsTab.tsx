@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState, useId } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Button } from '@/components/Button'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { Button, ConfirmDialog } from '@/ui'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
 import type { Classroom, LessonPlanVisibility } from '@/types'
@@ -144,13 +143,13 @@ export function TeacherSettingsTab({ classroom }: Props) {
   return (
     <PageLayout>
       {/* Sub-tab navigation */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+      <div className="flex border-b border-border mb-4">
         <Link
           href={`/classrooms/${classroom.id}?tab=settings&section=general`}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'general'
-              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              ? 'border-blue-500 text-primary'
+              : 'border-transparent text-text-muted hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
           }`}
         >
           General
@@ -159,8 +158,8 @@ export function TeacherSettingsTab({ classroom }: Props) {
           href={`/classrooms/${classroom.id}?tab=settings&section=class-days`}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'class-days'
-              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              ? 'border-blue-500 text-primary'
+              : 'border-transparent text-text-muted hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
           }`}
         >
           Class Days
@@ -172,7 +171,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
           <PageActionBar
             primary={
               <div className="inline-flex items-center gap-3 text-sm">
-                <label htmlFor={allowEnrollmentId} className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <label htmlFor={allowEnrollmentId} className="text-sm font-medium text-text-default">
                   Allow enrollment
                 </label>
                 <input
@@ -183,7 +182,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
                   disabled={saving || isReadOnly}
                   className="h-4 w-4"
                 />
-                <span className="text-gray-700 dark:text-gray-300">
+                <span className="text-text-muted">
                   {allowEnrollment ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
@@ -198,16 +197,16 @@ export function TeacherSettingsTab({ classroom }: Props) {
               </div>
             )}
 
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Join Code</div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
+              <div className="text-sm font-semibold text-text-default">Join Code</div>
+              <div className="text-xs text-text-muted">
                 Students must be on the roster to join.
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
                 <button
                   type="button"
-                  className="w-full sm:w-auto rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-base font-semibold text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="w-full sm:w-auto rounded-md border border-border bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-base font-semibold text-text-default hover:bg-surface-hover"
                   onClick={() => copyWithNotice('Join code', joinCode)}
                   aria-label="Copy join code"
                 >
@@ -225,7 +224,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
 
                 <button
                   type="button"
-                  className="w-full flex-1 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 truncate"
+                  className="w-full flex-1 rounded-md border border-border bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-xs text-gray-700 dark:text-gray-200 hover:bg-surface-hover truncate"
                   onClick={() => copyWithNotice('Join link', joinLink)}
                   aria-label="Copy join link"
                   title={joinLink}
@@ -239,9 +238,9 @@ export function TeacherSettingsTab({ classroom }: Props) {
               {copyNotice && <div className="text-xs text-blue-600 dark:text-blue-300">{copyNotice}</div>}
             </div>
 
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-              <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Calendar Visibility</div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
+              <div className="text-sm font-semibold text-text-default">Calendar Visibility</div>
+              <div className="text-xs text-text-muted">
                 Control how far ahead students can see lesson plans on the Calendar tab.
               </div>
 
@@ -254,7 +253,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
                   value={lessonPlanVisibility}
                   onChange={(e) => saveLessonPlanVisibility(e.target.value as LessonPlanVisibility)}
                   disabled={visibilitySaving || isReadOnly}
-                  className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="current_week">Current week (and all previous)</option>
                   <option value="one_week_ahead">1 week ahead</option>

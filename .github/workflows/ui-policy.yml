@@ -1,0 +1,89 @@
+name: UI Policy
+
+on:
+  pull_request:
+    branches: [main, production]
+  push:
+    branches: [main, production]
+
+jobs:
+  check-ui-imports:
+    name: Check UI Import Policy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for banned imports
+        run: |
+          echo "Checking for direct imports to legacy UI components..."
+
+          # Files that are allowed to import from legacy paths (tiptap is excluded from policy)
+          EXCLUDED_FILES="src/components/tiptap-ui/"
+
+          # Check for banned Button imports
+          if grep -r --include="*.tsx" --include="*.ts" "from '@/components/Button'" src/ | grep -v -E "$EXCLUDED_FILES"; then
+            echo "ERROR: Found direct imports to @/components/Button"
+            echo "Use: import { Button } from '@/ui'"
+            exit 1
+          fi
+
+          # Check for banned Input imports
+          if grep -r --include="*.tsx" --include="*.ts" "from '@/components/Input'" src/ | grep -v -E "$EXCLUDED_FILES"; then
+            echo "ERROR: Found direct imports to @/components/Input"
+            echo "Use: import { Input, FormField } from '@/ui'"
+            exit 1
+          fi
+
+          # Check for banned AlertDialog imports
+          if grep -r --include="*.tsx" --include="*.ts" "from '@/components/AlertDialog'" src/ | grep -v -E "$EXCLUDED_FILES"; then
+            echo "ERROR: Found direct imports to @/components/AlertDialog"
+            echo "Use: import { AlertDialog } from '@/ui'"
+            exit 1
+          fi
+
+          # Check for banned ConfirmDialog imports
+          if grep -r --include="*.tsx" --include="*.ts" "from '@/components/ConfirmDialog'" src/ | grep -v -E "$EXCLUDED_FILES"; then
+            echo "ERROR: Found direct imports to @/components/ConfirmDialog"
+            echo "Use: import { ConfirmDialog } from '@/ui'"
+            exit 1
+          fi
+
+          # Check for banned Tooltip imports (excluding tiptap)
+          if grep -r --include="*.tsx" --include="*.ts" "from '@/components/Tooltip'" src/ | grep -v -E "$EXCLUDED_FILES"; then
+            echo "ERROR: Found direct imports to @/components/Tooltip"
+            echo "Use: import { Tooltip } from '@/ui'"
+            exit 1
+          fi
+
+          echo "All UI imports are using the correct @/ui paths!"
+
+  # Enforce no dark: classes in app code (only allowed in /ui CVA definitions)
+  check-dark-mode:
+    name: Check No dark: Classes in App Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for dark: classes outside /ui
+        run: |
+          echo "Checking for dark: classes outside /ui..."
+
+          # Count dark: usages outside /ui (excluding tiptap)
+          DARK_COUNT=$(grep -r "dark:" src/app src/components --include="*.tsx" | grep -v "src/ui/" | grep -v "src/components/tiptap" | wc -l | tr -d ' ')
+
+          if [ "$DARK_COUNT" -gt 0 ]; then
+            echo "ERROR: Found $DARK_COUNT dark: classes outside /ui"
+            echo ""
+            echo "Files with dark: classes:"
+            grep -r "dark:" src/app src/components --include="*.tsx" | grep -v "src/ui/" | grep -v "src/components/tiptap" | cut -d: -f1 | sort -u
+            echo ""
+            echo "Use semantic tokens instead (bg-surface, text-text-default, border-border, etc.)"
+            echo "See src/ui/README.md for the design system documentation."
+            exit 1
+          fi
+
+          echo "All dark: classes are properly contained in /ui!"

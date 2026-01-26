@@ -44,7 +44,7 @@ export function HistoryList({
       <div className="space-y-3 mt-3">
         {Object.entries(entriesByDate).map(([date, dateEntries]) => (
           <div key={date}>
-            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+            <div className="text-xs font-medium text-text-muted mb-1">
               {date}
             </div>
             <div className="space-y-1">
@@ -63,7 +63,7 @@ export function HistoryList({
                     className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
                       isActive
                         ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                        : 'bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                        : 'bg-surface hover:bg-surface-hover text-text-muted'
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -110,7 +110,7 @@ export function HistoryList({
     <div className="divide-y divide-gray-200 dark:divide-gray-700">
       {Object.entries(entriesByDate).map(([date, dateEntries]) => (
         <div key={date} className="px-3 py-2">
-          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+          <div className="text-xs font-medium text-text-muted mb-1">
             {date}
           </div>
           <div className="space-y-1">
@@ -130,7 +130,7 @@ export function HistoryList({
                   className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
                     isActive
                       ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                      : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-text-muted'
                   }`}
                 >
                   <div className="flex items-center justify-between">

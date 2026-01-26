@@ -439,7 +439,7 @@ export function TeacherLessonCalendarSidebar({
         value={localContent}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none focus:outline-none"
+        className="flex-1 w-full p-3 font-mono text-sm bg-surface text-text-default resize-none focus:outline-none"
       />
     </div>
   )

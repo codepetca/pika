@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ConfirmDialog } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -317,7 +317,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                     <div className="group relative">
                       <button
                         type="button"
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-between"
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center justify-between"
                       >
                         <span>Students ({selectedStudentEmails.length})</span>
                         <ChevronRight className="h-4 w-4" />
@@ -325,21 +325,21 @@ export function TeacherRosterTab({ classroom }: Props) {
                       <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 hidden group-hover:block">
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                           onClick={() => openGmail(selectedStudentEmails)}
                         >
                           Gmail
                         </button>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                           onClick={() => openOutlook(selectedStudentEmails)}
                         >
                           Outlook
                         </button>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center gap-2"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
                           onClick={() => copyToClipboard(selectedStudentEmails, 'Student emails')}
                         >
                           <Copy className="h-4 w-4" />
@@ -353,7 +353,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                       <div className="group relative">
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-between"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center justify-between"
                         >
                           <span>Counselors ({selectedCounselorEmails.length})</span>
                           <ChevronRight className="h-4 w-4" />
@@ -361,21 +361,21 @@ export function TeacherRosterTab({ classroom }: Props) {
                         <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 hidden group-hover:block">
                           <button
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                             onClick={() => openGmail(selectedCounselorEmails)}
                           >
                             Gmail
                           </button>
                           <button
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                             onClick={() => openOutlook(selectedCounselorEmails)}
                           >
                             Outlook
                           </button>
                           <button
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center gap-2"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
                             onClick={() => copyToClipboard(selectedCounselorEmails, 'Counselor emails')}
                           >
                             <Copy className="h-4 w-4" />
@@ -386,10 +386,10 @@ export function TeacherRosterTab({ classroom }: Props) {
                     )}
 
                     {/* All option with submenu */}
-                    <div className="group relative border-t border-gray-200 dark:border-gray-700">
+                    <div className="group relative border-t border-border">
                       <button
                         type="button"
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-between"
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center justify-between"
                       >
                         <span>All ({selectedStudentEmails.length + selectedCounselorEmails.length})</span>
                         <ChevronRight className="h-4 w-4" />
@@ -397,21 +397,21 @@ export function TeacherRosterTab({ classroom }: Props) {
                       <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 hidden group-hover:block">
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                           onClick={() => openGmail([...selectedStudentEmails, ...selectedCounselorEmails])}
                         >
                           Gmail
                         </button>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                           onClick={() => openOutlook([...selectedStudentEmails, ...selectedCounselorEmails])}
                         >
                           Outlook
                         </button>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center gap-2"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
                           onClick={() => copyToClipboard([...selectedStudentEmails, ...selectedCounselorEmails], 'All emails')}
                         >
                           <Copy className="h-4 w-4" />
@@ -436,7 +436,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       <PageContent>
         <TableCard>
           {error && (
-            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="p-3 border-b border-border">
               <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
                 {error}
               </div>
@@ -475,7 +475,7 @@ export function TeacherRosterTab({ classroom }: Props) {
             </DataTableHead>
             <DataTableBody>
               {sortedRoster.map((row) => (
-                <DataTableRow key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <DataTableRow key={row.id} className="hover:bg-surface-hover">
                   <DataTableCell>
                     <input
                       type="checkbox"
@@ -487,8 +487,8 @@ export function TeacherRosterTab({ classroom }: Props) {
                   </DataTableCell>
                   <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
                   <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
-                  <DataTableCell className="text-gray-600 dark:text-gray-400">{row.email}</DataTableCell>
-                  <DataTableCell className="text-gray-600 dark:text-gray-400">
+                  <DataTableCell className="text-text-muted">{row.email}</DataTableCell>
+                  <DataTableCell className="text-text-muted">
                     {editingCounselorId === row.id ? (
                       <div className="flex items-center gap-1">
                         <input

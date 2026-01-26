@@ -96,7 +96,7 @@ export function UserMenu({ user }: UserMenuProps) {
     return (
       <Link
         href="/login"
-        className="text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium"
+        className="text-sm text-text-muted hover:text-gray-900 dark:hover:text-white font-medium"
       >
         Login
       </Link>
@@ -127,14 +127,14 @@ export function UserMenu({ user }: UserMenuProps) {
             {initials}
           </span>
         ) : (
-          <UserCircle className="w-8 h-8 text-gray-500 dark:text-gray-400" />
+          <UserCircle className="w-8 h-8 text-text-muted" />
         )}
       </button>
 
       {/* Dropdown menu with animation */}
       <div
         id={menuId}
-        className={`absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-200 origin-top-right ${
+        className={`absolute right-0 mt-2 w-64 bg-surface rounded-lg shadow-lg border border-border py-1 z-50 transition-all duration-200 origin-top-right ${
           isOpen
             ? 'opacity-100 scale-100 translate-y-0'
             : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
@@ -154,11 +154,11 @@ export function UserMenu({ user }: UserMenuProps) {
             )}
             <div className="min-w-0">
               {fullName && (
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                <p className="text-sm font-semibold text-text-default truncate">
                   {fullName}
                 </p>
               )}
-              <p className={`text-sm text-gray-500 dark:text-gray-400 truncate ${fullName ? '' : 'font-medium text-gray-900 dark:text-gray-100'}`}>
+              <p className={`text-sm text-text-muted truncate ${fullName ? '' : 'font-medium text-text-default'}`}>
                 {user.email}
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">
@@ -175,7 +175,7 @@ export function UserMenu({ user }: UserMenuProps) {
           onClick={handleThemeToggle}
           onMouseEnter={() => setFocusedIndex(0)}
           onKeyDown={handleItemKeyDown}
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 transition-colors focus:outline-none ${
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
             focusedIndex === 0
               ? 'bg-gray-100 dark:bg-gray-700'
               : 'hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -197,7 +197,7 @@ export function UserMenu({ user }: UserMenuProps) {
           onClick={() => setIsOpen(false)}
           onMouseEnter={() => setFocusedIndex(1)}
           onKeyDown={handleItemKeyDown}
-          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 transition-colors focus:outline-none ${
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
             focusedIndex === 1
               ? 'bg-gray-100 dark:bg-gray-700'
               : 'hover:bg-gray-50 dark:hover:bg-gray-700'

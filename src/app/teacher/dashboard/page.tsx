@@ -2,18 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/Button'
+import { Button, ConfirmDialog, AlertDialog, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { AlertDialog } from '@/components/AlertDialog'
 import { useAlertDialog } from '@/hooks/useAlertDialog'
 import { useDeleteClassroom } from '@/hooks/useDeleteClassroom'
 import type { Classroom, AttendanceRecord, Entry } from '@/types'
 import { getAttendanceIcon } from '@/lib/attendance'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
-import { Tooltip } from '@/components/Tooltip'
 
 export default function TeacherDashboardPage() {
   const router = useRouter()
@@ -180,12 +177,12 @@ export default function TeacherDashboardPage() {
     <div className="flex gap-6">
       {/* Classroom List Sidebar */}
       <div className="w-64 flex-shrink-0">
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4">
+        <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Classes</h3>
+            <h3 className="font-semibold text-text-default">Classes</h3>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+              className="text-primary hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
             >
               + New
             </button>
@@ -198,17 +195,17 @@ export default function TeacherDashboardPage() {
                 className={`relative p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
                     ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-transparent'
+                    : 'hover:bg-surface-hover border-transparent'
                 }`}
               >
                 <button
                   onClick={() => setSelectedClassroom(classroom)}
                   className="w-full text-left"
                 >
-                  <div className="font-medium text-gray-900 dark:text-gray-100 text-sm pr-6">
+                  <div className="font-medium text-text-default text-sm pr-6">
                     {classroom.title}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <div className="text-xs text-text-muted mt-1">
                     {classroom.class_code}
                   </div>
                 </button>
@@ -238,10 +235,10 @@ export default function TeacherDashboardPage() {
             <PageActionBar
               primary={
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  <div className="text-sm font-medium text-text-default truncate">
                     {selectedClassroom.title}
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                  <div className="text-xs text-text-muted truncate">
                     <span className="font-mono">{selectedClassroom.class_code}</span>
                     {selectedClassroom.term_label ? ` • ${selectedClassroom.term_label}` : ''}
                   </div>
@@ -291,16 +288,16 @@ export default function TeacherDashboardPage() {
                   <Spinner size="lg" />
                 </div>
               ) : attendance.length === 0 ? (
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center text-gray-600 dark:text-gray-300">
+                <div className="bg-surface rounded-lg shadow-sm p-8 text-center text-text-muted">
                   No students enrolled yet
                 </div>
               ) : (
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden">
+                <div className="bg-surface rounded-lg shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-50 dark:bg-gray-800">
+                      <thead className="bg-surface-2">
                         <tr>
-                          <th className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-800 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th className="sticky left-0 z-10 bg-surface-2 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Student
                           </th>
                           <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -319,16 +316,16 @@ export default function TeacherDashboardPage() {
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                      <tbody className="bg-surface divide-y divide-gray-200 dark:divide-gray-700">
                         {attendance.map(record => (
-                          <tr key={record.student_id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                            <td className="sticky left-0 z-10 bg-white dark:bg-gray-900 px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                          <tr key={record.student_id} className="hover:bg-surface-hover">
+                            <td className="sticky left-0 z-10 bg-surface px-6 py-4 whitespace-nowrap text-sm font-medium text-text-default">
                               {record.student_email}
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-gray-100">
+                            <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text-default">
                               {record.summary.present}
                             </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-gray-900 dark:text-gray-100">
+                            <td className="px-3 py-4 whitespace-nowrap text-center text-sm text-text-default">
                               {record.summary.absent}
                             </td>
                             {dates.map(date => {
@@ -364,15 +361,15 @@ export default function TeacherDashboardPage() {
                   onClick={() => setSelectedEntry(null)}
                 >
                   <div
-                    className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full p-6"
+                    className="bg-surface rounded-lg shadow-xl max-w-2xl w-full p-6"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                        <h3 className="text-lg font-bold text-text-default">
                           {selectedEntry.student_email}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{selectedEntry.date}</p>
+                        <p className="text-sm text-text-muted">{selectedEntry.date}</p>
                       </div>
                       <button
                         onClick={() => setSelectedEntry(null)}
@@ -385,24 +382,24 @@ export default function TeacherDashboardPage() {
 
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-text-muted mb-1">
                           Entry
                         </label>
-                        <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{selectedEntry.text}</p>
+                        <p className="text-text-default whitespace-pre-wrap">{selectedEntry.text}</p>
                       </div>
 
                       {selectedEntry.minutes_reported && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <label className="block text-sm font-medium text-text-muted mb-1">
                             Time Spent
                           </label>
-                          <p className="text-gray-900 dark:text-gray-100">{selectedEntry.minutes_reported} minutes</p>
+                          <p className="text-text-default">{selectedEntry.minutes_reported} minutes</p>
                         </div>
                       )}
 
                       {selectedEntry.mood && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <label className="block text-sm font-medium text-text-muted mb-1">
                             Mood
                           </label>
                           <p className="text-2xl">{selectedEntry.mood}</p>
@@ -415,7 +412,7 @@ export default function TeacherDashboardPage() {
             </PageContent>
           </PageLayout>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center text-gray-600 dark:text-gray-300">
+          <div className="bg-surface rounded-lg shadow-sm p-8 text-center text-text-muted">
             Select a classroom to view attendance
           </div>
         )}

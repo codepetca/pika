@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, Eye, EyeOff, X } from 'lucide-react'
-import { Button } from '@/components/Button'
+import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
@@ -175,21 +175,21 @@ export function TeacherStudentWorkModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-6xl h-[95vh] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl overflow-hidden flex flex-col"
+        className="relative w-full max-w-6xl h-[95vh] rounded-lg border border-border bg-surface shadow-xl overflow-hidden flex flex-col"
       >
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+        <div className="border-b border-border p-4">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <div className="min-w-0">
-              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+              <div className="text-sm font-medium text-text-default truncate">
                 {data?.student?.name || data?.student?.email || 'Student submission'}
               </div>
             </div>
             <div className="min-w-0 max-w-[40vw] text-center">
-              <div className="text-base font-semibold text-gray-900 dark:text-gray-100 truncate">
+              <div className="text-base font-semibold text-text-default truncate">
                 {data?.assignment?.title || 'Assignment'}
               </div>
               {previewEntry && (
-                <div className="text-xs text-blue-600 dark:text-blue-400 truncate">
+                <div className="text-xs text-primary truncate">
                   Previewing save from {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
                 </div>
               )}
@@ -199,7 +199,7 @@ export function TeacherStudentWorkModal({
                 type="button"
                 onClick={onGoPrev}
                 disabled={!canGoPrev}
-                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Previous student"
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -208,7 +208,7 @@ export function TeacherStudentWorkModal({
                 type="button"
                 onClick={onGoNext}
                 disabled={!canGoNext}
-                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Next student"
               >
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -216,7 +216,7 @@ export function TeacherStudentWorkModal({
               <button
                 type="button"
                 onClick={() => setShowPlainText(prev => !prev)}
-                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover"
                 aria-pressed={showPlainText}
                 aria-label={showPlainText ? 'Show rich text' : 'Show plain text'}
               >
@@ -233,7 +233,7 @@ export function TeacherStudentWorkModal({
               <button
                 type="button"
                 onClick={handleHistoryToggle}
-                className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover"
                 aria-expanded={isHistoryOpen}
                 aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
               >
@@ -246,7 +246,7 @@ export function TeacherStudentWorkModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="p-2 rounded-md hover:bg-surface-hover text-text-muted"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" aria-hidden="true" />
@@ -263,15 +263,15 @@ export function TeacherStudentWorkModal({
           ) : error ? (
             <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
           ) : !data ? (
-            <div className="text-sm text-gray-600 dark:text-gray-300">No data</div>
+            <div className="text-sm text-text-muted">No data</div>
           ) : (
             <div className="flex flex-col gap-4 min-h-0 flex-1">
               {/* Student Response with History Column */}
-              <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col min-h-0 flex-1">
+              <div className="bg-surface rounded-lg border border-border overflow-hidden flex flex-col min-h-0 flex-1">
                 {/* Main Content Area: Response + History Column */}
                 <div className="flex flex-1 min-h-0 flex-col md:flex-row">
                   {/* Student Response */}
-                  <div className={`flex-1 min-h-0 border-b md:border-b-0 border-gray-200 dark:border-gray-700 flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
+                  <div className={`flex-1 min-h-0 border-b md:border-b-0 border-border flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
                     {data.doc && data.doc.content && !isEmpty(data.doc.content) ? (
                       <div className="flex-1 min-h-0">
                         <div className={previewEntry ? 'ring-2 ring-blue-400 dark:ring-blue-600 rounded-lg p-2 h-full' : 'h-full'}>
@@ -280,12 +280,12 @@ export function TeacherStudentWorkModal({
                             showPlainText={showPlainText}
                           />
                         </div>
-                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="mt-2 text-xs text-text-muted">
                           {countCharacters(previewContent || data.doc.content)} characters
                         </div>
                       </div>
                     ) : (
-                      <div className="flex-1 min-h-0 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                      <div className="flex-1 min-h-0 flex items-center justify-center text-text-muted">
                         No work submitted yet
                       </div>
                     )}
@@ -295,11 +295,11 @@ export function TeacherStudentWorkModal({
                   {/* History Column (Desktop) */}
                   {isHistoryOpen && (
                     <div
-                      className="hidden md:flex w-60 bg-gray-50 dark:bg-gray-950 flex-col min-h-0"
+                      className="hidden md:flex w-60 bg-page flex-col min-h-0"
                       onMouseLeave={handleHistoryMouseLeave}
                     >
-                      <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                      <div className="p-3 border-b border-border">
+                        <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
                           History
                         </h3>
                       </div>
@@ -314,7 +314,7 @@ export function TeacherStudentWorkModal({
                           </div>
                         ) : historyEntries.length === 0 ? (
                           <div className="p-4">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                            <p className="text-xs text-text-muted">No saves yet</p>
                           </div>
                         ) : (
                           <HistoryList
@@ -326,7 +326,7 @@ export function TeacherStudentWorkModal({
                         )}
                       </div>
                       {isPreviewLocked && previewEntry && (
-                        <div className="px-3 py-3 border-t border-gray-200 dark:border-gray-700">
+                        <div className="px-3 py-3 border-t border-border">
                           <Button onClick={handleExitPreview} variant="secondary" className="w-full">
                             Cancel
                           </Button>
@@ -338,7 +338,7 @@ export function TeacherStudentWorkModal({
 
                 {/* Mobile History Drawer */}
                 {isHistoryOpen && (
-                <div className="md:hidden border-t border-gray-200 dark:border-gray-700">
+                <div className="md:hidden border-t border-border">
                   <details
                     className="group"
                     onToggle={(event) => {
@@ -348,13 +348,13 @@ export function TeacherStudentWorkModal({
                       }
                     }}
                   >
-                    <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between">
+                    <summary className="px-4 py-3 cursor-pointer text-sm font-medium text-text-muted hover:bg-surface-hover flex items-center justify-between">
                       <span>View History ({historyEntries.length})</span>
                       <svg className="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </summary>
-                    <div className="px-4 pb-4 max-h-80 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+                    <div className="px-4 pb-4 max-h-80 overflow-y-auto bg-page">
                       {historyLoading ? (
                         <div className="p-4 text-center">
                           <Spinner size="sm" />
@@ -362,7 +362,7 @@ export function TeacherStudentWorkModal({
                       ) : historyError ? (
                         <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
                       ) : historyEntries.length === 0 ? (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">No saves yet</p>
+                        <p className="text-xs text-text-muted">No saves yet</p>
                       ) : (
                         <HistoryList
                           entries={historyEntries}

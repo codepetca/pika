@@ -2,8 +2,7 @@
 
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Input } from '@/components/Input'
-import { Button } from '@/components/Button'
+import { Input, Button, FormField } from '@/ui'
 
 function VerifySignupForm() {
   const router = useRouter()
@@ -58,38 +57,38 @@ function VerifySignupForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-page">
+      <div className="max-w-md w-full bg-surface rounded-lg shadow-lg p-8">
+        <h1 className="text-2xl font-bold text-text-default mb-2">
           Verify Your Email
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-text-muted mb-6">
           Enter the 5-character code sent to your email
         </p>
 
         <form onSubmit={handleSubmit}>
-          <Input
-            label="School Email"
-            type="email"
-            placeholder="number@gapps.yrdsb.ca"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            disabled={loading}
-            className="mb-4"
-          />
+          <FormField label="School Email" required className="mb-4">
+            <Input
+              type="email"
+              placeholder="number@gapps.yrdsb.ca"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </FormField>
 
-          <Input
-            label="Verification Code"
-            type="text"
-            placeholder="A7Q2F"
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            required
-            disabled={loading}
-            maxLength={5}
-            error={error}
-          />
+          <FormField label="Verification Code" error={error} required>
+            <Input
+              type="text"
+              placeholder="A7Q2F"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              required
+              disabled={loading}
+              maxLength={5}
+            />
+          </FormField>
 
           <Button
             type="submit"
@@ -101,7 +100,7 @@ function VerifySignupForm() {
         </form>
 
         {resendSuccess && (
-          <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-lg">
+          <div className="mt-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
             New verification code sent!
           </div>
         )}
@@ -109,7 +108,7 @@ function VerifySignupForm() {
         <div className="mt-4 text-center">
           <button
             onClick={handleResendCode}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-primary hover:underline"
           >
             Resend verification code
           </button>

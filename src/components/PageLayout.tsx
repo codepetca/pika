@@ -98,7 +98,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-56 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden z-20"
+          className="absolute right-0 mt-2 w-56 rounded-md border border-border bg-surface shadow-lg overflow-hidden z-20"
         >
           {normalItems.map((item) => (
             <button
@@ -110,14 +110,14 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
                 setOpen(false)
                 item.onSelect()
               }}
-              className="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full text-left px-3 py-2 text-sm text-text-default hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {item.label}
             </button>
           ))}
 
           {destructiveItems.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700">
+            <div className="border-t border-border">
               {destructiveItems.map((item) => (
                 <button
                   key={item.id}

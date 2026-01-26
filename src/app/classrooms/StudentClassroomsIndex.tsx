@@ -21,7 +21,7 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
     <PageLayout className="max-w-5xl mx-auto">
       <PageActionBar
         primary={
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Classrooms</h1>
+          <h1 className="text-2xl font-bold text-text-default">Classrooms</h1>
         }
         actions={
           [
@@ -36,8 +36,8 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
 
       <PageContent>
         {sorted.length === 0 ? (
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-10 text-center">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">No classrooms yet</h2>
+          <div className="bg-surface rounded-lg shadow-sm border border-border p-10 text-center">
+            <h2 className="text-lg font-semibold text-text-default">No classrooms yet</h2>
             <div className="mt-6">
               <button
                 type="button"
@@ -49,16 +49,16 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
             </div>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+          <div className="bg-surface rounded-lg shadow-sm border border-border divide-y divide-gray-100 dark:divide-gray-700">
             {sorted.map((c) => (
               <button
                 key={c.id}
                 data-testid="classroom-card"
                 onClick={() => router.push(`/classrooms/${c.id}?tab=today`)}
-                className="w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                className="w-full p-4 text-left hover:bg-surface-hover transition-colors cursor-pointer"
               >
-                <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{c.title}</div>
-                <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                <div className="text-sm font-semibold text-text-default">{c.title}</div>
+                <div className="mt-1 text-sm text-text-muted">
                   Code: <span className="font-mono">{c.class_code}</span>
                   {c.term_label ? ` • ${c.term_label}` : ''}
                 </div>

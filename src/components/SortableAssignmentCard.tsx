@@ -51,7 +51,7 @@ export function SortableAssignmentCard({
         'w-full text-left p-3 border rounded-lg',
         isDraft
           ? 'border-gray-400 dark:border-gray-500 bg-gray-200 dark:bg-gray-700'
-          : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900',
+          : 'border-border bg-surface',
         isDragging
           ? 'shadow-xl scale-[1.02] z-50 border-blue-400 dark:border-blue-500 opacity-90'
           : isDraft
@@ -87,13 +87,13 @@ export function SortableAssignmentCard({
         >
           <h3 className={[
             'font-medium truncate',
-            isDraft ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'
+            isDraft ? 'text-text-muted' : 'text-text-default'
           ].join(' ')}>
             {assignment.title}
           </h3>
           <p className={[
             'text-xs',
-            isDraft ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'
+            isDraft ? 'text-gray-400 dark:text-gray-500' : 'text-text-muted'
           ].join(' ')}>
             Due: {formatDueDate(assignment.due_at)}
           </p>
@@ -108,7 +108,7 @@ export function SortableAssignmentCard({
           ) : (
             <span className={[
               'text-sm',
-              isDraft ? 'text-gray-400 dark:text-gray-500' : 'text-gray-600 dark:text-gray-400'
+              isDraft ? 'text-gray-400 dark:text-gray-500' : 'text-text-muted'
             ].join(' ')}>
               {assignment.stats.submitted}/{assignment.stats.total_students}
               {assignment.stats.late > 0 && (

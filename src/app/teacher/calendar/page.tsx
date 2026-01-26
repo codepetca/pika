@@ -1,15 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Button } from '@/components/Button'
+import { Button, ConfirmDialog, AlertDialog, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { AlertDialog } from '@/components/AlertDialog'
 import { useAlertDialog } from '@/hooks/useAlertDialog'
 import { useDeleteClassroom } from '@/hooks/useDeleteClassroom'
-import { Tooltip } from '@/components/Tooltip'
 import type { ClassDay, Classroom } from '@/types'
 import {
   format,
@@ -506,12 +503,12 @@ export default function CalendarPage() {
     <div className="flex gap-6">
       {/* Classroom List Sidebar */}
       <div className="w-64 flex-shrink-0">
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4">
+        <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Classes</h3>
+            <h3 className="font-semibold text-text-default">Classes</h3>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+              className="text-primary hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
             >
               + New
             </button>
@@ -524,17 +521,17 @@ export default function CalendarPage() {
                 className={`relative p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
                     ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-transparent'
+                    : 'hover:bg-surface-hover border-transparent'
                 }`}
               >
                 <button
                   onClick={() => setSelectedClassroom(classroom)}
                   className="w-full text-left"
                 >
-                  <div className="font-medium text-gray-900 dark:text-gray-100 text-sm pr-6">
+                  <div className="font-medium text-text-default text-sm pr-6">
                     {classroom.title}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <div className="text-xs text-text-muted mt-1">
                     {classroom.class_code}
                   </div>
                 </button>
@@ -564,10 +561,10 @@ export default function CalendarPage() {
             <PageActionBar
               primary={
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  <div className="text-sm font-medium text-text-default truncate">
                     {selectedClassroom.title}
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                  <div className="text-xs text-text-muted truncate">
                     <span className="font-mono">{selectedClassroom.class_code}</span>
                     {' • '}
                     {classDays.filter(d => d.is_class_day).length} class days
@@ -599,7 +596,7 @@ export default function CalendarPage() {
             </PageContent>
           </PageLayout>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center text-gray-600 dark:text-gray-300">
+          <div className="bg-surface rounded-lg shadow-sm p-8 text-center text-text-muted">
             Select a class to manage its calendar
           </div>
         )}

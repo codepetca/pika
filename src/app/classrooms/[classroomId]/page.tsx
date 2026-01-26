@@ -128,11 +128,11 @@ export default function ClassroomPage() {
     return (
       <AppShell showHeader={false}>
         <div className="max-w-md mx-auto mt-12">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <div className="bg-surface rounded-lg shadow-sm border border-border p-8 text-center">
             <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
             <button
               onClick={() => router.back()}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+              className="text-primary hover:text-blue-700 dark:hover:text-blue-300"
             >
               Go back
             </button>
@@ -558,7 +558,7 @@ function ClassroomPageContent({
                   type="button"
                   onClick={selectedStudent.onGoPrev}
                   disabled={!selectedStudent.canGoPrev}
-                  className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Previous student"
                 >
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -567,7 +567,7 @@ function ClassroomPageContent({
                   type="button"
                   onClick={selectedStudent.onGoNext}
                   disabled={!selectedStudent.canGoNext}
-                  className="p-1.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label="Next student"
                 >
                   <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -597,11 +597,11 @@ function ClassroomPageContent({
           ) : isTeacher && activeTab === 'attendance' ? (
             <div className="p-4">
               {selectedEntry ? (
-                <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                <p className="text-sm text-text-default whitespace-pre-wrap">
                   {selectedEntry.text}
                 </p>
               ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-text-muted">
                   Select a student to view their log.
                 </p>
               )}
@@ -616,19 +616,19 @@ function ClassroomPageContent({
               {selectedAssignment ? (
                 selectedAssignment.instructions ? (
                   typeof selectedAssignment.instructions === 'string' ? (
-                    <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                    <p className="text-sm text-text-default whitespace-pre-wrap">
                       {selectedAssignment.instructions}
                     </p>
                   ) : (
                     <RichTextViewer content={selectedAssignment.instructions} />
                   )
                 ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-text-muted">
                     No instructions provided.
                   </p>
                 )
               ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-text-muted">
                   Select an assignment to view instructions.
                 </p>
               )}
@@ -640,13 +640,13 @@ function ClassroomPageContent({
               todayLessonPlan.content.content.length > 0 ? (
                 <RichTextViewer content={todayLessonPlan.content} />
               ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-text-muted">
                   No lesson plan for today.
                 </p>
               )}
             </div>
           ) : (
-            <div className="p-4 text-sm text-gray-500 dark:text-gray-400">
+            <div className="p-4 text-sm text-text-muted">
               Inspector panel content will be added in a future update.
             </div>
           )}
