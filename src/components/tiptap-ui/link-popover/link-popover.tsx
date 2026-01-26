@@ -14,7 +14,7 @@ import { LinkIcon } from "@/components/tiptap-icons/link-icon"
 import { TrashIcon } from "@/components/tiptap-icons/trash-icon"
 
 // --- Tooltip ---
-import { Tooltip } from "@/components/Tooltip"
+import { Tooltip } from "@/ui"
 
 // --- Tiptap UI ---
 import type { UseLinkPopoverConfig } from "@/components/tiptap-ui/link-popover"
