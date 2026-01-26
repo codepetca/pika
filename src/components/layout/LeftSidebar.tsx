@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
+import { Tooltip } from '@/components/Tooltip'
 
 export interface LeftSidebarProps {
   children: ReactNode
@@ -76,28 +77,29 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
             isExpanded ? 'p-3' : 'py-3 px-0.5',
           ].join(' ')}
         >
-          <button
-            type="button"
-            onClick={toggle}
-            title={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-            aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-            className={[
-              'flex items-center rounded-md text-sm font-medium',
-              'text-gray-600 dark:text-gray-300',
-              'hover:bg-gray-100 dark:hover:bg-gray-800',
-              'hover:text-gray-900 dark:hover:text-gray-100',
-              'transition-colors',
-              isExpanded
-                ? 'w-full h-12 gap-3 px-3'
-                : 'justify-center w-12 h-12 mx-auto',
-            ].join(' ')}
-          >
-            {isExpanded ? (
-              <ChevronLeft className="h-6 w-6" aria-hidden="true" />
-            ) : (
-              <ChevronRight className="h-6 w-6" aria-hidden="true" />
-            )}
-          </button>
+          <Tooltip content={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}>
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+              className={[
+                'flex items-center rounded-md text-sm font-medium',
+                'text-gray-600 dark:text-gray-300',
+                'hover:bg-gray-100 dark:hover:bg-gray-800',
+                'hover:text-gray-900 dark:hover:text-gray-100',
+                'transition-colors',
+                isExpanded
+                  ? 'w-full h-12 gap-3 px-3'
+                  : 'justify-center w-12 h-12 mx-auto',
+              ].join(' ')}
+            >
+              {isExpanded ? (
+                <ChevronLeft className="h-6 w-6" aria-hidden="true" />
+              ) : (
+                <ChevronRight className="h-6 w-6" aria-hidden="true" />
+              )}
+            </button>
+          </Tooltip>
         </div>
       </aside>
 

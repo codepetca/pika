@@ -33,6 +33,7 @@ import {
   getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
+import { Tooltip } from '@/components/Tooltip'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
 import {
@@ -619,13 +620,26 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       className={getRowClassName(isSelected)}
                       onClick={() => setSelectedStudentId(isSelected ? null : student.student_id)}
                     >
-                      <DataTableCell className="max-w-[120px] truncate" title={student.student_first_name ?? undefined}>{student.student_first_name ?? '—'}</DataTableCell>
-                      <DataTableCell className="max-w-[120px] truncate" title={student.student_last_name ?? undefined}>{student.student_last_name ?? '—'}</DataTableCell>
+                      <DataTableCell className="max-w-[120px] truncate">
+                        {student.student_first_name ? (
+                          <Tooltip content={student.student_first_name}>
+                            <span>{student.student_first_name}</span>
+                          </Tooltip>
+                        ) : '—'}
+                      </DataTableCell>
+                      <DataTableCell className="max-w-[120px] truncate">
+                        {student.student_last_name ? (
+                          <Tooltip content={student.student_last_name}>
+                            <span>{student.student_last_name}</span>
+                          </Tooltip>
+                        ) : '—'}
+                      </DataTableCell>
                       <DataTableCell>
-                        <span
-                          className={`inline-block w-3 h-3 rounded-full ${getAssignmentStatusDotClass(student.status)}`}
-                          title={getAssignmentStatusLabel(student.status)}
-                        />
+                        <Tooltip content={getAssignmentStatusLabel(student.status)}>
+                          <span
+                            className={`inline-block w-3 h-3 rounded-full ${getAssignmentStatusDotClass(student.status)}`}
+                          />
+                        </Tooltip>
                       </DataTableCell>
                       {!isCompactTable && (
                         <DataTableCell className="text-gray-700 dark:text-gray-300">

@@ -284,9 +284,15 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                       )}
                     </DataTableCell>
                     <DataTableCell density="tight" className={isLeftExpanded ? 'max-w-xs' : 'max-w-md'}>
-                      <div className="truncate text-gray-700 dark:text-gray-300" title={logText !== '—' ? logText : undefined}>
-                        {logText}
-                      </div>
+                      {logText !== '—' ? (
+                        <Tooltip content={logText}>
+                          <div className="truncate text-gray-700 dark:text-gray-300">
+                            {logText}
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <div className="text-gray-700 dark:text-gray-300">—</div>
+                      )}
                     </DataTableCell>
                   </DataTableRow>
                 )
