@@ -378,7 +378,7 @@ export function NavItems({
                     <span className="truncate">{item.label}</span>
                     <ChevronDown
                       className={[
-                        'h-4 w-4 ml-auto text-gray-400 transition-transform',
+                        'h-4 w-4 ml-auto text-text-muted transition-transform',
                         isExpandedState ? 'rotate-0' : '-rotate-90',
                       ].join(' ')}
                       aria-hidden="true"

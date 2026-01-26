@@ -226,8 +226,8 @@ export default function CalendarPage() {
     const { semester1Year, semester2Year } = getSemesterYears()
 
     return (
-      <div className="bg-white rounded-lg shadow-sm p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+      <div className="bg-surface rounded-lg shadow-sm p-8">
+        <h2 className="text-2xl font-bold text-text-default mb-6">
           Create Calendar
         </h2>
 
@@ -242,11 +242,11 @@ export default function CalendarPage() {
               className={`px-6 py-4 rounded-lg border-2 transition-all text-left ${
                 wizardMode === 'preset' && selectedPreset === 'semester1'
                   ? 'border-blue-500 bg-blue-50 text-blue-900 font-medium'
-                  : 'border-gray-300 hover:border-gray-400'
+                  : 'border-border hover:border-border-strong'
               }`}
             >
               <div className="font-medium">Semester 1</div>
-              <div className="text-sm text-gray-600 mt-1">
+              <div className="text-sm text-text-muted mt-1">
                 Sep {semester1Year} - Jan {semester1Year + 1}
               </div>
             </button>
@@ -258,11 +258,11 @@ export default function CalendarPage() {
               className={`px-6 py-4 rounded-lg border-2 transition-all text-left ${
                 wizardMode === 'preset' && selectedPreset === 'semester2'
                   ? 'border-blue-500 bg-blue-50 text-blue-900 font-medium'
-                  : 'border-gray-300 hover:border-gray-400'
+                  : 'border-border hover:border-border-strong'
               }`}
             >
               <div className="font-medium">Semester 2</div>
-              <div className="text-sm text-gray-600 mt-1">
+              <div className="text-sm text-text-muted mt-1">
                 Feb {semester2Year} - Jun {semester2Year}
               </div>
             </button>
@@ -271,7 +271,7 @@ export default function CalendarPage() {
               className={`px-6 py-4 rounded-lg border-2 transition-all ${
                 wizardMode === 'custom'
                   ? 'border-blue-500 bg-blue-50 text-blue-900 font-medium'
-                  : 'border-gray-300 hover:border-gray-400'
+                  : 'border-border hover:border-border-strong'
               }`}
             >
               <div className="font-medium">Custom</div>
@@ -281,17 +281,17 @@ export default function CalendarPage() {
 
         {/* Custom Date Selection */}
         {wizardMode === 'custom' && (
-          <div className="mb-6 p-6 bg-gray-50 rounded-lg">
+          <div className="mb-6 p-6 bg-surface-2 rounded-lg">
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-default mb-2">
                   Start
                 </label>
                 <div className="flex gap-3">
                   <select
                     value={startMonth}
                     onChange={(e) => setStartMonth(parseInt(e.target.value))}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                       <option key={month} value={month}>
@@ -305,19 +305,19 @@ export default function CalendarPage() {
                     onChange={(e) => setStartYear(parseInt(e.target.value))}
                     min={2020}
                     max={2030}
-                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-24 px-3 py-2 border border-border rounded-lg"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-default mb-2">
                   End
                 </label>
                 <div className="flex gap-3">
                   <select
                     value={endMonth}
                     onChange={(e) => setEndMonth(parseInt(e.target.value))}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg"
                   >
                     {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                       <option key={month} value={month}>
@@ -331,7 +331,7 @@ export default function CalendarPage() {
                     onChange={(e) => setEndYear(parseInt(e.target.value))}
                     min={2020}
                     max={2030}
-                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-24 px-3 py-2 border border-border rounded-lg"
                   />
                 </div>
               </div>
@@ -388,14 +388,14 @@ export default function CalendarPage() {
             const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
 
             return (
-              <div key={month.toString()} className="bg-white rounded-lg shadow-sm p-4">
-                <h3 className="text-center font-bold text-gray-900 mb-3">
+              <div key={month.toString()} className="bg-surface rounded-lg shadow-sm p-4">
+                <h3 className="text-center font-bold text-text-default mb-3">
                   {format(month, 'MMMM yyyy')}
                 </h3>
 
                 <div className="grid grid-cols-7 gap-1">
                   {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                    <div key={i} className="text-center text-xs font-medium text-gray-500 py-1">
+                    <div key={i} className="text-center text-xs font-medium text-text-muted py-1">
                       {day}
                     </div>
                   ))}
@@ -415,13 +415,13 @@ export default function CalendarPage() {
                     const disabled = !isInRange || isBeforeToday
 
                     const colorClasses = disabled
-                      ? 'bg-gray-100 text-gray-400'
+                      ? 'bg-surface-2 text-text-muted'
                       : isClassDay
                         ? 'bg-green-100 text-green-900 hover:bg-green-200'
                         : classDay
-                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                          ? 'bg-surface-hover text-text-default hover:bg-border'
                           : isWeekend
-                            ? 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                            ? 'bg-surface-2 text-text-muted hover:bg-surface-hover'
                             : 'bg-red-50 text-red-700 hover:bg-red-100'
 
                     return (
@@ -445,19 +445,19 @@ export default function CalendarPage() {
           })}
         </div>
 
-        <div className="mt-6 bg-white rounded-lg shadow-sm p-4">
-          <h4 className="font-medium text-gray-900 mb-3">Legend</h4>
+        <div className="mt-6 bg-surface rounded-lg shadow-sm p-4">
+          <h4 className="font-medium text-text-default mb-3">Legend</h4>
           <div className="flex flex-wrap gap-4 text-sm">
             <div className="flex items-center space-x-2">
               <div className="w-5 h-5 bg-green-100 rounded"></div>
               <span>Class Day</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-5 h-5 bg-gray-200 rounded"></div>
+              <div className="w-5 h-5 bg-surface-hover rounded"></div>
               <span>Non-Class Day</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-5 h-5 bg-gray-50 rounded"></div>
+              <div className="w-5 h-5 bg-surface-2 rounded"></div>
               <span>Weekend</span>
             </div>
             <div className="flex items-center space-x-2">
@@ -483,8 +483,8 @@ export default function CalendarPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">No Classrooms Yet</h2>
-          <p className="text-gray-600 mb-6">Create your first classroom to get started</p>
+          <h2 className="text-2xl font-bold text-text-default mb-2">No Classrooms Yet</h2>
+          <p className="text-text-muted mb-6">Create your first classroom to get started</p>
           <Button onClick={() => setShowCreateModal(true)}>
             Create Classroom
           </Button>
@@ -541,7 +541,7 @@ export default function CalendarPage() {
                       e.stopPropagation()
                       requestDelete(classroom)
                     }}
-                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-danger-bg rounded transition"
+                    className="absolute top-2 right-2 p-1 text-text-muted hover:text-danger hover:bg-danger-bg rounded transition"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

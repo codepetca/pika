@@ -89,7 +89,7 @@ export function HistoryList({
                               ? 'text-success'
                               : charDiff < 0
                                 ? 'text-danger'
-                                : 'text-gray-500'
+                                : 'text-text-muted'
                         }`}
                       >
                         {charDiff > 0 ? '+' : ''}

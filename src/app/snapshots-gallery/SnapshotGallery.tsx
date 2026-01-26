@@ -39,19 +39,19 @@ export function SnapshotGallery() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading snapshots...</div>
+      <div className="min-h-screen bg-page flex items-center justify-center">
+        <div className="text-text-muted">Loading snapshots...</div>
       </div>
     )
   }
 
   if (snapshots.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-page flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">No snapshots found</h1>
-          <p className="text-gray-600 mb-4">
-            Run <code className="bg-gray-200 px-2 py-1 rounded">pnpm run e2e:snapshots:update</code> to
+          <h1 className="text-2xl font-bold text-text-default mb-2">No snapshots found</h1>
+          <p className="text-text-muted mb-4">
+            Run <code className="bg-surface-2 px-2 py-1 rounded">pnpm run e2e:snapshots:update</code> to
             generate snapshots
           </p>
         </div>
@@ -60,14 +60,14 @@ export function SnapshotGallery() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-page">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <div className="bg-surface border-b border-border sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">UI Snapshot Gallery</h1>
-              <p className="text-sm text-gray-500 mt-1">
+              <h1 className="text-2xl font-bold text-text-default">UI Snapshot Gallery</h1>
+              <p className="text-sm text-text-muted mt-1">
                 {snapshots.length} snapshot{snapshots.length !== 1 ? 's' : ''} captured
               </p>
             </div>
@@ -79,7 +79,7 @@ export function SnapshotGallery() {
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'all'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    : 'bg-surface text-text-default border border-border hover:bg-page'
                 }`}
               >
                 All ({snapshots.length})
@@ -89,7 +89,7 @@ export function SnapshotGallery() {
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'auth'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    : 'bg-surface text-text-default border border-border hover:bg-page'
                 }`}
               >
                 Auth ({groupedSnapshots.auth.length})
@@ -99,7 +99,7 @@ export function SnapshotGallery() {
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'teacher'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    : 'bg-surface text-text-default border border-border hover:bg-page'
                 }`}
               >
                 Teacher ({groupedSnapshots.teacher.length})
@@ -109,7 +109,7 @@ export function SnapshotGallery() {
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'student'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                    : 'bg-surface text-text-default border border-border hover:bg-page'
                 }`}
               >
                 Student ({groupedSnapshots.student.length})
@@ -123,10 +123,10 @@ export function SnapshotGallery() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSnapshots.map((snapshot) => (
-            <div key={snapshot.filename} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div key={snapshot.filename} className="bg-surface rounded-lg shadow-sm border border-border overflow-hidden hover:shadow-md transition-shadow">
               {/* Snapshot name */}
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-                <h3 className="text-sm font-medium text-gray-900 truncate" title={snapshot.name}>
+              <div className="px-4 py-3 border-b border-border bg-page">
+                <h3 className="text-sm font-medium text-text-default truncate" title={snapshot.name}>
                   {snapshot.name}
                 </h3>
               </div>
@@ -136,7 +136,7 @@ export function SnapshotGallery() {
                 href={`/api/snapshots/${snapshot.filename}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block relative aspect-[4/3] bg-gray-100 overflow-hidden group"
+                className="block relative aspect-[4/3] bg-surface-2 overflow-hidden group"
               >
                 <Image
                   src={`/api/snapshots/${snapshot.filename}`}
@@ -147,15 +147,15 @@ export function SnapshotGallery() {
                   unoptimized
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity flex items-center justify-center">
-                  <div className="opacity-0 group-hover:opacity-100 bg-white px-4 py-2 rounded-md text-sm font-medium text-gray-900 shadow-lg transition-opacity">
+                  <div className="opacity-0 group-hover:opacity-100 bg-surface px-4 py-2 rounded-md text-sm font-medium text-text-default shadow-lg transition-opacity">
                     View Full Size
                   </div>
                 </div>
               </a>
 
               {/* Filename */}
-              <div className="px-4 py-2 bg-gray-50 border-t border-gray-200">
-                <code className="text-xs text-gray-500 break-all">{snapshot.filename}</code>
+              <div className="px-4 py-2 bg-page border-t border-border">
+                <code className="text-xs text-text-muted break-all">{snapshot.filename}</code>
               </div>
             </div>
           ))}

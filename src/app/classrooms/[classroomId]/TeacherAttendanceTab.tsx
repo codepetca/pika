@@ -280,7 +280,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                           />
                         </Tooltip>
                       ) : (
-                        <span className="text-gray-400">—</span>
+                        <span className="text-text-muted">—</span>
                       )}
                     </DataTableCell>
                     <DataTableCell density="tight" className={isLeftExpanded ? 'max-w-xs' : 'max-w-md'}>

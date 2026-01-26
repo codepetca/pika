@@ -314,7 +314,7 @@ export function LessonCalendar({
           {/* Right: Actions */}
           <div className="flex items-center gap-2 justify-end">
             {saving && (
-              <span className="text-sm text-gray-500">Saving...</span>
+              <span className="text-sm text-text-muted">Saving...</span>
             )}
             {onMarkdownToggle && (
               <Tooltip content={isSidebarOpen ? `Close sidebar (${shortcutHint})` : `Edit as Markdown (${shortcutHint})`}>

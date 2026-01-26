@@ -259,7 +259,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
                   <option value="one_week_ahead">1 week ahead</option>
                   <option value="all">All (no restrictions)</option>
                 </select>
-                {visibilitySaving && <span className="text-sm text-gray-500">Saving...</span>}
+                {visibilitySaving && <span className="text-sm text-text-muted">Saving...</span>}
               </div>
 
               {visibilityError && <div className="text-sm text-danger">{visibilityError}</div>}

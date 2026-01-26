@@ -190,6 +190,7 @@ export function RichTextEditor({
             target: '_blank',
           },
         },
+        // Code blocks intentionally use dark styling regardless of theme (industry standard)
         codeBlock: {
           HTMLAttributes: {
             class:

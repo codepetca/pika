@@ -227,7 +227,7 @@ export default function HistoryPage() {
                 <div className="font-medium text-text-default text-sm">
                   {classroom.title}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-text-muted mt-1">
                   {classroom.class_code}
                 </div>
               </button>
@@ -337,7 +337,7 @@ export default function HistoryPage() {
               </h3>
               <button
                 onClick={() => setSelectedEntry(null)}
-                className="text-gray-500 hover:text-text-default text-2xl"
+                className="text-text-muted hover:text-text-default text-2xl"
               >
                 ×
               </button>
