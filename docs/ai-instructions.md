@@ -50,6 +50,7 @@ Then consult:
 - **Pure functions**: Attendance logic has no side effects, fully testable
 - **Mobile-first**: Student experience optimized for mobile devices
 - **No component libraries**: Tailwind CSS only
+- **Design system**: Import UI primitives from `@/ui`, use semantic tokens (see below)
 
 ---
 
@@ -91,6 +92,29 @@ This TDD approach ensures code quality and prevents regressions.
 - Implement features without tests for core logic
 - Make changes to unrelated files
 - Over-engineer or add unnecessary abstractions
+- **Use `dark:` classes in app code** (use semantic tokens instead)
+- **Import UI primitives from `@/components`** (use `@/ui`)
+
+### Design System Rules (MANDATORY)
+
+🎨 **UI Components**:
+- Import `Button`, `Input`, `Select`, `FormField`, `AlertDialog`, `ConfirmDialog`, `Card`, `Tooltip` from `@/ui`
+- Wrap all form controls with `<FormField>` for consistent label/error styling
+- ESLint and CI enforce these import patterns
+
+🎨 **Semantic Tokens** (instead of `dark:` classes):
+```tsx
+// CORRECT - semantic tokens
+<div className="bg-surface text-text-default border-border">
+<p className="text-text-muted">Secondary text</p>
+
+// WRONG - dark: classes in app code
+<div className="bg-white dark:bg-gray-900">  // ❌ Blocked by CI
+```
+
+Common tokens: `bg-page`, `bg-surface`, `bg-surface-2`, `text-text-default`, `text-text-muted`, `border-border`, `text-primary`, `text-danger`, `text-success`
+
+See `/src/ui/README.md` for the full token reference.
 
 ### Security Requirements (MANDATORY)
 
@@ -310,6 +334,8 @@ When facing implementation choices:
 ## Quick Reference
 
 ### Key Files
+- **Design system**: `src/ui/` — UI primitives (Button, Input, FormField, etc.)
+- **Token definitions**: `src/styles/tokens.css` — CSS variables for theming
 - **Attendance logic**: `src/lib/attendance.ts` — Pure function, fully testable
 - **Timezone utilities**: `src/lib/timezone.ts` — America/Toronto handling
 - **Authentication**: `src/lib/auth.ts` — Session management

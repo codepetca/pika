@@ -27,7 +27,7 @@ This document defines UI/UX patterns, visual design standards, and component gui
 
 ### 4. Dark Mode Support (Required)
 - **All UI components MUST support both light and dark modes**
-- Use Tailwind's `dark:` prefix for all color classes
+- **Use semantic tokens** (NOT `dark:` classes) - see "Design System Layer" section below
 - Ensure proper contrast in both light and dark modes (WCAG 2.1 AA)
 - Test all views in both modes before considering complete
 - Dark mode activates via Tailwind's `class` strategy (`darkMode: 'class'` in config)
@@ -40,63 +40,82 @@ This document defines UI/UX patterns, visual design standards, and component gui
 
 ---
 
+## Design System Layer (`/ui`)
+
+**IMPORTANT**: All app code must use the design system layer for consistent theming.
+
+### Import Pattern
+```tsx
+// CORRECT - import from @/ui
+import { Button, Input, Select, FormField, AlertDialog, ConfirmDialog, Card, Tooltip } from '@/ui'
+
+// WRONG - direct imports are blocked by ESLint
+import { Button } from '@/components/Button'  // ❌ Blocked
+```
+
+### Semantic Token Pattern (REQUIRED)
+
+**App code must use semantic tokens, NOT `dark:` classes.**
+
+The `/ui` layer handles dark mode internally via CVA. App code uses semantic class names that automatically adapt:
+
+```tsx
+// CORRECT - app code uses semantic tokens
+<div className="bg-surface text-text-default border-border">
+<p className="text-text-muted">Secondary text</p>
+
+// WRONG - app code uses dark: classes
+<div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">  // ❌ Never do this
+```
+
+### Available Semantic Tokens
+
+| Token | Light Value | Dark Value | Usage |
+|-------|-------------|------------|-------|
+| `bg-page` | gray-50 | gray-950 | App background |
+| `bg-surface` | white | gray-900 | Cards, panels |
+| `bg-surface-2` | gray-50 | gray-800 | Nested surfaces |
+| `bg-surface-hover` | gray-100 | gray-700 | Hover states |
+| `border-border` | gray-200 | gray-700 | Default borders |
+| `border-border-strong` | gray-300 | gray-600 | Emphasized borders |
+| `text-text-default` | gray-900 | gray-100 | Primary text |
+| `text-text-muted` | gray-500 | gray-400 | Secondary text |
+| `text-text-inverse` | white | gray-900 | Text on colored backgrounds |
+| `text-primary` | blue-600 | blue-400 | Links, primary actions |
+| `text-danger` | red-600 | red-400 | Error text |
+| `text-success` | green-600 | green-400 | Success text |
+
+### When to Use `dark:` Classes
+
+`dark:` classes are **only allowed** in:
+1. `/src/ui/` - CVA component definitions
+2. `/src/components/PikaLogo.tsx` - CSS filter transformation (exception)
+3. `/src/components/editor/RichText*.tsx` - Code block styling (intentional dark regardless of theme)
+
+**All other code must use semantic tokens.**
+
+---
+
 ## Visual Design System
 
 ### Color Palette
 
-#### Primary Colors
+#### Status Colors
 ```css
-/* Attendance status colors */
---color-present: #22c55e  /* green-500 */
---color-absent: #ef4444   /* red-500 */
+/* Attendance status */
+--color-success: #22c55e  /* green-500 - Present */
+--color-danger: #ef4444   /* red-500 - Absent/Error */
+--color-warning: #f59e0b  /* amber-500 */
+--color-info: #3b82f6     /* blue-500 */
 
 /* Action colors */
 --color-primary: #3b82f6  /* blue-500 */
---color-secondary: #6b7280 /* gray-500 */
+--color-primary-hover: #2563eb  /* blue-600 */
 ```
 
-#### Neutral Colors (Light Mode)
-```css
---color-bg: #ffffff       /* white */
---color-bg-secondary: #f9fafb /* gray-50 */
---color-border: #e5e7eb   /* gray-200 */
---color-text: #111827     /* gray-900 */
---color-text-secondary: #6b7280 /* gray-500 */
-```
+#### Neutral Colors (defined in `/src/styles/tokens.css`)
 
-#### Neutral Colors (Dark Mode)
-```css
---color-bg-dark: #111827        /* gray-900 */
---color-bg-secondary-dark: #030712 /* gray-950 */
---color-border-dark: #374151     /* gray-700 */
---color-text-dark: #ffffff       /* white */
---color-text-secondary-dark: #9ca3af /* gray-400 */
-```
-
-#### Dark Mode Implementation Pattern
-All components must include dark mode variants using Tailwind's `dark:` prefix:
-```tsx
-// Background colors
-className="bg-white dark:bg-gray-900"
-className="bg-gray-50 dark:bg-gray-950"
-
-// Text colors
-className="text-gray-900 dark:text-white"
-className="text-gray-600 dark:text-gray-400"
-className="text-gray-700 dark:text-gray-300"
-
-// Border colors
-className="border-gray-200 dark:border-gray-700"
-className="border-gray-300 dark:border-gray-600"
-```
-
-#### Semantic Colors
-```css
---color-success: #22c55e  /* green-500 */
---color-error: #ef4444    /* red-500 */
---color-warning: #f59e0b  /* amber-500 */
---color-info: #3b82f6     /* blue-500 */
-```
+The semantic token system automatically handles light/dark mode switching. See the tokens table above for the complete mapping.
 
 ### Typography
 
@@ -189,86 +208,98 @@ Usage:
 
 ### Buttons
 
-#### Primary Button
+**Always import Button from `@/ui`:**
+
 ```tsx
-<button className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-md">
-  Submit Entry
-</button>
+import { Button } from '@/ui'
+
+// Primary (default)
+<Button>Submit Entry</Button>
+
+// Secondary
+<Button variant="secondary">Cancel</Button>
+
+// Destructive
+<Button variant="danger">Delete</Button>
+
+// Sizes
+<Button size="sm">Small</Button>
+<Button size="md">Medium</Button>  {/* default */}
+<Button size="lg">Large</Button>
 ```
 
-#### Secondary Button
-```tsx
-<button className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 font-medium px-4 py-2 rounded-md">
-  Cancel
-</button>
-```
-
-#### Destructive Button
-```tsx
-<button className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white font-medium px-4 py-2 rounded-md">
-  Delete
-</button>
-```
-
-#### Button Sizes
-- **Small**: `px-3 py-1 text-sm`
-- **Medium**: `px-4 py-2 text-base` (default)
-- **Large**: `px-6 py-3 text-lg`
+Button variants and dark mode are handled automatically by the design system.
 
 ### Forms
 
-#### Text Input
+**Always wrap form controls with `FormField` from `@/ui`:**
+
 ```tsx
-<input
-  type="text"
-  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md
-             bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-             focus:outline-none focus:ring-2 focus:ring-blue-500"
-  placeholder="Enter your name"
-/>
+import { FormField, Input, Select } from '@/ui'
+
+// Text input with label and error
+<FormField label="Email Address" error={errors.email} required>
+  <Input type="email" placeholder="Enter your email" {...register('email')} />
+</FormField>
+
+// Select with hint
+<FormField label="Country" hint="Select your country of residence">
+  <Select options={countries} value={country} onChange={setCountry} />
+</FormField>
 ```
 
-#### Textarea
-```tsx
-<textarea
-  className="w-full px-3 py-2 border border-gray-300 rounded-md
-             focus:outline-none focus:ring-2 focus:ring-blue-500
-             resize-none"
-  rows={6}
-  placeholder="Write your journal entry..."
-/>
-```
+FormField handles:
+- Label rendering with proper `htmlFor` association
+- Error message display with `aria-invalid`
+- Hint text (hidden when error present)
+- Required indicator (*)
 
-#### Label
+#### Textarea (native, wrapped by FormField)
 ```tsx
-<label className="block text-sm font-medium text-gray-700 mb-1">
-  Email Address
-</label>
-```
-
-#### Error Message
-```tsx
-<p className="text-sm text-red-600 mt-1">
-  This field is required
-</p>
+<FormField label="Journal Entry" error={errors.entry}>
+  <textarea
+    className="w-full px-3 py-2 border border-border rounded-control
+               bg-surface text-text-default
+               focus:outline-none focus:ring-2 focus:ring-primary
+               resize-none"
+    rows={6}
+    placeholder="Write your journal entry..."
+  />
+</FormField>
 ```
 
 ### Cards
 
-#### Basic Card
+**Use `Card` from `@/ui` or semantic tokens for custom containers:**
+
 ```tsx
-<div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
-  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Card Title</h3>
-  <p className="text-gray-600 dark:text-gray-400">Card content goes here.</p>
-</div>
+import { Card } from '@/ui'
+
+// Basic Card (uses design system styling)
+<Card>
+  <h3 className="text-lg font-semibold text-text-default mb-2">Card Title</h3>
+  <p className="text-text-muted">Card content goes here.</p>
+</Card>
+
+// Card with different padding
+<Card padding="lg">
+  <form>...</form>
+</Card>
 ```
 
-#### Clickable Card
+#### Custom Container (semantic tokens)
 ```tsx
-<div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm
-                hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-shadow cursor-pointer">
-  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Clickable Card</h3>
-  <p className="text-gray-600 dark:text-gray-400">Card content goes here.</p>
+// Use semantic tokens when Card component doesn't fit
+<div className="bg-surface border border-border rounded-card p-6 shadow-elevated">
+  <h3 className="text-lg font-semibold text-text-default mb-2">Card Title</h3>
+  <p className="text-text-muted">Card content goes here.</p>
+</div>
+
+// Clickable container
+<div className="bg-surface border border-border rounded-card p-6 shadow-elevated
+                hover:shadow-lg hover:bg-surface-hover transition-shadow cursor-pointer">
+  <h3 className="text-lg font-semibold text-text-default mb-2">Clickable Card</h3>
+  <p className="text-text-muted">Card content goes here.</p>
 </div>
 ```
 
@@ -799,16 +830,20 @@ const HeavyComponent = dynamic(() => import('./HeavyComponent'))
 
 ❌ **DON'T**:
 - Use component libraries (no Chakra UI, Material-UI, etc.)
+- **Use `dark:` classes in app code** - use semantic tokens instead
+- **Import UI primitives from `@/components`** - import from `@/ui`
+- **Use hardcoded gray-* classes** - use `text-text-muted`, `bg-surface`, etc.
 - Add verbose instructional text
 - Ignore mobile responsiveness
 - Skip accessibility features
 - Use custom fonts (slow loading)
 - Over-animate (distracting)
 - Create pixel-perfect designs (embrace flexibility)
-- **Ship components without dark mode support**
-- **Forget to test both light and dark modes**
 
 ✅ **DO**:
+- **Import Button, Input, Select, FormField, etc. from `@/ui`**
+- **Use semantic tokens** (`bg-surface`, `text-text-default`, `border-border`)
+- **Wrap form controls with `<FormField>`** for consistent label/error styling
 - Use Tailwind utility classes
 - Keep UI minimal and functional
 - Test on mobile devices
@@ -816,9 +851,7 @@ const HeavyComponent = dynamic(() => import('./HeavyComponent'))
 - Use system fonts
 - Use subtle transitions
 - Design for content flexibility
-- **Always add `dark:` variants to all color classes**
-- **Verify proper contrast in both light and dark modes**
-- **Test all new components in both modes before merging**
+- **Test all views in both light and dark modes**
 
 ---
 
