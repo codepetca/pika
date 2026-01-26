@@ -6,8 +6,8 @@ import { cn } from './utils'
 
 const cardVariants = cva(
   [
-    'bg-white dark:bg-gray-900',
-    'border border-gray-200 dark:border-gray-700',
+    'bg-surface',
+    'border border-border',
     'rounded-card shadow-elevated',
   ],
   {

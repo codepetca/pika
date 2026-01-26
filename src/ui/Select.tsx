@@ -7,16 +7,16 @@ import { cn } from './utils'
 const selectVariants = cva(
   [
     'w-full px-3 py-2 rounded-control',
-    'bg-white dark:bg-gray-800',
-    'text-gray-900 dark:text-white',
-    'focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-    'disabled:bg-gray-100 dark:disabled:bg-gray-700 disabled:cursor-not-allowed',
+    'bg-surface',
+    'text-text-default',
+    'focus:ring-2 focus:ring-primary focus:border-primary',
+    'disabled:bg-surface-2 disabled:cursor-not-allowed',
   ],
   {
     variants: {
       hasError: {
-        true: 'border border-red-500 dark:border-red-400',
-        false: 'border border-gray-300 dark:border-gray-600',
+        true: 'border border-danger',
+        false: 'border border-border',
       },
     },
     defaultVariants: {

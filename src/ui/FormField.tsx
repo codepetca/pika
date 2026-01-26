@@ -21,10 +21,10 @@ export interface FormFieldProps {
 }
 
 // Styles are kept inline as they're simple and don't need CVA variants
-const labelStyles = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
-const errorStyles = 'mt-1 text-sm text-red-600 dark:text-red-400'
-const hintStyles = 'mt-1 text-sm text-gray-500 dark:text-gray-400'
-const requiredMarkerStyles = 'text-red-500 ml-1'
+const labelStyles = 'block text-sm font-medium text-text-default mb-1'
+const errorStyles = 'mt-1 text-sm text-danger'
+const hintStyles = 'mt-1 text-sm text-text-muted'
+const requiredMarkerStyles = 'text-danger ml-1'
 
 /**
  * FormField wraps form controls with consistent label and error styling.

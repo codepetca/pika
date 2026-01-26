@@ -8,13 +8,13 @@ import { Button } from './Button'
 const dialogPanelStyles = cva([
   'relative w-full max-w-sm',
   'rounded-dialog border shadow-dialog p-dialog',
-  'bg-white dark:bg-gray-900',
-  'border-gray-200 dark:border-gray-700',
+  'bg-surface',
+  'border-border',
 ])
 
 const dialogBackdropStyles = 'absolute inset-0 bg-black/50 dark:bg-black/70'
-const dialogTitleStyles = 'text-base font-semibold text-gray-900 dark:text-gray-100'
-const dialogDescriptionStyles = 'mt-2 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line'
+const dialogTitleStyles = 'text-base font-semibold text-text-default'
+const dialogDescriptionStyles = 'mt-2 text-sm text-text-muted whitespace-pre-line'
 
 // ============================================================================
 // AlertDialog
@@ -37,7 +37,7 @@ export interface AlertDialogProps extends AlertDialogState {
 
 function SuccessIcon() {
   return (
-    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
     </svg>
   )
@@ -45,7 +45,7 @@ function SuccessIcon() {
 
 function ErrorIcon() {
   return (
-    <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-6 h-6 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
     </svg>
   )

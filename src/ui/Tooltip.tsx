@@ -7,9 +7,9 @@ import { cva } from 'class-variance-authority'
 // Tooltip content styles with CVA
 const tooltipContentStyles = cva([
   'z-50 rounded px-2 py-1 text-[11px] leading-tight pointer-events-none',
-  'bg-gray-100 dark:bg-gray-700',
-  'text-gray-900 dark:text-gray-100',
-  'shadow-sm border border-gray-200 dark:border-gray-600',
+  'bg-surface-2',
+  'text-text-default',
+  'shadow-sm border border-border',
 ])
 
 export interface TooltipProps {
