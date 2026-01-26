@@ -7,6 +7,7 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
+import { Tooltip } from '@/components/Tooltip'
 
 interface AppHeaderProps {
   user?: {
@@ -48,21 +49,24 @@ export function AppHeader({
       <div className="flex items-center gap-3">
         {/* Mobile sidebar trigger (classroom pages) */}
         {onOpenSidebar && (
-          <button
-            type="button"
-            onClick={onOpenSidebar}
-            className="lg:hidden p-2 -ml-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            aria-label="Open classroom navigation"
-            title="Open navigation"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+          <Tooltip content="Open navigation">
+            <button
+              type="button"
+              onClick={onOpenSidebar}
+              className="lg:hidden p-2 -ml-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Open classroom navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          </Tooltip>
         )}
 
         {/* Logo - click to return to classrooms index */}
-        <Link href="/classrooms" aria-label="Home" title="Home" className="flex-shrink-0">
-          <PikaLogo className="w-8 h-8" />
-        </Link>
+        <Tooltip content="Home">
+          <Link href="/classrooms" aria-label="Home" className="flex-shrink-0">
+            <PikaLogo className="w-8 h-8" />
+          </Link>
+        </Tooltip>
 
         {/* Classroom Selector (teachers with multiple classrooms, or when explicitly provided) */}
         {classrooms && classrooms.length > 0 && (

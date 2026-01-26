@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { computeAttendanceRecords } from '@/lib/attendance'
+import { getTodayInToronto } from '@/lib/timezone'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -131,10 +132,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Compute attendance
+    const today = getTodayInToronto()
     const attendanceRecords = computeAttendanceRecords(
       students || [],
       classDays || [],
-      entries || []
+      entries || [],
+      today
     )
 
     // Get sorted dates (only class days)

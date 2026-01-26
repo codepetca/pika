@@ -12,11 +12,7 @@ export function lessonPlansToMarkdown(
   startDate: string,
   endDate: string
 ): string {
-  const lines: string[] = [
-    `# Lesson Plans: ${classroom.title}`,
-    `Term: ${startDate} - ${endDate}`,
-    '',
-  ]
+  const lines: string[] = []
 
   // Create a map for quick lookup
   const planMap = new Map<string, LessonPlan>()
@@ -31,15 +27,14 @@ export function lessonPlansToMarkdown(
     // Skip weekends
     if (!isWeekend(current)) {
       const dateStr = format(current, 'yyyy-MM-dd')
-      const dayLabel = format(current, 'EEE, MMM d, yyyy')
-      lines.push(`## ${dayLabel}`)
+      lines.push(`## ${dateStr}`)
 
       const plan = planMap.get(dateStr)
       if (plan && plan.content.content && plan.content.content.length > 0) {
         const text = extractTextFromTiptap(plan.content)
-        lines.push(text || '(empty)')
-      } else {
-        lines.push('(empty)')
+        if (text) {
+          lines.push(text)
+        }
       }
       lines.push('')
     }
@@ -60,16 +55,16 @@ export function markdownToLessonPlans(
   const plans: Array<{ date: string; content: TiptapContent }> = []
   const seenDates = new Set<string>()
 
-  const lines = markdown.split('\n')
+  const lines = markdown.split('\n').map(line => line.replace(/\r$/, ''))
   let currentDate: string | null = null
   let currentContent: string[] = []
 
-  const datePattern = /^## \w+, (\w+ \d+, \d{4})$/
+  const datePattern = /^## (\d{4}-\d{2}-\d{2})$/
 
   function flushCurrentPlan() {
     if (currentDate) {
       const text = currentContent.join('\n').trim()
-      if (text && text !== '(empty)') {
+      if (text) {
         plans.push({
           date: currentDate,
           content: textToTiptapContent(text),
@@ -88,14 +83,13 @@ export function markdownToLessonPlans(
 
       // Parse the date
       try {
-        const parsed = parse(match[1], 'MMM d, yyyy', new Date())
+        const dateStr = match[1]
+        const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
         if (isNaN(parsed.getTime())) {
-          errors.push(`Invalid date: ${match[1]}`)
+          errors.push(`Invalid date: ${dateStr}`)
           currentDate = null
           continue
         }
-
-        const dateStr = format(parsed, 'yyyy-MM-dd')
 
         // Check for duplicate
         if (seenDates.has(dateStr)) {

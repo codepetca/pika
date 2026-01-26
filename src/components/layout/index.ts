@@ -21,6 +21,11 @@ export { LeftSidebar, type LeftSidebarProps } from './LeftSidebar'
 
 export { RightSidebar, RightSidebarToggle, type RightSidebarProps } from './RightSidebar'
 
+export {
+  BidirectionalSidebarContent,
+  type BidirectionalSidebarContentProps,
+} from './BidirectionalSidebarContent'
+
 export { MainContent, type MainContentProps } from './MainContent'
 
 export { NavItems, type NavItemsProps, type ClassroomNavItemId } from './NavItems'

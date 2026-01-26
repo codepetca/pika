@@ -3,8 +3,10 @@
 import { useMemo, useState, useEffect } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
-import { ChevronLeft, ChevronRight, Code, CircleDot } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose, CircleDot } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
+import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
+import { Tooltip } from '@/components/Tooltip'
 import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
@@ -26,7 +28,7 @@ interface LessonCalendarProps {
   onContentChange?: (date: string, content: TiptapContent) => void
   onAssignmentClick?: (assignment: Assignment) => void
   onMarkdownToggle?: () => void
-  holidays?: Set<string>
+  isSidebarOpen?: boolean
 }
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -77,10 +79,11 @@ export function LessonCalendar({
   onContentChange,
   onAssignmentClick,
   onMarkdownToggle,
-  holidays = new Set(),
+  isSidebarOpen = false,
 }: LessonCalendarProps) {
   const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [])
   const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
+  const { rightPanel: shortcutHint } = useKeyboardShortcutHint()
 
   // Build a map of date -> lesson plan for quick lookup
   const plansByDate = useMemo(() => {
@@ -252,9 +255,9 @@ export function LessonCalendar({
     <div className="flex flex-col">
       {/* Header with navigation, view mode selector, and actions */}
       {showHeader && (
-        <div className="flex items-center px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-3 items-center px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           {/* Left: Navigation with month label */}
-          <div className="flex items-center gap-1 flex-1">
+          <div className="flex items-center gap-1 justify-start">
             {viewMode !== 'all' && (
               <button
                 onClick={handlePrev}
@@ -276,49 +279,57 @@ export function LessonCalendar({
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={handleToday}
-                  className="ml-2 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-                  aria-label="Go to today"
-                  title="Today"
-                >
-                  <CircleDot className="w-5 h-5" />
-                </button>
+                <Tooltip content="Today">
+                  <button
+                    onClick={handleToday}
+                    className="ml-2 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                    aria-label="Go to today"
+                  >
+                    <CircleDot className="w-5 h-5" />
+                  </button>
+                </Tooltip>
               </>
             )}
           </div>
 
           {/* Center: View mode selector */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => onViewModeChange(mode)}
-                className={`px-3 py-1 text-sm rounded-md capitalize transition-colors ${
-                  viewMode === mode
-                    ? 'bg-white dark:bg-gray-700 shadow-sm font-medium'
-                    : 'hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
+          <div className="flex items-center justify-center">
+            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => onViewModeChange(mode)}
+                  className={`px-3 py-1 text-sm rounded-md capitalize transition-colors ${
+                    viewMode === mode
+                      ? 'bg-white dark:bg-gray-700 shadow-sm font-medium'
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2 flex-1 justify-end">
+          <div className="flex items-center gap-2 justify-end">
             {saving && (
               <span className="text-sm text-gray-500">Saving...</span>
             )}
             {onMarkdownToggle && (
-              <button
-                onClick={onMarkdownToggle}
-                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label="Edit as Markdown"
-                title="Edit as Markdown"
-              >
-                <Code className="w-5 h-5" />
-              </button>
+              <Tooltip content={isSidebarOpen ? `Close sidebar (${shortcutHint})` : `Edit as Markdown (${shortcutHint})`}>
+                <button
+                  onClick={onMarkdownToggle}
+                  className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
+                >
+                  {isSidebarOpen ? (
+                    <PanelRightClose className="w-5 h-5" />
+                  ) : (
+                    <PanelRight className="w-5 h-5" />
+                  )}
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -398,7 +409,6 @@ export function LessonCalendar({
             const lessonPlan = plansByDate.get(dateString) || null
             const isToday = isSameDay(day, today)
             const isWeekendDay = isWeekend(day)
-            const isHoliday = holidays.has(dateString)
             // Only determine class day status if we have class days data
             const isClassDay = classDays.length > 0 ? classDayDates.has(dateString) : undefined
             // In 'all' mode, column starts at 2 (after month column)
@@ -407,7 +417,7 @@ export function LessonCalendar({
             return (
               <div
                 key={dateString}
-                className={`border-r border-b border-gray-200 dark:border-gray-700 overflow-visible ${isCompactView ? 'cursor-pointer' : ''}`}
+                className={`border-r border-b border-gray-200 dark:border-gray-700 overflow-hidden ${isCompactView ? 'cursor-pointer' : ''}`}
                 style={{
                   gridColumn: colStart,
                   gridRow: weekIdx + 1,
@@ -421,7 +431,6 @@ export function LessonCalendar({
                   assignments={assignmentsByDate.get(dateString) || []}
                   isWeekend={isWeekendDay}
                   isToday={isToday}
-                  isHoliday={isHoliday}
                   isClassDay={isClassDay}
                   editable={editable && !isWeekendDay && viewMode !== 'all'}
                   compact={viewMode !== 'week' && !isExpanded}

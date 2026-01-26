@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import type { Assignment, ClassDay, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso } from '@/lib/timezone'
+import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
+import { format } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
 import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
 
@@ -133,7 +134,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           classroom_id: classroomId,
-          title: values.title || 'Untitled Assignment',
+          title: values.title.trim() || `Untitled (${format(nowInToronto(), 'yyyy-MM-dd HH:mm:ss')})`,
           rich_instructions: values.instructions,
           due_at: toTorontoEndOfDayIso(values.dueAt),
         }),

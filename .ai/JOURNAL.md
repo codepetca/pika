@@ -2336,3 +2336,33 @@
 **Tests:** All 556 tests passing
 **Data Loss Assessment:** Roster updates only affect metadata (name, student_number, counselor_email). Student submissions (entries) and enrollments are in separate tables and NOT affected by roster changes.
 **Blockers:** None
+---
+---
+## 2026-01-25 17:05 [AI - Claude Opus 4.5]
+**Goal:** Implement fast tooltips with Radix UI Tooltip (GitHub issue #181)
+**Completed:**
+- Added `@radix-ui/react-tooltip` package (consistent with existing Radix UI usage for dropdown-menu and popover)
+- Created reusable `Tooltip` component with 100ms default delay
+- Added `TooltipProvider` to root layout
+- Replaced native `title` attributes with Tooltip component in:
+  - `RightSidebar.tsx` - desktop/mobile panel toggle buttons
+  - `AppHeader.tsx` - navigation menu and home link
+  - `LessonCalendar.tsx` - today button and markdown toggle
+  - `link-popover.tsx` - apply, open, remove link buttons
+  - `TeacherCalendarTab.tsx` - copy class days button
+**Status:** completed
+**Artifacts:**
+- Branch: issue/181-fast-tooltips
+- Worktree: /Users/stew/Repos/.worktrees/pika/issue/181-fast-tooltips
+- PR: https://github.com/codepetca/pika/pull/187
+- Files:
+  - src/components/Tooltip.tsx (new)
+  - src/app/layout.tsx
+  - src/components/AppHeader.tsx
+  - src/components/LessonCalendar.tsx
+  - src/components/layout/RightSidebar.tsx
+  - src/components/tiptap-ui/link-popover/link-popover.tsx
+  - src/app/classrooms/[classroomId]/TeacherCalendarTab.tsx
+  - package.json, pnpm-lock.yaml
+**Tests:** All 710 tests passing
+**Blockers:** None

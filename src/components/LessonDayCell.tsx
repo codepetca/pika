@@ -4,6 +4,7 @@ import { useCallback, useMemo, memo } from 'react'
 import { format } from 'date-fns'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { extractTextFromTiptap } from '@/lib/lesson-plan-markdown'
+import { Tooltip } from '@/components/Tooltip'
 import type { LessonPlan, TiptapContent, Assignment } from '@/types'
 
 const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
@@ -15,7 +16,6 @@ interface LessonDayCellProps {
   assignments?: Assignment[]
   isWeekend: boolean
   isToday: boolean
-  isHoliday: boolean
   isClassDay?: boolean // undefined means class days not initialized
   editable: boolean
   compact?: boolean
@@ -31,7 +31,6 @@ export const LessonDayCell = memo(function LessonDayCell({
   assignments = [],
   isWeekend,
   isToday,
-  isHoliday,
   isClassDay,
   editable,
   compact = false,
@@ -76,7 +75,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         {/* Weekend assignment pill - no text, tooltip on hover */}
         {assignments.length > 0 && (
           <div className="px-0.5 flex items-start justify-center">
-            <div className="relative group">
+            <Tooltip content={assignmentTitles} side="right">
               <button
                 type="button"
                 onClick={(e) => {
@@ -86,12 +85,8 @@ export const LessonDayCell = memo(function LessonDayCell({
                   }
                 }}
                 className={`w-full min-w-[12px] rounded bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700 cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
-                title={assignmentTitles}
               />
-              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-1 px-2 py-1 text-xs bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-[100]">
-                {assignmentTitles}
-              </div>
-            </div>
+            </Tooltip>
           </div>
         )}
       </div>
@@ -99,17 +94,16 @@ export const LessonDayCell = memo(function LessonDayCell({
   }
 
   // Non-class day (explicitly false, not undefined) gets a gray background
-  // Holiday styling takes precedence over non-class-day styling
-  const isNonClassDay = isClassDay === false && !isHoliday
+  // Class days data is the source of truth - no special holiday styling
+  const isNonClassDay = isClassDay === false
 
   return (
     <div
       className={`
-        relative h-full overflow-hidden
+        relative h-full min-w-0 overflow-hidden
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
-        ${isHoliday ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
         ${isNonClassDay ? 'bg-gray-100 dark:bg-gray-800/50' : ''}
-        ${!editable && !hasContent && !isNonClassDay && !isHoliday ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
+        ${!editable && !hasContent && !isNonClassDay ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
       `}
     >
       {/* Date header */}
@@ -127,22 +121,22 @@ export const LessonDayCell = memo(function LessonDayCell({
 
       {/* Assignment due dates - shown first */}
       {assignments.length > 0 && (
-        <div className={compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}>
+        <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
           {assignments.map((assignment) => (
-            <button
-              key={assignment.id}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onAssignmentClick?.(assignment)
-              }}
-              className={`w-full rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 text-center overflow-hidden text-ellipsis whitespace-nowrap ${
-                compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
-              }`}
-              title={assignment.title}
-            >
-              {compact ? assignment.title : `Due: ${assignment.title}`}
-            </button>
+            <Tooltip key={assignment.id} content={assignment.title}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAssignmentClick?.(assignment)
+                }}
+                className={`w-full min-w-0 rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 text-center truncate ${
+                  compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
+                }`}
+              >
+                {compact ? assignment.title : `Due: ${assignment.title}`}
+              </button>
+            </Tooltip>
           ))}
         </div>
       )}

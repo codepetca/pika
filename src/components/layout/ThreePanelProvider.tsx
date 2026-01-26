@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -209,6 +210,33 @@ export function ThreePanelProvider({
       closeMobileDrawer,
     ]
   )
+
+  // Keyboard shortcuts: Cmd/Ctrl+\ for left panel, Cmd/Ctrl+Shift+\ for right panel
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Check for Cmd (Mac) or Ctrl (Windows/Linux) + \
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        // Don't trigger if user is typing in an input/textarea
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+          return
+        }
+
+        e.preventDefault()
+
+        if (e.shiftKey) {
+          // Cmd/Ctrl+Shift+\: toggle right panel
+          toggleRight()
+        } else {
+          // Cmd/Ctrl+\: toggle left panel
+          toggleLeft()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [toggleLeft, toggleRight])
 
   return (
     <ThreePanelContext.Provider value={value}>
