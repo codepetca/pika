@@ -131,14 +131,14 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
   const { semester1Year, semester2Year } = getSemesterYears()
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
         <h2 className="text-xl font-bold text-text-default mb-4">Create Classroom</h2>
 
         {/* Progress Indicator */}
         <div className="flex items-center mb-6">
-          <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-blue-200 dark:bg-blue-800'}`} />
-          <div className={`flex-1 h-1 rounded ml-2 ${step === 'calendar' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
+          <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-primary' : 'bg-info-bg'}`} />
+          <div className={`flex-1 h-1 rounded ml-2 ${step === 'calendar' ? 'bg-primary' : 'bg-surface-2'}`} />
         </div>
 
         {/* Step 1: Name */}
@@ -174,8 +174,8 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 }}
                 className={`w-full p-4 rounded-lg border-2 transition text-left ${
                   calendarMode === 'preset' && selectedSemester === 'semester1'
-                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border-border-strong hover:border-gray-400 dark:hover:border-gray-500'
+                    ? 'border-primary bg-info-bg'
+                    : 'border-border-strong hover:border-border-strong'
                 }`}
               >
                 <div className="font-medium text-text-default">Semester 1</div>
@@ -192,8 +192,8 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 }}
                 className={`w-full p-4 rounded-lg border-2 transition text-left ${
                   calendarMode === 'preset' && selectedSemester === 'semester2'
-                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border-border-strong hover:border-gray-400 dark:hover:border-gray-500'
+                    ? 'border-primary bg-info-bg'
+                    : 'border-border-strong hover:border-border-strong'
                 }`}
               >
                 <div className="font-medium text-text-default">Semester 2</div>
@@ -207,8 +207,8 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 onClick={() => setCalendarMode('custom')}
                 className={`w-full p-4 rounded-lg border-2 transition ${
                   calendarMode === 'custom'
-                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border-border-strong hover:border-gray-400 dark:hover:border-gray-500'
+                    ? 'border-primary bg-info-bg'
+                    : 'border-border-strong hover:border-border-strong'
                 }`}
               >
                 <div className="font-medium text-text-default">Custom Date Range</div>
@@ -277,7 +277,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
         )}
 
         {error && (
-          <div className="mt-4 text-sm text-red-600 dark:text-red-400">
+          <div className="mt-4 text-sm text-danger">
             {error}
           </div>
         )}

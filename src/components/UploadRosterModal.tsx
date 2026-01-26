@@ -144,15 +144,15 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   // Confirmation screen - show when existing students would be overwritten
   if (confirmationData) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
         <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
           <h2 className="text-xl font-bold text-text-default mb-4">Confirm Roster Update</h2>
 
-          <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
+          <div className="mb-4 p-4 bg-warning-bg border border-warning rounded">
+            <p className="text-sm font-medium text-warning mb-2">
               {confirmationData.updateCount} student{confirmationData.updateCount !== 1 ? 's' : ''} will be updated
             </p>
-            <p className="text-xs text-amber-700 dark:text-amber-400">
+            <p className="text-xs text-warning">
               {confirmationData.newCount} new student{confirmationData.newCount !== 1 ? 's' : ''} will be added
             </p>
           </div>
@@ -161,7 +161,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
             <p className="text-sm font-medium text-text-muted mb-2">
               Changes to be made:
             </p>
-            <div className="max-h-64 overflow-y-auto border border-border rounded divide-y divide-gray-100 dark:divide-gray-800">
+            <div className="max-h-64 overflow-y-auto border border-border rounded divide-y divide-border">
               {confirmationData.changes.map((change) => {
                 const nameChanged = change.current.firstName !== change.incoming.firstName ||
                                    change.current.lastName !== change.incoming.lastName
@@ -175,23 +175,23 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                     <div className="text-text-muted mb-1">{change.email}</div>
                     {nameChanged && (
                       <div className="text-text-muted">
-                        Name: <span className="line-through text-red-500 dark:text-red-400">{change.current.firstName} {change.current.lastName}</span>
+                        Name: <span className="line-through text-danger">{change.current.firstName} {change.current.lastName}</span>
                         {' → '}
-                        <span className="text-green-600 dark:text-green-400">{change.incoming.firstName} {change.incoming.lastName}</span>
+                        <span className="text-success">{change.incoming.firstName} {change.incoming.lastName}</span>
                       </div>
                     )}
                     {numberChanged && (
                       <div className="text-text-muted">
-                        Student #: <span className="line-through text-red-500 dark:text-red-400">{change.current.studentNumber || '(none)'}</span>
+                        Student #: <span className="line-through text-danger">{change.current.studentNumber || '(none)'}</span>
                         {' → '}
-                        <span className="text-green-600 dark:text-green-400">{change.incoming.studentNumber || '(none)'}</span>
+                        <span className="text-success">{change.incoming.studentNumber || '(none)'}</span>
                       </div>
                     )}
                     {counselorChanged && (
                       <div className="text-text-muted truncate">
-                        Counselor: <span className="line-through text-red-500 dark:text-red-400">{change.current.counselorEmail || '(none)'}</span>
+                        Counselor: <span className="line-through text-danger">{change.current.counselorEmail || '(none)'}</span>
                         {' → '}
-                        <span className="text-green-600 dark:text-green-400">{change.incoming.counselorEmail || '(none)'}</span>
+                        <span className="text-success">{change.incoming.counselorEmail || '(none)'}</span>
                       </div>
                     )}
                   </div>
@@ -206,7 +206,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
           </p>
 
           {error && (
-            <div className="mb-4 text-sm text-red-600 dark:text-red-400">
+            <div className="mb-4 text-sm text-danger">
               {error}
             </div>
           )}
@@ -236,7 +236,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
         <h2 className="text-xl font-bold text-text-default mb-4">Upload Roster</h2>
 
@@ -246,7 +246,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
               <label className="block text-sm font-medium text-text-muted">
                 CSV File Format
               </label>
-              <div className="rounded-md border border-border bg-surface text-xs text-gray-800 dark:text-gray-200 overflow-hidden max-w-full">
+              <div className="rounded-md border border-border bg-surface text-xs text-text-default overflow-hidden max-w-full">
                 <div className="grid grid-cols-[minmax(0,_1.2fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1.2fr)] gap-0 text-center text-[10px] leading-tight">
                   {[
                     { label: 'Student Number', optional: false },
@@ -262,7 +262,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                       } whitespace-nowrap`}
                     >
                       {label}
-                      {optional && <span className="text-gray-400 dark:text-gray-500 font-normal"> (opt)</span>}
+                      {optional && <span className="text-text-muted font-normal"> (opt)</span>}
                     </span>
                   ))}
                 </div>
@@ -270,25 +270,25 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
               <label htmlFor={fileInputId} className="block text-sm font-medium text-text-muted mb-2">
                 Choose CSV file
               </label>
-              <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 p-3">
+              <div className="rounded-lg border border-dashed border-border bg-surface-2 p-3">
                 <input
                   id={fileInputId}
                   type="file"
                   accept=".csv"
                   onChange={handleFileChange}
                   disabled={loading}
-                  className="block w-full text-sm text-gray-900 dark:text-gray-400
+                  className="block w-full text-sm text-text-default
                     file:mr-4 file:py-2 file:px-4
                     file:rounded file:border-0
                     file:text-sm file:font-medium
-                    file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-400
-                    hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50
+                    file:bg-info-bg file:text-info
+                    hover:file:bg-info-bg
                     disabled:opacity-50"
                 />
               </div>
             </div>
             {error && (
-              <div className="mb-4 text-sm text-red-600 dark:text-red-400">
+              <div className="mb-4 text-sm text-danger">
                 {error}
               </div>
             )}
@@ -314,21 +314,21 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
           </form>
         ) : (
           <div>
-            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded">
-              <p className="text-sm text-green-800 dark:text-green-300">
+            <div className="mb-4 p-4 bg-success-bg border border-success rounded">
+              <p className="text-sm text-success">
                 Successfully processed {result.totalProcessed} students
               </p>
-              <p className="text-sm text-green-800 dark:text-green-300">
+              <p className="text-sm text-success">
                 Added {result.upsertedCount} students to roster
               </p>
             </div>
 
             {result.errors && result.errors.length > 0 && (
-              <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded">
-                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300 mb-2">
+              <div className="mb-4 p-4 bg-warning-bg border border-warning rounded">
+                <p className="text-sm font-medium text-warning mb-2">
                   {result.errors.length} errors:
                 </p>
-                <ul className="text-xs text-yellow-700 dark:text-yellow-400 space-y-1">
+                <ul className="text-xs text-warning space-y-1">
                   {result.errors.slice(0, 5).map((err: any, i: number) => (
                     <li key={i}>{err.email}: {err.error}</li>
                   ))}

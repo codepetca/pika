@@ -143,7 +143,7 @@ export function AssignmentForm({
           const labelText = relative ? `Due ${relative.text}` : 'Due Date'
           const colorClass = relative
             ? relative.isPast
-              ? 'text-yellow-600 dark:text-yellow-400'
+              ? 'text-warning'
               : 'text-primary'
             : 'text-text-muted'
           return (
@@ -155,7 +155,7 @@ export function AssignmentForm({
         <DateActionBar value={dueAt} onChange={onDueAtChange} onPrev={onPrevDate} onNext={onNextDate} />
       </div>
 
-      {error && <p className="text-sm text-yellow-600 dark:text-yellow-400">{error}</p>}
+      {error && <p className="text-sm text-warning">{error}</p>}
 
       <div className="flex gap-2 justify-end">
         <Button type="submit" disabled={isSubmitDisabled} className="min-w-[5.5rem]">

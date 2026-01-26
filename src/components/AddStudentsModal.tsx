@@ -93,7 +93,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
   const errorCount = preview?.errors.length || 0
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-surface rounded-lg shadow-xl border border-border max-w-2xl w-full p-6 max-h-[90vh] flex flex-col">
         <h2 className="text-xl font-bold text-text-default mb-4">Add Students</h2>
 
@@ -107,7 +107,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
               id="roster-input"
               className="w-full px-3 py-2 border border-border-strong rounded-md
                          bg-surface text-text-default
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400
+                         focus:outline-none focus:ring-2 focus:ring-primary
                          resize-none font-mono text-sm"
               rows={8}
               placeholder={`John Doe john@example.com
@@ -135,7 +135,7 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
                   setShowPreview(!showPreview)
                 }
               }}
-              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mb-3"
+              className="text-sm text-primary hover:text-primary-hover mb-3"
               disabled={isSubmitting}
             >
               {showPreview ? 'Hide Preview' : 'Show Preview'}
@@ -150,7 +150,7 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
                 <div className="text-sm text-text-muted">
                   {validCount} student{validCount !== 1 ? 's' : ''} will be added
                   {errorCount > 0 && (
-                    <span className="text-red-600 dark:text-red-400 ml-2">
+                    <span className="text-danger ml-2">
                       • {errorCount} error{errorCount !== 1 ? 's' : ''}
                     </span>
                   )}
@@ -163,7 +163,7 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
                   <h4 className="text-xs font-medium text-text-muted mb-2">Valid Students</h4>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-gray-100 dark:bg-gray-700">
+                      <thead className="bg-surface-2">
                         <tr>
                           <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
                             First Name
@@ -205,12 +205,12 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
               {/* Errors */}
               {preview.errors.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-medium text-red-700 dark:text-red-400 mb-2">Errors</h4>
+                  <h4 className="text-xs font-medium text-danger mb-2">Errors</h4>
                   <div className="space-y-1">
                     {preview.errors.map((err, idx) => (
                       <div
                         key={idx}
-                        className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded"
+                        className="text-xs text-danger bg-danger-bg px-2 py-1 rounded"
                       >
                         <strong>Line {err.line}:</strong> {err.error} — <code className="font-mono">{err.raw}</code>
                       </div>
@@ -223,7 +223,7 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md px-3 py-2">
+            <div className="mb-4 text-sm text-danger bg-danger-bg border border-danger rounded-md px-3 py-2">
               {error}
             </div>
           )}
@@ -235,7 +235,7 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
             type="button"
             onClick={handleClose}
             disabled={isSubmitting}
-            className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600
+            className="flex-1 px-4 py-2 bg-surface-2 hover:bg-surface-hover
                        text-text-default font-medium rounded-md
                        disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
@@ -245,7 +245,7 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || !preview || preview.students.length === 0}
-            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600
+            className="flex-1 px-4 py-2 bg-primary hover:bg-primary-hover
                        text-white font-medium rounded-md
                        disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

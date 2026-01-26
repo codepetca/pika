@@ -508,7 +508,7 @@ export default function CalendarPage() {
             <h3 className="font-semibold text-text-default">Classes</h3>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="text-primary hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+              className="text-primary hover:text-primary-hover text-sm font-medium"
             >
               + New
             </button>
@@ -520,7 +520,7 @@ export default function CalendarPage() {
                 key={classroom.id}
                 className={`relative p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                    ? 'bg-info-bg border-primary'
                     : 'hover:bg-surface-hover border-transparent'
                 }`}
               >
@@ -541,7 +541,7 @@ export default function CalendarPage() {
                       e.stopPropagation()
                       requestDelete(classroom)
                     }}
-                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
+                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-danger-bg rounded transition"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

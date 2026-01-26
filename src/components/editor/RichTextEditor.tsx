@@ -185,7 +185,7 @@ export function RichTextEditor({
           validate: (href) => isSafeLinkHref(href),
           HTMLAttributes: {
             class:
-              'text-primary underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer',
+              'text-primary underline hover:text-primary-hover cursor-pointer',
             rel: 'noopener noreferrer nofollow',
             target: '_blank',
           },
@@ -193,7 +193,7 @@ export function RichTextEditor({
         codeBlock: {
           HTMLAttributes: {
             class:
-              'bg-gray-900 dark:bg-gray-950 text-gray-100 p-4 rounded font-mono text-sm',
+              'bg-gray-900 text-gray-100 p-4 rounded font-mono text-sm',
           },
         },
       }),

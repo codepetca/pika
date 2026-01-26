@@ -222,7 +222,7 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
                           key={assignment.id}
                           type="button"
                           onClick={() => navigate({ assignmentId: assignment.id })}
-                          className="w-full text-left block p-4 border border-border rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
+                          className="w-full text-left block p-4 border border-border rounded-lg hover:border-primary hover:bg-info-bg transition"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
@@ -271,7 +271,7 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             type="button"
-            className="absolute inset-0 bg-black/50 dark:bg-black/70"
+            className="absolute inset-0 bg-black/60"
             aria-label="Close instructions"
             onClick={handleCloseInstructions}
           />

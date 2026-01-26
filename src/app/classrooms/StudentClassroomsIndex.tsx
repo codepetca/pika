@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/ui'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import type { Classroom } from '@/types'
 
@@ -39,13 +40,9 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
           <div className="bg-surface rounded-lg shadow-sm border border-border p-10 text-center">
             <h2 className="text-lg font-semibold text-text-default">No classrooms yet</h2>
             <div className="mt-6">
-              <button
-                type="button"
-                className="px-4 py-2 rounded-md bg-blue-600 dark:bg-blue-700 text-white text-sm hover:bg-blue-700 dark:hover:bg-blue-600"
-                onClick={() => router.push('/join')}
-              >
+              <Button onClick={() => router.push('/join')}>
                 Join classroom
-              </button>
+              </Button>
             </div>
           </div>
         ) : (

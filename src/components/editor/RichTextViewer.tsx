@@ -46,7 +46,7 @@ export function RichTextViewer({ content, showPlainText = false }: RichTextViewe
           validate: (href) => isSafeLinkHref(href),
           HTMLAttributes: {
             class:
-              'text-primary underline hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer',
+              'text-primary underline hover:text-primary-hover cursor-pointer',
             rel: 'noopener noreferrer nofollow',
             target: '_blank',
           },
@@ -54,7 +54,7 @@ export function RichTextViewer({ content, showPlainText = false }: RichTextViewe
         codeBlock: {
           HTMLAttributes: {
             class:
-              'bg-gray-900 dark:bg-gray-950 text-gray-100 p-4 rounded font-mono text-sm',
+              'bg-gray-900 text-gray-100 p-4 rounded font-mono text-sm',
           },
         },
       }),
@@ -81,14 +81,14 @@ export function RichTextViewer({ content, showPlainText = false }: RichTextViewe
 
   if (showPlainText) {
     return (
-      <pre className="whitespace-pre-wrap font-mono text-sm text-gray-800 dark:text-gray-200 bg-page p-4 rounded-none border border-border h-full overflow-y-auto">
+      <pre className="whitespace-pre-wrap font-mono text-sm text-text-default bg-page p-4 rounded-none border border-border h-full overflow-y-auto">
         {editor.getText()}
       </pre>
     )
   }
 
   return (
-    <div className="simple-editor-wrapper bg-gray-50 dark:bg-gray-900 p-4 rounded-none border border-border flex flex-col min-h-0 h-full">
+    <div className="simple-editor-wrapper bg-surface-2 p-4 rounded-none border border-border flex flex-col min-h-0 h-full">
       <div className="flex-1 min-h-0 overflow-y-auto">
         <EditorContent editor={editor} />
       </div>

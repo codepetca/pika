@@ -129,10 +129,10 @@ export default function ClassroomPage() {
       <AppShell showHeader={false}>
         <div className="max-w-md mx-auto mt-12">
           <div className="bg-surface rounded-lg shadow-sm border border-border p-8 text-center">
-            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+            <p className="text-danger mb-4">{error}</p>
             <button
               onClick={() => router.back()}
-              className="text-primary hover:text-blue-700 dark:hover:text-blue-300"
+              className="text-primary hover:text-primary-hover"
             >
               Go back
             </button>
@@ -455,7 +455,7 @@ function ClassroomPageContent({
 
         <MainContent>
           {isArchived && (
-            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+            <div className="mb-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
               This classroom is archived. You can view content, but changes are
               disabled until it is restored.
             </div>

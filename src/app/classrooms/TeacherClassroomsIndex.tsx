@@ -264,7 +264,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
       <PageContent>
         {error && (
-          <div className="mb-3 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-700 dark:text-red-200">
+          <div className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
           </div>
         )}
@@ -318,7 +318,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                     <button
                       type="button"
                       onClick={() => setPendingAction({ mode: 'archive', classroom: c })}
-                      className="px-3 py-1.5 rounded-md text-xs font-medium border border-border text-gray-700 dark:text-gray-200 hover:bg-surface-hover"
+                      className="px-3 py-1.5 rounded-md text-xs font-medium border border-border text-text-default hover:bg-surface-hover"
                     >
                       Archive
                     </button>
@@ -327,14 +327,14 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                       <button
                         type="button"
                         onClick={() => setPendingAction({ mode: 'restore', classroom: c })}
-                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-border text-gray-700 dark:text-gray-200 hover:bg-surface-hover"
+                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-border text-text-default hover:bg-surface-hover"
                       >
                         Restore
                       </button>
                       <button
                         type="button"
                         onClick={() => setPendingAction({ mode: 'delete', classroom: c })}
-                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-danger text-danger hover:bg-danger-bg"
                       >
                         Delete
                       </button>

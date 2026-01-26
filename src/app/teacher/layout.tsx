@@ -27,13 +27,13 @@ export default async function TeacherLayout({
               <Image src="/pika_silhouette.png" alt="Pika" width={40} height={40} className="object-contain" />
               <Link
                 href="/classrooms"
-                className="text-text-muted hover:text-gray-900 dark:hover:text-gray-100"
+                className="text-text-muted hover:text-text-default"
               >
                 Classrooms
               </Link>
               <Link
                 href="/teacher/calendar"
-                className="text-text-muted hover:text-gray-900 dark:hover:text-gray-100"
+                className="text-text-muted hover:text-text-default"
               >
                 Calendar
               </Link>
@@ -42,7 +42,7 @@ export default async function TeacherLayout({
               <span className="text-sm text-text-muted">{user.email}</span>
               <Link
                 href="/logout"
-                className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                className="text-sm text-danger hover:text-danger-hover"
               >
                 Logout
               </Link>

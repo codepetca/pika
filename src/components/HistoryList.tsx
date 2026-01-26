@@ -12,7 +12,7 @@ interface HistoryListProps {
 }
 
 function getTriggerBadgeClasses(): string {
-  return 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+  return 'bg-surface-2 text-text-muted'
 }
 
 function getTriggerLabel(trigger: string): string {
@@ -62,7 +62,7 @@ export function HistoryList({
                     onClick={() => onEntryClick(entry)}
                     className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
                       isActive
-                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
+                        ? 'bg-info-bg text-info'
                         : 'bg-surface hover:bg-surface-hover text-text-muted'
                     }`}
                   >
@@ -84,11 +84,11 @@ export function HistoryList({
                       <span
                         className={`text-xs ${
                           charDiff > 200
-                            ? 'text-orange-600 dark:text-orange-400 font-bold'
+                            ? 'text-warning font-bold'
                             : charDiff > 0
-                              ? 'text-green-600 dark:text-green-400'
+                              ? 'text-success'
                               : charDiff < 0
-                                ? 'text-red-600 dark:text-red-400'
+                                ? 'text-danger'
                                 : 'text-gray-500'
                         }`}
                       >
@@ -129,8 +129,8 @@ export function HistoryList({
                   onMouseEnter={onEntryHover ? () => onEntryHover(entry) : undefined}
                   className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
                     isActive
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                      : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-text-muted'
+                      ? 'bg-info-bg text-info'
+                      : 'hover:bg-surface-hover text-text-muted'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -151,12 +151,12 @@ export function HistoryList({
                     <span
                       className={`text-[10px] ${
                         charDiff > 200
-                          ? 'text-orange-600 dark:text-orange-400 font-bold'
+                          ? 'text-warning font-bold'
                           : charDiff > 0
-                            ? 'text-green-600 dark:text-green-400'
+                            ? 'text-success'
                             : charDiff < 0
-                              ? 'text-red-600 dark:text-red-400'
-                              : 'text-gray-500 dark:text-gray-500'
+                              ? 'text-danger'
+                              : 'text-text-muted'
                       }`}
                     >
                       {charDiff > 0 ? '+' : ''}

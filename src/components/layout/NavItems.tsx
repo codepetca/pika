@@ -281,8 +281,8 @@ export function NavItems({
                   'group flex flex-1 items-center rounded-md text-base font-medium transition-colors',
                   layoutClass,
                   isActive
-                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
-                    : 'text-text-muted hover:bg-surface-hover hover:text-gray-900 dark:hover:text-gray-100',
+                    ? 'bg-info-bg text-info'
+                    : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
                 ].join(' ')}
               >
                 <Icon
@@ -331,10 +331,10 @@ export function NavItems({
                           className={[
                             'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
                             isAssignmentActive
-                              ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                              ? 'bg-info-bg text-info'
                               : isUnviewed
-                                ? 'text-primary font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                                : 'text-text-muted hover:bg-surface-hover hover:text-gray-900 dark:hover:text-gray-100',
+                                ? 'text-primary font-medium hover:bg-info-bg'
+                                : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
                           ].join(' ')}
                         >
                           <span className="truncate block">{assignment.title}</span>
@@ -368,8 +368,8 @@ export function NavItems({
                   'group flex items-center rounded-md text-base font-medium transition-colors',
                   layoutClass,
                   isActive
-                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
-                    : 'text-text-muted hover:bg-surface-hover hover:text-gray-900 dark:hover:text-gray-100',
+                    ? 'bg-info-bg text-info'
+                    : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
                 ].join(' ')}
               >
                 <Icon className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
@@ -415,8 +415,8 @@ export function NavItems({
                           className={[
                             'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
                             isAssignmentActive
-                              ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
-                              : 'text-text-muted hover:bg-surface-hover hover:text-gray-900 dark:hover:text-gray-100',
+                              ? 'bg-info-bg text-info'
+                              : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
                           ].join(' ')}
                         >
                           <span className="truncate block">{assignment.title}</span>
@@ -445,8 +445,8 @@ export function NavItems({
               'group flex items-center rounded-md text-base font-medium transition-colors',
               layoutClass,
               isActive
-                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
-                : 'text-text-muted hover:bg-surface-hover hover:text-gray-900 dark:hover:text-gray-100',
+                ? 'bg-info-bg text-info'
+                : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
             ].join(' ')}
           >
             <Icon

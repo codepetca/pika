@@ -96,7 +96,7 @@ export function UserMenu({ user }: UserMenuProps) {
     return (
       <Link
         href="/login"
-        className="text-sm text-text-muted hover:text-gray-900 dark:hover:text-white font-medium"
+        className="text-sm text-text-muted hover:text-text-default font-medium"
       >
         Login
       </Link>
@@ -116,7 +116,7 @@ export function UserMenu({ user }: UserMenuProps) {
         id={triggerId}
         onClick={handleTriggerClick}
         onKeyDown={handleTriggerKeyDown}
-        className="flex items-center justify-center w-8 h-8 rounded-full transition-all hover:ring-2 hover:ring-gray-300 dark:hover:ring-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+        className="flex items-center justify-center w-8 h-8 rounded-full transition-all hover:ring-2 hover:ring-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         aria-label="User menu"
         aria-expanded={isOpen}
         aria-haspopup="menu"
@@ -143,14 +143,14 @@ export function UserMenu({ user }: UserMenuProps) {
         aria-labelledby={triggerId}
       >
         {/* User info section */}
-        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center gap-3">
             {initials ? (
               <span className={`w-10 h-10 rounded-full ${colorClass} flex items-center justify-center text-white text-base font-semibold flex-shrink-0`}>
                 {initials}
               </span>
             ) : (
-              <UserCircle className="w-10 h-10 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+              <UserCircle className="w-10 h-10 text-text-muted flex-shrink-0" />
             )}
             <div className="min-w-0">
               {fullName && (
@@ -161,7 +161,7 @@ export function UserMenu({ user }: UserMenuProps) {
               <p className={`text-sm text-text-muted truncate ${fullName ? '' : 'font-medium text-text-default'}`}>
                 {user.email}
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 capitalize">
+              <p className="text-xs text-text-muted capitalize">
                 {user.role}
               </p>
             </div>
@@ -177,8 +177,8 @@ export function UserMenu({ user }: UserMenuProps) {
           onKeyDown={handleItemKeyDown}
           className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
             focusedIndex === 0
-              ? 'bg-gray-100 dark:bg-gray-700'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              ? 'bg-surface-2'
+              : 'hover:bg-surface-hover'
           }`}
           role="menuitem"
           tabIndex={isOpen ? 0 : -1}
@@ -199,8 +199,8 @@ export function UserMenu({ user }: UserMenuProps) {
           onKeyDown={handleItemKeyDown}
           className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
             focusedIndex === 1
-              ? 'bg-gray-100 dark:bg-gray-700'
-              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              ? 'bg-surface-2'
+              : 'hover:bg-surface-hover'
           }`}
           role="menuitem"
           tabIndex={isOpen ? 0 : -1}

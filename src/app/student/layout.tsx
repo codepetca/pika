@@ -27,13 +27,13 @@ export default async function StudentLayout({
               <Image src="/pika_silhouette.png" alt="Pika" width={40} height={40} className="object-contain" />
               <Link
                 href="/classrooms"
-                className="text-text-muted hover:text-gray-900 dark:hover:text-white"
+                className="text-text-muted hover:text-text-default"
               >
                 Classrooms
               </Link>
               <Link
                 href="/student/history"
-                className="text-text-muted hover:text-gray-900 dark:hover:text-white"
+                className="text-text-muted hover:text-text-default"
               >
                 History
               </Link>

@@ -337,7 +337,7 @@ export default function HistoryPage() {
               </h3>
               <button
                 onClick={() => setSelectedEntry(null)}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-2xl"
+                className="text-gray-500 hover:text-text-default text-2xl"
               >
                 ×
               </button>

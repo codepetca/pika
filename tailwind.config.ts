@@ -62,12 +62,25 @@ const config: Config = {
         success: {
           DEFAULT: 'var(--color-success)',
           hover: 'var(--color-success-hover)',
+          bg: {
+            DEFAULT: 'var(--color-success-bg)',
+            muted: 'var(--color-success-bg-muted)',
+            hover: 'var(--color-success-bg-hover)',
+          },
         },
         danger: {
           DEFAULT: 'var(--color-danger)',
           hover: 'var(--color-danger-hover)',
+          bg: 'var(--color-danger-bg)',
         },
-        warning: 'var(--color-warning)',
+        warning: {
+          DEFAULT: 'var(--color-warning)',
+          bg: 'var(--color-warning-bg)',
+        },
+        info: {
+          DEFAULT: 'var(--color-info)',
+          bg: 'var(--color-info-bg)',
+        },
       },
       borderRadius: {
         control: 'var(--radius-control)',

@@ -42,9 +42,16 @@
   /* Status colors */
   --color-success: #16a34a;
   --color-success-hover: #15803d;
+  --color-success-bg: #dcfce7;
+  --color-success-bg-muted: #ecfdf5;
+  --color-success-bg-hover: #bbf7d0;
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
-  --color-warning: #eab308;
+  --color-danger-bg: #fee2e2;
+  --color-warning: #d97706;
+  --color-warning-bg: #fef3c7;
+  --color-info: #2563eb;
+  --color-info-bg: #dbeafe;
 
   /* Shadows */
   --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
@@ -87,9 +94,16 @@
   /* Status colors - dark mode */
   --color-success: #22c55e;
   --color-success-hover: #16a34a;
+  --color-success-bg: rgba(22, 101, 52, 0.5);
+  --color-success-bg-muted: rgba(22, 101, 52, 0.25);
+  --color-success-bg-hover: rgba(22, 101, 52, 0.6);
   --color-danger: #ef4444;
   --color-danger-hover: #dc2626;
-  --color-warning: #facc15;
+  --color-danger-bg: rgba(127, 29, 29, 0.3);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(120, 53, 15, 0.3);
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(30, 58, 138, 0.3);
 
   /* Shadows - dark mode */
   --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);

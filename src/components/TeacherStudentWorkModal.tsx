@@ -167,7 +167,7 @@ export function TeacherStudentWorkModal({
     <div className="fixed inset-0 z-50 flex items-start justify-center p-2">
       <button
         type="button"
-        className="absolute inset-0 bg-black/50 dark:bg-black/70"
+        className="absolute inset-0 bg-black/60"
         aria-label="Close dialog"
         onClick={onClose}
       />
@@ -261,7 +261,7 @@ export function TeacherStudentWorkModal({
               <Spinner size="lg" />
             </div>
           ) : error ? (
-            <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
+            <div className="text-sm text-danger">{error}</div>
           ) : !data ? (
             <div className="text-sm text-text-muted">No data</div>
           ) : (
@@ -274,7 +274,7 @@ export function TeacherStudentWorkModal({
                   <div className={`flex-1 min-h-0 border-b md:border-b-0 border-border flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
                     {data.doc && data.doc.content && !isEmpty(data.doc.content) ? (
                       <div className="flex-1 min-h-0">
-                        <div className={previewEntry ? 'ring-2 ring-blue-400 dark:ring-blue-600 rounded-lg p-2 h-full' : 'h-full'}>
+                        <div className={previewEntry ? 'ring-2 ring-primary rounded-lg p-2 h-full' : 'h-full'}>
                           <RichTextViewer
                             content={previewContent || data.doc.content}
                             showPlainText={showPlainText}
@@ -310,7 +310,7 @@ export function TeacherStudentWorkModal({
                           </div>
                         ) : historyError ? (
                           <div className="p-4">
-                            <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                            <p className="text-xs text-danger">{historyError}</p>
                           </div>
                         ) : historyEntries.length === 0 ? (
                           <div className="p-4">
@@ -360,7 +360,7 @@ export function TeacherStudentWorkModal({
                           <Spinner size="sm" />
                         </div>
                       ) : historyError ? (
-                        <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                        <p className="text-xs text-danger">{historyError}</p>
                       ) : historyEntries.length === 0 ? (
                         <p className="text-xs text-text-muted">No saves yet</p>
                       ) : (

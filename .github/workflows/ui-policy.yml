@@ -72,14 +72,14 @@ jobs:
         run: |
           echo "Checking for dark: classes outside /ui..."
 
-          # Count dark: usages outside /ui (excluding tiptap)
-          DARK_COUNT=$(grep -r "dark:" src/app src/components --include="*.tsx" | grep -v "src/ui/" | grep -v "src/components/tiptap" | wc -l | tr -d ' ')
+          # Count dark: usages outside /ui (excluding tiptap and logo which uses image filters)
+          DARK_COUNT=$(grep -r "dark:" src/app src/components --include="*.tsx" | grep -v "src/ui/" | grep -v "src/components/tiptap" | grep -v "PikaLogo.tsx" | wc -l | tr -d ' ')
 
           if [ "$DARK_COUNT" -gt 0 ]; then
             echo "ERROR: Found $DARK_COUNT dark: classes outside /ui"
             echo ""
             echo "Files with dark: classes:"
-            grep -r "dark:" src/app src/components --include="*.tsx" | grep -v "src/ui/" | grep -v "src/components/tiptap" | cut -d: -f1 | sort -u
+            grep -r "dark:" src/app src/components --include="*.tsx" | grep -v "src/ui/" | grep -v "src/components/tiptap" | grep -v "PikaLogo.tsx" | cut -d: -f1 | sort -u
             echo ""
             echo "Use semantic tokens instead (bg-surface, text-text-default, border-border, etc.)"
             echo "See src/ui/README.md for the design system documentation."

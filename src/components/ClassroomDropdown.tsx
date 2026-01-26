@@ -107,7 +107,7 @@ export function ClassroomDropdown({
         onClick={handleClick}
         onTouchStart={handleTouchStart}
         onKeyDown={handleTriggerKeyDown}
-        className="px-2 py-1 -mx-2 text-xl font-bold text-text-default truncate max-w-xs rounded-md transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+        className="px-2 py-1 -mx-2 text-xl font-bold text-text-default truncate max-w-xs rounded-md transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-controls={menuId}
@@ -136,9 +136,9 @@ export function ClassroomDropdown({
             onClick={() => handleSelect(index)}
             onMouseEnter={() => setFocusedIndex(index)}
             onKeyDown={handleItemKeyDown}
-            className={`w-full px-3 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200 transition-colors truncate focus:outline-none ${
+            className={`w-full px-3 py-2 text-left text-sm font-medium text-text-default transition-colors truncate focus:outline-none ${
               focusedIndex === index
-                ? 'bg-gray-100 dark:bg-gray-700'
+                ? 'bg-surface-2'
                 : 'hover:bg-surface-hover'
             }`}
             role="option"

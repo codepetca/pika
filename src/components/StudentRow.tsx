@@ -64,7 +64,7 @@ export function StudentRowMedium({
         {(name || studentNumber) && (
           <div className="flex items-center gap-2 mt-0.5 text-xs text-text-muted">
             {name && <span className="font-medium truncate">{name}</span>}
-            {studentNumber && <span className="text-gray-500 dark:text-gray-500">#{studentNumber}</span>}
+            {studentNumber && <span className="text-text-muted">#{studentNumber}</span>}
           </div>
         )}
       </div>
@@ -114,7 +114,7 @@ export function StudentRowExpandable({
         </span>
       </div>
       {expanded && expandedContent && (
-        <div className="px-3 pb-3 pt-1 bg-gray-50 dark:bg-gray-900 border-t border-border">
+        <div className="px-3 pb-3 pt-1 bg-surface-2 border-t border-border">
           {expandedContent}
         </div>
       )}

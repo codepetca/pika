@@ -106,7 +106,7 @@ function formatTorontoDateTime(iso: string) {
 
 function getRowClassName(isSelected: boolean): string {
   if (isSelected) {
-    return 'cursor-pointer bg-blue-100 dark:bg-blue-900/50 border-l-2 border-l-blue-500'
+    return 'cursor-pointer bg-info-bg border-l-2 border-l-blue-500'
   }
   return 'cursor-pointer border-l-2 border-l-transparent hover:bg-surface-hover'
 }
@@ -526,7 +526,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
       <PageContent className="space-y-4">
         {error && (
-          <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-700 dark:text-red-200">
+          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
           </div>
         )}
@@ -587,7 +587,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                 <Spinner />
               </div>
             ) : selectedAssignmentError || !selectedAssignmentData ? (
-              <div className="p-4 text-sm text-red-600 dark:text-red-400">
+              <div className="p-4 text-sm text-danger">
                 {selectedAssignmentError || 'Failed to load assignment'}
               </div>
             ) : (
@@ -727,19 +727,19 @@ export function TeacherAssignmentsMarkdownSidebar({
   return (
     <div className="flex flex-col h-full">
       {hasRichContent && (
-        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400">
+        <div className="mx-3 mt-3 p-2 rounded bg-warning-bg text-sm text-warning">
           Some assignments have rich formatting that will be lost when editing as plain text.
         </div>
       )}
 
       {markdownWarning && (
-        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400 whitespace-pre-wrap">
+        <div className="mx-3 mt-3 p-2 rounded bg-warning-bg text-sm text-warning whitespace-pre-wrap">
           <strong>Warning:</strong> {markdownWarning}
         </div>
       )}
 
       {markdownError && (
-        <div className="mx-3 mt-3 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
+        <div className="mx-3 mt-3 p-2 rounded bg-danger-bg text-sm text-danger whitespace-pre-wrap">
           {markdownError}
         </div>
       )}

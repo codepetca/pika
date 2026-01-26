@@ -424,10 +424,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     if (isEmbedded) {
       return (
         <div className="bg-surface rounded-lg shadow-sm border border-border p-8 text-center">
-          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+          <p className="text-danger mb-4">{error}</p>
           <button
             onClick={exit}
-            className="text-primary hover:text-blue-700 dark:hover:text-blue-300"
+            className="text-primary hover:text-primary-hover"
           >
             Back to assignments
           </button>
@@ -477,7 +477,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 {assignment.title}
               </div>
               {previewEntry && (
-                <div className="text-xs text-yellow-600 dark:text-yellow-400">
+                <div className="text-xs text-warning">
                   Previewing save from {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
                 </div>
               )}
@@ -485,10 +485,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             <div
               className={`text-xs ${
                 saveStatus === 'saved'
-                  ? 'text-green-600 dark:text-green-400'
+                  ? 'text-success'
                   : saveStatus === 'saving'
                     ? 'text-text-muted'
-                    : 'text-orange-600 dark:text-orange-400'
+                    : 'text-warning'
               }`}
             >
               {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
@@ -513,7 +513,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         <div className="flex flex-1 min-h-0 flex-col md:flex-row">
           {/* Editor */}
           <div className={`flex-1 min-h-0 border-b md:border-b-0 border-border flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
-            <div className={previewEntry ? 'ring-2 ring-yellow-400 dark:ring-yellow-600 rounded-lg flex-1 min-h-0' : 'flex-1 min-h-0'}>
+            <div className={previewEntry ? 'ring-2 ring-warning rounded-lg flex-1 min-h-0' : 'flex-1 min-h-0'}>
               <RichTextEditor
                 content={previewContent || content}
                 onChange={handleContentChange}
@@ -527,7 +527,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
             {error && (
               <div className="mt-4">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-sm text-danger">{error}</p>
               </div>
             )}
           </div>
@@ -550,7 +550,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </div>
                 ) : historyError ? (
                   <div className="p-4">
-                    <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                    <p className="text-xs text-danger">{historyError}</p>
                   </div>
                 ) : historyEntries.length === 0 ? (
                   <div className="p-4">
@@ -607,7 +607,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   <Spinner size="sm" />
                 </div>
               ) : historyError ? (
-                <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                <p className="text-xs text-danger">{historyError}</p>
               ) : historyEntries.length === 0 ? (
                 <p className="text-xs text-text-muted">No saves yet</p>
               ) : (

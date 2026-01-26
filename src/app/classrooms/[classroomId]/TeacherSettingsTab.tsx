@@ -149,7 +149,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'general'
               ? 'border-blue-500 text-primary'
-              : 'border-transparent text-text-muted hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              : 'border-transparent text-text-muted hover:text-text-default hover:border-border'
           }`}
         >
           General
@@ -159,7 +159,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'class-days'
               ? 'border-blue-500 text-primary'
-              : 'border-transparent text-text-muted hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+              : 'border-transparent text-text-muted hover:text-text-default hover:border-border'
           }`}
         >
           Class Days
@@ -192,8 +192,8 @@ export function TeacherSettingsTab({ classroom }: Props) {
           <PageContent className="space-y-5">
             {(enrollmentError || enrollmentSuccess) && (
               <div className="space-y-2">
-                {enrollmentError && <div className="text-sm text-red-600 dark:text-red-400">{enrollmentError}</div>}
-                {enrollmentSuccess && <div className="text-sm text-green-700 dark:text-green-400">{enrollmentSuccess}</div>}
+                {enrollmentError && <div className="text-sm text-danger">{enrollmentError}</div>}
+                {enrollmentSuccess && <div className="text-sm text-success">{enrollmentSuccess}</div>}
               </div>
             )}
 
@@ -206,7 +206,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
               <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
                 <button
                   type="button"
-                  className="w-full sm:w-auto rounded-md border border-border bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-base font-semibold text-text-default hover:bg-surface-hover"
+                  className="w-full sm:w-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-left font-mono text-base font-semibold text-text-default hover:bg-surface-hover"
                   onClick={() => copyWithNotice('Join code', joinCode)}
                   aria-label="Copy join code"
                 >
@@ -224,7 +224,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
 
                 <button
                   type="button"
-                  className="w-full flex-1 rounded-md border border-border bg-gray-50 dark:bg-gray-900 px-3 py-2 text-left font-mono text-xs text-gray-700 dark:text-gray-200 hover:bg-surface-hover truncate"
+                  className="w-full flex-1 rounded-md border border-border bg-surface-2 px-3 py-2 text-left font-mono text-xs text-text-default hover:bg-surface-hover truncate"
                   onClick={() => copyWithNotice('Join link', joinLink)}
                   aria-label="Copy join link"
                   title={joinLink}
@@ -233,9 +233,9 @@ export function TeacherSettingsTab({ classroom }: Props) {
                 </button>
               </div>
 
-              {joinCodeError && <div className="text-sm text-red-600 dark:text-red-400">{joinCodeError}</div>}
-              {joinCodeSuccess && <div className="text-sm text-green-700 dark:text-green-400">{joinCodeSuccess}</div>}
-              {copyNotice && <div className="text-xs text-blue-600 dark:text-blue-300">{copyNotice}</div>}
+              {joinCodeError && <div className="text-sm text-danger">{joinCodeError}</div>}
+              {joinCodeSuccess && <div className="text-sm text-success">{joinCodeSuccess}</div>}
+              {copyNotice && <div className="text-xs text-info">{copyNotice}</div>}
             </div>
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
@@ -262,8 +262,8 @@ export function TeacherSettingsTab({ classroom }: Props) {
                 {visibilitySaving && <span className="text-sm text-gray-500">Saving...</span>}
               </div>
 
-              {visibilityError && <div className="text-sm text-red-600 dark:text-red-400">{visibilityError}</div>}
-              {visibilitySuccess && <div className="text-sm text-green-700 dark:text-green-400">{visibilitySuccess}</div>}
+              {visibilityError && <div className="text-sm text-danger">{visibilityError}</div>}
+              {visibilitySuccess && <div className="text-sm text-success">{visibilitySuccess}</div>}
             </div>
 
             <ConfirmDialog

@@ -53,7 +53,7 @@ export function AppHeader({
             <button
               type="button"
               onClick={onOpenSidebar}
-              className="lg:hidden p-2 -ml-2 rounded-md text-text-muted hover:text-gray-900 dark:hover:text-white hover:bg-surface-hover transition-colors"
+              className="lg:hidden p-2 -ml-2 rounded-md text-text-muted hover:text-text-default hover:bg-surface-hover transition-colors"
               aria-label="Open classroom navigation"
             >
               <Menu className="w-5 h-5" />

@@ -301,8 +301,8 @@ export function LessonCalendar({
                   onClick={() => onViewModeChange(mode)}
                   className={`px-3 py-1 text-sm rounded-md capitalize transition-colors ${
                     viewMode === mode
-                      ? 'bg-white dark:bg-gray-700 shadow-sm font-medium'
-                      : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                      ? 'bg-surface shadow-sm font-medium'
+                      : 'hover:bg-surface-hover'
                   }`}
                 >
                   {mode}
@@ -350,7 +350,7 @@ export function LessonCalendar({
               key={label}
               className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-border last:border-r-0 ${
                 isWeekendDay
-                  ? 'text-gray-400 dark:text-gray-500'
+                  ? 'text-text-muted'
                   : 'text-text-muted'
               }`}
             >
@@ -381,7 +381,7 @@ export function LessonCalendar({
         {viewMode === 'all' && monthSpans.map((span) => (
           <div
             key={span.month}
-            className="relative border-b border-r border-border bg-gray-50 dark:bg-gray-900 flex items-center justify-center"
+            className="relative border-b border-r border-border bg-surface-2 flex items-center justify-center"
             style={{
               gridColumn: 1,
               gridRow: `${span.startIdx + 1} / span ${span.count}`,

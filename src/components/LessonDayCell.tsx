@@ -63,12 +63,12 @@ export const LessonDayCell = memo(function LessonDayCell({
     return (
       <div
         className={`
-          h-full bg-gray-50 dark:bg-gray-900
+          h-full bg-surface-2
           ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         `}
       >
         <div className={`px-0.5 ${compact ? 'py-0' : 'py-0.5'} text-center`}>
-          <span className={`font-medium text-gray-400 dark:text-gray-500 ${compact ? 'text-[10px]' : 'text-sm'}`}>
+          <span className={`font-medium text-text-muted ${compact ? 'text-[10px]' : 'text-sm'}`}>
             {format(day, 'd')}
           </span>
         </div>
@@ -84,7 +84,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                     onAssignmentClick?.(assignments[0])
                   }
                 }}
-                className={`w-full min-w-[12px] rounded bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700 cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
+                className={`w-full min-w-[12px] rounded bg-primary hover:bg-primary-hover cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
               />
             </Tooltip>
           </div>
@@ -103,7 +103,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         relative h-full min-w-0 overflow-hidden
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         ${isNonClassDay ? 'bg-surface-2/50' : ''}
-        ${!editable && !hasContent && !isNonClassDay ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
+        ${!editable && !hasContent && !isNonClassDay ? 'bg-surface-2/50' : ''}
       `}
     >
       {/* Date header */}
@@ -130,7 +130,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                   e.stopPropagation()
                   onAssignmentClick?.(assignment)
                 }}
-                className={`w-full min-w-0 rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 text-center truncate ${
+                className={`w-full min-w-0 rounded bg-primary text-white font-medium hover:bg-primary-hover text-center truncate ${
                   compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
                 }`}
               >

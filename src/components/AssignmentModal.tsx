@@ -471,7 +471,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
     >
@@ -488,10 +488,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           <span
             className={`text-xs ${
               saveStatus === 'saved'
-                ? 'text-green-600 dark:text-green-400'
+                ? 'text-success'
                 : saveStatus === 'saving'
                   ? 'text-text-muted'
-                  : 'text-orange-600 dark:text-orange-400'
+                  : 'text-warning'
             }`}
           >
             {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}

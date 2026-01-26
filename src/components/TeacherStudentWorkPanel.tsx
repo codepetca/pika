@@ -135,7 +135,7 @@ export function TeacherStudentWorkPanel({
 
   if (error) {
     return (
-      <div className="p-4 text-sm text-red-600 dark:text-red-400">{error}</div>
+      <div className="p-4 text-sm text-danger">{error}</div>
     )
   }
 
@@ -152,8 +152,8 @@ export function TeacherStudentWorkPanel({
     <div className="flex flex-col h-full">
       {/* Preview banner */}
       {previewEntry && (
-        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-800">
-          <div className="text-xs text-blue-700 dark:text-blue-300">
+        <div className="px-4 py-2 bg-info-bg border-b border-primary">
+          <div className="text-xs text-info">
             Previewing: {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
           </div>
         </div>
@@ -162,7 +162,7 @@ export function TeacherStudentWorkPanel({
       {/* Main content area: Student work + History side by side */}
       <div className="flex-1 min-h-0 flex">
         {/* Student work content */}
-        <div className={`flex-1 min-h-0 overflow-auto p-4 ${previewEntry ? 'ring-2 ring-blue-400 dark:ring-blue-600 ring-inset' : ''}`}>
+        <div className={`flex-1 min-h-0 overflow-auto p-4 ${previewEntry ? 'ring-2 ring-primary ring-inset' : ''}`}>
           {displayContent && !isEmpty(displayContent) ? (
             <div>
               <RichTextViewer content={displayContent} />
@@ -194,7 +194,7 @@ export function TeacherStudentWorkPanel({
               </div>
             ) : historyError ? (
               <div className="p-3">
-                <p className="text-xs text-red-600 dark:text-red-400">{historyError}</p>
+                <p className="text-xs text-danger">{historyError}</p>
               </div>
             ) : historyEntries.length === 0 ? (
               <div className="p-3">

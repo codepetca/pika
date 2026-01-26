@@ -182,7 +182,7 @@ export default function TeacherDashboardPage() {
             <h3 className="font-semibold text-text-default">Classes</h3>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="text-primary hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+              className="text-primary hover:text-primary-hover text-sm font-medium"
             >
               + New
             </button>
@@ -194,7 +194,7 @@ export default function TeacherDashboardPage() {
                 key={classroom.id}
                 className={`relative p-3 rounded transition border ${
                   selectedClassroom?.id === classroom.id
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                    ? 'bg-info-bg border-primary'
                     : 'hover:bg-surface-hover border-transparent'
                 }`}
               >
@@ -215,7 +215,7 @@ export default function TeacherDashboardPage() {
                       e.stopPropagation()
                       requestDelete(classroom)
                     }}
-                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition"
+                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-600 hover:bg-danger-bg rounded transition"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -297,19 +297,19 @@ export default function TeacherDashboardPage() {
                     <table className="min-w-full divide-y divide-border">
                       <thead className="bg-surface-2">
                         <tr>
-                          <th className="sticky left-0 z-10 bg-surface-2 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th className="sticky left-0 z-10 bg-surface-2 px-6 py-3 text-left text-xs font-medium text-text-muted uppercase tracking-wider">
                             Student
                           </th>
-                          <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider">
                             Present
                           </th>
-                          <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                          <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider">
                             Absent
                           </th>
                           {dates.map(date => (
                             <th
                               key={date}
-                              className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                              className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase tracking-wider"
                             >
                               {date.slice(5)}
                             </th>
@@ -336,7 +336,7 @@ export default function TeacherDashboardPage() {
                                 <td
                                   key={date}
                                   className={`px-3 py-4 whitespace-nowrap text-center text-xl ${
-                                    hasEntry ? 'cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20' : ''
+                                    hasEntry ? 'cursor-pointer hover:bg-info-bg' : ''
                                   }`}
                                   onClick={() =>
                                     hasEntry && handleCellClick(record.student_id, record.student_email, date)
@@ -373,7 +373,7 @@ export default function TeacherDashboardPage() {
                       </div>
                       <button
                         onClick={() => setSelectedEntry(null)}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                        className="text-gray-400 hover:text-text-muted"
                         aria-label="Close entry"
                       >
                         ✕

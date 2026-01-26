@@ -50,13 +50,13 @@ export function SortableAssignmentCard({
       className={[
         'w-full text-left p-3 border rounded-lg',
         isDraft
-          ? 'border-gray-400 dark:border-gray-500 bg-gray-200 dark:bg-gray-700'
+          ? 'border-border-strong bg-surface-2'
           : 'border-border bg-surface',
         isDragging
-          ? 'shadow-xl scale-[1.02] z-50 border-blue-400 dark:border-blue-500 opacity-90'
+          ? 'shadow-xl scale-[1.02] z-50 border-primary opacity-90'
           : isDraft
-            ? 'transition hover:border-gray-500 dark:hover:border-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'
-            : 'transition hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+            ? 'transition hover:border-border-strong hover:bg-surface-hover'
+            : 'transition hover:border-primary hover:bg-info-bg',
       ].join(' ')}
     >
       <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3">
@@ -67,8 +67,8 @@ export function SortableAssignmentCard({
             className={[
               'p-1 -ml-1 touch-none transition-colors',
               isDragDisabled
-                ? 'text-gray-300 dark:text-gray-600 cursor-default'
-                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-grab active:cursor-grabbing',
+                ? 'text-text-muted cursor-default'
+                : 'text-text-muted hover:text-text-default cursor-grab active:cursor-grabbing',
             ].join(' ')}
             {...attributes}
             {...listeners}
@@ -93,7 +93,7 @@ export function SortableAssignmentCard({
           </h3>
           <p className={[
             'text-xs',
-            isDraft ? 'text-gray-400 dark:text-gray-500' : 'text-text-muted'
+            isDraft ? 'text-text-muted' : 'text-text-muted'
           ].join(' ')}>
             Due: {formatDueDate(assignment.due_at)}
           </p>
@@ -102,17 +102,17 @@ export function SortableAssignmentCard({
         {/* Middle: Status */}
         <div className="text-center whitespace-nowrap px-4">
           {isDraft ? (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-2 text-text-muted">
               Draft
             </span>
           ) : (
             <span className={[
               'text-sm',
-              isDraft ? 'text-gray-400 dark:text-gray-500' : 'text-text-muted'
+              isDraft ? 'text-text-muted' : 'text-text-muted'
             ].join(' ')}>
               {assignment.stats.submitted}/{assignment.stats.total_students}
               {assignment.stats.late > 0 && (
-                <span className="text-yellow-600 dark:text-yellow-400 ml-1">
+                <span className="text-warning ml-1">
                   ({assignment.stats.late} late)
                 </span>
               )}
@@ -130,7 +130,7 @@ export function SortableAssignmentCard({
               onEdit()
             }}
             className={[
-              'p-1.5 rounded-md text-gray-600 hover:text-gray-800 hover:bg-gray-50 dark:text-gray-300 dark:hover:text-gray-100 dark:hover:bg-gray-800',
+              'p-1.5 rounded-md text-text-muted hover:text-text-default hover:bg-surface-hover',
               isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
             ].join(' ')}
             aria-label={`Edit ${assignment.title}`}
@@ -146,7 +146,7 @@ export function SortableAssignmentCard({
               onDelete()
             }}
             className={[
-              'p-1.5 rounded-md text-red-600 hover:text-red-800 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-200 dark:hover:bg-red-900/20',
+              'p-1.5 rounded-md text-danger hover:text-danger-hover hover:bg-danger-bg',
               isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
             ].join(' ')}
             aria-label={`Delete ${assignment.title}`}

@@ -430,7 +430,7 @@ export function TeacherLessonCalendarSidebar({
   return (
     <div className="flex flex-col h-full">
       {markdownError && (
-        <div className="mx-2 mt-2 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
+        <div className="mx-2 mt-2 p-2 rounded bg-danger-bg text-sm text-danger whitespace-pre-wrap">
           {markdownError}
         </div>
       )}

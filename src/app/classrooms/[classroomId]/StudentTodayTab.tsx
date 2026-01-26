@@ -400,10 +400,10 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
                     className={
                       'text-sm ' +
                       (saveStatus === 'saved'
-                        ? 'text-green-600 dark:text-green-400'
+                        ? 'text-success'
                         : saveStatus === 'saving'
                           ? 'text-text-muted'
-                          : 'text-orange-600 dark:text-orange-400')
+                          : 'text-warning')
                     }
                   >
                     {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
@@ -421,7 +421,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
 
                 {saveError && (
                   <div className="space-y-2">
-                    <p className="text-sm text-red-600 dark:text-red-400">{saveError}</p>
+                    <p className="text-sm text-danger">{saveError}</p>
                     {conflictEntry && (
                       <div className="flex flex-wrap gap-2">
                         <Button type="button" size="sm" variant="secondary" onClick={resolveConflict}>
@@ -442,7 +442,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
             <div className="px-4 py-3 border-b border-border flex items-center justify-end">
               <button
                 type="button"
-                className="inline-flex items-center p-1 text-blue-600 dark:text-blue-300 hover:bg-surface-hover rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                className="inline-flex items-center p-1 text-info hover:bg-surface-hover rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                 aria-expanded={historyVisible}
                 aria-controls={historyListId}
                 aria-label={historyVisible ? 'Hide history' : 'Show history'}
@@ -457,7 +457,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
               </button>
             </div>
             {historyVisible && (
-              <div id={historyListId} className="divide-y divide-gray-100 dark:divide-gray-800">
+              <div id={historyListId} className="divide-y divide-border">
                 {historyEntries.length === 0 ? (
                   <div className="px-4 py-6 text-sm text-text-muted">
                     No logs yet
