@@ -40,7 +40,7 @@ export function Tooltip({
           side={side}
           align={align}
           sideOffset={4}
-          className="z-50 rounded px-2 py-1 text-[11px] leading-tight bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm border border-gray-200 dark:border-gray-600"
+          className="z-50 rounded px-2 py-1 text-[11px] leading-tight bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm border border-gray-200 dark:border-gray-600 pointer-events-none"
         >
           {content}
         </TooltipPrimitive.Content>
@@ -55,7 +55,7 @@ export function Tooltip({
  */
 export function TooltipProvider({ children }: { children: ReactNode }) {
   return (
-    <TooltipPrimitive.Provider delayDuration={100} skipDelayDuration={300}>
+    <TooltipPrimitive.Provider delayDuration={100} skipDelayDuration={300} disableHoverableContent>
       {children}
     </TooltipPrimitive.Provider>
   )
