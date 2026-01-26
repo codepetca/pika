@@ -91,10 +91,7 @@ export function SortableAssignmentCard({
           ].join(' ')}>
             {assignment.title}
           </h3>
-          <p className={[
-            'text-xs',
-            isDraft ? 'text-text-muted' : 'text-text-muted'
-          ].join(' ')}>
+          <p className="text-xs text-text-muted">
             Due: {formatDueDate(assignment.due_at)}
           </p>
         </button>
@@ -106,10 +103,7 @@ export function SortableAssignmentCard({
               Draft
             </span>
           ) : (
-            <span className={[
-              'text-sm',
-              isDraft ? 'text-text-muted' : 'text-text-muted'
-            ].join(' ')}>
+            <span className="text-sm text-text-muted">
               {assignment.stats.submitted}/{assignment.stats.total_students}
               {assignment.stats.late > 0 && (
                 <span className="text-warning ml-1">

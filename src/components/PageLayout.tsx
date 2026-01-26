@@ -171,7 +171,7 @@ export function PageActionBar({
                       ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
                       : ACTIONBAR_BUTTON_CLASSNAME,
                     item.destructive
-                      ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg'
+                      ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
                       : '',
                   ].join(' ')}
                   onClick={item.onSelect}
@@ -209,7 +209,7 @@ export function PageActionBar({
                     ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
                     : ACTIONBAR_BUTTON_CLASSNAME,
                   item.destructive
-                    ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg'
+                    ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
                     : '',
                 ].join(' ')}
                 onClick={item.onSelect}

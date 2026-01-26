@@ -71,7 +71,10 @@ const config: Config = {
         danger: {
           DEFAULT: 'var(--color-danger)',
           hover: 'var(--color-danger-hover)',
-          bg: 'var(--color-danger-bg)',
+          bg: {
+            DEFAULT: 'var(--color-danger-bg)',
+            hover: 'var(--color-danger-bg-hover)',
+          },
         },
         warning: {
           DEFAULT: 'var(--color-warning)',

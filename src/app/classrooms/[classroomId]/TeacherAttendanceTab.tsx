@@ -262,7 +262,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                     className={[
                       'cursor-pointer transition-colors',
                       isSelected
-                        ? 'bg-info-bg hover:bg-info-bg'
+                        ? 'bg-info-bg hover:bg-info-bg-hover'
                         : 'hover:bg-surface-hover',
                     ].join(' ')}
                     onClick={() => handleRowClick(row)}

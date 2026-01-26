@@ -48,6 +48,7 @@
   --color-danger: #dc2626;
   --color-danger-hover: #b91c1c;
   --color-danger-bg: #fee2e2;
+  --color-danger-bg-hover: #fecaca;
   --color-warning: #d97706;
   --color-warning-bg: #fef3c7;
   --color-info: #2563eb;
@@ -101,6 +102,7 @@
   --color-danger: #ef4444;
   --color-danger-hover: #dc2626;
   --color-danger-bg: rgba(127, 29, 29, 0.3);
+  --color-danger-bg-hover: rgba(127, 29, 29, 0.5);
   --color-warning: #fbbf24;
   --color-warning-bg: rgba(120, 53, 15, 0.3);
   --color-info: #3b82f6;
