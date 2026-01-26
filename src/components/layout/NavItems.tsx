@@ -15,7 +15,12 @@ import {
 } from 'lucide-react'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
+import { Tooltip } from '@/components/Tooltip'
 import { readCookie, writeCookie } from '@/lib/cookies'
+import {
+  TEACHER_ASSIGNMENTS_SELECTION_EVENT,
+  TEACHER_ASSIGNMENTS_UPDATED_EVENT,
+} from '@/lib/events'
 
 // ============================================================================
 // Types
@@ -58,9 +63,6 @@ const studentItems: NavItem[] = [
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
 ]
-
-const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
-const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
 // ============================================================================
 // Utilities
@@ -266,39 +268,46 @@ export function NavItems({
         if (role === 'student' && item.id === 'assignments') {
           const canShowNested = isExpanded
 
+          const studentAssignmentsLink = (
+              <Link
+                href={href}
+                onClick={() => {
+                  setStudentAssignmentsSelection(null)
+                  onNavigate()
+                }}
+                aria-current={isActive ? 'page' : undefined}
+                aria-label={item.label}
+                className={[
+                  'group flex flex-1 items-center rounded-md text-base font-medium transition-colors',
+                  layoutClass,
+                  isActive
+                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                ].join(' ')}
+              >
+                <Icon
+                  className={[
+                    'h-6 w-6 flex-shrink-0',
+                    showAssignmentsPulse &&
+                      'animate-notification-pulse motion-reduce:animate-none',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  aria-hidden="true"
+                />
+                {isExpanded && <span className="truncate">{item.label}</span>}
+                {!isExpanded && <span className="sr-only">{item.label}</span>}
+              </Link>
+            )
+
           return (
             <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
               <div className="flex items-center">
-                <Link
-                  href={href}
-                  onClick={() => {
-                    setStudentAssignmentsSelection(null)
-                    onNavigate()
-                  }}
-                  aria-current={isActive ? 'page' : undefined}
-                  aria-label={item.label}
-                  title={!isExpanded ? item.label : undefined}
-                  className={[
-                    'group flex flex-1 items-center rounded-md text-base font-medium transition-colors',
-                    layoutClass,
-                    isActive
-                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
-                  ].join(' ')}
-                >
-                  <Icon
-                    className={[
-                      'h-6 w-6 flex-shrink-0',
-                      showAssignmentsPulse &&
-                        'animate-notification-pulse motion-reduce:animate-none',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    aria-hidden="true"
-                  />
-                  {isExpanded && <span className="truncate">{item.label}</span>}
-                  {!isExpanded && <span className="sr-only">{item.label}</span>}
-                </Link>
+                {!isExpanded ? (
+                  <Tooltip content={item.label}>{studentAssignmentsLink}</Tooltip>
+                ) : (
+                  studentAssignmentsLink
+                )}
               </div>
 
               {canShowNested && assignments && assignments.length > 0 && (
@@ -309,28 +318,28 @@ export function NavItems({
                     const isUnviewed = assignment.hasViewed === false
 
                     return (
-                      <button
-                        key={assignment.id}
-                        type="button"
-                        onClick={() => {
-                          if (!assignment.hasViewed) {
-                            markAssignmentViewed(assignment.id)
-                          }
-                          setStudentAssignmentsSelection(assignment.id)
-                          onNavigate()
-                        }}
-                        className={[
-                          'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
-                          isAssignmentActive
-                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                            : isUnviewed
-                              ? 'text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
-                        ].join(' ')}
-                        title={assignment.title}
-                      >
-                        <span className="truncate block">{assignment.title}</span>
-                      </button>
+                      <Tooltip key={assignment.id} content={assignment.title}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!assignment.hasViewed) {
+                              markAssignmentViewed(assignment.id)
+                            }
+                            setStudentAssignmentsSelection(assignment.id)
+                            onNavigate()
+                          }}
+                          className={[
+                            'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
+                            isAssignmentActive
+                              ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                              : isUnviewed
+                                ? 'text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                          ].join(' ')}
+                        >
+                          <span className="truncate block">{assignment.title}</span>
+                        </button>
+                      </Tooltip>
                     )
                   })}
                 </div>
@@ -344,8 +353,7 @@ export function NavItems({
           const canShowNested = isExpanded
           const isExpandedState = assignmentsExpanded
 
-          return (
-            <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
+          const teacherAssignmentsLink = (
               <Link
                 href={href}
                 onClick={() => {
@@ -356,12 +364,11 @@ export function NavItems({
                 aria-current={isActive ? 'page' : undefined}
                 aria-expanded={canShowNested ? isExpandedState : undefined}
                 aria-label={item.label}
-                title={!isExpanded ? item.label : undefined}
                 className={[
                   'group flex items-center rounded-md text-base font-medium transition-colors',
                   layoutClass,
                   isActive
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                    ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
                 ].join(' ')}
               >
@@ -380,6 +387,15 @@ export function NavItems({
                 )}
                 {!isExpanded && <span className="sr-only">{item.label}</span>}
               </Link>
+            )
+
+          return (
+            <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
+              {!isExpanded ? (
+                <Tooltip content={item.label}>{teacherAssignmentsLink}</Tooltip>
+              ) : (
+                teacherAssignmentsLink
+              )}
 
               {canShowNested && isExpandedState && assignments && assignments.length > 0 && (
                 <div className="pl-10 pr-3 space-y-1">
@@ -388,24 +404,24 @@ export function NavItems({
                       activeTab === 'assignments' && activeAssignmentId === assignment.id
 
                     return (
-                      <button
-                        key={assignment.id}
-                        type="button"
-                        onClick={() => {
-                          setAssignmentsSelectionCookie(assignment.id)
-                          router.push(tabHref(classroomId, 'assignments'))
-                          onNavigate()
-                        }}
-                        className={[
-                          'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
-                          isAssignmentActive
-                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
-                        ].join(' ')}
-                        title={assignment.title}
-                      >
-                        <span className="truncate block">{assignment.title}</span>
-                      </button>
+                      <Tooltip key={assignment.id} content={assignment.title}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAssignmentsSelectionCookie(assignment.id)
+                            router.push(tabHref(classroomId, 'assignments'))
+                            onNavigate()
+                          }}
+                          className={[
+                            'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
+                            isAssignmentActive
+                              ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
+                          ].join(' ')}
+                        >
+                          <span className="truncate block">{assignment.title}</span>
+                        </button>
+                      </Tooltip>
                     )
                   })}
                 </div>
@@ -419,19 +435,17 @@ export function NavItems({
           (item.id === 'today' && showTodayPulse) ||
           (item.id === 'assignments' && showAssignmentsPulse)
 
-        return (
+        const navLink = (
           <Link
-            key={item.id}
             href={href}
             onClick={onNavigate}
             aria-current={isActive ? 'page' : undefined}
             aria-label={item.label}
-            title={!isExpanded ? item.label : undefined}
             className={[
               'group flex items-center rounded-md text-base font-medium transition-colors',
               layoutClass,
               isActive
-                ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                 : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100',
             ].join(' ')}
           >
@@ -447,6 +461,12 @@ export function NavItems({
             {isExpanded && <span className="truncate">{item.label}</span>}
             {!isExpanded && <span className="sr-only">{item.label}</span>}
           </Link>
+        )
+
+        return !isExpanded ? (
+          <Tooltip key={item.id} content={item.label}>{navLink}</Tooltip>
+        ) : (
+          <span key={item.id}>{navLink}</span>
         )
       })}
     </nav>

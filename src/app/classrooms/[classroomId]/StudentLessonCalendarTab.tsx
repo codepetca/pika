@@ -1,12 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { startOfWeek, endOfWeek, format, startOfMonth, endOfMonth } from 'date-fns'
+import { startOfWeek, format, startOfMonth, endOfMonth } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
-import { getOntarioHolidays } from '@/lib/calendar'
 import { useClassDays } from '@/hooks/useClassDays'
 import type { Classroom, LessonPlan, Assignment } from '@/types'
 
@@ -25,19 +24,10 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
   const [maxDate, setMaxDate] = useState<string | null>(null)
 
   // Always fetch the full term - switching views is then instant
-  const fetchRange = useMemo(() => {
-    const start = classroom.start_date || format(startOfMonth(currentDate), 'yyyy-MM-dd')
-    const end = classroom.end_date || format(endOfMonth(currentDate), 'yyyy-MM-dd')
-    return { start, end }
-  }, [classroom.start_date, classroom.end_date, currentDate])
-
-  // Holidays for the full term (computed once)
-  const holidays = useMemo(() => {
-    const startDate = startOfWeek(new Date(fetchRange.start), { weekStartsOn: 0 })
-    const endDate = endOfWeek(new Date(fetchRange.end), { weekStartsOn: 0 })
-    const holidayList = getOntarioHolidays(startDate, endDate)
-    return new Set(holidayList)
-  }, [fetchRange])
+  const fetchRange = {
+    start: classroom.start_date || format(startOfMonth(currentDate), 'yyyy-MM-dd'),
+    end: classroom.end_date || format(endOfMonth(currentDate), 'yyyy-MM-dd'),
+  }
 
   // Fetch all lesson plans for the term once
   useEffect(() => {
@@ -119,7 +109,6 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
           onDateChange={handleDateChange}
           onViewModeChange={setViewMode}
           onAssignmentClick={handleAssignmentClick}
-          holidays={holidays}
         />
       </PageContent>
     </PageLayout>

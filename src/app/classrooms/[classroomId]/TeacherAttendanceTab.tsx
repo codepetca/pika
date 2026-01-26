@@ -8,6 +8,8 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
+import { Tooltip } from '@/components/Tooltip'
+import type { AttendanceStatus } from '@/types'
 import {
   DataTable,
   DataTableBody,
@@ -21,7 +23,7 @@ import {
   TableCard,
 } from '@/components/DataTable'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
-import { useRightSidebar, useMobileDrawer, useLeftSidebar } from '@/components/layout'
+import { useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import type { ClassDay, Classroom, Entry } from '@/types'
 
 type SortColumn = 'first_name' | 'last_name' | 'id'
@@ -52,8 +54,6 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
 
-  const { isOpen: isRightOpen, toggle: toggleRight, enabled: rightEnabled } = useRightSidebar()
-  const { openRight: openMobileRight } = useMobileDrawer()
   const { isExpanded: isLeftExpanded } = useLeftSidebar()
 
   useEffect(() => {
@@ -123,6 +123,8 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     return isClassDayOnDate(classDays, selectedDate)
   }, [classDays, selectedDate])
 
+  const today = useMemo(() => getTodayInToronto(), [])
+
   const rows = useMemo(() => {
     return [...logs].sort((a, b) => {
       if (sortColumn === 'id') {
@@ -157,13 +159,6 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     } else {
       onSelectEntry?.(null, '')
     }
-  }
-
-  function handleToggleSidebar() {
-    // On desktop, toggle the sidebar
-    toggleRight()
-    // On mobile, open the drawer
-    openMobileRight()
   }
 
   function getLogText(row: LogRow): string {
@@ -209,17 +204,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
             onNext={() => moveDateBy(1)}
           />
         }
-        actions={
-          rightEnabled
-            ? [
-                {
-                  id: 'toggle-log',
-                  label: isRightOpen ? 'Hide Log' : 'View Log',
-                  onSelect: handleToggleSidebar,
-                },
-              ]
-            : []
-        }
+        trailing={<RightSidebarToggle />}
       />
 
       <PageContent>
@@ -264,7 +249,11 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
             <DataTableBody>
               {rows.map((row) => {
                 const isSelected = selectedStudentId === row.student_id
-                const status = row.entry ? 'present' : 'absent'
+                const status: AttendanceStatus = row.entry
+                  ? 'present'
+                  : selectedDate >= today
+                    ? 'pending'
+                    : 'absent'
                 const logText = getLogText(row)
 
                 return (
@@ -285,18 +274,25 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                     </DataTableCell>
                     <DataTableCell density="tight" align="center">
                       {isClassDay ? (
-                        <span
-                          className={`inline-block w-3 h-3 rounded-full ${getAttendanceDotClass(status)}`}
-                          title={getAttendanceLabel(status)}
-                        />
+                        <Tooltip content={getAttendanceLabel(status)}>
+                          <span
+                            className={`inline-block w-3 h-3 rounded-full ${getAttendanceDotClass(status)}`}
+                          />
+                        </Tooltip>
                       ) : (
                         <span className="text-gray-400">—</span>
                       )}
                     </DataTableCell>
                     <DataTableCell density="tight" className={isLeftExpanded ? 'max-w-xs' : 'max-w-md'}>
-                      <div className="truncate text-gray-700 dark:text-gray-300" title={logText !== '—' ? logText : undefined}>
-                        {logText}
-                      </div>
+                      {logText !== '—' ? (
+                        <Tooltip content={logText}>
+                          <div className="truncate text-gray-700 dark:text-gray-300">
+                            {logText}
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <div className="text-gray-700 dark:text-gray-300">—</div>
+                      )}
                     </DataTableCell>
                   </DataTableRow>
                 )

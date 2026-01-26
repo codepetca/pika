@@ -16,16 +16,30 @@ describe('attendance utilities', () => {
     { id: '4', course_code: 'GLD2O', date: '2024-09-04', is_class_day: false, prompt_text: null }, // Not a class day
   ]
 
+  // Use a fixed "today" that is after all the test class days
+  const pastToday = '2024-09-10'
+
   describe('computeAttendanceStatusForStudent', () => {
-    it('should return absent when no entry exists', () => {
+    it('should return absent when no entry exists for past days', () => {
       const entries: Entry[] = []
 
-      const result = computeAttendanceStatusForStudent(classDays, entries)
+      const result = computeAttendanceStatusForStudent(classDays, entries, pastToday)
 
       expect(result['2024-09-01']).toBe('absent')
       expect(result['2024-09-02']).toBe('absent')
       expect(result['2024-09-03']).toBe('absent')
       expect(result['2024-09-04']).toBeUndefined() // Not a class day
+    })
+
+    it('should return pending when no entry exists for today or future days', () => {
+      const entries: Entry[] = []
+      const today = '2024-09-02' // 09-02 is "today", 09-03 is future
+
+      const result = computeAttendanceStatusForStudent(classDays, entries, today)
+
+      expect(result['2024-09-01']).toBe('absent')  // Past
+      expect(result['2024-09-02']).toBe('pending') // Today
+      expect(result['2024-09-03']).toBe('pending') // Future
     })
 
     it('should return present when entry was submitted on time', () => {
@@ -44,7 +58,7 @@ describe('attendance utilities', () => {
         },
       ]
 
-      const result = computeAttendanceStatusForStudent(classDays, entries)
+      const result = computeAttendanceStatusForStudent(classDays, entries, pastToday)
 
       expect(result['2024-09-01']).toBe('present')
     })
@@ -65,9 +79,31 @@ describe('attendance utilities', () => {
         },
       ]
 
-      const result = computeAttendanceStatusForStudent(classDays, entries)
+      const result = computeAttendanceStatusForStudent(classDays, entries, pastToday)
 
       expect(result['2024-09-01']).toBe('present')
+    })
+
+    it('should return present immediately when entry exists today', () => {
+      const today = '2024-09-02'
+      const entries: Entry[] = [
+        {
+          id: '1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-02',
+          text: 'My entry for today',
+          minutes_reported: 60,
+          mood: '😊',
+          created_at: '2024-09-02T15:00:00Z',
+          updated_at: '2024-09-02T15:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      const result = computeAttendanceStatusForStudent(classDays, entries, today)
+
+      expect(result['2024-09-02']).toBe('present') // Today with entry = present immediately
     })
 
     it('should handle mixed attendance statuses', () => {
@@ -98,7 +134,7 @@ describe('attendance utilities', () => {
         },
       ]
 
-      const result = computeAttendanceStatusForStudent(classDays, entries)
+      const result = computeAttendanceStatusForStudent(classDays, entries, pastToday)
 
       expect(result['2024-09-01']).toBe('present')
       expect(result['2024-09-02']).toBe('present')
@@ -108,7 +144,7 @@ describe('attendance utilities', () => {
     it('should only consider days where is_class_day is true', () => {
       const entries: Entry[] = []
 
-      const result = computeAttendanceStatusForStudent(classDays, entries)
+      const result = computeAttendanceStatusForStudent(classDays, entries, pastToday)
 
       // Non-class day should not appear in results
       expect(result['2024-09-04']).toBeUndefined()
@@ -117,10 +153,10 @@ describe('attendance utilities', () => {
   })
 
   describe('computeAttendanceRecords', () => {
-    it('should compute per-student attendance and summaries', () => {
+    it('should compute per-student attendance and summaries for past days', () => {
       const students = [
-        { id: 'student1', email: 'student1@example.com' },
-        { id: 'student2', email: 'student2@example.com' },
+        { id: 'student1', email: 'student1@example.com', first_name: 'Alice', last_name: 'Smith' },
+        { id: 'student2', email: 'student2@example.com', first_name: 'Bob', last_name: 'Jones' },
       ]
 
       const allEntries: Entry[] = [
@@ -150,7 +186,7 @@ describe('attendance utilities', () => {
         },
       ]
 
-      const records = computeAttendanceRecords(students, classDays, allEntries)
+      const records = computeAttendanceRecords(students, classDays, allEntries, pastToday)
       expect(records).toHaveLength(2)
 
       const record1 = records.find(r => r.student_id === 'student1')!
@@ -171,12 +207,47 @@ describe('attendance utilities', () => {
       })
       expect(record2.summary).toEqual({ present: 1, absent: 2 })
     })
+
+    it('should not count pending days in summary', () => {
+      const students = [
+        { id: 'student1', email: 'student1@example.com', first_name: 'Alice', last_name: 'Smith' },
+      ]
+
+      const allEntries: Entry[] = [
+        {
+          id: 'e1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-01',
+          text: 'Entry 1',
+          minutes_reported: 60,
+          mood: '😊',
+          created_at: '2024-09-01T20:00:00Z',
+          updated_at: '2024-09-01T20:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      // Set today to 09-02, so 09-02 and 09-03 are pending
+      const today = '2024-09-02'
+      const records = computeAttendanceRecords(students, classDays, allEntries, today)
+
+      const record = records[0]
+      expect(record.dates).toEqual({
+        '2024-09-01': 'present',
+        '2024-09-02': 'pending',
+        '2024-09-03': 'pending',
+      })
+      // Summary only counts present and absent, not pending
+      expect(record.summary).toEqual({ present: 1, absent: 0 })
+    })
   })
 
   describe('getAttendanceIcon', () => {
     it('should return correct icons', () => {
       expect(getAttendanceIcon('present')).toBe('🟢')
       expect(getAttendanceIcon('absent')).toBe('🔴')
+      expect(getAttendanceIcon('pending')).toBe('⚪')
     })
   })
 
@@ -184,6 +255,7 @@ describe('attendance utilities', () => {
     it('should return correct labels', () => {
       expect(getAttendanceLabel('present')).toBe('Present')
       expect(getAttendanceLabel('absent')).toBe('Absent')
+      expect(getAttendanceLabel('pending')).toBe('Pending')
     })
   })
 
@@ -194,6 +266,10 @@ describe('attendance utilities', () => {
 
     it('should return red for absent', () => {
       expect(getAttendanceDotClass('absent')).toBe('bg-red-500')
+    })
+
+    it('should return gray for pending', () => {
+      expect(getAttendanceDotClass('pending')).toBe('bg-gray-400')
     })
   })
 })

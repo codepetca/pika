@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -27,13 +27,13 @@ import {
   PageActionBar,
   PageContent,
   PageLayout,
-  type ActionBarItem,
 } from '@/components/PageLayout'
-import { useRightSidebar, useMobileDrawer, useLeftSidebar } from '@/components/layout'
+import { useRightSidebar, useMobileDrawer, useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import {
   getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
+import { Tooltip } from '@/components/Tooltip'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
 import {
@@ -48,15 +48,16 @@ import {
   SortableHeaderCell,
   TableCard,
 } from '@/components/DataTable'
+import {
+  TEACHER_ASSIGNMENTS_SELECTION_EVENT,
+  TEACHER_ASSIGNMENTS_UPDATED_EVENT,
+} from '@/lib/events'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
 }
 
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
-
-const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelection'
-const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
 interface StudentSubmissionRow {
   student_id: string
@@ -67,12 +68,13 @@ interface StudentSubmissionRow {
   doc: { submitted_at?: string | null; updated_at?: string | null } | null
 }
 
+export type AssignmentViewMode = 'summary' | 'assignment'
+
 interface Props {
   classroom: Classroom
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onSelectStudent?: (student: SelectedStudentInfo | null) => void
-  showInstructionsPanel?: boolean
-  onToggleInstructions?: () => void
+  onViewModeChange?: (mode: AssignmentViewMode) => void
 }
 
 function getCookieValue(name: string) {
@@ -110,7 +112,7 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
 }
 
-export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, showInstructionsPanel, onToggleInstructions }: Props) {
+export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
@@ -319,6 +321,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     }
   }, [selection.mode, selectedAssignmentData, onSelectAssignment])
 
+  // Notify parent of view mode changes
+  useEffect(() => {
+    onViewModeChange?.(selection.mode)
+  }, [selection.mode, onViewModeChange])
+
   // Auto-open sidebar when assignment is selected (separate effect)
   const prevSelectionModeRef = useRef<'summary' | 'assignment'>('summary')
   useEffect(() => {
@@ -419,7 +426,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     } else {
       onSelectStudent?.(null)
     }
-  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
+  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, selectedAssignmentData?.assignment?.title, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
 
   // Auto-open right sidebar and collapse left sidebar when student is selected
   const prevSelectedStudentIdRef = useRef<string | null>(null)
@@ -485,47 +492,38 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const canEditAssignment =
     selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
 
-  const actionItems: ActionBarItem[] = useMemo(() => {
-    if (selection.mode !== 'assignment') return []
-    const items: ActionBarItem[] = [
-      {
-        id: 'edit-assignment',
-        label: 'Edit',
-        onSelect: () => {
+  const primaryButtons =
+    selection.mode === 'summary' ? (
+      <button
+        type="button"
+        className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
+        onClick={() => setIsCreateModalOpen(true)}
+        disabled={isReadOnly}
+        aria-label="New assignment"
+      >
+        <Plus className="h-5 w-5" aria-hidden="true" />
+        <span>New</span>
+      </button>
+    ) : (
+      <button
+        type="button"
+        className={`${ACTIONBAR_BUTTON_CLASSNAME} flex items-center gap-1`}
+        onClick={() => {
           if (selectedAssignmentData) {
             setEditAssignment(selectedAssignmentData.assignment)
           }
-        },
-        disabled: !canEditAssignment,
-      },
-    ]
-    // Add Instructions toggle (always visible when viewing an assignment)
-    if (onToggleInstructions) {
-      items.push({
-        id: 'toggle-instructions',
-        label: 'Instructions',
-        onSelect: onToggleInstructions,
-      })
-    }
-    return items
-  }, [selection.mode, selectedAssignmentData, canEditAssignment, onToggleInstructions])
-
-  const newAssignmentButton = (
-    <button
-      type="button"
-      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
-      onClick={() => setIsCreateModalOpen(true)}
-      disabled={isReadOnly}
-      aria-label="New assignment"
-    >
-      <Plus className="h-5 w-5" aria-hidden="true" />
-      <span>New</span>
-    </button>
-  )
+        }}
+        disabled={!canEditAssignment}
+        aria-label="Edit assignment"
+      >
+        <Pencil className="h-5 w-5" aria-hidden="true" />
+        <span>Edit</span>
+      </button>
+    )
 
   return (
     <PageLayout>
-      <PageActionBar primary={newAssignmentButton} actions={actionItems} />
+      <PageActionBar primary={primaryButtons} actions={[]} trailing={<RightSidebarToggle />} />
 
       <PageContent className="space-y-4">
         {error && (
@@ -622,13 +620,26 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       className={getRowClassName(isSelected)}
                       onClick={() => setSelectedStudentId(isSelected ? null : student.student_id)}
                     >
-                      <DataTableCell className="max-w-[120px] truncate" title={student.student_first_name ?? undefined}>{student.student_first_name ?? '—'}</DataTableCell>
-                      <DataTableCell className="max-w-[120px] truncate" title={student.student_last_name ?? undefined}>{student.student_last_name ?? '—'}</DataTableCell>
+                      <DataTableCell className="max-w-[120px] truncate">
+                        {student.student_first_name ? (
+                          <Tooltip content={student.student_first_name}>
+                            <span>{student.student_first_name}</span>
+                          </Tooltip>
+                        ) : '—'}
+                      </DataTableCell>
+                      <DataTableCell className="max-w-[120px] truncate">
+                        {student.student_last_name ? (
+                          <Tooltip content={student.student_last_name}>
+                            <span>{student.student_last_name}</span>
+                          </Tooltip>
+                        ) : '—'}
+                      </DataTableCell>
                       <DataTableCell>
-                        <span
-                          className={`inline-block w-3 h-3 rounded-full ${getAssignmentStatusDotClass(student.status)}`}
-                          title={getAssignmentStatusLabel(student.status)}
-                        />
+                        <Tooltip content={getAssignmentStatusLabel(student.status)}>
+                          <span
+                            className={`inline-block w-3 h-3 rounded-full ${getAssignmentStatusDotClass(student.status)}`}
+                          />
+                        </Tooltip>
                       </DataTableCell>
                       {!isCompactTable && (
                         <DataTableCell className="text-gray-700 dark:text-gray-300">
@@ -683,5 +694,63 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       />
       </PageContent>
     </PageLayout>
+  )
+}
+
+// Sidebar content component - rendered via page.tsx
+export function TeacherAssignmentsMarkdownSidebar({
+  markdownContent,
+  markdownError,
+  markdownWarning,
+  hasRichContent,
+  bulkSaving,
+  onMarkdownChange,
+  onSave,
+}: {
+  markdownContent: string
+  markdownError: string | null
+  markdownWarning: string | null
+  hasRichContent: boolean
+  bulkSaving: boolean
+  onMarkdownChange: (content: string) => void
+  onSave: () => void
+}) {
+  // Cmd+S / Ctrl+S to save
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault()
+      if (!bulkSaving) {
+        onSave()
+      }
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {hasRichContent && (
+        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400">
+          Some assignments have rich formatting that will be lost when editing as plain text.
+        </div>
+      )}
+
+      {markdownWarning && (
+        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400 whitespace-pre-wrap">
+          <strong>Warning:</strong> {markdownWarning}
+        </div>
+      )}
+
+      {markdownError && (
+        <div className="mx-3 mt-3 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
+          {markdownError}
+        </div>
+      )}
+
+      <textarea
+        value={markdownContent}
+        onChange={(e) => onMarkdownChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none border-0 focus:ring-0 focus:outline-none"
+      />
+    </div>
   )
 }
