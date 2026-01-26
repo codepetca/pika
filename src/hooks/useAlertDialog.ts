@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import type { AlertDialogState, AlertDialogVariant } from '@/components/AlertDialog'
+import type { AlertDialogState, AlertDialogVariant } from '@/ui'
 
 const INITIAL_STATE: AlertDialogState = { isOpen: false, title: '' }
 
