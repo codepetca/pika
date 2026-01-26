@@ -41,7 +41,7 @@ export function DataTableHead({ children }: { children: ReactNode }) {
 }
 
 export function DataTableBody({ children }: { children: ReactNode }) {
-  return <tbody className="divide-y divide-gray-200 dark:divide-gray-700">{children}</tbody>
+  return <tbody className="divide-y divide-border">{children}</tbody>
 }
 
 export function DataTableRow({

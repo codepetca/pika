@@ -298,7 +298,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             )}
           </div>
         ) : (
-          <div className="bg-surface rounded-lg shadow-sm border border-border divide-y divide-gray-100 dark:divide-gray-700">
+          <div className="bg-surface rounded-lg shadow-sm border border-border divide-y divide-border">
             {visibleClassrooms.map((c) => (
               <div key={c.id} className="flex items-center gap-4 p-4">
                 <button

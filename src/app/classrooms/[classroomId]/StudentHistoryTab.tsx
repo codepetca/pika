@@ -66,7 +66,7 @@ export function StudentHistoryTab({ classroom }: Props) {
       />
       <PageContent>
         <div className="bg-surface rounded-lg shadow-sm">
-          <div className="divide-y divide-gray-100 dark:divide-gray-700">
+          <div className="divide-y divide-border">
             {rows.slice(0, 60).map((row) => (
               <div key={row.date} className="p-4 flex items-center justify-between">
                 <div className="text-sm text-text-muted">{row.date}</div>

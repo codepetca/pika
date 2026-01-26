@@ -107,7 +107,7 @@ export function HistoryList({
   }
 
   return (
-    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+    <div className="divide-y divide-border">
       {Object.entries(entriesByDate).map(([date, dateEntries]) => (
         <div key={date} className="px-3 py-2">
           <div className="text-xs font-medium text-text-muted mb-1">

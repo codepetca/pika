@@ -151,7 +151,7 @@ export default function HistoryPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="max-w-md w-full bg-surface rounded-lg shadow-sm p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Classes Yet</h2>
+          <h2 className="text-2xl font-bold text-text-default mb-2">No Classes Yet</h2>
           <p className="text-text-muted mb-6">Join a class to view your history</p>
 
           <form onSubmit={handleJoinClassroom} className="space-y-4">
@@ -186,7 +186,7 @@ export default function HistoryPage() {
       <div className="w-64 flex-shrink-0">
         <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 dark:text-white">My Classes</h3>
+            <h3 className="font-semibold text-text-default">My Classes</h3>
             <button
               onClick={() => setShowJoinFlow(!showJoinFlow)}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
@@ -224,7 +224,7 @@ export default function HistoryPage() {
                     : 'hover:bg-surface-hover border border-transparent'
                 }`}
               >
-                <div className="font-medium text-gray-900 dark:text-white text-sm">
+                <div className="font-medium text-text-default text-sm">
                   {classroom.title}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
@@ -241,7 +241,7 @@ export default function HistoryPage() {
         {selectedClassroom ? (
           <div>
             <div className="bg-surface rounded-lg shadow-sm p-6 mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+              <h2 className="text-2xl font-bold text-text-default mb-1">
                 {selectedClassroom.title}
               </h2>
               <p className="text-text-muted mb-4">Attendance History</p>
@@ -255,7 +255,7 @@ export default function HistoryPage() {
                   <div>
                     <span className="text-3xl">🟢</span>
                     <div className="mt-1">
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">{summary.present}</div>
+                      <div className="text-2xl font-bold text-text-default">{summary.present}</div>
                       <div className="text-sm text-text-muted">Present</div>
                     </div>
                   </div>
@@ -263,7 +263,7 @@ export default function HistoryPage() {
                   <div>
                     <span className="text-3xl">🔴</span>
                     <div className="mt-1">
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">{summary.absent}</div>
+                      <div className="text-2xl font-bold text-text-default">{summary.absent}</div>
                       <div className="text-sm text-text-muted">Absent</div>
                     </div>
                   </div>
@@ -295,7 +295,7 @@ export default function HistoryPage() {
                         <div className="flex items-center space-x-4">
                           <span className="text-2xl">{getAttendanceIcon(status)}</span>
                           <div>
-                            <div className="font-medium text-gray-900 dark:text-white">{formattedDate}</div>
+                            <div className="font-medium text-text-default">{formattedDate}</div>
                             <div className="text-sm text-text-muted">
                               {getAttendanceLabel(status)}
                             </div>
@@ -332,7 +332,7 @@ export default function HistoryPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              <h3 className="text-xl font-bold text-text-default">
                 {format(parse(selectedEntry.date, 'yyyy-MM-dd', new Date()), 'EEE MMM d')}
               </h3>
               <button
@@ -346,7 +346,7 @@ export default function HistoryPage() {
             <div className="space-y-4">
               <div>
                 <div className="text-sm font-medium text-text-muted mb-1">Entry</div>
-                <div className="text-gray-900 dark:text-white whitespace-pre-wrap">{selectedEntry.text}</div>
+                <div className="text-text-default whitespace-pre-wrap">{selectedEntry.text}</div>
               </div>
 
               <div className="text-sm text-text-muted pt-4 border-t border-border">

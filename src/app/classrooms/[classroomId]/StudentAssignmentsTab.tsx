@@ -226,7 +226,7 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                              <h3 className="font-medium text-text-default truncate">
                                 {assignment.title}
                               </h3>
                               <p className="text-sm text-text-muted mt-1">

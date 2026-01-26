@@ -465,7 +465,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
                 ) : (
                   historyEntries.map(entry => (
                     <div key={entry.id} className="px-4 py-2">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      <p className="text-sm font-medium text-text-default">
                         {format(parseISO(entry.date), 'EEE MMM d')}
                       </p>
                       <p className="text-sm text-text-muted">

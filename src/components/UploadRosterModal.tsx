@@ -146,7 +146,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
         <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm Roster Update</h2>
+          <h2 className="text-xl font-bold text-text-default mb-4">Confirm Roster Update</h2>
 
           <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded">
             <p className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
@@ -238,7 +238,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
       <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Upload Roster</h2>
+        <h2 className="text-xl font-bold text-text-default mb-4">Upload Roster</h2>
 
         {!result ? (
           <form onSubmit={handleSubmit}>

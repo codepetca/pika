@@ -106,7 +106,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
             <textarea
               id="roster-input"
               className="w-full px-3 py-2 border border-border-strong rounded-md
-                         bg-surface text-gray-900 dark:text-white
+                         bg-surface text-text-default
                          focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400
                          resize-none font-mono text-sm"
               rows={8}
@@ -182,7 +182,7 @@ Bob Lee bob@example.com 789012 counselor@school.com`}
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-surface divide-y divide-gray-200 dark:divide-gray-700">
+                      <tbody className="bg-surface divide-y divide-border">
                         {preview.students.map((student, idx) => (
                           <tr key={idx}>
                             <td className="px-3 py-2 text-text-default">{student.firstName}</td>

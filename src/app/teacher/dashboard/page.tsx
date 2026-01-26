@@ -294,7 +294,7 @@ export default function TeacherDashboardPage() {
               ) : (
                 <div className="bg-surface rounded-lg shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <table className="min-w-full divide-y divide-border">
                       <thead className="bg-surface-2">
                         <tr>
                           <th className="sticky left-0 z-10 bg-surface-2 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -316,7 +316,7 @@ export default function TeacherDashboardPage() {
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="bg-surface divide-y divide-gray-200 dark:divide-gray-700">
+                      <tbody className="bg-surface divide-y divide-border">
                         {attendance.map(record => (
                           <tr key={record.student_id} className="hover:bg-surface-hover">
                             <td className="sticky left-0 z-10 bg-surface px-6 py-4 whitespace-nowrap text-sm font-medium text-text-default">

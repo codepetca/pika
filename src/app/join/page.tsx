@@ -18,7 +18,7 @@ export default function JoinPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-page">
       <div className="max-w-md w-full bg-surface rounded-lg shadow-sm p-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Join a classroom</h1>
+        <h1 className="text-2xl font-bold text-text-default">Join a classroom</h1>
         <p className="text-text-muted mt-2">
           Enter the join code your teacher gave you.
         </p>
@@ -31,7 +31,7 @@ export default function JoinPage() {
             id={joinCodeId}
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
-            className="mt-2 w-full px-3 py-2 border border-border-strong bg-surface text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-2 w-full px-3 py-2 border border-border-strong bg-surface text-text-default rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="ABC123"
             autoCapitalize="characters"
             autoCorrect="off"

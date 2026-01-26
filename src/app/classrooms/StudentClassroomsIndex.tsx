@@ -49,7 +49,7 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
             </div>
           </div>
         ) : (
-          <div className="bg-surface rounded-lg shadow-sm border border-border divide-y divide-gray-100 dark:divide-gray-700">
+          <div className="bg-surface rounded-lg shadow-sm border border-border divide-y divide-border">
             {sorted.map((c) => (
               <button
                 key={c.id}
