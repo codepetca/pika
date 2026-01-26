@@ -6,6 +6,7 @@ import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose, CircleDot } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
+import { Tooltip } from '@/components/Tooltip'
 import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
@@ -278,14 +279,15 @@ export function LessonCalendar({
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={handleToday}
-                  className="ml-2 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-                  aria-label="Go to today"
-                  title="Today"
-                >
-                  <CircleDot className="w-5 h-5" />
-                </button>
+                <Tooltip content="Today">
+                  <button
+                    onClick={handleToday}
+                    className="ml-2 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                    aria-label="Go to today"
+                  >
+                    <CircleDot className="w-5 h-5" />
+                  </button>
+                </Tooltip>
               </>
             )}
           </div>
@@ -315,18 +317,19 @@ export function LessonCalendar({
               <span className="text-sm text-gray-500">Saving...</span>
             )}
             {onMarkdownToggle && (
-              <button
-                onClick={onMarkdownToggle}
-                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
-                title={isSidebarOpen ? `Close sidebar (${shortcutHint})` : `Edit as Markdown (${shortcutHint})`}
-              >
-                {isSidebarOpen ? (
-                  <PanelRightClose className="w-5 h-5" />
-                ) : (
-                  <PanelRight className="w-5 h-5" />
-                )}
-              </button>
+              <Tooltip content={isSidebarOpen ? `Close sidebar (${shortcutHint})` : `Edit as Markdown (${shortcutHint})`}>
+                <button
+                  onClick={onMarkdownToggle}
+                  className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
+                >
+                  {isSidebarOpen ? (
+                    <PanelRightClose className="w-5 h-5" />
+                  ) : (
+                    <PanelRight className="w-5 h-5" />
+                  )}
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>

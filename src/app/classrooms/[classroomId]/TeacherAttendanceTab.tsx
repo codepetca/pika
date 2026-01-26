@@ -8,6 +8,7 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
+import { Tooltip } from '@/components/Tooltip'
 import type { AttendanceStatus } from '@/types'
 import {
   DataTable,
@@ -273,18 +274,25 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                     </DataTableCell>
                     <DataTableCell density="tight" align="center">
                       {isClassDay ? (
-                        <span
-                          className={`inline-block w-3 h-3 rounded-full ${getAttendanceDotClass(status)}`}
-                          title={getAttendanceLabel(status)}
-                        />
+                        <Tooltip content={getAttendanceLabel(status)}>
+                          <span
+                            className={`inline-block w-3 h-3 rounded-full ${getAttendanceDotClass(status)}`}
+                          />
+                        </Tooltip>
                       ) : (
                         <span className="text-gray-400">—</span>
                       )}
                     </DataTableCell>
                     <DataTableCell density="tight" className={isLeftExpanded ? 'max-w-xs' : 'max-w-md'}>
-                      <div className="truncate text-gray-700 dark:text-gray-300" title={logText !== '—' ? logText : undefined}>
-                        {logText}
-                      </div>
+                      {logText !== '—' ? (
+                        <Tooltip content={logText}>
+                          <div className="truncate text-gray-700 dark:text-gray-300">
+                            {logText}
+                          </div>
+                        </Tooltip>
+                      ) : (
+                        <div className="text-gray-700 dark:text-gray-300">—</div>
+                      )}
                     </DataTableCell>
                   </DataTableRow>
                 )

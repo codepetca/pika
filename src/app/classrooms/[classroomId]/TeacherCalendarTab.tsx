@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Copy } from 'lucide-react'
+import { Tooltip } from '@/components/Tooltip'
 import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -227,15 +228,16 @@ export function TeacherCalendarTab({ classroom }: Props) {
               <div className="text-xs text-gray-500 dark:text-gray-400">
                 {isReadOnly ? 'Read-only mode' : 'Click on date to toggle class days'}
               </div>
-              <button
-                type="button"
-                onClick={copyClassDays}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-                title="Copy class days as markdown"
-              >
-                <Copy className="w-3.5 h-3.5" />
-                <span>{copyNotice || 'Copy'}</span>
-              </button>
+              <Tooltip content="Copy class days as markdown">
+                <button
+                  type="button"
+                  onClick={copyClassDays}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>{copyNotice || 'Copy'}</span>
+                </button>
+              </Tooltip>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

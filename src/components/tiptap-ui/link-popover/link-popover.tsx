@@ -13,6 +13,9 @@ import { ExternalLinkIcon } from "@/components/tiptap-icons/external-link-icon"
 import { LinkIcon } from "@/components/tiptap-icons/link-icon"
 import { TrashIcon } from "@/components/tiptap-icons/trash-icon"
 
+// --- Tooltip ---
+import { Tooltip } from "@/components/Tooltip"
+
 // --- Tiptap UI ---
 import type { UseLinkPopoverConfig } from "@/components/tiptap-ui/link-popover"
 import { useLinkPopover } from "@/components/tiptap-ui/link-popover"
@@ -146,39 +149,42 @@ const LinkMain: React.FC<LinkMainProps> = ({
           </InputGroup>
 
           <ButtonGroup orientation="horizontal">
-            <Button
-              type="button"
-              onClick={setLink}
-              title="Apply link"
-              disabled={!url && !isActive}
-              data-style="ghost"
-            >
-              <CornerDownLeftIcon className="tiptap-button-icon" />
-            </Button>
+            <Tooltip content="Apply link">
+              <Button
+                type="button"
+                onClick={setLink}
+                disabled={!url && !isActive}
+                data-style="ghost"
+              >
+                <CornerDownLeftIcon className="tiptap-button-icon" />
+              </Button>
+            </Tooltip>
           </ButtonGroup>
 
           <Separator />
 
           <ButtonGroup orientation="horizontal">
-            <Button
-              type="button"
-              onClick={openLink}
-              title="Open in new window"
-              disabled={!url && !isActive}
-              data-style="ghost"
-            >
-              <ExternalLinkIcon className="tiptap-button-icon" />
-            </Button>
+            <Tooltip content="Open in new window">
+              <Button
+                type="button"
+                onClick={openLink}
+                disabled={!url && !isActive}
+                data-style="ghost"
+              >
+                <ExternalLinkIcon className="tiptap-button-icon" />
+              </Button>
+            </Tooltip>
 
-            <Button
-              type="button"
-              onClick={removeLink}
-              title="Remove link"
-              disabled={!url && !isActive}
-              data-style="ghost"
-            >
-              <TrashIcon className="tiptap-button-icon" />
-            </Button>
+            <Tooltip content="Remove link">
+              <Button
+                type="button"
+                onClick={removeLink}
+                disabled={!url && !isActive}
+                data-style="ghost"
+              >
+                <TrashIcon className="tiptap-button-icon" />
+              </Button>
+            </Tooltip>
           </ButtonGroup>
         </CardItemGroup>
       </CardBody>
