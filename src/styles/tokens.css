@@ -52,6 +52,7 @@
   --color-warning-bg: #fef3c7;
   --color-info: #2563eb;
   --color-info-bg: #dbeafe;
+  --color-info-bg-hover: #bfdbfe;
 
   /* Shadows */
   --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
@@ -104,6 +105,7 @@
   --color-warning-bg: rgba(120, 53, 15, 0.3);
   --color-info: #3b82f6;
   --color-info-bg: rgba(30, 58, 138, 0.3);
+  --color-info-bg-hover: rgba(30, 58, 138, 0.4);
 
   /* Shadows - dark mode */
   --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);

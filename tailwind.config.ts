@@ -79,7 +79,10 @@ const config: Config = {
         },
         info: {
           DEFAULT: 'var(--color-info)',
-          bg: 'var(--color-info-bg)',
+          bg: {
+            DEFAULT: 'var(--color-info-bg)',
+            hover: 'var(--color-info-bg-hover)',
+          },
         },
       },
       borderRadius: {

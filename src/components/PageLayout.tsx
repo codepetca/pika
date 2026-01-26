@@ -14,7 +14,7 @@ export type ActionBarItem = {
 }
 
 const CONTROL_BASE =
-  'rounded-md border border-primary bg-info-bg text-base font-medium text-text-default hover:bg-info-bg disabled:opacity-50 disabled:cursor-not-allowed'
+  'rounded-md border border-primary bg-info-bg text-base font-medium text-text-default hover:bg-info-bg-hover disabled:opacity-50 disabled:cursor-not-allowed'
 
 const CONTROL_SECONDARY_BASE =
   'rounded-md border border-border bg-surface text-base font-medium text-text-default hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed'

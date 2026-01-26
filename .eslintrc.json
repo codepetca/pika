@@ -32,7 +32,7 @@
   },
   "overrides": [
     {
-      "files": ["src/components/AlertDialog.tsx", "src/components/ConfirmDialog.tsx", "src/components/tiptap-ui/**/*.tsx"],
+      "files": ["src/components/tiptap-ui/**/*.tsx"],
       "rules": {
         "no-restricted-imports": "off"
       }
