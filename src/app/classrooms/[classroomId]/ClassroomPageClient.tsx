@@ -12,6 +12,8 @@ import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
+import { TeacherResourcesTab } from './TeacherResourcesTab'
+import { StudentResourcesTab } from './StudentResourcesTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider } from '@/hooks/useClassDays'
 import {
@@ -69,8 +71,8 @@ export function ClassroomPageClient({
   const tab = searchParams.get('tab') ?? initialTab
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
-    ? (['attendance', 'assignments', 'calendar', 'roster', 'settings'] as const)
-    : (['today', 'assignments', 'calendar'] as const)
+    ? (['attendance', 'assignments', 'calendar', 'resources', 'roster', 'settings'] as const)
+    : (['today', 'assignments', 'calendar', 'resources'] as const)
 
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
 
@@ -380,6 +382,7 @@ function ClassroomPageContent({
                   onSidebarStateChange={setCalendarSidebarState}
                 />
               )}
+              {activeTab === 'resources' && <TeacherResourcesTab classroom={classroom} />}
               {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
               {activeTab === 'settings' && <TeacherSettingsTab classroom={classroom} />}
             </>
@@ -398,6 +401,7 @@ function ClassroomPageContent({
                 />
               )}
               {activeTab === 'calendar' && <StudentLessonCalendarTab classroom={classroom} />}
+              {activeTab === 'resources' && <StudentResourcesTab classroom={classroom} />}
             </>
           )}
         </MainContent>
