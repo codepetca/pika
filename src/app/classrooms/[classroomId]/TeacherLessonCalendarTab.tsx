@@ -334,9 +334,9 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
     [router, classroom.id]
   )
 
-  // Notify parent when sidebar opens/closes or error/saving state changes
-  // Note: markdownContent is intentionally excluded to avoid cursor jump on every keystroke
-  // The save handler reads from markdownContentRef to get the latest content
+  // Notify parent when sidebar opens/closes, content changes, or error/saving state changes
+  // Note: markdownContent IS included because the sidebar uses local state to avoid cursor jump.
+  // TeacherLessonCalendarSidebar tracks isDirty and ignores external updates once user starts typing.
   useEffect(() => {
     if (isSidebarOpen) {
       onSidebarStateChange?.({
@@ -349,8 +349,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
     } else {
       onSidebarStateChange?.(null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSidebarOpen, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave, handleMarkdownChange])
+  }, [isSidebarOpen, markdownContent, markdownError, bulkSaving, onSidebarStateChange, handleMarkdownSave, handleMarkdownChange])
 
   if (loading && lessonPlans.length === 0) {
     return (
