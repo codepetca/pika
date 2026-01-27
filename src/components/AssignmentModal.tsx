@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import type { Assignment, ClassDay, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ConfirmDialog } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -471,27 +471,27 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
       onClick={handleBackdropClick}
       onKeyDown={handleKeyDown}
     >
       <div
-        className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-[min(90vw,56rem)] p-6"
+        className="bg-surface rounded-lg shadow-xl border border-border w-[min(90vw,56rem)] p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="assignment-modal-title"
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 id="assignment-modal-title" className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <h2 id="assignment-modal-title" className="text-xl font-bold text-text-default">
             {modalTitle}
           </h2>
           <span
             className={`text-xs ${
               saveStatus === 'saved'
-                ? 'text-green-600 dark:text-green-400'
+                ? 'text-success'
                 : saveStatus === 'saving'
-                  ? 'text-gray-500 dark:text-gray-400'
-                  : 'text-orange-600 dark:text-orange-400'
+                  ? 'text-text-muted'
+                  : 'text-warning'
             }`}
           >
             {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}

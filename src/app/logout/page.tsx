@@ -25,7 +25,7 @@ export default function LogoutPage() {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <Spinner size="lg" />
-        <p className="mt-4 text-gray-600">Logging out...</p>
+        <p className="mt-4 text-text-muted">Logging out...</p>
       </div>
     </div>
   )

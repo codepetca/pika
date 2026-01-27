@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { Pencil, Plus } from 'lucide-react'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ConfirmDialog, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
@@ -33,7 +33,6 @@ import {
   getAssignmentStatusDotClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
-import { Tooltip } from '@/components/Tooltip'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
 import {
@@ -107,9 +106,9 @@ function formatTorontoDateTime(iso: string) {
 
 function getRowClassName(isSelected: boolean): string {
   if (isSelected) {
-    return 'cursor-pointer bg-blue-100 dark:bg-blue-900/50 border-l-2 border-l-blue-500'
+    return 'cursor-pointer bg-info-bg border-l-2 border-l-blue-500'
   }
-  return 'cursor-pointer border-l-2 border-l-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
+  return 'cursor-pointer border-l-2 border-l-transparent hover:bg-surface-hover'
 }
 
 export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
@@ -527,7 +526,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
       <PageContent className="space-y-4">
         {error && (
-          <div className="rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 px-3 py-2 text-sm text-red-700 dark:text-red-200">
+          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
           </div>
         )}
@@ -539,7 +538,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
               <Spinner />
             </div>
           ) : assignments.length === 0 ? (
-            <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-center py-6 text-sm text-text-muted">
               No assignments yet
             </div>
           ) : (
@@ -588,7 +587,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                 <Spinner />
               </div>
             ) : selectedAssignmentError || !selectedAssignmentData ? (
-              <div className="p-4 text-sm text-red-600 dark:text-red-400">
+              <div className="p-4 text-sm text-danger">
                 {selectedAssignmentError || 'Failed to load assignment'}
               </div>
             ) : (
@@ -642,7 +641,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                         </Tooltip>
                       </DataTableCell>
                       {!isCompactTable && (
-                        <DataTableCell className="text-gray-700 dark:text-gray-300">
+                        <DataTableCell className="text-text-muted">
                           {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
                         </DataTableCell>
                       )}
@@ -728,19 +727,19 @@ export function TeacherAssignmentsMarkdownSidebar({
   return (
     <div className="flex flex-col h-full">
       {hasRichContent && (
-        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400">
+        <div className="mx-3 mt-3 p-2 rounded bg-warning-bg text-sm text-warning">
           Some assignments have rich formatting that will be lost when editing as plain text.
         </div>
       )}
 
       {markdownWarning && (
-        <div className="mx-3 mt-3 p-2 rounded bg-amber-50 dark:bg-amber-900/30 text-sm text-amber-600 dark:text-amber-400 whitespace-pre-wrap">
+        <div className="mx-3 mt-3 p-2 rounded bg-warning-bg text-sm text-warning whitespace-pre-wrap">
           <strong>Warning:</strong> {markdownWarning}
         </div>
       )}
 
       {markdownError && (
-        <div className="mx-3 mt-3 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
+        <div className="mx-3 mt-3 p-2 rounded bg-danger-bg text-sm text-danger whitespace-pre-wrap">
           {markdownError}
         </div>
       )}
@@ -749,7 +748,7 @@ export function TeacherAssignmentsMarkdownSidebar({
         value={markdownContent}
         onChange={(e) => onMarkdownChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none border-0 focus:ring-0 focus:outline-none"
+        className="flex-1 w-full p-3 font-mono text-sm bg-surface text-text-default resize-none border-0 focus:ring-0 focus:outline-none"
       />
     </div>
   )

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button } from '@/components/Button'
+import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar, useMobileDrawer } from '@/components/layout'
@@ -203,7 +203,7 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
       <PageContent className="flex-1 min-h-0">
         <div className="min-w-0 h-full flex flex-col">
           {loading ? (
-              <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+              <div className="bg-surface rounded-lg shadow-sm">
                 <div className="p-4">
                   <div className="flex justify-center py-8">
                     <Spinner />
@@ -211,10 +211,10 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
                 </div>
               </div>
             ) : view === 'summary' ? (
-              <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
+              <div className="bg-surface rounded-lg shadow-sm">
                 <div className="p-4">
                   {assignments.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">No assignments yet</div>
+                    <div className="text-center py-8 text-text-muted">No assignments yet</div>
                   ) : (
                     <div className="space-y-3">
                       {assignments.map((assignment) => (
@@ -222,17 +222,17 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
                           key={assignment.id}
                           type="button"
                           onClick={() => navigate({ assignmentId: assignment.id })}
-                          className="w-full text-left block p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
+                          className="w-full text-left block p-4 border border-border rounded-lg hover:border-primary hover:bg-info-bg transition"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                              <h3 className="font-medium text-text-default truncate">
                                 {assignment.title}
                               </h3>
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              <p className="text-sm text-text-muted mt-1">
                                 {formatDueDate(assignment.due_at)}
                               </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              <p className="text-xs text-text-muted mt-1">
                                 {formatRelativeDueDate(assignment.due_at)}
                               </p>
                             </div>
@@ -249,8 +249,8 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
                 </div>
               </div>
             ) : !selectedAssignment ? (
-              <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm">
-                <div className="p-6 text-sm text-gray-600 dark:text-gray-400">
+              <div className="bg-surface rounded-lg shadow-sm">
+                <div className="p-6 text-sm text-text-muted">
                   That assignment is no longer available.
                 </div>
               </div>
@@ -271,20 +271,20 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
             type="button"
-            className="absolute inset-0 bg-black/50 dark:bg-black/70"
+            className="absolute inset-0 bg-black/60"
             aria-label="Close instructions"
             onClick={handleCloseInstructions}
           />
-          <div className="relative w-full max-w-2xl rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-6">
+          <div className="relative w-full max-w-2xl rounded-lg border border-border bg-surface shadow-xl p-6">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Instructions</h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{selectedAssignment.title}</p>
+                <h3 className="text-lg font-semibold text-text-default">Instructions</h3>
+                <p className="text-xs text-text-muted truncate">{selectedAssignment.title}</p>
               </div>
               <button
                 type="button"
                 onClick={handleCloseInstructions}
-                className="p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300"
+                className="p-2 rounded-md hover:bg-surface-hover text-text-muted"
                 aria-label="Close"
               >
                 X
@@ -294,11 +294,11 @@ export function StudentAssignmentsTab({ classroom, onSelectAssignment }: Props) 
               {selectedAssignment.rich_instructions ? (
                 <RichTextViewer content={selectedAssignment.rich_instructions} />
               ) : selectedAssignment.description ? (
-                <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                <div className="text-sm text-text-muted whitespace-pre-wrap">
                   {selectedAssignment.description}
                 </div>
               ) : (
-                <div className="text-sm text-gray-500 dark:text-gray-400">
+                <div className="text-sm text-text-muted">
                   No assignment details provided.
                 </div>
               )}

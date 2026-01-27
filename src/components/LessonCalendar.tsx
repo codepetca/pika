@@ -6,7 +6,7 @@ import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose, CircleDot } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
-import { Tooltip } from '@/components/Tooltip'
+import { Tooltip } from '@/ui'
 import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
@@ -255,26 +255,26 @@ export function LessonCalendar({
     <div className="flex flex-col">
       {/* Header with navigation, view mode selector, and actions */}
       {showHeader && (
-        <div className="grid grid-cols-3 items-center px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-3 items-center px-4 py-3 border-b border-border">
           {/* Left: Navigation with month label */}
           <div className="flex items-center gap-1 justify-start">
             {viewMode !== 'all' && (
               <button
                 onClick={handlePrev}
-                className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="p-1.5 rounded hover:bg-surface-hover"
                 aria-label="Previous"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
             )}
-            <span className="text-lg font-semibold text-gray-900 dark:text-gray-100 mx-1 min-w-[120px] text-center">
+            <span className="text-lg font-semibold text-text-default mx-1 min-w-[120px] text-center">
               {headerLabel}
             </span>
             {viewMode !== 'all' && (
               <>
                 <button
                   onClick={handleNext}
-                  className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="p-1.5 rounded hover:bg-surface-hover"
                   aria-label="Next"
                 >
                   <ChevronRight className="w-5 h-5" />
@@ -282,7 +282,7 @@ export function LessonCalendar({
                 <Tooltip content="Today">
                   <button
                     onClick={handleToday}
-                    className="ml-2 p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="ml-2 p-1.5 rounded hover:bg-surface-hover"
                     aria-label="Go to today"
                   >
                     <CircleDot className="w-5 h-5" />
@@ -294,15 +294,15 @@ export function LessonCalendar({
 
           {/* Center: View mode selector */}
           <div className="flex items-center justify-center">
-            <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-surface-2 rounded-lg p-1">
               {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => onViewModeChange(mode)}
                   className={`px-3 py-1 text-sm rounded-md capitalize transition-colors ${
                     viewMode === mode
-                      ? 'bg-white dark:bg-gray-700 shadow-sm font-medium'
-                      : 'hover:bg-gray-200 dark:hover:bg-gray-600'
+                      ? 'bg-surface shadow-sm font-medium'
+                      : 'hover:bg-surface-hover'
                   }`}
                 >
                   {mode}
@@ -314,13 +314,13 @@ export function LessonCalendar({
           {/* Right: Actions */}
           <div className="flex items-center gap-2 justify-end">
             {saving && (
-              <span className="text-sm text-gray-500">Saving...</span>
+              <span className="text-sm text-text-muted">Saving...</span>
             )}
             {onMarkdownToggle && (
               <Tooltip content={isSidebarOpen ? `Close sidebar (${shortcutHint})` : `Edit as Markdown (${shortcutHint})`}>
                 <button
                   onClick={onMarkdownToggle}
-                  className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  className="p-1.5 rounded hover:bg-surface-hover"
                   aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
                 >
                   {isSidebarOpen ? (
@@ -337,21 +337,21 @@ export function LessonCalendar({
 
       {/* Day headers */}
       <div
-        className="grid border-b-2 border-gray-200 dark:border-gray-700"
+        className="grid border-b-2 border-border"
         style={{ gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7 }}
       >
         {/* Empty cell for month column (only in 'all' mode) */}
-        {viewMode === 'all' && <div className="border-r border-gray-200 dark:border-gray-700" />}
+        {viewMode === 'all' && <div className="border-r border-border" />}
         {DAY_LABELS.map((label, idx) => {
           const isWeekendDay = idx === 0 || idx === 6
           const isCompactView = viewMode !== 'week'
           return (
             <div
               key={label}
-              className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${
+              className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-border last:border-r-0 ${
                 isWeekendDay
-                  ? 'text-gray-400 dark:text-gray-500'
-                  : 'text-gray-700 dark:text-gray-300'
+                  ? 'text-text-muted'
+                  : 'text-text-muted'
               }`}
             >
               {isWeekendDay ? label.charAt(0) : label}
@@ -381,14 +381,14 @@ export function LessonCalendar({
         {viewMode === 'all' && monthSpans.map((span) => (
           <div
             key={span.month}
-            className="relative border-b border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-center"
+            className="relative border-b border-r border-border bg-surface-2 flex items-center justify-center"
             style={{
               gridColumn: 1,
               gridRow: `${span.startIdx + 1} / span ${span.count}`,
             }}
           >
             <span
-              className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap"
+              className="text-xs font-medium text-text-muted whitespace-nowrap"
               style={{
                 writingMode: 'vertical-rl',
                 transform: 'rotate(180deg)',
@@ -417,7 +417,7 @@ export function LessonCalendar({
             return (
               <div
                 key={dateString}
-                className={`border-r border-b border-gray-200 dark:border-gray-700 overflow-hidden ${isCompactView ? 'cursor-pointer' : ''}`}
+                className={`border-r border-b border-border overflow-hidden ${isCompactView ? 'cursor-pointer' : ''}`}
                 style={{
                   gridColumn: colStart,
                   gridRow: weekIdx + 1,

@@ -2,9 +2,7 @@
 
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Input } from '@/components/Input'
-import { Button } from '@/components/Button'
-import { AlertDialog } from '@/components/AlertDialog'
+import { Input, Button, FormField, AlertDialog } from '@/ui'
 import { useAlertDialog } from '@/hooks/useAlertDialog'
 
 function ResetPasswordForm() {
@@ -91,38 +89,38 @@ function ResetPasswordForm() {
   if (step === 'verify') {
     return (
       <>
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-950">
-          <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-page">
+          <div className="max-w-md w-full bg-surface rounded-lg shadow-lg p-8">
+            <h1 className="text-2xl font-bold text-text-default mb-2">
               Reset Password
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <p className="text-text-muted mb-6">
               Enter the 5-character code sent to your email
             </p>
 
             <form onSubmit={handleVerifyCode}>
-              <Input
-                label="School Email"
-                type="email"
-                placeholder="number@gapps.yrdsb.ca"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-                className="mb-4"
-              />
+              <FormField label="School Email" required className="mb-4">
+                <Input
+                  type="email"
+                  placeholder="number@gapps.yrdsb.ca"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </FormField>
 
-              <Input
-                label="Reset Code"
-                type="text"
-                placeholder="A7Q2F"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                required
-                disabled={loading}
-                maxLength={5}
-                error={error}
-              />
+              <FormField label="Reset Code" error={error} required>
+                <Input
+                  type="text"
+                  placeholder="A7Q2F"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  required
+                  disabled={loading}
+                  maxLength={5}
+                />
+              </FormField>
 
               <Button
                 type="submit"
@@ -136,13 +134,13 @@ function ResetPasswordForm() {
             <div className="mt-4 text-center space-y-2">
               <button
                 onClick={handleResendCode}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline block w-full"
+                className="text-sm text-primary hover:underline block w-full"
               >
                 Resend reset code
               </button>
               <button
                 onClick={() => router.push('/login')}
-                className="text-sm text-gray-600 dark:text-gray-400 hover:underline block w-full"
+                className="text-sm text-text-muted hover:underline block w-full"
               >
                 Back to login
               </button>
@@ -157,39 +155,39 @@ function ResetPasswordForm() {
 
   return (
     <>
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-950">
-        <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-page">
+        <div className="max-w-md w-full bg-surface rounded-lg shadow-lg p-8">
+          <h1 className="text-2xl font-bold text-text-default mb-2">
             Set New Password
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-text-muted mb-6">
             Choose a new secure password for your account
           </p>
 
           <form onSubmit={handleResetPassword}>
-            <Input
-              label="New Password"
-              type="password"
-              placeholder="At least 8 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-              className="mb-4"
-            />
+            <FormField label="New Password" required className="mb-4">
+              <Input
+                type="password"
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </FormField>
 
-            <Input
-              label="Confirm Password"
-              type="password"
-              placeholder="Re-enter your password"
-              value={passwordConfirmation}
-              onChange={(e) => setPasswordConfirmation(e.target.value)}
-              required
-              disabled={loading}
-              error={error}
-            />
+            <FormField label="Confirm Password" error={error} required>
+              <Input
+                type="password"
+                placeholder="Re-enter your password"
+                value={passwordConfirmation}
+                onChange={(e) => setPasswordConfirmation(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </FormField>
 
-            <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+            <div className="mt-4 text-sm text-text-muted">
               <p>Password must be:</p>
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>At least 8 characters long</li>

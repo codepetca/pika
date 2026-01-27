@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { PanelRight, PanelRightClose, X } from 'lucide-react'
 import { useRightSidebar, useMobileDrawer, useThreePanel } from './ThreePanelProvider'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
-import { Tooltip } from '@/components/Tooltip'
+import { Tooltip } from '@/ui'
 
 export interface RightSidebarProps {
   children: ReactNode
@@ -64,16 +64,16 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
           className={[
             'hidden lg:flex flex-col',
             'sticky top-12 h-[calc(100vh-3rem)]',
-            'bg-white dark:bg-gray-900',
-            'border-l border-gray-200 dark:border-gray-800',
+            'bg-surface',
+            'border-l border-border',
             className,
           ]
             .filter(Boolean)
             .join(' ')}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-800">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate flex-1 px-2">
+          <div className="flex items-center justify-between p-2 border-b border-border">
+            <span className="text-sm font-medium text-text-muted truncate flex-1 px-2">
               {title}
             </span>
             {headerActions && (
@@ -104,15 +104,15 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
             aria-label={title}
             className={[
               'absolute inset-y-0 right-0 w-full max-w-md',
-              'bg-white dark:bg-gray-900',
-              'border-l border-gray-200 dark:border-gray-800',
+              'bg-surface',
+              'border-l border-border',
               'shadow-xl',
               'flex flex-col',
             ].join(' ')}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
+            <div className="flex items-center justify-between p-3 border-b border-border">
+              <span className="text-sm font-semibold text-text-default truncate flex-1">
                 {title}
               </span>
               {headerActions && (
@@ -122,7 +122,7 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
                 ref={firstFocusableRef}
                 type="button"
                 onClick={close}
-                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
                 aria-label="Close panel"
               >
                 <X className="h-5 w-5" aria-hidden="true" />
@@ -164,9 +164,9 @@ export function RightSidebarToggle({ className }: { className?: string }) {
           className={[
             'hidden lg:flex items-center justify-center',
             'p-2 rounded-md text-sm',
-            'text-gray-500 dark:text-gray-400',
-            'hover:bg-gray-100 dark:hover:bg-gray-800',
-            'hover:text-gray-700 dark:hover:text-gray-200',
+            'text-text-muted',
+            'hover:bg-surface-hover',
+            'hover:text-text-default',
             'transition-colors',
             className,
           ]
@@ -190,9 +190,9 @@ export function RightSidebarToggle({ className }: { className?: string }) {
           className={[
             'lg:hidden flex items-center justify-center',
             'p-2 rounded-md text-sm',
-            'text-gray-500 dark:text-gray-400',
-            'hover:bg-gray-100 dark:hover:bg-gray-800',
-            'hover:text-gray-700 dark:hover:text-gray-200',
+            'text-text-muted',
+            'hover:bg-surface-hover',
+            'hover:text-text-default',
             'transition-colors',
             className,
           ]

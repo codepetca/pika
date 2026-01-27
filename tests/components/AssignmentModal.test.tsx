@@ -42,7 +42,7 @@ describe('AssignmentModal', () => {
         />
       )
 
-      expect(screen.getByLabelText('Title')).toHaveValue('Original title')
+      expect(screen.getByLabelText(/Title/)).toHaveValue('Original title')
       expect(screen.getByDisplayValue('2025-01-15')).toBeInTheDocument()
     })
 
@@ -80,7 +80,7 @@ describe('AssignmentModal', () => {
         />
       )
 
-      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Updated title' } })
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated title' } })
       fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
       await waitFor(() => {
@@ -113,7 +113,7 @@ describe('AssignmentModal', () => {
         />
       )
 
-      fireEvent.change(screen.getByLabelText('Title'), { target: { value: '' } })
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: '' } })
       expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     })
 
@@ -254,7 +254,7 @@ describe('AssignmentModal', () => {
       })
 
       // Change the title and save
-      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Updated Title' } })
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated Title' } })
       fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
       await waitFor(() => {
@@ -285,7 +285,7 @@ describe('AssignmentModal', () => {
         />
       )
 
-      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Modified title' } })
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Modified title' } })
       expect(screen.getByText('Unsaved')).toBeInTheDocument()
     })
 
@@ -309,7 +309,7 @@ describe('AssignmentModal', () => {
         />
       )
 
-      fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Modified title' } })
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Modified title' } })
       fireEvent.keyDown(screen.getByRole('dialog').parentElement!, { key: 'Escape' })
 
       await waitFor(() => {

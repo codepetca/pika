@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.scss'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ProgressBarProvider } from '@/components/ProgressBarProvider'
-import { TooltipProvider } from '@/components/Tooltip'
+import { TooltipProvider } from '@/ui'
 
 export const metadata: Metadata = {
   title: 'Pika',
@@ -34,7 +34,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <body className="min-h-screen bg-page">
         <ThemeProvider>
           <TooltipProvider>
             <ProgressBarProvider>

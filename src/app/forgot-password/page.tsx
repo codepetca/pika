@@ -2,8 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Input } from '@/components/Input'
-import { Button } from '@/components/Button'
+import { Input, Button, FormField } from '@/ui'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -42,12 +41,12 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-page">
+      <div className="max-w-md w-full bg-surface rounded-lg shadow-lg p-8">
+        <h1 className="text-2xl font-bold text-text-default mb-2">
           Forgot Password
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-text-muted mb-6">
           Enter your email to receive a password reset code
         </p>
 
@@ -60,16 +59,16 @@ export default function ForgotPasswordPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            <Input
-              label="School Email"
-              type="email"
-              placeholder="number@gapps.yrdsb.ca"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-              error={error}
-            />
+            <FormField label="School Email" error={error} required>
+              <Input
+                type="email"
+                placeholder="number@gapps.yrdsb.ca"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </FormField>
 
             <Button
               type="submit"
@@ -84,7 +83,7 @@ export default function ForgotPasswordPage() {
         <div className="mt-6 text-center">
           <button
             onClick={() => router.push('/login')}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-primary hover:underline"
           >
             Back to login
           </button>
