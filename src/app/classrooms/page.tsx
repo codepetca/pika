@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { getUserDisplayInfo } from '@/lib/user-profile'
 import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomsIndex } from './TeacherClassroomsIndex'
 import { StudentClassroomsIndex } from './StudentClassroomsIndex'
@@ -17,6 +18,9 @@ export default async function ClassroomsIndexPage() {
 
   const supabase = getServiceRoleClient()
 
+  // Fetch user display info (for avatar)
+  const displayInfo = await getUserDisplayInfo(user, supabase)
+
   if (user.role === 'teacher') {
     const { data: classrooms } = await supabase
       .from('classrooms')
@@ -26,7 +30,7 @@ export default async function ClassroomsIndexPage() {
       .order('updated_at', { ascending: false })
 
     return (
-      <AppShell user={{ email: user.email, role: user.role }}>
+      <AppShell user={{ email: user.email, role: user.role, ...displayInfo }}>
         <TeacherClassroomsIndex initialClassrooms={classrooms || []} />
       </AppShell>
     )
@@ -43,7 +47,7 @@ export default async function ClassroomsIndexPage() {
   if (classroomIds.length === 0) {
     // No enrollments, show empty state
     return (
-      <AppShell user={{ email: user.email, role: user.role }}>
+      <AppShell user={{ email: user.email, role: user.role, ...displayInfo }}>
         <StudentClassroomsIndex initialClassrooms={[]} />
       </AppShell>
     )
@@ -57,7 +61,7 @@ export default async function ClassroomsIndexPage() {
     .order('updated_at', { ascending: false })
 
   return (
-    <AppShell user={{ email: user.email, role: user.role }}>
+    <AppShell user={{ email: user.email, role: user.role, ...displayInfo }}>
       <StudentClassroomsIndex initialClassrooms={classrooms || []} />
     </AppShell>
   )
