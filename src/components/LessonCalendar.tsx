@@ -384,10 +384,11 @@ export function LessonCalendar({
         {viewMode === 'all' && monthSpans.map((span) => (
           <div
             key={span.month}
-            className="relative border-b border-r border-border bg-surface-2 flex items-center justify-center"
+            className="relative border-b border-r border-border bg-surface-2 flex items-center justify-center overflow-hidden"
             style={{
               gridColumn: 1,
               gridRow: `${span.startIdx + 1} / span ${span.count}`,
+              width: '24px',
             }}
           >
             <span
