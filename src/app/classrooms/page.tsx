@@ -18,16 +18,17 @@ export default async function ClassroomsIndexPage() {
 
   const supabase = getServiceRoleClient()
 
-  // Fetch user display info (for avatar)
-  const displayInfo = await getUserDisplayInfo(user, supabase)
-
   if (user.role === 'teacher') {
-    const { data: classrooms } = await supabase
-      .from('classrooms')
-      .select('*')
-      .eq('teacher_id', user.id)
-      .is('archived_at', null)
-      .order('updated_at', { ascending: false })
+    // Parallel fetch: classrooms + display info
+    const [{ data: classrooms }, displayInfo] = await Promise.all([
+      supabase
+        .from('classrooms')
+        .select('*')
+        .eq('teacher_id', user.id)
+        .is('archived_at', null)
+        .order('updated_at', { ascending: false }),
+      getUserDisplayInfo(user, supabase),
+    ])
 
     return (
       <AppShell user={{ email: user.email, role: user.role, ...displayInfo }}>
@@ -36,11 +37,14 @@ export default async function ClassroomsIndexPage() {
     )
   }
 
-  // Student: fetch all enrolled classrooms
-  const { data: enrollments } = await supabase
-    .from('classroom_enrollments')
-    .select('classroom_id')
-    .eq('student_id', user.id)
+  // Student: parallel fetch enrollments + display info
+  const [{ data: enrollments }, displayInfo] = await Promise.all([
+    supabase
+      .from('classroom_enrollments')
+      .select('classroom_id')
+      .eq('student_id', user.id),
+    getUserDisplayInfo(user, supabase),
+  ])
 
   const classroomIds = enrollments?.map(e => e.classroom_id) || []
 
