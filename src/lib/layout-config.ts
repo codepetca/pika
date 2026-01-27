@@ -43,6 +43,8 @@ export type RouteKey =
   | 'assignments-student'
   | 'assignments-teacher-list'
   | 'assignments-teacher-viewing'
+  | 'quizzes-teacher'
+  | 'quizzes-student'
   | 'calendar-teacher'
   | 'calendar-student'
   | 'resources-teacher'
@@ -108,6 +110,14 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
   'assignments-teacher-viewing': {
     rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '40%' },
     mainContent: { maxWidth: 'full' },
+  },
+  'quizzes-teacher': {
+    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '40%' },
+    mainContent: { maxWidth: 'full' },
+  },
+  'quizzes-student': {
+    rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 320 },
+    mainContent: { maxWidth: 'reading' },
   },
   'calendar-teacher': {
     rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '50%' },
@@ -204,6 +214,10 @@ export function getRouteKeyFromTab(
     if (role === 'student') return 'assignments-student'
     if (isViewingWork) return 'assignments-teacher-viewing'
     return 'assignments-teacher-list'
+  }
+
+  if (tab === 'quizzes') {
+    return role === 'teacher' ? 'quizzes-teacher' : 'quizzes-student'
   }
 
   // Default fallback
