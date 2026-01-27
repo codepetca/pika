@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Settings,
   PenSquare,
+  StickyNote,
   Users,
   ChevronDown,
   type LucideIcon,
@@ -30,6 +31,7 @@ export type ClassroomNavItemId =
   | 'attendance'
   | 'assignments'
   | 'calendar'
+  | 'resources'
   | 'roster'
   | 'settings'
   | 'today'
@@ -54,6 +56,7 @@ const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
+  { id: 'resources', label: 'Resources', icon: StickyNote },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -62,6 +65,7 @@ const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
+  { id: 'resources', label: 'Resources', icon: StickyNote },
 ]
 
 // ============================================================================
