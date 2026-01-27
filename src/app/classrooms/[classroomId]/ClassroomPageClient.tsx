@@ -14,6 +14,8 @@ import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebar
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
 import { TeacherResourcesTab } from './TeacherResourcesTab'
 import { StudentResourcesTab } from './StudentResourcesTab'
+import { TeacherQuizzesTab } from './TeacherQuizzesTab'
+import { StudentQuizzesTab } from './StudentQuizzesTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider } from '@/hooks/useClassDays'
 import {
@@ -71,8 +73,8 @@ export function ClassroomPageClient({
   const tab = searchParams.get('tab') ?? initialTab
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
-    ? (['attendance', 'assignments', 'calendar', 'resources', 'roster', 'settings'] as const)
-    : (['today', 'assignments', 'calendar', 'resources'] as const)
+    ? (['attendance', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
+    : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const)
 
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
 
@@ -376,6 +378,7 @@ function ClassroomPageContent({
                   onViewModeChange={handleViewModeChange}
                 />
               )}
+              {activeTab === 'quizzes' && <TeacherQuizzesTab classroom={classroom} />}
               {activeTab === 'calendar' && (
                 <TeacherLessonCalendarTab
                   classroom={classroom}
@@ -400,6 +403,7 @@ function ClassroomPageContent({
                   onSelectAssignment={handleSelectAssignment}
                 />
               )}
+              {activeTab === 'quizzes' && <StudentQuizzesTab classroom={classroom} />}
               {activeTab === 'calendar' && <StudentLessonCalendarTab classroom={classroom} />}
               {activeTab === 'resources' && <StudentResourcesTab classroom={classroom} />}
             </>

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar,
+  CircleHelp,
   ClipboardCheck,
   ClipboardList,
   Settings,
@@ -30,6 +31,7 @@ import {
 export type ClassroomNavItemId =
   | 'attendance'
   | 'assignments'
+  | 'quizzes'
   | 'calendar'
   | 'resources'
   | 'roster'
@@ -55,6 +57,7 @@ type SidebarAssignment = {
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+  { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: StickyNote },
   { id: 'roster', label: 'Roster', icon: Users },
@@ -64,6 +67,7 @@ const teacherItems: NavItem[] = [
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+  { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: StickyNote },
 ]
