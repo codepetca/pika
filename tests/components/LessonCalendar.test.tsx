@@ -43,11 +43,12 @@ describe('LessonCalendar', () => {
         { wrapper: Wrapper }
       )
 
-      // Find the grid element - in all view it has overflow-y-auto
-      const grid = container.querySelector('[class*="grid"][class*="overflow-y-auto"]')
-      expect(grid).toBeTruthy()
+      // Find the grid element by looking for the one with grid-template-rows style
+      const grids = container.querySelectorAll('[class*="grid"]')
+      const calendarGrid = Array.from(grids).find(g => g.getAttribute('style')?.includes('grid-template-rows'))
+      expect(calendarGrid).toBeTruthy()
 
-      const style = grid?.getAttribute('style')
+      const style = calendarGrid?.getAttribute('style')
       // All view uses auto rows so content determines height
       expect(style).toContain('grid-template-rows: auto')
     })

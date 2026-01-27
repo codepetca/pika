@@ -335,59 +335,84 @@ export function LessonCalendar({
         </div>
       )}
 
-      {/* Day headers */}
-      <div
-        className="grid border-b-2 border-border"
-        style={{ gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7 }}
-      >
-        {/* Empty cell for month column (only in 'all' mode) */}
-        {viewMode === 'all' && <div className="border-r border-border" />}
-        {DAY_LABELS.map((label, idx) => {
-          const isWeekendDay = idx === 0 || idx === 6
-          const isCompactView = viewMode !== 'week'
-          return (
-            <div
-              key={label}
-              className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-border last:border-r-0 ${
-                isWeekendDay
-                  ? 'text-text-muted'
-                  : 'text-text-muted'
-              }`}
-            >
-              {isWeekendDay ? label.charAt(0) : label}
-            </div>
-          )
-        })}
-      </div>
+      {/* Day headers - only shown outside the grid for non-all modes */}
+      {viewMode !== 'all' && (
+        <div
+          className="grid border-b-2 border-border"
+          style={{ gridTemplateColumns: GRID_COLUMNS_7 }}
+        >
+          {DAY_LABELS.map((label, idx) => {
+            const isWeekendDay = idx === 0 || idx === 6
+            const isCompactView = viewMode !== 'week'
+            return (
+              <div
+                key={label}
+                className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-border last:border-r-0 text-text-muted`}
+              >
+                {isWeekendDay ? label.charAt(0) : label}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
-      {/* Calendar grid */}
+      {/* Scrollable container for all mode */}
       <div
-        className={`grid ${viewMode === 'all' ? 'overflow-y-auto' : 'overflow-visible'}`}
-        style={{
-          gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7,
-          gridTemplateRows: viewMode === 'week'
-            ? '1fr'
-            : viewMode === 'all'
-              ? weeks.map(() => 'auto').join(' ')
-              : weeks.map((_, idx) => {
-                  const isExpanded = expandedWeekIdx === idx
-                  if (isExpanded) return 'minmax(60px, 1.5fr)'
-                  return 'minmax(0, 1fr)'
-                }).join(' '),
-          // In month/all view, calculate height to fit all weeks
-          height: viewMode === 'week' ? 'auto' : viewMode === 'all' ? undefined : `calc(100vh - 120px)`,
-          maxHeight: viewMode === 'all' ? `calc(100vh - 120px)` : undefined,
-          minHeight: viewMode === 'week' ? '200px' : undefined,
-        }}
+        className={viewMode === 'all' ? 'overflow-y-auto' : ''}
+        style={viewMode === 'all' ? { maxHeight: `calc(100vh - 120px)` } : undefined}
       >
-        {/* Render month labels first (they span rows) - only in 'all' mode */}
+        {/* Calendar grid - in all mode, includes header row */}
+        <div
+          className={`grid ${viewMode !== 'all' ? 'overflow-visible' : ''}`}
+          style={{
+            gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7,
+            gridTemplateRows: viewMode === 'week'
+              ? '1fr'
+              : viewMode === 'all'
+                // First row is sticky header, rest are auto
+                ? `auto ${weeks.map(() => 'auto').join(' ')}`
+                : weeks.map((_, idx) => {
+                    const isExpanded = expandedWeekIdx === idx
+                    if (isExpanded) return 'minmax(60px, 1.5fr)'
+                    return 'minmax(0, 1fr)'
+                  }).join(' '),
+            // In month view (not all), calculate height to fit all weeks
+            height: viewMode === 'week' ? 'auto' : viewMode === 'all' ? undefined : `calc(100vh - 120px)`,
+            minHeight: viewMode === 'week' ? '200px' : undefined,
+          }}
+        >
+        {/* Day header row inside grid - only in all mode */}
+        {viewMode === 'all' && (
+          <>
+            {/* Empty cell for month column */}
+            <div
+              className="sticky top-0 z-10 bg-surface border-r border-b-2 border-border"
+              style={{ gridColumn: 1, gridRow: 1 }}
+            />
+            {DAY_LABELS.map((label, idx) => {
+              const isWeekendDay = idx === 0 || idx === 6
+              return (
+                <div
+                  key={label}
+                  className="sticky top-0 z-10 bg-surface py-0.5 text-center text-sm font-medium border-r border-b-2 border-border last:border-r-0 text-text-muted"
+                  style={{ gridColumn: idx + 2, gridRow: 1 }}
+                >
+                  {isWeekendDay ? label.charAt(0) : label}
+                </div>
+              )
+            })}
+          </>
+        )}
+
+        {/* Render month labels (they span rows) - only in 'all' mode */}
         {viewMode === 'all' && monthSpans.map((span) => (
           <div
             key={span.month}
             className="relative border-b border-r border-border bg-surface-2 flex items-center justify-center overflow-hidden"
             style={{
               gridColumn: 1,
-              gridRow: `${span.startIdx + 1} / span ${span.count}`,
+              // +2 because row 1 is header
+              gridRow: `${span.startIdx + 2} / span ${span.count}`,
               width: '24px',
             }}
           >
@@ -407,6 +432,8 @@ export function LessonCalendar({
         {weeks.map((week, weekIdx) => {
           const isExpanded = expandedWeekIdx === weekIdx
           const isCompactView = viewMode !== 'week'
+          // In all mode, rows start at 2 (row 1 is header)
+          const rowStart = viewMode === 'all' ? weekIdx + 2 : weekIdx + 1
 
           return week.map((day, dayIdx) => {
             const dateString = format(day, 'yyyy-MM-dd')
@@ -424,7 +451,7 @@ export function LessonCalendar({
                 className={`border-r border-b border-border overflow-hidden ${isCompactView ? 'cursor-pointer' : ''}`}
                 style={{
                   gridColumn: colStart,
-                  gridRow: weekIdx + 1,
+                  gridRow: rowStart,
                 }}
                 onClick={isCompactView ? () => setExpandedWeekIdx(isExpanded ? null : weekIdx) : undefined}
               >
@@ -446,6 +473,7 @@ export function LessonCalendar({
             )
           })
         })}
+        </div>
       </div>
     </div>
   )
