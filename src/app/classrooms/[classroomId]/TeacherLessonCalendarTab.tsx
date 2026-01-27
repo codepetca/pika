@@ -10,7 +10,7 @@ import { useRightSidebar } from '@/components/layout'
 import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDays } from '@/hooks/useClassDays'
 import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
-import { writeCookie } from '@/lib/cookies'
+import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
@@ -37,7 +37,14 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('week')
+  const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
+    const saved = readCookie(`calendarViewMode:${classroom.id}`)
+    return (saved === 'week' || saved === 'month' || saved === 'all') ? saved : 'week'
+  })
+  const handleViewModeChange = useCallback((mode: CalendarViewMode) => {
+    setViewMode(mode)
+    writeCookie(`calendarViewMode:${classroom.id}`, mode)
+  }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [markdownContent, setMarkdownContent] = useState('')
   const [markdownError, setMarkdownError] = useState<string | null>(null)
@@ -209,8 +216,13 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
         `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${start}&end=${end}`
       )
       if (!res.ok) {
-        const body = await res.text().catch(() => '')
-        throw new Error(`HTTP ${res.status}${body ? `: ${body}` : ''}`)
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('Not authorized to view lesson plans')
+        } else if (res.status === 404) {
+          throw new Error('Classroom not found')
+        } else {
+          throw new Error(`Failed to load lesson plans (${res.status})`)
+        }
       }
       const data = await res.json()
       const plans = data.lesson_plans || []
@@ -219,8 +231,8 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
       markdownContentRef.current = markdown
       needsRefreshRef.current = false
     } catch (err) {
-      console.error('Error generating markdown:', err)
-      setMarkdownError('Failed to load lesson plans')
+      console.error('Error loading lesson plans:', err)
+      setMarkdownError(err instanceof Error ? err.message : 'Failed to load lesson plans')
     } finally {
       setLoading(false)
     }
@@ -365,7 +377,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
           editable={!classroom.archived_at}
           saving={saving}
           onDateChange={setCurrentDate}
-          onViewModeChange={setViewMode}
+          onViewModeChange={handleViewModeChange}
           onContentChange={handleContentChange}
           onAssignmentClick={handleAssignmentClick}
           onMarkdownToggle={handleMarkdownToggle}

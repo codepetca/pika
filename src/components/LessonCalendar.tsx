@@ -362,18 +362,21 @@ export function LessonCalendar({
 
       {/* Calendar grid */}
       <div
-        className="grid overflow-visible"
+        className={`grid ${viewMode === 'all' ? 'overflow-y-auto' : 'overflow-visible'}`}
         style={{
           gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7,
           gridTemplateRows: viewMode === 'week'
             ? '1fr'
-            : weeks.map((_, idx) => {
-                const isExpanded = expandedWeekIdx === idx
-                if (isExpanded) return 'minmax(60px, 1.5fr)'
-                return 'minmax(0, 1fr)'
-              }).join(' '),
+            : viewMode === 'all'
+              ? weeks.map(() => 'auto').join(' ')
+              : weeks.map((_, idx) => {
+                  const isExpanded = expandedWeekIdx === idx
+                  if (isExpanded) return 'minmax(60px, 1.5fr)'
+                  return 'minmax(0, 1fr)'
+                }).join(' '),
           // In month/all view, calculate height to fit all weeks
-          height: viewMode === 'week' ? 'auto' : `calc(100vh - 120px)`,
+          height: viewMode === 'week' ? 'auto' : viewMode === 'all' ? undefined : `calc(100vh - 120px)`,
+          maxHeight: viewMode === 'all' ? `calc(100vh - 120px)` : undefined,
           minHeight: viewMode === 'week' ? '200px' : undefined,
         }}
       >
