@@ -2,15 +2,24 @@
 
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { type ReactNode } from 'react'
+import { cva } from 'class-variance-authority'
 
-interface TooltipProps {
+// Tooltip content styles with CVA
+const tooltipContentStyles = cva([
+  'z-50 rounded px-2 py-1 text-[11px] leading-tight pointer-events-none',
+  'bg-surface-2',
+  'text-text-default',
+  'shadow-sm border border-border',
+])
+
+export interface TooltipProps {
   /** The content to display in the tooltip */
   content: ReactNode
   /** The element that triggers the tooltip */
   children: ReactNode
   /** Delay in ms before showing tooltip (default: 100) */
   delayDuration?: number
-  /** Side of the trigger to render tooltip (default: 'top') */
+  /** Side of the trigger to render tooltip (default: 'bottom') */
   side?: 'top' | 'right' | 'bottom' | 'left'
   /** Alignment of tooltip relative to trigger (default: 'center') */
   align?: 'start' | 'center' | 'end'
@@ -21,7 +30,7 @@ interface TooltipProps {
  * Replaces native title attributes with customizable delay and consistent styling.
  *
  * @example
- * <Tooltip content="Open panel (⌘\)">
+ * <Tooltip content="Open panel">
  *   <button><PanelRight /></button>
  * </Tooltip>
  */
@@ -40,7 +49,7 @@ export function Tooltip({
           side={side}
           align={align}
           sideOffset={4}
-          className="z-50 rounded px-2 py-1 text-[11px] leading-tight bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm border border-gray-200 dark:border-gray-600 pointer-events-none"
+          className={tooltipContentStyles()}
         >
           {content}
         </TooltipPrimitive.Content>

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, FormEvent, useId } from 'react'
-import { Input } from '@/components/Input'
-import { Button } from '@/components/Button'
+import { Input, Button, FormField } from '@/ui'
 import { format } from 'date-fns'
 
 type WizardStep = 'name' | 'calendar'
@@ -132,36 +131,37 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
   const { semester1Year, semester2Year } = getSemesterYears()
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Create Classroom</h2>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+      <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
+        <h2 className="text-xl font-bold text-text-default mb-4">Create Classroom</h2>
 
         {/* Progress Indicator */}
         <div className="flex items-center mb-6">
-          <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-blue-200 dark:bg-blue-800'}`} />
-          <div className={`flex-1 h-1 rounded ml-2 ${step === 'calendar' ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'}`} />
+          <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-primary' : 'bg-info-bg'}`} />
+          <div className={`flex-1 h-1 rounded ml-2 ${step === 'calendar' ? 'bg-primary' : 'bg-surface-2'}`} />
         </div>
 
         {/* Step 1: Name */}
         {step === 'name' && (
           <div>
-            <Input
-              label="Classroom Name"
-              type="text"
-              placeholder="Career Studies - Period 1"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              disabled={loading}
-              autoFocus
-            />
+            <FormField label="Classroom Name" required>
+              <Input
+                type="text"
+                placeholder="Career Studies - Period 1"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                disabled={loading}
+                autoFocus
+              />
+            </FormField>
           </div>
         )}
 
         {/* Step 2: Calendar */}
         {step === 'calendar' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            <label className="block text-sm font-medium text-text-muted mb-3">
               Choose Calendar
             </label>
 
@@ -174,12 +174,12 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 }}
                 className={`w-full p-4 rounded-lg border-2 transition text-left ${
                   calendarMode === 'preset' && selectedSemester === 'semester1'
-                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                    ? 'border-primary bg-info-bg'
+                    : 'border-border-strong hover:border-border-strong'
                 }`}
               >
-                <div className="font-medium text-gray-900 dark:text-gray-100">Semester 1</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <div className="font-medium text-text-default">Semester 1</div>
+                <div className="text-sm text-text-muted mt-1">
                   Sep {semester1Year} - Jan {semester1Year + 1}
                 </div>
               </button>
@@ -192,12 +192,12 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 }}
                 className={`w-full p-4 rounded-lg border-2 transition text-left ${
                   calendarMode === 'preset' && selectedSemester === 'semester2'
-                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                    ? 'border-primary bg-info-bg'
+                    : 'border-border-strong hover:border-border-strong'
                 }`}
               >
-                <div className="font-medium text-gray-900 dark:text-gray-100">Semester 2</div>
-                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <div className="font-medium text-text-default">Semester 2</div>
+                <div className="text-sm text-text-muted mt-1">
                   Feb {semester2Year} - Jun {semester2Year}
                 </div>
               </button>
@@ -207,25 +207,25 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 onClick={() => setCalendarMode('custom')}
                 className={`w-full p-4 rounded-lg border-2 transition ${
                   calendarMode === 'custom'
-                    ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                    ? 'border-primary bg-info-bg'
+                    : 'border-border-strong hover:border-border-strong'
                 }`}
               >
-                <div className="font-medium text-gray-900 dark:text-gray-100">Custom Date Range</div>
+                <div className="font-medium text-text-default">Custom Date Range</div>
               </button>
             </div>
 
             {calendarMode === 'custom' && (
-              <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg mb-4">
+              <div className="p-4 bg-surface-2 rounded-lg mb-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor={startMonthId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start</label>
+                    <label htmlFor={startMonthId} className="block text-sm font-medium text-text-muted mb-2">Start</label>
                     <div className="flex gap-2">
                       <select
                         id={startMonthId}
                         value={startMonth}
                         onChange={(e) => setStartMonth(parseInt(e.target.value))}
-                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        className="flex-1 px-3 py-2 border border-border-strong rounded-lg text-sm bg-surface text-text-default"
                       >
                         {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                           <option key={month} value={month}>
@@ -240,18 +240,18 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                         min={2020}
                         max={2030}
                         aria-label="Start year"
-                        className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        className="w-20 px-3 py-2 border border-border-strong rounded-lg text-sm bg-surface text-text-default"
                       />
                     </div>
                   </div>
                   <div>
-                    <label htmlFor={endMonthId} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End</label>
+                    <label htmlFor={endMonthId} className="block text-sm font-medium text-text-muted mb-2">End</label>
                     <div className="flex gap-2">
                       <select
                         id={endMonthId}
                         value={endMonth}
                         onChange={(e) => setEndMonth(parseInt(e.target.value))}
-                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        className="flex-1 px-3 py-2 border border-border-strong rounded-lg text-sm bg-surface text-text-default"
                       >
                         {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                           <option key={month} value={month}>
@@ -266,7 +266,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                         min={2020}
                         max={2030}
                         aria-label="End year"
-                        className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                        className="w-20 px-3 py-2 border border-border-strong rounded-lg text-sm bg-surface text-text-default"
                       />
                     </div>
                   </div>
@@ -277,7 +277,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
         )}
 
         {error && (
-          <div className="mt-4 text-sm text-red-600 dark:text-red-400">
+          <div className="mt-4 text-sm text-danger">
             {error}
           </div>
         )}

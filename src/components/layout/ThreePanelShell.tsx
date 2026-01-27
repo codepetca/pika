@@ -28,7 +28,7 @@ export function ThreePanelShell({ children, className }: ThreePanelShellProps) {
     <div
       className={[
         'min-h-[calc(100vh-3rem)]', // Full height minus 48px header
-        'bg-gray-50 dark:bg-gray-950',
+        'bg-page',
         // Mobile: single column
         'grid grid-cols-1',
         // Desktop: 3-column grid with transitions

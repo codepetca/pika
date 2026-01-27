@@ -1,0 +1,115 @@
+/**
+ * Pika Design System Tokens
+ *
+ * These CSS variables define the semantic design tokens for the application.
+ * They automatically switch between light and dark values based on the
+ * .dark class on the html element.
+ *
+ * Usage: Use the Tailwind classes (bg-surface, text-text-default, etc.)
+ * which are configured in tailwind.config.ts to use these variables.
+ *
+ * Color values from Tailwind's default palette:
+ * - gray-50: #f9fafb    gray-100: #f3f4f6    gray-200: #e5e7eb
+ * - gray-300: #d1d5db   gray-400: #9ca3af    gray-500: #6b7280
+ * - gray-600: #4b5563   gray-700: #374151    gray-800: #1f2937
+ * - gray-900: #111827   gray-950: #030712
+ * - blue-500: #3b82f6   blue-600: #2563eb    blue-700: #1d4ed8
+ * - green-500: #22c55e  green-600: #16a34a   green-700: #15803d
+ * - red-500: #ef4444    red-600: #dc2626     red-700: #b91c1c
+ * - yellow-400: #facc15 yellow-500: #eab308
+ */
+
+:root {
+  /* Background colors */
+  --color-page: #f9fafb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f9fafb;
+  --color-surface-hover: #f3f4f6;
+
+  /* Border colors */
+  --color-border: #e5e7eb;
+  --color-border-strong: #d1d5db;
+
+  /* Text colors */
+  --color-text-default: #111827;
+  --color-text-muted: #6b7280;
+  --color-text-inverse: #ffffff;
+
+  /* Primary accent */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+
+  /* Status colors */
+  --color-success: #16a34a;
+  --color-success-hover: #15803d;
+  --color-success-bg: #dcfce7;
+  --color-success-bg-muted: #ecfdf5;
+  --color-success-bg-hover: #bbf7d0;
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-danger-bg: #fee2e2;
+  --color-danger-bg-hover: #fecaca;
+  --color-warning: #d97706;
+  --color-warning-bg: #fef3c7;
+  --color-info: #2563eb;
+  --color-info-bg: #dbeafe;
+  --color-info-bg-hover: #bfdbfe;
+
+  /* Shadows */
+  --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-dialog: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  /* Spacing */
+  --space-dialog: 1.25rem;
+  --space-card: 1.25rem;
+  --space-section: 1.5rem;
+  --space-field: 0.75rem;
+  --space-control: 0.5rem;
+
+  /* Border radius */
+  --radius-control: 0.5rem;
+  --radius-card: 0.5rem;
+  --radius-dialog: 0.5rem;
+  --radius-badge: 9999px;
+}
+
+.dark {
+  /* Background colors - dark mode */
+  --color-page: #030712;
+  --color-surface: #111827;
+  --color-surface-2: #1f2937;
+  --color-surface-hover: #1f2937;
+
+  /* Border colors - dark mode */
+  --color-border: #374151;
+  --color-border-strong: #4b5563;
+
+  /* Text colors - dark mode */
+  --color-text-default: #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --color-text-inverse: #111827;
+
+  /* Primary accent - dark mode */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+
+  /* Status colors - dark mode */
+  --color-success: #22c55e;
+  --color-success-hover: #16a34a;
+  --color-success-bg: rgba(22, 101, 52, 0.5);
+  --color-success-bg-muted: rgba(22, 101, 52, 0.25);
+  --color-success-bg-hover: rgba(22, 101, 52, 0.6);
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-danger-bg: rgba(127, 29, 29, 0.3);
+  --color-danger-bg-hover: rgba(127, 29, 29, 0.5);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(120, 53, 15, 0.3);
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(30, 58, 138, 0.3);
+  --color-info-bg-hover: rgba(30, 58, 138, 0.4);
+
+  /* Shadows - dark mode */
+  --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-dialog: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+}

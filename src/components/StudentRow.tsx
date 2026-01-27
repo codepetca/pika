@@ -13,9 +13,9 @@ interface StudentRowBaseProps {
 function StudentRowBase({ email, className = '', children }: StudentRowBaseProps) {
   return (
     <div
-      className={`flex items-center justify-between py-2 px-3 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${className}`}
+      className={`flex items-center justify-between py-2 px-3 border-b border-border hover:bg-surface-hover transition-colors ${className}`}
     >
-      <span className="text-sm text-gray-900 dark:text-gray-100 truncate flex-1">{email}</span>
+      <span className="text-sm text-text-default truncate flex-1">{email}</span>
       {children}
     </div>
   )
@@ -58,13 +58,13 @@ export function StudentRowMedium({
   action,
 }: StudentRowMediumProps) {
   return (
-    <div className="flex items-center justify-between py-2 px-3 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    <div className="flex items-center justify-between py-2 px-3 border-b border-border hover:bg-surface-hover transition-colors">
       <div className="flex-1 min-w-0">
-        <div className="text-sm text-gray-900 dark:text-gray-100 truncate">{email}</div>
+        <div className="text-sm text-text-default truncate">{email}</div>
         {(name || studentNumber) && (
-          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+          <div className="flex items-center gap-2 mt-0.5 text-xs text-text-muted">
             {name && <span className="font-medium truncate">{name}</span>}
-            {studentNumber && <span className="text-gray-500 dark:text-gray-500">#{studentNumber}</span>}
+            {studentNumber && <span className="text-text-muted">#{studentNumber}</span>}
           </div>
         )}
       </div>
@@ -96,25 +96,25 @@ export function StudentRowExpandable({
   onToggle,
 }: StudentRowExpandableProps) {
   return (
-    <div className="border-b border-gray-200 dark:border-gray-700">
+    <div className="border-b border-border">
       <div
-        className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+        className="flex items-center justify-between py-2 px-3 hover:bg-surface-hover transition-colors cursor-pointer"
         onClick={onToggle}
       >
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{label}</div>
+          <div className="text-sm font-medium text-text-default truncate">{label}</div>
           {!expanded && preview && (
-            <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 truncate">
+            <div className="text-xs text-text-muted mt-0.5 truncate">
               {preview}
             </div>
           )}
         </div>
-        <span className="flex-shrink-0 ml-3 text-xs text-gray-500 dark:text-gray-400">
+        <span className="flex-shrink-0 ml-3 text-xs text-text-muted">
           {expanded ? '▴' : '▾'}
         </span>
       </div>
       {expanded && expandedContent && (
-        <div className="px-3 pb-3 pt-1 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-3 pb-3 pt-1 bg-surface-2 border-t border-border">
           {expandedContent}
         </div>
       )}

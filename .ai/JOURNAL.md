@@ -2366,3 +2366,40 @@
   - package.json, pnpm-lock.yaml
 **Tests:** All 710 tests passing
 **Blockers:** None
+
+---
+## 2026-01-26 [AI - Claude Opus 4.5]
+**Goal:** Complete Phase 2d of GitHub issue #190 - Design System Layer & UI Refactor
+**Completed:**
+- Migrated all `dark:` classes from app code to semantic tokens (673 → 0 usages)
+- Created `/src/ui/` design system layer with CVA-based components:
+  - Button, Card, Dialog (AlertDialog + ConfirmDialog), FormField, Input, Select, Tooltip
+  - index.ts barrel export, README.md documentation, utils.ts (cn helper)
+- Created `/src/styles/tokens.css` with CSS variables for light/dark theming
+- Updated `tailwind.config.ts` with semantic color tokens (bg-surface, text-text-default, border-border, etc.)
+- Updated `.eslintrc.json` with no-restricted-imports rule
+- Created `.github/workflows/ui-policy.yml` CI enforcement:
+  - Blocks direct imports to legacy components
+  - Enforces no `dark:` classes in app code
+- Deleted legacy components: Button.tsx, Input.tsx, AlertDialog.tsx, ConfirmDialog.tsx, Tooltip.tsx
+- Updated Button.test.tsx to import from @/ui
+- All imports migrated to use @/ui instead of @/components
+**Status:** completed
+**Artifacts:**
+- Branch: issue/190-establish-design-system-layer-refactor-u
+- Worktree: /Users/stew/Repos/.worktrees/pika/issue/190-establish-design-system-layer-refactor-u
+- New files:
+  - .github/workflows/ui-policy.yml
+  - src/styles/tokens.css
+  - src/ui/ (full directory)
+- Modified: 60+ files (all app/components migrated to semantic tokens)
+- Deleted: src/components/{Button,Input,AlertDialog,ConfirmDialog,Tooltip}.tsx
+**Tests:** All 710 tests passing
+**Lint:** No warnings or errors
+**Build:** Successful
+**Blockers:** None
+**Key Decisions:**
+- Semantic tokens use CSS variables that swap on .dark class
+- dark: classes allowed ONLY in /ui CVA definitions, banned in app code
+- FormField pattern: all form controls wrapped with FormField for labels/errors
+- Dev-only UI (login quick fill buttons) uses light-only colors (acceptable)

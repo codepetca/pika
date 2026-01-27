@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { ConfirmDialog } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -312,34 +312,34 @@ export function TeacherRosterTab({ classroom }: Props) {
                 </button>
                 {isEmailMenuOpen && (
                   <div className="absolute left-0 top-full pt-1 w-48 z-10">
-                    <div className="rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    <div className="rounded-md border border-border bg-surface shadow-lg">
                     {/* Students option with submenu */}
                     <div className="group relative">
                       <button
                         type="button"
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-between"
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center justify-between"
                       >
                         <span>Students ({selectedStudentEmails.length})</span>
                         <ChevronRight className="h-4 w-4" />
                       </button>
-                      <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 hidden group-hover:block">
+                      <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                           onClick={() => openGmail(selectedStudentEmails)}
                         >
                           Gmail
                         </button>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                           onClick={() => openOutlook(selectedStudentEmails)}
                         >
                           Outlook
                         </button>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center gap-2"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
                           onClick={() => copyToClipboard(selectedStudentEmails, 'Student emails')}
                         >
                           <Copy className="h-4 w-4" />
@@ -353,29 +353,29 @@ export function TeacherRosterTab({ classroom }: Props) {
                       <div className="group relative">
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-between"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center justify-between"
                         >
                           <span>Counselors ({selectedCounselorEmails.length})</span>
                           <ChevronRight className="h-4 w-4" />
                         </button>
-                        <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 hidden group-hover:block">
+                        <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
                           <button
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                             onClick={() => openGmail(selectedCounselorEmails)}
                           >
                             Gmail
                           </button>
                           <button
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                             onClick={() => openOutlook(selectedCounselorEmails)}
                           >
                             Outlook
                           </button>
                           <button
                             type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center gap-2"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
                             onClick={() => copyToClipboard(selectedCounselorEmails, 'Counselor emails')}
                           >
                             <Copy className="h-4 w-4" />
@@ -386,32 +386,32 @@ export function TeacherRosterTab({ classroom }: Props) {
                     )}
 
                     {/* All option with submenu */}
-                    <div className="group relative border-t border-gray-200 dark:border-gray-700">
+                    <div className="group relative border-t border-border">
                       <button
                         type="button"
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center justify-between"
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center justify-between"
                       >
                         <span>All ({selectedStudentEmails.length + selectedCounselorEmails.length})</span>
                         <ChevronRight className="h-4 w-4" />
                       </button>
-                      <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 hidden group-hover:block">
+                      <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                           onClick={() => openGmail([...selectedStudentEmails, ...selectedCounselorEmails])}
                         >
                           Gmail
                         </button>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
                           onClick={() => openOutlook([...selectedStudentEmails, ...selectedCounselorEmails])}
                         >
                           Outlook
                         </button>
                         <button
                           type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 flex items-center gap-2"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
                           onClick={() => copyToClipboard([...selectedStudentEmails, ...selectedCounselorEmails], 'All emails')}
                         >
                           <Copy className="h-4 w-4" />
@@ -423,7 +423,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   </div>
                 )}
                 {copiedMessage && (
-                  <div className="absolute left-0 top-full mt-1 px-3 py-2 rounded-md bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-sm z-20">
+                  <div className="absolute left-0 top-full mt-1 px-3 py-2 rounded-md bg-success-bg text-success text-sm z-20">
                     {copiedMessage}
                   </div>
                 )}
@@ -436,8 +436,8 @@ export function TeacherRosterTab({ classroom }: Props) {
       <PageContent>
         <TableCard>
           {error && (
-            <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+            <div className="p-3 border-b border-border">
+              <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
                 {error}
               </div>
             </div>
@@ -451,7 +451,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                     aria-label="Select all students"
                   />
                 </DataTableHeaderCell>
@@ -475,20 +475,20 @@ export function TeacherRosterTab({ classroom }: Props) {
             </DataTableHead>
             <DataTableBody>
               {sortedRoster.map((row) => (
-                <DataTableRow key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                <DataTableRow key={row.id} className="hover:bg-surface-hover">
                   <DataTableCell>
                     <input
                       type="checkbox"
                       checked={selectedIds.has(row.id)}
                       onChange={() => toggleSelect(row.id)}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                       aria-label={`Select ${row.first_name ?? ''} ${row.last_name ?? ''}`}
                     />
                   </DataTableCell>
                   <DataTableCell>{row.first_name ?? '—'}</DataTableCell>
                   <DataTableCell>{row.last_name ?? '—'}</DataTableCell>
-                  <DataTableCell className="text-gray-600 dark:text-gray-400">{row.email}</DataTableCell>
-                  <DataTableCell className="text-gray-600 dark:text-gray-400">
+                  <DataTableCell className="text-text-muted">{row.email}</DataTableCell>
+                  <DataTableCell className="text-text-muted">
                     {editingCounselorId === row.id ? (
                       <div className="flex items-center gap-1">
                         <input
@@ -499,7 +499,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                             if (e.key === 'Enter') saveCounselorEmail(row.id)
                             if (e.key === 'Escape') cancelEditingCounselor()
                           }}
-                          className="w-32 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
+                          className="w-32 rounded border border-border bg-surface px-2 py-1 text-sm text-text-default"
                           placeholder="counselor@..."
                           autoFocus
                           disabled={isSavingCounselor}
@@ -508,7 +508,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                           type="button"
                           onClick={() => saveCounselorEmail(row.id)}
                           disabled={isSavingCounselor}
-                          className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+                          className="text-success hover:text-success-hover"
                           aria-label="Save"
                         >
                           <Check className="h-4 w-4" />
@@ -517,7 +517,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                           type="button"
                           onClick={cancelEditingCounselor}
                           disabled={isSavingCounselor}
-                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                          className="text-text-muted hover:text-text-default"
                           aria-label="Cancel"
                         >
                           <X className="h-4 w-4" />
@@ -529,7 +529,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                         onClick={() => startEditingCounselor(row)}
                         disabled={isReadOnly}
                         className={`flex items-center gap-1 text-left ${
-                          isReadOnly ? 'cursor-not-allowed opacity-50' : 'hover:text-gray-900 dark:hover:text-gray-200'
+                          isReadOnly ? 'cursor-not-allowed opacity-50' : 'hover:text-text-default'
                         }`}
                       >
                         {row.counselor_email ? (
@@ -537,7 +537,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                             {row.counselor_email}
                           </span>
                         ) : (
-                          <span className="text-gray-400 dark:text-gray-500 italic">Add</span>
+                          <span className="text-text-muted italic">Add</span>
                         )}
                         {!isReadOnly && <Pencil className="h-3 w-3 flex-shrink-0" />}
                       </button>
@@ -545,14 +545,14 @@ export function TeacherRosterTab({ classroom }: Props) {
                   </DataTableCell>
                   <DataTableCell align="center">
                     {row.joined && (
-                      <Check className="mx-auto h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />
+                      <Check className="mx-auto h-5 w-5 text-success" aria-hidden="true" />
                     )}
                   </DataTableCell>
                   <DataTableCell align="right">
                     <button
                       type="button"
                       className={[
-                        'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200',
+                        'text-danger hover:text-danger-hover',
                         isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
                       ].join(' ')}
                       onClick={() => {

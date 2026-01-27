@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { Button } from '@/components/Button'
+import { Button } from '@/ui'
 
 describe('Button component', () => {
   it('should render with children', () => {
@@ -33,7 +33,7 @@ describe('Button component', () => {
 
   it('should apply variant styles', () => {
     const { container } = render(<Button variant="primary">Primary</Button>)
-    expect(container.querySelector('button')).toHaveClass('bg-blue-600')
+    expect(container.querySelector('button')).toHaveClass('bg-primary')
   })
 
   it('should apply size styles', () => {
