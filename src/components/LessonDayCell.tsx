@@ -4,7 +4,7 @@ import { useCallback, useMemo, memo } from 'react'
 import { format } from 'date-fns'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { extractTextFromTiptap } from '@/lib/lesson-plan-markdown'
-import { Tooltip } from '@/components/Tooltip'
+import { Tooltip } from '@/ui'
 import type { LessonPlan, TiptapContent, Assignment } from '@/types'
 
 const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
@@ -63,12 +63,12 @@ export const LessonDayCell = memo(function LessonDayCell({
     return (
       <div
         className={`
-          h-full bg-gray-50 dark:bg-gray-900
+          h-full bg-surface-2
           ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         `}
       >
         <div className={`px-0.5 ${compact ? 'py-0' : 'py-0.5'} text-center`}>
-          <span className={`font-medium text-gray-400 dark:text-gray-500 ${compact ? 'text-[10px]' : 'text-sm'}`}>
+          <span className={`font-medium text-text-muted ${compact ? 'text-[10px]' : 'text-sm'}`}>
             {format(day, 'd')}
           </span>
         </div>
@@ -84,7 +84,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                     onAssignmentClick?.(assignments[0])
                   }
                 }}
-                className={`w-full min-w-[12px] rounded bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700 cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
+                className={`w-full min-w-[12px] rounded bg-primary hover:bg-primary-hover cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
               />
             </Tooltip>
           </div>
@@ -102,8 +102,8 @@ export const LessonDayCell = memo(function LessonDayCell({
       className={`
         relative h-full min-w-0 overflow-hidden
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
-        ${isNonClassDay ? 'bg-gray-100 dark:bg-gray-800/50' : ''}
-        ${!editable && !hasContent && !isNonClassDay ? 'bg-gray-50/50 dark:bg-gray-900/50' : ''}
+        ${isNonClassDay ? 'bg-surface-2/50' : ''}
+        ${!editable && !hasContent && !isNonClassDay ? 'bg-surface-2/50' : ''}
       `}
     >
       {/* Date header */}
@@ -112,7 +112,7 @@ export const LessonDayCell = memo(function LessonDayCell({
           className={`
             font-medium
             ${compact ? 'text-[10px]' : 'text-sm'}
-            ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}
+            ${isToday ? 'text-primary' : 'text-text-muted'}
           `}
         >
           {format(day, 'd')}
@@ -130,7 +130,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                   e.stopPropagation()
                   onAssignmentClick?.(assignment)
                 }}
-                className={`w-full min-w-0 rounded bg-blue-500 dark:bg-blue-600 text-white font-medium hover:bg-blue-600 dark:hover:bg-blue-700 text-center truncate ${
+                className={`w-full min-w-0 rounded bg-primary text-white font-medium hover:bg-primary-hover text-center truncate ${
                   compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
                 }`}
               >
@@ -146,7 +146,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         {plainTextOnly ? (
           // Plain text mode: lightweight rendering for 'all' view performance
           hasContent && (
-            <div className="text-[10px] leading-tight text-gray-600 dark:text-gray-400 line-clamp-3 whitespace-pre-wrap">
+            <div className="text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap">
               {plainText}
             </div>
           )
@@ -160,7 +160,7 @@ export const LessonDayCell = memo(function LessonDayCell({
             className={compact ? 'text-xs' : 'text-sm'}
           />
         ) : hasContent ? (
-          <div className={`${compact ? 'text-xs' : 'text-sm'} text-gray-700 dark:text-gray-300`}>
+          <div className={`${compact ? 'text-xs' : 'text-sm'} text-text-muted`}>
             <RichTextEditor
               content={content}
               onChange={() => {}}

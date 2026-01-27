@@ -14,13 +14,13 @@ export type ActionBarItem = {
 }
 
 const CONTROL_BASE =
-  'rounded-md border border-blue-200 bg-blue-50 text-base font-medium text-gray-900 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed dark:border-blue-800 dark:bg-blue-900/20 dark:text-gray-100 dark:hover:bg-blue-900/30'
+  'rounded-md border border-primary bg-info-bg text-base font-medium text-text-default hover:bg-info-bg-hover disabled:opacity-50 disabled:cursor-not-allowed'
 
 const CONTROL_SECONDARY_BASE =
-  'rounded-md border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+  'rounded-md border border-border bg-surface text-base font-medium text-text-default hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed'
 
 const CONTROL_PRIMARY_BASE =
-  'rounded-md border border-transparent bg-blue-600 text-base font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-600'
+  'rounded-md border border-transparent bg-primary text-base font-medium text-white hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed'
 
 export const ACTIONBAR_BUTTON_CLASSNAME = `${CONTROL_BASE} px-3 py-2`
 export const ACTIONBAR_BUTTON_PRIMARY_CLASSNAME = `${CONTROL_PRIMARY_BASE} px-3 py-2`
@@ -92,13 +92,13 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <MoreVertical className="h-5 w-5 text-gray-700 dark:text-gray-200" aria-hidden="true" />
+        <MoreVertical className="h-5 w-5 text-text-default" aria-hidden="true" />
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-56 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overflow-hidden z-20"
+          className="absolute right-0 mt-2 w-56 rounded-md border border-border bg-surface shadow-lg overflow-hidden z-20"
         >
           {normalItems.map((item) => (
             <button
@@ -110,14 +110,14 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
                 setOpen(false)
                 item.onSelect()
               }}
-              className="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full text-left px-3 py-2 text-sm text-text-default hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {item.label}
             </button>
           ))}
 
           {destructiveItems.length > 0 && (
-            <div className="border-t border-gray-200 dark:border-gray-700">
+            <div className="border-t border-border">
               {destructiveItems.map((item) => (
                 <button
                   key={item.id}
@@ -128,7 +128,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
                     setOpen(false)
                     item.onSelect()
                   }}
-                  className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full text-left px-3 py-2 text-sm text-danger hover:bg-danger-bg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {item.label}
                 </button>
@@ -171,7 +171,7 @@ export function PageActionBar({
                       ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
                       : ACTIONBAR_BUTTON_CLASSNAME,
                     item.destructive
-                      ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-900/30'
+                      ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
                       : '',
                   ].join(' ')}
                   onClick={item.onSelect}
@@ -209,7 +209,7 @@ export function PageActionBar({
                     ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
                     : ACTIONBAR_BUTTON_CLASSNAME,
                   item.destructive
-                    ? 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200 dark:hover:bg-red-900/30'
+                    ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
                     : '',
                 ].join(' ')}
                 onClick={item.onSelect}

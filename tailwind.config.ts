@@ -31,9 +31,80 @@ const config: Config = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/ui/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
+      colors: {
+        // Semantic background colors
+        page: 'var(--color-page)',
+        surface: {
+          DEFAULT: 'var(--color-surface)',
+          2: 'var(--color-surface-2)',
+          hover: 'var(--color-surface-hover)',
+        },
+        // Semantic border colors
+        border: {
+          DEFAULT: 'var(--color-border)',
+          strong: 'var(--color-border-strong)',
+        },
+        // Semantic text colors
+        text: {
+          default: 'var(--color-text-default)',
+          muted: 'var(--color-text-muted)',
+          inverse: 'var(--color-text-inverse)',
+        },
+        // Accent colors
+        primary: {
+          DEFAULT: 'var(--color-primary)',
+          hover: 'var(--color-primary-hover)',
+        },
+        success: {
+          DEFAULT: 'var(--color-success)',
+          hover: 'var(--color-success-hover)',
+          bg: {
+            DEFAULT: 'var(--color-success-bg)',
+            muted: 'var(--color-success-bg-muted)',
+            hover: 'var(--color-success-bg-hover)',
+          },
+        },
+        danger: {
+          DEFAULT: 'var(--color-danger)',
+          hover: 'var(--color-danger-hover)',
+          bg: {
+            DEFAULT: 'var(--color-danger-bg)',
+            hover: 'var(--color-danger-bg-hover)',
+          },
+        },
+        warning: {
+          DEFAULT: 'var(--color-warning)',
+          bg: 'var(--color-warning-bg)',
+        },
+        info: {
+          DEFAULT: 'var(--color-info)',
+          bg: {
+            DEFAULT: 'var(--color-info-bg)',
+            hover: 'var(--color-info-bg-hover)',
+          },
+        },
+      },
+      borderRadius: {
+        control: 'var(--radius-control)',
+        card: 'var(--radius-card)',
+        dialog: 'var(--radius-dialog)',
+        badge: 'var(--radius-badge)',
+      },
+      spacing: {
+        dialog: 'var(--space-dialog)',
+        card: 'var(--space-card)',
+        section: 'var(--space-section)',
+        field: 'var(--space-field)',
+        control: 'var(--space-control)',
+      },
+      boxShadow: {
+        elevated: 'var(--shadow-elevated)',
+        dialog: 'var(--shadow-dialog)',
+      },
       typography: {
         DEFAULT: {
           css: {

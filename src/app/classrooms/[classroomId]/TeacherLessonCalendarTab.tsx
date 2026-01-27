@@ -430,7 +430,7 @@ export function TeacherLessonCalendarSidebar({
   return (
     <div className="flex flex-col h-full">
       {markdownError && (
-        <div className="mx-2 mt-2 p-2 rounded bg-red-50 dark:bg-red-900/30 text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap">
+        <div className="mx-2 mt-2 p-2 rounded bg-danger-bg text-sm text-danger whitespace-pre-wrap">
           {markdownError}
         </div>
       )}
@@ -439,7 +439,7 @@ export function TeacherLessonCalendarSidebar({
         value={localContent}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        className="flex-1 w-full p-3 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none focus:outline-none"
+        className="flex-1 w-full p-3 font-mono text-sm bg-surface text-text-default resize-none focus:outline-none"
       />
     </div>
   )

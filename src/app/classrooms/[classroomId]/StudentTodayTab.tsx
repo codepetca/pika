@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Button } from '@/components/Button'
+import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -385,25 +385,25 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
     <PageLayout>
       <PageContent>
         <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6">
+          <div className="bg-surface rounded-lg shadow-sm p-6">
             {!isClassDay ? (
-              <div className="bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-700 rounded-lg p-4 text-center">
-                <p className="text-gray-600 dark:text-gray-400">No class today</p>
+              <div className="bg-page border border-border rounded-lg p-4 text-center">
+                <p className="text-text-muted">No class today</p>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="text-sm font-medium text-text-muted">
                     What did you do today?
                   </label>
                   <span
                     className={
                       'text-sm ' +
                       (saveStatus === 'saved'
-                        ? 'text-green-600 dark:text-green-400'
+                        ? 'text-success'
                         : saveStatus === 'saving'
-                          ? 'text-gray-500 dark:text-gray-400'
-                          : 'text-orange-600 dark:text-orange-400')
+                          ? 'text-text-muted'
+                          : 'text-warning')
                     }
                   >
                     {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
@@ -421,7 +421,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
 
                 {saveError && (
                   <div className="space-y-2">
-                    <p className="text-sm text-red-600 dark:text-red-400">{saveError}</p>
+                    <p className="text-sm text-danger">{saveError}</p>
                     {conflictEntry && (
                       <div className="flex flex-wrap gap-2">
                         <Button type="button" size="sm" variant="secondary" onClick={resolveConflict}>
@@ -438,11 +438,11 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
             )}
           </div>
 
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-end">
+          <div className="bg-surface border border-border rounded-lg shadow-sm">
+            <div className="px-4 py-3 border-b border-border flex items-center justify-end">
               <button
                 type="button"
-                className="inline-flex items-center p-1 text-blue-600 dark:text-blue-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                className="inline-flex items-center p-1 text-info hover:bg-surface-hover rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                 aria-expanded={historyVisible}
                 aria-controls={historyListId}
                 aria-label={historyVisible ? 'Hide history' : 'Show history'}
@@ -457,18 +457,18 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
               </button>
             </div>
             {historyVisible && (
-              <div id={historyListId} className="divide-y divide-gray-100 dark:divide-gray-800">
+              <div id={historyListId} className="divide-y divide-border">
                 {historyEntries.length === 0 ? (
-                  <div className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
+                  <div className="px-4 py-6 text-sm text-text-muted">
                     No logs yet
                   </div>
                 ) : (
                   historyEntries.map(entry => (
                     <div key={entry.id} className="px-4 py-2">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                      <p className="text-sm font-medium text-text-default">
                         {format(parseISO(entry.date), 'EEE MMM d')}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                      <p className="text-sm text-text-muted">
                         {getEntryPreview(entry.text, 150)}
                       </p>
                     </div>

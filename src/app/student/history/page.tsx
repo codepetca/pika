@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect, FormEvent } from 'react'
-import { Button } from '@/components/Button'
-import { Input } from '@/components/Input'
+import { Button, Input, FormField } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { format, parse } from 'date-fns'
 import type { Entry, ClassDay, AttendanceStatus, Classroom } from '@/types'
@@ -151,21 +150,21 @@ export default function HistoryPage() {
   if (classrooms.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Classes Yet</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">Join a class to view your history</p>
+        <div className="max-w-md w-full bg-surface rounded-lg shadow-sm p-8 text-center">
+          <h2 className="text-2xl font-bold text-text-default mb-2">No Classes Yet</h2>
+          <p className="text-text-muted mb-6">Join a class to view your history</p>
 
           <form onSubmit={handleJoinClassroom} className="space-y-4">
-            <Input
-              label="Class Code"
-              type="text"
-              placeholder="Enter class code"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              required
-              disabled={joining}
-              error={error}
-            />
+            <FormField label="Class Code" error={error} required>
+              <Input
+                type="text"
+                placeholder="Enter class code"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                required
+                disabled={joining}
+              />
+            </FormField>
 
             <Button type="submit" disabled={joining || !joinCode} className="w-full">
               {joining ? 'Joining...' : 'Join Class'}
@@ -185,9 +184,9 @@ export default function HistoryPage() {
     <div className="flex gap-6">
       {/* Classroom List Sidebar */}
       <div className="w-64 flex-shrink-0">
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4">
+        <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 dark:text-white">My Classes</h3>
+            <h3 className="font-semibold text-text-default">My Classes</h3>
             <button
               onClick={() => setShowJoinFlow(!showJoinFlow)}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
@@ -198,16 +197,16 @@ export default function HistoryPage() {
 
           {showJoinFlow && (
             <form onSubmit={handleJoinClassroom} className="mb-4 space-y-2">
-              <Input
-                label=""
-                type="text"
-                placeholder="Class code"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                required
-                disabled={joining}
-                error={error}
-              />
+              <FormField label="Class Code" error={error}>
+                <Input
+                  type="text"
+                  placeholder="Class code"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  required
+                  disabled={joining}
+                />
+              </FormField>
               <Button type="submit" size="sm" disabled={joining || !joinCode} className="w-full">
                 {joining ? 'Joining...' : 'Join'}
               </Button>
@@ -222,13 +221,13 @@ export default function HistoryPage() {
                 className={`w-full text-left p-3 rounded transition ${
                   selectedClassroom?.id === classroom.id
                     ? 'bg-blue-50 border border-blue-200'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800 border border-transparent'
+                    : 'hover:bg-surface-hover border border-transparent'
                 }`}
               >
-                <div className="font-medium text-gray-900 dark:text-white text-sm">
+                <div className="font-medium text-text-default text-sm">
                   {classroom.title}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-text-muted mt-1">
                   {classroom.class_code}
                 </div>
               </button>
@@ -241,11 +240,11 @@ export default function HistoryPage() {
       <div className="flex-1">
         {selectedClassroom ? (
           <div>
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-6 mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+            <div className="bg-surface rounded-lg shadow-sm p-6 mb-6">
+              <h2 className="text-2xl font-bold text-text-default mb-1">
                 {selectedClassroom.title}
               </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">Attendance History</p>
+              <p className="text-text-muted mb-4">Attendance History</p>
 
               {loadingHistory ? (
                 <div className="flex justify-center py-8">
@@ -256,29 +255,29 @@ export default function HistoryPage() {
                   <div>
                     <span className="text-3xl">🟢</span>
                     <div className="mt-1">
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">{summary.present}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Present</div>
+                      <div className="text-2xl font-bold text-text-default">{summary.present}</div>
+                      <div className="text-sm text-text-muted">Present</div>
                     </div>
                   </div>
 
                   <div>
                     <span className="text-3xl">🔴</span>
                     <div className="mt-1">
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white">{summary.absent}</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Absent</div>
+                      <div className="text-2xl font-bold text-text-default">{summary.absent}</div>
+                      <div className="text-sm text-text-muted">Absent</div>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm divide-y">
+            <div className="bg-surface rounded-lg shadow-sm divide-y">
               {loadingHistory ? (
-                <div className="p-8 text-center text-gray-600 dark:text-gray-400">
+                <div className="p-8 text-center text-text-muted">
                   <Spinner size="md" />
                 </div>
               ) : history.length === 0 ? (
-                <div className="p-8 text-center text-gray-600 dark:text-gray-400">
+                <div className="p-8 text-center text-text-muted">
                   No class days yet
                 </div>
               ) : (
@@ -288,7 +287,7 @@ export default function HistoryPage() {
                     <div
                       key={date}
                       className={`p-4 transition-colors ${
-                        entry ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800' : ''
+                        entry ? 'cursor-pointer hover:bg-surface-hover' : ''
                       }`}
                       onClick={() => entry && setSelectedEntry(entry)}
                     >
@@ -296,8 +295,8 @@ export default function HistoryPage() {
                         <div className="flex items-center space-x-4">
                           <span className="text-2xl">{getAttendanceIcon(status)}</span>
                           <div>
-                            <div className="font-medium text-gray-900 dark:text-white">{formattedDate}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                            <div className="font-medium text-text-default">{formattedDate}</div>
+                            <div className="text-sm text-text-muted">
                               {getAttendanceLabel(status)}
                             </div>
                           </div>
@@ -316,7 +315,7 @@ export default function HistoryPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-8 text-center text-gray-600 dark:text-gray-400">
+          <div className="bg-surface rounded-lg shadow-sm p-8 text-center text-text-muted">
             Select a class to view your history
           </div>
         )}
@@ -329,16 +328,16 @@ export default function HistoryPage() {
           onClick={() => setSelectedEntry(null)}
         >
           <div
-            className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6"
+            className="bg-surface rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+              <h3 className="text-xl font-bold text-text-default">
                 {format(parse(selectedEntry.date, 'yyyy-MM-dd', new Date()), 'EEE MMM d')}
               </h3>
               <button
                 onClick={() => setSelectedEntry(null)}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-2xl"
+                className="text-text-muted hover:text-text-default text-2xl"
               >
                 ×
               </button>
@@ -346,11 +345,11 @@ export default function HistoryPage() {
 
             <div className="space-y-4">
               <div>
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Entry</div>
-                <div className="text-gray-900 dark:text-white whitespace-pre-wrap">{selectedEntry.text}</div>
+                <div className="text-sm font-medium text-text-muted mb-1">Entry</div>
+                <div className="text-text-default whitespace-pre-wrap">{selectedEntry.text}</div>
               </div>
 
-              <div className="text-sm text-gray-600 dark:text-gray-400 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="text-sm text-text-muted pt-4 border-t border-border">
                 <div>Submitted: {format(new Date(selectedEntry.updated_at), 'h:mm a')}</div>
               </div>
             </div>

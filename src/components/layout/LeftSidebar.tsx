@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
-import { Tooltip } from '@/components/Tooltip'
+import { Tooltip } from '@/ui'
 
 export interface LeftSidebarProps {
   children: ReactNode
@@ -51,8 +51,8 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
         className={[
           'hidden lg:flex flex-col',
           'sticky top-12 h-[calc(100vh-3rem)]',
-          'border-r border-gray-200 dark:border-gray-800',
-          'bg-white dark:bg-gray-900',
+          'border-r border-border',
+          'bg-surface',
           'transition-[width] duration-200 ease-out',
           'overflow-hidden',
           className,
@@ -73,7 +73,7 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
         {/* Toggle button */}
         <div
           className={[
-            'border-t border-gray-200 dark:border-gray-800',
+            'border-t border-border',
             isExpanded ? 'p-3' : 'py-3 px-0.5',
           ].join(' ')}
         >
@@ -84,9 +84,9 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
               aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
               className={[
                 'flex items-center rounded-md text-sm font-medium',
-                'text-gray-600 dark:text-gray-300',
-                'hover:bg-gray-100 dark:hover:bg-gray-800',
-                'hover:text-gray-900 dark:hover:text-gray-100',
+                'text-text-muted',
+                'hover:bg-surface-hover',
+                'hover:text-text-default',
                 'transition-colors',
                 isExpanded
                   ? 'w-full h-12 gap-3 px-3'
@@ -121,23 +121,23 @@ export function LeftSidebar({ children, className }: LeftSidebarProps) {
             aria-label="Navigation menu"
             className={[
               'absolute inset-y-0 left-0 w-72',
-              'bg-white dark:bg-gray-900',
-              'border-r border-gray-200 dark:border-gray-800',
+              'bg-surface',
+              'border-r border-border',
               'shadow-xl',
               'flex flex-col',
             ].join(' ')}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                <Menu className="h-6 w-6 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+            <div className="flex items-center justify-between p-3 border-b border-border">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-default">
+                <Menu className="h-6 w-6 text-text-muted" aria-hidden="true" />
                 <span>Navigation</span>
               </div>
               <button
                 ref={firstFocusableRef}
                 type="button"
                 onClick={close}
-                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
                 aria-label="Close navigation"
               >
                 <X className="h-6 w-6" aria-hidden="true" />
