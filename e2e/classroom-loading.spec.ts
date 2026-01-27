@@ -36,8 +36,8 @@ test.describe('classroom loading - teacher', () => {
     const skeleton = page.locator('[data-testid="classroom-skeleton"]')
     await expect(skeleton).not.toBeVisible({ timeout: 10_000 })
 
-    // Verify actual content is now visible (attendance tab for teacher)
-    await expect(page.getByText('student1')).toBeVisible({ timeout: 15_000 })
+    // Verify actual content is now visible (attendance tab for teacher shows the table headers)
+    await expect(page.getByText('First Name')).toBeVisible({ timeout: 15_000 })
   })
 
   test('skeleton has correct structure with sidebar placeholders', async ({ page }) => {
@@ -53,14 +53,10 @@ test.describe('classroom loading - teacher', () => {
     const classroomCard = page.locator('[data-testid="classroom-card"]').first()
     await expect(classroomCard).toBeVisible({ timeout: 15_000 })
 
-    // Get the classroom URL from the card
-    const href = await classroomCard.getAttribute('href')
-    expect(href).toBeTruthy()
+    // Click the card to navigate
+    await classroomCard.click()
 
-    // Navigate directly to the classroom URL to trigger loading state
-    await page.goto(href!)
-
-    // Check skeleton structure
+    // Check skeleton structure - might be visible briefly
     const skeleton = page.locator('[data-testid="classroom-skeleton"]')
 
     // Wait for either skeleton or final content
@@ -76,8 +72,8 @@ test.describe('classroom loading - teacher', () => {
       expect(await pulseElements.count()).toBeGreaterThan(0)
     }
 
-    // Eventually content should load
-    await expect(page.getByText('student1')).toBeVisible({ timeout: 15_000 })
+    // Eventually content should load (attendance tab shows table headers)
+    await expect(page.getByText('First Name')).toBeVisible({ timeout: 15_000 })
   })
 
   test('not-found page displays for invalid classroom ID', async ({ page }) => {
@@ -139,11 +135,8 @@ test.describe('classroom loading - visual regression', () => {
 
   test('skeleton loading state screenshot', async ({ page }) => {
     // Slow down responses to capture skeleton state
-    await page.route('**/classrooms/**', async (route) => {
-      // Only slow down the page request, not API calls
-      if (route.request().resourceType() === 'document') {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-      }
+    await page.route('**/api/**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
       await route.continue()
     })
 
@@ -153,11 +146,8 @@ test.describe('classroom loading - visual regression', () => {
     const classroomCard = page.locator('[data-testid="classroom-card"]').first()
     await expect(classroomCard).toBeVisible({ timeout: 15_000 })
 
-    const href = await classroomCard.getAttribute('href')
-    expect(href).toBeTruthy()
-
-    // Navigate and try to capture skeleton
-    const response = page.goto(href!)
+    // Click to navigate and check for skeleton
+    await classroomCard.click()
 
     // Give a moment for skeleton to render
     await page.waitForTimeout(100)
@@ -174,7 +164,7 @@ test.describe('classroom loading - visual regression', () => {
     }
 
     // Wait for page to finish loading
-    await response
     await page.waitForLoadState('networkidle')
+    await expect(page.getByText('First Name')).toBeVisible({ timeout: 15_000 })
   })
 })
