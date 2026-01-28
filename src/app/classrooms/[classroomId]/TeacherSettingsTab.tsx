@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useMemo, useState, useId } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { Button, ConfirmDialog } from '@/ui'
-import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Info } from 'lucide-react'
+import { Button, ConfirmDialog, Tooltip } from '@/ui'
+import { PageContent, PageLayout } from '@/components/PageLayout'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
 import type { Classroom, LessonPlanVisibility } from '@/types'
 
@@ -23,11 +24,17 @@ interface Props {
 }
 
 export function TeacherSettingsTab({ classroom }: Props) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const sectionParam = searchParams.get('section')
   const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
   const allowEnrollmentId = useId()
+  const titleId = useId()
   const isReadOnly = !!classroom.archived_at
+  const [title, setTitle] = useState(classroom.title)
+  const [titleSaving, setTitleSaving] = useState(false)
+  const [titleError, setTitleError] = useState<string>('')
+  const [titleSuccess, setTitleSuccess] = useState<string>('')
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
   const [saving, setSaving] = useState(false)
@@ -66,6 +73,40 @@ export function TeacherSettingsTab({ classroom }: Props) {
     setTimeout(() => setCopyNotice(''), 2000)
   }
 
+  async function saveTitle() {
+    if (isReadOnly) return
+    const trimmed = title.trim()
+    if (!trimmed) {
+      setTitleError('Course name cannot be empty')
+      return
+    }
+    if (trimmed === classroom.title) {
+      return
+    }
+    setTitleSaving(true)
+    setTitleError('')
+    setTitleSuccess('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: trimmed }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update course name')
+      }
+      setTitle(data.classroom?.title || trimmed)
+      setTitleSuccess('Course name updated.')
+      setTimeout(() => setTitleSuccess(''), 2000)
+      router.refresh()
+    } catch (err: any) {
+      setTitleError(err.message || 'Failed to update course name')
+    } finally {
+      setTitleSaving(false)
+    }
+  }
+
   async function saveAllowEnrollment(nextValue: boolean) {
     if (isReadOnly) return
     setSaving(true)
@@ -83,6 +124,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
       }
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
       setEnrollmentSuccess('Settings saved.')
+      setTimeout(() => setEnrollmentSuccess(''), 2000)
     } catch (err: any) {
       setEnrollmentError(err.message || 'Failed to update settings')
     } finally {
@@ -167,40 +209,50 @@ export function TeacherSettingsTab({ classroom }: Props) {
       </div>
 
       {section === 'general' ? (
-        <>
-          <PageActionBar
-            primary={
-              <div className="inline-flex items-center gap-3 text-sm">
-                <label htmlFor={allowEnrollmentId} className="text-sm font-medium text-text-default">
-                  Allow enrollment
-                </label>
-                <input
-                  id={allowEnrollmentId}
-                  type="checkbox"
-                  checked={allowEnrollment}
-                  onChange={(e) => saveAllowEnrollment(e.target.checked)}
-                  disabled={saving || isReadOnly}
-                  className="h-4 w-4"
-                />
-                <span className="text-text-muted">
-                  {allowEnrollment ? 'Enabled' : 'Disabled'}
-                </span>
-              </div>
-            }
-          />
-
-          <PageContent className="space-y-5">
-            {(enrollmentError || enrollmentSuccess) && (
-              <div className="space-y-2">
-                {enrollmentError && <div className="text-sm text-danger">{enrollmentError}</div>}
-                {enrollmentSuccess && <div className="text-sm text-success">{enrollmentSuccess}</div>}
-              </div>
-            )}
+        <PageContent className="space-y-5">
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
-              <div className="text-sm font-semibold text-text-default">Join Code</div>
-              <div className="text-xs text-text-muted">
-                Students must be on the roster to join.
+              <div className="flex items-center gap-2">
+                <label htmlFor={titleId} className="text-sm font-semibold text-text-default">
+                  Course Name
+                </label>
+                <Tooltip content="Name shown to students and in reports" side="right">
+                  <span className="text-text-muted cursor-help">
+                    <Info size={14} />
+                  </span>
+                </Tooltip>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
+                <input
+                  id={titleId}
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={saveTitle}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      saveTitle()
+                    }
+                  }}
+                  disabled={titleSaving || isReadOnly}
+                  className="flex-1 rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  placeholder="Enter course name"
+                />
+                {titleSaving && <span className="text-sm text-text-muted self-center">Saving...</span>}
+              </div>
+              {titleError && <div className="text-sm text-danger">{titleError}</div>}
+              {titleSuccess && <div className="text-sm text-success">{titleSuccess}</div>}
+            </div>
+
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold text-text-default">Join Code</div>
+                <Tooltip content="Students must be on the roster to join" side="right">
+                  <span className="text-text-muted cursor-help">
+                    <Info size={14} />
+                  </span>
+                </Tooltip>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-stretch gap-3">
@@ -233,15 +285,36 @@ export function TeacherSettingsTab({ classroom }: Props) {
                 </button>
               </div>
 
+              <div className="flex items-center gap-3 pt-2 border-t border-border">
+                <input
+                  id={allowEnrollmentId}
+                  type="checkbox"
+                  checked={allowEnrollment}
+                  onChange={(e) => saveAllowEnrollment(e.target.checked)}
+                  disabled={saving || isReadOnly}
+                  className="h-4 w-4"
+                />
+                <label htmlFor={allowEnrollmentId} className="text-sm text-text-default">
+                  Allow joining
+                </label>
+                {saving && <span className="text-sm text-text-muted">Saving...</span>}
+              </div>
+
               {joinCodeError && <div className="text-sm text-danger">{joinCodeError}</div>}
               {joinCodeSuccess && <div className="text-sm text-success">{joinCodeSuccess}</div>}
+              {enrollmentError && <div className="text-sm text-danger">{enrollmentError}</div>}
+              {enrollmentSuccess && <div className="text-sm text-success">{enrollmentSuccess}</div>}
               {copyNotice && <div className="text-xs text-info">{copyNotice}</div>}
             </div>
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
-              <div className="text-sm font-semibold text-text-default">Calendar Visibility</div>
-              <div className="text-xs text-text-muted">
-                Control how far ahead students can see lesson plans on the Calendar tab.
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold text-text-default">Calendar Visibility</div>
+                <Tooltip content="Control how far ahead students can see lesson plans" side="right">
+                  <span className="text-text-muted cursor-help">
+                    <Info size={14} />
+                  </span>
+                </Tooltip>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -279,7 +352,6 @@ export function TeacherSettingsTab({ classroom }: Props) {
               onConfirm={regenerateJoinCode}
             />
           </PageContent>
-        </>
       ) : (
         <PageContent>
           <TeacherCalendarTab classroom={classroom} />
