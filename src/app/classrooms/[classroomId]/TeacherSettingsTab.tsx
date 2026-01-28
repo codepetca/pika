@@ -216,7 +216,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
                 <label htmlFor={titleId} className="text-sm font-semibold text-text-default">
                   Course Name
                 </label>
-                <Tooltip content="The display name for this course" side="right">
+                <Tooltip content="Name shown to students and in reports" side="right">
                   <span className="text-text-muted cursor-help">
                     <Info size={14} />
                   </span>
