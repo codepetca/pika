@@ -120,6 +120,14 @@ async function clearAndSeed() {
     'Delete entries'
   )
   ensureOk(
+    await supabase.from('lesson_plans').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete lesson_plans'
+  )
+  ensureOk(
+    await supabase.from('classroom_resources').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete classroom_resources'
+  )
+  ensureOk(
     await supabase.from('classroom_enrollments').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     'Delete classroom_enrollments'
   )
@@ -365,6 +373,49 @@ async function clearAndSeed() {
   ensureOk(await supabase.from('entries').insert(entriesWithTimestamps), 'Insert entries')
 
   console.log(`✓ Created ${sampleEntries.length} sample entries\n`)
+
+  // 6. Create sample lesson plans
+  console.log('Creating sample lesson plans...')
+
+  // Get the next few class days for lesson plans
+  const futureDates = dates.filter(d => d >= todayToronto).slice(0, 5)
+  const lessonPlanDates = futureDates.length >= 3 ? futureDates : dates.slice(0, 5)
+
+  const sampleLessonPlans = lessonPlanDates.map((date, index) => ({
+    classroom_id: createdClassroom.id,
+    date,
+    content: {
+      type: 'doc',
+      content: [
+        {
+          type: 'heading',
+          attrs: { level: 2 },
+          content: [{ type: 'text', text: `Day ${index + 1}: Sample Lesson` }]
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: `This is a sample lesson plan for ${date}.` }]
+        },
+        {
+          type: 'bulletList',
+          content: [
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Learning objective 1' }] }]
+            },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Learning objective 2' }] }]
+            },
+          ]
+        }
+      ]
+    }
+  }))
+
+  ensureOk(await supabase.from('lesson_plans').insert(sampleLessonPlans), 'Insert lesson_plans')
+
+  console.log(`✓ Created ${sampleLessonPlans.length} sample lesson plans\n`)
 
   // Summary
   console.log('✅ Seed completed successfully!\n')
