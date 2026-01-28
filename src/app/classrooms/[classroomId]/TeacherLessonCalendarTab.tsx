@@ -8,6 +8,7 @@ import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar } from '@/components/layout'
 import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
+import { isEmpty as isEmptyTiptapContent } from '@/lib/tiptap-content'
 import { useClassDays } from '@/hooks/useClassDays'
 import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
@@ -161,10 +162,21 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   // Handle content change from calendar
   const handleContentChange = useCallback(
     (date: string, content: TiptapContent) => {
+      // Skip saves when content matches what we already have (avoids spurious
+      // PUTs triggered by Tiptap normalising content on editor mount, e.g.
+      // adding an empty paragraph to an empty doc).
+      const existing = lessonPlans.find((p) => p.date === date)
+      const existingContent = existing?.content
+      if (existingContent && JSON.stringify(content) === JSON.stringify(existingContent)) return
+      // Also skip if content is effectively empty and we have no existing plan
+      // (Tiptap normalises empty docs by adding an empty paragraph node, which
+      // would otherwise trigger a PUT for every day without a lesson plan)
+      if (!existing && isEmptyTiptapContent(content)) return
+
       pendingChangesRef.current.set(date, content)
       scheduleSave()
     },
-    [scheduleSave]
+    [scheduleSave, lessonPlans]
   )
 
   // Flush on unmount and handle page close
