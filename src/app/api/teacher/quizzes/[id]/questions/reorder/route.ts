@@ -22,7 +22,11 @@ export async function POST(
       return NextResponse.json({ error: 'question_ids is required' }, { status: 400 })
     }
 
-    const uniqueIds = Array.from(new Set(question_ids.filter(Boolean)))
+    if (question_ids.some((id: unknown) => typeof id !== 'string' || !id)) {
+      return NextResponse.json({ error: 'question_ids must be non-empty strings' }, { status: 400 })
+    }
+
+    const uniqueIds = Array.from(new Set(question_ids))
     if (uniqueIds.length !== question_ids.length) {
       return NextResponse.json({ error: 'question_ids must be unique' }, { status: 400 })
     }
@@ -41,20 +45,20 @@ export async function POST(
 
     const supabase = getServiceRoleClient()
 
-    // Verify all IDs belong to this quiz
+    // Fetch ALL questions for this quiz to ensure complete set
     const { data: questions, error: questionsError } = await supabase
       .from('quiz_questions')
       .select('id')
       .eq('quiz_id', quizId)
-      .in('id', uniqueIds)
 
     if (questionsError) {
       console.error('Error verifying questions:', questionsError)
       return NextResponse.json({ error: 'Failed to verify questions' }, { status: 500 })
     }
 
-    if ((questions || []).length !== uniqueIds.length) {
-      return NextResponse.json({ error: 'One or more questions not found in quiz' }, { status: 400 })
+    const existingIds = new Set((questions || []).map((q) => q.id))
+    if (uniqueIds.length !== existingIds.size || !uniqueIds.every((id) => existingIds.has(id))) {
+      return NextResponse.json({ error: 'question_ids must include all questions in the quiz' }, { status: 400 })
     }
 
     const updates = uniqueIds.map((id, index) => ({ id, position: index }))
