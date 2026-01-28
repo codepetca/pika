@@ -1,8 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Plus, Trash2, GripVertical } from 'lucide-react'
-import { Button, ConfirmDialog, Input } from '@/ui'
+import { Input } from '@/ui'
+import { MAX_QUIZ_OPTIONS } from '@/lib/quizzes'
 import type { QuizQuestion } from '@/types'
 
 interface Props {
@@ -14,25 +17,61 @@ interface Props {
 }
 
 export function QuizQuestionEditor({ quizId, question, questionNumber, isEditable, onUpdated }: Props) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: question.id, disabled: !isEditable })
+
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition: isDragging ? undefined : transition,
+  }
+
   const [text, setText] = useState(question.question_text)
   const [options, setOptions] = useState<string[]>(question.options)
-  const [isEditing, setIsEditing] = useState(false)
+  const [focusedField, setFocusedField] = useState<'text' | number | null>(null)
   const [saving, setSaving] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
 
-  async function handleSave() {
-    if (!text.trim()) {
-      setError('Question text is required')
-      return
+  const newOptionRef = useRef<HTMLInputElement>(null)
+  const justAddedOption = useRef(false)
+
+  // Sync local state when question prop changes (e.g. after save/reorder)
+  useEffect(() => {
+    setText(question.question_text)
+    setOptions(question.options)
+  }, [question.question_text, question.options])
+
+  // Focus newly added option
+  useEffect(() => {
+    if (justAddedOption.current && newOptionRef.current) {
+      newOptionRef.current.focus()
+      justAddedOption.current = false
     }
-    if (options.length < 2) {
-      setError('At least 2 options required')
-      return
-    }
-    if (options.some((o) => !o.trim())) {
-      setError('Options cannot be empty')
+  })
+
+  async function handleSave(currentText: string, currentOptions: string[]) {
+    // Filter out empty options that were just added
+    const cleanedOptions = currentOptions.filter((o) => o.trim())
+
+    if (!currentText.trim()) return
+    if (cleanedOptions.length < 2) return
+
+    // Check if anything actually changed
+    if (
+      currentText.trim() === question.question_text &&
+      cleanedOptions.length === question.options.length &&
+      cleanedOptions.every((o, i) => o === question.options[i])
+    ) {
+      // If options were cleaned (empty removed), update local state
+      if (cleanedOptions.length !== currentOptions.length) {
+        setOptions(cleanedOptions)
+      }
       return
     }
 
@@ -43,13 +82,12 @@ export function QuizQuestionEditor({ quizId, question, questionNumber, isEditabl
       const res = await fetch(`/api/teacher/quizzes/${quizId}/questions/${question.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question_text: text.trim(), options }),
+        body: JSON.stringify({ question_text: currentText.trim(), options: cleanedOptions }),
       })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to update question')
       }
-      setIsEditing(false)
       onUpdated()
     } catch (err: any) {
       setError(err.message || 'Failed to update question')
@@ -60,6 +98,7 @@ export function QuizQuestionEditor({ quizId, question, questionNumber, isEditabl
 
   async function handleDelete() {
     setDeleting(true)
+    setError('')
     try {
       const res = await fetch(`/api/teacher/quizzes/${quizId}/questions/${question.id}`, {
         method: 'DELETE',
@@ -73,17 +112,14 @@ export function QuizQuestionEditor({ quizId, question, questionNumber, isEditabl
       setError(err.message || 'Failed to delete question')
     } finally {
       setDeleting(false)
-      setShowDeleteConfirm(false)
     }
   }
 
   function handleAddOption() {
-    setOptions([...options, ''])
-  }
-
-  function handleRemoveOption(index: number) {
-    if (options.length <= 2) return
-    setOptions(options.filter((_, i) => i !== index))
+    const newOptions = [...options, '']
+    setOptions(newOptions)
+    justAddedOption.current = true
+    setFocusedField(newOptions.length - 1)
   }
 
   function handleOptionChange(index: number, value: string) {
@@ -92,63 +128,100 @@ export function QuizQuestionEditor({ quizId, question, questionNumber, isEditabl
     setOptions(newOptions)
   }
 
-  function handleCancel() {
-    setText(question.question_text)
-    setOptions(question.options)
-    setIsEditing(false)
-    setError('')
+  function handleTextBlur() {
+    setFocusedField(null)
+    handleSave(text, options)
   }
 
-  if (isEditing && isEditable) {
-    return (
-      <div className="border border-border rounded-lg p-3 space-y-3 bg-surface-2">
-        <div className="flex items-start gap-2">
-          <span className="text-sm font-medium text-text-muted mt-2">Q{questionNumber}.</span>
-          <div className="flex-1">
+  function handleOptionBlur(index: number) {
+    setFocusedField(null)
+    const opt = options[index]
+    // If the option is empty and was newly added (beyond original count), remove it
+    if (!opt.trim() && index >= question.options.length) {
+      const newOptions = options.filter((_, i) => i !== index)
+      setOptions(newOptions)
+      // Don't save — just discard the empty new option
+      return
+    }
+    handleSave(text, options)
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={sortableStyle}
+      className={`border border-border rounded-lg p-3 bg-surface ${isDragging ? 'shadow-xl scale-[1.02] z-50 border-primary opacity-90' : ''}`}
+    >
+      <div className="flex items-start gap-2">
+        {isEditable && (
+          <button
+            type="button"
+            className="p-0 touch-none text-text-muted hover:text-text-default cursor-grab active:cursor-grabbing mt-0.5"
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        )}
+        <span className="text-sm font-medium text-text-muted mt-0.5">Q{questionNumber}.</span>
+        <div className="flex-1">
+          {isEditable && focusedField === 'text' ? (
             <Input
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onBlur={handleTextBlur}
               placeholder="Enter question"
               disabled={saving}
               className="text-sm"
+              autoFocus
             />
+          ) : (
+            <p
+              className={`text-sm text-text-default ${isEditable ? 'cursor-text hover:bg-surface-2 rounded px-1 -mx-1' : ''}`}
+              onClick={isEditable ? () => setFocusedField('text') : undefined}
+            >
+              {text}
+            </p>
+          )}
+
+          <div className="mt-2 space-y-1">
+            {options.map((option, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full border border-border flex items-center justify-center text-xs text-text-muted">
+                  {String.fromCharCode(65 + index)}
+                </span>
+                {isEditable && focusedField === index ? (
+                  <Input
+                    ref={index === options.length - 1 ? newOptionRef : undefined}
+                    type="text"
+                    value={option}
+                    onChange={(e) => handleOptionChange(index, e.target.value)}
+                    onBlur={() => handleOptionBlur(index)}
+                    placeholder={`Option ${String.fromCharCode(65 + index)}`}
+                    disabled={saving}
+                    className="flex-1 text-sm"
+                    autoFocus
+                  />
+                ) : (
+                  <span
+                    className={`text-sm text-text-muted flex-1 ${isEditable ? 'cursor-text hover:bg-surface-2 rounded px-1 -mx-1' : ''}`}
+                    onClick={isEditable ? () => setFocusedField(index) : undefined}
+                  >
+                    {option || <span className="italic text-text-disabled">Empty option</span>}
+                  </span>
+                )}
+              </div>
+            ))}
           </div>
-        </div>
 
-        <div className="pl-7 space-y-2">
-          {options.map((option, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full border border-border flex items-center justify-center text-xs text-text-muted">
-                {String.fromCharCode(65 + index)}
-              </span>
-              <Input
-                type="text"
-                value={option}
-                onChange={(e) => handleOptionChange(index, e.target.value)}
-                placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                disabled={saving}
-                className="flex-1 text-sm"
-              />
-              {options.length > 2 && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveOption(index)}
-                  disabled={saving}
-                  className="p-1 text-text-muted hover:text-danger"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          ))}
-
-          {options.length < 6 && (
+          {isEditable && options.length < MAX_QUIZ_OPTIONS && (
             <button
               type="button"
               onClick={handleAddOption}
               disabled={saving}
-              className="flex items-center gap-1 text-sm text-primary hover:underline"
+              className="flex items-center gap-1 text-sm text-primary hover:underline mt-2"
             >
               <Plus className="h-4 w-4" />
               Add option
@@ -156,74 +229,19 @@ export function QuizQuestionEditor({ quizId, question, questionNumber, isEditabl
           )}
         </div>
 
-        {error && <p className="text-sm text-danger pl-7">{error}</p>}
-
-        <div className="flex gap-2 pl-7">
-          <Button variant="secondary" size="sm" onClick={handleCancel} disabled={saving}>
-            Cancel
-          </Button>
-          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="border border-border rounded-lg p-3 bg-surface">
-      <div className="flex items-start gap-2">
         {isEditable && (
-          <GripVertical className="h-4 w-4 text-text-muted mt-0.5 cursor-grab" />
-        )}
-        <span className="text-sm font-medium text-text-muted">Q{questionNumber}.</span>
-        <div className="flex-1">
-          <p className="text-sm text-text-default">{question.question_text}</p>
-          <ul className="mt-2 space-y-1">
-            {question.options.map((option, index) => (
-              <li key={index} className="flex items-center gap-2 text-sm text-text-muted">
-                <span className="w-5 h-5 rounded-full border border-border flex items-center justify-center text-xs">
-                  {String.fromCharCode(65 + index)}
-                </span>
-                {option}
-              </li>
-            ))}
-          </ul>
-        </div>
-        {isEditable && (
-          <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => setIsEditing(true)}
-              className="p-1 text-text-muted hover:text-text-default"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="p-1 text-text-muted hover:text-danger"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="p-1 text-text-muted hover:text-danger"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         )}
       </div>
 
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title="Delete question?"
-        description="This action cannot be undone."
-        confirmLabel={deleting ? 'Deleting...' : 'Delete'}
-        cancelLabel="Cancel"
-        confirmVariant="danger"
-        isConfirmDisabled={deleting}
-        isCancelDisabled={deleting}
-        onCancel={() => setShowDeleteConfirm(false)}
-        onConfirm={handleDelete}
-      />
+      {error && <p className="text-sm text-danger pl-7 mt-1">{error}</p>}
     </div>
   )
 }
