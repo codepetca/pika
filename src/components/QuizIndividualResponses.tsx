@@ -3,11 +3,17 @@
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 
-interface StudentResponse {
+interface QuestionInfo {
+  id: string
+  question_text: string
+  options: string[]
+}
+
+interface Responder {
   student_id: string
   name: string | null
   email: string
-  answers: { question_text: string; selected_option: string }[]
+  answers: Record<string, number>
 }
 
 interface Props {
@@ -15,9 +21,11 @@ interface Props {
 }
 
 export function QuizIndividualResponses({ quizId }: Props) {
-  const [students, setStudents] = useState<StudentResponse[]>([])
+  const [responders, setResponders] = useState<Responder[]>([])
+  const [questions, setQuestions] = useState<QuestionInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -26,33 +34,8 @@ export function QuizIndividualResponses({ quizId }: Props) {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Failed to load')
 
-        const results = data.results || []
-        const responders = data.responders || []
-
-        // We need individual responses - fetch quiz details for questions + all responses
-        const detailRes = await fetch(`/api/teacher/quizzes/${quizId}`)
-        const detailData = await detailRes.json()
-        const questions = detailData.questions || []
-
-        // Build per-student answers from aggregated data
-        // We need raw responses - fetch them from results endpoint's responders
-        // The current API doesn't return per-student answers, so we'll show
-        // the responder list with a note that individual answers require API extension.
-        // For now, show responders sorted alphabetically.
-        const studentList: StudentResponse[] = responders.map((r: { student_id: string; name: string | null; email: string }) => ({
-          student_id: r.student_id,
-          name: r.name,
-          email: r.email,
-          answers: [], // Individual answers not available from current API
-        }))
-
-        studentList.sort((a: StudentResponse, b: StudentResponse) => {
-          const nameA = a.name || a.email
-          const nameB = b.name || b.email
-          return nameA.localeCompare(nameB)
-        })
-
-        setStudents(studentList)
+        setResponders(data.responders || [])
+        setQuestions(data.questions || [])
       } catch (err: any) {
         setError(err.message || 'Failed to load responses')
       } finally {
@@ -74,19 +57,46 @@ export function QuizIndividualResponses({ quizId }: Props) {
     return <p className="text-sm text-danger">{error}</p>
   }
 
-  if (students.length === 0) {
+  if (responders.length === 0) {
     return <p className="text-sm text-text-muted">No responses yet.</p>
   }
 
   return (
     <div className="space-y-2">
       <h4 className="text-sm font-medium text-text-default">
-        Individual Responses ({students.length})
+        Individual Responses ({responders.length})
       </h4>
       <ul className="space-y-1">
-        {students.map((student) => (
-          <li key={student.student_id} className="text-sm text-text-muted">
-            {student.name || student.email.split('@')[0]}
+        {responders.map((student) => (
+          <li key={student.student_id}>
+            <button
+              type="button"
+              onClick={() =>
+                setExpandedStudent(
+                  expandedStudent === student.student_id ? null : student.student_id
+                )
+              }
+              className="w-full text-left text-sm text-text-muted hover:text-text-default transition-colors"
+            >
+              {student.name || student.email.split('@')[0]}
+              <span className="ml-1 text-xs">
+                {expandedStudent === student.student_id ? '▾' : '▸'}
+              </span>
+            </button>
+            {expandedStudent === student.student_id && (
+              <ul className="ml-4 mt-1 space-y-0.5">
+                {questions.map((q, idx) => {
+                  const selectedIdx = student.answers[q.id]
+                  const selectedText =
+                    selectedIdx !== undefined ? q.options[selectedIdx] : '—'
+                  return (
+                    <li key={q.id} className="text-xs text-text-muted">
+                      Q{idx + 1}: {selectedText}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </li>
         ))}
       </ul>

@@ -62,7 +62,7 @@ export function getStudentQuizStatus(quiz: Quiz, hasResponded: boolean): Student
  * Check if quiz questions can be edited (before any responses)
  */
 export function canEditQuizQuestions(quiz: Quiz, hasResponses: boolean): boolean {
-  return !hasResponses
+  return quiz.status === 'draft' && !hasResponses
 }
 
 /**
@@ -87,11 +87,15 @@ export function aggregateResults(
   })
 }
 
+/** Maximum number of options per quiz question */
+export const MAX_QUIZ_OPTIONS = 6
+
 /**
  * Validate quiz question options
  */
 export function validateQuizOptions(options: string[]): { valid: boolean; error?: string } {
   if (options.length < 2) return { valid: false, error: 'At least 2 options required' }
+  if (options.length > MAX_QUIZ_OPTIONS) return { valid: false, error: `Maximum ${MAX_QUIZ_OPTIONS} options allowed` }
   if (options.some((o) => !o.trim())) return { valid: false, error: 'Options cannot be empty' }
   return { valid: true }
 }

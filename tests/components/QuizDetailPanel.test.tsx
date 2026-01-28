@@ -131,14 +131,14 @@ describe('QuizDetailPanel', () => {
       })
     })
 
-    it('shows empty state when no questions', async () => {
+    it('shows activation warning when no questions', async () => {
       mockFetchForQuiz([])
       const quiz = makeQuizWithStats()
 
       render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        expect(screen.getByText('No questions yet. Add one to get started.')).toBeInTheDocument()
+        expect(screen.getByText('Quiz must have at least 1 question')).toBeInTheDocument()
       })
     })
   })

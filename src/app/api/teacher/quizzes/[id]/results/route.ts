@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults } from '@/lib/quizzes'
+import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
 import type { QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -16,28 +17,12 @@ export async function GET(
     const user = await requireRole('teacher')
     const { id: quizId } = await params
 
+    const access = await assertTeacherOwnsQuiz(user.id, quizId)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
+    const quiz = access.quiz
     const supabase = getServiceRoleClient()
-
-    // Fetch quiz and verify ownership
-    const { data: quiz, error: quizError } = await supabase
-      .from('quizzes')
-      .select(`
-        *,
-        classrooms!inner (
-          id,
-          teacher_id
-        )
-      `)
-      .eq('id', quizId)
-      .single()
-
-    if (quizError || !quiz) {
-      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
-    }
-
-    if (quiz.classrooms.teacher_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
 
     // Fetch questions
     const { data: questions, error: questionsError } = await supabase
@@ -66,7 +51,7 @@ export async function GET(
     const responderIds = [...new Set(responses?.map((r) => r.student_id) || [])]
 
     // Get responder details (names)
-    let responders: { student_id: string; name: string | null; email: string }[] = []
+    let responders: { student_id: string; name: string | null; email: string; answers: Record<string, number> }[] = []
     if (responderIds.length > 0) {
       const { data: users } = await supabase
         .from('users')
@@ -85,10 +70,18 @@ export async function GET(
         ]) || []
       )
 
+      // Build per-student answer map
+      const studentAnswers: Record<string, Record<string, number>> = {}
+      for (const r of responses || []) {
+        if (!studentAnswers[r.student_id]) studentAnswers[r.student_id] = {}
+        studentAnswers[r.student_id][r.question_id] = r.selected_option
+      }
+
       responders = (users || []).map((u) => ({
         student_id: u.id,
         name: profileMap.get(u.id) || null,
         email: u.email,
+        answers: studentAnswers[u.id] || {},
       }))
 
       // Sort by name (with email fallback)
@@ -118,6 +111,12 @@ export async function GET(
         status: quiz.status,
         show_results: quiz.show_results,
       },
+      questions: (questions || []).map((q) => ({
+        id: q.id,
+        question_text: q.question_text,
+        options: q.options,
+        position: q.position,
+      })),
       results: aggregated,
       responders,
       stats: {

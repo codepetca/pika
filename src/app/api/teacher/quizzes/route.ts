@@ -49,33 +49,47 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('classroom_id', classroomId)
 
-    // Get stats for each quiz
-    const quizzesWithStats = await Promise.all(
-      (quizzes || []).map(async (quiz) => {
-        // Count questions
-        const { count: questionsCount } = await supabase
-          .from('quiz_questions')
-          .select('*', { count: 'exact', head: true })
-          .eq('quiz_id', quiz.id)
+    const quizIds = (quizzes || []).map((q) => q.id)
 
-        // Count unique students who responded
-        const { data: responses } = await supabase
-          .from('quiz_responses')
-          .select('student_id')
-          .eq('quiz_id', quiz.id)
+    // Batch: count questions per quiz
+    const questionCountMap: Record<string, number> = {}
+    if (quizIds.length > 0) {
+      const { data: questionRows } = await supabase
+        .from('quiz_questions')
+        .select('quiz_id')
+        .in('quiz_id', quizIds)
 
-        const uniqueStudentIds = new Set(responses?.map((r) => r.student_id) || [])
+      for (const row of questionRows || []) {
+        questionCountMap[row.quiz_id] = (questionCountMap[row.quiz_id] || 0) + 1
+      }
+    }
 
-        return {
-          ...quiz,
-          stats: {
-            total_students: totalStudents || 0,
-            responded: uniqueStudentIds.size,
-            questions_count: questionsCount || 0,
-          },
-        }
-      })
-    )
+    // Batch: count unique respondents per quiz
+    const respondentCountMap: Record<string, number> = {}
+    if (quizIds.length > 0) {
+      const { data: responseRows } = await supabase
+        .from('quiz_responses')
+        .select('quiz_id, student_id')
+        .in('quiz_id', quizIds)
+
+      const seen: Record<string, Set<string>> = {}
+      for (const row of responseRows || []) {
+        if (!seen[row.quiz_id]) seen[row.quiz_id] = new Set()
+        seen[row.quiz_id].add(row.student_id)
+      }
+      for (const [qid, students] of Object.entries(seen)) {
+        respondentCountMap[qid] = students.size
+      }
+    }
+
+    const quizzesWithStats = (quizzes || []).map((quiz) => ({
+      ...quiz,
+      stats: {
+        total_students: totalStudents || 0,
+        responded: respondentCountMap[quiz.id] || 0,
+        questions_count: questionCountMap[quiz.id] || 0,
+      },
+    }))
 
     return NextResponse.json({ quizzes: quizzesWithStats })
   } catch (error: any) {

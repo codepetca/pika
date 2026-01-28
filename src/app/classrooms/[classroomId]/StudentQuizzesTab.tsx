@@ -81,6 +81,15 @@ export function StudentQuizzesTab({ classroom }: Props) {
     )
   }
 
+  // Loading quiz details
+  if (selectedQuizId && loadingQuiz) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
   // Quiz Detail View
   if (selectedQuizId && selectedQuiz) {
     const hasResponded = Object.keys(selectedQuiz.studentResponses).length > 0
@@ -132,15 +141,6 @@ export function StudentQuizzesTab({ classroom }: Props) {
           </div>
         </PageContent>
       </PageLayout>
-    )
-  }
-
-  // Loading quiz details
-  if (selectedQuizId && loadingQuiz) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
     )
   }
 

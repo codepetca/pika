@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, canStudentViewResults } from '@/lib/quizzes'
+import { assertStudentCanAccessQuiz } from '@/lib/server/quizzes'
 import type { QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -16,36 +17,12 @@ export async function GET(
     const user = await requireRole('student')
     const { id: quizId } = await params
 
+    const access = await assertStudentCanAccessQuiz(user.id, quizId)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
+    const quiz = access.quiz
     const supabase = getServiceRoleClient()
-
-    // Fetch quiz
-    const { data: quiz, error: quizError } = await supabase
-      .from('quizzes')
-      .select(`
-        *,
-        classrooms!inner (
-          id,
-          archived_at
-        )
-      `)
-      .eq('id', quizId)
-      .single()
-
-    if (quizError || !quiz) {
-      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
-    }
-
-    // Verify student is enrolled
-    const { data: enrollment, error: enrollError } = await supabase
-      .from('classroom_enrollments')
-      .select('id')
-      .eq('classroom_id', quiz.classroom_id)
-      .eq('student_id', user.id)
-      .single()
-
-    if (enrollError || !enrollment) {
-      return NextResponse.json({ error: 'Not enrolled in this classroom' }, { status: 403 })
-    }
 
     // Check if student has responded
     const { data: studentResponses } = await supabase

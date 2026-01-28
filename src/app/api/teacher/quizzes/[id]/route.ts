@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { canActivateQuiz } from '@/lib/quizzes'
+import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,28 +17,11 @@ export async function GET(
     const { id } = await params
     const supabase = getServiceRoleClient()
 
-    // Fetch quiz and verify ownership
-    const { data: quiz, error: quizError } = await supabase
-      .from('quizzes')
-      .select(`
-        *,
-        classrooms!inner (
-          id,
-          teacher_id,
-          title,
-          archived_at
-        )
-      `)
-      .eq('id', id)
-      .single()
-
-    if (quizError || !quiz) {
-      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
+    const access = await assertTeacherOwnsQuiz(user.id, id)
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
     }
-
-    if (quiz.classrooms.teacher_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
+    const quiz = access.quiz
 
     // Fetch questions
     const { data: questions, error: questionsError } = await supabase
@@ -89,31 +73,27 @@ export async function PATCH(
     const body = await request.json()
     const { title, status, show_results } = body
 
+    const access = await assertTeacherOwnsQuiz(user.id, id, { checkArchived: true })
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
+    const existing = access.quiz
     const supabase = getServiceRoleClient()
 
-    // Fetch quiz and verify ownership
-    const { data: existing, error: existingError } = await supabase
-      .from('quizzes')
-      .select(`
-        *,
-        classrooms!inner (
-          teacher_id,
-          archived_at
+    // Validate status transition
+    if (status !== undefined) {
+      const VALID_TRANSITIONS: Record<string, string[]> = {
+        draft: ['active'],
+        active: ['closed'],
+        closed: ['active'],
+      }
+      const allowed = VALID_TRANSITIONS[existing.status] || []
+      if (!allowed.includes(status)) {
+        return NextResponse.json(
+          { error: `Cannot transition from ${existing.status} to ${status}` },
+          { status: 400 }
         )
-      `)
-      .eq('id', id)
-      .single()
-
-    if (existingError || !existing) {
-      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
-    }
-
-    if (existing.classrooms.teacher_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
-    if (existing.classrooms.archived_at) {
-      return NextResponse.json({ error: 'Classroom is archived' }, { status: 403 })
+      }
     }
 
     // If activating quiz, validate it has questions
@@ -127,6 +107,19 @@ export async function PATCH(
       if (!activation.valid) {
         return NextResponse.json({ error: activation.error }, { status: 400 })
       }
+    }
+
+    // Validate title if provided
+    if (title !== undefined) {
+      const trimmed = typeof title === 'string' ? title.trim() : ''
+      if (!trimmed) {
+        return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 })
+      }
+    }
+
+    // Validate show_results if provided
+    if (show_results !== undefined && typeof show_results !== 'boolean') {
+      return NextResponse.json({ error: 'show_results must be a boolean' }, { status: 400 })
     }
 
     // Build update object
@@ -172,32 +165,12 @@ export async function DELETE(
   try {
     const user = await requireRole('teacher')
     const { id } = await params
+
+    const access = await assertTeacherOwnsQuiz(user.id, id, { checkArchived: true })
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
     const supabase = getServiceRoleClient()
-
-    // Fetch quiz and verify ownership
-    const { data: existing, error: existingError } = await supabase
-      .from('quizzes')
-      .select(`
-        *,
-        classrooms!inner (
-          teacher_id,
-          archived_at
-        )
-      `)
-      .eq('id', id)
-      .single()
-
-    if (existingError || !existing) {
-      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
-    }
-
-    if (existing.classrooms.teacher_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-    }
-
-    if (existing.classrooms.archived_at) {
-      return NextResponse.json({ error: 'Classroom is archived' }, { status: 403 })
-    }
 
     // Count responses for confirmation warning
     const { count: responsesCount } = await supabase

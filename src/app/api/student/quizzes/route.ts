@@ -39,14 +39,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch quizzes' }, { status: 500 })
     }
 
-    // Get student's responses for all quizzes in this classroom
-    const { data: allResponses } = await supabase
-      .from('quiz_responses')
-      .select('quiz_id')
-      .eq('student_id', user.id)
-
-    const respondedQuizIds = new Set(allResponses?.map((r) => r.quiz_id) || [])
-
     // Also fetch closed quizzes the student has responded to
     const { data: closedQuizzes, error: closedError } = await supabase
       .from('quizzes')
@@ -58,6 +50,24 @@ export async function GET(request: NextRequest) {
     if (closedError) {
       console.error('Error fetching closed quizzes:', closedError)
       // Continue without closed quizzes
+    }
+
+    // Get student's responses scoped to this classroom's quizzes
+    const classroomQuizIds = [
+      ...(activeQuizzes || []).map((q) => q.id),
+      ...(closedQuizzes || []).map((q) => q.id),
+    ]
+    const respondedQuizIds = new Set<string>()
+    if (classroomQuizIds.length > 0) {
+      const { data: allResponses } = await supabase
+        .from('quiz_responses')
+        .select('quiz_id')
+        .eq('student_id', user.id)
+        .in('quiz_id', classroomQuizIds)
+
+      for (const r of allResponses || []) {
+        respondedQuizIds.add(r.quiz_id)
+      }
     }
 
     // Filter closed quizzes to only those the student has responded to

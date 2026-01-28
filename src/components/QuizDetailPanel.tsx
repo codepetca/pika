@@ -1,6 +1,21 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { Check, Plus, X } from 'lucide-react'
 import { Button, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
@@ -86,6 +101,12 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
 
   const hasResponses = quiz.stats.responded > 0
   const isEditable = canEditQuizQuestions(quiz, hasResponses)
+  const [isReordering, setIsReordering] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
 
   const loadQuizDetails = useCallback(async () => {
     setLoading(true)
@@ -111,6 +132,37 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
   useEffect(() => {
     loadQuizDetails()
   }, [loadQuizDetails])
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id || isReordering || !isEditable) return
+
+      const oldIndex = questions.findIndex((q) => q.id === active.id)
+      const newIndex = questions.findIndex((q) => q.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+
+      const reordered = arrayMove(questions, oldIndex, newIndex)
+      setQuestions(reordered)
+
+      setIsReordering(true)
+      try {
+        const orderedIds = reordered.map((q) => q.id)
+        await fetch(`/api/teacher/quizzes/${quiz.id}/questions/reorder`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question_ids: orderedIds }),
+        })
+      } catch (err) {
+        console.error('Failed to reorder questions:', err)
+        setError('Failed to save question order. Please try again.')
+        loadQuizDetails()
+      } finally {
+        setIsReordering(false)
+      }
+    },
+    [questions, quiz.id, isReordering, isEditable, loadQuizDetails]
+  )
 
   async function handleAddQuestion() {
     try {
@@ -249,24 +301,29 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
               </div>
             )}
 
-            {questions.map((question, index) => (
-              <QuizQuestionEditor
-                key={question.id}
-                quizId={quiz.id}
-                question={question}
-                questionNumber={index + 1}
-                isEditable={isEditable}
-                onUpdated={handleQuestionUpdated}
-              />
-            ))}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={questions.map((q) => q.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {questions.map((question, index) => (
+                  <QuizQuestionEditor
+                    key={question.id}
+                    quizId={quiz.id}
+                    question={question}
+                    questionNumber={index + 1}
+                    isEditable={isEditable}
+                    onUpdated={handleQuestionUpdated}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
 
-            {questions.length === 0 && (
-              <p className="text-sm text-text-muted py-4 text-center">
-                No questions yet. Add one to get started.
-              </p>
-            )}
-
-            {isEditable && (
+{isEditable && (
               <Button
                 variant="secondary"
                 size="sm"

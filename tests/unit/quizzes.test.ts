@@ -148,19 +148,24 @@ describe('quiz utilities', () => {
   // ==========================================================================
 
   describe('canEditQuizQuestions', () => {
-    it('should return true when quiz has no responses', () => {
-      const quiz = createMockQuiz({ status: 'active' })
+    it('should return true for draft quiz with no responses', () => {
+      const quiz = createMockQuiz({ status: 'draft' })
       expect(canEditQuizQuestions(quiz, false)).toBe(true)
     })
 
     it('should return false when quiz has responses', () => {
-      const quiz = createMockQuiz({ status: 'active' })
+      const quiz = createMockQuiz({ status: 'draft' })
       expect(canEditQuizQuestions(quiz, true)).toBe(false)
     })
 
-    it('should return true for draft quiz with no responses', () => {
-      const quiz = createMockQuiz({ status: 'draft' })
-      expect(canEditQuizQuestions(quiz, false)).toBe(true)
+    it('should return false for active quiz even with no responses', () => {
+      const quiz = createMockQuiz({ status: 'active' })
+      expect(canEditQuizQuestions(quiz, false)).toBe(false)
+    })
+
+    it('should return false for closed quiz with no responses', () => {
+      const quiz = createMockQuiz({ status: 'closed' })
+      expect(canEditQuizQuestions(quiz, false)).toBe(false)
     })
   })
 
