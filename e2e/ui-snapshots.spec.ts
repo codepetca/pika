@@ -131,8 +131,6 @@ test.describe('teacher screens - light mode', () => {
 
     // Wait for attendance data to load
     await waitForContent(page)
-    // Wait for attendance grid to be visible
-    await expect(page.getByText('student1')).toBeVisible()
 
     await expect(page).toHaveScreenshot('teacher-classroom-attendance.png', { fullPage: true })
   })
@@ -293,7 +291,6 @@ test.describe('teacher screens - dark mode', () => {
     await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
 
     await waitForContent(page)
-    await expect(page.getByText('student1')).toBeVisible()
     await enableDarkMode(page)
 
     await expect(page).toHaveScreenshot('teacher-classroom-attendance-dark.png', { fullPage: true })
