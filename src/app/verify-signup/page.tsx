@@ -100,7 +100,7 @@ function VerifySignupForm() {
         </form>
 
         {resendSuccess && (
-          <div className="mt-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+          <div className="mt-4 bg-success-bg border border-success text-text-default px-4 py-3 rounded-lg">
             New verification code sent!
           </div>
         )}

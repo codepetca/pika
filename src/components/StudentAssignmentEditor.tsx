@@ -436,10 +436,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     }
     return (
       <div className="bg-surface rounded-lg shadow-sm p-8 text-center">
-        <p className="text-red-600 mb-4">{error}</p>
+        <p className="text-danger mb-4">{error}</p>
         <button
           onClick={() => router.back()}
-          className="text-blue-600 hover:text-blue-700"
+          className="text-primary hover:text-primary-hover"
         >
           Go back
         </button>

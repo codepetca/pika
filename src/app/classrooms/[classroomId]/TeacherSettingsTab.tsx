@@ -190,7 +190,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
           href={`/classrooms/${classroom.id}?tab=settings&section=general`}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'general'
-              ? 'border-blue-500 text-primary'
+              ? 'border-primary text-primary'
               : 'border-transparent text-text-muted hover:text-text-default hover:border-border'
           }`}
         >
@@ -200,7 +200,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
           href={`/classrooms/${classroom.id}?tab=settings&section=class-days`}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'class-days'
-              ? 'border-blue-500 text-primary'
+              ? 'border-primary text-primary'
               : 'border-transparent text-text-muted hover:text-text-default hover:border-border'
           }`}
         >
