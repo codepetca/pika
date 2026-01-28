@@ -77,21 +77,21 @@ export function LoginClient() {
               <button
                 type="button"
                 onClick={() => fillCredentials(DEV_CREDENTIALS.teacher)}
-                className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                className="px-3 py-1.5 text-sm bg-info-bg text-primary rounded hover:bg-surface-hover"
               >
                 Teacher
               </button>
               <button
                 type="button"
                 onClick={() => fillCredentials(DEV_CREDENTIALS.student1)}
-                className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200"
+                className="px-3 py-1.5 text-sm bg-success-bg text-success rounded hover:bg-surface-hover"
               >
                 Student 1
               </button>
               <button
                 type="button"
                 onClick={() => fillCredentials(DEV_CREDENTIALS.student2)}
-                className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200"
+                className="px-3 py-1.5 text-sm bg-success-bg text-success rounded hover:bg-surface-hover"
               >
                 Student 2
               </button>

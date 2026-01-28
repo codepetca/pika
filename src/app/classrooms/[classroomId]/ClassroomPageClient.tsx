@@ -439,7 +439,7 @@ function ClassroomPageContent({
                   type="button"
                   onClick={handleMarkdownSave}
                   disabled={bulkSaving}
-                  className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="px-2 py-1 text-xs rounded bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50"
                 >
                   {bulkSaving ? 'Saving...' : 'Save'}
                 </button>
@@ -449,7 +449,7 @@ function ClassroomPageContent({
                 type="button"
                 onClick={calendarSidebarState.onSave}
                 disabled={calendarSidebarState.bulkSaving}
-                className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                className="px-2 py-1 text-xs rounded bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50"
               >
                 {calendarSidebarState.bulkSaving ? 'Saving...' : 'Save'}
               </button>
