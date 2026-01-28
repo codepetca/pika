@@ -69,29 +69,29 @@ export function LoginClient() {
         </h1>
 
         {isDev && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm font-medium text-yellow-800 mb-3">
+          <div className="mb-6 p-4 bg-warning-bg border border-warning rounded-lg">
+            <p className="text-sm font-medium text-text-default mb-3">
               Dev Quick Login
             </p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => fillCredentials(DEV_CREDENTIALS.teacher)}
-                className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                className="px-3 py-1.5 text-sm bg-info-bg text-primary rounded hover:bg-surface-hover"
               >
                 Teacher
               </button>
               <button
                 type="button"
                 onClick={() => fillCredentials(DEV_CREDENTIALS.student1)}
-                className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200"
+                className="px-3 py-1.5 text-sm bg-success-bg text-success rounded hover:bg-surface-hover"
               >
                 Student 1
               </button>
               <button
                 type="button"
                 onClick={() => fillCredentials(DEV_CREDENTIALS.student2)}
-                className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200"
+                className="px-3 py-1.5 text-sm bg-success-bg text-success rounded hover:bg-surface-hover"
               >
                 Student 2
               </button>

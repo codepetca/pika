@@ -78,7 +78,7 @@ export function SnapshotGallery() {
                 onClick={() => setFilter('all')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'all'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary text-text-inverse'
                     : 'bg-surface text-text-default border border-border hover:bg-page'
                 }`}
               >
@@ -88,7 +88,7 @@ export function SnapshotGallery() {
                 onClick={() => setFilter('auth')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'auth'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary text-text-inverse'
                     : 'bg-surface text-text-default border border-border hover:bg-page'
                 }`}
               >
@@ -98,7 +98,7 @@ export function SnapshotGallery() {
                 onClick={() => setFilter('teacher')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'teacher'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary text-text-inverse'
                     : 'bg-surface text-text-default border border-border hover:bg-page'
                 }`}
               >
@@ -108,7 +108,7 @@ export function SnapshotGallery() {
                 onClick={() => setFilter('student')}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'student'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary text-text-inverse'
                     : 'bg-surface text-text-default border border-border hover:bg-page'
                 }`}
               >
