@@ -229,3 +229,11 @@ export interface SelectedStudentInfo {
   onGoPrev: () => void
   onGoNext: () => void
 }
+
+export interface ClassroomResources {
+  id: string
+  classroom_id: string
+  content: TiptapContent
+  updated_at: string
+  updated_by: string | null
+}
