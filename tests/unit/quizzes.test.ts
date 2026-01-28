@@ -10,6 +10,7 @@ import {
   canStudentRespond,
   canStudentViewResults,
   getStudentQuizStatus,
+  canEditQuizQuestions,
   aggregateResults,
   validateQuizOptions,
   canActivateQuiz,
@@ -90,18 +91,23 @@ describe('quiz utilities', () => {
   // ==========================================================================
 
   describe('canStudentViewResults', () => {
-    it('should return true when show_results is true and student has responded', () => {
-      const quiz = createMockQuiz({ show_results: true })
+    it('should return true when show_results is true, quiz is closed, and student has responded', () => {
+      const quiz = createMockQuiz({ show_results: true, status: 'closed' })
       expect(canStudentViewResults(quiz, true)).toBe(true)
     })
 
+    it('should return false when quiz is active even with show_results and responded', () => {
+      const quiz = createMockQuiz({ show_results: true, status: 'active' })
+      expect(canStudentViewResults(quiz, true)).toBe(false)
+    })
+
     it('should return false when show_results is true but student has not responded', () => {
-      const quiz = createMockQuiz({ show_results: true })
+      const quiz = createMockQuiz({ show_results: true, status: 'closed' })
       expect(canStudentViewResults(quiz, false)).toBe(false)
     })
 
-    it('should return false when show_results is false even if student has responded', () => {
-      const quiz = createMockQuiz({ show_results: false })
+    it('should return false when show_results is false even if student has responded and quiz is closed', () => {
+      const quiz = createMockQuiz({ show_results: false, status: 'closed' })
       expect(canStudentViewResults(quiz, true)).toBe(false)
     })
 
@@ -121,14 +127,40 @@ describe('quiz utilities', () => {
       expect(getStudentQuizStatus(quiz, false)).toBe('not_started')
     })
 
-    it('should return "can_view_results" when student has responded and results are enabled', () => {
-      const quiz = createMockQuiz({ status: 'active', show_results: true })
+    it('should return "can_view_results" when student has responded, results enabled, and quiz closed', () => {
+      const quiz = createMockQuiz({ status: 'closed', show_results: true })
       expect(getStudentQuizStatus(quiz, true)).toBe('can_view_results')
     })
 
-    it('should return "responded" when student has responded but results are disabled', () => {
-      const quiz = createMockQuiz({ status: 'active', show_results: false })
+    it('should return "responded" when student has responded but quiz is still active', () => {
+      const quiz = createMockQuiz({ status: 'active', show_results: true })
       expect(getStudentQuizStatus(quiz, true)).toBe('responded')
+    })
+
+    it('should return "responded" when student has responded but results are disabled', () => {
+      const quiz = createMockQuiz({ status: 'closed', show_results: false })
+      expect(getStudentQuizStatus(quiz, true)).toBe('responded')
+    })
+  })
+
+  // ==========================================================================
+  // canEditQuizQuestions()
+  // ==========================================================================
+
+  describe('canEditQuizQuestions', () => {
+    it('should return true when quiz has no responses', () => {
+      const quiz = createMockQuiz({ status: 'active' })
+      expect(canEditQuizQuestions(quiz, false)).toBe(true)
+    })
+
+    it('should return false when quiz has responses', () => {
+      const quiz = createMockQuiz({ status: 'active' })
+      expect(canEditQuizQuestions(quiz, true)).toBe(false)
+    })
+
+    it('should return true for draft quiz with no responses', () => {
+      const quiz = createMockQuiz({ status: 'draft' })
+      expect(canEditQuizQuestions(quiz, false)).toBe(true)
     })
   })
 

@@ -1,51 +1,32 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Button, ConfirmDialog } from '@/ui'
-import {
-  DataTable,
-  DataTableBody,
-  DataTableCell,
-  DataTableHead,
-  DataTableHeaderCell,
-  DataTableRow,
-  EmptyStateRow,
-  KeyboardNavigableTable,
-  SortableHeaderCell,
-  TableCard,
-} from '@/components/DataTable'
-import { RightSidebarToggle, useRightSidebar } from '@/components/layout'
-import { applyDirection, toggleSort } from '@/lib/table-sort'
-import { getQuizStatusLabel, getQuizStatusBadgeClass } from '@/lib/quizzes'
+import { useRightSidebar } from '@/components/layout'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { QuizModal } from '@/components/QuizModal'
-import { QuizDetailPanel } from '@/components/QuizDetailPanel'
-import type { Classroom, QuizWithStats, Quiz } from '@/types'
-
-type SortColumn = 'title' | 'status' | 'responded'
+import { QuizCard } from '@/components/QuizCard'
+import type { Classroom, QuizWithStats } from '@/types'
 
 interface Props {
   classroom: Classroom
+  onSelectQuiz?: (quiz: QuizWithStats | null) => void
 }
 
-export function TeacherQuizzesTab({ classroom }: Props) {
+export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
   const [quizzes, setQuizzes] = useState<QuizWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
-  const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null)
   const [deleteQuiz, setDeleteQuiz] = useState<{ quiz: QuizWithStats; responsesCount: number } | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
-    column: SortColumn
-    direction: 'asc' | 'desc'
-  }>({ column: 'title', direction: 'asc' })
-
   const { setOpen: setRightSidebarOpen } = useRightSidebar()
+
+  const isReadOnly = !!classroom.archived_at
 
   const loadQuizzes = useCallback(async () => {
     try {
@@ -74,28 +55,13 @@ export function TeacherQuizzesTab({ classroom }: Props) {
     return () => window.removeEventListener(TEACHER_QUIZZES_UPDATED_EVENT, handleQuizzesUpdated)
   }, [classroom.id, loadQuizzes])
 
-  const rows = useMemo(() => {
-    return [...quizzes].sort((a, b) => {
-      if (sortColumn === 'title') {
-        return applyDirection(a.title.localeCompare(b.title), sortDirection)
-      }
-      if (sortColumn === 'status') {
-        return applyDirection(a.status.localeCompare(b.status), sortDirection)
-      }
-      if (sortColumn === 'responded') {
-        return applyDirection(a.stats.responded - b.stats.responded, sortDirection)
-      }
-      return 0
-    })
-  }, [quizzes, sortColumn, sortDirection])
+  // Notify parent when selected quiz changes
+  useEffect(() => {
+    const selected = quizzes.find((q) => q.id === selectedQuizId) ?? null
+    onSelectQuiz?.(selected)
+  }, [selectedQuizId, quizzes, onSelectQuiz])
 
-  const rowKeys = useMemo(() => rows.map((q) => q.id), [rows])
-
-  function handleSort(column: SortColumn) {
-    setSortState((prev) => toggleSort(prev, column))
-  }
-
-  function handleRowClick(quiz: QuizWithStats) {
+  function handleCardSelect(quiz: QuizWithStats) {
     const newSelectedId = selectedQuizId === quiz.id ? null : quiz.id
     setSelectedQuizId(newSelectedId)
     if (newSelectedId) {
@@ -103,13 +69,7 @@ export function TeacherQuizzesTab({ classroom }: Props) {
     }
   }
 
-  function handleKeyboardSelect(quizId: string) {
-    setSelectedQuizId(quizId)
-    setRightSidebarOpen(true)
-  }
-
   function handleNewQuiz() {
-    setEditingQuiz(null)
     setShowModal(true)
   }
 
@@ -146,7 +106,6 @@ export function TeacherQuizzesTab({ classroom }: Props) {
   }
 
   async function handleRequestDelete(quiz: QuizWithStats) {
-    // Get response count for confirmation message
     try {
       const res = await fetch(`/api/teacher/quizzes/${quiz.id}/results`)
       const data = await res.json()
@@ -156,8 +115,6 @@ export function TeacherQuizzesTab({ classroom }: Props) {
     }
   }
 
-  const selectedQuiz = rows.find((q) => q.id === selectedQuizId)
-
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -166,109 +123,51 @@ export function TeacherQuizzesTab({ classroom }: Props) {
     )
   }
 
+  // Sort by position order
+  const sortedQuizzes = [...quizzes].sort((a, b) => a.position - b.position)
+
   return (
     <PageLayout>
       <PageActionBar
         primary={
-          <Button onClick={handleNewQuiz} variant="primary" className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            New Quiz
-          </Button>
+          !isReadOnly ? (
+            <Button onClick={handleNewQuiz} variant="primary" className="gap-1.5">
+              <Plus className="h-4 w-4" />
+              New Quiz
+            </Button>
+          ) : undefined
         }
-        trailing={<RightSidebarToggle />}
       />
 
-      <PageContent className="flex gap-4">
-        <div className="flex-1 min-w-0">
-          <KeyboardNavigableTable
-            rowKeys={rowKeys}
-            selectedKey={selectedQuizId}
-            onSelectKey={handleKeyboardSelect}
-          >
-            <TableCard>
-              <DataTable>
-                <DataTableHead>
-                  <DataTableRow>
-                    <SortableHeaderCell
-                      label="Title"
-                      isActive={sortColumn === 'title'}
-                      direction={sortDirection}
-                      onClick={() => handleSort('title')}
-                    />
-                    <SortableHeaderCell
-                      label="Status"
-                      isActive={sortColumn === 'status'}
-                      direction={sortDirection}
-                      onClick={() => handleSort('status')}
-                    />
-                    <DataTableHeaderCell align="center">Questions</DataTableHeaderCell>
-                    <SortableHeaderCell
-                      label="Responses"
-                      isActive={sortColumn === 'responded'}
-                      direction={sortDirection}
-                      onClick={() => handleSort('responded')}
-                      align="center"
-                    />
-                  </DataTableRow>
-                </DataTableHead>
-                <DataTableBody>
-                  {rows.map((quiz) => {
-                    const isSelected = selectedQuizId === quiz.id
-
-                    return (
-                      <DataTableRow
-                        key={quiz.id}
-                        className={[
-                          'cursor-pointer transition-colors',
-                          isSelected
-                            ? 'bg-info-bg hover:bg-info-bg-hover'
-                            : 'hover:bg-surface-hover',
-                        ].join(' ')}
-                        onClick={() => handleRowClick(quiz)}
-                      >
-                        <DataTableCell className="font-medium">{quiz.title}</DataTableCell>
-                        <DataTableCell>
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getQuizStatusBadgeClass(quiz.status)}`}
-                          >
-                            {getQuizStatusLabel(quiz.status)}
-                          </span>
-                        </DataTableCell>
-                        <DataTableCell align="center" className="text-text-muted">
-                          {quiz.stats.questions_count}
-                        </DataTableCell>
-                        <DataTableCell align="center" className="text-text-muted">
-                          {quiz.stats.responded}/{quiz.stats.total_students}
-                        </DataTableCell>
-                      </DataTableRow>
-                    )
-                  })}
-                  {rows.length === 0 && (
-                    <EmptyStateRow colSpan={4} message="No quizzes yet. Create one to get started." />
-                  )}
-                </DataTableBody>
-              </DataTable>
-            </TableCard>
-          </KeyboardNavigableTable>
-        </div>
+      <PageContent>
+        {sortedQuizzes.length === 0 ? (
+          <p className="text-text-muted text-center py-8">
+            No quizzes yet. Create one to get started.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {sortedQuizzes.map((quiz) => (
+              <QuizCard
+                key={quiz.id}
+                quiz={quiz}
+                isSelected={selectedQuizId === quiz.id}
+                isReadOnly={isReadOnly}
+                onSelect={() => handleCardSelect(quiz)}
+                onDelete={() => handleRequestDelete(quiz)}
+                onQuizUpdate={loadQuizzes}
+              />
+            ))}
+          </div>
+        )}
       </PageContent>
 
       <QuizModal
         isOpen={showModal}
         classroomId={classroom.id}
-        quiz={editingQuiz}
+        quiz={null}
         onClose={() => setShowModal(false)}
         onSuccess={handleQuizCreated}
       />
-
-      {selectedQuiz && (
-        <QuizDetailPanel
-          quiz={selectedQuiz}
-          classroomId={classroom.id}
-          onQuizUpdate={loadQuizzes}
-          onDelete={() => handleRequestDelete(selectedQuiz)}
-        />
-      )}
 
       <ConfirmDialog
         isOpen={!!deleteQuiz}

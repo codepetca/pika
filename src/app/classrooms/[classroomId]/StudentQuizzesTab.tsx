@@ -100,7 +100,7 @@ export function StudentQuizzesTab({ classroom }: Props) {
 
             <h2 className="text-xl font-bold text-text-default mb-1">{selectedQuiz.quiz.title}</h2>
 
-            {hasResponded && selectedQuiz.quiz.show_results ? (
+            {hasResponded && selectedQuiz.quiz.show_results && selectedQuiz.quiz.status === 'closed' ? (
               <StudentQuizResults
                 quizId={selectedQuizId}
                 myResponses={selectedQuiz.studentResponses}
@@ -108,9 +108,17 @@ export function StudentQuizzesTab({ classroom }: Props) {
             ) : hasResponded ? (
               <div className="mt-6 p-4 bg-success-bg rounded-lg text-center">
                 <p className="text-success font-medium">You have submitted your response.</p>
-                {!selectedQuiz.quiz.show_results && (
+                {selectedQuiz.quiz.status !== 'closed' && selectedQuiz.quiz.show_results ? (
+                  <p className="text-sm text-text-muted mt-1">
+                    Results will be available after the quiz closes.
+                  </p>
+                ) : selectedQuiz.quiz.status === 'closed' && !selectedQuiz.quiz.show_results ? (
                   <p className="text-sm text-text-muted mt-1">
                     Results are not available for this quiz.
+                  </p>
+                ) : (
+                  <p className="text-sm text-text-muted mt-1">
+                    Your response has been recorded.
                   </p>
                 )}
               </div>

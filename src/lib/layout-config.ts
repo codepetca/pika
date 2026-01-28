@@ -112,7 +112,7 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'full' },
   },
   'quizzes-teacher': {
-    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '40%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%' },
     mainContent: { maxWidth: 'full' },
   },
   'quizzes-student': {

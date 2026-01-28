@@ -46,7 +46,7 @@ export function canStudentRespond(quiz: Quiz, hasResponded: boolean): boolean {
  * Check if a student can view quiz results
  */
 export function canStudentViewResults(quiz: Quiz, hasResponded: boolean): boolean {
-  return quiz.show_results && hasResponded
+  return quiz.show_results && quiz.status === 'closed' && hasResponded
 }
 
 /**
@@ -54,8 +54,15 @@ export function canStudentViewResults(quiz: Quiz, hasResponded: boolean): boolea
  */
 export function getStudentQuizStatus(quiz: Quiz, hasResponded: boolean): StudentQuizStatus {
   if (!hasResponded) return 'not_started'
-  if (quiz.show_results) return 'can_view_results'
+  if (quiz.show_results && quiz.status === 'closed') return 'can_view_results'
   return 'responded'
+}
+
+/**
+ * Check if quiz questions can be edited (before any responses)
+ */
+export function canEditQuizQuestions(quiz: Quiz, hasResponses: boolean): boolean {
+  return !hasResponses
 }
 
 /**

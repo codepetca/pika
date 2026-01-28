@@ -34,8 +34,9 @@ import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { Spinner } from '@/components/Spinner'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
-import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo, Assignment } from '@/types'
+import { TEACHER_ASSIGNMENTS_UPDATED_EVENT, TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import { QuizDetailPanel } from '@/components/QuizDetailPanel'
+import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo, Assignment, QuizWithStats } from '@/types'
 
 interface UserInfo {
   id: string
@@ -132,6 +133,19 @@ function ClassroomPageContent({
 
   // State for calendar sidebar (teacher calendar tab)
   const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
+
+  // State for selected quiz (teacher quizzes tab)
+  const [selectedQuiz, setSelectedQuiz] = useState<QuizWithStats | null>(null)
+
+  const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
+    setSelectedQuiz(quiz)
+  }, [])
+
+  const handleQuizUpdate = useCallback(() => {
+    window.dispatchEvent(
+      new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+    )
+  }, [classroom.id])
 
   // State for markdown mode (teacher assignments tab - summary view only)
   const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
@@ -312,6 +326,8 @@ function ClassroomPageContent({
       setRightSidebarWidth('70%')
     } else if (isTeacher && activeTab === 'assignments') {
       setRightSidebarWidth('40%')
+    } else if (isTeacher && activeTab === 'quizzes') {
+      setRightSidebarWidth('50%')
     }
   }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
 
@@ -378,7 +394,12 @@ function ClassroomPageContent({
                   onViewModeChange={handleViewModeChange}
                 />
               )}
-              {activeTab === 'quizzes' && <TeacherQuizzesTab classroom={classroom} />}
+              {activeTab === 'quizzes' && (
+                <TeacherQuizzesTab
+                  classroom={classroom}
+                  onSelectQuiz={handleSelectQuiz}
+                />
+              )}
               {activeTab === 'calendar' && (
                 <TeacherLessonCalendarTab
                   classroom={classroom}
@@ -416,6 +437,8 @@ function ClassroomPageContent({
               ? 'Assignments'
               : isTeacher && activeTab === 'calendar' && calendarSidebarState
               ? 'Calendar'
+              : isTeacher && activeTab === 'quizzes'
+              ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
               ? selectedStudent.assignmentTitle
               : activeTab === 'assignments'
@@ -499,6 +522,18 @@ function ClassroomPageContent({
             )
           ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
+          ) : isTeacher && activeTab === 'quizzes' && selectedQuiz ? (
+            <QuizDetailPanel
+              quiz={selectedQuiz}
+              classroomId={classroom.id}
+              onQuizUpdate={handleQuizUpdate}
+            />
+          ) : isTeacher && activeTab === 'quizzes' ? (
+            <div className="p-4">
+              <p className="text-sm text-text-muted">
+                Select a quiz to view details.
+              </p>
+            </div>
           ) : isTeacher && activeTab === 'attendance' ? (
             <div className="p-4">
               {selectedEntry ? (

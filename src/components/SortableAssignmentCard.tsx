@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, PenSquare, Trash2 } from 'lucide-react'
 import { formatDueDate } from '@/lib/assignments'
+import { Button, Tooltip } from '@/ui'
 import type { Assignment, AssignmentStats } from '@/types'
 
 interface AssignmentWithStats extends Assignment {
@@ -116,38 +117,36 @@ export function SortableAssignmentCard({
 
         {/* Right: Action buttons */}
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              if (isReadOnly) return
-              onEdit()
-            }}
-            className={[
-              'p-1.5 rounded-md text-text-muted hover:text-text-default hover:bg-surface-hover',
-              isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
-            ].join(' ')}
-            aria-label={`Edit ${assignment.title}`}
-            disabled={isReadOnly}
-          >
-            <PenSquare className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              if (isReadOnly) return
-              onDelete()
-            }}
-            className={[
-              'p-1.5 rounded-md text-danger hover:text-danger-hover hover:bg-danger-bg',
-              isReadOnly ? 'opacity-50 cursor-not-allowed' : '',
-            ].join(' ')}
-            aria-label={`Delete ${assignment.title}`}
-            disabled={isReadOnly}
-          >
-            <Trash2 className="h-4 w-4" aria-hidden="true" />
-          </button>
+          <Tooltip content="Edit assignment">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-1.5"
+              aria-label={`Edit ${assignment.title}`}
+              disabled={isReadOnly}
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit()
+              }}
+            >
+              <PenSquare className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Delete assignment">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="p-1.5 text-danger hover:bg-danger-bg"
+              aria-label={`Delete ${assignment.title}`}
+              disabled={isReadOnly}
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Tooltip>
         </div>
       </div>
     </div>

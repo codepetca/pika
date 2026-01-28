@@ -4,10 +4,9 @@ import type { QuizResultsAggregate } from '@/types'
 
 interface Props {
   results: QuizResultsAggregate[] | null
-  responders?: { student_id: string; name: string | null; email: string }[]
 }
 
-export function QuizResultsView({ results, responders }: Props) {
+export function QuizResultsView({ results }: Props) {
   if (!results || results.length === 0) {
     return (
       <div className="text-sm text-text-muted py-4 text-center">
@@ -55,21 +54,6 @@ export function QuizResultsView({ results, responders }: Props) {
         </div>
       ))}
 
-      {/* Responders List */}
-      {responders && responders.length > 0 && (
-        <div className="pt-4 border-t border-border">
-          <h4 className="text-sm font-medium text-text-default mb-2">
-            Responded ({responders.length})
-          </h4>
-          <ul className="space-y-1">
-            {responders.map((responder) => (
-              <li key={responder.student_id} className="text-sm text-text-muted">
-                {responder.name || responder.email.split('@')[0]}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   )
 }
