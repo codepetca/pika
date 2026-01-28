@@ -7,6 +7,7 @@ import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useClassDays } from '@/hooks/useClassDays'
+import { readCookie, writeCookie } from '@/lib/cookies'
 import type { Classroom, LessonPlan, Assignment } from '@/types'
 
 interface Props {
@@ -19,7 +20,14 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('week')
+  const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
+    const saved = readCookie(`calendarViewMode:${classroom.id}`)
+    return (saved === 'week' || saved === 'month' || saved === 'all') ? saved : 'week'
+  })
+  const handleViewModeChange = useCallback((mode: CalendarViewMode) => {
+    setViewMode(mode)
+    writeCookie(`calendarViewMode:${classroom.id}`, mode)
+  }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(new Date())
   const [maxDate, setMaxDate] = useState<string | null>(null)
 
@@ -107,7 +115,7 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
           currentDate={currentDate}
           editable={false}
           onDateChange={handleDateChange}
-          onViewModeChange={setViewMode}
+          onViewModeChange={handleViewModeChange}
           onAssignmentClick={handleAssignmentClick}
         />
       </PageContent>

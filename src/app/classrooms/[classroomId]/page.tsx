@@ -1,668 +1,117 @@
-'use client'
+import { redirect, notFound } from 'next/navigation'
+import { getCurrentUser } from '@/lib/auth'
+import { getServiceRoleClient } from '@/lib/supabase'
+import { getUserDisplayInfo } from '@/lib/user-profile'
+import { ClassroomPageClient } from './ClassroomPageClient'
+import type { Classroom } from '@/types'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { AppShell } from '@/components/AppShell'
-import { Spinner } from '@/components/Spinner'
-import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type AssignmentViewMode } from './TeacherClassroomView'
-import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
-import { StudentTodayTab } from './StudentTodayTab'
-import { StudentAssignmentsTab } from './StudentAssignmentsTab'
-import { TeacherAttendanceTab } from './TeacherAttendanceTab'
-import { TeacherRosterTab } from './TeacherRosterTab'
-import { TeacherSettingsTab } from './TeacherSettingsTab'
-import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
-import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
-import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
-import { ClassDaysProvider } from '@/hooks/useClassDays'
-import {
-  ThreePanelProvider,
-  ThreePanelShell,
-  LeftSidebar,
-  RightSidebar,
-  MainContent,
-  NavItems,
-  useLayoutInitialState,
-  useMobileDrawer,
-  useRightSidebar,
-} from '@/components/layout'
-import { getRouteKeyFromTab } from '@/lib/layout-config'
-import { RichTextViewer } from '@/components/editor'
-import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
-import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo, Assignment } from '@/types'
+// Force dynamic rendering (no caching) since data is user-specific
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-interface UserInfo {
-  id: string
-  email: string
-  role: 'student' | 'teacher'
-  first_name?: string | null
-  last_name?: string | null
+interface PageProps {
+  params: Promise<{ classroomId: string }>
+  searchParams: Promise<{ tab?: string }>
 }
 
-interface SelectedAssignmentInstructions {
-  title: string
-  instructions: TiptapContent | string | null
-}
+export default async function ClassroomPage({ params, searchParams }: PageProps) {
+  const { classroomId } = await params
+  const { tab } = await searchParams
 
-export default function ClassroomPage() {
-  const params = useParams()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const classroomId = params.classroomId as string
-  const { leftSidebarExpanded } = useLayoutInitialState()
+  // 1. Auth check - runs on server
+  const user = await getCurrentUser()
+  if (!user) {
+    redirect('/login')
+  }
 
-  const [classroom, setClassroom] = useState<Classroom | null>(null)
-  const [user, setUser] = useState<UserInfo | null>(null)
-  const [teacherClassrooms, setTeacherClassrooms] = useState<Classroom[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const supabase = getServiceRoleClient()
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        // Get current user
-        const userRes = await fetch('/api/auth/me')
-        if (!userRes.ok) {
-          router.push('/login')
-          return
-        }
-        const userData = await userRes.json()
-        setUser(userData.user)
+  // 2. Fetch data based on role - runs on server
+  if (user.role === 'teacher') {
+    // Parallel fetch: current classroom + all teacher's classrooms + display info
+    const [classroomResult, classroomsResult, displayInfo] = await Promise.all([
+      supabase
+        .from('classrooms')
+        .select('*')
+        .eq('id', classroomId)
+        .eq('teacher_id', user.id)
+        .single(),
+      supabase
+        .from('classrooms')
+        .select('*')
+        .eq('teacher_id', user.id)
+        .is('archived_at', null)
+        .order('updated_at', { ascending: false }),
+      getUserDisplayInfo(user, supabase),
+    ])
 
-        // Load classroom based on role
-        if (userData.user.role === 'teacher') {
-          const [classroomsRes, classroomRes] = await Promise.all([
-            fetch('/api/teacher/classrooms'),
-            fetch(`/api/teacher/classrooms/${classroomId}`),
-          ])
-
-          if (!classroomRes.ok) {
-            setError('Classroom not found')
-            return
-          }
-
-          const classroomData = await classroomRes.json()
-          const classroomsData = await classroomsRes.json().catch(() => ({ classrooms: [] }))
-          const activeClassrooms = (classroomsData.classrooms || []) as Classroom[]
-          const currentClassroom = classroomData.classroom as Classroom
-
-          setClassroom(currentClassroom)
-          if (currentClassroom.archived_at) {
-            setTeacherClassrooms([currentClassroom])
-          } else {
-            setTeacherClassrooms(activeClassrooms)
-          }
-        } else {
-          const classroomRes = await fetch(`/api/student/classrooms/${classroomId}`)
-          if (!classroomRes.ok) {
-            setError('Classroom not found or not enrolled')
-            return
-          }
-          const classroomData = await classroomRes.json()
-          setClassroom(classroomData.classroom)
-        }
-      } catch (err) {
-        console.error('Error loading classroom:', err)
-        setError('Failed to load classroom')
-      } finally {
-        setLoading(false)
-      }
+    if (classroomResult.error || !classroomResult.data) {
+      notFound()
     }
 
-    loadData()
-  }, [classroomId, router])
+    const classroom = classroomResult.data as Classroom
+    const allClassrooms = (classroomsResult.data || []) as Classroom[]
 
-  if (loading) {
+    // If viewing archived classroom, only show that one in sidebar
+    const teacherClassrooms = classroom.archived_at
+      ? [classroom]
+      : allClassrooms
+
+    // 3. Render with data already loaded - no spinner needed!
     return (
-      <AppShell showHeader={false}>
-        <div className="flex justify-center py-12">
-          <Spinner size="lg" />
-        </div>
-      </AppShell>
+      <ClassroomPageClient
+        classroom={classroom}
+        user={{
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          ...displayInfo,
+        }}
+        teacherClassrooms={teacherClassrooms}
+        initialTab={tab}
+      />
     )
   }
 
-  if (error) {
-    return (
-      <AppShell showHeader={false}>
-        <div className="max-w-md mx-auto mt-12">
-          <div className="bg-surface rounded-lg shadow-sm border border-border p-8 text-center">
-            <p className="text-danger mb-4">{error}</p>
-            <button
-              onClick={() => router.back()}
-              className="text-primary hover:text-primary-hover"
-            >
-              Go back
-            </button>
-          </div>
-        </div>
-      </AppShell>
-    )
+  // Student flow
+  // Parallel fetch: enrollment check + display info
+  const [enrollmentResult, displayInfo] = await Promise.all([
+    supabase
+      .from('classroom_enrollments')
+      .select('classroom_id')
+      .eq('student_id', user.id)
+      .eq('classroom_id', classroomId)
+      .single(),
+    getUserDisplayInfo(user, supabase),
+  ])
+
+  if (!enrollmentResult.data) {
+    notFound() // Not enrolled in this classroom
   }
 
-  if (!classroom || !user) {
-    return null
+  // Fetch the classroom
+  const { data: classroom, error } = await supabase
+    .from('classrooms')
+    .select('*')
+    .eq('id', classroomId)
+    .is('archived_at', null)
+    .single()
+
+  if (error || !classroom) {
+    notFound()
   }
-
-  const tab = searchParams.get('tab')
-  const isTeacher = user.role === 'teacher'
-  const isArchived = isTeacher && !!classroom.archived_at
-
-  const defaultTab = isTeacher ? 'attendance' : 'today'
-  const validTabs = isTeacher
-    ? (['attendance', 'assignments', 'calendar', 'roster', 'settings'] as const)
-    : (['today', 'assignments', 'calendar'] as const)
-
-  const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
-
-  // Determine route key for layout config
-  const routeKey = getRouteKeyFromTab(activeTab, user.role)
 
   return (
-    <ThreePanelProvider
-      routeKey={routeKey}
-      initialLeftExpanded={leftSidebarExpanded}
-    >
-      <ClassDaysProvider classroomId={classroom.id}>
-        <ClassroomPageContent
-          classroom={classroom}
-          user={user}
-          teacherClassrooms={teacherClassrooms}
-          activeTab={activeTab}
-          isArchived={isArchived}
-        />
-      </ClassDaysProvider>
-    </ThreePanelProvider>
+    <ClassroomPageClient
+      classroom={classroom as Classroom}
+      user={{
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        ...displayInfo,
+      }}
+      teacherClassrooms={[]} // Students don't need this
+      initialTab={tab}
+    />
   )
-}
-
-// Separate component to access ThreePanelProvider context
-function ClassroomPageContent({
-  classroom,
-  user,
-  teacherClassrooms,
-  activeTab,
-  isArchived,
-}: {
-  classroom: Classroom
-  user: UserInfo
-  teacherClassrooms: Classroom[]
-  activeTab: string
-  isArchived: boolean
-}) {
-  const { openLeft } = useMobileDrawer()
-  const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
-  const isTeacher = user.role === 'teacher'
-
-  // State for selected student log (teacher attendance tab)
-  const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
-  const [selectedStudentName, setSelectedStudentName] = useState<string>('')
-
-  // State for selected assignment instructions (assignments tab)
-  const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
-
-  // State for selected student (teacher assignments tab - viewing student work)
-  // TODO: Re-add instructions panel toggle using BidirectionalSidebarContent pattern
-  // Previously there was a showInstructionsPanel state that let teachers toggle between
-  // viewing student work and assignment instructions. This was removed in favor of the
-  // new bidirectional sidebar pattern used in calendar tab. Plan to re-add as a future feature.
-  const [selectedStudent, setSelectedStudent] = useState<SelectedStudentInfo | null>(null)
-
-  // State for today's lesson plan (student today tab)
-  const [todayLessonPlan, setTodayLessonPlan] = useState<LessonPlan | null>(null)
-
-  // State for calendar sidebar (teacher calendar tab)
-  const [calendarSidebarState, setCalendarSidebarState] = useState<CalendarSidebarState | null>(null)
-
-  // State for markdown mode (teacher assignments tab - summary view only)
-  const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
-  const [isMarkdownMode, setIsMarkdownMode] = useState(false)
-  const [markdownContent, setMarkdownContent] = useState('')
-  const [markdownError, setMarkdownError] = useState<string | null>(null)
-  const [markdownWarning, setMarkdownWarning] = useState<string | null>(null)
-  const [warningsAcknowledged, setWarningsAcknowledged] = useState(false)
-  const [bulkSaving, setBulkSaving] = useState(false)
-  const [markdownLoading, setMarkdownLoading] = useState(false)
-  const [hasRichContent, setHasRichContent] = useState(false)
-  const [assignmentsCache, setAssignmentsCache] = useState<Assignment[]>([])
-
-  // Track previous states for detecting transitions
-  const prevSidebarOpenRef = useRef(false)
-  const prevViewModeRef = useRef<AssignmentViewMode>('summary')
-  const abortControllerRef = useRef<AbortController | null>(null)
-
-  const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
-    setSelectedEntry(entry)
-    setSelectedStudentName(studentName)
-  }, [])
-
-  const handleSelectAssignment = useCallback((assignment: SelectedAssignmentInstructions | null) => {
-    setSelectedAssignment(assignment)
-  }, [])
-
-  const handleSelectStudent = useCallback((student: SelectedStudentInfo | null) => {
-    setSelectedStudent(student)
-  }, [])
-
-  const handleSetLessonPlan = useCallback((plan: LessonPlan | null) => {
-    setTodayLessonPlan(plan)
-  }, [])
-
-  const handleViewModeChange = useCallback((mode: AssignmentViewMode) => {
-    setAssignmentViewMode(mode)
-    // Reset markdown mode when switching to assignment view
-    if (mode === 'assignment') {
-      setIsMarkdownMode(false)
-    }
-  }, [])
-
-  // Load assignments and generate markdown content
-  const loadAssignmentsMarkdown = useCallback(async () => {
-    // Cancel any in-flight request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-    abortControllerRef.current = new AbortController()
-
-    setMarkdownError(null)
-    setMarkdownWarning(null)
-    setWarningsAcknowledged(false)
-    setMarkdownLoading(true)
-
-    try {
-      const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`, {
-        signal: abortControllerRef.current.signal,
-      })
-      const data = await res.json()
-      const assignments = (data.assignments || []) as Assignment[]
-      setAssignmentsCache(assignments)
-
-      // Generate markdown (empty if no assignments)
-      const result = assignmentsToMarkdown(assignments)
-      setMarkdownContent(result.markdown)
-      setHasRichContent(result.hasRichContent)
-      setIsMarkdownMode(true)
-      setRightSidebarWidth('50%')
-    } catch (err) {
-      // Ignore abort errors
-      if (err instanceof Error && err.name === 'AbortError') {
-        return
-      }
-      console.error('Error fetching assignments:', err)
-      setMarkdownError('Failed to load assignments')
-    } finally {
-      setMarkdownLoading(false)
-    }
-  }, [classroom.id, setRightSidebarWidth])
-
-  // Detect sidebar open/close and view mode transitions for assignments tab
-  useEffect(() => {
-    const wasOpen = prevSidebarOpenRef.current
-    const wasViewMode = prevViewModeRef.current
-    prevSidebarOpenRef.current = isRightSidebarOpen
-    prevViewModeRef.current = assignmentViewMode
-
-    // Only handle transitions for assignments tab
-    if (!isTeacher || activeTab !== 'assignments') return
-
-    const sidebarJustOpened = isRightSidebarOpen && !wasOpen
-    const returnedToSummary = assignmentViewMode === 'summary' && wasViewMode === 'assignment'
-
-    if (assignmentViewMode === 'summary' && (sidebarJustOpened || (returnedToSummary && isRightSidebarOpen))) {
-      // Sidebar just opened in summary mode, or returned to summary with sidebar open
-      loadAssignmentsMarkdown()
-    } else if (!isRightSidebarOpen && wasOpen) {
-      // Sidebar just closed - reset markdown mode
-      setIsMarkdownMode(false)
-    }
-  }, [isRightSidebarOpen, isTeacher, activeTab, assignmentViewMode, loadAssignmentsMarkdown])
-
-  // Refresh markdown when assignments are updated (e.g., new assignment created)
-  useEffect(() => {
-    if (!isTeacher || activeTab !== 'assignments' || !isMarkdownMode) return
-
-    const handleAssignmentsUpdated = () => {
-      loadAssignmentsMarkdown()
-    }
-
-    window.addEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
-    return () => {
-      window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
-    }
-  }, [isTeacher, activeTab, isMarkdownMode, loadAssignmentsMarkdown])
-
-  // Handle markdown content change
-  const handleMarkdownContentChange = useCallback((content: string) => {
-    setMarkdownContent(content)
-    setMarkdownError(null)
-    setMarkdownWarning(null)
-    setWarningsAcknowledged(false)
-  }, [])
-
-  // Handle markdown save
-  const handleMarkdownSave = useCallback(async () => {
-    setMarkdownError(null)
-    setBulkSaving(true)
-
-    try {
-      const result = markdownToAssignments(markdownContent, assignmentsCache)
-
-      if (result.errors.length > 0) {
-        setMarkdownError(result.errors.join('\n'))
-        setBulkSaving(false)
-        return
-      }
-
-      // If there are warnings and not yet acknowledged, show warnings and block save
-      if (result.warnings.length > 0 && !warningsAcknowledged) {
-        setMarkdownWarning(result.warnings.join('\n'))
-        setBulkSaving(false)
-        return
-      }
-
-      // Bulk save via API
-      const res = await fetch('/api/teacher/assignments/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          classroom_id: classroom.id,
-          assignments: result.assignments,
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setMarkdownError(data.errors?.join('\n') || data.error || 'Failed to save')
-        setBulkSaving(false)
-        return
-      }
-
-      // Success - close markdown mode and trigger refresh
-      setIsMarkdownMode(false)
-      setRightSidebarOpen(false)
-      setMarkdownWarning(null)
-      setWarningsAcknowledged(false)
-
-      // Dispatch event to refresh assignments in TeacherClassroomView
-      window.dispatchEvent(
-        new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
-          detail: { classroomId: classroom.id },
-        })
-      )
-    } catch (err) {
-      console.error('Error saving assignments:', err)
-      setMarkdownError('Failed to save assignments')
-    } finally {
-      setBulkSaving(false)
-    }
-  }, [markdownContent, assignmentsCache, classroom.id, setRightSidebarOpen, warningsAcknowledged])
-
-  // Handle acknowledging warnings to proceed with save
-  const handleAcknowledgeWarnings = useCallback(() => {
-    setWarningsAcknowledged(true)
-  }, [])
-
-  // Change right sidebar width to 70% when viewing student work, 40% otherwise
-  useEffect(() => {
-    if (isTeacher && activeTab === 'assignments' && selectedStudent) {
-      setRightSidebarWidth('70%')
-    } else if (isTeacher && activeTab === 'assignments') {
-      setRightSidebarWidth('40%')
-    }
-  }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
-
-  // Close right sidebar when switching to tabs without inspector content
-  useEffect(() => {
-    if (activeTab === 'roster') {
-      setRightSidebarOpen(false)
-    }
-  }, [activeTab, setRightSidebarOpen])
-
-  const content = (
-    <AppShell
-      user={user}
-      classrooms={
-        isTeacher
-          ? teacherClassrooms.map((c) => ({
-              id: c.id,
-              title: c.title,
-              code: c.class_code,
-            }))
-          : [
-              {
-                id: classroom.id,
-                title: classroom.title,
-                code: classroom.class_code,
-              },
-            ]
-      }
-      currentClassroomId={classroom.id}
-      currentTab={activeTab}
-      onOpenSidebar={openLeft}
-      mainClassName="max-w-none px-0 py-0"
-    >
-      <ThreePanelShell>
-        <LeftSidebar>
-          <NavItems
-            classroomId={classroom.id}
-            role={user.role}
-            activeTab={activeTab}
-            isReadOnly={isArchived}
-          />
-        </LeftSidebar>
-
-        <MainContent>
-          {isArchived && (
-            <div className="mb-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-              This classroom is archived. You can view content, but changes are
-              disabled until it is restored.
-            </div>
-          )}
-
-          {isTeacher ? (
-            <>
-              {activeTab === 'attendance' && (
-                <TeacherAttendanceTab
-                  classroom={classroom}
-                  onSelectEntry={handleSelectEntry}
-                />
-              )}
-              {activeTab === 'assignments' && (
-                <TeacherClassroomView
-                  classroom={classroom}
-                  onSelectAssignment={handleSelectAssignment}
-                  onSelectStudent={handleSelectStudent}
-                  onViewModeChange={handleViewModeChange}
-                />
-              )}
-              {activeTab === 'calendar' && (
-                <TeacherLessonCalendarTab
-                  classroom={classroom}
-                  onSidebarStateChange={setCalendarSidebarState}
-                />
-              )}
-              {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
-              {activeTab === 'settings' && <TeacherSettingsTab classroom={classroom} />}
-            </>
-          ) : (
-            <>
-              {activeTab === 'today' && (
-                <StudentTodayTab
-                  classroom={classroom}
-                  onLessonPlanLoad={handleSetLessonPlan}
-                />
-              )}
-              {activeTab === 'assignments' && (
-                <StudentAssignmentsTab
-                  classroom={classroom}
-                  onSelectAssignment={handleSelectAssignment}
-                />
-              )}
-              {activeTab === 'calendar' && <StudentLessonCalendarTab classroom={classroom} />}
-            </>
-          )}
-        </MainContent>
-
-        <RightSidebar
-          title={
-            isTeacher && activeTab === 'assignments' && isMarkdownMode
-              ? 'Assignments'
-              : isTeacher && activeTab === 'calendar' && calendarSidebarState
-              ? 'Calendar'
-              : isTeacher && activeTab === 'assignments' && selectedStudent
-              ? selectedStudent.assignmentTitle
-              : activeTab === 'assignments'
-              ? (selectedAssignment?.title || 'Instructions')
-              : activeTab === 'today'
-              ? "Today's Plan"
-              : (selectedStudentName || 'Student Log')
-          }
-          headerActions={
-            isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
-              markdownWarning && !warningsAcknowledged ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleAcknowledgeWarnings()
-                    setTimeout(handleMarkdownSave, 0)
-                  }}
-                  disabled={bulkSaving}
-                  className="px-2 py-1 text-xs rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
-                >
-                  Save Anyway
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleMarkdownSave}
-                  disabled={bulkSaving}
-                  className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {bulkSaving ? 'Saving...' : 'Save'}
-                </button>
-              )
-            ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
-              <button
-                type="button"
-                onClick={calendarSidebarState.onSave}
-                disabled={calendarSidebarState.bulkSaving}
-                className="px-2 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {calendarSidebarState.bulkSaving ? 'Saving...' : 'Save'}
-              </button>
-            ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
-              <>
-                <button
-                  type="button"
-                  onClick={selectedStudent.onGoPrev}
-                  disabled={!selectedStudent.canGoPrev}
-                  className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Previous student"
-                >
-                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={selectedStudent.onGoNext}
-                  disabled={!selectedStudent.canGoNext}
-                  className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Next student"
-                >
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </>
-            ) : undefined
-          }
-        >
-          {isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
-            markdownLoading ? (
-              <div className="flex items-center justify-center h-32">
-                <Spinner />
-              </div>
-            ) : (
-              <TeacherAssignmentsMarkdownSidebar
-                markdownContent={markdownContent}
-                markdownError={markdownError}
-                markdownWarning={markdownWarning}
-                hasRichContent={hasRichContent}
-                bulkSaving={bulkSaving}
-                onMarkdownChange={handleMarkdownContentChange}
-                onSave={handleMarkdownSave}
-              />
-            )
-          ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
-            <TeacherLessonCalendarSidebar {...calendarSidebarState} />
-          ) : isTeacher && activeTab === 'attendance' ? (
-            <div className="p-4">
-              {selectedEntry ? (
-                <p className="text-sm text-text-default whitespace-pre-wrap">
-                  {selectedEntry.text}
-                </p>
-              ) : (
-                <p className="text-sm text-text-muted">
-                  Select a student to view their log.
-                </p>
-              )}
-            </div>
-          ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
-            <TeacherStudentWorkPanel
-              assignmentId={selectedStudent.assignmentId}
-              studentId={selectedStudent.studentId}
-            />
-          ) : activeTab === 'assignments' ? (
-            <div className="p-4">
-              {selectedAssignment ? (
-                selectedAssignment.instructions ? (
-                  typeof selectedAssignment.instructions === 'string' ? (
-                    <p className="text-sm text-text-default whitespace-pre-wrap">
-                      {selectedAssignment.instructions}
-                    </p>
-                  ) : (
-                    <RichTextViewer content={selectedAssignment.instructions} />
-                  )
-                ) : (
-                  <p className="text-sm text-text-muted">
-                    No instructions provided.
-                  </p>
-                )
-              ) : (
-                <p className="text-sm text-text-muted">
-                  Select an assignment to view instructions.
-                </p>
-              )}
-            </div>
-          ) : activeTab === 'today' ? (
-            <div className="p-4">
-              {todayLessonPlan?.content &&
-              todayLessonPlan.content.content &&
-              todayLessonPlan.content.content.length > 0 ? (
-                <RichTextViewer content={todayLessonPlan.content} />
-              ) : (
-                <p className="text-sm text-text-muted">
-                  No lesson plan for today.
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="p-4 text-sm text-text-muted">
-              Inspector panel content will be added in a future update.
-            </div>
-          )}
-        </RightSidebar>
-      </ThreePanelShell>
-    </AppShell>
-  )
-
-  // Wrap with StudentNotificationsProvider for students
-  if (!isTeacher) {
-    return (
-      <StudentNotificationsProvider classroomId={classroom.id}>
-        {content}
-      </StudentNotificationsProvider>
-    )
-  }
-
-  return content
 }
