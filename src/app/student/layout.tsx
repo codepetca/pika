@@ -42,7 +42,7 @@ export default async function StudentLayout({
               <span className="text-sm text-text-muted">{user.email}</span>
               <Link
                 href="/logout"
-                className="text-sm text-danger hover:text-danger"
+                className="text-sm text-danger"
               >
                 Logout
               </Link>
