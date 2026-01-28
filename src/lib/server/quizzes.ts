@@ -6,6 +6,10 @@ export type QuizAccessRecord = {
   status: string
   title: string
   show_results: boolean
+  position: number
+  created_by: string
+  created_at: string
+  updated_at: string
   classrooms: {
     id: string
     teacher_id: string
