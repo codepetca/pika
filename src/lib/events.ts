@@ -11,3 +11,6 @@ export const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelec
 
 /** Dispatched when assignments are created, updated, or deleted */
 export const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
+
+/** Dispatched when quizzes are created, updated, or deleted */
+export const TEACHER_QUIZZES_UPDATED_EVENT = 'pika:teacherQuizzesUpdated'
