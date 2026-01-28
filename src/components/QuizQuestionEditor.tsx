@@ -5,8 +5,9 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Plus, Trash2, GripVertical } from 'lucide-react'
 import { Input } from '@/ui'
-import { MAX_QUIZ_OPTIONS } from '@/lib/quizzes'
 import type { QuizQuestion } from '@/types'
+
+const MAX_QUIZ_OPTIONS = 6
 
 interface Props {
   quizId: string
