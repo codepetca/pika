@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { getUserDisplayInfo } from '@/lib/user-profile'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
 
@@ -27,8 +28,8 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
 
   // 2. Fetch data based on role - runs on server
   if (user.role === 'teacher') {
-    // Parallel fetch: current classroom + all teacher's classrooms
-    const [classroomResult, classroomsResult] = await Promise.all([
+    // Parallel fetch: current classroom + all teacher's classrooms + display info
+    const [classroomResult, classroomsResult, displayInfo] = await Promise.all([
       supabase
         .from('classrooms')
         .select('*')
@@ -41,6 +42,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         .eq('teacher_id', user.id)
         .is('archived_at', null)
         .order('updated_at', { ascending: false }),
+      getUserDisplayInfo(user, supabase),
     ])
 
     if (classroomResult.error || !classroomResult.data) {
@@ -63,6 +65,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
           id: user.id,
           email: user.email,
           role: user.role,
+          ...displayInfo,
         }}
         teacherClassrooms={teacherClassrooms}
         initialTab={tab}
@@ -71,15 +74,18 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
   }
 
   // Student flow
-  // First check enrollment
-  const { data: enrollment } = await supabase
-    .from('classroom_enrollments')
-    .select('classroom_id')
-    .eq('student_id', user.id)
-    .eq('classroom_id', classroomId)
-    .single()
+  // Parallel fetch: enrollment check + display info
+  const [enrollmentResult, displayInfo] = await Promise.all([
+    supabase
+      .from('classroom_enrollments')
+      .select('classroom_id')
+      .eq('student_id', user.id)
+      .eq('classroom_id', classroomId)
+      .single(),
+    getUserDisplayInfo(user, supabase),
+  ])
 
-  if (!enrollment) {
+  if (!enrollmentResult.data) {
     notFound() // Not enrolled in this classroom
   }
 
@@ -102,6 +108,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         id: user.id,
         email: user.email,
         role: user.role,
+        ...displayInfo,
       }}
       teacherClassrooms={[]} // Students don't need this
       initialTab={tab}
