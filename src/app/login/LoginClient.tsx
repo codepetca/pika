@@ -69,8 +69,8 @@ export function LoginClient() {
         </h1>
 
         {isDev && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm font-medium text-yellow-800 mb-3">
+          <div className="mb-6 p-4 bg-warning-bg border border-warning rounded-lg">
+            <p className="text-sm font-medium text-text-default mb-3">
               Dev Quick Login
             </p>
             <div className="flex flex-wrap gap-2">

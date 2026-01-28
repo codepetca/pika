@@ -430,7 +430,7 @@ function ClassroomPageContent({
                     setTimeout(handleMarkdownSave, 0)
                   }}
                   disabled={bulkSaving}
-                  className="px-2 py-1 text-xs rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                  className="px-2 py-1 text-xs rounded bg-warning text-text-inverse hover:opacity-90 disabled:opacity-50"
                 >
                   Save Anyway
                 </button>
