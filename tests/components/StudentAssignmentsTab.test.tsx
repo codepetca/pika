@@ -32,13 +32,15 @@ vi.mock('@/components/editor', () => ({
 
 const classroom: Classroom = {
   id: 'cls-1',
-  name: 'Test Class',
   teacher_id: 'teacher-1',
-  school_id: null,
-  grade_level: null,
-  subject: null,
-  period: null,
-  invite_code: 'ABC',
+  title: 'Test Class',
+  class_code: 'ABC123',
+  term_label: null,
+  allow_enrollment: true,
+  start_date: null,
+  end_date: null,
+  lesson_plan_visibility: 'hidden',
+  archived_at: null,
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 }

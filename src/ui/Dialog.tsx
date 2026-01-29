@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cva } from 'class-variance-authority'
 import { Button } from './Button'
 
@@ -72,6 +72,8 @@ export function AlertDialog({
   autoDismiss = false,
   onClose,
 }: AlertDialogProps) {
+  const titleId = useId()
+  const descriptionId = useId()
   const buttonRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
@@ -111,16 +113,16 @@ export function AlertDialog({
       <div
         role="alertdialog"
         aria-modal="true"
-        aria-labelledby="alert-dialog-title"
-        aria-describedby={description ? 'alert-dialog-description' : undefined}
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
         className={dialogPanelStyles()}
       >
         <div className="flex items-center gap-3">
           {icon}
-          <div id="alert-dialog-title" className={dialogTitleStyles}>{title}</div>
+          <div id={titleId} className={dialogTitleStyles}>{title}</div>
         </div>
         {description && (
-          <div id="alert-dialog-description" className={`${dialogDescriptionStyles} ${icon ? 'ml-9' : ''}`}>
+          <div id={descriptionId} className={`${dialogDescriptionStyles} ${icon ? 'ml-9' : ''}`}>
             {description}
           </div>
         )}
@@ -185,6 +187,8 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const titleId = useId()
+  const descriptionId = useId()
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
@@ -217,13 +221,13 @@ export function ConfirmDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="confirm-dialog-title"
-        aria-describedby={description ? 'confirm-dialog-description' : undefined}
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
         className={dialogPanelStyles()}
       >
-        <div id="confirm-dialog-title" className={dialogTitleStyles}>{title}</div>
+        <div id={titleId} className={dialogTitleStyles}>{title}</div>
         {description && (
-          <div id="confirm-dialog-description" className={dialogDescriptionStyles}>
+          <div id={descriptionId} className={dialogDescriptionStyles}>
             {description}
           </div>
         )}
@@ -292,6 +296,7 @@ export function ContentDialog({
   children,
   maxWidth = 'max-w-2xl',
 }: ContentDialogProps) {
+  const titleId = useId()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
 
   // Focus the close button when the dialog opens
@@ -323,12 +328,12 @@ export function ContentDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="content-dialog-title"
+        aria-labelledby={titleId}
         className={`${dialogPanelStyles()} ${maxWidth}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 id="content-dialog-title" className={dialogTitleStyles}>{title}</h3>
+            <h3 id={titleId} className={dialogTitleStyles}>{title}</h3>
             {subtitle && (
               <p className="text-xs text-text-muted truncate mt-0.5">{subtitle}</p>
             )}
