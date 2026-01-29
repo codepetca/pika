@@ -421,7 +421,6 @@ function ClassroomPageContent({
               {activeTab === 'assignments' && (
                 <StudentAssignmentsTab
                   classroom={classroom}
-                  onSelectAssignment={handleSelectAssignment}
                 />
               )}
               {activeTab === 'quizzes' && <StudentQuizzesTab classroom={classroom} />}

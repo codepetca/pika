@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Button } from '@/ui'
+import { Button, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
-import { PageContent, PageLayout } from '@/components/PageLayout'
+import { ACTIONBAR_ICON_BUTTON_CLASSNAME, PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { format, parseISO } from 'date-fns'
@@ -440,21 +440,23 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
 
           <div className="bg-surface border border-border rounded-lg shadow-sm">
             <div className="px-4 py-3 border-b border-border flex items-center justify-end">
-              <button
-                type="button"
-                className="inline-flex items-center p-1 text-info hover:bg-surface-hover rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                aria-expanded={historyVisible}
-                aria-controls={historyListId}
-                aria-label={historyVisible ? 'Hide history' : 'Show history'}
-                onClick={() => setHistoryVisibility(!historyVisible)}
-              >
-                <ChevronDown
-                  className={[
-                    'h-5 w-5 transition-transform',
-                    historyVisible ? 'rotate-180' : 'rotate-0',
-                  ].join(' ')}
-                />
-              </button>
+              <Tooltip content="History">
+                <button
+                  type="button"
+                  className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+                  aria-expanded={historyVisible}
+                  aria-controls={historyListId}
+                  aria-label={historyVisible ? 'Hide history' : 'Show history'}
+                  onClick={() => setHistoryVisibility(!historyVisible)}
+                >
+                  <ChevronDown
+                    className={[
+                      'h-5 w-5 transition-transform',
+                      historyVisible ? 'rotate-180' : 'rotate-0',
+                    ].join(' ')}
+                  />
+                </button>
+              </Tooltip>
             </div>
             {historyVisible && (
               <div id={historyListId} className="divide-y divide-border">
