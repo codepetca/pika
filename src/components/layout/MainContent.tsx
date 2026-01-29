@@ -24,7 +24,7 @@ export function MainContent({ children, className, maxWidth }: MainContentProps)
     <main
       className={[
         'flex-1 min-w-0 min-h-0',
-        'px-4 py-3',
+        'px-4 pt-2 pb-3',
         'flex flex-col',
         className,
       ]

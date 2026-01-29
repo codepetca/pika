@@ -241,7 +241,7 @@ export default function CalendarPage() {
               }}
               className={`px-6 py-4 rounded-lg border-2 transition-all text-left ${
                 wizardMode === 'preset' && selectedPreset === 'semester1'
-                  ? 'border-blue-500 bg-blue-50 text-blue-900 font-medium'
+                  ? 'border-primary bg-info-bg text-text-default font-medium'
                   : 'border-border hover:border-border-strong'
               }`}
             >
@@ -257,7 +257,7 @@ export default function CalendarPage() {
               }}
               className={`px-6 py-4 rounded-lg border-2 transition-all text-left ${
                 wizardMode === 'preset' && selectedPreset === 'semester2'
-                  ? 'border-blue-500 bg-blue-50 text-blue-900 font-medium'
+                  ? 'border-primary bg-info-bg text-text-default font-medium'
                   : 'border-border hover:border-border-strong'
               }`}
             >
@@ -270,7 +270,7 @@ export default function CalendarPage() {
               onClick={() => setWizardMode('custom')}
               className={`px-6 py-4 rounded-lg border-2 transition-all ${
                 wizardMode === 'custom'
-                  ? 'border-blue-500 bg-blue-50 text-blue-900 font-medium'
+                  ? 'border-primary bg-info-bg text-text-default font-medium'
                   : 'border-border hover:border-border-strong'
               }`}
             >
@@ -417,12 +417,12 @@ export default function CalendarPage() {
                     const colorClasses = disabled
                       ? 'bg-surface-2 text-text-muted'
                       : isClassDay
-                        ? 'bg-green-100 text-green-900 hover:bg-green-200'
+                        ? 'bg-success-bg text-text-default hover:bg-success-bg-hover'
                         : classDay
                           ? 'bg-surface-hover text-text-default hover:bg-border'
                           : isWeekend
                             ? 'bg-surface-2 text-text-muted hover:bg-surface-hover'
-                            : 'bg-red-50 text-red-700 hover:bg-red-100'
+                            : 'bg-danger-bg text-danger hover:bg-danger-bg-hover'
 
                     return (
                       <button
@@ -449,7 +449,7 @@ export default function CalendarPage() {
           <h4 className="font-medium text-text-default mb-3">Legend</h4>
           <div className="flex flex-wrap gap-4 text-sm">
             <div className="flex items-center space-x-2">
-              <div className="w-5 h-5 bg-green-100 rounded"></div>
+              <div className="w-5 h-5 bg-success-bg rounded"></div>
               <span>Class Day</span>
             </div>
             <div className="flex items-center space-x-2">
@@ -461,7 +461,7 @@ export default function CalendarPage() {
               <span>Weekend</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-5 h-5 bg-red-50 rounded"></div>
+              <div className="w-5 h-5 bg-danger-bg rounded"></div>
               <span>Holiday</span>
             </div>
           </div>

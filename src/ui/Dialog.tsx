@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cva } from 'class-variance-authority'
 import { Button } from './Button'
 
@@ -72,6 +72,8 @@ export function AlertDialog({
   autoDismiss = false,
   onClose,
 }: AlertDialogProps) {
+  const titleId = useId()
+  const descriptionId = useId()
   const buttonRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
@@ -111,16 +113,16 @@ export function AlertDialog({
       <div
         role="alertdialog"
         aria-modal="true"
-        aria-labelledby="alert-dialog-title"
-        aria-describedby={description ? 'alert-dialog-description' : undefined}
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
         className={dialogPanelStyles()}
       >
         <div className="flex items-center gap-3">
           {icon}
-          <div id="alert-dialog-title" className={dialogTitleStyles}>{title}</div>
+          <div id={titleId} className={dialogTitleStyles}>{title}</div>
         </div>
         {description && (
-          <div id="alert-dialog-description" className={`${dialogDescriptionStyles} ${icon ? 'ml-9' : ''}`}>
+          <div id={descriptionId} className={`${dialogDescriptionStyles} ${icon ? 'ml-9' : ''}`}>
             {description}
           </div>
         )}
@@ -185,6 +187,8 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const titleId = useId()
+  const descriptionId = useId()
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
@@ -217,13 +221,13 @@ export function ConfirmDialog({
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="confirm-dialog-title"
-        aria-describedby={description ? 'confirm-dialog-description' : undefined}
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
         className={dialogPanelStyles()}
       >
-        <div id="confirm-dialog-title" className={dialogTitleStyles}>{title}</div>
+        <div id={titleId} className={dialogTitleStyles}>{title}</div>
         {description && (
-          <div id="confirm-dialog-description" className={dialogDescriptionStyles}>
+          <div id={descriptionId} className={dialogDescriptionStyles}>
             {description}
           </div>
         )}
@@ -246,6 +250,106 @@ export function ConfirmDialog({
             onClick={onConfirm}
           >
             {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// ContentDialog
+// ============================================================================
+
+export interface ContentDialogProps {
+  isOpen: boolean
+  onClose: () => void
+  title: string
+  subtitle?: string
+  children: ReactNode
+  /** Max width class, defaults to 'max-w-2xl' */
+  maxWidth?: string
+}
+
+/**
+ * ContentDialog for displaying rich content in a modal.
+ *
+ * Provides focus management, Escape-to-close, backdrop click-to-close,
+ * and proper ARIA attributes. Use this when you need a modal with
+ * custom content (e.g. rich text, forms, previews).
+ *
+ * @example
+ * <ContentDialog
+ *   isOpen={showInstructions}
+ *   onClose={() => setShowInstructions(false)}
+ *   title="Instructions"
+ *   subtitle={assignment.title}
+ * >
+ *   <RichTextViewer content={assignment.rich_instructions} />
+ * </ContentDialog>
+ */
+export function ContentDialog({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  children,
+  maxWidth = 'max-w-2xl',
+}: ContentDialogProps) {
+  const titleId = useId()
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  // Focus the close button when the dialog opens
+  useEffect(() => {
+    if (!isOpen) return
+    closeButtonRef.current?.focus()
+  }, [isOpen])
+
+  // Escape key closes the dialog
+  useEffect(() => {
+    if (!isOpen) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        className={dialogBackdropStyles}
+        aria-label="Close dialog"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={`${dialogPanelStyles()} ${maxWidth}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 id={titleId} className={dialogTitleStyles}>{title}</h3>
+            {subtitle && (
+              <p className="text-xs text-text-muted truncate mt-0.5">{subtitle}</p>
+            )}
+          </div>
+          <Button ref={closeButtonRef} variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </Button>
+        </div>
+        <div className="mt-4">
+          {children}
+        </div>
+        <div className="mt-6 flex justify-end">
+          <Button variant="secondary" onClick={onClose}>
+            Close
           </Button>
         </div>
       </div>

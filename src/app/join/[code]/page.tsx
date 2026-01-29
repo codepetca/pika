@@ -75,14 +75,14 @@ export default function JoinClassroomPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-surface rounded-lg shadow-lg p-8 text-center">
-          <div className="text-red-600 text-5xl mb-4">⚠️</div>
+          <div className="text-danger text-5xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold text-text-default mb-2">
             Unable to Join
           </h1>
           <p className="text-text-muted mb-6">{error}</p>
           <button
             onClick={() => router.push('/join')}
-            className="text-blue-600 hover:underline"
+            className="text-primary hover:underline"
           >
             Try a different code
           </button>

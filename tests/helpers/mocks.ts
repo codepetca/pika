@@ -3,7 +3,18 @@
  * Provides reusable mock objects for testing throughout the application
  */
 
-import type { Entry, Assignment, AssignmentDoc, Classroom, Student, Teacher, TiptapContent } from '@/types'
+import type {
+  Entry,
+  Assignment,
+  AssignmentDoc,
+  Classroom,
+  Student,
+  Teacher,
+  TiptapContent,
+  Quiz,
+  QuizQuestion,
+  QuizResponse,
+} from '@/types'
 
 // ============================================================================
 // Mock Data Factories
@@ -181,3 +192,50 @@ export const torontoMidnight = (dateString: string): string => {
  */
 export const DST_SPRING_FORWARD_2024 = '2024-03-10T02:00:00-05:00' // 2 AM → 3 AM
 export const DST_FALL_BACK_2024 = '2024-11-03T02:00:00-04:00' // 2 AM → 1 AM
+
+// ============================================================================
+// Quiz Mock Factories
+// ============================================================================
+
+/**
+ * Create a mock quiz with default or custom values
+ */
+export const createMockQuiz = (overrides: Partial<Quiz> = {}): Quiz => ({
+  id: 'quiz-1',
+  classroom_id: 'classroom-1',
+  title: 'Test Quiz',
+  status: 'draft',
+  show_results: false,
+  position: 0,
+  created_by: 'teacher-1',
+  created_at: '2024-10-10T10:00:00Z',
+  updated_at: '2024-10-10T10:00:00Z',
+  ...overrides,
+})
+
+/**
+ * Create a mock quiz question with default or custom values
+ */
+export const createMockQuizQuestion = (overrides: Partial<QuizQuestion> = {}): QuizQuestion => ({
+  id: 'question-1',
+  quiz_id: 'quiz-1',
+  question_text: 'What is your favorite color?',
+  options: ['Red', 'Blue', 'Green', 'Yellow'],
+  position: 0,
+  created_at: '2024-10-10T10:00:00Z',
+  updated_at: '2024-10-10T10:00:00Z',
+  ...overrides,
+})
+
+/**
+ * Create a mock quiz response with default or custom values
+ */
+export const createMockQuizResponse = (overrides: Partial<QuizResponse> = {}): QuizResponse => ({
+  id: 'response-1',
+  quiz_id: 'quiz-1',
+  question_id: 'question-1',
+  student_id: 'student-1',
+  selected_option: 0,
+  submitted_at: '2024-10-15T14:30:00Z',
+  ...overrides,
+})

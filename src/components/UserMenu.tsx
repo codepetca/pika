@@ -54,11 +54,11 @@ function getAvatarColor(str: string): string {
  */
 function getInitials(firstName?: string | null, lastName?: string | null): string | null {
   const first = firstName?.trim()?.[0]?.toUpperCase()
-  const last = lastName?.trim()?.[0]?.toUpperCase()
-
-  if (first && last) return `${first}${last}`
   if (first) return first
+
+  const last = lastName?.trim()?.[0]?.toUpperCase()
   if (last) return last
+
   return null
 }
 

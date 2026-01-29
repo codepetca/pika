@@ -94,6 +94,21 @@ This TDD approach ensures code quality and prevents regressions.
 - Over-engineer or add unnecessary abstractions
 - **Use `dark:` classes in app code** (use semantic tokens instead)
 - **Import UI primitives from `@/components`** (use `@/ui`)
+- **Run or apply database migrations** (human applies migrations manually)
+
+### Database Migrations (MANDATORY)
+
+🗄️ **AI may**:
+- Create new migration files in `supabase/migrations/`
+- Modify existing migration files (if not yet applied)
+- Rename migration files to fix numbering conflicts
+
+🗄️ **AI must NEVER**:
+- Run `supabase db push`, `supabase db reset`, or any migration commands
+- Apply migrations to any database (local or remote)
+- Assume migrations have been applied
+
+**The human will apply all migrations manually.** After creating/modifying migration files, inform the user that migrations need to be applied.
 
 ### Design System Rules (MANDATORY)
 

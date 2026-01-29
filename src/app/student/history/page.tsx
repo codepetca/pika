@@ -189,7 +189,7 @@ export default function HistoryPage() {
             <h3 className="font-semibold text-text-default">My Classes</h3>
             <button
               onClick={() => setShowJoinFlow(!showJoinFlow)}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              className="text-primary hover:text-primary-hover text-sm font-medium"
             >
               + Join
             </button>
@@ -220,7 +220,7 @@ export default function HistoryPage() {
                 onClick={() => setSelectedClassroom(classroom)}
                 className={`w-full text-left p-3 rounded transition ${
                   selectedClassroom?.id === classroom.id
-                    ? 'bg-blue-50 border border-blue-200'
+                    ? 'bg-info-bg border border-primary'
                     : 'hover:bg-surface-hover border border-transparent'
                 }`}
               >
@@ -303,7 +303,7 @@ export default function HistoryPage() {
                         </div>
 
                         {entry && (
-                          <button className="text-sm text-blue-600 hover:text-blue-700">
+                          <button className="text-sm text-primary hover:text-primary-hover">
                             View Entry →
                           </button>
                         )}

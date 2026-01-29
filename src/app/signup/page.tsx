@@ -68,7 +68,7 @@ function SignupForm() {
         </p>
 
         {success ? (
-          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+          <div className="bg-success-bg border border-success text-text-default px-4 py-3 rounded-lg">
             Verification code sent! Redirecting...
           </div>
         ) : (
