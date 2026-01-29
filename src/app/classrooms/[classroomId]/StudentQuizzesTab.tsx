@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { Button } from '@/ui'
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function StudentQuizzesTab({ classroom }: Props) {
+  const notifications = useStudentNotifications()
   const [quizzes, setQuizzes] = useState<StudentQuizView[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null)
@@ -67,6 +69,7 @@ export function StudentQuizzesTab({ classroom }: Props) {
   }
 
   function handleQuizSubmitted() {
+    notifications?.clearActiveQuizzesCount()
     // Reload the quiz to get updated status
     if (selectedQuizId) {
       handleSelectQuiz(selectedQuizId)

@@ -125,9 +125,48 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Count active quizzes the student hasn't responded to
+    let activeQuizzesCount = 0
+
+    const { data: activeQuizzes, error: quizzesError } = await supabase
+      .from('quizzes')
+      .select('id')
+      .eq('classroom_id', classroomId)
+      .eq('status', 'active')
+
+    if (quizzesError) {
+      console.error('Error fetching quizzes:', quizzesError)
+      return NextResponse.json(
+        { error: 'Failed to check notifications' },
+        { status: 500 }
+      )
+    }
+
+    const activeQuizIds = activeQuizzes?.map((q) => q.id) || []
+
+    if (activeQuizIds.length > 0) {
+      const { data: responses, error: responsesError } = await supabase
+        .from('quiz_responses')
+        .select('quiz_id')
+        .eq('student_id', user.id)
+        .in('quiz_id', activeQuizIds)
+
+      if (responsesError) {
+        console.error('Error fetching quiz responses:', responsesError)
+        return NextResponse.json(
+          { error: 'Failed to check notifications' },
+          { status: 500 }
+        )
+      }
+
+      const respondedQuizIds = new Set(responses?.map((r) => r.quiz_id) || [])
+      activeQuizzesCount = activeQuizIds.filter((id) => !respondedQuizIds.has(id)).length
+    }
+
     return NextResponse.json({
       hasTodayEntry,
       unviewedAssignmentsCount: unviewedCount,
+      activeQuizzesCount,
     })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
