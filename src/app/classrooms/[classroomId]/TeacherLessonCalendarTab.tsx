@@ -14,6 +14,24 @@ import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 
+/**
+ * Returns true if the save should be skipped because the content hasn't
+ * meaningfully changed (identical to existing plan, or empty when no plan exists).
+ */
+export function shouldSkipSave(
+  lessonPlans: LessonPlan[],
+  date: string,
+  content: TiptapContent
+): boolean {
+  const existing = lessonPlans.find((p) => p.date === date)
+
+  if (existing) {
+    return JSON.stringify(existing.content) === JSON.stringify(content)
+  }
+
+  return isEmptyTiptapContent(content)
+}
+
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
 const MARKDOWN_SYNC_DEBOUNCE_MS = 300
@@ -162,17 +180,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   // Handle content change from calendar
   const handleContentChange = useCallback(
     (date: string, content: TiptapContent) => {
-      // Skip saves when content matches what we already have (avoids spurious
-      // PUTs triggered by Tiptap normalising content on editor mount, e.g.
-      // adding an empty paragraph to an empty doc).
-      const existing = lessonPlans.find((p) => p.date === date)
-      const existingContent = existing?.content
-      if (existingContent && JSON.stringify(content) === JSON.stringify(existingContent)) return
-      // Also skip if content is effectively empty and we have no existing plan
-      // (Tiptap normalises empty docs by adding an empty paragraph node, which
-      // would otherwise trigger a PUT for every day without a lesson plan)
-      if (!existing && isEmptyTiptapContent(content)) return
-
+      if (shouldSkipSave(lessonPlans, date, content)) return
       pendingChangesRef.current.set(date, content)
       scheduleSave()
     },
