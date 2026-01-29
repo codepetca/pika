@@ -15,24 +15,6 @@ import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 
 /**
- * Returns true if the save should be skipped because the content hasn't
- * meaningfully changed (identical to existing plan, or empty when no plan exists).
- */
-export function shouldSkipSave(
-  lessonPlans: LessonPlan[],
-  date: string,
-  content: TiptapContent
-): boolean {
-  const existing = lessonPlans.find((p) => p.date === date)
-
-  if (existing) {
-    return JSON.stringify(existing.content) === JSON.stringify(content)
-  }
-
-  return isEmptyTiptapContent(content)
-}
-
-/**
  * Returns true if the content change is just Tiptap normalizing stored content
  * on editor mount (e.g. the Markdown extension restructuring nodes). Compares
  * against a mutable map of last-seen stringified content per date.
