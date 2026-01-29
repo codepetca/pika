@@ -32,6 +32,28 @@ export function shouldSkipSave(
   return isEmptyTiptapContent(content)
 }
 
+/**
+ * Returns true if the content change is just Tiptap normalizing stored content
+ * on editor mount (e.g. the Markdown extension restructuring nodes). Compares
+ * against a mutable map of last-seen stringified content per date.
+ */
+export function isNormalizationNoise(
+  lastSeen: Map<string, string>,
+  lessonPlans: LessonPlan[],
+  date: string,
+  contentStr: string
+): boolean {
+  const prev = lastSeen.get(date)
+  // Exact duplicate of last emission
+  if (prev === contentStr) return true
+  // First emission for a date with no stored plan — skip if empty handled by caller
+  if (prev === undefined) return false
+  // First divergence from stored content with no pending user edit — normalization
+  const existing = lessonPlans.find((p) => p.date === date)
+  if (existing && prev === JSON.stringify(existing.content)) return true
+  return false
+}
+
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
 const MARKDOWN_SYNC_DEBOUNCE_MS = 300
@@ -54,6 +76,9 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const lessonPlansRef = useRef(lessonPlans)
   lessonPlansRef.current = lessonPlans
+  // Track the last content seen per date to suppress Tiptap normalization noise.
+  // Populated from fetched plans and updated on each onChange call.
+  const lastSeenContentRef = useRef<Map<string, string>>(new Map())
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
@@ -99,7 +124,13 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
           `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`
         )
         const data = await res.json()
-        setLessonPlans(data.lesson_plans || [])
+        const plans = data.lesson_plans || []
+        // Seed last-seen content so Tiptap normalization doesn't trigger saves
+        lastSeenContentRef.current.clear()
+        for (const plan of plans) {
+          lastSeenContentRef.current.set(plan.date, JSON.stringify(plan.content))
+        }
+        setLessonPlans(plans)
       } catch (err) {
         console.error('Error loading lesson plans:', err)
       } finally {
@@ -182,11 +213,22 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   // Handle content change from calendar
   const handleContentChange = useCallback(
     (date: string, content: TiptapContent) => {
-      if (shouldSkipSave(lessonPlansRef.current, date, content)) return
+      if (loading) return
+      const contentStr = JSON.stringify(content)
+      if (isNormalizationNoise(lastSeenContentRef.current, lessonPlansRef.current, date, contentStr)) {
+        // Record normalized version so future real edits are compared against it
+        lastSeenContentRef.current.set(date, contentStr)
+        return
+      }
+      if (!lastSeenContentRef.current.has(date) && isEmptyTiptapContent(content)) {
+        lastSeenContentRef.current.set(date, contentStr)
+        return
+      }
+      lastSeenContentRef.current.set(date, contentStr)
       pendingChangesRef.current.set(date, content)
       scheduleSave()
     },
-    [scheduleSave]
+    [loading, scheduleSave]
   )
 
   // Flush on unmount and handle page close
