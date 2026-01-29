@@ -100,11 +100,7 @@ export function ThreePanelProvider({
 
   // Sync right sidebar state when routeKey (tab) changes
   useEffect(() => {
-    if (config.rightSidebar.enabled && config.rightSidebar.defaultOpen) {
-      setRightOpenState(true)
-    } else if (!config.rightSidebar.enabled) {
-      setRightOpenState(false)
-    }
+    setRightOpenState(config.rightSidebar.enabled && config.rightSidebar.defaultOpen)
     setRightWidthState(config.rightSidebar.defaultWidth)
   }, [routeKey, config])
 
