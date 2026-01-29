@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/ui'
+import { Button, Tooltip } from '@/ui'
 import { Eye, EyeOff } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
@@ -493,19 +493,21 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             >
               {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
             </div>
-            <button
-              type="button"
-              onClick={handleHistoryToggle}
-              className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover"
-              aria-expanded={isHistoryOpen}
-              aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
-            >
-              {isHistoryOpen ? (
-                <EyeOff className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <Eye className="h-4 w-4" aria-hidden="true" />
-              )}
-            </button>
+            <Tooltip content={isHistoryOpen ? 'Hide history' : 'Show history'}>
+              <button
+                type="button"
+                onClick={handleHistoryToggle}
+                className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover"
+                aria-expanded={isHistoryOpen}
+                aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
+              >
+                {isHistoryOpen ? (
+                  <EyeOff className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                )}
+              </button>
+            </Tooltip>
           </div>
         </div>
 
