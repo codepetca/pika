@@ -13,6 +13,35 @@ import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 
+/**
+ * Returns true if the save should be skipped because the content hasn't
+ * meaningfully changed (identical to existing plan, or empty when no plan exists).
+ */
+export function shouldSkipSave(
+  lessonPlans: LessonPlan[],
+  date: string,
+  content: TiptapContent
+): boolean {
+  const existing = lessonPlans.find((p) => p.date === date)
+
+  if (existing) {
+    return JSON.stringify(existing.content) === JSON.stringify(content)
+  }
+
+  // No existing plan — skip if content is an empty doc
+  const nodes = content.content ?? []
+  if (nodes.length === 0) return true
+  if (
+    nodes.length === 1 &&
+    nodes[0].type === 'paragraph' &&
+    !nodes[0].content?.length
+  ) {
+    return true
+  }
+
+  return false
+}
+
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
 const MARKDOWN_SYNC_DEBOUNCE_MS = 300
@@ -161,10 +190,11 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   // Handle content change from calendar
   const handleContentChange = useCallback(
     (date: string, content: TiptapContent) => {
+      if (shouldSkipSave(lessonPlans, date, content)) return
       pendingChangesRef.current.set(date, content)
       scheduleSave()
     },
-    [scheduleSave]
+    [lessonPlans, scheduleSave]
   )
 
   // Flush on unmount and handle page close
