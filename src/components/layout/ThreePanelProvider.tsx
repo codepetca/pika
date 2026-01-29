@@ -98,6 +98,12 @@ export function ThreePanelProvider({
     config.rightSidebar.defaultWidth
   )
 
+  // Sync right sidebar state when routeKey (tab) changes
+  useEffect(() => {
+    setRightOpenState(config.rightSidebar.enabled && config.rightSidebar.defaultOpen)
+    setRightWidthState(config.rightSidebar.defaultWidth)
+  }, [routeKey, config])
+
   // Mobile drawer state
   const [mobileLeftOpen, setMobileLeftOpen] = useState(false)
   const [mobileRightOpen, setMobileRightOpen] = useState(false)
