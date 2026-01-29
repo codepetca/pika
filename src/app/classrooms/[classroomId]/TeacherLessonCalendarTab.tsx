@@ -411,7 +411,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
 
   return (
     <PageLayout>
-      <PageContent className="-mt-4">
+      <PageContent className="-mt-2">
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}

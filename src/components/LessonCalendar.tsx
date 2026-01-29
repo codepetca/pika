@@ -255,7 +255,7 @@ export function LessonCalendar({
     <div className="flex flex-col">
       {/* Header with navigation, view mode selector, and actions */}
       {showHeader && (
-        <div className="grid grid-cols-3 items-center px-4 py-3 border-b border-border">
+        <div className="grid grid-cols-3 items-center px-4 py-2 border-b border-border">
           {/* Left: Navigation with month label */}
           <div className="flex items-center gap-1 justify-start">
             {viewMode !== 'all' && (
