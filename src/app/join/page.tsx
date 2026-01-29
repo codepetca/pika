@@ -31,7 +31,7 @@ export default function JoinPage() {
             id={joinCodeId}
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
-            className="mt-2 w-full px-3 py-2 border border-border-strong bg-surface text-text-default rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-2 w-full px-3 py-2 border border-border-strong bg-surface text-text-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             placeholder="ABC123"
             autoCapitalize="characters"
             autoCorrect="off"
@@ -40,7 +40,7 @@ export default function JoinPage() {
 
           <button
             type="submit"
-            className="w-full px-4 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
+            className="w-full px-4 py-2 rounded-md bg-primary text-text-inverse text-sm hover:bg-primary-hover disabled:opacity-50"
             disabled={!code.trim()}
           >
             Join

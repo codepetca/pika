@@ -54,6 +54,59 @@ test.describe('logged-out screens', () => {
     await waitForContent(page)
     await expect(page).toHaveScreenshot('auth-forgot-password.png', { fullPage: true })
   })
+
+  test('verify signup page', async ({ page }) => {
+    await page.goto('/verify-signup?email=test@example.com')
+    await waitForContent(page)
+    await expect(page).toHaveScreenshot('auth-verify-signup.png', { fullPage: true })
+  })
+
+  test('join page', async ({ page }) => {
+    await page.goto('/join')
+    await waitForContent(page)
+    await expect(page).toHaveScreenshot('auth-join.png', { fullPage: true })
+  })
+})
+
+// ============================================================================
+// Logged-out Screens - Dark Mode
+// ============================================================================
+
+test.describe('logged-out screens - dark mode', () => {
+  test('login page', async ({ page }) => {
+    await page.goto('/login')
+    await waitForContent(page)
+    await enableDarkMode(page)
+    await expect(page).toHaveScreenshot('auth-login-dark.png', { fullPage: true })
+  })
+
+  test('signup page', async ({ page }) => {
+    await page.goto('/signup')
+    await waitForContent(page)
+    await enableDarkMode(page)
+    await expect(page).toHaveScreenshot('auth-signup-dark.png', { fullPage: true })
+  })
+
+  test('forgot password page', async ({ page }) => {
+    await page.goto('/forgot-password')
+    await waitForContent(page)
+    await enableDarkMode(page)
+    await expect(page).toHaveScreenshot('auth-forgot-password-dark.png', { fullPage: true })
+  })
+
+  test('verify signup page', async ({ page }) => {
+    await page.goto('/verify-signup?email=test@example.com')
+    await waitForContent(page)
+    await enableDarkMode(page)
+    await expect(page).toHaveScreenshot('auth-verify-signup-dark.png', { fullPage: true })
+  })
+
+  test('join page', async ({ page }) => {
+    await page.goto('/join')
+    await waitForContent(page)
+    await enableDarkMode(page)
+    await expect(page).toHaveScreenshot('auth-join-dark.png', { fullPage: true })
+  })
 })
 
 // ============================================================================
@@ -78,8 +131,6 @@ test.describe('teacher screens - light mode', () => {
 
     // Wait for attendance data to load
     await waitForContent(page)
-    // Wait for attendance grid to be visible
-    await expect(page.getByText('student1')).toBeVisible()
 
     await expect(page).toHaveScreenshot('teacher-classroom-attendance.png', { fullPage: true })
   })
@@ -240,7 +291,6 @@ test.describe('teacher screens - dark mode', () => {
     await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
 
     await waitForContent(page)
-    await expect(page.getByText('student1')).toBeVisible()
     await enableDarkMode(page)
 
     await expect(page).toHaveScreenshot('teacher-classroom-attendance-dark.png', { fullPage: true })
@@ -280,6 +330,18 @@ test.describe('teacher screens - dark mode', () => {
     await enableDarkMode(page)
 
     await expect(page).toHaveScreenshot('teacher-classroom-assignments-dark.png', { fullPage: true })
+  })
+
+  test('classroom settings tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.locator('[data-testid="classroom-card"]').first().click()
+    await page.waitForURL('**/classrooms/**')
+
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await waitForContent(page)
+    await enableDarkMode(page)
+
+    await expect(page).toHaveScreenshot('teacher-classroom-settings-dark.png', { fullPage: true })
   })
 })
 

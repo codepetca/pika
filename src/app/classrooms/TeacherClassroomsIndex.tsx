@@ -238,7 +238,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                 className={[
                   'px-3 py-1.5 text-sm font-medium rounded-l-md',
                   view === 'active'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary text-text-inverse'
                     : 'text-text-muted hover:bg-surface-hover',
                 ].join(' ')}
               >
@@ -250,7 +250,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                 className={[
                   'px-3 py-1.5 text-sm font-medium rounded-r-md',
                   view === 'archived'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-primary text-text-inverse'
                     : 'text-text-muted hover:bg-surface-hover',
                 ].join(' ')}
               >

@@ -237,3 +237,65 @@ export interface ClassroomResources {
   updated_at: string
   updated_by: string | null
 }
+
+// Quiz types
+export type QuizStatus = 'draft' | 'active' | 'closed'
+
+export interface Quiz {
+  id: string
+  classroom_id: string
+  title: string
+  status: QuizStatus
+  show_results: boolean
+  position: number
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface QuizQuestion {
+  id: string
+  quiz_id: string
+  question_text: string
+  options: string[]
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface QuizResponse {
+  id: string
+  quiz_id: string
+  question_id: string
+  student_id: string
+  selected_option: number
+  submitted_at: string
+}
+
+// Extended quiz types for UI
+export interface QuizWithQuestions extends Quiz {
+  questions: QuizQuestion[]
+}
+
+export interface QuizWithStats extends Quiz {
+  stats: {
+    total_students: number
+    responded: number
+    questions_count: number
+  }
+}
+
+export type StudentQuizStatus = 'not_started' | 'responded' | 'can_view_results'
+
+export interface StudentQuizView extends Quiz {
+  student_status: StudentQuizStatus
+  questions?: QuizQuestion[]
+}
+
+export interface QuizResultsAggregate {
+  question_id: string
+  question_text: string
+  options: string[]
+  counts: number[] // count per option, same index
+  total_responses: number
+}

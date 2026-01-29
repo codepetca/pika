@@ -13,7 +13,7 @@ export { Button, type ButtonProps } from './Button'
 export { Input, type InputProps } from './Input'
 export { Select, type SelectProps, type SelectOption } from './Select'
 export { FormField, type FormFieldProps } from './FormField'
-export { AlertDialog, ConfirmDialog, type AlertDialogProps, type AlertDialogState, type AlertDialogVariant, type ConfirmDialogProps } from './Dialog'
+export { AlertDialog, ConfirmDialog, ContentDialog, type AlertDialogProps, type AlertDialogState, type AlertDialogVariant, type ConfirmDialogProps, type ContentDialogProps } from './Dialog'
 export { Card, type CardProps } from './Card'
 export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip'
 

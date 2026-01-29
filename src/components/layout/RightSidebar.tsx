@@ -23,6 +23,7 @@ export interface RightSidebarProps {
  * - No toggle button when disabled for a view
  */
 export function RightSidebar({ children, className, title = 'Details', headerActions }: RightSidebarProps) {
+  const showHeader = !!(title || headerActions)
   const { isOpen, enabled } = useRightSidebar()
   const { isRightOpen, close } = useMobileDrawer()
   const firstFocusableRef = useRef<HTMLButtonElement | null>(null)
@@ -72,14 +73,16 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
             .join(' ')}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-2 border-b border-border">
-            <span className="text-sm font-medium text-text-muted truncate flex-1 px-2">
-              {title}
-            </span>
-            {headerActions && (
-              <div className="flex items-center gap-1">{headerActions}</div>
-            )}
-          </div>
+          {showHeader && (
+            <div className="flex items-center justify-between p-2 border-b border-border">
+              <span className="text-sm font-medium text-text-muted truncate flex-1 px-2">
+                {title}
+              </span>
+              {headerActions && (
+                <div className="flex items-center gap-1">{headerActions}</div>
+              )}
+            </div>
+          )}
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden">{children}</div>
@@ -101,7 +104,7 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={title}
+            aria-label={title || 'Details'}
             className={[
               'absolute inset-y-0 right-0 w-full max-w-md',
               'bg-surface',

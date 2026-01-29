@@ -5,11 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar,
+  CircleHelp,
   ClipboardCheck,
   ClipboardList,
   Settings,
   PenSquare,
-  BookMarked,
+  StickyNote,
   Users,
   ChevronDown,
   type LucideIcon,
@@ -30,6 +31,7 @@ import {
 export type ClassroomNavItemId =
   | 'attendance'
   | 'assignments'
+  | 'quizzes'
   | 'calendar'
   | 'resources'
   | 'roster'
@@ -55,8 +57,9 @@ type SidebarAssignment = {
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+  { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Resources', icon: BookMarked },
+  { id: 'resources', label: 'Resources', icon: StickyNote },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -64,8 +67,9 @@ const teacherItems: NavItem[] = [
 const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
+  { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Resources', icon: BookMarked },
+  { id: 'resources', label: 'Resources', icon: StickyNote },
 ]
 
 // ============================================================================
@@ -111,6 +115,10 @@ export function NavItems({
     role === 'student' &&
     !notifications?.loading &&
     (notifications?.unviewedAssignmentsCount ?? 0) > 0
+  const showQuizzesPulse =
+    role === 'student' &&
+    !notifications?.loading &&
+    (notifications?.activeQuizzesCount ?? 0) > 0
 
   const [assignments, setAssignments] = useState<SidebarAssignment[]>([])
   const [assignmentsExpanded, setAssignmentsExpanded] = useState(true)
@@ -437,7 +445,8 @@ export function NavItems({
         // Regular nav items
         const shouldPulse =
           (item.id === 'today' && showTodayPulse) ||
-          (item.id === 'assignments' && showAssignmentsPulse)
+          (item.id === 'assignments' && showAssignmentsPulse) ||
+          (item.id === 'quizzes' && showQuizzesPulse)
 
         const navLink = (
           <Link

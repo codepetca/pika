@@ -8,10 +8,33 @@ import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar } from '@/components/layout'
 import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
+import { isEmpty as isEmptyTiptapContent } from '@/lib/tiptap-content'
 import { useClassDays } from '@/hooks/useClassDays'
 import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
+
+/**
+ * Returns true if the content change is just Tiptap normalizing stored content
+ * on editor mount (e.g. the Markdown extension restructuring nodes). Compares
+ * against a mutable map of last-seen stringified content per date.
+ */
+export function isNormalizationNoise(
+  lastSeen: Map<string, string>,
+  lessonPlans: LessonPlan[],
+  date: string,
+  contentStr: string
+): boolean {
+  const prev = lastSeen.get(date)
+  // Exact duplicate of last emission
+  if (prev === contentStr) return true
+  // First emission for a date with no stored plan — skip if empty handled by caller
+  if (prev === undefined) return false
+  // First divergence from stored content with no pending user edit — normalization
+  const existing = lessonPlans.find((p) => p.date === date)
+  if (existing && prev === JSON.stringify(existing.content)) return true
+  return false
+}
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
@@ -33,6 +56,11 @@ interface Props {
 export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Props) {
   const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
+  const lessonPlansRef = useRef(lessonPlans)
+  lessonPlansRef.current = lessonPlans
+  // Track the last content seen per date to suppress Tiptap normalization noise.
+  // Populated from fetched plans and updated on each onChange call.
+  const lastSeenContentRef = useRef<Map<string, string>>(new Map())
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
@@ -78,7 +106,13 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
           `/api/teacher/classrooms/${classroom.id}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`
         )
         const data = await res.json()
-        setLessonPlans(data.lesson_plans || [])
+        const plans = data.lesson_plans || []
+        // Seed last-seen content so Tiptap normalization doesn't trigger saves
+        lastSeenContentRef.current.clear()
+        for (const plan of plans) {
+          lastSeenContentRef.current.set(plan.date, JSON.stringify(plan.content))
+        }
+        setLessonPlans(plans)
       } catch (err) {
         console.error('Error loading lesson plans:', err)
       } finally {
@@ -161,10 +195,22 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   // Handle content change from calendar
   const handleContentChange = useCallback(
     (date: string, content: TiptapContent) => {
+      if (loading) return
+      const contentStr = JSON.stringify(content)
+      if (isNormalizationNoise(lastSeenContentRef.current, lessonPlansRef.current, date, contentStr)) {
+        // Record normalized version so future real edits are compared against it
+        lastSeenContentRef.current.set(date, contentStr)
+        return
+      }
+      if (!lastSeenContentRef.current.has(date) && isEmptyTiptapContent(content)) {
+        lastSeenContentRef.current.set(date, contentStr)
+        return
+      }
+      lastSeenContentRef.current.set(date, contentStr)
       pendingChangesRef.current.set(date, content)
       scheduleSave()
     },
-    [scheduleSave]
+    [loading, scheduleSave]
   )
 
   // Flush on unmount and handle page close
@@ -365,7 +411,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
 
   return (
     <PageLayout>
-      <PageContent className="-mt-4">
+      <PageContent className="-mt-[8px]">
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}

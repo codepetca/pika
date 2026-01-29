@@ -39,3 +39,4 @@ supabase/.temp/
 /test-results/
 /artifacts/
 /.auth/
+/e2e/__snapshots__/

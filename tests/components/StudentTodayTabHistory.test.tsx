@@ -1,3 +1,4 @@
+import React from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { StudentTodayTab } from '@/app/classrooms/[classroomId]/StudentTodayTab'
@@ -8,6 +9,14 @@ vi.mock('@/lib/timezone', () => ({
   getTodayInToronto: () => '2025-12-16',
 }))
 
+vi.mock('@/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/ui')>()
+  return {
+    ...actual,
+    Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  }
+})
+
 const classroom: Classroom = {
   id: 'c1',
   teacher_id: 't1',
@@ -17,6 +26,8 @@ const classroom: Classroom = {
   allow_enrollment: true,
   start_date: null,
   end_date: null,
+  lesson_plan_visibility: 'hidden',
+  archived_at: null,
   created_at: '2025-01-01T00:00:00Z',
   updated_at: '2025-01-01T00:00:00Z',
 }

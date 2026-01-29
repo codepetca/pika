@@ -13,10 +13,12 @@ import {
 type NotificationState = {
   hasTodayEntry: boolean
   unviewedAssignmentsCount: number
+  activeQuizzesCount: number
   loading: boolean
   refresh: () => Promise<void>
   markTodayComplete: () => void
   decrementUnviewedCount: () => void
+  clearActiveQuizzesCount: () => void
 }
 
 const NotificationsContext = createContext<NotificationState | null>(null)
@@ -30,6 +32,7 @@ export function StudentNotificationsProvider({
 }) {
   const [hasTodayEntry, setHasTodayEntry] = useState(true) // Assume complete to avoid flash
   const [unviewedAssignmentsCount, setUnviewedAssignmentsCount] = useState(0)
+  const [activeQuizzesCount, setActiveQuizzesCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   const fetchNotifications = useCallback(async () => {
@@ -42,6 +45,7 @@ export function StudentNotificationsProvider({
       const data = await res.json()
       setHasTodayEntry(data.hasTodayEntry)
       setUnviewedAssignmentsCount(data.unviewedAssignmentsCount)
+      setActiveQuizzesCount(data.activeQuizzesCount ?? 0)
     } catch (error) {
       console.error('Error fetching notifications:', error)
     } finally {
@@ -75,16 +79,22 @@ export function StudentNotificationsProvider({
     setUnviewedAssignmentsCount((prev) => Math.max(0, prev - 1))
   }, [])
 
+  const clearActiveQuizzesCount = useCallback(() => {
+    setActiveQuizzesCount(0)
+  }, [])
+
   const value = useMemo<NotificationState>(
     () => ({
       hasTodayEntry,
       unviewedAssignmentsCount,
+      activeQuizzesCount,
       loading,
       refresh,
       markTodayComplete,
       decrementUnviewedCount,
+      clearActiveQuizzesCount,
     }),
-    [hasTodayEntry, unviewedAssignmentsCount, loading, refresh, markTodayComplete, decrementUnviewedCount]
+    [hasTodayEntry, unviewedAssignmentsCount, activeQuizzesCount, loading, refresh, markTodayComplete, decrementUnviewedCount, clearActiveQuizzesCount]
   )
 
   return (
