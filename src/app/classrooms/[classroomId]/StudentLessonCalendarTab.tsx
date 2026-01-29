@@ -105,7 +105,7 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
 
   return (
     <PageLayout>
-      <PageContent className="-mt-2.5">
+      <PageContent className="-mt-[8px]">
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}
