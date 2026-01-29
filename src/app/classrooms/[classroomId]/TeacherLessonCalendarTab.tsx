@@ -52,6 +52,8 @@ interface Props {
 export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Props) {
   const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
+  const lessonPlansRef = useRef(lessonPlans)
+  lessonPlansRef.current = lessonPlans
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
@@ -180,11 +182,11 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   // Handle content change from calendar
   const handleContentChange = useCallback(
     (date: string, content: TiptapContent) => {
-      if (shouldSkipSave(lessonPlans, date, content)) return
+      if (shouldSkipSave(lessonPlansRef.current, date, content)) return
       pendingChangesRef.current.set(date, content)
       scheduleSave()
     },
-    [scheduleSave, lessonPlans]
+    [scheduleSave]
   )
 
   // Flush on unmount and handle page close
