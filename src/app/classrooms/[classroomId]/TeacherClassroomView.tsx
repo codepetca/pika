@@ -699,13 +699,13 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       />
                     </DataTableHeaderCell>
                     <SortableHeaderCell
-                      label="First Name"
+                      label={isCompactTable ? 'First' : 'First Name'}
                       isActive={sortColumn === 'first'}
                       direction={sortDirection}
                       onClick={() => toggleSort('first')}
                     />
                     <SortableHeaderCell
-                      label="Last Name"
+                      label={isCompactTable ? 'L.' : 'Last Name'}
                       isActive={sortColumn === 'last'}
                       direction={sortDirection}
                       onClick={() => toggleSort('last')}
@@ -740,18 +740,24 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                           aria-label={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
                         />
                       </DataTableCell>
-                      <DataTableCell className="max-w-[120px] truncate">
+                      <DataTableCell className={isCompactTable ? 'max-w-[80px] truncate' : 'max-w-[120px] truncate'}>
                         {student.student_first_name ? (
-                          <Tooltip content={student.student_first_name}>
+                          <Tooltip content={`${student.student_first_name} ${student.student_last_name ?? ''}`}>
                             <span>{student.student_first_name}</span>
                           </Tooltip>
                         ) : '—'}
                       </DataTableCell>
-                      <DataTableCell className="max-w-[120px] truncate">
+                      <DataTableCell className={isCompactTable ? 'w-8' : 'max-w-[120px] truncate'}>
                         {student.student_last_name ? (
-                          <Tooltip content={student.student_last_name}>
-                            <span>{student.student_last_name}</span>
-                          </Tooltip>
+                          isCompactTable ? (
+                            <Tooltip content={student.student_last_name}>
+                              <span>{student.student_last_name[0]}.</span>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip content={student.student_last_name}>
+                              <span>{student.student_last_name}</span>
+                            </Tooltip>
+                          )
                         ) : '—'}
                       </DataTableCell>
                       <DataTableCell>
@@ -762,7 +768,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                         </Tooltip>
                       </DataTableCell>
                       <DataTableCell className="text-text-muted">
-                        {totalScore !== null ? `${totalScore}/30` : '—'}
+                        {totalScore !== null ? `${Math.round((totalScore / 30) * 100)}` : '—'}
                       </DataTableCell>
                       {!isCompactTable && (
                         <DataTableCell className="text-text-muted">

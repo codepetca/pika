@@ -10,6 +10,43 @@ import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, TiptapContent } from '@/types'
 
+function ScoreInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const n = Number(value) || 0
+  return (
+    <div>
+      <label className="block text-xs font-medium text-text-muted mb-1">{label} (0–10)</label>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(String(Math.max(0, n - 1)))}
+          disabled={n <= 0}
+          className="flex items-center justify-center w-8 h-8 rounded border border-border bg-surface text-lg font-bold text-text-default hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label={`Decrease ${label}`}
+        >
+          ‹
+        </button>
+        <input
+          type="number"
+          min={0}
+          max={10}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 rounded border border-border bg-surface px-2 py-1 text-sm text-text-default text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <button
+          type="button"
+          onClick={() => onChange(String(Math.min(10, n + 1)))}
+          disabled={n >= 10}
+          className="flex items-center justify-center w-8 h-8 rounded border border-border bg-surface text-lg font-bold text-text-default hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label={`Increase ${label}`}
+        >
+          ›
+        </button>
+      </div>
+    </div>
+  )
+}
+
 interface StudentWorkData {
   assignment: Assignment
   classroom: { id: string; title: string }
@@ -350,39 +387,9 @@ export function TeacherStudentWorkPanel({
                 <div className="text-xs text-danger">{gradeError}</div>
               )}
 
-              <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Completion (0–10)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={scoreCompletion}
-                  onChange={(e) => setScoreCompletion(e.target.value)}
-                  className="w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Thinking (0–10)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={scoreThinking}
-                  onChange={(e) => setScoreThinking(e.target.value)}
-                  className="w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Workflow (0–10)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={10}
-                  value={scoreWorkflow}
-                  onChange={(e) => setScoreWorkflow(e.target.value)}
-                  className="w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default"
-                />
-              </div>
+              <ScoreInput label="Completion" value={scoreCompletion} onChange={setScoreCompletion} />
+              <ScoreInput label="Thinking" value={scoreThinking} onChange={setScoreThinking} />
+              <ScoreInput label="Workflow" value={scoreWorkflow} onChange={setScoreWorkflow} />
 
               <div className="text-sm font-medium text-text-default">
                 Total: {totalScore}/30 ({totalPercent}%)
