@@ -400,7 +400,7 @@ export function TeacherStudentWorkPanel({
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  rows={4}
+                  rows={8}
                   className="w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default resize-none"
                   placeholder="Write feedback..."
                 />
@@ -411,14 +411,14 @@ export function TeacherStudentWorkPanel({
                   {gradeSaving ? 'Saving...' : 'Save Grade'}
                 </Button>
                 <Button size="sm" variant="secondary" onClick={handleAutoGrade} disabled={autoGrading}>
-                  {autoGrading ? 'Grading...' : 'Auto-grade'}
+                  {autoGrading ? 'Grading...' : 'AI grade'}
                 </Button>
               </div>
 
               {data.doc?.graded_at && (
                 <div className="text-xs text-text-muted">
                   Graded {formatInTimeZone(new Date(data.doc.graded_at), 'America/Toronto', 'MMM d, h:mm a')}
-                  {data.doc.graded_by && ` by ${data.doc.graded_by}`}
+                  {data.doc.graded_by && ` by ${data.doc.graded_by.startsWith('ai:') ? 'AI' : data.doc.graded_by}`}
                 </div>
               )}
             </div>

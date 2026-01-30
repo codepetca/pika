@@ -672,7 +672,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       onClick={handleBatchAutoGrade}
                       disabled={isAutoGrading || isReadOnly}
                     >
-                      {isAutoGrading ? 'Grading...' : 'Auto-grade'}
+                      {isAutoGrading ? 'Grading...' : 'AI grade'}
                     </button>
                     <button
                       type="button"
