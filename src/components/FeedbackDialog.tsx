@@ -122,7 +122,7 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
               onChange={(e) => setDescription(e.target.value)}
               placeholder={category === 'bug' ? 'What happened? What did you expect?' : 'What would you like to see improved?'}
               rows={4}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary resize-none"
               disabled={state === 'submitting'}
             />
           </div>
