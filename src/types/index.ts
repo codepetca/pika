@@ -171,6 +171,13 @@ export interface AssignmentDoc {
   is_submitted: boolean
   submitted_at: string | null
   viewed_at: string | null
+  score_completion: number | null
+  score_thinking: number | null
+  score_workflow: number | null
+  feedback: string | null
+  graded_at: string | null
+  graded_by: string | null
+  returned_at: string | null
   created_at: string
   updated_at: string
 }
@@ -197,6 +204,9 @@ export type AssignmentStatus =
   | 'in_progress_late'
   | 'submitted_on_time'
   | 'submitted_late'
+  | 'graded'
+  | 'returned'
+  | 'resubmitted'
 
 // Extended types for UI display
 export interface AssignmentWithStatus extends Assignment {

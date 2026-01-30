@@ -115,6 +115,13 @@ export function StudentAssignmentsTab({ classroom }: Props) {
                 is_submitted: false,
                 submitted_at: null,
                 viewed_at: now,
+                score_completion: null,
+                score_thinking: null,
+                score_workflow: null,
+                feedback: null,
+                graded_at: null,
+                graded_by: null,
+                returned_at: null,
                 created_at: now,
                 updated_at: now,
               }
