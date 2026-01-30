@@ -84,11 +84,11 @@ ${studentText}`
       input: [
         {
           role: 'system',
-          content: [{ type: 'text', text: systemPrompt }],
+          content: [{ type: 'input_text', text: systemPrompt }],
         },
         {
           role: 'user',
-          content: [{ type: 'text', text: userContent }],
+          content: [{ type: 'input_text', text: userContent }],
         },
       ],
     }),

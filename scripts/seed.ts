@@ -366,6 +366,129 @@ async function seed() {
     console.log(`✓ Created ${sampleLessonPlans.length} sample lesson plans\n`)
   }
 
+  // 7. Create sample assignments and student work
+  console.log('Creating sample assignments...')
+
+  // Delete existing assignment data for this classroom
+  await supabase.from('assignment_docs').delete().in('assignment_id',
+    (await supabase.from('assignments').select('id').eq('classroom_id', createdClassroom.id)).data?.map((a: any) => a.id) ?? []
+  )
+  await supabase.from('assignments').delete().eq('classroom_id', createdClassroom.id)
+
+  const now = new Date()
+  const assignments = [
+    {
+      classroom_id: createdClassroom.id,
+      title: 'Personal Narrative Essay',
+      description: 'Write a 3-paragraph personal narrative about a meaningful experience.',
+      rich_instructions: {
+        type: 'doc',
+        content: [
+          { type: 'paragraph', content: [{ type: 'text', text: 'Write a 3-paragraph personal narrative about a meaningful experience in your life.' }] },
+          { type: 'bulletList', content: [
+            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Include sensory details and dialogue' }] }] },
+            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Use a clear beginning, middle, and end' }] }] },
+          ]},
+        ],
+      },
+      due_at: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+      position: 0,
+      is_draft: false,
+      released_at: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+      created_by: createdTeacher.id,
+    },
+    {
+      classroom_id: createdClassroom.id,
+      title: 'Persuasive Letter',
+      description: 'Write a persuasive letter to a community leader about an issue you care about.',
+      rich_instructions: null,
+      due_at: new Date(now.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days from now
+      position: 1,
+      is_draft: false,
+      released_at: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      created_by: createdTeacher.id,
+    },
+    {
+      classroom_id: createdClassroom.id,
+      title: 'Poetry Analysis (Draft)',
+      description: 'Analyze a poem of your choice.',
+      rich_instructions: null,
+      due_at: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      position: 2,
+      is_draft: true,
+      released_at: null,
+      created_by: createdTeacher.id,
+    },
+  ]
+
+  const { data: createdAssignments, error: assignmentError } = await supabase
+    .from('assignments')
+    .insert(assignments)
+    .select()
+
+  if (assignmentError) {
+    console.log(`⚠ Failed to create assignments: ${formatSupabaseError(assignmentError)}`)
+  } else {
+    console.log(`✓ Created ${createdAssignments.length} assignments`)
+
+    // Create assignment docs (student work)
+    const narrative = createdAssignments[0]!
+    const letter = createdAssignments[1]!
+
+    const assignmentDocs = [
+      // Student 1 submitted the narrative essay
+      {
+        assignment_id: narrative.id,
+        student_id: students[0]!.id,
+        content: {
+          type: 'doc',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully, trying to memorize every detail. The bread came out golden and perfect.' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'Now, whenever I bake bread, I think of her. The recipe is more than flour and water — it\'s a connection to my family\'s history. That summer taught me that the most important things are passed down not through books, but through hands and hearts.' }] },
+          ],
+        },
+        is_submitted: true,
+        submitted_at: new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      // Student 2 submitted the narrative essay (late, shorter)
+      {
+        assignment_id: narrative.id,
+        student_id: students[1]!.id,
+        content: {
+          type: 'doc',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'Last year I joined the soccer team even though I was scared. The first practice was really hard and I wanted to quit. But my coach said to give it one more week.' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'By the end of the season I scored my first goal. It felt amazing. I learned that trying new things is worth it even when it\'s scary at first.' }] },
+          ],
+        },
+        is_submitted: true,
+        submitted_at: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(), // late
+      },
+      // Student 1 started the persuasive letter but hasn't submitted
+      {
+        assignment_id: letter.id,
+        student_id: students[0]!.id,
+        content: {
+          type: 'doc',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'Dear Mayor Thompson,' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'I am writing to you about the lack of bike lanes on Main Street. As a student who rides my bike to school every day, I have seen how dangerous it can be...' }] },
+          ],
+        },
+        is_submitted: false,
+        submitted_at: null,
+      },
+    ]
+
+    const { error: docsError } = await supabase.from('assignment_docs').insert(assignmentDocs)
+    if (docsError) {
+      console.log(`⚠ Failed to create assignment docs: ${formatSupabaseError(docsError)}`)
+    } else {
+      console.log(`✓ Created ${assignmentDocs.length} assignment docs (student work)\n`)
+    }
+  }
+
   // Summary
   console.log('✅ Seed completed successfully!\n')
   console.log('Classroom:')

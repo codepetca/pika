@@ -206,6 +206,7 @@ export function TeacherStudentWorkPanel({
       if (!res.ok) throw new Error(result.error || 'Auto-grade failed')
       if (result.errors?.length) {
         setGradeError(result.errors.join(', '))
+        return // Don't reload — grading failed
       }
       // Reload data to get updated grades
       const reloadRes = await fetch(`/api/teacher/assignments/${assignmentId}/students/${studentId}`)
@@ -213,6 +214,7 @@ export function TeacherStudentWorkPanel({
       if (reloadRes.ok) {
         setData(reloadData)
         populateGradeForm(reloadData.doc)
+        setRightTab('grading') // Stay on grading tab to show results
       }
     } catch (err: any) {
       setGradeError(err.message || 'Auto-grade failed')

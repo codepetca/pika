@@ -37,7 +37,12 @@ export async function POST(
     // Verify teacher owns this assignment
     const { data: assignment, error: assignmentError } = await supabase
       .from('assignments')
-      .select('*, classrooms!inner(teacher_id)')
+      .select(`
+        *,
+        classrooms!inner (
+          teacher_id
+        )
+      `)
       .eq('id', id)
       .single()
 
