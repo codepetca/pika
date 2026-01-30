@@ -18,6 +18,8 @@ import {
 } from '@dnd-kit/sortable'
 import { Pencil, Plus } from 'lucide-react'
 import { ConfirmDialog, Tooltip } from '@/ui'
+import { BatchActionBar } from '@/components/BatchActionBar'
+import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
@@ -64,7 +66,15 @@ interface StudentSubmissionRow {
   student_first_name: string | null
   student_last_name: string | null
   status: AssignmentStatus
-  doc: { submitted_at?: string | null; updated_at?: string | null } | null
+  doc: {
+    submitted_at?: string | null
+    updated_at?: string | null
+    score_completion?: number | null
+    score_thinking?: number | null
+    score_workflow?: number | null
+    graded_at?: string | null
+    returned_at?: string | null
+  } | null
 }
 
 export type AssignmentViewMode = 'summary' | 'assignment'
@@ -153,6 +163,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [error, setError] = useState('')
+
+  // Batch grading state
+  const [isAutoGrading, setIsAutoGrading] = useState(false)
+  const [isReturning, setIsReturning] = useState(false)
+  const [showReturnConfirm, setShowReturnConfirm] = useState(false)
 
   const loadAssignments = useCallback(async () => {
     setLoading(true)
@@ -392,6 +407,71 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     return rows
   }, [selectedAssignmentData, sortColumn, sortDirection])
 
+  const studentRowIds = useMemo(() => sortedStudents.map((s) => s.student_id), [sortedStudents])
+  const {
+    selectedIds: batchSelectedIds,
+    toggleSelect: batchToggleSelect,
+    toggleSelectAll: batchToggleSelectAll,
+    allSelected: batchAllSelected,
+    clearSelection: batchClearSelection,
+    selectedCount: batchSelectedCount,
+  } = useStudentSelection(studentRowIds)
+
+  async function handleBatchAutoGrade() {
+    if (!selectedAssignmentData || batchSelectedCount === 0) return
+    setIsAutoGrading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/auto-grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Auto-grade failed')
+      batchClearSelection()
+      // Reload assignment data to refresh statuses/grades
+      // Force re-fetch by toggling selection
+      if (selection.mode === 'assignment') {
+        const aid = selection.assignmentId
+        setSelection({ mode: 'summary' })
+        setTimeout(() => setSelection({ mode: 'assignment', assignmentId: aid }), 0)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Auto-grade failed')
+    } finally {
+      setIsAutoGrading(false)
+    }
+  }
+
+  async function handleBatchReturn() {
+    if (!selectedAssignmentData || batchSelectedCount === 0) return
+    setIsReturning(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/return`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Return failed')
+      batchClearSelection()
+      setShowReturnConfirm(false)
+      // Reload
+      // Force re-fetch by toggling selection
+      if (selection.mode === 'assignment') {
+        const aid = selection.assignmentId
+        setSelection({ mode: 'summary' })
+        setTimeout(() => setSelection({ mode: 'assignment', assignmentId: aid }), 0)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Return failed')
+    } finally {
+      setIsReturning(false)
+    }
+  }
+
   const selectedStudentIndex = useMemo(() => {
     if (!selectedStudentId) return -1
     return sortedStudents.findIndex((student) => student.student_id === selectedStudentId)
@@ -591,9 +671,42 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                 {selectedAssignmentError || 'Failed to load assignment'}
               </div>
             ) : (
+              <>
+              {batchSelectedCount > 0 && (
+                <div className="p-3 border-b border-border">
+                  <BatchActionBar selectedCount={batchSelectedCount}>
+                    <button
+                      type="button"
+                      className="px-3 py-1 text-sm rounded border border-border bg-surface hover:bg-surface-hover text-text-default"
+                      onClick={handleBatchAutoGrade}
+                      disabled={isAutoGrading || isReadOnly}
+                    >
+                      {isAutoGrading ? 'Grading...' : 'Auto-grade'}
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1 text-sm rounded border border-border bg-surface hover:bg-surface-hover text-text-default"
+                      onClick={() => setShowReturnConfirm(true)}
+                      disabled={isReturning || isReadOnly}
+                    >
+                      Return
+                    </button>
+                  </BatchActionBar>
+                </div>
+              )}
               <DataTable>
                 <DataTableHead>
                   <DataTableRow>
+                    <DataTableHeaderCell className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={batchAllSelected}
+                        onChange={batchToggleSelectAll}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                        aria-label="Select all students"
+                      />
+                    </DataTableHeaderCell>
                     <SortableHeaderCell
                       label="First Name"
                       isActive={sortColumn === 'first'}
@@ -607,18 +720,35 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       onClick={() => toggleSort('last')}
                     />
                     <DataTableHeaderCell>{isCompactTable ? '' : 'Status'}</DataTableHeaderCell>
+                    <DataTableHeaderCell>Grade</DataTableHeaderCell>
                     {!isCompactTable && <DataTableHeaderCell>Last updated</DataTableHeaderCell>}
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
                   {sortedStudents.map((student) => {
                     const isSelected = selectedStudentId === student.student_id
+                    const totalScore =
+                      student.doc?.score_completion != null &&
+                      student.doc?.score_thinking != null &&
+                      student.doc?.score_workflow != null
+                        ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
+                        : null
                     return (
                     <DataTableRow
                       key={student.student_id}
                       className={getRowClassName(isSelected)}
                       onClick={() => setSelectedStudentId(isSelected ? null : student.student_id)}
                     >
+                      <DataTableCell>
+                        <input
+                          type="checkbox"
+                          checked={batchSelectedIds.has(student.student_id)}
+                          onChange={() => batchToggleSelect(student.student_id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                          aria-label={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
+                        />
+                      </DataTableCell>
                       <DataTableCell className="max-w-[120px] truncate">
                         {student.student_first_name ? (
                           <Tooltip content={student.student_first_name}>
@@ -640,6 +770,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                           />
                         </Tooltip>
                       </DataTableCell>
+                      <DataTableCell className="text-text-muted">
+                        {totalScore !== null ? `${totalScore}/30` : '—'}
+                      </DataTableCell>
                       {!isCompactTable && (
                         <DataTableCell className="text-text-muted">
                           {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
@@ -649,10 +782,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                     )
                   })}
                   {sortedStudents.length === 0 && (
-                    <EmptyStateRow colSpan={isCompactTable ? 3 : 4} message="No students enrolled" />
+                    <EmptyStateRow colSpan={isCompactTable ? 5 : 6} message="No students enrolled" />
                   )}
                 </DataTableBody>
               </DataTable>
+              </>
             )}
           </TableCard>
         </KeyboardNavigableTable>
@@ -671,6 +805,18 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         onConfirm={deleteAssignment}
       />
 
+
+      <ConfirmDialog
+        isOpen={showReturnConfirm}
+        title="Return graded work?"
+        description={`Return graded assignments to ${batchSelectedCount} selected student(s).\n\nOnly graded work will be returned. Students will be able to view their grades and edit/resubmit.`}
+        confirmLabel={isReturning ? 'Returning...' : 'Return'}
+        cancelLabel="Cancel"
+        isConfirmDisabled={isReturning}
+        isCancelDisabled={isReturning}
+        onCancel={() => (isReturning ? null : setShowReturnConfirm(false))}
+        onConfirm={handleBatchReturn}
+      />
 
       <AssignmentModal
         isOpen={isCreateModalOpen || !!editAssignment}
