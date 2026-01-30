@@ -208,7 +208,6 @@ export type AssignmentStatus =
   | 'returned'
   | 'resubmitted'
 
-
 // Extended types for UI display
 export interface AssignmentWithStatus extends Assignment {
   status: AssignmentStatus
