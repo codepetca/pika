@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import Link from 'next/link'
-import { UserCircle, LogOut, Moon, Sun, MessageSquare } from 'lucide-react'
+import { UserCircle, LogOut, Moon, Sun, Bug } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useDropdownNav } from '@/hooks/use-dropdown-nav'
 import { FeedbackDialog } from '@/components/FeedbackDialog'
@@ -206,7 +206,7 @@ export function UserMenu({ user }: UserMenuProps) {
           role="menuitem"
           tabIndex={isOpen ? 0 : -1}
         >
-          <MessageSquare className="w-4 h-4" />
+          <Bug className="w-4 h-4" />
           Send Feedback
         </button>
 

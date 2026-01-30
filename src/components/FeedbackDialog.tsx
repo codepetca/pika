@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ContentDialog } from '@/ui/Dialog'
 
 interface FeedbackDialogProps {
@@ -16,12 +16,21 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
   const [state, setState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
   const version = process.env.NEXT_PUBLIC_APP_VERSION || 'unknown'
   const commit = (process.env.NEXT_PUBLIC_GIT_COMMIT || 'unknown').slice(0, 7)
   const env = process.env.NEXT_PUBLIC_VERCEL_ENV || 'development'
 
   function handleClose() {
     if (state !== 'submitting') {
+      if (timerRef.current) clearTimeout(timerRef.current)
       setCategory('bug')
       setDescription('')
       setState('idle')
@@ -64,7 +73,7 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
       }
 
       setState('success')
-      setTimeout(() => {
+      timerRef.current = setTimeout(() => {
         handleClose()
       }, 2000)
     } catch (err) {
@@ -119,7 +128,7 @@ export function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
           </div>
 
           {errorMsg && (
-            <p className="text-sm text-red-600">{errorMsg}</p>
+            <p className="text-sm text-danger">{errorMsg}</p>
           )}
 
           {/* Build info */}

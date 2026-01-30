@@ -26,7 +26,15 @@ export async function POST(request: Request) {
 
   const user = await requireAuth()
 
-  const body: FeedbackBody = await request.json()
+  let body: FeedbackBody
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid JSON body' },
+      { status: 400 },
+    )
+  }
 
   if (!['bug', 'suggestion'].includes(body.category)) {
     return NextResponse.json(
@@ -67,7 +75,7 @@ export async function POST(request: Request) {
       Accept: 'application/vnd.github+json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ title, body: issueBody }),
+    body: JSON.stringify({ title, body: issueBody, labels: ['user-feedback'] }),
   })
 
   if (!res.ok) {
