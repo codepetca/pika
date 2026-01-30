@@ -12,6 +12,7 @@ import {
   formatDueDate,
   isPastDue,
   formatRelativeDueDate,
+  sanitizeDocForStudent,
 } from '@/lib/assignments'
 import { createMockAssignment, createMockAssignmentDoc } from '../helpers/mocks'
 
@@ -188,6 +189,104 @@ describe('assignment utilities', () => {
       expect(status).toBe('submitted_late')
     })
 
+    it('should return "graded" when graded_at is set but not returned', () => {
+      vi.setSystemTime(new Date('2024-10-21T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-18T20:00:00Z',
+        graded_at: '2024-10-21T10:00:00Z',
+        graded_by: 'teacher',
+        score_completion: 8,
+        score_thinking: 7,
+        score_workflow: 9,
+        feedback: 'Good work',
+      })
+
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('graded')
+    })
+
+    it('should return "returned" when returned_at is set and not resubmitted', () => {
+      vi.setSystemTime(new Date('2024-10-22T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: false,
+        submitted_at: '2024-10-18T20:00:00Z',
+        graded_at: '2024-10-21T10:00:00Z',
+        returned_at: '2024-10-21T14:00:00Z',
+      })
+
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('returned')
+    })
+
+    it('should return "resubmitted" when returned and student submitted again after return', () => {
+      vi.setSystemTime(new Date('2024-10-23T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-22T10:00:00Z', // After returned_at
+        graded_at: '2024-10-21T10:00:00Z',
+        returned_at: '2024-10-21T14:00:00Z',
+      })
+
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('resubmitted')
+    })
+
+    it('should return "returned" when returned and submitted_at is before returned_at', () => {
+      vi.setSystemTime(new Date('2024-10-23T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-18T20:00:00Z', // Before returned_at
+        graded_at: '2024-10-21T10:00:00Z',
+        returned_at: '2024-10-21T14:00:00Z',
+      })
+
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('returned')
+    })
+
+    it('should prioritize "resubmitted" over "graded"', () => {
+      vi.setSystemTime(new Date('2024-10-23T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-22T10:00:00Z',
+        graded_at: '2024-10-21T10:00:00Z',
+        returned_at: '2024-10-21T14:00:00Z',
+        score_completion: 8,
+        score_thinking: 7,
+        score_workflow: 9,
+      })
+
+      // resubmitted takes priority over graded because returned_at is set + submitted after
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('resubmitted')
+    })
+
+    it('should return "graded" over "submitted" statuses', () => {
+      vi.setSystemTime(new Date('2024-10-21T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-18T20:00:00Z',
+        graded_at: '2024-10-21T10:00:00Z',
+      })
+
+      // graded takes priority over submitted_on_time
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('graded')
+    })
+
     it('should handle doc.is_submitted = true but submitted_at is null (fallback)', () => {
       vi.setSystemTime(new Date('2024-10-15T12:00:00Z'))
       const assignment = createMockAssignment({
@@ -245,6 +344,18 @@ describe('assignment utilities', () => {
       expect(getAssignmentStatusLabel('submitted_late')).toBe('Submitted (late)')
     })
 
+    it('should return "Graded" for graded', () => {
+      expect(getAssignmentStatusLabel('graded')).toBe('Graded')
+    })
+
+    it('should return "Returned" for returned', () => {
+      expect(getAssignmentStatusLabel('returned')).toBe('Returned')
+    })
+
+    it('should return "Resubmitted" for resubmitted', () => {
+      expect(getAssignmentStatusLabel('resubmitted')).toBe('Resubmitted')
+    })
+
     it('should return "Unknown" for invalid status', () => {
       expect(getAssignmentStatusLabel('invalid_status' as any)).toBe('Unknown')
     })
@@ -277,6 +388,21 @@ describe('assignment utilities', () => {
 
     it('should return orange classes for submitted_late', () => {
       const classes = getAssignmentStatusBadgeClass('submitted_late')
+      expect(classes).toContain('orange')
+    })
+
+    it('should return purple classes for graded', () => {
+      const classes = getAssignmentStatusBadgeClass('graded')
+      expect(classes).toContain('purple')
+    })
+
+    it('should return blue classes for returned', () => {
+      const classes = getAssignmentStatusBadgeClass('returned')
+      expect(classes).toContain('blue')
+    })
+
+    it('should return orange classes for resubmitted', () => {
+      const classes = getAssignmentStatusBadgeClass('resubmitted')
       expect(classes).toContain('orange')
     })
 
@@ -316,6 +442,18 @@ describe('assignment utilities', () => {
 
     it('should return lime for submitted_late', () => {
       expect(getAssignmentStatusDotClass('submitted_late')).toBe('bg-lime-600')
+    })
+
+    it('should return purple for graded', () => {
+      expect(getAssignmentStatusDotClass('graded')).toBe('bg-purple-500')
+    })
+
+    it('should return blue for returned', () => {
+      expect(getAssignmentStatusDotClass('returned')).toBe('bg-blue-500')
+    })
+
+    it('should return orange for resubmitted', () => {
+      expect(getAssignmentStatusDotClass('resubmitted')).toBe('bg-orange-500')
     })
 
     it('should return gray for invalid status', () => {
@@ -509,6 +647,104 @@ describe('assignment utilities', () => {
 
         expect(result).toBe('Just passed')
       })
+    })
+  })
+
+  // ==========================================================================
+  // sanitizeDocForStudent()
+  // ==========================================================================
+
+  describe('sanitizeDocForStudent', () => {
+    it('should return doc unchanged when returned_at is set', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: 8,
+        score_thinking: 7,
+        score_workflow: 9,
+        feedback: 'Good work',
+        graded_at: '2024-10-21T10:00:00Z',
+        graded_by: 'teacher',
+        returned_at: '2024-10-21T14:00:00Z',
+      })
+
+      const result = sanitizeDocForStudent(doc)
+
+      expect(result.score_completion).toBe(8)
+      expect(result.score_thinking).toBe(7)
+      expect(result.score_workflow).toBe(9)
+      expect(result.feedback).toBe('Good work')
+      expect(result.graded_at).toBe('2024-10-21T10:00:00Z')
+      expect(result.graded_by).toBe('teacher')
+      expect(result.returned_at).toBe('2024-10-21T14:00:00Z')
+    })
+
+    it('should strip all grade fields when returned_at is null', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: 8,
+        score_thinking: 7,
+        score_workflow: 9,
+        feedback: 'Good work',
+        graded_at: '2024-10-21T10:00:00Z',
+        graded_by: 'teacher',
+        returned_at: null,
+      })
+
+      const result = sanitizeDocForStudent(doc)
+
+      expect(result.score_completion).toBeNull()
+      expect(result.score_thinking).toBeNull()
+      expect(result.score_workflow).toBeNull()
+      expect(result.feedback).toBeNull()
+      expect(result.graded_at).toBeNull()
+      expect(result.graded_by).toBeNull()
+      expect(result.returned_at).toBeNull()
+    })
+
+    it('should preserve non-grade fields when stripping', () => {
+      const doc = createMockAssignmentDoc({
+        id: 'doc-42',
+        is_submitted: true,
+        submitted_at: '2024-10-18T20:00:00Z',
+        score_completion: 8,
+        graded_at: '2024-10-21T10:00:00Z',
+        returned_at: null,
+      })
+
+      const result = sanitizeDocForStudent(doc)
+
+      expect(result.id).toBe('doc-42')
+      expect(result.is_submitted).toBe(true)
+      expect(result.submitted_at).toBe('2024-10-18T20:00:00Z')
+      expect(result.score_completion).toBeNull()
+    })
+
+    it('should not mutate the original doc', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: 8,
+        graded_at: '2024-10-21T10:00:00Z',
+        returned_at: null,
+      })
+
+      sanitizeDocForStudent(doc)
+
+      // Original should still have grades
+      expect(doc.score_completion).toBe(8)
+      expect(doc.graded_at).toBe('2024-10-21T10:00:00Z')
+    })
+
+    it('should handle doc with no grade fields set (all null)', () => {
+      const doc = createMockAssignmentDoc()
+
+      const result = sanitizeDocForStudent(doc)
+
+      // All grade fields already null — should still be null
+      expect(result.score_completion).toBeNull()
+      expect(result.graded_at).toBeNull()
+      expect(result.returned_at).toBeNull()
+    })
+
+    it('should handle falsy doc gracefully', () => {
+      const result = sanitizeDocForStudent(null as any)
+      expect(result).toBeNull()
     })
   })
 })

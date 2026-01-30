@@ -10,6 +10,43 @@ import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, TiptapContent } from '@/types'
 
+function ScoreInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const n = Number(value) || 0
+  return (
+    <div>
+      <label className="block text-xs font-medium text-text-muted mb-1">{label} (0–10)</label>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onChange(String(Math.max(0, n - 1)))}
+          disabled={n <= 0}
+          className="flex items-center justify-center w-8 h-8 rounded border border-border bg-surface text-lg font-bold text-text-default hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label={`Decrease ${label}`}
+        >
+          ‹
+        </button>
+        <input
+          type="number"
+          min={0}
+          max={10}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 rounded border border-border bg-surface px-2 py-1 text-sm text-text-default text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <button
+          type="button"
+          onClick={() => onChange(String(Math.min(10, n + 1)))}
+          disabled={n >= 10}
+          className="flex items-center justify-center w-8 h-8 rounded border border-border bg-surface text-lg font-bold text-text-default hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label={`Increase ${label}`}
+        >
+          ›
+        </button>
+      </div>
+    </div>
+  )
+}
+
 interface StudentWorkData {
   assignment: Assignment
   classroom: { id: string; title: string }
@@ -22,6 +59,8 @@ interface TeacherStudentWorkPanelProps {
   assignmentId: string
   studentId: string
 }
+
+type RightTab = 'history' | 'grading'
 
 export function TeacherStudentWorkPanel({
   assignmentId,
@@ -38,6 +77,16 @@ export function TeacherStudentWorkPanel({
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
+
+  // Grading state
+  const [rightTab, setRightTab] = useState<RightTab>('history')
+  const [scoreCompletion, setScoreCompletion] = useState<string>('')
+  const [scoreThinking, setScoreThinking] = useState<string>('')
+  const [scoreWorkflow, setScoreWorkflow] = useState<string>('')
+  const [feedback, setFeedback] = useState<string>('')
+  const [gradeSaving, setGradeSaving] = useState(false)
+  const [gradeError, setGradeError] = useState('')
+  const [autoGrading, setAutoGrading] = useState(false)
 
   function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
     const oldestFirst = [...historyEntries].reverse()
@@ -74,12 +123,29 @@ export function TeacherStudentWorkPanel({
     handleExitPreview()
   }
 
+  function populateGradeForm(doc: AssignmentDoc | null) {
+    if (doc?.graded_at) {
+      setScoreCompletion(doc.score_completion?.toString() ?? '')
+      setScoreThinking(doc.score_thinking?.toString() ?? '')
+      setScoreWorkflow(doc.score_workflow?.toString() ?? '')
+      setFeedback(doc.feedback ?? '')
+      setRightTab('grading')
+    } else {
+      setScoreCompletion('')
+      setScoreThinking('')
+      setScoreWorkflow('')
+      setFeedback('')
+      setRightTab('history')
+    }
+  }
+
   // Load student work
   useEffect(() => {
     setLoading(true)
     setError('')
     setData(null)
     handleExitPreview()
+    setGradeError('')
 
     async function loadStudentWork() {
       try {
@@ -89,6 +155,7 @@ export function TeacherStudentWorkPanel({
           throw new Error(result.error || 'Failed to load student work')
         }
         setData(result)
+        populateGradeForm(result.doc)
       } catch (err: any) {
         setError(err.message || 'Failed to load student work')
       } finally {
@@ -97,6 +164,7 @@ export function TeacherStudentWorkPanel({
     }
 
     loadStudentWork()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignmentId, studentId])
 
   // Load history
@@ -125,6 +193,73 @@ export function TeacherStudentWorkPanel({
     loadHistory()
   }, [assignmentId, studentId])
 
+  async function handleSaveGrade() {
+    if (!data) return
+    const sc = Number(scoreCompletion)
+    const st = Number(scoreThinking)
+    const sw = Number(scoreWorkflow)
+
+    if ([sc, st, sw].some((n) => !Number.isInteger(n) || n < 0 || n > 10)) {
+      setGradeError('Scores must be integers 0–10')
+      return
+    }
+
+    setGradeSaving(true)
+    setGradeError('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${assignmentId}/grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          score_completion: sc,
+          score_thinking: st,
+          score_workflow: sw,
+          feedback,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to save grade')
+      // Update local state
+      setData((prev) => prev ? { ...prev, doc: result.doc } : prev)
+    } catch (err: any) {
+      setGradeError(err.message || 'Failed to save grade')
+    } finally {
+      setGradeSaving(false)
+    }
+  }
+
+  async function handleAutoGrade() {
+    if (!data) return
+    setAutoGrading(true)
+    setGradeError('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${assignmentId}/auto-grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: [studentId] }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Auto-grade failed')
+      if (result.errors?.length) {
+        setGradeError(result.errors.join(', '))
+        return // Don't reload — grading failed
+      }
+      // Reload data to get updated grades
+      const reloadRes = await fetch(`/api/teacher/assignments/${assignmentId}/students/${studentId}`)
+      const reloadData = await reloadRes.json()
+      if (reloadRes.ok) {
+        setData(reloadData)
+        populateGradeForm(reloadData.doc)
+        setRightTab('grading') // Stay on grading tab to show results
+      }
+    } catch (err: any) {
+      setGradeError(err.message || 'Auto-grade failed')
+    } finally {
+      setAutoGrading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -148,6 +283,12 @@ export function TeacherStudentWorkPanel({
   const isPreviewLocked = lockedEntryId !== null
   const displayContent = previewContent || data.doc?.content
 
+  const sc = Number(scoreCompletion) || 0
+  const st = Number(scoreThinking) || 0
+  const sw = Number(scoreWorkflow) || 0
+  const totalScore = sc + st + sw
+  const totalPercent = Math.round((totalScore / 30) * 100)
+
   return (
     <div className="flex flex-col h-full">
       {/* Preview banner */}
@@ -159,7 +300,7 @@ export function TeacherStudentWorkPanel({
         </div>
       )}
 
-      {/* Main content area: Student work + History side by side */}
+      {/* Main content area: Student work + Right panel side by side */}
       <div className="flex-1 min-h-0 flex">
         {/* Student work content */}
         <div className={`flex-1 min-h-0 overflow-auto p-4 ${previewEntry ? 'ring-2 ring-primary ring-inset' : ''}`}>
@@ -177,43 +318,109 @@ export function TeacherStudentWorkPanel({
           )}
         </div>
 
-        {/* History panel */}
-        <div
-          className="w-48 border-l border-border bg-page flex flex-col min-h-0"
-          onMouseLeave={handleHistoryMouseLeave}
-        >
-          <div className="px-3 py-2 border-b border-border">
-            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide">
+        {/* Right panel with tabs */}
+        <div className="w-56 border-l border-border bg-page flex flex-col min-h-0">
+          {/* Tab switcher */}
+          <div className="flex border-b border-border">
+            <button
+              type="button"
+              className={`flex-1 px-3 py-2 text-xs font-medium ${
+                rightTab === 'history'
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-text-muted hover:text-text-default'
+              }`}
+              onClick={() => setRightTab('history')}
+            >
               History
-            </h3>
+            </button>
+            <button
+              type="button"
+              className={`flex-1 px-3 py-2 text-xs font-medium ${
+                rightTab === 'grading'
+                  ? 'text-primary border-b-2 border-primary'
+                  : 'text-text-muted hover:text-text-default'
+              }`}
+              onClick={() => setRightTab('grading')}
+            >
+              Grading
+            </button>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            {historyLoading ? (
-              <div className="p-4 text-center">
-                <Spinner size="sm" />
+
+          {rightTab === 'history' ? (
+            <>
+              <div
+                className="flex-1 min-h-0 overflow-y-auto"
+                onMouseLeave={handleHistoryMouseLeave}
+              >
+                {historyLoading ? (
+                  <div className="p-4 text-center">
+                    <Spinner size="sm" />
+                  </div>
+                ) : historyError ? (
+                  <div className="p-3">
+                    <p className="text-xs text-danger">{historyError}</p>
+                  </div>
+                ) : historyEntries.length === 0 ? (
+                  <div className="p-3">
+                    <p className="text-xs text-text-muted">No saves yet</p>
+                  </div>
+                ) : (
+                  <HistoryList
+                    entries={historyEntries}
+                    activeEntryId={previewEntry?.id ?? null}
+                    onEntryClick={handlePreviewLock}
+                    onEntryHover={handlePreviewHover}
+                  />
+                )}
               </div>
-            ) : historyError ? (
-              <div className="p-3">
-                <p className="text-xs text-danger">{historyError}</p>
+              {isPreviewLocked && previewEntry && (
+                <div className="px-3 py-2 border-t border-border">
+                  <Button onClick={handleExitPreview} variant="secondary" size="sm" className="w-full">
+                    Exit preview
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+              {gradeError && (
+                <div className="text-xs text-danger">{gradeError}</div>
+              )}
+
+              <ScoreInput label="Completion" value={scoreCompletion} onChange={setScoreCompletion} />
+              <ScoreInput label="Thinking" value={scoreThinking} onChange={setScoreThinking} />
+              <ScoreInput label="Workflow" value={scoreWorkflow} onChange={setScoreWorkflow} />
+
+              <div className="text-sm font-medium text-text-default">
+                Total: {totalScore}/30 ({totalPercent}%)
               </div>
-            ) : historyEntries.length === 0 ? (
-              <div className="p-3">
-                <p className="text-xs text-text-muted">No saves yet</p>
+
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">Feedback</label>
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  rows={8}
+                  className="w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default resize-none"
+                  placeholder="Write feedback..."
+                />
               </div>
-            ) : (
-              <HistoryList
-                entries={historyEntries}
-                activeEntryId={previewEntry?.id ?? null}
-                onEntryClick={handlePreviewLock}
-                onEntryHover={handlePreviewHover}
-              />
-            )}
-          </div>
-          {isPreviewLocked && previewEntry && (
-            <div className="px-3 py-2 border-t border-border">
-              <Button onClick={handleExitPreview} variant="secondary" size="sm" className="w-full">
-                Exit preview
-              </Button>
+
+              <div className="flex flex-col gap-2">
+                <Button size="sm" onClick={handleSaveGrade} disabled={gradeSaving}>
+                  {gradeSaving ? 'Saving...' : 'Save Grade'}
+                </Button>
+                <Button size="sm" variant="secondary" onClick={handleAutoGrade} disabled={autoGrading}>
+                  {autoGrading ? 'Grading...' : 'AI grade'}
+                </Button>
+              </div>
+
+              {data.doc?.graded_at && (
+                <div className="text-xs text-text-muted">
+                  Graded {formatInTimeZone(new Date(data.doc.graded_at), 'America/Toronto', 'MMM d, h:mm a')}
+                  {data.doc.graded_by && ` by ${data.doc.graded_by.startsWith('ai:') ? 'AI' : data.doc.graded_by}`}
+                </div>
+              )}
             </div>
           )}
         </div>

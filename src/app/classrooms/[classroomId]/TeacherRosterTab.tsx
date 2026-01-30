@@ -20,6 +20,7 @@ import {
 import type { Classroom } from '@/types'
 import { Check, ChevronRight, Copy, Mail, Pencil, Trash2, X } from 'lucide-react'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
+import { useStudentSelection } from '@/hooks/useStudentSelection'
 
 type Role = 'student' | 'teacher'
 
@@ -80,7 +81,6 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [isRemoving, setIsRemoving] = useState(false)
 
   // Selection state
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isEmailMenuOpen, setEmailMenuOpen] = useState(false)
   const [copiedMessage, setCopiedMessage] = useState<string | null>(null)
 
@@ -101,6 +101,9 @@ export function TeacherRosterTab({ classroom }: Props) {
     })
     return rows
   }, [roster, sortColumn, sortDirection])
+
+  const rosterIds = useMemo(() => sortedRoster.map((r) => r.id), [sortedRoster])
+  const { selectedIds, toggleSelect, toggleSelectAll, allSelected, clearSelection } = useStudentSelection(rosterIds)
 
   function onSort(column: 'first_name' | 'last_name') {
     setSortState((prev) => toggleSort(prev, column))
@@ -128,7 +131,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         throw new Error(data.error || 'Failed to load roster')
       }
       setRoster(normalizeRosterRows(data.roster || []))
-      setSelectedIds(new Set())
+      clearSelection()
     } catch (err: any) {
       setError(err.message || 'Failed to load roster')
     } finally {
@@ -164,29 +167,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     }
   }
 
-  // Selection helpers
-  const allSelected = sortedRoster.length > 0 && selectedIds.size === sortedRoster.length
   const someSelected = selectedIds.size > 0
-
-  function toggleSelectAll() {
-    if (allSelected) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(sortedRoster.map((r) => r.id)))
-    }
-  }
-
-  function toggleSelect(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
 
   // Get emails for selected students
   const selectedRows = sortedRoster.filter((r) => selectedIds.has(r.id))

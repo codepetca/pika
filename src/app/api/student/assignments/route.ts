@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { calculateAssignmentStatus } from '@/lib/assignments'
+import { calculateAssignmentStatus, sanitizeDocForStudent } from '@/lib/assignments'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       return {
         ...assignment,
         status,
-        doc: doc || null
+        doc: doc ? sanitizeDocForStudent(doc) : null
       }
     })
 

@@ -662,6 +662,36 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         </div>
       )}
 
+      {/* Grade panel (shown when work has been returned) */}
+      {doc?.returned_at && doc.score_completion != null && (
+        <div className="bg-surface rounded-lg shadow-sm border border-border p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-text-default">Grade</h3>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div>
+              <div className="text-text-muted text-xs">Completion</div>
+              <div className="font-medium">{doc.score_completion}/10</div>
+            </div>
+            <div>
+              <div className="text-text-muted text-xs">Thinking</div>
+              <div className="font-medium">{doc.score_thinking}/10</div>
+            </div>
+            <div>
+              <div className="text-text-muted text-xs">Workflow</div>
+              <div className="font-medium">{doc.score_workflow}/10</div>
+            </div>
+          </div>
+          <div className="text-sm font-medium">
+            Total: {(doc.score_completion ?? 0) + (doc.score_thinking ?? 0) + (doc.score_workflow ?? 0)}/30
+          </div>
+          {doc.feedback && (
+            <div>
+              <div className="text-xs text-text-muted mb-1">Feedback</div>
+              <div className="text-sm text-text-default whitespace-pre-wrap">{doc.feedback}</div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Submission info */}
       {isSubmitted && doc?.submitted_at && (
         <div className="text-sm text-text-muted text-center">

@@ -57,14 +57,14 @@ export async function generateDailyLogSummary(text: string): Promise<{
           role: 'system',
           content: [
             {
-              type: 'text',
+              type: 'input_text',
               text:
                 'Write a single concise sentence (one line) summarizing the student’s daily journal entry for a teacher. ' +
                 'Be neutral and factual. Do not include the student’s name/email. If the entry is empty or unclear, say "No clear details provided."',
             },
           ],
         },
-        { role: 'user', content: [{ type: 'text', text }] },
+        { role: 'user', content: [{ type: 'input_text', text }] },
       ],
     }),
   })
