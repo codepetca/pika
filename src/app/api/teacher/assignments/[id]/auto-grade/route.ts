@@ -23,6 +23,10 @@ export async function POST(
       return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })
     }
 
+    if (student_ids.length > 100) {
+      return NextResponse.json({ error: 'Cannot auto-grade more than 100 students at once' }, { status: 400 })
+    }
+
     const supabase = getServiceRoleClient()
 
     // Verify teacher owns this assignment

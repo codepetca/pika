@@ -168,6 +168,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [isAutoGrading, setIsAutoGrading] = useState(false)
   const [isReturning, setIsReturning] = useState(false)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
+  const [refreshCounter, setRefreshCounter] = useState(0)
 
   const loadAssignments = useCallback(async () => {
     setLoading(true)
@@ -320,7 +321,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     }
 
     loadSelectedAssignment()
-  }, [selection])
+  }, [selection, refreshCounter])
 
   // Notify parent about selected assignment for sidebar
   useEffect(() => {
@@ -431,12 +432,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       if (!res.ok) throw new Error(data.error || 'Auto-grade failed')
       batchClearSelection()
       // Reload assignment data to refresh statuses/grades
-      // Force re-fetch by toggling selection
-      if (selection.mode === 'assignment') {
-        const aid = selection.assignmentId
-        setSelection({ mode: 'summary' })
-        setTimeout(() => setSelection({ mode: 'assignment', assignmentId: aid }), 0)
-      }
+      setRefreshCounter((c) => c + 1)
     } catch (err: any) {
       setError(err.message || 'Auto-grade failed')
     } finally {
@@ -458,13 +454,8 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       if (!res.ok) throw new Error(data.error || 'Return failed')
       batchClearSelection()
       setShowReturnConfirm(false)
-      // Reload
-      // Force re-fetch by toggling selection
-      if (selection.mode === 'assignment') {
-        const aid = selection.assignmentId
-        setSelection({ mode: 'summary' })
-        setTimeout(() => setSelection({ mode: 'assignment', assignmentId: aid }), 0)
-      }
+      // Reload assignment data to refresh statuses/grades
+      setRefreshCounter((c) => c + 1)
     } catch (err: any) {
       setError(err.message || 'Return failed')
     } finally {

@@ -208,13 +208,6 @@ export type AssignmentStatus =
   | 'returned'
   | 'resubmitted'
 
-export interface GradePayload {
-  student_id: string
-  score_completion: number
-  score_thinking: number
-  score_workflow: number
-  feedback: string
-}
 
 // Extended types for UI display
 export interface AssignmentWithStatus extends Assignment {

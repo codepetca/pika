@@ -86,7 +86,6 @@ export function TeacherStudentWorkPanel({
     handleExitPreview()
   }
 
-  // Pre-populate grading form from doc data
   function populateGradeForm(doc: AssignmentDoc | null) {
     if (doc?.graded_at) {
       setScoreCompletion(doc.score_completion?.toString() ?? '')
@@ -128,6 +127,7 @@ export function TeacherStudentWorkPanel({
     }
 
     loadStudentWork()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignmentId, studentId])
 
   // Load history

@@ -1,7 +1,17 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export function useStudentSelection(rowIds: string[]) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  // Clear stale selections when rowIds change
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const rowIdSet = new Set(rowIds)
+      const filtered = new Set([...prev].filter((id) => rowIdSet.has(id)))
+      if (filtered.size === prev.size) return prev
+      return filtered
+    })
+  }, [rowIds])
 
   const allSelected = rowIds.length > 0 && selectedIds.size === rowIds.length
   const selectedCount = selectedIds.size
