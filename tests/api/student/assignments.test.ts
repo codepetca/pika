@@ -33,6 +33,7 @@ vi.mock('@/lib/assignments', () => ({
     if (doc) return 'in-progress'
     return 'not-started'
   }),
+  sanitizeDocForStudent: vi.fn((doc) => doc),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
