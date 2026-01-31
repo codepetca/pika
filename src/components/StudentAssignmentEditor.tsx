@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Tooltip } from '@/ui'
-import { Eye, EyeOff } from 'lucide-react'
+import { History } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -509,11 +509,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 aria-expanded={isHistoryOpen}
                 aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
               >
-                {isHistoryOpen ? (
-                  <EyeOff className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <Eye className="h-4 w-4" aria-hidden="true" />
-                )}
+                <History className="h-4 w-4" aria-hidden="true" />
               </button>
             </Tooltip>
           </div>
