@@ -107,7 +107,7 @@ const MainToolbarContent = ({
 function CharacterCount() {
   const { editor } = useCurrentEditor()
   if (!editor) return null
-  const count = editor.getText().length
+  const count = editor.getText().replace(/\n/g, '').length
   return (
     <span className="text-xs text-muted-foreground tabular-nums select-none">
       {count}
