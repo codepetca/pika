@@ -122,6 +122,8 @@ export function StudentAssignmentsTab({ classroom }: Props) {
                 graded_at: null,
                 graded_by: null,
                 returned_at: null,
+                authenticity_score: null,
+                authenticity_flags: null,
                 created_at: now,
                 updated_at: now,
               }

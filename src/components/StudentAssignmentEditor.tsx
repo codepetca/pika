@@ -76,6 +76,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const pendingContentRef = useRef<TiptapContent | null>(null)
   const draftBeforePreviewRef = useRef<TiptapContent | null>(null)
 
+  // Input tracking for authenticity
+  const pasteWordCountRef = useRef(0)
+  const keystrokeCountRef = useRef(0)
+
   const loadAssignment = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -155,6 +159,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         body: JSON.stringify({
           content: newContent,
           trigger: options?.trigger ?? 'autosave',
+          paste_word_count: pasteWordCountRef.current,
+          keystroke_count: keystrokeCountRef.current,
         })
       })
 
@@ -181,6 +187,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         setPreviewEntry(prev => (prev?.id === historyEntry.id ? historyEntry : prev))
       }
       lastSavedContentRef.current = newContentStr
+      pasteWordCountRef.current = 0
+      keystrokeCountRef.current = 0
       setSaveStatus('saved')
     } catch (err: any) {
       console.error('Error saving:', err)
@@ -523,6 +531,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 disabled={submitting || !!previewEntry}
                 editable={!isSubmitted && !previewEntry}
                 onBlur={flushAutosave}
+                onPaste={(wordCount) => { pasteWordCountRef.current += wordCount }}
+                onKeystroke={() => { keystrokeCountRef.current++ }}
                 className="h-full"
               />
             </div>

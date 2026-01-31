@@ -31,6 +31,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   const [title, setTitle] = useState('')
   const [instructions, setInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
+  const [trackAuthenticity, setTrackAuthenticity] = useState(true)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false)
@@ -44,8 +45,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAtRef = useRef<number>(0)
-  const lastSavedValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
-  const pendingValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
+  const lastSavedValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean } | null>(null)
+  const pendingValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean } | null>(null)
 
   const isCreateMode = !assignment
 
@@ -67,14 +68,16 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setCurrentAssignment(assignment)
       setTitle(nextTitle)
       setInstructions(nextInstructions)
+      setTrackAuthenticity(assignment.track_authenticity ?? true)
       setDueAt(nextDueAt)
-      lastSavedValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt }
+      lastSavedValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt, trackAuthenticity: assignment.track_authenticity ?? true }
       setSaveStatus('saved')
     } else {
       // Create mode: immediately create a draft
       setCurrentAssignment(null)
       setTitle('')
       setInstructions(EMPTY_INSTRUCTIONS)
+      setTrackAuthenticity(true)
       setDueAt(defaultDueAt)
       lastSavedValuesRef.current = null
       setSaveStatus('saving')
@@ -110,7 +113,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   }, [assignment, isOpen, setDueAt, setError, defaultDueAt])
 
   // Get only the fields that changed compared to last saved values
-  function getChangedFields(values: { title: string; instructions: TiptapContent; dueAt: string }) {
+  function getChangedFields(values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean }) {
     const saved = lastSavedValuesRef.current
     if (!saved) return null
 
@@ -120,13 +123,14 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (JSON.stringify(values.instructions) !== JSON.stringify(saved.instructions)) {
       changes.rich_instructions = values.instructions
     }
+    if (values.trackAuthenticity !== saved.trackAuthenticity) changes.track_authenticity = values.trackAuthenticity
 
     return Object.keys(changes).length > 0 ? changes : null
   }
 
   // Create a new assignment
   const createAssignment = useCallback(async (
-    values: { title: string; instructions: TiptapContent; dueAt: string }
+    values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean }
   ): Promise<Assignment | null> => {
     try {
       const response = await fetch('/api/teacher/assignments', {
@@ -137,6 +141,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           title: values.title.trim() || `Untitled (${format(nowInToronto(), 'yyyy-MM-dd HH:mm:ss')})`,
           rich_instructions: values.instructions,
           due_at: toTorontoEndOfDayIso(values.dueAt),
+          track_authenticity: values.trackAuthenticity,
         }),
       })
 
@@ -161,7 +166,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (!creating) return
 
     const createDraft = async () => {
-      const initialValues = { title: '', instructions: EMPTY_INSTRUCTIONS, dueAt: defaultDueAt }
+      const initialValues = { title: '', instructions: EMPTY_INSTRUCTIONS, dueAt: defaultDueAt, trackAuthenticity: true }
       const newAssignment = await createAssignment(initialValues)
       setCreating(false)
 
@@ -171,7 +176,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         setInstructions(newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS)
         const assignmentDueAt = formatDateInToronto(new Date(newAssignment.due_at))
         setDueAt(assignmentDueAt)
-        lastSavedValuesRef.current = { title: newAssignment.title, instructions: newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS, dueAt: assignmentDueAt }
+        lastSavedValuesRef.current = { title: newAssignment.title, instructions: newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS, dueAt: assignmentDueAt, trackAuthenticity: newAssignment.track_authenticity ?? true }
         setSaveStatus('saved')
 
         // Focus and select title after creation
@@ -190,7 +195,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
-    values: { title: string; instructions: TiptapContent; dueAt: string },
+    values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean },
     options?: { closeAfter?: boolean }
   ) => {
     setSaveStatus('saving')
@@ -255,7 +260,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   // Schedule a debounced save with minimum interval throttling
   const scheduleSave = useCallback((
-    values: { title: string; instructions: TiptapContent; dueAt: string },
+    values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean },
     options?: { force?: boolean }
   ) => {
     pendingValuesRef.current = values
@@ -284,7 +289,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   }, [saveChanges])
 
   // Schedule autosave after a debounce period
-  function scheduleAutosave(values: { title: string; instructions: TiptapContent; dueAt: string }) {
+  function scheduleAutosave(values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean }) {
     pendingValuesRef.current = values
     setSaveStatus('unsaved')
 
@@ -299,7 +304,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
-    scheduleAutosave({ title: newTitle, instructions, dueAt })
+    scheduleAutosave({ title: newTitle, instructions, dueAt, trackAuthenticity })
   }
 
   function handleInstructionsChange(newInstructions: TiptapContent) {
@@ -311,12 +316,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       return
     }
     setInstructions(newInstructions)
-    scheduleAutosave({ title, instructions: newInstructions, dueAt })
+    scheduleAutosave({ title, instructions: newInstructions, dueAt, trackAuthenticity })
   }
 
   function handleDueAtChange(newDueAt: string) {
     updateDueDate(newDueAt)
-    scheduleAutosave({ title, instructions, dueAt: newDueAt })
+    scheduleAutosave({ title, instructions, dueAt: newDueAt, trackAuthenticity })
+  }
+
+  function handleTrackAuthenticityChange(newValue: boolean) {
+    setTrackAuthenticity(newValue)
+    scheduleAutosave({ title, instructions, dueAt, trackAuthenticity: newValue })
   }
 
   function handlePrevDate() {
@@ -355,7 +365,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
 
     if ((saveStatus === 'unsaved' || pendingValuesRef.current) && currentAssignment) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt, trackAuthenticity }
       const changedFields = getChangedFields(valuesToSave)
 
       if (changedFields) {
@@ -387,7 +397,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
     pendingValuesRef.current = null
     setSaving(true)
-    await saveChanges({ title, instructions, dueAt }, { closeAfter: true })
+    await saveChanges({ title, instructions, dueAt, trackAuthenticity }, { closeAfter: true })
     setSaving(false)
   }
 
@@ -403,7 +413,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
     // If there are unsaved changes, save before closing
     if (saveStatus === 'unsaved' || pendingValuesRef.current) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt, trackAuthenticity }
       await saveChanges(valuesToSave, { closeAfter: true })
     } else {
       if (currentAssignment) {
@@ -503,9 +513,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           instructions={instructions}
           dueAt={dueAt}
           classDays={classDays}
+          trackAuthenticity={trackAuthenticity}
           onTitleChange={handleTitleChange}
           onInstructionsChange={handleInstructionsChange}
           onDueAtChange={handleDueAtChange}
+          onTrackAuthenticityChange={handleTrackAuthenticityChange}
           onPrevDate={handlePrevDate}
           onNextDate={handleNextDate}
           onSubmit={handleSubmit}
