@@ -109,7 +109,7 @@ function CharacterCount() {
   if (!editor) return null
   const count = editor.getText().replace(/\n/g, '').length
   return (
-    <span className="text-xs text-muted-foreground tabular-nums select-none">
+    <span className="text-xs text-text-muted tabular-nums select-none">
       {count}
     </span>
   )
