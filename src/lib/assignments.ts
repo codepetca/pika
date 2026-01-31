@@ -198,6 +198,8 @@ const GRADE_FIELDS = [
   'graded_at',
   'graded_by',
   'returned_at',
+  'authenticity_score',
+  'authenticity_flags',
 ] as const
 
 /**

@@ -130,6 +130,7 @@ export async function GET(
         position: assignment.position ?? 0,
         is_draft: assignment.is_draft ?? false,
         released_at: assignment.released_at ?? null,
+        track_authenticity: assignment.track_authenticity ?? true,
         created_by: assignment.created_by,
         created_at: assignment.created_at,
         updated_at: assignment.updated_at
@@ -166,7 +167,7 @@ export async function PATCH(
     const user = await requireRole('teacher')
     const { id } = await params
     const body = await request.json()
-    const { title, rich_instructions, due_at } = body
+    const { title, rich_instructions, due_at, track_authenticity } = body
 
     const supabase = getServiceRoleClient()
 
@@ -213,6 +214,7 @@ export async function PATCH(
       updates.description = extractPlainText(instructions)  // Keep plain text in sync
     }
     if (due_at !== undefined) updates.due_at = due_at
+    if (track_authenticity !== undefined) updates.track_authenticity = track_authenticity
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(

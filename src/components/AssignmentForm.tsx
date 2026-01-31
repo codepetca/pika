@@ -62,9 +62,11 @@ interface AssignmentFormProps {
   instructions: TiptapContent
   dueAt: string
   classDays?: ClassDay[]
+  trackAuthenticity: boolean
   onTitleChange: (next: string) => void
   onInstructionsChange: (next: TiptapContent) => void
   onDueAtChange: (next: string) => void
+  onTrackAuthenticityChange: (next: boolean) => void
   onPrevDate: () => void
   onNextDate: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
@@ -89,9 +91,11 @@ export function AssignmentForm({
   instructions,
   dueAt,
   classDays,
+  trackAuthenticity,
   onTitleChange,
   onInstructionsChange,
   onDueAtChange,
+  onTrackAuthenticityChange,
   onPrevDate,
   onNextDate,
   onSubmit,
@@ -154,6 +158,17 @@ export function AssignmentForm({
         })()}
         <DateActionBar value={dueAt} onChange={onDueAtChange} onPrev={onPrevDate} onNext={onNextDate} />
       </div>
+
+      <label className="flex items-center gap-2 text-sm text-text-muted">
+        <input
+          type="checkbox"
+          checked={trackAuthenticity}
+          onChange={(e) => onTrackAuthenticityChange(e.target.checked)}
+          disabled={disabled}
+          className="rounded border-border"
+        />
+        Track writing authenticity
+      </label>
 
       {error && <p className="text-sm text-warning">{error}</p>}
 
