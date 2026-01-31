@@ -88,7 +88,7 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'full' },
   },
   attendance: {
-    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '50%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%' },
     mainContent: { maxWidth: 'full' },
   },
   roster: {
