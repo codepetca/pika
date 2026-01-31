@@ -34,7 +34,6 @@ interface LogRow {
   student_last_name: string
   email_username: string
   entry: Entry | null
-  summary: string | null
 }
 
 interface Props {
