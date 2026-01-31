@@ -430,6 +430,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Auto-grade failed')
+      if (data.graded_count === 0) {
+        setError('No gradable content found — submissions may be empty')
+      }
       batchClearSelection()
       // Reload assignment data to refresh statuses/grades
       setRefreshCounter((c) => c + 1)

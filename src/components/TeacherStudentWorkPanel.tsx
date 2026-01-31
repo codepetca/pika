@@ -274,6 +274,10 @@ export function TeacherStudentWorkPanel({
         setGradeError(result.errors.join(', '))
         return // Don't reload — grading failed
       }
+      if (result.graded_count === 0) {
+        setGradeError('No gradable content found — the submission may be empty')
+        return
+      }
       // Reload data to get updated grades
       const reloadRes = await fetch(`/api/teacher/assignments/${assignmentId}/students/${studentId}`)
       const reloadData = await reloadRes.json()
