@@ -242,6 +242,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
         onClose={handleCloseInstructions}
         title="Instructions"
         subtitle={selectedAssignment?.title}
+        maxWidth="max-w-4xl"
       >
         {selectedAssignment?.rich_instructions ? (
           <RichTextViewer content={selectedAssignment.rich_instructions} />

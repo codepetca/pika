@@ -16,7 +16,9 @@ function getTriggerBadgeClasses(): string {
 }
 
 function getTriggerLabel(trigger: string): string {
-  return trigger === 'autosave' ? 'save' : trigger
+  if (trigger === 'autosave') return 'save'
+  if (trigger === 'baseline') return 'base'
+  return trigger
 }
 
 export function HistoryList({

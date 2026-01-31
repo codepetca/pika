@@ -6,7 +6,7 @@ import { Button } from './Button'
 
 // Dialog panel styles with CVA
 const dialogPanelStyles = cva([
-  'relative w-full max-w-sm',
+  'relative w-full',
   'rounded-dialog border shadow-dialog p-dialog',
   'bg-surface',
   'border-border',
@@ -115,7 +115,7 @@ export function AlertDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={dialogPanelStyles()}
+        className={`${dialogPanelStyles()} max-w-sm`}
       >
         <div className="flex items-center gap-3">
           {icon}
@@ -223,7 +223,7 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className={dialogPanelStyles()}
+        className={`${dialogPanelStyles()} max-w-sm`}
       >
         <div id={titleId} className={dialogTitleStyles}>{title}</div>
         {description && (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, Eye, EyeOff, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, History, X } from 'lucide-react'
 import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
@@ -237,11 +237,7 @@ export function TeacherStudentWorkModal({
                 aria-expanded={isHistoryOpen}
                 aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
               >
-                {isHistoryOpen ? (
-                  <EyeOff className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <Eye className="h-4 w-4" aria-hidden="true" />
-                )}
+                <History className="h-4 w-4" aria-hidden="true" />
               </button>
               <button
                 type="button"
