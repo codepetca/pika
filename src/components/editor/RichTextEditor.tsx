@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { EditorContent, EditorContext, useEditor } from '@tiptap/react'
+import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref, sanitizeLinkHref } from '@/lib/tiptap-content'
 
@@ -98,7 +98,20 @@ const MainToolbarContent = ({
       </ToolbarGroup>
 
       <Spacer />
+
+      <CharacterCount />
     </>
+  )
+}
+
+function CharacterCount() {
+  const { editor } = useCurrentEditor()
+  if (!editor) return null
+  const count = editor.getText().replace(/\n/g, '').length
+  return (
+    <span className="text-xs text-text-muted tabular-nums select-none">
+      {count}
+    </span>
   )
 }
 
