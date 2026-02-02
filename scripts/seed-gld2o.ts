@@ -41,8 +41,8 @@ function getGLD2OClassDays() {
 
   // Days with no class (weekday-only exclusions; weekends already filtered)
   const excludedDates = new Set([
-    // March break: Mar 17-21 (weekdays of Mar 16-20 week)
-    '2025-03-17', '2025-03-18', '2025-03-19', '2025-03-20',
+    // March break: Mar 17-21
+    '2025-03-17', '2025-03-18', '2025-03-19', '2025-03-20', '2025-03-21',
     '2025-04-03',
     // June 17-30 (weekdays only)
     ...eachDayOfInterval({ start: new Date(2025, 5, 17), end: new Date(2025, 5, 30) })
