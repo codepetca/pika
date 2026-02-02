@@ -36,16 +36,20 @@ function formatError(error: any): string {
 }
 
 function getGLD2OClassDays() {
-  const rangeStart = new Date(2025, 1, 2)   // Feb 2
-  const rangeEnd = new Date(2025, 5, 30)    // June 30
+  const rangeStart = new Date(2026, 1, 2)   // Feb 2
+  const rangeEnd = new Date(2026, 5, 30)    // June 30
 
-  // Days with no class (weekday-only exclusions; weekends already filtered)
+  // Days with no class
   const excludedDates = new Set([
-    // March break: Mar 17-21
-    '2025-03-17', '2025-03-18', '2025-03-19', '2025-03-20', '2025-03-21',
-    '2025-04-03',
-    // June 17-30 (weekdays only)
-    ...eachDayOfInterval({ start: new Date(2025, 5, 17), end: new Date(2025, 5, 30) })
+    '2026-02-16',
+    // March break: Mar 16-20
+    '2026-03-16', '2026-03-17', '2026-03-18', '2026-03-19', '2026-03-20',
+    '2026-04-03',
+    '2026-04-06',
+    '2026-05-04',
+    '2026-05-18',
+    // June 17-30
+    ...eachDayOfInterval({ start: new Date(2026, 5, 17), end: new Date(2026, 5, 30) })
       .map(d => format(d, 'yyyy-MM-dd')),
   ])
 
@@ -105,7 +109,7 @@ async function seed() {
       teacher_id: teacher.id,
       title: 'GLD2O Staging',
       class_code: 'GLD2O1',
-      term_label: 'Semester 2 2024-2025',
+      term_label: 'Semester 2 2025-2026',
       start_date: format(calendar.rangeStart, 'yyyy-MM-dd'),
       end_date: format(calendar.rangeEnd, 'yyyy-MM-dd'),
     })
