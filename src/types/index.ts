@@ -158,9 +158,18 @@ export interface Assignment {
   position: number
   is_draft: boolean  // Whether assignment is a draft (not visible to students)
   released_at: string | null  // When the assignment was released to students
+  track_authenticity: boolean
   created_by: string
   created_at: string
   updated_at: string
+}
+
+export interface AuthenticityFlag {
+  timestamp: string
+  wordDelta: number
+  seconds: number
+  wps: number
+  reason: 'paste' | 'low_keystrokes' | 'high_wps'
 }
 
 export interface AssignmentDoc {
@@ -178,6 +187,8 @@ export interface AssignmentDoc {
   graded_at: string | null
   graded_by: string | null
   returned_at: string | null
+  authenticity_score: number | null
+  authenticity_flags: AuthenticityFlag[] | null
   created_at: string
   updated_at: string
 }
@@ -193,6 +204,8 @@ export interface AssignmentDocHistoryEntry {
   snapshot: TiptapContent | null
   word_count: number
   char_count: number
+  paste_word_count: number | null
+  keystroke_count: number | null
   trigger: AssignmentDocHistoryTrigger
   created_at: string
 }

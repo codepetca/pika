@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Tooltip } from '@/ui'
-import { Eye, EyeOff } from 'lucide-react'
+import { History } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -75,6 +75,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
   const draftBeforePreviewRef = useRef<TiptapContent | null>(null)
+
+  // Input tracking for authenticity
+  const pasteWordCountRef = useRef(0)
+  const keystrokeCountRef = useRef(0)
 
   const loadAssignment = useCallback(async () => {
     setLoading(true)
@@ -155,6 +159,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         body: JSON.stringify({
           content: newContent,
           trigger: options?.trigger ?? 'autosave',
+          paste_word_count: pasteWordCountRef.current,
+          keystroke_count: keystrokeCountRef.current,
         })
       })
 
@@ -181,6 +187,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         setPreviewEntry(prev => (prev?.id === historyEntry.id ? historyEntry : prev))
       }
       lastSavedContentRef.current = newContentStr
+      pasteWordCountRef.current = 0
+      keystrokeCountRef.current = 0
       setSaveStatus('saved')
     } catch (err: any) {
       console.error('Error saving:', err)
@@ -501,11 +509,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 aria-expanded={isHistoryOpen}
                 aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
               >
-                {isHistoryOpen ? (
-                  <EyeOff className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <Eye className="h-4 w-4" aria-hidden="true" />
-                )}
+                <History className="h-4 w-4" aria-hidden="true" />
               </button>
             </Tooltip>
           </div>
@@ -523,6 +527,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 disabled={submitting || !!previewEntry}
                 editable={!isSubmitted && !previewEntry}
                 onBlur={flushAutosave}
+                onPaste={(wordCount) => { pasteWordCountRef.current += wordCount }}
+                onKeystroke={() => { keystrokeCountRef.current++ }}
                 className="h-full"
               />
             </div>

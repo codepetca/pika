@@ -23,7 +23,6 @@ import {
   TableCard,
 } from '@/components/DataTable'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
-import { useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import type { ClassDay, Classroom, Entry } from '@/types'
 
 type SortColumn = 'first_name' | 'last_name' | 'id'
@@ -35,12 +34,11 @@ interface LogRow {
   student_last_name: string
   email_username: string
   entry: Entry | null
-  summary: string | null
 }
 
 interface Props {
   classroom: Classroom
-  onSelectEntry?: (entry: Entry | null, studentName: string) => void
+  onSelectEntry?: (entry: Entry | null, studentName: string, studentId: string | null) => void
 }
 
 export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
@@ -53,8 +51,6 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     column: SortColumn
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
-
-  const { isExpanded: isLeftExpanded } = useLeftSidebar()
 
   useEffect(() => {
     async function load() {
@@ -84,7 +80,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
       if (!isClassDayOnDate(classDays, selectedDate)) {
         setLogs([])
         setSelectedStudentId(null)
-        onSelectEntry?.(null, '')
+        onSelectEntry?.(null, '', null)
         return
       }
 
@@ -104,10 +100,10 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
           const firstLog = mappedLogs[0]
           setSelectedStudentId(firstLog.student_id)
           const studentName = [firstLog.student_first_name, firstLog.student_last_name].filter(Boolean).join(' ') || firstLog.email_username
-          onSelectEntry?.(firstLog.entry, studentName)
+          onSelectEntry?.(firstLog.entry, studentName, firstLog.student_id)
         } else {
           setSelectedStudentId(null)
-          onSelectEntry?.(null, '')
+          onSelectEntry?.(null, '', null)
         }
       } catch (err) {
         console.error('Error loading logs:', err)
@@ -155,16 +151,10 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
 
     if (newSelectedId) {
       const studentName = [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') || row.email_username
-      onSelectEntry?.(row.entry, studentName)
+      onSelectEntry?.(row.entry, studentName, row.student_id)
     } else {
-      onSelectEntry?.(null, '')
+      onSelectEntry?.(null, '', null)
     }
-  }
-
-  function getLogText(row: LogRow): string {
-    if (row.summary) return row.summary
-    if (row.entry?.text) return row.entry.text
-    return '—'
   }
 
   // Keyboard navigation handler
@@ -177,7 +167,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
       const studentName =
         [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') ||
         row.email_username
-      onSelectEntry?.(row.entry, studentName)
+      onSelectEntry?.(row.entry, studentName, row.student_id)
     },
     [rows, onSelectEntry]
   )
@@ -204,7 +194,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
             onNext={() => moveDateBy(1)}
           />
         }
-        trailing={<RightSidebarToggle />}
+        trailing={null}
       />
 
       <PageContent>
@@ -241,9 +231,6 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                 <DataTableHeaderCell density="tight" align="center">
                   Status
                 </DataTableHeaderCell>
-                <DataTableHeaderCell density="tight">
-                  Log
-                </DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
@@ -254,8 +241,6 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                   : selectedDate >= today
                     ? 'pending'
                     : 'absent'
-                const logText = getLogText(row)
-
                 return (
                   <DataTableRow
                     key={row.student_id}
@@ -283,23 +268,12 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                         <span className="text-text-muted">—</span>
                       )}
                     </DataTableCell>
-                    <DataTableCell density="tight" className={isLeftExpanded ? 'max-w-xs' : 'max-w-md'}>
-                      {logText !== '—' ? (
-                        <Tooltip content={logText}>
-                          <div className="truncate text-text-muted">
-                            {logText}
-                          </div>
-                        </Tooltip>
-                      ) : (
-                        <div className="text-text-muted">—</div>
-                      )}
-                    </DataTableCell>
                   </DataTableRow>
                 )
               })}
               {rows.length === 0 && (
                 <EmptyStateRow
-                  colSpan={5}
+                  colSpan={4}
                   message={isClassDay ? 'No students enrolled' : 'Not a class day'}
                   density="tight"
                 />

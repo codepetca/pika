@@ -65,6 +65,7 @@ function createTableMock(config: {
       return {
         select: vi.fn(() => ({
           eq: vi.fn().mockReturnThis(),
+          not: vi.fn().mockReturnThis(),
           then: vi.fn((resolve: any) => resolve(config.assignments)),
         })),
       }
