@@ -39,16 +39,12 @@ function getGLD2OClassDays() {
   const rangeStart = new Date(2025, 1, 2)   // Feb 2
   const rangeEnd = new Date(2025, 5, 30)    // June 30
 
-  // Days with no class (month is 0-indexed)
+  // Days with no class (weekday-only exclusions; weekends already filtered)
   const excludedDates = new Set([
-    '2025-02-16',
-    // March break: Mar 16-20
-    '2025-03-16', '2025-03-17', '2025-03-18', '2025-03-19', '2025-03-20',
+    // March break: Mar 17-21 (weekdays of Mar 16-20 week)
+    '2025-03-17', '2025-03-18', '2025-03-19', '2025-03-20',
     '2025-04-03',
-    '2025-04-06',
-    '2025-05-04',
-    '2025-05-18',
-    // June 17-30
+    // June 17-30 (weekdays only)
     ...eachDayOfInterval({ start: new Date(2025, 5, 17), end: new Date(2025, 5, 30) })
       .map(d => format(d, 'yyyy-MM-dd')),
   ])
@@ -81,6 +77,7 @@ async function seed() {
     .from('users')
     .select('id, email')
     .in('email', studentEmails)
+    .order('email')
 
   if (studentsErr || !students || students.length !== 2) {
     throw new Error(`Students not found. Run the main seed first: ${formatError(studentsErr)}`)
@@ -91,8 +88,16 @@ async function seed() {
   // 3. Create the GLD2O Staging classroom
   const calendar = getGLD2OClassDays()
 
-  // Remove existing classroom with this class_code to allow re-running
-  await supabase.from('classrooms').delete().eq('class_code', 'GLD2O1')
+  // Remove existing classroom and dependents to allow re-running
+  const { data: existing } = await supabase
+    .from('classrooms').select('id').eq('class_code', 'GLD2O1').single()
+
+  if (existing) {
+    await supabase.from('class_days').delete().eq('classroom_id', existing.id)
+    await supabase.from('classroom_enrollments').delete().eq('classroom_id', existing.id)
+    await supabase.from('classroom_roster').delete().eq('classroom_id', existing.id)
+    await supabase.from('classrooms').delete().eq('id', existing.id)
+  }
 
   const { data: classroom, error: classroomErr } = await supabase
     .from('classrooms')
