@@ -122,6 +122,8 @@ export function StudentAssignmentsTab({ classroom }: Props) {
                 graded_at: null,
                 graded_by: null,
                 returned_at: null,
+                authenticity_score: null,
+                authenticity_flags: null,
                 created_at: now,
                 updated_at: now,
               }
@@ -240,6 +242,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
         onClose={handleCloseInstructions}
         title="Instructions"
         subtitle={selectedAssignment?.title}
+        maxWidth="max-w-4xl"
       >
         {selectedAssignment?.rich_instructions ? (
           <RichTextViewer content={selectedAssignment.rich_instructions} />

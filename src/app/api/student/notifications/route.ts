@@ -84,6 +84,8 @@ export async function GET(request: NextRequest) {
       .from('assignments')
       .select('id')
       .eq('classroom_id', classroomId)
+      .eq('is_draft', false)
+      .not('released_at', 'is', null)
 
     if (assignmentsError) {
       console.error('Error fetching assignments:', assignmentsError)

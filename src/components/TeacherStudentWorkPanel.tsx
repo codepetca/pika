@@ -8,13 +8,42 @@ import { HistoryList } from '@/components/HistoryList'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
-import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, TiptapContent } from '@/types'
+import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
+
+function AuthenticityGauge({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
+  const hasScore = score !== null
+  const displayScore = score ?? 0
+  const color = !hasScore ? 'bg-gray-300' : displayScore >= 70 ? 'bg-green-500' : displayScore >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+  const textColor = !hasScore ? 'text-text-muted' : displayScore >= 70 ? 'text-green-700' : displayScore >= 40 ? 'text-yellow-700' : 'text-red-700'
+
+  return (
+    <div className="space-y-2">
+      <div className="relative h-5 rounded-full bg-gray-200 overflow-hidden">
+        {hasScore && (
+          <div className={`h-full rounded-full ${color}`} style={{ width: `${displayScore}%` }} />
+        )}
+        <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${hasScore ? textColor : 'text-text-muted'}`}>
+          Authenticity {hasScore ? `${displayScore}%` : '—'}
+        </span>
+      </div>
+      {flags.length > 0 && (
+        <div className="space-y-1">
+          {flags.map((flag, i) => (
+            <div key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-700">
+              +{flag.wordDelta} words in {flag.seconds}s ({flag.wps} w/s)
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function ScoreInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const n = Number(value) || 0
   return (
     <div>
-      <label className="block text-xs font-medium text-text-muted mb-1">{label} (0–10)</label>
+      <label className="block text-xs font-medium text-text-muted mb-1">{label}</label>
       <div className="flex items-center gap-1">
         <button
           type="button"
@@ -245,6 +274,10 @@ export function TeacherStudentWorkPanel({
         setGradeError(result.errors.join(', '))
         return // Don't reload — grading failed
       }
+      if (result.graded_count === 0) {
+        setGradeError('No gradable content found — the submission may be empty')
+        return
+      }
       // Reload data to get updated grades
       const reloadRes = await fetch(`/api/teacher/assignments/${assignmentId}/students/${studentId}`)
       const reloadData = await reloadRes.json()
@@ -383,6 +416,11 @@ export function TeacherStudentWorkPanel({
             </>
           ) : (
             <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+              <AuthenticityGauge
+                score={data.doc?.authenticity_score ?? null}
+                flags={data.doc?.authenticity_flags ?? []}
+              />
+
               {gradeError && (
                 <div className="text-xs text-danger">{gradeError}</div>
               )}
@@ -391,18 +429,17 @@ export function TeacherStudentWorkPanel({
               <ScoreInput label="Thinking" value={scoreThinking} onChange={setScoreThinking} />
               <ScoreInput label="Workflow" value={scoreWorkflow} onChange={setScoreWorkflow} />
 
-              <div className="text-sm font-medium text-text-default">
-                Total: {totalScore}/30 ({totalPercent}%)
+              <div className="text-sm font-medium text-text-default text-center">
+                {totalScore}/30 ({totalPercent}%)
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1">Feedback</label>
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
                   rows={8}
                   className="w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default resize-none"
-                  placeholder="Write feedback..."
+                  placeholder="Feedback"
                 />
               </div>
 

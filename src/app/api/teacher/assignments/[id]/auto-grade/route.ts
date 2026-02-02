@@ -3,6 +3,8 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { gradeStudentWork } from '@/lib/ai-grading'
 import { extractPlainText } from '@/lib/tiptap-content'
+import { analyzeAuthenticity } from '@/lib/authenticity'
+import type { AssignmentDocHistoryEntry } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -101,6 +103,32 @@ export async function POST(
             errors.push(`Failed to save grade for student ${doc.student_id}`)
           } else {
             gradedCount++
+
+            // Compute authenticity if not already set
+            if (doc.authenticity_score == null && assignment.track_authenticity !== false) {
+              try {
+                const { data: historyEntries } = await supabase
+                  .from('assignment_doc_history')
+                  .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at')
+                  .eq('assignment_doc_id', doc.id)
+                  .order('created_at', { ascending: true })
+
+                if (historyEntries && historyEntries.length > 1) {
+                  const authResult = analyzeAuthenticity(historyEntries as AssignmentDocHistoryEntry[])
+                  if (authResult.score !== null) {
+                    await supabase
+                      .from('assignment_docs')
+                      .update({
+                        authenticity_score: authResult.score,
+                        authenticity_flags: authResult.flags,
+                      })
+                      .eq('id', doc.id)
+                  }
+                }
+              } catch {
+                // Non-fatal: authenticity scoring failure shouldn't block grading
+              }
+            }
           }
         } catch (err: any) {
           errors.push(`${doc.student_id}: ${err.message}`)

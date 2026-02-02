@@ -121,42 +121,14 @@ export async function GET(request: NextRequest) {
       (entries || []).map(entry => [entry.student_id, entry])
     )
 
-    const entryIds = (entries || []).map(entry => entry.id)
-    const summaryByEntryId = new Map<string, { summary: string; model: string; text_hash: string }>()
-
-    if (entryIds.length > 0) {
-      const { data: existingSummaries, error: summariesError } = await supabase
-        .from('entry_summaries')
-        .select('entry_id, model, text_hash, summary')
-        .in('entry_id', entryIds)
-
-      if (summariesError) {
-        console.error('Error fetching entry summaries:', summariesError)
-        return NextResponse.json(
-          { error: 'Failed to fetch summaries' },
-          { status: 500 }
-        )
-      }
-
-      for (const row of existingSummaries || []) {
-        summaryByEntryId.set(row.entry_id, {
-          summary: row.summary,
-          model: row.model,
-          text_hash: row.text_hash,
-        })
-      }
-    }
-
     const logs = students.map(student => {
       const entry = entryByStudentId.get(student.id) || null
-      const summaryRow = entry ? summaryByEntryId.get(entry.id) : null
       return {
         student_id: student.id,
         student_email: student.email,
         student_first_name: student.first_name,
         student_last_name: student.last_name,
         entry,
-        summary: summaryRow ? summaryRow.summary : null,
       }
     })
 

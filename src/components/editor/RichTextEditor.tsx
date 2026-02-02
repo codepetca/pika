@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { EditorContent, EditorContext, useEditor } from '@tiptap/react'
+import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref, sanitizeLinkHref } from '@/lib/tiptap-content'
 
@@ -62,6 +62,8 @@ export interface RichTextEditorProps {
   content: TiptapContent
   onChange: (content: TiptapContent) => void
   onBlur?: () => void
+  onPaste?: (wordCount: number) => void
+  onKeystroke?: () => void
   placeholder?: string
   disabled?: boolean
   editable?: boolean
@@ -96,7 +98,20 @@ const MainToolbarContent = ({
       </ToolbarGroup>
 
       <Spacer />
+
+      <CharacterCount />
     </>
+  )
+}
+
+function CharacterCount() {
+  const { editor } = useCurrentEditor()
+  if (!editor) return null
+  const count = editor.getText().replace(/\n/g, '').length
+  return (
+    <span className="text-xs text-text-muted tabular-nums select-none">
+      {count}
+    </span>
   )
 }
 
@@ -123,6 +138,8 @@ export function RichTextEditor({
   content,
   onChange,
   onBlur,
+  onPaste,
+  onKeystroke,
   placeholder = 'Write your response here...',
   disabled = false,
   editable = true,
@@ -148,6 +165,21 @@ export function RichTextEditor({
         class: 'simple-editor',
       },
       handleDOMEvents: {
+        paste: (_view, event) => {
+          if (onPaste) {
+            const text = event.clipboardData?.getData('text/plain') ?? ''
+            const words = text.trim().split(/\s+/).filter(Boolean).length
+            if (words > 0) onPaste(words)
+          }
+          return false
+        },
+        keydown: (_view, event) => {
+          // Only count key presses that produce characters (skip modifiers, nav, etc.)
+          if (onKeystroke && event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+            onKeystroke()
+          }
+          return false
+        },
         click: (view, event) => {
           const target = event.target as HTMLElement
           const link = target.closest('a[href]')
