@@ -23,9 +23,9 @@ FOR SELECT
 TO public
 USING (bucket_id = 'submission-images');
 
--- Allow users to delete their own uploads
-CREATE POLICY "Allow authenticated deletes"
+-- Allow users to delete only their own uploads (files in their user ID folder)
+CREATE POLICY "Allow owner deletes"
 ON storage.objects
 FOR DELETE
 TO authenticated
-USING (bucket_id = 'submission-images');
+USING (bucket_id = 'submission-images' AND (storage.foldername(name))[1] = auth.uid()::text);

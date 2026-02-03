@@ -531,6 +531,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 onKeystroke={() => { keystrokeCountRef.current++ }}
                 className="h-full"
                 enableImageUpload
+                onImageUploadError={(message) => setError(message)}
               />
             </div>
 

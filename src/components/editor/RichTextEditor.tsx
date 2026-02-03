@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
-import { isSafeLinkHref, sanitizeLinkHref } from '@/lib/tiptap-content'
+import { isSafeLinkHref } from '@/lib/tiptap-content'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -95,7 +95,8 @@ async function uploadImage(
 // Helper to handle pasted images
 async function handlePastedImage(
   editor: Editor,
-  file: File
+  file: File,
+  onError?: (message: string) => void
 ): Promise<boolean> {
   try {
     const url = await uploadImage(file)
@@ -106,7 +107,9 @@ async function handlePastedImage(
       .run()
     return true
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to upload image'
     console.error('Failed to upload pasted image:', error)
+    onError?.(message)
     return false
   }
 }
@@ -124,6 +127,8 @@ export interface RichTextEditorProps {
   className?: string
   /** Enable image upload via button, paste, and drag-drop */
   enableImageUpload?: boolean
+  /** Callback when image upload fails */
+  onImageUploadError?: (message: string) => void
 }
 
 const MainToolbarContent = ({
@@ -204,6 +209,7 @@ export function RichTextEditor({
   showToolbar = true,
   className = '',
   enableImageUpload = false,
+  onImageUploadError,
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
   const isMobile = useIsBreakpoint()
@@ -212,8 +218,8 @@ export function RichTextEditor({
   const toolbarRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Build extensions array based on props
-  const extensions = [
+  // Build extensions array based on props (memoized to avoid recreating on every render)
+  const extensions = useMemo(() => [
     StarterKit.configure({
       horizontalRule: false,
       heading: {
@@ -269,7 +275,7 @@ export function RichTextEditor({
           }),
         ]
       : []),
-  ]
+  ], [enableImageUpload, placeholder])
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -369,7 +375,7 @@ export function RichTextEditor({
       if (!imageFile) return
 
       event.preventDefault()
-      handlePastedImage(editor, imageFile)
+      handlePastedImage(editor, imageFile, onImageUploadError)
     }
 
     const editorElement = editor.view.dom
@@ -378,7 +384,7 @@ export function RichTextEditor({
     return () => {
       editorElement.removeEventListener('paste', handlePaste)
     }
-  }, [editor, enableImageUpload])
+  }, [editor, enableImageUpload, onImageUploadError])
 
   if (!editor) {
     return null
