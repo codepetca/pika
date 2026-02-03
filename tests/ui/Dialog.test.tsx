@@ -240,7 +240,7 @@ describe('ContentDialog', () => {
     expect(dialog.className).toContain('flex-col')
   })
 
-  it('has scrollable content area with non-shrinking footer', () => {
+  it('has scrollable content area with non-shrinking header and footer', () => {
     render(
       <ContentDialog {...defaultProps}>
         <div data-testid="content">Long content here</div>
@@ -252,6 +252,11 @@ describe('ContentDialog', () => {
     expect(contentWrapper.className).toContain('overflow-y-auto')
     expect(contentWrapper.className).toContain('min-h-0')
     expect(contentWrapper.className).toContain('flex-1')
+
+    // Find header (contains title) - it's the first flex div inside the dialog
+    const dialog = screen.getByRole('dialog')
+    const header = dialog.querySelector('.flex.items-start')!
+    expect(header.className).toContain('flex-shrink-0')
 
     // Find footer (contains Close button text)
     const closeButtons = screen.getAllByRole('button', { name: 'Close' })

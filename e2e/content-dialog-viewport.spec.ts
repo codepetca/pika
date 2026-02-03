@@ -4,9 +4,51 @@
  * Verifies that ContentDialog stays within viewport bounds when content
  * is tall or the viewport is small. Tests the fix for issue #265.
  */
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
 const STUDENT_STORAGE = '.auth/student.json'
+
+/**
+ * Navigate to an assignment and open the instructions modal.
+ * Returns the modal locator for further assertions.
+ */
+async function openInstructionsModal(page: Page) {
+  // Navigate to classrooms and enter one
+  await page.goto('/classrooms')
+  const classroomCard = page.locator('[data-testid="classroom-card"]').first()
+  await expect(classroomCard).toBeVisible({ timeout: 15_000 })
+  await classroomCard.click()
+  await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
+
+  // Go to Assignments tab
+  await page.getByRole('link', { name: 'Assignments' }).click()
+  await page.waitForLoadState('networkidle')
+
+  // Click the first assignment to open it (navigates via URL params)
+  const assignmentCard = page.locator('[data-testid="assignment-card"]').first()
+  await expect(assignmentCard).toBeVisible({ timeout: 10_000 })
+  await assignmentCard.click()
+
+  // Wait for URL to include assignmentId (indicating we're in edit view)
+  await page.waitForURL(/assignmentId=/, { timeout: 10_000 })
+  await page.waitForLoadState('networkidle')
+
+  // The modal should auto-open for first-time views, or we click Instructions button
+  const modal = page.getByRole('dialog')
+  const instructionsButton = page.getByRole('button', { name: 'Instructions' })
+
+  // Wait a moment for potential auto-open
+  await page.waitForTimeout(500)
+
+  // If modal didn't auto-open, click the Instructions button
+  if (!(await modal.isVisible().catch(() => false))) {
+    await expect(instructionsButton).toBeVisible({ timeout: 5000 })
+    await instructionsButton.click()
+  }
+
+  await expect(modal).toBeVisible({ timeout: 5000 })
+  return modal
+}
 
 test.describe('ContentDialog viewport constraints', () => {
   test.use({ storageState: STUDENT_STORAGE })
@@ -15,41 +57,7 @@ test.describe('ContentDialog viewport constraints', () => {
     // Use a constrained viewport - wide enough for desktop nav, short to test height constraint
     await page.setViewportSize({ width: 1024, height: 500 })
 
-    // Navigate to classrooms and enter one
-    await page.goto('/classrooms')
-    const classroomCard = page.locator('[data-testid="classroom-card"]').first()
-    await expect(classroomCard).toBeVisible({ timeout: 15_000 })
-    await classroomCard.click()
-    await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
-
-    // Go to Assignments tab
-    await page.getByRole('link', { name: 'Assignments' }).click()
-    await page.waitForLoadState('networkidle')
-
-    // Click the first assignment to open it (navigates via URL params)
-    const assignmentCard = page.locator('button').filter({ hasText: /Getting Started|Assignment/ }).first()
-    await expect(assignmentCard).toBeVisible({ timeout: 10_000 })
-    await assignmentCard.click()
-
-    // Wait for URL to include assignmentId (indicating we're in edit view)
-    await page.waitForURL(/assignmentId=/, { timeout: 10_000 })
-    await page.waitForLoadState('networkidle')
-
-    // The modal should auto-open for first-time views, or we click Instructions button
-    const modal = page.getByRole('dialog')
-    const instructionsButton = page.getByRole('button', { name: 'Instructions' })
-
-    // Wait a moment for potential auto-open
-    await page.waitForTimeout(500)
-
-    // If modal didn't auto-open, click the Instructions button
-    if (!(await modal.isVisible().catch(() => false))) {
-      await expect(instructionsButton).toBeVisible({ timeout: 5000 })
-      await instructionsButton.click()
-    }
-
-    // Wait for the modal to be visible
-    await expect(modal).toBeVisible({ timeout: 5000 })
+    const modal = await openInstructionsModal(page)
 
     // Get viewport and modal dimensions
     const viewport = page.viewportSize()!
@@ -76,40 +84,7 @@ test.describe('ContentDialog viewport constraints', () => {
     // Constrained height viewport to force scrolling
     await page.setViewportSize({ width: 1024, height: 400 })
 
-    // Navigate to classrooms and enter one
-    await page.goto('/classrooms')
-    const classroomCard = page.locator('[data-testid="classroom-card"]').first()
-    await expect(classroomCard).toBeVisible({ timeout: 15_000 })
-    await classroomCard.click()
-    await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
-
-    // Go to Assignments tab
-    await page.getByRole('link', { name: 'Assignments' }).click()
-    await page.waitForLoadState('networkidle')
-
-    // Click the first assignment to open it (navigates via URL params)
-    const assignmentCard = page.locator('button').filter({ hasText: /Getting Started|Assignment/ }).first()
-    await expect(assignmentCard).toBeVisible({ timeout: 10_000 })
-    await assignmentCard.click()
-
-    // Wait for URL to include assignmentId (indicating we're in edit view)
-    await page.waitForURL(/assignmentId=/, { timeout: 10_000 })
-    await page.waitForLoadState('networkidle')
-
-    // The modal should auto-open for first-time views, or we click Instructions button
-    const modal = page.getByRole('dialog')
-    const instructionsButton = page.getByRole('button', { name: 'Instructions' })
-
-    // Wait a moment for potential auto-open
-    await page.waitForTimeout(500)
-
-    // If modal didn't auto-open, click the Instructions button
-    if (!(await modal.isVisible().catch(() => false))) {
-      await expect(instructionsButton).toBeVisible({ timeout: 5000 })
-      await instructionsButton.click()
-    }
-
-    await expect(modal).toBeVisible({ timeout: 5000 })
+    const modal = await openInstructionsModal(page)
 
     // Find the scrollable content area (has overflow-y-auto class)
     const contentArea = modal.locator('.overflow-y-auto').first()

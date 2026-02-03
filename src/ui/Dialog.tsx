@@ -331,7 +331,7 @@ export function ContentDialog({
         aria-labelledby={titleId}
         className={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col`}
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 flex-shrink-0">
           <div className="min-w-0">
             <h3 id={titleId} className={dialogTitleStyles}>{title}</h3>
             {subtitle && (
