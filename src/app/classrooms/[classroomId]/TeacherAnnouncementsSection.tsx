@@ -15,6 +15,7 @@ type FormMode = { type: 'closed' } | { type: 'create' } | { type: 'edit'; announ
 export function TeacherAnnouncementsSection({ classroom }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAll, setShowAll] = useState(false)
   const [formMode, setFormMode] = useState<FormMode>({ type: 'closed' })
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -235,7 +236,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
       {/* Announcements list */}
       {announcements.length > 0 && (
         <div className="space-y-3">
-          {announcements.map((announcement) => (
+          {(showAll ? announcements : announcements.slice(0, 5)).map((announcement) => (
             <div
               key={announcement.id}
               className="bg-surface rounded-lg border border-border p-4"
@@ -276,6 +277,16 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
               </p>
             </div>
           ))}
+
+          {!showAll && announcements.length > 5 && (
+            <Button
+              variant="secondary"
+              onClick={() => setShowAll(true)}
+              className="w-full"
+            >
+              Show {announcements.length - 5} older announcement{announcements.length - 5 === 1 ? '' : 's'}
+            </Button>
+          )}
         </div>
       )}
 

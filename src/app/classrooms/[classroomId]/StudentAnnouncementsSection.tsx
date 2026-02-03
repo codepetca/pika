@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Announcement, Classroom } from '@/types'
@@ -12,6 +13,7 @@ interface Props {
 export function StudentAnnouncementsSection({ classroom }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAll, setShowAll] = useState(false)
   const hasMarkedRead = useRef(false)
   const notifications = useStudentNotifications()
 
@@ -85,7 +87,7 @@ export function StudentAnnouncementsSection({ classroom }: Props) {
 
   return (
     <div className="space-y-3">
-      {announcements.map((announcement) => (
+      {(showAll ? announcements : announcements.slice(0, 5)).map((announcement) => (
         <div
           key={announcement.id}
           className="bg-surface rounded-lg border border-border p-4"
@@ -104,6 +106,16 @@ export function StudentAnnouncementsSection({ classroom }: Props) {
           </p>
         </div>
       ))}
+
+      {!showAll && announcements.length > 5 && (
+        <Button
+          variant="secondary"
+          onClick={() => setShowAll(true)}
+          className="w-full"
+        >
+          Show {announcements.length - 5} older announcement{announcements.length - 5 === 1 ? '' : 's'}
+        </Button>
+      )}
     </div>
   )
 }
