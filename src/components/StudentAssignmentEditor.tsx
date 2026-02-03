@@ -530,6 +530,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 onPaste={(wordCount) => { pasteWordCountRef.current += wordCount }}
                 onKeystroke={() => { keystrokeCountRef.current++ }}
                 className="h-full"
+                enableImageUpload
+                onImageUploadError={(message) => setError(message)}
               />
             </div>
 
