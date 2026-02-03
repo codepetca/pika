@@ -41,8 +41,8 @@ describe('GET /api/student/classrooms/[id]/announcements', () => {
 
   it('should return announcements sorted by created_at desc', async () => {
     const mockAnnouncements = [
-      { id: 'a-2', title: 'Second', content: 'Content 2', created_at: '2025-01-16T12:00:00Z' },
-      { id: 'a-1', title: 'First', content: 'Content 1', created_at: '2025-01-15T12:00:00Z' },
+      { id: 'a-2', content: 'Content 2', created_at: '2025-01-16T12:00:00Z' },
+      { id: 'a-1', content: 'Content 1', created_at: '2025-01-15T12:00:00Z' },
     ]
 
     const mockFrom = vi.fn(() => ({

@@ -2,7 +2,6 @@
 CREATE TABLE announcements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   classroom_id uuid NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
-  title text NOT NULL,
   content text NOT NULL,
   created_by uuid NOT NULL REFERENCES users(id),
   created_at timestamptz NOT NULL DEFAULT now(),

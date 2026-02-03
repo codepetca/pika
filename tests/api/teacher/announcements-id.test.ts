@@ -24,7 +24,6 @@ function mockOwnershipCheck(opts: { found?: boolean; owned?: boolean; archived?:
             data: found ? {
               id: 'a-1',
               classroom_id: 'c-1',
-              title: 'Test',
               content: 'Content',
               classrooms: {
                 id: 'c-1',
@@ -39,7 +38,7 @@ function mockOwnershipCheck(opts: { found?: boolean; owned?: boolean; archived?:
           eq: vi.fn(() => ({
             select: vi.fn(() => ({
               single: vi.fn().mockResolvedValue({
-                data: { id: 'a-1', title: 'Updated', content: 'Updated Content' },
+                data: { id: 'a-1', content: 'Updated Content' },
                 error: null,
               }),
             })),
@@ -66,7 +65,7 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
       {
         method: 'PATCH',
-        body: JSON.stringify({ title: 'Updated Title', content: 'Updated Content' }),
+        body: JSON.stringify({ content: 'Updated Content' }),
       }
     )
     const response = await PATCH(request, {
@@ -78,39 +77,7 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
     expect(data.announcement).toBeDefined()
   })
 
-  it('should update only title when content not provided', async () => {
-    ;(mockSupabaseClient.from as any) = mockOwnershipCheck()
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
-      {
-        method: 'PATCH',
-        body: JSON.stringify({ title: 'Updated Title' }),
-      }
-    )
-    const response = await PATCH(request, {
-      params: Promise.resolve({ id: 'c-1', announcementId: 'a-1' }),
-    })
-    expect(response.status).toBe(200)
-  })
-
-  it('should update only content when title not provided', async () => {
-    ;(mockSupabaseClient.from as any) = mockOwnershipCheck()
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
-      {
-        method: 'PATCH',
-        body: JSON.stringify({ content: 'Updated Content' }),
-      }
-    )
-    const response = await PATCH(request, {
-      params: Promise.resolve({ id: 'c-1', announcementId: 'a-1' }),
-    })
-    expect(response.status).toBe(200)
-  })
-
-  it('should return 400 when no updates provided', async () => {
+  it('should return 400 when content is missing', async () => {
     ;(mockSupabaseClient.from as any) = mockOwnershipCheck()
 
     const request = new NextRequest(
@@ -126,26 +93,7 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
     expect(response.status).toBe(400)
 
     const data = await response.json()
-    expect(data.error).toBe('No updates provided')
-  })
-
-  it('should return 400 when title is empty string', async () => {
-    ;(mockSupabaseClient.from as any) = mockOwnershipCheck()
-
-    const request = new NextRequest(
-      'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
-      {
-        method: 'PATCH',
-        body: JSON.stringify({ title: '   ' }),
-      }
-    )
-    const response = await PATCH(request, {
-      params: Promise.resolve({ id: 'c-1', announcementId: 'a-1' }),
-    })
-    expect(response.status).toBe(400)
-
-    const data = await response.json()
-    expect(data.error).toBe('Title cannot be empty')
+    expect(data.error).toBe('Content is required')
   })
 
   it('should return 400 when content is empty string', async () => {
@@ -164,7 +112,7 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
     expect(response.status).toBe(400)
 
     const data = await response.json()
-    expect(data.error).toBe('Content cannot be empty')
+    expect(data.error).toBe('Content is required')
   })
 
   it('should return 404 when announcement not found', async () => {
@@ -174,7 +122,7 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-999',
       {
         method: 'PATCH',
-        body: JSON.stringify({ title: 'Updated' }),
+        body: JSON.stringify({ content: 'Updated' }),
       }
     )
     const response = await PATCH(request, {
@@ -193,7 +141,7 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
       {
         method: 'PATCH',
-        body: JSON.stringify({ title: 'Updated' }),
+        body: JSON.stringify({ content: 'Updated' }),
       }
     )
     const response = await PATCH(request, {
@@ -212,7 +160,7 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
       {
         method: 'PATCH',
-        body: JSON.stringify({ title: 'Updated' }),
+        body: JSON.stringify({ content: 'Updated' }),
       }
     )
     const response = await PATCH(request, {
@@ -234,7 +182,7 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements/a-1',
       {
         method: 'PATCH',
-        body: JSON.stringify({ title: 'Updated' }),
+        body: JSON.stringify({ content: 'Updated' }),
       }
     )
     const response = await PATCH(request, {

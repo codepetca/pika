@@ -67,14 +67,7 @@ export async function POST(
     const user = await requireRole('teacher')
     const { id: classroomId } = await params
     const body = await request.json()
-    const { title, content } = body as { title?: string; content?: string }
-
-    if (!title || !title.trim()) {
-      return NextResponse.json(
-        { error: 'Title is required' },
-        { status: 400 }
-      )
-    }
+    const { content } = body as { content?: string }
 
     if (!content || !content.trim()) {
       return NextResponse.json(
@@ -97,7 +90,6 @@ export async function POST(
       .from('announcements')
       .insert({
         classroom_id: classroomId,
-        title: title.trim(),
         content: content.trim(),
         created_by: user.id,
       })

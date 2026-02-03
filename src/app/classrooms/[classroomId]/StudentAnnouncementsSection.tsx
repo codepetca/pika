@@ -60,13 +60,10 @@ export function StudentAnnouncementsSection({ classroom }: Props) {
 
   function formatDate(dateString: string) {
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    })
+    const weekday = date.toLocaleDateString('en-US', { weekday: 'short' })
+    const monthDay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    return `${weekday} ${monthDay}, ${time}`
   }
 
   if (loading) {
@@ -92,16 +89,11 @@ export function StudentAnnouncementsSection({ classroom }: Props) {
           key={announcement.id}
           className="bg-surface rounded-lg border border-border p-4"
         >
-          <div className="min-w-0">
-            <h4 className="text-base font-semibold text-text-default">
-              {announcement.title}
-            </h4>
-            <p className="text-xs text-text-muted mt-0.5">
-              {formatDate(announcement.created_at)}
-              {announcement.updated_at !== announcement.created_at && ' (edited)'}
-            </p>
-          </div>
-          <p className="mt-3 text-sm text-text-default whitespace-pre-wrap">
+          <p className="text-xs text-text-muted mb-2">
+            {formatDate(announcement.created_at)}
+            {announcement.updated_at !== announcement.created_at && ' (edited)'}
+          </p>
+          <p className="text-sm text-text-default whitespace-pre-wrap">
             {announcement.content}
           </p>
         </div>

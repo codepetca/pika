@@ -42,8 +42,8 @@ describe('GET /api/teacher/classrooms/[id]/announcements', () => {
 
   it('should return announcements sorted by created_at desc', async () => {
     const mockAnnouncements = [
-      { id: 'a-2', title: 'Second', content: 'Content 2', created_at: '2025-01-16T12:00:00Z' },
-      { id: 'a-1', title: 'First', content: 'Content 1', created_at: '2025-01-15T12:00:00Z' },
+      { id: 'a-2', content: 'Content 2', created_at: '2025-01-16T12:00:00Z' },
+      { id: 'a-1', content: 'Content 1', created_at: '2025-01-15T12:00:00Z' },
     ]
 
     const mockFrom = vi.fn(() => ({
@@ -121,7 +121,6 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
     const mockAnnouncement = {
       id: 'a-1',
       classroom_id: 'c-1',
-      title: 'Test Title',
       content: 'Test Content',
       created_by: 'teacher-1',
       created_at: '2025-01-15T12:00:00Z',
@@ -141,7 +140,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
       {
         method: 'POST',
-        body: JSON.stringify({ title: 'Test Title', content: 'Test Content' }),
+        body: JSON.stringify({ content: 'Test Content' }),
       }
     )
     const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -149,37 +148,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
 
     const data = await response.json()
     expect(data.announcement.id).toBe('a-1')
-    expect(data.announcement.title).toBe('Test Title')
-  })
-
-  it('should return 400 when title is missing', async () => {
-    const request = new NextRequest(
-      'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
-      {
-        method: 'POST',
-        body: JSON.stringify({ content: 'Test Content' }),
-      }
-    )
-    const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
-    expect(response.status).toBe(400)
-
-    const data = await response.json()
-    expect(data.error).toBe('Title is required')
-  })
-
-  it('should return 400 when title is empty', async () => {
-    const request = new NextRequest(
-      'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
-      {
-        method: 'POST',
-        body: JSON.stringify({ title: '   ', content: 'Test Content' }),
-      }
-    )
-    const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
-    expect(response.status).toBe(400)
-
-    const data = await response.json()
-    expect(data.error).toBe('Title is required')
+    expect(data.announcement.content).toBe('Test Content')
   })
 
   it('should return 400 when content is missing', async () => {
@@ -187,7 +156,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
       {
         method: 'POST',
-        body: JSON.stringify({ title: 'Test Title' }),
+        body: JSON.stringify({}),
       }
     )
     const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -202,7 +171,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
       {
         method: 'POST',
-        body: JSON.stringify({ title: 'Test Title', content: '   ' }),
+        body: JSON.stringify({ content: '   ' }),
       }
     )
     const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -224,7 +193,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
       {
         method: 'POST',
-        body: JSON.stringify({ title: 'Test Title', content: 'Test Content' }),
+        body: JSON.stringify({ content: 'Test Content' }),
       }
     )
     const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -244,7 +213,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
       {
         method: 'POST',
-        body: JSON.stringify({ title: 'Test Title', content: 'Test Content' }),
+        body: JSON.stringify({ content: 'Test Content' }),
       }
     )
     const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })
@@ -265,7 +234,7 @@ describe('POST /api/teacher/classrooms/[id]/announcements', () => {
       'http://localhost:3000/api/teacher/classrooms/c-1/announcements',
       {
         method: 'POST',
-        body: JSON.stringify({ title: 'Test Title', content: 'Test Content' }),
+        body: JSON.stringify({ content: 'Test Content' }),
       }
     )
     const response = await POST(request, { params: Promise.resolve({ id: 'c-1' }) })

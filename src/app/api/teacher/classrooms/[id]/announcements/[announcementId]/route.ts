@@ -48,7 +48,14 @@ export async function PATCH(
     const user = await requireRole('teacher')
     const { id: classroomId, announcementId } = await params
     const body = await request.json()
-    const { title, content } = body as { title?: string; content?: string }
+    const { content } = body as { content?: string }
+
+    if (!content || !content.trim()) {
+      return NextResponse.json(
+        { error: 'Content is required' },
+        { status: 400 }
+      )
+    }
 
     const ownership = await verifyAnnouncementOwnership(user.id, classroomId, announcementId)
     if (!ownership.ok) {
@@ -65,39 +72,11 @@ export async function PATCH(
       )
     }
 
-    // Build update object
-    const updates: Record<string, string> = {}
-    if (title !== undefined) {
-      if (!title.trim()) {
-        return NextResponse.json(
-          { error: 'Title cannot be empty' },
-          { status: 400 }
-        )
-      }
-      updates.title = title.trim()
-    }
-    if (content !== undefined) {
-      if (!content.trim()) {
-        return NextResponse.json(
-          { error: 'Content cannot be empty' },
-          { status: 400 }
-        )
-      }
-      updates.content = content.trim()
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return NextResponse.json(
-        { error: 'No updates provided' },
-        { status: 400 }
-      )
-    }
-
     const supabase = getServiceRoleClient()
 
     const { data: announcement, error } = await supabase
       .from('announcements')
-      .update(updates)
+      .update({ content: content.trim() })
       .eq('id', announcementId)
       .select()
       .single()

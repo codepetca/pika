@@ -327,7 +327,6 @@ export interface QuizResultsAggregate {
 export interface Announcement {
   id: string
   classroom_id: string
-  title: string
   content: string
   created_by: string
   created_at: string

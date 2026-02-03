@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState, useId } from 'react'
-import { Pencil, Trash2, Plus } from 'lucide-react'
+import { useCallback, useEffect, useState, useRef } from 'react'
+import { Trash2, Plus } from 'lucide-react'
 import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import type { Announcement, Classroom } from '@/types'
@@ -10,22 +10,20 @@ interface Props {
   classroom: Classroom
 }
 
-type FormMode = { type: 'closed' } | { type: 'create' } | { type: 'edit'; announcement: Announcement }
-
 export function TeacherAnnouncementsSection({ classroom }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [showAll, setShowAll] = useState(false)
-  const [formMode, setFormMode] = useState<FormMode>({ type: 'closed' })
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [newContent, setNewContent] = useState('')
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const newTextareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const titleId = useId()
-  const contentId = useId()
   const isReadOnly = !!classroom.archived_at
 
   const loadAnnouncements = useCallback(async () => {
@@ -45,71 +43,79 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     loadAnnouncements()
   }, [loadAnnouncements])
 
-  function openCreateForm() {
-    setFormMode({ type: 'create' })
-    setTitle('')
-    setContent('')
-    setError(null)
-  }
-
-  function openEditForm(announcement: Announcement) {
-    setFormMode({ type: 'edit', announcement })
-    setTitle(announcement.title)
-    setContent(announcement.content)
-    setError(null)
-  }
-
-  function closeForm() {
-    setFormMode({ type: 'closed' })
-    setTitle('')
-    setContent('')
-    setError(null)
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!title.trim() || !content.trim()) {
-      setError('Title and content are required')
-      return
+  // Focus textarea when editing starts
+  useEffect(() => {
+    if (editingId && editTextareaRef.current) {
+      editTextareaRef.current.focus()
+      editTextareaRef.current.setSelectionRange(
+        editTextareaRef.current.value.length,
+        editTextareaRef.current.value.length
+      )
     }
+  }, [editingId])
+
+  // Focus textarea when creating
+  useEffect(() => {
+    if (isCreating && newTextareaRef.current) {
+      newTextareaRef.current.focus()
+    }
+  }, [isCreating])
+
+  function startEditing(announcement: Announcement) {
+    if (isReadOnly) return
+    setEditingId(announcement.id)
+    setEditContent(announcement.content)
+  }
+
+  function cancelEditing() {
+    setEditingId(null)
+    setEditContent('')
+  }
+
+  async function saveEdit() {
+    if (!editingId || !editContent.trim()) return
 
     setSaving(true)
-    setError(null)
-
     try {
-      if (formMode.type === 'create') {
-        const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`, {
-          method: 'POST',
+      const res = await fetch(
+        `/api/teacher/classrooms/${classroom.id}/announcements/${editingId}`,
+        {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: title.trim(), content: content.trim() }),
-        })
-        if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.error || 'Failed to create announcement')
+          body: JSON.stringify({ content: editContent.trim() }),
         }
-        const data = await res.json()
-        setAnnouncements((prev) => [data.announcement, ...prev])
-      } else if (formMode.type === 'edit') {
-        const res = await fetch(
-          `/api/teacher/classrooms/${classroom.id}/announcements/${formMode.announcement.id}`,
-          {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: title.trim(), content: content.trim() }),
-          }
-        )
-        if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.error || 'Failed to update announcement')
-        }
-        const data = await res.json()
-        setAnnouncements((prev) =>
-          prev.map((a) => (a.id === data.announcement.id ? data.announcement : a))
-        )
-      }
-      closeForm()
-    } catch (err: any) {
-      setError(err.message || 'An error occurred')
+      )
+      if (!res.ok) throw new Error('Failed to update')
+      const data = await res.json()
+      setAnnouncements((prev) =>
+        prev.map((a) => (a.id === data.announcement.id ? data.announcement : a))
+      )
+      setEditingId(null)
+      setEditContent('')
+    } catch (err) {
+      console.error('Error updating announcement:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function createAnnouncement() {
+    if (!newContent.trim()) return
+
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent.trim() }),
+      })
+      if (!res.ok) throw new Error('Failed to create')
+      const data = await res.json()
+      setAnnouncements((prev) => [data.announcement, ...prev])
+      setIsCreating(false)
+      setNewContent('')
+    } catch (err) {
+      console.error('Error creating announcement:', err)
     } finally {
       setSaving(false)
     }
@@ -124,13 +130,10 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
         `/api/teacher/classrooms/${classroom.id}/announcements/${deleteTarget.id}`,
         { method: 'DELETE' }
       )
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to delete announcement')
-      }
+      if (!res.ok) throw new Error('Failed to delete')
       setAnnouncements((prev) => prev.filter((a) => a.id !== deleteTarget.id))
       setDeleteTarget(null)
-    } catch (err: any) {
+    } catch (err) {
       console.error('Delete error:', err)
       setDeleteTarget(null)
     } finally {
@@ -140,13 +143,34 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
 
   function formatDate(dateString: string) {
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    })
+    const weekday = date.toLocaleDateString('en-US', { weekday: 'short' })
+    const monthDay = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+    return `${weekday} ${monthDay}, ${time}`
+  }
+
+  function handleKeyDown(
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+    action: 'save' | 'create'
+  ) {
+    // Cmd/Ctrl + Enter to save
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      if (action === 'save') {
+        saveEdit()
+      } else {
+        createAnnouncement()
+      }
+    }
+    // Escape to cancel
+    if (e.key === 'Escape') {
+      if (action === 'save') {
+        cancelEditing()
+      } else {
+        setIsCreating(false)
+        setNewContent('')
+      }
+    }
   }
 
   if (loading) {
@@ -165,67 +189,57 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
         </div>
       )}
 
-      {/* Form for create/edit */}
-      {formMode.type !== 'closed' && (
+      {/* New announcement form */}
+      {isCreating ? (
         <div className="bg-surface rounded-lg border border-border p-4">
-          <h3 className="text-base font-semibold text-text-default mb-4">
-            {formMode.type === 'create' ? 'New Announcement' : 'Edit Announcement'}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor={titleId} className="block text-sm font-medium text-text-default mb-1">
-                Title
-              </label>
-              <input
-                id={titleId}
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={saving}
-                className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                placeholder="Enter announcement title"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label htmlFor={contentId} className="block text-sm font-medium text-text-default mb-1">
-                Content
-              </label>
-              <textarea
-                id={contentId}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                disabled={saving}
-                rows={4}
-                className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
-                placeholder="Enter announcement content"
-              />
-            </div>
-            {error && <div className="text-sm text-danger">{error}</div>}
-            <div className="flex gap-2 justify-end">
-              <Button type="button" variant="secondary" onClick={closeForm} disabled={saving}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="primary" disabled={saving}>
-                {saving ? 'Saving...' : formMode.type === 'create' ? 'Post' : 'Save'}
-              </Button>
-            </div>
-          </form>
+          <textarea
+            ref={newTextareaRef}
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, 'create')}
+            disabled={saving}
+            rows={3}
+            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
+            placeholder="Write an announcement..."
+          />
+          <div className="flex gap-2 justify-end mt-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setIsCreating(false)
+                setNewContent('')
+              }}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={createAnnouncement}
+              disabled={saving || !newContent.trim()}
+            >
+              {saving ? 'Posting...' : 'Post'}
+            </Button>
+          </div>
+          <p className="text-xs text-text-muted mt-2">
+            Press <kbd className="px-1 py-0.5 bg-surface-2 rounded text-xs">Cmd+Enter</kbd> to post
+          </p>
         </div>
-      )}
-
-      {/* Header with create button */}
-      {formMode.type === 'closed' && !isReadOnly && (
-        <div className="flex justify-end">
-          <Button variant="primary" onClick={openCreateForm}>
-            <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
-            New Announcement
-          </Button>
-        </div>
+      ) : (
+        !isReadOnly && (
+          <div className="flex justify-end">
+            <Button variant="primary" onClick={() => setIsCreating(true)}>
+              <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
+              New Announcement
+            </Button>
+          </div>
+        )
       )}
 
       {/* Empty state */}
-      {announcements.length === 0 && formMode.type === 'closed' && (
+      {announcements.length === 0 && !isCreating && (
         <div className="bg-surface rounded-lg border border-border p-8 text-center">
           <p className="text-text-muted">
             No announcements yet. Create one to share updates with your students.
@@ -241,40 +255,68 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
               key={announcement.id}
               className="bg-surface rounded-lg border border-border p-4"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-base font-semibold text-text-default">
-                    {announcement.title}
-                  </h4>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    {formatDate(announcement.created_at)}
-                    {announcement.updated_at !== announcement.created_at && ' (edited)'}
+              {editingId === announcement.id ? (
+                // Editing mode
+                <div>
+                  <textarea
+                    ref={editTextareaRef}
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, 'save')}
+                    disabled={saving}
+                    rows={3}
+                    className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
+                  />
+                  <div className="flex gap-2 justify-end mt-3">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={cancelEditing}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={saveEdit}
+                      disabled={saving || !editContent.trim()}
+                    >
+                      {saving ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-text-muted mt-2">
+                    Press <kbd className="px-1 py-0.5 bg-surface-2 rounded text-xs">Cmd+Enter</kbd> to save, <kbd className="px-1 py-0.5 bg-surface-2 rounded text-xs">Esc</kbd> to cancel
                   </p>
                 </div>
-                {!isReadOnly && (
-                  <div className="flex gap-1 flex-shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEditForm(announcement)}
-                      aria-label="Edit announcement"
-                    >
-                      <Pencil className="h-4 w-4" aria-hidden="true" />
-                    </Button>
+              ) : (
+                // View mode
+                <div className="flex items-start justify-between gap-3">
+                  <div
+                    className={`min-w-0 flex-1 ${!isReadOnly ? 'cursor-pointer' : ''}`}
+                    onClick={() => startEditing(announcement)}
+                  >
+                    <p className="text-xs text-text-muted mb-2">
+                      {formatDate(announcement.created_at)}
+                      {announcement.updated_at !== announcement.created_at && ' (edited)'}
+                    </p>
+                    <p className="text-sm text-text-default whitespace-pre-wrap">
+                      {announcement.content}
+                    </p>
+                  </div>
+                  {!isReadOnly && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setDeleteTarget(announcement)}
                       aria-label="Delete announcement"
+                      className="flex-shrink-0"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </Button>
-                  </div>
-                )}
-              </div>
-              <p className="mt-3 text-sm text-text-default whitespace-pre-wrap">
-                {announcement.content}
-              </p>
+                  )}
+                </div>
+              )}
             </div>
           ))}
 
