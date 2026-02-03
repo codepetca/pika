@@ -13,6 +13,7 @@ import { Typography } from '@tiptap/extension-typography'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
 import { Underline } from '@tiptap/extension-underline'
+import { Image } from '@tiptap/extension-image'
 
 // --- Tiptap Node Styles ---
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
@@ -20,6 +21,7 @@ import '@/components/tiptap-node/code-block-node/code-block-node.scss'
 import '@/components/tiptap-node/list-node/list-node.scss'
 import '@/components/tiptap-node/heading-node/heading-node.scss'
 import '@/components/tiptap-node/paragraph-node/paragraph-node.scss'
+import '@/components/tiptap-node/image-node/image-node.scss'
 
 // --- Styles ---
 import '@/components/tiptap-templates/simple/simple-editor.scss'
@@ -66,6 +68,11 @@ export function RichTextViewer({ content, showPlainText = false }: RichTextViewe
       Superscript,
       Subscript,
       Underline,
+      Image.configure({
+        HTMLAttributes: {
+          class: 'max-w-full h-auto rounded',
+        },
+      }),
     ],
     content,
   })

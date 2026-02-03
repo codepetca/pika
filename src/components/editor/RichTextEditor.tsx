@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tiptap/react'
+import type { Editor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
-import { isSafeLinkHref, sanitizeLinkHref } from '@/lib/tiptap-content'
+import { isSafeLinkHref } from '@/lib/tiptap-content'
+import { IMAGE_ACCEPT, IMAGE_MAX_SIZE } from '@/lib/image-upload'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -16,6 +18,7 @@ import { Selection } from '@tiptap/extensions'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { Underline } from '@tiptap/extension-underline'
 import { Markdown } from '@tiptap/markdown'
+import { Image } from '@tiptap/extension-image'
 
 // --- UI Primitives ---
 import { Spacer } from '@/components/tiptap-ui-primitive/spacer'
@@ -27,12 +30,15 @@ import {
 
 // --- Tiptap Node ---
 import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
+import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node'
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
 import '@/components/tiptap-node/code-block-node/code-block-node.scss'
 import '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node.scss'
 import '@/components/tiptap-node/list-node/list-node.scss'
 import '@/components/tiptap-node/heading-node/heading-node.scss'
 import '@/components/tiptap-node/paragraph-node/paragraph-node.scss'
+import '@/components/tiptap-node/image-node/image-node.scss'
+import '@/components/tiptap-node/image-upload-node/image-upload-node.scss'
 
 // --- Tiptap UI ---
 import { HeadingDropdownMenu } from '@/components/tiptap-ui/heading-dropdown-menu'
@@ -42,6 +48,7 @@ import { MarksDropdownMenu } from '@/components/tiptap-ui/marks-dropdown-menu'
 import { AlignmentDropdownMenu } from '@/components/tiptap-ui/alignment-dropdown-menu'
 import { LinkPopover, LinkContent, LinkButton } from '@/components/tiptap-ui/link-popover'
 import { MarkButton } from '@/components/tiptap-ui/mark-button'
+import { ImageUploadButton } from '@/components/tiptap-ui/image-upload-button'
 
 // --- Icons ---
 import { ArrowLeftIcon } from '@/components/tiptap-icons/arrow-left-icon'
@@ -58,6 +65,132 @@ import '@/components/tiptap-templates/simple/simple-editor.scss'
 // --- UI Primitives ---
 import { Button } from '@/components/tiptap-ui-primitive/button'
 
+// --- Image Upload ---
+
+// Compression settings
+const COMPRESS_THRESHOLD = 500 * 1024 // Compress images over 500KB
+const MAX_DIMENSION = 1920 // Max width/height after compression
+const JPEG_QUALITY = 0.8 // Quality for JPEG compression
+
+/**
+ * Compress an image file using Canvas API
+ * - Resizes if larger than MAX_DIMENSION
+ * - Converts to JPEG with quality reduction
+ */
+async function compressImage(file: File): Promise<File> {
+  // Skip compression for small files or non-compressible formats
+  if (file.size < COMPRESS_THRESHOLD || file.type === 'image/gif') {
+    return file
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = new window.Image()
+    img.onload = () => {
+      try {
+        // Calculate new dimensions
+        let { width, height } = img
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIMENSION) / width)
+            width = MAX_DIMENSION
+          } else {
+            width = Math.round((width * MAX_DIMENSION) / height)
+            height = MAX_DIMENSION
+          }
+        }
+
+        // Draw to canvas
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          resolve(file) // Fall back to original
+          return
+        }
+        ctx.drawImage(img, 0, 0, width, height)
+
+        // Convert to blob
+        canvas.toBlob(
+          (blob) => {
+            if (!blob || blob.size >= file.size) {
+              // Compression didn't help, use original
+              resolve(file)
+              return
+            }
+            // Create new file with compressed data
+            const compressedFile = new File(
+              [blob],
+              file.name.replace(/\.[^/.]+$/, '.jpg'),
+              { type: 'image/jpeg' }
+            )
+            resolve(compressedFile)
+          },
+          'image/jpeg',
+          JPEG_QUALITY
+        )
+      } catch {
+        resolve(file) // Fall back to original on error
+      }
+    }
+    img.onerror = () => resolve(file) // Fall back to original on error
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+async function uploadImage(
+  file: File,
+  onProgress?: (event: { progress: number }) => void
+): Promise<string> {
+  onProgress?.({ progress: 5 })
+
+  // Compress image before upload
+  const processedFile = await compressImage(file)
+
+  const formData = new FormData()
+  formData.append('file', processedFile)
+
+  onProgress?.({ progress: 20 })
+
+  const response = await fetch('/api/upload-image', {
+    method: 'POST',
+    body: formData,
+  })
+
+  onProgress?.({ progress: 90 })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to upload image')
+  }
+
+  const data = await response.json()
+  onProgress?.({ progress: 100 })
+  return data.url
+}
+
+// Helper to handle pasted/dropped images
+async function handleImageFile(
+  editor: Editor,
+  file: File,
+  onError?: (message: string) => void
+): Promise<boolean> {
+  try {
+    const url = await uploadImage(file)
+    editor
+      .chain()
+      .focus()
+      .setImage({ src: url, alt: file.name.replace(/\.[^/.]+$/, '') })
+      .run()
+    return true
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to upload image'
+    console.error('Failed to upload image:', error)
+    onError?.(message)
+    return false
+  }
+}
+
 export interface RichTextEditorProps {
   content: TiptapContent
   onChange: (content: TiptapContent) => void
@@ -69,14 +202,20 @@ export interface RichTextEditorProps {
   editable?: boolean
   showToolbar?: boolean
   className?: string
+  /** Enable image upload via button, paste, and drag-drop */
+  enableImageUpload?: boolean
+  /** Callback when image upload fails */
+  onImageUploadError?: (message: string) => void
 }
 
 const MainToolbarContent = ({
   onLinkClick,
   isMobile,
+  enableImageUpload,
 }: {
   onLinkClick: () => void
   isMobile: boolean
+  enableImageUpload: boolean
 }) => {
   return (
     <>
@@ -85,6 +224,7 @@ const MainToolbarContent = ({
         <MarkButton type="italic" />
         <MarkButton type="underline" />
         {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
+        {enableImageUpload && <ImageUploadButton />}
       </ToolbarGroup>
 
       <ToolbarSeparator />
@@ -145,6 +285,8 @@ export function RichTextEditor({
   editable = true,
   showToolbar = true,
   className = '',
+  enableImageUpload = false,
+  onImageUploadError,
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
   const isMobile = useIsBreakpoint()
@@ -152,6 +294,65 @@ export function RichTextEditor({
   const [mobileView, setMobileView] = useState<'main' | 'link'>('main')
   const toolbarRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Build extensions array based on props (memoized to avoid recreating on every render)
+  const extensions = useMemo(() => [
+    StarterKit.configure({
+      horizontalRule: false,
+      heading: {
+        levels: [1, 2, 3],
+      },
+      link: {
+        openOnClick: false,
+        enableClickSelection: true,
+        validate: (href) => isSafeLinkHref(href),
+        HTMLAttributes: {
+          class:
+            'text-primary underline hover:text-primary-hover cursor-pointer',
+          rel: 'noopener noreferrer nofollow',
+          target: '_blank',
+        },
+      },
+      // Code blocks intentionally use dark styling regardless of theme (industry standard)
+      codeBlock: {
+        HTMLAttributes: {
+          class:
+            'bg-gray-900 text-gray-100 p-4 rounded font-mono text-sm',
+        },
+      },
+    }),
+    HorizontalRule,
+    TextAlign.configure({ types: ['heading', 'paragraph'] }),
+    TaskList,
+    TaskItem.configure({ nested: true }),
+    Typography,
+    Superscript,
+    Subscript,
+    Selection,
+    Underline,
+    Placeholder.configure({
+      placeholder,
+      includeChildren: true,  // Check child nodes for content (fixes placeholder showing after paste)
+    }),
+    Markdown,  // Enables markdown parsing for setContent/getMarkdown
+    // Image extensions (always included for rendering, upload only when enabled)
+    Image.configure({
+      HTMLAttributes: {
+        class: 'max-w-full h-auto rounded',
+      },
+    }),
+    ...(enableImageUpload
+      ? [
+          ImageUploadNode.configure({
+            type: 'image',
+            accept: IMAGE_ACCEPT,
+            maxSize: IMAGE_MAX_SIZE,
+            limit: 1,
+            upload: uploadImage,
+          }),
+        ]
+      : []),
+  ], [enableImageUpload, placeholder])
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -166,6 +367,7 @@ export function RichTextEditor({
       },
       handleDOMEvents: {
         paste: (_view, event) => {
+          // Track text paste for authenticity
           if (onPaste) {
             const text = event.clipboardData?.getData('text/plain') ?? ''
             const words = text.trim().split(/\s+/).filter(Boolean).length
@@ -205,46 +407,7 @@ export function RichTextEditor({
         },
       },
     },
-    extensions: [
-      StarterKit.configure({
-        horizontalRule: false,
-        heading: {
-          levels: [1, 2, 3],
-        },
-        link: {
-          openOnClick: false,
-          enableClickSelection: true,
-          validate: (href) => isSafeLinkHref(href),
-          HTMLAttributes: {
-            class:
-              'text-primary underline hover:text-primary-hover cursor-pointer',
-            rel: 'noopener noreferrer nofollow',
-            target: '_blank',
-          },
-        },
-        // Code blocks intentionally use dark styling regardless of theme (industry standard)
-        codeBlock: {
-          HTMLAttributes: {
-            class:
-              'bg-gray-900 text-gray-100 p-4 rounded font-mono text-sm',
-          },
-        },
-      }),
-      HorizontalRule,
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Typography,
-      Superscript,
-      Subscript,
-      Selection,
-      Underline,
-      Placeholder.configure({
-        placeholder,
-        includeChildren: true,  // Check child nodes for content (fixes placeholder showing after paste)
-      }),
-      Markdown,  // Enables markdown parsing for setContent/getMarkdown
-    ],
+    extensions,
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getJSON() as TiptapContent)
@@ -277,6 +440,53 @@ export function RichTextEditor({
     }
   }, [isMobile, mobileView])
 
+  // Handle image paste and drag-drop when enabled
+  useEffect(() => {
+    if (!editor || !enableImageUpload) return
+
+    const handlePaste = (event: ClipboardEvent) => {
+      const files = event.clipboardData?.files
+      if (!files?.length) return
+
+      const imageFile = Array.from(files).find((f) => f.type.startsWith('image/'))
+      if (!imageFile) return
+
+      event.preventDefault()
+      handleImageFile(editor, imageFile, onImageUploadError)
+    }
+
+    const handleDrop = (event: DragEvent) => {
+      const files = event.dataTransfer?.files
+      if (!files?.length) return
+
+      const imageFile = Array.from(files).find((f) => f.type.startsWith('image/'))
+      if (!imageFile) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      handleImageFile(editor, imageFile, onImageUploadError)
+    }
+
+    const handleDragOver = (event: DragEvent) => {
+      // Check if dragging files (not editor content)
+      if (event.dataTransfer?.types.includes('Files')) {
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+      }
+    }
+
+    const editorElement = editor.view.dom
+    editorElement.addEventListener('paste', handlePaste)
+    editorElement.addEventListener('drop', handleDrop)
+    editorElement.addEventListener('dragover', handleDragOver)
+
+    return () => {
+      editorElement.removeEventListener('paste', handlePaste)
+      editorElement.removeEventListener('drop', handleDrop)
+      editorElement.removeEventListener('dragover', handleDragOver)
+    }
+  }, [editor, enableImageUpload, onImageUploadError])
+
   if (!editor) {
     return null
   }
@@ -308,6 +518,7 @@ export function RichTextEditor({
               <MainToolbarContent
                 onLinkClick={() => setMobileView('link')}
                 isMobile={isMobile}
+                enableImageUpload={enableImageUpload}
               />
             ) : (
               <MobileToolbarContent onBack={() => setMobileView('main')} />
