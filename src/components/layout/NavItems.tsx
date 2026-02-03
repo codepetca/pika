@@ -119,6 +119,10 @@ export function NavItems({
     role === 'student' &&
     !notifications?.loading &&
     (notifications?.activeQuizzesCount ?? 0) > 0
+  const showResourcesPulse =
+    role === 'student' &&
+    !notifications?.loading &&
+    (notifications?.unreadAnnouncementsCount ?? 0) > 0
 
   const [assignments, setAssignments] = useState<SidebarAssignment[]>([])
   const [assignmentsExpanded, setAssignmentsExpanded] = useState(true)
@@ -446,7 +450,8 @@ export function NavItems({
         const shouldPulse =
           (item.id === 'today' && showTodayPulse) ||
           (item.id === 'assignments' && showAssignmentsPulse) ||
-          (item.id === 'quizzes' && showQuizzesPulse)
+          (item.id === 'quizzes' && showQuizzesPulse) ||
+          (item.id === 'resources' && showResourcesPulse)
 
         const navLink = (
           <Link

@@ -322,3 +322,14 @@ export interface QuizResultsAggregate {
   counts: number[] // count per option, same index
   total_responses: number
 }
+
+// Announcement types
+export interface Announcement {
+  id: string
+  classroom_id: string
+  title: string
+  content: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
