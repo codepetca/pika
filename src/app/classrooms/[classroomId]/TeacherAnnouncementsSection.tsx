@@ -196,7 +196,9 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
             onKeyDown={handleNewKeyDown}
-            onBlur={() => {
+            onBlur={(e) => {
+              // Don't save if clicking the Post button (it will handle it)
+              if (e.relatedTarget?.getAttribute('data-save-button')) return
               if (newContent.trim()) {
                 createAnnouncement()
               } else {
@@ -209,6 +211,17 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
             className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
             placeholder="Write an announcement..."
           />
+          <div className="flex justify-end mt-2">
+            <Button
+              variant="primary"
+              size="sm"
+              data-save-button="true"
+              onClick={createAnnouncement}
+              disabled={saving || !newContent.trim()}
+            >
+              {saving ? 'Posting...' : 'Post'}
+            </Button>
+          </div>
         </div>
       ) : (
         !isReadOnly && (
@@ -246,11 +259,26 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
                     onKeyDown={handleEditKeyDown}
-                    onBlur={saveEdit}
+                    onBlur={(e) => {
+                      // Don't save if clicking the Save button (it will handle it)
+                      if (e.relatedTarget?.getAttribute('data-save-button')) return
+                      saveEdit()
+                    }}
                     disabled={saving}
                     rows={3}
                     className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
                   />
+                  <div className="flex justify-end mt-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      data-save-button="true"
+                      onClick={saveEdit}
+                      disabled={saving || !editContent.trim()}
+                    >
+                      {saving ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 // View mode
