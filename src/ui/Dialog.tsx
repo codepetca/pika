@@ -329,7 +329,7 @@ export function ContentDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`${dialogPanelStyles()} ${maxWidth}`}
+        className={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col`}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -344,10 +344,10 @@ export function ContentDialog({
             </svg>
           </Button>
         </div>
-        <div className="mt-4">
+        <div className="mt-4 flex-1 min-h-0 overflow-y-auto">
           {children}
         </div>
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-end flex-shrink-0">
           <Button variant="secondary" onClick={onClose}>
             Close
           </Button>
