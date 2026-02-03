@@ -61,14 +61,14 @@ jobs:
 
   # Enforce no dark: classes in app code (only allowed in /ui CVA definitions)
   check-dark-mode:
-    name: Check No dark: Classes in App Code
+    name: "Check No dark: Classes in App Code"
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check for dark: classes outside /ui
+      - name: "Check for dark: classes outside /ui"
         run: |
           echo "Checking for dark: classes outside /ui..."
 
