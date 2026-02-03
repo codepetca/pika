@@ -89,7 +89,7 @@ export function StudentAnnouncementsSection({ classroom }: Props) {
           key={announcement.id}
           className="bg-surface rounded-lg border border-border p-4"
         >
-          <p className="text-xs text-text-muted mb-2">
+          <p className="text-[11px] text-text-muted mb-2">
             {formatDate(announcement.created_at)}
             {announcement.updated_at !== announcement.created_at && ' (edited)'}
           </p>
