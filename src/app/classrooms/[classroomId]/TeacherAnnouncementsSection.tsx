@@ -181,7 +181,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-2xl mx-auto">
       {isReadOnly && (
         <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
           This classroom is archived. Announcements are read-only.
@@ -225,7 +225,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
         </div>
       ) : (
         !isReadOnly && (
-          <div className="flex justify-end">
+          <div className="flex justify-center">
             <Button variant="primary" onClick={() => setIsCreating(true)}>
               <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
               New Announcement

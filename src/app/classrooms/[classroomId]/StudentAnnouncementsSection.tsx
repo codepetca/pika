@@ -76,14 +76,14 @@ export function StudentAnnouncementsSection({ classroom }: Props) {
 
   if (announcements.length === 0) {
     return (
-      <div className="bg-surface rounded-lg border border-border p-8 text-center">
+      <div className="max-w-2xl mx-auto bg-surface rounded-lg border border-border p-8 text-center">
         <p className="text-text-muted">No announcements yet.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 max-w-2xl mx-auto">
       {(showAll ? announcements : announcements.slice(0, 5)).map((announcement) => (
         <div
           key={announcement.id}
