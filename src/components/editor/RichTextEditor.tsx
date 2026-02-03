@@ -5,6 +5,7 @@ import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tipt
 import type { Editor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref } from '@/lib/tiptap-content'
+import { IMAGE_ACCEPT, IMAGE_MAX_SIZE } from '@/lib/image-upload'
 
 // --- Tiptap Core Extensions ---
 import { StarterKit } from '@tiptap/starter-kit'
@@ -268,8 +269,8 @@ export function RichTextEditor({
       ? [
           ImageUploadNode.configure({
             type: 'image',
-            accept: 'image/*',
-            maxSize: 10 * 1024 * 1024, // 10MB
+            accept: IMAGE_ACCEPT,
+            maxSize: IMAGE_MAX_SIZE,
             limit: 1,
             upload: uploadImage,
           }),
