@@ -16,6 +16,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
   const [showAll, setShowAll] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
+  const [originalContent, setOriginalContent] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [newContent, setNewContent] = useState('')
   const [saving, setSaving] = useState(false)
@@ -62,18 +63,26 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
   }, [isCreating])
 
   function startEditing(announcement: Announcement) {
-    if (isReadOnly) return
+    if (isReadOnly || saving) return
     setEditingId(announcement.id)
     setEditContent(announcement.content)
+    setOriginalContent(announcement.content)
   }
 
   function cancelEditing() {
     setEditingId(null)
     setEditContent('')
+    setOriginalContent('')
   }
 
   async function saveEdit() {
-    if (!editingId || !editContent.trim()) return
+    if (!editingId || !editContent.trim() || saving) return
+
+    // Don't save if content unchanged
+    if (editContent.trim() === originalContent.trim()) {
+      cancelEditing()
+      return
+    }
 
     setSaving(true)
     try {
@@ -92,6 +101,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
       )
       setEditingId(null)
       setEditContent('')
+      setOriginalContent('')
     } catch (err) {
       console.error('Error updating announcement:', err)
     } finally {
@@ -100,7 +110,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
   }
 
   async function createAnnouncement() {
-    if (!newContent.trim()) return
+    if (!newContent.trim() || saving) return
 
     setSaving(true)
     try {
@@ -149,27 +159,16 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     return `${weekday} ${monthDay}, ${time}`
   }
 
-  function handleKeyDown(
-    e: React.KeyboardEvent<HTMLTextAreaElement>,
-    action: 'save' | 'create'
-  ) {
-    // Cmd/Ctrl + Enter to save
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault()
-      if (action === 'save') {
-        saveEdit()
-      } else {
-        createAnnouncement()
-      }
-    }
-    // Escape to cancel
+  function handleEditKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Escape') {
-      if (action === 'save') {
-        cancelEditing()
-      } else {
-        setIsCreating(false)
-        setNewContent('')
-      }
+      cancelEditing()
+    }
+  }
+
+  function handleNewKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Escape') {
+      setIsCreating(false)
+      setNewContent('')
     }
   }
 
@@ -196,36 +195,20 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
             ref={newTextareaRef}
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
-            onKeyDown={(e) => handleKeyDown(e, 'create')}
+            onKeyDown={handleNewKeyDown}
+            onBlur={() => {
+              if (newContent.trim()) {
+                createAnnouncement()
+              } else {
+                setIsCreating(false)
+                setNewContent('')
+              }
+            }}
             disabled={saving}
             rows={3}
             className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
             placeholder="Write an announcement..."
           />
-          <div className="flex gap-2 justify-end mt-3">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setIsCreating(false)
-                setNewContent('')
-              }}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={createAnnouncement}
-              disabled={saving || !newContent.trim()}
-            >
-              {saving ? 'Posting...' : 'Post'}
-            </Button>
-          </div>
-          <p className="text-xs text-text-muted mt-2">
-            Press <kbd className="px-1 py-0.5 bg-surface-2 rounded text-xs">Cmd+Enter</kbd> to post
-          </p>
         </div>
       ) : (
         !isReadOnly && (
@@ -262,32 +245,12 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                     ref={editTextareaRef}
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, 'save')}
+                    onKeyDown={handleEditKeyDown}
+                    onBlur={saveEdit}
                     disabled={saving}
                     rows={3}
                     className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
                   />
-                  <div className="flex gap-2 justify-end mt-3">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={cancelEditing}
-                      disabled={saving}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={saveEdit}
-                      disabled={saving || !editContent.trim()}
-                    >
-                      {saving ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-text-muted mt-2">
-                    Press <kbd className="px-1 py-0.5 bg-surface-2 rounded text-xs">Cmd+Enter</kbd> to save, <kbd className="px-1 py-0.5 bg-surface-2 rounded text-xs">Esc</kbd> to cancel
-                  </p>
                 </div>
               ) : (
                 // View mode
