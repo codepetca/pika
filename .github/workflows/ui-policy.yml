@@ -3,8 +3,6 @@ name: UI Policy
 on:
   pull_request:
     branches: [main, production]
-  push:
-    branches: [main, production]
 
 jobs:
   check-ui-imports:
