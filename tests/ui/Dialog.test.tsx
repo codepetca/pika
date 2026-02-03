@@ -228,4 +228,40 @@ describe('ContentDialog', () => {
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(dialog).toHaveAttribute('aria-labelledby')
   })
+
+  it('has viewport constraint classes for overflow prevention', () => {
+    render(<ContentDialog {...defaultProps} />)
+    const dialog = screen.getByRole('dialog')
+    // Verify max-height and max-width viewport constraints
+    expect(dialog.className).toMatch(/max-h-\[85vh\]/)
+    expect(dialog.className).toMatch(/max-w-\[90vw\]/)
+    // Verify flex layout for scrollable content
+    expect(dialog.className).toContain('flex')
+    expect(dialog.className).toContain('flex-col')
+  })
+
+  it('has scrollable content area with non-shrinking header and footer', () => {
+    render(
+      <ContentDialog {...defaultProps}>
+        <div data-testid="content">Long content here</div>
+      </ContentDialog>
+    )
+    // Find content wrapper (parent of our test content)
+    const content = screen.getByTestId('content')
+    const contentWrapper = content.parentElement!
+    expect(contentWrapper.className).toContain('overflow-y-auto')
+    expect(contentWrapper.className).toContain('min-h-0')
+    expect(contentWrapper.className).toContain('flex-1')
+
+    // Find header (contains title) - it's the first flex div inside the dialog
+    const dialog = screen.getByRole('dialog')
+    const header = dialog.querySelector('.flex.items-start')!
+    expect(header.className).toContain('flex-shrink-0')
+
+    // Find footer (contains Close button text)
+    const closeButtons = screen.getAllByRole('button', { name: 'Close' })
+    const footerButton = closeButtons.find((btn) => btn.textContent === 'Close')!
+    const footer = footerButton.parentElement!
+    expect(footer.className).toContain('flex-shrink-0')
+  })
 })
