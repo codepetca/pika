@@ -26,8 +26,8 @@ function combineDateTimeToDate(date: string, time?: string): Date {
   if (time) {
     return new Date(`${date}T${time}`)
   }
-  // Default to 9:00 AM if no time specified
-  return new Date(`${date}T09:00`)
+  // Default to 7:00 AM if no time specified
+  return new Date(`${date}T07:00`)
 }
 
 // Helper to combine date and optional time into ISO string
