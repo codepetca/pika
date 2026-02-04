@@ -443,9 +443,23 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
       )}
 
       {/* Announcements list */}
-      {announcements.length > 0 && (
+      {announcements.length > 0 && (() => {
+        // Sort: scheduled announcements first (by scheduled_for), then published (by created_at)
+        const sortedAnnouncements = [...announcements].sort((a, b) => {
+          const aScheduled = isScheduled(a)
+          const bScheduled = isScheduled(b)
+          if (aScheduled && !bScheduled) return -1
+          if (!aScheduled && bScheduled) return 1
+          if (aScheduled && bScheduled) {
+            return new Date(a.scheduled_for!).getTime() - new Date(b.scheduled_for!).getTime()
+          }
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        })
+        const displayedAnnouncements = showAll ? sortedAnnouncements : sortedAnnouncements.slice(0, 5)
+
+        return (
         <div className="space-y-3">
-          {(showAll ? announcements : announcements.slice(0, 5)).map((announcement) => {
+          {displayedAnnouncements.map((announcement) => {
             const scheduled = isScheduled(announcement)
 
             return (
@@ -620,17 +634,18 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
             )
           })}
 
-          {!showAll && announcements.length > 5 && (
+          {!showAll && sortedAnnouncements.length > 5 && (
             <Button
               variant="secondary"
               onClick={() => setShowAll(true)}
               className="w-full"
             >
-              Show {announcements.length - 5} older announcement{announcements.length - 5 === 1 ? '' : 's'}
+              Show {sortedAnnouncements.length - 5} older announcement{sortedAnnouncements.length - 5 === 1 ? '' : 's'}
             </Button>
           )}
         </div>
-      )}
+        )
+      })()}
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog
