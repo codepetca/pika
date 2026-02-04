@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { extractTextFromTiptap } from '@/lib/lesson-plan-markdown'
 import { Tooltip } from '@/ui'
-import type { LessonPlan, TiptapContent, Assignment } from '@/types'
+import type { LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
 
 const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
 
@@ -14,6 +14,7 @@ interface LessonDayCellProps {
   day: Date
   lessonPlan: LessonPlan | null
   assignments?: Assignment[]
+  announcements?: Announcement[]
   isWeekend: boolean
   isToday: boolean
   isClassDay?: boolean // undefined means class days not initialized
@@ -22,6 +23,7 @@ interface LessonDayCellProps {
   plainTextOnly?: boolean // Force plain text rendering (for 'all' view performance)
   onContentChange?: (date: string, content: TiptapContent) => void
   onAssignmentClick?: (assignment: Assignment) => void
+  onAnnouncementClick?: () => void
 }
 
 export const LessonDayCell = memo(function LessonDayCell({
@@ -29,6 +31,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   day,
   lessonPlan,
   assignments = [],
+  announcements = [],
   isWeekend,
   isToday,
   isClassDay,
@@ -37,6 +40,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   plainTextOnly = false,
   onContentChange,
   onAssignmentClick,
+  onAnnouncementClick,
 }: LessonDayCellProps) {
   const content = lessonPlan?.content || EMPTY_CONTENT
 
@@ -59,6 +63,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   // Weekend cells are narrow and minimal
   if (isWeekend) {
     const assignmentTitles = assignments.map(a => a.title).join(', ')
+    const announcementCount = announcements.length
 
     return (
       <div
@@ -85,6 +90,21 @@ export const LessonDayCell = memo(function LessonDayCell({
                   }
                 }}
                 className={`w-full min-w-[12px] rounded bg-primary hover:bg-primary-hover cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
+              />
+            </Tooltip>
+          </div>
+        )}
+        {/* Weekend announcement pill - no text, tooltip on hover */}
+        {announcementCount > 0 && (
+          <div className="px-0.5 mt-0.5 flex items-start justify-center">
+            <Tooltip content={`${announcementCount} announcement${announcementCount > 1 ? 's' : ''}`} side="right">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAnnouncementClick?.()
+                }}
+                className={`w-full min-w-[12px] rounded bg-amber-500 hover:bg-amber-600 cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
               />
             </Tooltip>
           </div>
@@ -135,6 +155,28 @@ export const LessonDayCell = memo(function LessonDayCell({
                 }`}
               >
                 {compact ? assignment.title : `Due: ${assignment.title}`}
+              </button>
+            </Tooltip>
+          ))}
+        </div>
+      )}
+
+      {/* Announcements - shown after assignments */}
+      {announcements.length > 0 && (
+        <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
+          {announcements.map((announcement) => (
+            <Tooltip key={announcement.id} content={announcement.content.slice(0, 100) + (announcement.content.length > 100 ? '...' : '')}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAnnouncementClick?.()
+                }}
+                className={`w-full min-w-0 rounded bg-amber-500 text-white font-medium hover:bg-amber-600 text-center truncate ${
+                  compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
+                }`}
+              >
+                {compact ? 'Announcement' : 'Announcement'}
               </button>
             </Tooltip>
           ))}

@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose, CircleDot } fro
 import { LessonDayCell } from './LessonDayCell'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { Tooltip } from '@/ui'
-import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment } from '@/types'
+import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment, Announcement } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
 
@@ -17,6 +17,7 @@ interface LessonCalendarProps {
   classroom: Classroom
   lessonPlans: LessonPlan[]
   assignments?: Assignment[]
+  announcements?: Announcement[]
   classDays?: ClassDay[]
   viewMode: CalendarViewMode
   currentDate: Date
@@ -27,6 +28,7 @@ interface LessonCalendarProps {
   onViewModeChange: (mode: CalendarViewMode) => void
   onContentChange?: (date: string, content: TiptapContent) => void
   onAssignmentClick?: (assignment: Assignment) => void
+  onAnnouncementClick?: () => void
   onMarkdownToggle?: () => void
   isSidebarOpen?: boolean
 }
@@ -68,6 +70,7 @@ export function LessonCalendar({
   classroom,
   lessonPlans,
   assignments = [],
+  announcements = [],
   classDays = [],
   viewMode,
   currentDate,
@@ -78,6 +81,7 @@ export function LessonCalendar({
   onViewModeChange,
   onContentChange,
   onAssignmentClick,
+  onAnnouncementClick,
   onMarkdownToggle,
   isSidebarOpen = false,
 }: LessonCalendarProps) {
@@ -110,6 +114,23 @@ export function LessonCalendar({
     })
     return map
   }, [assignments])
+
+  // Build a map of date -> announcements for quick lookup
+  const announcementsByDate = useMemo(() => {
+    const map = new Map<string, Announcement[]>()
+    announcements.forEach((announcement) => {
+      // Convert created_at to Toronto timezone before extracting date
+      const createdInToronto = toZonedTime(new Date(announcement.created_at), TIMEZONE)
+      const createdDate = format(createdInToronto, 'yyyy-MM-dd')
+      const existing = map.get(createdDate)
+      if (existing) {
+        existing.push(announcement)
+      } else {
+        map.set(createdDate, [announcement])
+      }
+    })
+    return map
+  }, [announcements])
 
   // Build a set of class day dates for quick lookup
   const classDayDates = useMemo(() => {
@@ -460,6 +481,7 @@ export function LessonCalendar({
                   day={day}
                   lessonPlan={lessonPlan}
                   assignments={assignmentsByDate.get(dateString) || []}
+                  announcements={announcementsByDate.get(dateString) || []}
                   isWeekend={isWeekendDay}
                   isToday={isToday}
                   isClassDay={isClassDay}
@@ -468,6 +490,7 @@ export function LessonCalendar({
                   plainTextOnly={viewMode === 'all'}
                   onContentChange={onContentChange}
                   onAssignmentClick={onAssignmentClick}
+                  onAnnouncementClick={onAnnouncementClick}
                 />
               </div>
             )
