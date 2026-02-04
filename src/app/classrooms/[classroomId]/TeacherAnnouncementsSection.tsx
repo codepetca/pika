@@ -32,6 +32,8 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [originalContent, setOriginalContent] = useState('')
+  const [editScheduleDateTime, setEditScheduleDateTime] = useState('')
+  const [originalScheduledFor, setOriginalScheduledFor] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [newContent, setNewContent] = useState('')
   const [saving, setSaving] = useState(false)
@@ -98,31 +100,55 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     setEditingId(announcement.id)
     setEditContent(announcement.content)
     setOriginalContent(announcement.content)
+    // Convert ISO to local datetime-local format if scheduled
+    if (announcement.scheduled_for) {
+      const date = new Date(announcement.scheduled_for)
+      setEditScheduleDateTime(date.toISOString().slice(0, 16))
+      setOriginalScheduledFor(announcement.scheduled_for)
+    } else {
+      setEditScheduleDateTime('')
+      setOriginalScheduledFor(null)
+    }
   }
 
   function cancelEditing() {
     setEditingId(null)
     setEditContent('')
     setOriginalContent('')
+    setEditScheduleDateTime('')
+    setOriginalScheduledFor(null)
   }
 
-  async function saveEdit() {
+  async function saveEdit(publishNow?: boolean) {
     if (!editingId || !editContent.trim() || saving) return
 
-    // Don't save if content unchanged
-    if (editContent.trim() === originalContent.trim()) {
+    // Check if anything changed
+    const contentChanged = editContent.trim() !== originalContent.trim()
+    const newScheduledFor = publishNow ? null : (editScheduleDateTime ? new Date(editScheduleDateTime).toISOString() : null)
+    const scheduleChanged = newScheduledFor !== originalScheduledFor
+
+    // Don't save if nothing changed
+    if (!contentChanged && !scheduleChanged) {
       cancelEditing()
       return
     }
 
     setSaving(true)
     try {
+      const body: { content?: string; scheduled_for?: string | null } = {}
+      if (contentChanged) {
+        body.content = editContent.trim()
+      }
+      if (scheduleChanged) {
+        body.scheduled_for = newScheduledFor
+      }
+
       const res = await fetch(
         `/api/teacher/classrooms/${classroom.id}/announcements/${editingId}`,
         {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: editContent.trim() }),
+          body: JSON.stringify(body),
         }
       )
       if (!res.ok) throw new Error('Failed to update')
@@ -130,9 +156,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === data.announcement.id ? data.announcement : a))
       )
-      setEditingId(null)
-      setEditContent('')
-      setOriginalContent('')
+      cancelEditing()
     } catch (err) {
       console.error('Error updating announcement:', err)
     } finally {
@@ -342,17 +366,45 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
                       onKeyDown={handleEditKeyDown}
-                      onBlur={saveEdit}
                       disabled={saving}
                       rows={3}
                       className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
                     />
-                    <div className="flex justify-end mt-2">
+                    {/* Schedule editor for scheduled announcements */}
+                    {scheduled && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <Clock className="h-4 w-4 text-text-muted flex-shrink-0" />
+                        <input
+                          type="datetime-local"
+                          value={editScheduleDateTime}
+                          onChange={(e) => setEditScheduleDateTime(e.target.value)}
+                          min={getMinDatetime()}
+                          className="flex-1 rounded-md border border-border bg-surface-2 px-2 py-1 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => saveEdit(true)}
+                          disabled={saving}
+                          className="text-xs text-primary hover:text-primary-hover whitespace-nowrap"
+                        >
+                          Publish now
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center mt-2">
+                      <button
+                        type="button"
+                        onClick={cancelEditing}
+                        className="text-sm text-text-muted hover:text-text-default"
+                      >
+                        Cancel
+                      </button>
                       <Button
                         variant="primary"
                         size="sm"
                         onMouseDown={(e) => e.preventDefault()}
-                        onClick={saveEdit}
+                        onClick={() => saveEdit()}
                         disabled={saving || !editContent.trim()}
                       >
                         {saving ? 'Saving...' : 'Save'}
