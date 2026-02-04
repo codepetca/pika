@@ -68,7 +68,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         `}
       >
         <div className={`px-0.5 ${compact ? 'py-0' : 'py-0.5'} text-center`}>
-          <span className={`font-medium text-text-muted ${compact ? 'text-[10px]' : 'text-sm'}`}>
+          <span className={`font-medium text-text-muted ${compact ? 'text-xs' : 'text-sm'}`}>
             {format(day, 'd')}
           </span>
         </div>
@@ -111,7 +111,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         <span
           className={`
             font-medium
-            ${compact ? 'text-[10px]' : 'text-sm'}
+            ${compact ? 'text-xs' : 'text-sm'}
             ${isToday ? 'text-primary' : 'text-text-muted'}
           `}
         >

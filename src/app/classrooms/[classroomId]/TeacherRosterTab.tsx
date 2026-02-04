@@ -303,7 +303,15 @@ export function TeacherRosterTab({ classroom }: Props) {
                         <span>Students ({selectedStudentEmails.length})</span>
                         <ChevronRight className="h-4 w-4" />
                       </button>
-                      <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                      <div className="absolute left-full top-0 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
+                          onClick={() => copyToClipboard(selectedStudentEmails, 'Student emails')}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy
+                        </button>
                         <button
                           type="button"
                           className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
@@ -318,14 +326,6 @@ export function TeacherRosterTab({ classroom }: Props) {
                         >
                           Outlook
                         </button>
-                        <button
-                          type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
-                          onClick={() => copyToClipboard(selectedStudentEmails, 'Student emails')}
-                        >
-                          <Copy className="h-4 w-4" />
-                          Copy
-                        </button>
                       </div>
                     </div>
 
@@ -339,7 +339,15 @@ export function TeacherRosterTab({ classroom }: Props) {
                           <span>Counselors ({selectedCounselorEmails.length})</span>
                           <ChevronRight className="h-4 w-4" />
                         </button>
-                        <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                        <div className="absolute left-full top-0 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                          <button
+                            type="button"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
+                            onClick={() => copyToClipboard(selectedCounselorEmails, 'Counselor emails')}
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy
+                          </button>
                           <button
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
@@ -354,14 +362,6 @@ export function TeacherRosterTab({ classroom }: Props) {
                           >
                             Outlook
                           </button>
-                          <button
-                            type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
-                            onClick={() => copyToClipboard(selectedCounselorEmails, 'Counselor emails')}
-                          >
-                            <Copy className="h-4 w-4" />
-                            Copy
-                          </button>
                         </div>
                       </div>
                     )}
@@ -375,7 +375,15 @@ export function TeacherRosterTab({ classroom }: Props) {
                         <span>All ({selectedStudentEmails.length + selectedCounselorEmails.length})</span>
                         <ChevronRight className="h-4 w-4" />
                       </button>
-                      <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                      <div className="absolute left-full top-0 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
+                          onClick={() => copyToClipboard([...selectedStudentEmails, ...selectedCounselorEmails], 'All emails')}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy
+                        </button>
                         <button
                           type="button"
                           className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
@@ -389,14 +397,6 @@ export function TeacherRosterTab({ classroom }: Props) {
                           onClick={() => openOutlook([...selectedStudentEmails, ...selectedCounselorEmails])}
                         >
                           Outlook
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
-                          onClick={() => copyToClipboard([...selectedStudentEmails, ...selectedCounselorEmails], 'All emails')}
-                        >
-                          <Copy className="h-4 w-4" />
-                          Copy
                         </button>
                       </div>
                     </div>
@@ -448,7 +448,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   direction={sortDirection}
                   onClick={() => onSort('last_name')}
                 />
-                <DataTableHeaderCell>Email</DataTableHeaderCell>
+                <DataTableHeaderCell>Email ({sortedRoster.length} {sortedRoster.length === 1 ? 'student' : 'students'})</DataTableHeaderCell>
                 <DataTableHeaderCell>Counselor</DataTableHeaderCell>
                 <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
                 <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>

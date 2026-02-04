@@ -10,6 +10,15 @@
   font-family: "DM Sans", sans-serif;
 }
 
+// Placeholder text for empty editor
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-text-muted, #9ca3af);
+  pointer-events: none;
+  height: 0;
+}
+
 // Flex-compatible wrapper (works embedded in parent containers)
 .simple-editor-wrapper {
   width: 100%;
