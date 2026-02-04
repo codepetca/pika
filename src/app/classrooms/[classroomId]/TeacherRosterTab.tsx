@@ -412,11 +412,6 @@ export function TeacherRosterTab({ classroom }: Props) {
             )}
           </div>
         }
-        trailing={
-          <span className="text-sm text-text-muted">
-            {sortedRoster.length} {sortedRoster.length === 1 ? 'student' : 'students'}
-          </span>
-        }
       />
 
       <PageContent>
@@ -453,7 +448,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   direction={sortDirection}
                   onClick={() => onSort('last_name')}
                 />
-                <DataTableHeaderCell>Email</DataTableHeaderCell>
+                <DataTableHeaderCell>Email ({sortedRoster.length})</DataTableHeaderCell>
                 <DataTableHeaderCell>Counselor</DataTableHeaderCell>
                 <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
                 <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
