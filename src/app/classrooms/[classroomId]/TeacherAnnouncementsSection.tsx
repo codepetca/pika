@@ -40,10 +40,14 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [scheduleDateTime, setScheduleDateTime] = useState('')
+  const [showScheduleDropdown, setShowScheduleDropdown] = useState(false)
+  const [showEditScheduleDropdown, setShowEditScheduleDropdown] = useState(false)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const newTextareaRef = useRef<HTMLTextAreaElement>(null)
   const scheduleDateInputRef = useRef<HTMLInputElement>(null)
   const editScheduleDateInputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const editDropdownRef = useRef<HTMLDivElement>(null)
 
   const isReadOnly = !!classroom.archived_at
 
@@ -82,6 +86,32 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     }
   }, [isCreating])
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowScheduleDropdown(false)
+      }
+    }
+    if (showScheduleDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showScheduleDropdown])
+
+  // Close edit dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (editDropdownRef.current && !editDropdownRef.current.contains(event.target as Node)) {
+        setShowEditScheduleDropdown(false)
+      }
+    }
+    if (showEditScheduleDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showEditScheduleDropdown])
+
   function startEditing(announcement: Announcement) {
     if (isReadOnly || saving) return
     setEditingId(announcement.id)
@@ -104,6 +134,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     setOriginalContent('')
     setEditScheduleDateTime('')
     setOriginalScheduledFor(null)
+    setShowEditScheduleDropdown(false)
   }
 
   async function saveEdit() {
@@ -255,7 +286,10 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
             ref={scheduleDateInputRef}
             type="datetime-local"
             value={scheduleDateTime}
-            onChange={(e) => setScheduleDateTime(e.target.value)}
+            onChange={(e) => {
+              setScheduleDateTime(e.target.value)
+              if (e.target.value) setShowScheduleDropdown(false)
+            }}
             min={getMinDatetime()}
             className="sr-only"
             tabIndex={-1}
@@ -287,12 +321,13 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                 setIsCreating(false)
                 setNewContent('')
                 setScheduleDateTime('')
+                setShowScheduleDropdown(false)
               }}
               className="text-sm text-text-muted hover:text-text-default"
             >
               Cancel
             </button>
-            <div className="flex items-center">
+            <div className="relative flex items-center" ref={dropdownRef}>
               <Button
                 variant="primary"
                 size="sm"
@@ -307,12 +342,26 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => scheduleDateInputRef.current?.showPicker()}
+                  onClick={() => setShowScheduleDropdown(!showScheduleDropdown)}
                   disabled={saving || !newContent.trim()}
                   className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <ChevronDown className="h-4 w-4" />
                 </button>
+              )}
+
+              {/* Schedule dropdown */}
+              {showScheduleDropdown && (
+                <div className="absolute right-0 top-full mt-1 bg-surface rounded-lg shadow-lg border border-border p-2 z-10">
+                  <button
+                    type="button"
+                    onClick={() => scheduleDateInputRef.current?.showPicker()}
+                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-default hover:bg-surface-2 rounded-md w-full"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    <span>Schedule</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -367,7 +416,10 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                       ref={editScheduleDateInputRef}
                       type="datetime-local"
                       value={editScheduleDateTime}
-                      onChange={(e) => setEditScheduleDateTime(e.target.value)}
+                      onChange={(e) => {
+                        setEditScheduleDateTime(e.target.value)
+                        if (e.target.value) setShowEditScheduleDropdown(false)
+                      }}
                       min={getMinDatetime()}
                       className="sr-only"
                       tabIndex={-1}
@@ -402,7 +454,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                       >
                         Cancel
                       </button>
-                      <div className="flex items-center">
+                      <div className="relative flex items-center" ref={editDropdownRef}>
                         <Button
                           variant="primary"
                           size="sm"
@@ -417,12 +469,26 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                           <button
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => editScheduleDateInputRef.current?.showPicker()}
+                            onClick={() => setShowEditScheduleDropdown(!showEditScheduleDropdown)}
                             disabled={saving || !editContent.trim()}
                             className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <ChevronDown className="h-4 w-4" />
                           </button>
+                        )}
+
+                        {/* Schedule dropdown */}
+                        {showEditScheduleDropdown && (
+                          <div className="absolute right-0 top-full mt-1 bg-surface rounded-lg shadow-lg border border-border p-2 z-10">
+                            <button
+                              type="button"
+                              onClick={() => editScheduleDateInputRef.current?.showPicker()}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-text-default hover:bg-surface-2 rounded-md w-full"
+                            >
+                              <Calendar className="h-4 w-4" />
+                              <span>Schedule</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
