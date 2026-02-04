@@ -192,7 +192,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                     compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
                   } ${
                     scheduled
-                      ? 'bg-amber-500/40 text-amber-900 dark:text-amber-200 hover:bg-amber-500/60'
+                      ? 'bg-amber-500/40 text-amber-800 hover:bg-amber-500/60'
                       : 'bg-amber-500 text-white hover:bg-amber-600'
                   }`}
                 >
