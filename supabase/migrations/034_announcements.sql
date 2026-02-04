@@ -4,6 +4,7 @@ CREATE TABLE announcements (
   classroom_id uuid NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
   content text NOT NULL,
   created_by uuid NOT NULL REFERENCES users(id),
+  scheduled_for timestamptz, -- NULL = published immediately, future timestamp = scheduled
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

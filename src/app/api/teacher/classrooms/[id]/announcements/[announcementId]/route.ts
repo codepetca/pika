@@ -48,13 +48,39 @@ export async function PATCH(
     const user = await requireRole('teacher')
     const { id: classroomId, announcementId } = await params
     const body = await request.json()
-    const { content } = body as { content?: string }
+    const { content, scheduled_for } = body as { content?: string; scheduled_for?: string | null }
 
-    if (!content || !content.trim()) {
+    // Require at least one field to update
+    if (content === undefined && scheduled_for === undefined) {
       return NextResponse.json(
         { error: 'Content is required' },
         { status: 400 }
       )
+    }
+
+    // Content can't be empty string if provided
+    if (content !== undefined && (!content || !content.trim())) {
+      return NextResponse.json(
+        { error: 'Content cannot be empty' },
+        { status: 400 }
+      )
+    }
+
+    // Validate scheduled_for if provided and not null (null means publish immediately)
+    if (scheduled_for !== undefined && scheduled_for !== null) {
+      const scheduledDate = new Date(scheduled_for)
+      if (isNaN(scheduledDate.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid scheduled date' },
+          { status: 400 }
+        )
+      }
+      if (scheduledDate <= new Date()) {
+        return NextResponse.json(
+          { error: 'Scheduled date must be in the future' },
+          { status: 400 }
+        )
+      }
     }
 
     const ownership = await verifyAnnouncementOwnership(user.id, classroomId, announcementId)
@@ -74,9 +100,18 @@ export async function PATCH(
 
     const supabase = getServiceRoleClient()
 
+    // Build update object with only provided fields
+    const updateData: { content?: string; scheduled_for?: string | null } = {}
+    if (content !== undefined) {
+      updateData.content = content.trim()
+    }
+    if (scheduled_for !== undefined) {
+      updateData.scheduled_for = scheduled_for
+    }
+
     const { data: announcement, error } = await supabase
       .from('announcements')
-      .update({ content: content.trim() })
+      .update(updateData)
       .eq('id', announcementId)
       .select()
       .single()

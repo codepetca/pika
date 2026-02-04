@@ -112,7 +112,7 @@ describe('PATCH /api/teacher/classrooms/[id]/announcements/[announcementId]', ()
     expect(response.status).toBe(400)
 
     const data = await response.json()
-    expect(data.error).toBe('Content is required')
+    expect(data.error).toBe('Content cannot be empty')
   })
 
   it('should return 404 when announcement not found', async () => {

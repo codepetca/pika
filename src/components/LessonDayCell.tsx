@@ -9,6 +9,12 @@ import type { LessonPlan, TiptapContent, Assignment, Announcement } from '@/type
 
 const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
 
+// Helper to check if announcement is scheduled (not yet published)
+function isScheduled(announcement: Announcement): boolean {
+  if (!announcement.scheduled_for) return false
+  return new Date(announcement.scheduled_for) > new Date()
+}
+
 interface LessonDayCellProps {
   date: string // YYYY-MM-DD
   day: Date
@@ -104,7 +110,11 @@ export const LessonDayCell = memo(function LessonDayCell({
                   e.stopPropagation()
                   onAnnouncementClick?.()
                 }}
-                className={`w-full min-w-[12px] rounded bg-amber-500 hover:bg-amber-600 cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
+                className={`w-full min-w-[12px] rounded cursor-pointer ${compact ? 'h-4' : 'h-6'} ${
+                  announcements.some(isScheduled)
+                    ? 'bg-amber-500/40 hover:bg-amber-500/60'
+                    : 'bg-amber-500 hover:bg-amber-600'
+                }`}
               />
             </Tooltip>
           </div>
@@ -164,22 +174,33 @@ export const LessonDayCell = memo(function LessonDayCell({
       {/* Announcements - shown after assignments */}
       {announcements.length > 0 && (
         <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
-          {announcements.map((announcement) => (
-            <Tooltip key={announcement.id} content={announcement.content.slice(0, 100) + (announcement.content.length > 100 ? '...' : '')}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onAnnouncementClick?.()
-                }}
-                className={`w-full min-w-0 rounded bg-amber-500 text-white font-medium hover:bg-amber-600 text-center truncate ${
-                  compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
-                }`}
-              >
-                {compact ? 'Announcement' : 'Announcement'}
-              </button>
-            </Tooltip>
-          ))}
+          {announcements.map((announcement) => {
+            const scheduled = isScheduled(announcement)
+            const tooltipText = scheduled
+              ? `(Scheduled) ${announcement.content.slice(0, 80)}${announcement.content.length > 80 ? '...' : ''}`
+              : announcement.content.slice(0, 100) + (announcement.content.length > 100 ? '...' : '')
+
+            return (
+              <Tooltip key={announcement.id} content={tooltipText}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onAnnouncementClick?.()
+                  }}
+                  className={`w-full min-w-0 rounded font-medium text-center truncate ${
+                    compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
+                  } ${
+                    scheduled
+                      ? 'bg-amber-500/40 text-amber-900 dark:text-amber-200 hover:bg-amber-500/60'
+                      : 'bg-amber-500 text-white hover:bg-amber-600'
+                  }`}
+                >
+                  {compact ? (scheduled ? 'Scheduled' : 'Announcement') : (scheduled ? 'Scheduled' : 'Announcement')}
+                </button>
+              </Tooltip>
+            )
+          })}
         </div>
       )}
 

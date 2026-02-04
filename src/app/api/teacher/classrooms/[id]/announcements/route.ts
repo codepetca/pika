@@ -67,13 +67,30 @@ export async function POST(
     const user = await requireRole('teacher')
     const { id: classroomId } = await params
     const body = await request.json()
-    const { content } = body as { content?: string }
+    const { content, scheduled_for } = body as { content?: string; scheduled_for?: string }
 
     if (!content || !content.trim()) {
       return NextResponse.json(
         { error: 'Content is required' },
         { status: 400 }
       )
+    }
+
+    // Validate scheduled_for if provided
+    if (scheduled_for) {
+      const scheduledDate = new Date(scheduled_for)
+      if (isNaN(scheduledDate.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid scheduled date' },
+          { status: 400 }
+        )
+      }
+      if (scheduledDate <= new Date()) {
+        return NextResponse.json(
+          { error: 'Scheduled date must be in the future' },
+          { status: 400 }
+        )
+      }
     }
 
     const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
@@ -92,6 +109,7 @@ export async function POST(
         classroom_id: classroomId,
         content: content.trim(),
         created_by: user.id,
+        scheduled_for: scheduled_for || null,
       })
       .select()
       .single()

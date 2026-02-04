@@ -25,10 +25,12 @@ export async function GET(
 
     const supabase = getServiceRoleClient()
 
+    // Only return published announcements (scheduled_for is null or in the past)
     const { data: announcements, error } = await supabase
       .from('announcements')
       .select('*')
       .eq('classroom_id', classroomId)
+      .or('scheduled_for.is.null,scheduled_for.lte.now()')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -74,11 +76,12 @@ export async function POST(
 
     const supabase = getServiceRoleClient()
 
-    // Get all announcements for this classroom
+    // Get only published announcements for this classroom
     const { data: announcements, error: fetchError } = await supabase
       .from('announcements')
       .select('id')
       .eq('classroom_id', classroomId)
+      .or('scheduled_for.is.null,scheduled_for.lte.now()')
 
     if (fetchError) {
       console.error('Error fetching announcements:', fetchError)

@@ -23,7 +23,9 @@ describe('GET /api/student/classrooms/[id]/announcements', () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          or: vi.fn(() => ({
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
         })),
       })),
     }))
@@ -48,7 +50,9 @@ describe('GET /api/student/classrooms/[id]/announcements', () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          order: vi.fn().mockResolvedValue({ data: mockAnnouncements, error: null }),
+          or: vi.fn(() => ({
+            order: vi.fn().mockResolvedValue({ data: mockAnnouncements, error: null }),
+          })),
         })),
       })),
     }))
@@ -100,7 +104,9 @@ describe('GET /api/student/classrooms/[id]/announcements', () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          order: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
+          or: vi.fn(() => ({
+            order: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
+          })),
         })),
       })),
     }))
@@ -124,10 +130,12 @@ describe('POST /api/student/classrooms/[id]/announcements (mark all as read)', (
       if (table === 'announcements') {
         return {
           select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [{ id: 'a-1' }, { id: 'a-2' }],
-              error: null,
-            }),
+            eq: vi.fn(() => ({
+              or: vi.fn().mockResolvedValue({
+                data: [{ id: 'a-1' }, { id: 'a-2' }],
+                error: null,
+              }),
+            })),
           })),
         }
       }
@@ -156,10 +164,12 @@ describe('POST /api/student/classrooms/[id]/announcements (mark all as read)', (
       if (table === 'announcements') {
         return {
           select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
+            eq: vi.fn(() => ({
+              or: vi.fn().mockResolvedValue({
+                data: [],
+                error: null,
+              }),
+            })),
           })),
         }
       }
@@ -216,10 +226,12 @@ describe('POST /api/student/classrooms/[id]/announcements (mark all as read)', (
       if (table === 'announcements') {
         return {
           select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: null,
-              error: { message: 'DB error' },
-            }),
+            eq: vi.fn(() => ({
+              or: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'DB error' },
+              }),
+            })),
           })),
         }
       }
@@ -239,10 +251,12 @@ describe('POST /api/student/classrooms/[id]/announcements (mark all as read)', (
       if (table === 'announcements') {
         return {
           select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [{ id: 'a-1' }],
-              error: null,
-            }),
+            eq: vi.fn(() => ({
+              or: vi.fn().mockResolvedValue({
+                data: [{ id: 'a-1' }],
+                error: null,
+              }),
+            })),
           })),
         }
       }
