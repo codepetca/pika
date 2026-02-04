@@ -40,12 +40,12 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [scheduleDateTime, setScheduleDateTime] = useState('')
+  const [pendingScheduleDateTime, setPendingScheduleDateTime] = useState('')
+  const [pendingEditScheduleDateTime, setPendingEditScheduleDateTime] = useState('')
   const [showScheduleDropdown, setShowScheduleDropdown] = useState(false)
   const [showEditScheduleDropdown, setShowEditScheduleDropdown] = useState(false)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const newTextareaRef = useRef<HTMLTextAreaElement>(null)
-  const scheduleDateInputRef = useRef<HTMLInputElement>(null)
-  const editScheduleDateInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const editDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -281,25 +281,15 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
             className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
             placeholder="Write an announcement..."
           />
-          {/* Hidden datetime input */}
-          <input
-            ref={scheduleDateInputRef}
-            type="datetime-local"
-            value={scheduleDateTime}
-            onChange={(e) => {
-              setScheduleDateTime(e.target.value)
-              if (e.target.value) setShowScheduleDropdown(false)
-            }}
-            min={getMinDatetime()}
-            className="sr-only"
-            tabIndex={-1}
-          />
           {/* Show scheduled date if set */}
           {scheduleDateTime && (
             <div className="flex items-center gap-2 mt-2">
               <button
                 type="button"
-                onClick={() => scheduleDateInputRef.current?.showPicker()}
+                onClick={() => {
+                  setPendingScheduleDateTime(scheduleDateTime)
+                  setShowScheduleDropdown(true)
+                }}
                 className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
               >
                 <Calendar className="h-4 w-4 flex-shrink-0" />
@@ -342,7 +332,10 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => setShowScheduleDropdown(!showScheduleDropdown)}
+                  onClick={() => {
+                    setPendingScheduleDateTime(getMinDatetime())
+                    setShowScheduleDropdown(!showScheduleDropdown)
+                  }}
                   disabled={saving || !newContent.trim()}
                   className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -352,15 +345,32 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
 
               {/* Schedule dropdown */}
               {showScheduleDropdown && (
-                <div className="absolute right-0 top-full mt-1 bg-surface rounded-lg shadow-lg border border-border p-2 z-10">
-                  <button
-                    type="button"
-                    onClick={() => scheduleDateInputRef.current?.showPicker()}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-text-default hover:bg-surface-2 rounded-md w-full"
+                <div className="absolute right-0 top-full mt-1 bg-surface rounded-lg shadow-lg border border-border p-3 z-10 min-w-[200px]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4 text-text-muted" />
+                    <span className="text-sm font-medium text-text-default">Schedule</span>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    value={pendingScheduleDateTime}
+                    onChange={(e) => setPendingScheduleDateTime(e.target.value)}
+                    min={getMinDatetime()}
+                    className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      if (pendingScheduleDateTime) {
+                        setScheduleDateTime(pendingScheduleDateTime)
+                      }
+                      setShowScheduleDropdown(false)
+                    }}
+                    disabled={!pendingScheduleDateTime}
+                    className="w-full mt-2"
                   >
-                    <Calendar className="h-4 w-4" />
-                    <span>Schedule</span>
-                  </button>
+                    Done
+                  </Button>
                 </div>
               )}
             </div>
@@ -411,25 +421,15 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                       rows={3}
                       className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
                     />
-                    {/* Hidden datetime input */}
-                    <input
-                      ref={editScheduleDateInputRef}
-                      type="datetime-local"
-                      value={editScheduleDateTime}
-                      onChange={(e) => {
-                        setEditScheduleDateTime(e.target.value)
-                        if (e.target.value) setShowEditScheduleDropdown(false)
-                      }}
-                      min={getMinDatetime()}
-                      className="sr-only"
-                      tabIndex={-1}
-                    />
                     {/* Show scheduled date if set */}
                     {editScheduleDateTime && (
                       <div className="flex items-center gap-2 mt-2">
                         <button
                           type="button"
-                          onClick={() => editScheduleDateInputRef.current?.showPicker()}
+                          onClick={() => {
+                            setPendingEditScheduleDateTime(editScheduleDateTime)
+                            setShowEditScheduleDropdown(true)
+                          }}
                           className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
                         >
                           <Calendar className="h-4 w-4 flex-shrink-0" />
@@ -469,7 +469,10 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                           <button
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => setShowEditScheduleDropdown(!showEditScheduleDropdown)}
+                            onClick={() => {
+                              setPendingEditScheduleDateTime(getMinDatetime())
+                              setShowEditScheduleDropdown(!showEditScheduleDropdown)
+                            }}
                             disabled={saving || !editContent.trim()}
                             className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -479,15 +482,32 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
 
                         {/* Schedule dropdown */}
                         {showEditScheduleDropdown && (
-                          <div className="absolute right-0 top-full mt-1 bg-surface rounded-lg shadow-lg border border-border p-2 z-10">
-                            <button
-                              type="button"
-                              onClick={() => editScheduleDateInputRef.current?.showPicker()}
-                              className="flex items-center gap-2 px-3 py-2 text-sm text-text-default hover:bg-surface-2 rounded-md w-full"
+                          <div className="absolute right-0 top-full mt-1 bg-surface rounded-lg shadow-lg border border-border p-3 z-10 min-w-[200px]">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Calendar className="h-4 w-4 text-text-muted" />
+                              <span className="text-sm font-medium text-text-default">Schedule</span>
+                            </div>
+                            <input
+                              type="datetime-local"
+                              value={pendingEditScheduleDateTime}
+                              onChange={(e) => setPendingEditScheduleDateTime(e.target.value)}
+                              min={getMinDatetime()}
+                              className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => {
+                                if (pendingEditScheduleDateTime) {
+                                  setEditScheduleDateTime(pendingEditScheduleDateTime)
+                                }
+                                setShowEditScheduleDropdown(false)
+                              }}
+                              disabled={!pendingEditScheduleDateTime}
+                              className="w-full mt-2"
                             >
-                              <Calendar className="h-4 w-4" />
-                              <span>Schedule</span>
-                            </button>
+                              Done
+                            </Button>
                           </div>
                         )}
                       </div>
