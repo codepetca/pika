@@ -279,6 +279,22 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
             className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
             placeholder="Write an announcement..."
           />
+          {/* Show scheduled date if set */}
+          {scheduleDateTime && (
+            <div className="flex items-center gap-2 mt-2">
+              <Clock className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <span className="text-sm text-amber-600">
+                Scheduled for {formatDate(new Date(scheduleDateTime).toISOString())}
+              </span>
+              <button
+                type="button"
+                onClick={() => setScheduleDateTime('')}
+                className="text-xs text-text-muted hover:text-text-default"
+              >
+                Clear
+              </button>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-2">
             <button
               type="button"
@@ -297,21 +313,23 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                 variant="primary"
                 size="sm"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => createAnnouncement()}
+                onClick={() => createAnnouncement(scheduleDateTime || undefined)}
                 disabled={saving || !newContent.trim()}
-                className="rounded-r-none"
+                className={scheduleDateTime ? '' : 'rounded-r-none'}
               >
-                {saving ? 'Posting...' : 'Post'}
+                {saving ? (scheduleDateTime ? 'Scheduling...' : 'Posting...') : (scheduleDateTime ? 'Schedule' : 'Post')}
               </Button>
-              <button
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setShowScheduleDropdown(!showScheduleDropdown)}
-                disabled={saving || !newContent.trim()}
-                className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
+              {!scheduleDateTime && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => setShowScheduleDropdown(!showScheduleDropdown)}
+                  disabled={saving || !newContent.trim()}
+                  className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              )}
 
               {/* Schedule dropdown */}
               {showScheduleDropdown && (
@@ -323,19 +341,13 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                   <input
                     type="datetime-local"
                     value={scheduleDateTime}
-                    onChange={(e) => setScheduleDateTime(e.target.value)}
+                    onChange={(e) => {
+                      setScheduleDateTime(e.target.value)
+                      if (e.target.value) setShowScheduleDropdown(false)
+                    }}
                     min={getMinDatetime()}
                     className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => createAnnouncement(scheduleDateTime)}
-                    disabled={saving || !scheduleDateTime}
-                    className="w-full mt-2"
-                  >
-                    {saving ? 'Scheduling...' : 'Schedule'}
-                  </Button>
                 </div>
               )}
             </div>
@@ -438,7 +450,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                             disabled={saving || !editContent.trim()}
                             className="rounded-r-none"
                           >
-                            {saving ? 'Saving...' : 'Save'}
+                            {saving ? 'Posting...' : 'Post'}
                           </Button>
                           <button
                             type="button"
@@ -460,21 +472,13 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                               <input
                                 type="datetime-local"
                                 value={editScheduleDateTime}
-                                onChange={(e) => setEditScheduleDateTime(e.target.value)}
+                                onChange={(e) => {
+                                  setEditScheduleDateTime(e.target.value)
+                                  if (e.target.value) setShowEditScheduleDropdown(false)
+                                }}
                                 min={getMinDatetime()}
                                 className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => {
-                                  setShowEditScheduleDropdown(false)
-                                }}
-                                disabled={!editScheduleDateTime}
-                                className="w-full mt-2"
-                              >
-                                Set Schedule
-                              </Button>
                             </div>
                           )}
                         </div>
