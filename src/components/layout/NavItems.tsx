@@ -119,6 +119,10 @@ export function NavItems({
     role === 'student' &&
     !notifications?.loading &&
     (notifications?.activeQuizzesCount ?? 0) > 0
+  const showResourcesPulse =
+    role === 'student' &&
+    !notifications?.loading &&
+    (notifications?.unreadAnnouncementsCount ?? 0) > 0
 
   const [assignments, setAssignments] = useState<SidebarAssignment[]>([])
   const [assignmentsExpanded, setAssignmentsExpanded] = useState(true)
@@ -290,7 +294,7 @@ export function NavItems({
                 aria-current={isActive ? 'page' : undefined}
                 aria-label={item.label}
                 className={[
-                  'group flex flex-1 items-center rounded-md text-base font-medium transition-colors',
+                  'group flex items-center rounded-md text-base font-medium transition-colors',
                   layoutClass,
                   isActive
                     ? 'bg-info-bg text-info'
@@ -314,13 +318,11 @@ export function NavItems({
 
           return (
             <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
-              <div className="flex items-center">
-                {!isExpanded ? (
-                  <Tooltip content={item.label}>{studentAssignmentsLink}</Tooltip>
-                ) : (
-                  studentAssignmentsLink
-                )}
-              </div>
+              {!isExpanded ? (
+                <Tooltip content={item.label}>{studentAssignmentsLink}</Tooltip>
+              ) : (
+                studentAssignmentsLink
+              )}
 
               {canShowNested && assignments && assignments.length > 0 && (
                 <div className="pl-10 pr-3 space-y-1">
@@ -446,7 +448,8 @@ export function NavItems({
         const shouldPulse =
           (item.id === 'today' && showTodayPulse) ||
           (item.id === 'assignments' && showAssignmentsPulse) ||
-          (item.id === 'quizzes' && showQuizzesPulse)
+          (item.id === 'quizzes' && showQuizzesPulse) ||
+          (item.id === 'resources' && showResourcesPulse)
 
         const navLink = (
           <Link
