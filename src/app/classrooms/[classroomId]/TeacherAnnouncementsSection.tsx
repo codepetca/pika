@@ -41,9 +41,11 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
   const [deleting, setDeleting] = useState(false)
   const [showScheduleDropdown, setShowScheduleDropdown] = useState(false)
   const [scheduleDateTime, setScheduleDateTime] = useState('')
+  const [showEditScheduleDropdown, setShowEditScheduleDropdown] = useState(false)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const newTextareaRef = useRef<HTMLTextAreaElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const editDropdownRef = useRef<HTMLDivElement>(null)
 
   const isReadOnly = !!classroom.archived_at
 
@@ -95,6 +97,19 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     }
   }, [showScheduleDropdown])
 
+  // Close edit dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (editDropdownRef.current && !editDropdownRef.current.contains(event.target as Node)) {
+        setShowEditScheduleDropdown(false)
+      }
+    }
+    if (showEditScheduleDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showEditScheduleDropdown])
+
   function startEditing(announcement: Announcement) {
     if (isReadOnly || saving) return
     setEditingId(announcement.id)
@@ -117,6 +132,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     setOriginalContent('')
     setEditScheduleDateTime('')
     setOriginalScheduledFor(null)
+    setShowEditScheduleDropdown(false)
   }
 
   async function saveEdit() {
@@ -370,8 +386,8 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                       rows={3}
                       className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
                     />
-                    {/* Schedule editor for scheduled announcements */}
-                    {scheduled && (
+                    {/* Schedule editor when announcement has a schedule */}
+                    {editScheduleDateTime && (
                       <div className="flex items-center gap-2 mt-2">
                         <Clock className="h-4 w-4 text-text-muted flex-shrink-0" />
                         <input
@@ -392,7 +408,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                         </button>
                       </div>
                     )}
-                    <div className="flex justify-between items-center mt-2">
+                    <div className="flex items-center justify-between mt-2">
                       <button
                         type="button"
                         onClick={cancelEditing}
@@ -400,15 +416,69 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                       >
                         Cancel
                       </button>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => saveEdit()}
-                        disabled={saving || !editContent.trim()}
-                      >
-                        {saving ? 'Saving...' : 'Save'}
-                      </Button>
+                      {editScheduleDateTime ? (
+                        // Has schedule - show Save button
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => saveEdit()}
+                          disabled={saving || !editContent.trim()}
+                        >
+                          {saving ? 'Saving...' : 'Save'}
+                        </Button>
+                      ) : (
+                        // No schedule - show Post/Schedule dropdown like new announcement
+                        <div className="relative flex items-center" ref={editDropdownRef}>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => saveEdit()}
+                            disabled={saving || !editContent.trim()}
+                            className="rounded-r-none"
+                          >
+                            {saving ? 'Saving...' : 'Save'}
+                          </Button>
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => setShowEditScheduleDropdown(!showEditScheduleDropdown)}
+                            disabled={saving || !editContent.trim()}
+                            className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </button>
+
+                          {/* Schedule dropdown */}
+                          {showEditScheduleDropdown && (
+                            <div className="absolute right-0 top-full mt-1 bg-surface rounded-lg shadow-lg border border-border p-3 z-10 min-w-[280px]">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Clock className="h-4 w-4 text-text-muted" />
+                                <span className="text-sm font-medium text-text-default">Schedule for later</span>
+                              </div>
+                              <input
+                                type="datetime-local"
+                                value={editScheduleDateTime}
+                                onChange={(e) => setEditScheduleDateTime(e.target.value)}
+                                min={getMinDatetime()}
+                                className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => {
+                                  setShowEditScheduleDropdown(false)
+                                }}
+                                disabled={!editScheduleDateTime}
+                                className="w-full mt-2"
+                              >
+                                Set Schedule
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
