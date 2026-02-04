@@ -165,13 +165,14 @@ export async function GET(request: NextRequest) {
       activeQuizzesCount = activeQuizIds.filter((id) => !respondedQuizIds.has(id)).length
     }
 
-    // Count unread announcements for this classroom
+    // Count unread announcements for this classroom (only published ones)
     let unreadAnnouncementsCount = 0
 
     const { data: announcements, error: announcementsError } = await supabase
       .from('announcements')
       .select('id')
       .eq('classroom_id', classroomId)
+      .or('scheduled_for.is.null,scheduled_for.lte.now()')
 
     if (announcementsError) {
       console.error('Error fetching announcements:', announcementsError)

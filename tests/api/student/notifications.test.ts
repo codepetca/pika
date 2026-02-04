@@ -106,6 +106,7 @@ function createTableMock(config: {
       return {
         select: vi.fn(() => ({
           eq: vi.fn().mockReturnThis(),
+          or: vi.fn().mockReturnThis(),
           then: vi.fn((resolve: any) => resolve(announcementsConfig)),
         })),
       }

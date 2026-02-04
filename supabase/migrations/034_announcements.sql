@@ -11,6 +11,7 @@ CREATE TABLE announcements (
 
 CREATE INDEX idx_announcements_classroom ON announcements(classroom_id);
 CREATE INDEX idx_announcements_created ON announcements(classroom_id, created_at DESC);
+CREATE INDEX idx_announcements_scheduled ON announcements(classroom_id, scheduled_for);
 
 -- Auto-update updated_at on changes
 CREATE OR REPLACE FUNCTION update_announcements_updated_at()
