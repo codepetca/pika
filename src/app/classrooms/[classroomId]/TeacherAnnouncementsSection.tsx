@@ -362,7 +362,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setPendingScheduleDate(getTodayDate())
-                    setPendingScheduleTime('')
+                    setPendingScheduleTime('07:00')
                     setShowScheduleDropdown(!showScheduleDropdown)
                   }}
                   disabled={saving || !newContent.trim()}
@@ -391,7 +391,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-text-muted mb-1">Time (optional)</label>
+                      <label className="block text-xs text-text-muted mb-1">Time</label>
                       <input
                         type="time"
                         value={pendingScheduleTime}
@@ -519,7 +519,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
                               setPendingEditScheduleDate(getTodayDate())
-                              setPendingEditScheduleTime('')
+                              setPendingEditScheduleTime('07:00')
                               setShowEditScheduleDropdown(!showEditScheduleDropdown)
                             }}
                             disabled={saving || !editContent.trim()}
@@ -548,7 +548,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs text-text-muted mb-1">Time (optional)</label>
+                                <label className="block text-xs text-text-muted mb-1">Time</label>
                                 <input
                                   type="time"
                                   value={pendingEditScheduleTime}
