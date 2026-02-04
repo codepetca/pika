@@ -116,17 +116,21 @@ export function LessonCalendar({
   }, [assignments])
 
   // Build a map of date -> announcements for quick lookup
+  // Scheduled announcements appear on their scheduled_for date
+  // Published announcements appear on their created_at date
   const announcementsByDate = useMemo(() => {
     const map = new Map<string, Announcement[]>()
     announcements.forEach((announcement) => {
-      // Convert created_at to Toronto timezone before extracting date
-      const createdInToronto = toZonedTime(new Date(announcement.created_at), TIMEZONE)
-      const createdDate = format(createdInToronto, 'yyyy-MM-dd')
-      const existing = map.get(createdDate)
+      // Use scheduled_for date if scheduled, otherwise created_at
+      const isScheduled = announcement.scheduled_for && new Date(announcement.scheduled_for) > new Date()
+      const dateToUse = isScheduled ? announcement.scheduled_for! : announcement.created_at
+      const dateInToronto = toZonedTime(new Date(dateToUse), TIMEZONE)
+      const dateString = format(dateInToronto, 'yyyy-MM-dd')
+      const existing = map.get(dateString)
       if (existing) {
         existing.push(announcement)
       } else {
-        map.set(createdDate, [announcement])
+        map.set(dateString, [announcement])
       }
     })
     return map
