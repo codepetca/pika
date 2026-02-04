@@ -5,15 +5,22 @@ import { format } from 'date-fns'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { extractTextFromTiptap } from '@/lib/lesson-plan-markdown'
 import { Tooltip } from '@/ui'
-import type { LessonPlan, TiptapContent, Assignment } from '@/types'
+import type { LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
 
 const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
+
+// Helper to check if announcement is scheduled (not yet published)
+function isScheduled(announcement: Announcement): boolean {
+  if (!announcement.scheduled_for) return false
+  return new Date(announcement.scheduled_for) > new Date()
+}
 
 interface LessonDayCellProps {
   date: string // YYYY-MM-DD
   day: Date
   lessonPlan: LessonPlan | null
   assignments?: Assignment[]
+  announcements?: Announcement[]
   isWeekend: boolean
   isToday: boolean
   isClassDay?: boolean // undefined means class days not initialized
@@ -22,6 +29,7 @@ interface LessonDayCellProps {
   plainTextOnly?: boolean // Force plain text rendering (for 'all' view performance)
   onContentChange?: (date: string, content: TiptapContent) => void
   onAssignmentClick?: (assignment: Assignment) => void
+  onAnnouncementClick?: () => void
 }
 
 export const LessonDayCell = memo(function LessonDayCell({
@@ -29,6 +37,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   day,
   lessonPlan,
   assignments = [],
+  announcements = [],
   isWeekend,
   isToday,
   isClassDay,
@@ -37,6 +46,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   plainTextOnly = false,
   onContentChange,
   onAssignmentClick,
+  onAnnouncementClick,
 }: LessonDayCellProps) {
   const content = lessonPlan?.content || EMPTY_CONTENT
 
@@ -59,6 +69,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   // Weekend cells are narrow and minimal
   if (isWeekend) {
     const assignmentTitles = assignments.map(a => a.title).join(', ')
+    const announcementCount = announcements.length
 
     return (
       <div
@@ -85,6 +96,25 @@ export const LessonDayCell = memo(function LessonDayCell({
                   }
                 }}
                 className={`w-full min-w-[12px] rounded bg-primary hover:bg-primary-hover cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
+              />
+            </Tooltip>
+          </div>
+        )}
+        {/* Weekend announcement pill - no text, tooltip on hover */}
+        {announcementCount > 0 && (
+          <div className="px-0.5 mt-0.5 flex items-start justify-center">
+            <Tooltip content={`${announcementCount} announcement${announcementCount > 1 ? 's' : ''}`} side="right">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAnnouncementClick?.()
+                }}
+                className={`w-full min-w-[12px] rounded cursor-pointer ${compact ? 'h-4' : 'h-6'} ${
+                  announcements.some(isScheduled)
+                    ? 'bg-amber-500/40 hover:bg-amber-500/60'
+                    : 'bg-amber-500 hover:bg-amber-600'
+                }`}
               />
             </Tooltip>
           </div>
@@ -138,6 +168,39 @@ export const LessonDayCell = memo(function LessonDayCell({
               </button>
             </Tooltip>
           ))}
+        </div>
+      )}
+
+      {/* Announcements - shown after assignments */}
+      {announcements.length > 0 && (
+        <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
+          {announcements.map((announcement) => {
+            const scheduled = isScheduled(announcement)
+            const tooltipText = scheduled
+              ? `(Scheduled) ${announcement.content.slice(0, 80)}${announcement.content.length > 80 ? '...' : ''}`
+              : announcement.content.slice(0, 100) + (announcement.content.length > 100 ? '...' : '')
+
+            return (
+              <Tooltip key={announcement.id} content={tooltipText}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onAnnouncementClick?.()
+                  }}
+                  className={`w-full min-w-0 rounded font-medium text-center truncate ${
+                    compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
+                  } ${
+                    scheduled
+                      ? 'bg-amber-500/40 text-amber-800 hover:bg-amber-500/60'
+                      : 'bg-amber-500 text-white hover:bg-amber-600'
+                  }`}
+                >
+                  {compact ? (scheduled ? 'Scheduled' : 'Announcement') : (scheduled ? 'Scheduled' : 'Announcement')}
+                </button>
+              </Tooltip>
+            )
+          })}
         </div>
       )}
 

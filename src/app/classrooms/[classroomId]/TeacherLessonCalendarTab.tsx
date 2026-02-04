@@ -10,7 +10,7 @@ import { useRightSidebar } from '@/components/layout'
 import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { isEmpty as isEmptyTiptapContent } from '@/lib/tiptap-content'
 import { useClassDays } from '@/hooks/useClassDays'
-import type { Classroom, LessonPlan, TiptapContent, Assignment } from '@/types'
+import type { Classroom, LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 
@@ -62,6 +62,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
   // Populated from fetched plans and updated on each onChange call.
   const lastSeenContentRef = useRef<Map<string, string>>(new Map())
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -134,6 +135,20 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
       }
     }
     loadAssignments()
+  }, [classroom.id])
+
+  // Fetch announcements for the classroom
+  useEffect(() => {
+    async function loadAnnouncements() {
+      try {
+        const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
+        const data = await res.json()
+        setAnnouncements(data.announcements || [])
+      } catch (err) {
+        console.error('Error loading announcements:', err)
+      }
+    }
+    loadAnnouncements()
   }, [classroom.id])
 
   // Save a single lesson plan
@@ -380,6 +395,11 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
     [router, classroom.id]
   )
 
+  // Handle announcement click - navigate to Resources > Announcements
+  const handleAnnouncementClick = useCallback(() => {
+    router.push(`/classrooms/${classroom.id}?tab=resources&section=announcements`)
+  }, [router, classroom.id])
+
   // Notify parent when sidebar opens/closes, content changes, or error/saving state changes
   // Note: markdownContent IS included because the sidebar uses local state to avoid cursor jump.
   // TeacherLessonCalendarSidebar tracks isDirty and ignores external updates once user starts typing.
@@ -416,6 +436,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
           classroom={classroom}
           lessonPlans={lessonPlans}
           assignments={assignments.filter((a) => !a.is_draft)}
+          announcements={announcements}
           classDays={classDays}
           viewMode={viewMode}
           currentDate={currentDate}
@@ -425,6 +446,7 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
           onViewModeChange={handleViewModeChange}
           onContentChange={handleContentChange}
           onAssignmentClick={handleAssignmentClick}
+          onAnnouncementClick={handleAnnouncementClick}
           onMarkdownToggle={handleMarkdownToggle}
           isSidebarOpen={isSidebarOpen}
         />
