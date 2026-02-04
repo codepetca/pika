@@ -84,6 +84,8 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
         return
       }
 
+      // Clear logs immediately to prevent showing stale status colors
+      setLogs([])
       setLoading(true)
       try {
         const res = await fetch(`/api/teacher/logs?classroom_id=${classroom.id}&date=${selectedDate}`)

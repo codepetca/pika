@@ -1,19 +1,28 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
+import { TeacherAnnouncementsSection } from './TeacherAnnouncementsSection'
 import type { Classroom, TiptapContent } from '@/types'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 2000
+
+type ResourcesSection = 'announcements' | 'class-resources'
 
 interface Props {
   classroom: Classroom
 }
 
 export function TeacherResourcesTab({ classroom }: Props) {
+  const searchParams = useSearchParams()
+  const sectionParam = searchParams.get('section')
+  const section: ResourcesSection = sectionParam === 'class-resources' ? 'class-resources' : 'announcements'
+
   const [loading, setLoading] = useState(true)
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
@@ -123,18 +132,6 @@ export function TeacherResourcesTab({ classroom }: Props) {
     }
   }, [classroom.id])
 
-  if (loading) {
-    return (
-      <PageLayout>
-        <PageContent>
-          <div className="flex items-center justify-center h-64">
-            <Spinner />
-          </div>
-        </PageContent>
-      </PageLayout>
-    )
-  }
-
   const hasContent = content.content && content.content.length > 0
   const formattedTime = lastSavedTime
     ? lastSavedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -142,60 +139,96 @@ export function TeacherResourcesTab({ classroom }: Props) {
 
   return (
     <PageLayout>
-      <PageContent>
-        <div className="bg-surface rounded-lg shadow-sm">
-          <div className="flex items-center justify-between px-6 py-3 border-b border-border">
-            <h2 className="text-lg font-semibold text-text-default">Resources</h2>
-            <span
-              className={
-                'text-sm ' +
-                (saveStatus === 'saved'
-                  ? 'text-text-muted'
-                  : saveStatus === 'saving'
-                    ? 'text-text-muted'
-                    : 'text-warning')
-              }
-            >
-              {saveStatus === 'saving' && 'Saving...'}
-              {saveStatus === 'saved' && formattedTime && `Last saved ${formattedTime}`}
-              {saveStatus === 'saved' && !formattedTime && ''}
-              {saveStatus === 'unsaved' && 'Unsaved changes'}
-            </span>
-          </div>
+      {/* Sub-tab navigation */}
+      <div className="flex border-b border-border mb-4">
+        <Link
+          href={`/classrooms/${classroom.id}?tab=resources&section=announcements`}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            section === 'announcements'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-text-muted hover:text-text-default hover:border-border'
+          }`}
+        >
+          Announcements
+        </Link>
+        <Link
+          href={`/classrooms/${classroom.id}?tab=resources&section=class-resources`}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            section === 'class-resources'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-text-muted hover:text-text-default hover:border-border'
+          }`}
+        >
+          Class Resources
+        </Link>
+      </div>
 
-          <div className="p-6">
-            {isArchived && (
-              <div className="mb-4 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-                This classroom is archived. Resources are read-only.
+      {section === 'announcements' ? (
+        <PageContent>
+          <TeacherAnnouncementsSection classroom={classroom} />
+        </PageContent>
+      ) : (
+        <PageContent>
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <Spinner />
+            </div>
+          ) : (
+            <div className="bg-surface rounded-lg shadow-sm">
+              <div className="flex items-center justify-between px-6 py-3 border-b border-border">
+                <h2 className="text-lg font-semibold text-text-default">Class Resources</h2>
+                <span
+                  className={
+                    'text-sm ' +
+                    (saveStatus === 'saved'
+                      ? 'text-text-muted'
+                      : saveStatus === 'saving'
+                        ? 'text-text-muted'
+                        : 'text-warning')
+                  }
+                >
+                  {saveStatus === 'saving' && 'Saving...'}
+                  {saveStatus === 'saved' && formattedTime && `Last saved ${formattedTime}`}
+                  {saveStatus === 'saved' && !formattedTime && ''}
+                  {saveStatus === 'unsaved' && 'Unsaved changes'}
+                </span>
               </div>
-            )}
 
-            {!hasContent && !isArchived && (
-              <div className="mb-4 rounded-lg border border-border bg-surface-2 p-4">
-                <p className="text-sm text-text-muted mb-2">
-                  Use this page to share static resources with your students:
-                </p>
-                <ul className="text-sm text-text-muted list-disc list-inside space-y-1">
-                  <li>Contact information and office hours</li>
-                  <li>Links to external resources</li>
-                  <li>Rubrics and grading policies</li>
-                  <li>Class expectations and rules</li>
-                </ul>
+              <div className="p-6">
+                {isArchived && (
+                  <div className="mb-4 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                    This classroom is archived. Resources are read-only.
+                  </div>
+                )}
+
+                {!hasContent && !isArchived && (
+                  <div className="mb-4 rounded-lg border border-border bg-surface-2 p-4">
+                    <p className="text-sm text-text-muted mb-2">
+                      Use this page to share static resources with your students:
+                    </p>
+                    <ul className="text-sm text-text-muted list-disc list-inside space-y-1">
+                      <li>Contact information and office hours</li>
+                      <li>Links to external resources</li>
+                      <li>Rubrics and grading policies</li>
+                      <li>Class expectations and rules</li>
+                    </ul>
+                  </div>
+                )}
+
+                <RichTextEditor
+                  content={content}
+                  onChange={handleContentChange}
+                  onBlur={handleBlur}
+                  placeholder="Add resources for your students..."
+                  editable={!isArchived}
+                  showToolbar={!isArchived}
+                  className="min-h-[400px]"
+                />
               </div>
-            )}
-
-            <RichTextEditor
-              content={content}
-              onChange={handleContentChange}
-              onBlur={handleBlur}
-              placeholder="Add resources for your students..."
-              editable={!isArchived}
-              showToolbar={!isArchived}
-              className="min-h-[400px]"
-            />
-          </div>
-        </div>
-      </PageContent>
+            </div>
+          )}
+        </PageContent>
+      )}
     </PageLayout>
   )
 }

@@ -413,7 +413,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
                   content={content}
                   onChange={handleContentChange}
                   onBlur={flushAutosave}
-                  placeholder="Write a short update..."
+                  placeholder="Write something..."
                   editable={true}
                   showToolbar={false}
                   className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"

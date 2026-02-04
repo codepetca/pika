@@ -192,6 +192,7 @@ export function StudentAssignmentsTab({ classroom }: Props) {
                         <button
                           key={assignment.id}
                           type="button"
+                          data-testid="assignment-card"
                           onClick={() => navigate({ assignmentId: assignment.id })}
                           className="w-full text-left block p-4 border border-border rounded-lg hover:border-primary hover:bg-info-bg transition"
                         >
