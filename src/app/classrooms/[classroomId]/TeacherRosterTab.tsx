@@ -448,7 +448,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   direction={sortDirection}
                   onClick={() => onSort('last_name')}
                 />
-                <DataTableHeaderCell>Email ({sortedRoster.length})</DataTableHeaderCell>
+                <DataTableHeaderCell>Email ({sortedRoster.length} {sortedRoster.length === 1 ? 'student' : 'students'})</DataTableHeaderCell>
                 <DataTableHeaderCell>Counselor</DataTableHeaderCell>
                 <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
                 <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
