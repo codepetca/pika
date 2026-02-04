@@ -21,13 +21,24 @@ function getTodayDate(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-// Helper to combine date and optional time into ISO string
-function combineDateTime(date: string, time?: string): string {
+// Helper to combine date and optional time into Date object
+function combineDateTimeToDate(date: string, time?: string): Date {
   if (time) {
-    return new Date(`${date}T${time}`).toISOString()
+    return new Date(`${date}T${time}`)
   }
   // Default to 9:00 AM if no time specified
-  return new Date(`${date}T09:00`).toISOString()
+  return new Date(`${date}T09:00`)
+}
+
+// Helper to combine date and optional time into ISO string
+function combineDateTime(date: string, time?: string): string {
+  return combineDateTimeToDate(date, time).toISOString()
+}
+
+// Helper to check if date/time is in the future
+function isScheduleInFuture(date: string, time?: string): boolean {
+  const scheduledDate = combineDateTimeToDate(date, time)
+  return scheduledDate > new Date()
 }
 
 // Helper to parse ISO datetime into date and time parts
@@ -389,17 +400,20 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                       />
                     </div>
                   </div>
+                  {pendingScheduleDate && !isScheduleInFuture(pendingScheduleDate, pendingScheduleTime) && (
+                    <p className="text-xs text-red-500 mt-2">Schedule must be in the future</p>
+                  )}
                   <Button
                     variant="primary"
                     size="sm"
                     onClick={() => {
-                      if (pendingScheduleDate) {
+                      if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
                         setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
+                        setShowScheduleDropdown(false)
                       }
-                      setShowScheduleDropdown(false)
                     }}
-                    disabled={!pendingScheduleDate}
-                    className="w-full mt-3"
+                    disabled={!pendingScheduleDate || !isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
+                    className="w-full mt-2"
                   >
                     Done
                   </Button>
@@ -543,17 +557,20 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                                 />
                               </div>
                             </div>
+                            {pendingEditScheduleDate && !isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime) && (
+                              <p className="text-xs text-red-500 mt-2">Schedule must be in the future</p>
+                            )}
                             <Button
                               variant="primary"
                               size="sm"
                               onClick={() => {
-                                if (pendingEditScheduleDate) {
+                                if (pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)) {
                                   setEditScheduleDateTime(combineDateTime(pendingEditScheduleDate, pendingEditScheduleTime))
+                                  setShowEditScheduleDropdown(false)
                                 }
-                                setShowEditScheduleDropdown(false)
                               }}
-                              disabled={!pendingEditScheduleDate}
-                              className="w-full mt-3"
+                              disabled={!pendingEditScheduleDate || !isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)}
+                              className="w-full mt-2"
                             >
                               Done
                             </Button>
