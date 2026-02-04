@@ -119,12 +119,12 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     setOriginalScheduledFor(null)
   }
 
-  async function saveEdit(publishNow?: boolean) {
+  async function saveEdit() {
     if (!editingId || !editContent.trim() || saving) return
 
     // Check if anything changed
     const contentChanged = editContent.trim() !== originalContent.trim()
-    const newScheduledFor = publishNow ? null : (editScheduleDateTime ? new Date(editScheduleDateTime).toISOString() : null)
+    const newScheduledFor = editScheduleDateTime ? new Date(editScheduleDateTime).toISOString() : null
     const scheduleChanged = newScheduledFor !== originalScheduledFor
 
     // Don't save if nothing changed
@@ -384,11 +384,11 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                         <button
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => saveEdit(true)}
+                          onClick={() => setEditScheduleDateTime('')}
                           disabled={saving}
-                          className="text-xs text-primary hover:text-primary-hover whitespace-nowrap"
+                          className="text-xs text-text-muted hover:text-text-default whitespace-nowrap"
                         >
-                          Publish now
+                          Clear
                         </button>
                       </div>
                     )}
