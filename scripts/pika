@@ -1,10 +1,15 @@
 #!/bin/bash
-# pika — worktree router for agent-safe workflows (v1)
+# pika — worktree router for agent-safe workflows (v2)
 # Usage:
 #   pika ls
-#   pika claude <worktree> [-- <args...>]
-#   pika codex <worktree> [-- <args...>]
+#   pika claude [<worktree>|<issue#>] [-- <args...>]
+#   pika codex [<worktree>|<issue#>] [-- <args...>]
 #   pika git <worktree> <args...>
+#
+# Examples:
+#   pika claude 280         # Auto-create worktree for issue #280, cd into it, launch Claude
+#   pika codex 280          # Same but launch Codex
+#   pika claude             # Interactive menu to select/create worktree
 
 set -euo pipefail
 
@@ -124,6 +129,53 @@ slugify() {
         value="$(echo "$value" | sed -E 's/^-+//; s/-+$//')"
     fi
     echo "$value"
+}
+
+is_issue_number() {
+    [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+find_issue_worktree() {
+    local issue_num="$1"
+    # Look for existing worktree starting with issue number
+    local match=""
+    match="$(ls -1 "$WORKTREE_ROOT" 2>/dev/null | grep -E "^${issue_num}(-|$)" | head -n 1)"
+    if [[ -n "$match" && -d "$WORKTREE_ROOT/$match" ]]; then
+        echo "$match"
+        return 0
+    fi
+    return 1
+}
+
+ensure_issue_worktree() {
+    local issue_num="$1"
+
+    # Check if worktree already exists for this issue
+    local existing=""
+    if existing="$(find_issue_worktree "$issue_num")"; then
+        echo "$existing"
+        return 0
+    fi
+
+    # Fetch issue title from GitHub
+    local issue_title=""
+    if ! issue_title="$(gh issue view "$issue_num" --json title --jq '.title' 2>/dev/null)"; then
+        echo "error: failed to fetch issue #$issue_num from GitHub" >&2
+        return 1
+    fi
+
+    local slug=""
+    slug="$(slugify "$issue_title" "$ISSUE_SLUG_MAX")"
+    local name="${issue_num}"
+    if [[ -n "$slug" ]]; then
+        name="${issue_num}-${slug}"
+    fi
+
+    echo "Creating worktree '$name' from main..." >&2
+    if ! create_worktree "$name"; then
+        return 1
+    fi
+    echo "$name"
 }
 
 ensure_env_symlink() {
@@ -262,7 +314,7 @@ menu_select() {
 
         if [[ "$key" == $'\x1b' ]]; then
             local rest=""
-            if read -r -n 2 -s -t 1 rest; then
+            if read -r -n 2 -s -t 0.1 rest; then
                 case "$rest" in
                     "[A")
                         if (( selected > 0 )); then
@@ -275,6 +327,11 @@ menu_select() {
                         fi
                         ;;
                 esac
+            else
+                # Bare escape key (no arrow sequence) - quit
+                printf "\n" >&2
+                echo "__quit__"
+                return 0
             fi
         else
             local key_lower=""
@@ -426,8 +483,6 @@ prompt_worktree_from_issue() {
             MENU_VALUES+=("__prev__")
             MENU_HOTKEYS+=("p")
         fi
-        MENU_GLOBAL_KEYS+=("q")
-        MENU_GLOBAL_VALUES+=("__quit__")
 
         local selection=""
         if ! selection="$(menu_select "" 0)"; then
@@ -496,8 +551,8 @@ prompt_new_worktree_menu() {
             "__create__"
         )
         MENU_HOTKEYS=("1" "2" "3")
-        MENU_GLOBAL_KEYS=("q")
-        MENU_GLOBAL_VALUES=("__quit__")
+        MENU_GLOBAL_KEYS=()
+        MENU_GLOBAL_VALUES=()
         MENU_HEADER_LINES=("New worktree from:")
 
         local selection=""
@@ -544,6 +599,9 @@ prompt_for_worktree() {
     local usage="${2:-usage: pika codex <worktree> [-- <args...>]}"
     require_tty_or_die "$usage"
 
+    # Prune stale worktrees before listing
+    git -C "$HUB_REPO" worktree prune 2>/dev/null || true
+
     local worktrees=()
     while IFS= read -r worktree; do
         [[ -n "$worktree" ]] || continue
@@ -575,7 +633,7 @@ prompt_for_worktree() {
             if (( end > total )); then
                 end="$total"
             fi
-            MENU_HEADER_LINES=("Choose one or (q)uit")
+            MENU_HEADER_LINES=("Choose one or (n)ew worktree:")
             local i=0
             for ((i = start; i < end; i++)); do
                 local display_index=$((i - start + 1))
@@ -584,10 +642,8 @@ prompt_for_worktree() {
                 MENU_HOTKEYS+=("${display_index}")
             done
         else
-            MENU_HEADER_LINES=("Choose one or (q)uit")
+            MENU_HEADER_LINES=("Choose one or (n)ew worktree:")
         fi
-        MENU_GLOBAL_KEYS+=("q")
-        MENU_GLOBAL_VALUES+=("__quit__")
 
         MENU_LABELS+=("n) New worktree")
         MENU_VALUES+=("__new__")
@@ -652,7 +708,11 @@ cmd_claude() {
     fi
     local -a args=()
     args=("$@")
-    if [[ -z "$name" ]]; then
+
+    # Auto-create worktree for issue numbers (e.g., pika claude 280)
+    if [[ -n "$name" ]] && is_issue_number "$name"; then
+        name="$(ensure_issue_worktree "$name")" || exit 1
+    elif [[ -z "$name" ]]; then
         name="$(prompt_for_worktree "" "usage: pika claude <worktree> [-- <args...>]")" || exit 1
     elif [[ ! -d "$WORKTREE_ROOT/$name" ]]; then
         if [[ "$name" == "main" || "$name" == "hub" ]]; then
@@ -677,6 +737,7 @@ cmd_claude() {
     export PIKA_WORKTREE="$path"
     export PIKA_WORKTREE_NAME="$name"
 
+    cd "$path"
     if (( ${#args[@]} > 0 )); then
         exec "$claude_bin" --dangerously-skip-permissions "${args[@]}"
     fi
@@ -694,7 +755,11 @@ cmd_codex() {
     fi
     local -a args=()
     args=("$@")
-    if [[ -z "$name" ]]; then
+
+    # Auto-create worktree for issue numbers (e.g., pika codex 280)
+    if [[ -n "$name" ]] && is_issue_number "$name"; then
+        name="$(ensure_issue_worktree "$name")" || exit 1
+    elif [[ -z "$name" ]]; then
         name="$(prompt_for_worktree "" "usage: pika codex <worktree> [-- <args...>]")" || exit 1
     elif [[ ! -d "$WORKTREE_ROOT/$name" ]]; then
         if [[ "$name" == "main" || "$name" == "hub" ]]; then
@@ -719,6 +784,7 @@ cmd_codex() {
     export PIKA_WORKTREE="$path"
     export PIKA_WORKTREE_NAME="$name"
 
+    cd "$path"
     if (( ${#args[@]} > 0 )); then
         exec codex --yolo "${args[@]}"
     fi
@@ -751,13 +817,18 @@ case "${1:-}" in
         cmd_git "${@:2}"
         ;;
     *)
-        echo "pika — worktree router (v1)"
+        echo "pika — worktree router (v2)"
         echo ""
         echo "Commands:"
-        echo "  pika ls                    List available worktrees"
-        echo "  pika claude <worktree>     Launch Claude in worktree context"
-        echo "  pika codex <worktree>      Launch Codex in worktree context"
-        echo "  pika git <worktree> ...    Run git command in worktree"
+        echo "  pika ls                     List available worktrees"
+        echo "  pika claude [name|issue#]   Launch Claude in worktree (auto-creates for issue#)"
+        echo "  pika codex [name|issue#]    Launch Codex in worktree (auto-creates for issue#)"
+        echo "  pika git <worktree> ...     Run git command in worktree"
+        echo ""
+        echo "Examples:"
+        echo "  pika claude 280             Create worktree for issue #280, cd into it, launch Claude"
+        echo "  pika codex 280              Same but launch Codex"
+        echo "  pika claude                 Interactive menu to select/create worktree"
         exit 1
         ;;
 esac
