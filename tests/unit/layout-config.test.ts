@@ -39,10 +39,18 @@ describe('getLayoutConfig', () => {
     expect(config.rightSidebar.enabled).toBe(false)
   })
 
-  it('should return 40% default width for assignments-teacher-viewing (dynamically set to 70% for student work)', () => {
+  it('should return 50% default width for assignments-teacher-viewing (dynamically set to 70% for student work)', () => {
     const config = getLayoutConfig('assignments-teacher-viewing')
-    expect(config.rightSidebar.defaultWidth).toBe('40%')
+    expect(config.rightSidebar.defaultWidth).toBe('50%')
     expect(config.rightSidebar.defaultOpen).toBe(true)
+    expect(config.rightSidebar.desktopAlwaysOpen).toBe(true)
+  })
+
+  it('should return desktopAlwaysOpen for teacher assignment routes', () => {
+    const listConfig = getLayoutConfig('assignments-teacher-list')
+    const viewingConfig = getLayoutConfig('assignments-teacher-viewing')
+    expect(listConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
+    expect(viewingConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
   })
 })
 

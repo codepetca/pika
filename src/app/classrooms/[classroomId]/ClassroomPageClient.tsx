@@ -326,7 +326,7 @@ function ClassroomPageContent({
     if (isTeacher && activeTab === 'assignments' && selectedStudent) {
       setRightSidebarWidth('70%')
     } else if (isTeacher && activeTab === 'assignments') {
-      setRightSidebarWidth('40%')
+      setRightSidebarWidth('50%')
     } else if (isTeacher && activeTab === 'quizzes') {
       setRightSidebarWidth('50%')
     }
