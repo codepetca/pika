@@ -258,6 +258,75 @@ export function ConfirmDialog({
 }
 
 // ============================================================================
+// DialogPanel
+// ============================================================================
+
+export interface DialogPanelProps {
+  isOpen: boolean
+  onClose: () => void
+  maxWidth?: string
+  className?: string
+  children: ReactNode
+}
+
+/**
+ * DialogPanel is a lower-level primitive for building custom modal dialogs.
+ *
+ * Unlike ContentDialog, it provides no built-in header or footer structure —
+ * children control their own layout via flex utilities. Use this when you need
+ * full control over the dialog content (e.g., forms, wizards, multi-step flows).
+ *
+ * Features:
+ * - Backdrop click closes dialog
+ * - Escape key closes dialog
+ * - Viewport constraints (max-h-[85vh]) with flex layout for scrollable content
+ * - Consistent styling with other dialog components
+ *
+ * @example
+ * <DialogPanel isOpen={isOpen} onClose={handleClose} maxWidth="max-w-lg">
+ *   <div className="flex-shrink-0">Header content</div>
+ *   <div className="flex-1 min-h-0 overflow-y-auto">Scrollable content</div>
+ *   <div className="flex-shrink-0">Footer with buttons</div>
+ * </DialogPanel>
+ */
+export function DialogPanel({
+  isOpen,
+  onClose,
+  maxWidth = 'max-w-2xl',
+  className,
+  children,
+}: DialogPanelProps) {
+  useEffect(() => {
+    if (!isOpen) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        className={dialogBackdropStyles}
+        aria-label="Close dialog"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col ${className ?? ''}`}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
 // ContentDialog
 // ============================================================================
 

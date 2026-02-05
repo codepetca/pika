@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, FormEvent, useId } from 'react'
-import { Input, Button, FormField } from '@/ui'
+import { Input, Button, DialogPanel, FormField } from '@/ui'
 import { format } from 'date-fns'
 
 type WizardStep = 'name' | 'calendar'
@@ -126,15 +126,18 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
     onClose()
   }
 
-  if (!isOpen) return null
-
   const { semester1Year, semester2Year } = getSemesterYears()
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
-        <h2 className="text-xl font-bold text-text-default mb-4">Create Classroom</h2>
+    <DialogPanel
+      isOpen={isOpen}
+      onClose={handleClose}
+      maxWidth="max-w-lg"
+      className="p-6"
+    >
+      <h2 className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Create Classroom</h2>
 
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {/* Progress Indicator */}
         <div className="flex items-center mb-6">
           <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-primary' : 'bg-info-bg'}`} />
@@ -281,9 +284,10 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
             {error}
           </div>
         )}
+      </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex gap-3 mt-6">
+      {/* Navigation Buttons */}
+        <div className="flex gap-3 mt-6 flex-shrink-0">
           <Button
             type="button"
             variant="secondary"
@@ -312,7 +316,6 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
             {loading ? 'Creating...' : step === 'calendar' ? 'Create' : 'Next'}
           </Button>
         </div>
-      </div>
-    </div>
+    </DialogPanel>
   )
 }

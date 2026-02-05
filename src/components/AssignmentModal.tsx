@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import type { Assignment, ClassDay, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
-import { ConfirmDialog } from '@/ui'
+import { ConfirmDialog, DialogPanel } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -453,20 +453,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
   }
 
-  if (!isOpen) return null
-
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) {
-      void handleClose()
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') {
-      void handleClose()
-    }
-  }
-
   // Determine if this is a draft (new or existing draft)
   const isDraft = !currentAssignment || currentAssignment.is_draft
 
@@ -480,18 +466,14 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         : 'Edit Assignment'
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
-      onClick={handleBackdropClick}
-      onKeyDown={handleKeyDown}
-    >
-      <div
-        className="bg-surface rounded-lg shadow-xl border border-border w-[min(90vw,56rem)] p-6"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="assignment-modal-title"
+    <>
+      <DialogPanel
+        isOpen={isOpen}
+        onClose={handleClose}
+        maxWidth="w-[min(90vw,56rem)]"
+        className="p-6"
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <h2 id="assignment-modal-title" className="text-xl font-bold text-text-default">
             {modalTitle}
           </h2>
@@ -508,38 +490,40 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           </span>
         </div>
 
-        <AssignmentForm
-          title={title}
-          instructions={instructions}
-          dueAt={dueAt}
-          classDays={classDays}
-          trackAuthenticity={trackAuthenticity}
-          onTitleChange={handleTitleChange}
-          onInstructionsChange={handleInstructionsChange}
-          onDueAtChange={handleDueAtChange}
-          onTrackAuthenticityChange={handleTrackAuthenticityChange}
-          onPrevDate={handlePrevDate}
-          onNextDate={handleNextDate}
-          onSubmit={handleSubmit}
-          submitLabel={saving ? 'Saving...' : saveStatus === 'saved' ? 'Done' : 'Save'}
-          disabled={saving || releasing || creating}
-          error={error}
-          titleInputRef={titleInputRef}
-          onBlur={flushAutosave}
-          extraAction={isDraft && !creating ? {
-            label: releasing ? 'Posting...' : (
-              <span className="inline-flex items-center gap-1.5">
-                Post
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                </svg>
-              </span>
-            ),
-            onClick: () => setShowReleaseConfirm(true),
-            variant: 'success',
-          } : undefined}
-        />
-      </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <AssignmentForm
+            title={title}
+            instructions={instructions}
+            dueAt={dueAt}
+            classDays={classDays}
+            trackAuthenticity={trackAuthenticity}
+            onTitleChange={handleTitleChange}
+            onInstructionsChange={handleInstructionsChange}
+            onDueAtChange={handleDueAtChange}
+            onTrackAuthenticityChange={handleTrackAuthenticityChange}
+            onPrevDate={handlePrevDate}
+            onNextDate={handleNextDate}
+            onSubmit={handleSubmit}
+            submitLabel={saving ? 'Saving...' : saveStatus === 'saved' ? 'Done' : 'Save'}
+            disabled={saving || releasing || creating}
+            error={error}
+            titleInputRef={titleInputRef}
+            onBlur={flushAutosave}
+            extraAction={isDraft && !creating ? {
+              label: releasing ? 'Posting...' : (
+                <span className="inline-flex items-center gap-1.5">
+                  Post
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                  </svg>
+                </span>
+              ),
+              onClick: () => setShowReleaseConfirm(true),
+              variant: 'success',
+            } : undefined}
+          />
+        </div>
+      </DialogPanel>
 
       <ConfirmDialog
         isOpen={showReleaseConfirm}
@@ -552,6 +536,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         onCancel={() => setShowReleaseConfirm(false)}
         onConfirm={handleRelease}
       />
-    </div>
+    </>
   )
 }
