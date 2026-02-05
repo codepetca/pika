@@ -645,9 +645,8 @@ prompt_for_worktree() {
             MENU_HEADER_LINES=("Choose one or (n)ew worktree:")
         fi
 
-        MENU_LABELS+=("n) New worktree")
-        MENU_VALUES+=("__new__")
-        MENU_HOTKEYS+=("n")
+        MENU_GLOBAL_KEYS+=("n")
+        MENU_GLOBAL_VALUES+=("__new__")
 
         if (( total > 0 && (page + 1) * WORKTREE_PAGE_SIZE < total )); then
             MENU_LABELS+=("m) More")
