@@ -147,8 +147,9 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
         onClose={handleCancelConfirmation}
         maxWidth="max-w-lg"
         className="p-6"
+        ariaLabelledBy="confirm-roster-title"
       >
-        <h2 className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Confirm Roster Update</h2>
+        <h2 id="confirm-roster-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Confirm Roster Update</h2>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="mb-4 p-4 bg-warning-bg border border-warning rounded">
@@ -244,8 +245,9 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
       onClose={handleClose}
       maxWidth="max-w-lg"
       className="p-6"
+      ariaLabelledBy="upload-roster-title"
     >
-      <h2 className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Upload Roster</h2>
+      <h2 id="upload-roster-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Upload Roster</h2>
 
       {!result ? (
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">

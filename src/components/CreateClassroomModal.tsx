@@ -289,34 +289,34 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
 
       {/* Navigation Buttons */}
       <div className="flex gap-3 mt-6 flex-shrink-0">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={step === 'name' ? handleClose : () => {
-              setStep('name')
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={step === 'name' ? handleClose : () => {
+            setStep('name')
+            setError('')
+          }}
+          disabled={loading}
+          className="flex-1"
+        >
+          {step === 'name' ? 'Cancel' : 'Back'}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => {
+            if (step === 'name' && title) {
+              setStep('calendar')
               setError('')
-            }}
-            disabled={loading}
-            className="flex-1"
-          >
-            {step === 'name' ? 'Cancel' : 'Back'}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              if (step === 'name' && title) {
-                setStep('calendar')
-                setError('')
-              } else if (step === 'calendar') {
-                handleCreate()
-              }
-            }}
-            disabled={loading || (step === 'name' && !title)}
-            className="flex-1"
-          >
-            {loading ? 'Creating...' : step === 'calendar' ? 'Create' : 'Next'}
-          </Button>
-        </div>
+            } else if (step === 'calendar') {
+              handleCreate()
+            }
+          }}
+          disabled={loading || (step === 'name' && !title)}
+          className="flex-1"
+        >
+          {loading ? 'Creating...' : step === 'calendar' ? 'Create' : 'Next'}
+        </Button>
+      </div>
     </DialogPanel>
   )
 }
