@@ -266,6 +266,8 @@ export interface DialogPanelProps {
   onClose: () => void
   maxWidth?: string
   className?: string
+  /** ID of the element that labels the dialog (for accessibility) */
+  ariaLabelledBy?: string
   children: ReactNode
 }
 
@@ -283,8 +285,8 @@ export interface DialogPanelProps {
  * - Consistent styling with other dialog components
  *
  * @example
- * <DialogPanel isOpen={isOpen} onClose={handleClose} maxWidth="max-w-lg">
- *   <div className="flex-shrink-0">Header content</div>
+ * <DialogPanel isOpen={isOpen} onClose={handleClose} maxWidth="max-w-lg" ariaLabelledBy="modal-title">
+ *   <h2 id="modal-title" className="flex-shrink-0">Header content</h2>
  *   <div className="flex-1 min-h-0 overflow-y-auto">Scrollable content</div>
  *   <div className="flex-shrink-0">Footer with buttons</div>
  * </DialogPanel>
@@ -294,6 +296,7 @@ export function DialogPanel({
   onClose,
   maxWidth = 'max-w-2xl',
   className,
+  ariaLabelledBy,
   children,
 }: DialogPanelProps) {
   useEffect(() => {
@@ -318,6 +321,7 @@ export function DialogPanel({
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby={ariaLabelledBy}
         className={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col ${className ?? ''}`}
       >
         {children}

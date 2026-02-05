@@ -472,6 +472,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         onClose={handleClose}
         maxWidth="w-[min(90vw,56rem)]"
         className="p-6"
+        ariaLabelledBy="assignment-modal-title"
       >
         <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <h2 id="assignment-modal-title" className="text-xl font-bold text-text-default">

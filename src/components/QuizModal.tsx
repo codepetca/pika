@@ -90,6 +90,7 @@ export function QuizModal({ isOpen, classroomId, quiz, onClose, onSuccess }: Qui
       onClose={onClose}
       maxWidth="w-[min(90vw,28rem)]"
       className="p-6"
+      ariaLabelledBy="quiz-modal-title"
     >
       <h2 id="quiz-modal-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">
         {isEditMode ? 'Edit Quiz' : 'New Quiz'}

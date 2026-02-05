@@ -134,8 +134,9 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
       onClose={handleClose}
       maxWidth="max-w-lg"
       className="p-6"
+      ariaLabelledBy="create-classroom-title"
     >
-      <h2 className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Create Classroom</h2>
+      <h2 id="create-classroom-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Create Classroom</h2>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         {/* Progress Indicator */}
@@ -287,7 +288,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
       </div>
 
       {/* Navigation Buttons */}
-        <div className="flex gap-3 mt-6 flex-shrink-0">
+      <div className="flex gap-3 mt-6 flex-shrink-0">
           <Button
             type="button"
             variant="secondary"
