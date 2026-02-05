@@ -103,6 +103,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   }, [roster, sortColumn, sortDirection])
 
   const rosterIds = useMemo(() => sortedRoster.map((r) => r.id), [sortedRoster])
+  const joinedCount = useMemo(() => sortedRoster.filter((r) => r.joined).length, [sortedRoster])
   const { selectedIds, toggleSelect, toggleSelectAll, allSelected, clearSelection } = useStudentSelection(rosterIds)
 
   function onSort(column: 'first_name' | 'last_name') {
@@ -450,7 +451,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                 />
                 <DataTableHeaderCell>Email ({sortedRoster.length} {sortedRoster.length === 1 ? 'student' : 'students'})</DataTableHeaderCell>
                 <DataTableHeaderCell>Counselor</DataTableHeaderCell>
-                <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">Joined ({joinedCount})</DataTableHeaderCell>
                 <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>
