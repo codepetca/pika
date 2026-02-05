@@ -92,6 +92,7 @@ export function SortableHeaderCell({
   onClick,
   density = 'compact',
   align = 'left',
+  trailing,
 }: {
   label: string
   isActive: boolean
@@ -99,6 +100,7 @@ export function SortableHeaderCell({
   onClick: () => void
   density?: DataTableDensity
   align?: 'left' | 'center' | 'right'
+  trailing?: React.ReactNode
 }) {
   const alignClass =
     align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'
@@ -125,6 +127,7 @@ export function SortableHeaderCell({
           ].join(' ')}
           aria-hidden="true"
         />
+        {trailing}
       </button>
     </DataTableHeaderCell>
   )
