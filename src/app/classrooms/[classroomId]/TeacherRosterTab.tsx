@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { ConfirmDialog } from '@/ui'
+import { Button, ConfirmDialog } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
-import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   DataTable,
   DataTableBody,
@@ -19,6 +19,7 @@ import {
 } from '@/components/DataTable'
 import type { Classroom } from '@/types'
 import { Check, ChevronRight, Copy, Mail, Pencil, Trash2, X } from 'lucide-react'
+import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 
@@ -103,6 +104,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   }, [roster, sortColumn, sortDirection])
 
   const rosterIds = useMemo(() => sortedRoster.map((r) => r.id), [sortedRoster])
+  const joinedCount = useMemo(() => sortedRoster.filter((r) => r.joined).length, [sortedRoster])
   const { selectedIds, toggleSelect, toggleSelectAll, allSelected, clearSelection } = useStudentSelection(rosterIds)
 
   function onSort(column: 'first_name' | 'last_name') {
@@ -265,22 +267,16 @@ export function TeacherRosterTab({ classroom }: Props) {
       <PageActionBar
         primary={
           <div className="flex gap-2 flex-wrap">
-            <button
-              type="button"
-              className={ACTIONBAR_BUTTON_CLASSNAME}
-              onClick={() => setAddModalOpen(true)}
-              disabled={isReadOnly}
-            >
-              Add Students
-            </button>
-            <button
-              type="button"
-              className={ACTIONBAR_BUTTON_SECONDARY_CLASSNAME}
+            <Button onClick={() => setAddModalOpen(true)} disabled={isReadOnly}>
+              + Students
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => setUploadModalOpen(true)}
               disabled={isReadOnly}
             >
-              Upload CSV
-            </button>
+              + CSV
+            </Button>
             {someSelected && (
               <div className="relative" onMouseLeave={() => setEmailMenuOpen(false)}>
                 <button
@@ -441,6 +437,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   isActive={sortColumn === 'first_name'}
                   direction={sortDirection}
                   onClick={() => onSort('first_name')}
+                  trailing={sortedRoster.length > 0 ? <StudentCountBadge count={sortedRoster.length} /> : undefined}
                 />
                 <SortableHeaderCell
                   label="Last Name"
@@ -448,9 +445,14 @@ export function TeacherRosterTab({ classroom }: Props) {
                   direction={sortDirection}
                   onClick={() => onSort('last_name')}
                 />
-                <DataTableHeaderCell>Email ({sortedRoster.length} {sortedRoster.length === 1 ? 'student' : 'students'})</DataTableHeaderCell>
+                <DataTableHeaderCell>Email</DataTableHeaderCell>
                 <DataTableHeaderCell>Counselor</DataTableHeaderCell>
-                <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">
+                  <span className="flex items-center justify-center gap-2">
+                    Joined
+                    <CountBadge count={joinedCount} tooltip={`${joinedCount} ${joinedCount === 1 ? 'student' : 'students'} joined`} variant="success" />
+                  </span>
+                </DataTableHeaderCell>
                 <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>

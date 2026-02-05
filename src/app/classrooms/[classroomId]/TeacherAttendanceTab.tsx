@@ -22,6 +22,7 @@ import {
   SortableHeaderCell,
   TableCard,
 } from '@/components/DataTable'
+import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
 import type { ClassDay, Classroom, Entry } from '@/types'
 
@@ -136,6 +137,20 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     })
   }, [logs, sortColumn, sortDirection])
 
+  const { presentCount, absentCount } = useMemo(() => {
+    let present = 0
+    let absent = 0
+    for (const row of rows) {
+      if (row.entry) {
+        present++
+      } else if (selectedDate < today) {
+        absent++
+      }
+      // pending (selectedDate >= today && no entry) - not counted
+    }
+    return { presentCount: present, absentCount: absent }
+  }, [rows, selectedDate, today])
+
   function handleSort(column: SortColumn) {
     setSortState((prev) => toggleSort(prev, column))
   }
@@ -215,6 +230,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                   direction={sortDirection}
                   onClick={() => handleSort('first_name')}
                   density="tight"
+                  trailing={isClassDay && rows.length > 0 ? <StudentCountBadge count={rows.length} /> : undefined}
                 />
                 <SortableHeaderCell
                   label="Last Name"
@@ -231,7 +247,14 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                   density="tight"
                 />
                 <DataTableHeaderCell density="tight" align="center">
-                  Status
+                  {isClassDay ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <CountBadge count={presentCount} tooltip="Present" variant="success" />
+                      <CountBadge count={absentCount} tooltip="Absent" variant="danger" />
+                    </div>
+                  ) : (
+                    'Status'
+                  )}
                 </DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>

@@ -27,6 +27,8 @@ export type LayoutConfig = {
     defaultOpen: boolean
     /** Default width when open */
     defaultWidth: RightSidebarWidth
+    /** Panel always visible on desktop, no toggle button */
+    desktopAlwaysOpen?: boolean
   }
   mainContent: {
     /** Max width constraint for main content area */
@@ -104,11 +106,11 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'full' },
   },
   'assignments-teacher-list': {
-    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '40%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%', desktopAlwaysOpen: true },
     mainContent: { maxWidth: 'full' },
   },
   'assignments-teacher-viewing': {
-    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '40%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%', desktopAlwaysOpen: true },
     mainContent: { maxWidth: 'full' },
   },
   'quizzes-teacher': {
