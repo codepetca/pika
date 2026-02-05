@@ -597,9 +597,15 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       </button>
     )
 
+  // Show mobile toggle only when viewing an assignment (not a student)
+  // Summary mode: no toggle (mobile has no way to open panel)
+  // Assignment selected (no student): toggle visible (mobile can open instructions)
+  // Student selected: no toggle (panel auto-opens)
+  const showMobileToggle = selection.mode === 'assignment' && selectedStudentId === null
+
   return (
     <PageLayout>
-      <PageActionBar primary={primaryButtons} actions={[]} trailing={<RightSidebarToggle />} />
+      <PageActionBar primary={primaryButtons} actions={[]} trailing={showMobileToggle ? <RightSidebarToggle /> : undefined} />
 
       <PageContent className="space-y-4">
         {error && (
