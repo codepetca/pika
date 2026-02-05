@@ -88,7 +88,7 @@ export function QuizModal({ isOpen, classroomId, quiz, onClose, onSuccess }: Qui
     <DialogPanel
       isOpen={isOpen}
       onClose={onClose}
-      maxWidth="w-[min(90vw,28rem)]"
+      maxWidth="max-w-xs"
       className="p-6"
       ariaLabelledBy="quiz-modal-title"
     >
