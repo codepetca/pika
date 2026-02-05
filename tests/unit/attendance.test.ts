@@ -150,6 +150,70 @@ describe('attendance utilities', () => {
       expect(result['2024-09-04']).toBeUndefined()
       expect(Object.keys(result)).not.toContain('2024-09-04')
     })
+
+    it('should return absent when entry exists but text is empty', () => {
+      const entries: Entry[] = [
+        {
+          id: '1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-01',
+          text: '',
+          minutes_reported: 0,
+          mood: null,
+          created_at: '2024-09-01T20:00:00Z',
+          updated_at: '2024-09-01T20:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      const result = computeAttendanceStatusForStudent(classDays, entries, pastToday)
+
+      expect(result['2024-09-01']).toBe('absent')
+    })
+
+    it('should return absent when entry exists but text is only whitespace', () => {
+      const entries: Entry[] = [
+        {
+          id: '1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-01',
+          text: '   \n\t  ',
+          minutes_reported: 0,
+          mood: null,
+          created_at: '2024-09-01T20:00:00Z',
+          updated_at: '2024-09-01T20:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      const result = computeAttendanceStatusForStudent(classDays, entries, pastToday)
+
+      expect(result['2024-09-01']).toBe('absent')
+    })
+
+    it('should return pending for today when entry exists but is empty', () => {
+      const today = '2024-09-02'
+      const entries: Entry[] = [
+        {
+          id: '1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-02',
+          text: '',
+          minutes_reported: 0,
+          mood: null,
+          created_at: '2024-09-02T15:00:00Z',
+          updated_at: '2024-09-02T15:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      const result = computeAttendanceStatusForStudent(classDays, entries, today)
+
+      expect(result['2024-09-02']).toBe('pending')
+    })
   })
 
   describe('computeAttendanceRecords', () => {
