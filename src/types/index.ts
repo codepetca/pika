@@ -169,7 +169,7 @@ export interface AuthenticityFlag {
   wordDelta: number
   seconds: number
   wps: number
-  reason: 'paste' | 'low_keystrokes' | 'high_wps'
+  reason: 'paste' | 'high_wps'
 }
 
 export interface AssignmentDoc {

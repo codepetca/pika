@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { Button } from '@/ui'
+import { Button, Tooltip } from '@/ui'
 import { RichTextViewer } from '@/components/editor'
 import { HistoryList } from '@/components/HistoryList'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
@@ -11,32 +11,48 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
 
+function flagReasonLabel(reason: AuthenticityFlag['reason']): string {
+  switch (reason) {
+    case 'paste': return 'paste detected'
+    case 'high_wps': return 'high speed'
+  }
+}
+
 function AuthenticityGauge({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
   const hasScore = score !== null
   const displayScore = score ?? 0
   const color = !hasScore ? 'bg-gray-300' : displayScore >= 70 ? 'bg-green-500' : displayScore >= 40 ? 'bg-yellow-500' : 'bg-red-500'
   const textColor = !hasScore ? 'text-text-muted' : displayScore >= 70 ? 'text-green-700' : displayScore >= 40 ? 'text-yellow-700' : 'text-red-700'
 
+  const bar = (
+    <div className="relative h-5 rounded-full bg-gray-200 overflow-hidden">
+      {hasScore && (
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${displayScore}%` }} />
+      )}
+      <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${hasScore ? textColor : 'text-text-muted'}`}>
+        Authenticity {hasScore ? `${displayScore}%` : '—'}
+      </span>
+    </div>
+  )
+
+  if (flags.length === 0) return bar
+
   return (
-    <div className="space-y-2">
-      <div className="relative h-5 rounded-full bg-gray-200 overflow-hidden">
-        {hasScore && (
-          <div className={`h-full rounded-full ${color}`} style={{ width: `${displayScore}%` }} />
-        )}
-        <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${hasScore ? textColor : 'text-text-muted'}`}>
-          Authenticity {hasScore ? `${displayScore}%` : '—'}
-        </span>
-      </div>
-      {flags.length > 0 && (
-        <div className="space-y-1">
+    <Tooltip
+      content={
+        <div className="space-y-1 py-0.5">
           {flags.map((flag, i) => (
-            <div key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-700">
-              +{flag.wordDelta} words in {flag.seconds}s ({flag.wps} w/s)
+            <div key={i}>
+              {flag.reason === 'paste'
+                ? `${flag.wordDelta} words pasted`
+                : `${flag.wordDelta} words in ${flag.seconds}s (${Math.round(flag.wps * 60)} wpm)`}
             </div>
           ))}
         </div>
-      )}
-    </div>
+      }
+    >
+      <div>{bar}</div>
+    </Tooltip>
   )
 }
 
@@ -435,7 +451,7 @@ export function TeacherStudentWorkPanel({
               <div className="relative flex items-center justify-center">
                 <span className="rounded border border-border px-3 py-0.5 text-sm font-semibold text-text-default">{totalScore}</span>
                 <span className="absolute left-1/2 ml-6 text-xs text-text-muted">/30</span>
-                <span className="absolute right-0 rounded px-1.5 py-0.5 text-sm font-semibold bg-green-100 text-green-700">{totalPercent}%</span>
+                <span className={`absolute right-0 rounded px-1.5 py-0.5 text-sm font-semibold ${totalPercent >= 80 ? 'bg-green-100 text-green-700' : totalPercent >= 60 ? 'bg-yellow-100 text-yellow-700' : totalPercent >= 50 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>{totalPercent}%</span>
               </div>
 
               <div>

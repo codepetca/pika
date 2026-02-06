@@ -6,17 +6,16 @@ export interface AuthenticityResult {
 }
 
 const WPS_THRESHOLD = 3 // ~180 WPM, faster than any human typist
-const KEYSTROKE_RATIO = 2 // chars added > keystrokes × 2 is suspicious
 const SKIP_TRIGGERS = new Set(['restore', 'baseline', 'submit'])
 
 /**
  * Analyze assignment doc history to compute an authenticity score (0–100).
  * Score = (organic words added / total words added) × 100.
  *
- * Three-tier signal hierarchy per interval:
- * 1. paste_word_count (direct paste evidence, capped by word delta)
- * 2. keystroke_count vs chars added (indirect evidence)
- * 3. WPS > 3 (fallback for old entries + anti-spoof safety net)
+ * Only impossible-speed intervals (WPS > 3, ~180 WPM) affect the score.
+ * Paste events are recorded as informational flags for teacher review
+ * but do NOT lower the score, since students may legitimately paste
+ * from their own drafts in other apps.
  *
  * Pure function — no side effects, no API calls.
  */
@@ -31,7 +30,7 @@ export function analyzeAuthenticity(entries: AssignmentDocHistoryEntry[]): Authe
   )
 
   let organicWords = 0
-  let pasteWords = 0
+  let suspiciousWords = 0
   const flags: AuthenticityFlag[] = []
 
   for (let i = 1; i < sorted.length; i++) {
@@ -54,53 +53,40 @@ export function analyzeAuthenticity(entries: AssignmentDocHistoryEntry[]): Authe
     )
 
     const wps = wordDelta / seconds
-    const charsAdded = Math.max(0, curr.char_count - prev.char_count)
 
-    let flagged = false
-    let reason: AuthenticityFlag['reason'] | null = null
-
-    // Signal 1: direct paste evidence
+    // Paste detection — informational only, does not affect score
     if (curr.paste_word_count != null && curr.paste_word_count > 0) {
       const effectivePasteWords = Math.min(curr.paste_word_count, Math.max(0, wordDelta))
       if (effectivePasteWords > 0) {
-        flagged = true
-        reason = 'paste'
+        flags.push({
+          timestamp: curr.created_at,
+          wordDelta: effectivePasteWords,
+          seconds,
+          wps: Math.round(wps * 10) / 10,
+          reason: 'paste',
+        })
       }
     }
 
-    // Signal 2: keystroke mismatch (only if no paste detected)
-    if (
-      !flagged &&
-      curr.keystroke_count != null &&
-      curr.paste_word_count != null &&
-      curr.paste_word_count === 0 &&
-      charsAdded > curr.keystroke_count * KEYSTROKE_RATIO
-    ) {
-      flagged = true
-      reason = 'low_keystrokes'
-    }
-
-    // Signal 3: WPS fallback (old entries where paste_word_count is null, or anti-spoof)
-    if (!flagged && wps > WPS_THRESHOLD) {
-      flagged = true
-      reason = 'high_wps'
-    }
-
-    if (flagged && reason) {
-      pasteWords += wordDelta
-      flags.push({
-        timestamp: curr.created_at,
-        wordDelta,
-        seconds,
-        wps: Math.round(wps * 10) / 10,
-        reason,
-      })
+    // WPS check — impossible speed affects the score
+    if (wps > WPS_THRESHOLD) {
+      suspiciousWords += wordDelta
+      // Only add a flag if paste didn't already create one for this interval
+      if (!(curr.paste_word_count != null && curr.paste_word_count > 0)) {
+        flags.push({
+          timestamp: curr.created_at,
+          wordDelta,
+          seconds,
+          wps: Math.round(wps * 10) / 10,
+          reason: 'high_wps',
+        })
+      }
     } else {
       organicWords += wordDelta
     }
   }
 
-  const totalAdded = organicWords + pasteWords
+  const totalAdded = organicWords + suspiciousWords
   if (totalAdded === 0) {
     return { score: null, flags: [] }
   }

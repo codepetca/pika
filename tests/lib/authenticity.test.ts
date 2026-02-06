@@ -128,8 +128,8 @@ describe('analyzeAuthenticity', () => {
     expect(result.flags).toHaveLength(0)
   })
 
-  // Signal 1: paste_word_count
-  it('flags entry with paste_word_count > 0', () => {
+  // Paste detection — informational only, does not affect score
+  it('records paste flag but does not lower score', () => {
     const entries = [
       makeEntry({ word_count: 0, created_at: '2025-01-01T00:00:00Z', trigger: 'baseline' }),
       makeEntry({
@@ -141,7 +141,7 @@ describe('analyzeAuthenticity', () => {
       }),
     ]
     const result = analyzeAuthenticity(entries)
-    expect(result.score).toBe(0)
+    expect(result.score).toBe(100) // Paste doesn't affect score
     expect(result.flags).toHaveLength(1)
     expect(result.flags[0].reason).toBe('paste')
   })
@@ -159,10 +159,10 @@ describe('analyzeAuthenticity', () => {
       }),
     ]
     const result = analyzeAuthenticity(entries)
-    // 20 words flagged as paste, 0 organic → score 0
-    expect(result.score).toBe(0)
+    expect(result.score).toBe(100) // Paste doesn't affect score
     expect(result.flags).toHaveLength(1)
     expect(result.flags[0].reason).toBe('paste')
+    expect(result.flags[0].wordDelta).toBe(20) // Capped by word delta
   })
 
   it('ignores paste when word delta is 0 (pure rearrangement)', () => {
@@ -182,8 +182,7 @@ describe('analyzeAuthenticity', () => {
     expect(result.score).toBeNull()
   })
 
-  // Signal 2: keystroke mismatch
-  it('flags low keystroke ratio when paste_word_count is 0', () => {
+  it('does not flag low keystroke ratio (signal removed)', () => {
     const entries = [
       makeEntry({ word_count: 0, char_count: 0, created_at: '2025-01-01T00:00:00Z', trigger: 'baseline' }),
       makeEntry({
@@ -192,25 +191,7 @@ describe('analyzeAuthenticity', () => {
         created_at: '2025-01-01T00:01:00Z',
         trigger: 'autosave',
         paste_word_count: 0,
-        keystroke_count: 10, // 250 chars added but only 10 keystrokes
-      }),
-    ]
-    const result = analyzeAuthenticity(entries)
-    expect(result.score).toBe(0)
-    expect(result.flags).toHaveLength(1)
-    expect(result.flags[0].reason).toBe('low_keystrokes')
-  })
-
-  it('does not flag keystroke mismatch when keystrokes are sufficient', () => {
-    const entries = [
-      makeEntry({ word_count: 0, char_count: 0, created_at: '2025-01-01T00:00:00Z', trigger: 'baseline' }),
-      makeEntry({
-        word_count: 50,
-        char_count: 250,
-        created_at: '2025-01-01T00:01:00Z',
-        trigger: 'autosave',
-        paste_word_count: 0,
-        keystroke_count: 200, // Sufficient keystrokes
+        keystroke_count: 10, // Low keystrokes but no longer flagged
       }),
     ]
     const result = analyzeAuthenticity(entries)
@@ -218,7 +199,7 @@ describe('analyzeAuthenticity', () => {
     expect(result.flags).toHaveLength(0)
   })
 
-  // Signal 3: WPS anti-spoof
+  // Signal 2: WPS anti-spoof
   it('uses WPS fallback for old entries (null paste_word_count)', () => {
     const entries = [
       makeEntry({ word_count: 0, created_at: '2025-01-01T00:00:00Z', trigger: 'baseline' }),
@@ -268,7 +249,7 @@ describe('analyzeAuthenticity', () => {
         paste_word_count: null,
         keystroke_count: null,
       }),
-      // New entry: flagged by paste
+      // New entry: paste at normal speed — informational flag, doesn't affect score
       makeEntry({
         word_count: 100,
         created_at: '2025-01-01T00:01:50Z',
@@ -278,7 +259,7 @@ describe('analyzeAuthenticity', () => {
       }),
     ]
     const result = analyzeAuthenticity(entries)
-    expect(result.score).toBe(50)
+    expect(result.score).toBe(100) // Paste doesn't affect score
     expect(result.flags).toHaveLength(1)
     expect(result.flags[0].reason).toBe('paste')
   })
