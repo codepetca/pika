@@ -3,8 +3,8 @@ import type { AttendanceStatus, ClassDay, Entry, AttendanceRecord } from '@/type
 /**
  * Checks if an entry has actual content (non-whitespace text)
  */
-function entryHasContent(entry: Entry): boolean {
-  return entry.text.trim().length > 0
+export function entryHasContent(entry: Entry): boolean {
+  return (entry.text || '').trim().length > 0
 }
 
 /**

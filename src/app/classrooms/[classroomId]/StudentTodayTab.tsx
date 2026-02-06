@@ -21,7 +21,7 @@ import {
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
-import { countCharacters, plainTextToTiptapContent } from '@/lib/tiptap-content'
+import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import type { Classroom, ClassDay, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
@@ -187,7 +187,14 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
   ) => {
     if (!today) return
 
+    // Don't create a new DB record for empty content (e.g. TipTap mount normalization)
     const newContentStr = JSON.stringify(newContent)
+    if (!entryIdRef.current && isEmpty(newContent)) {
+      lastSavedContentRef.current = newContentStr
+      setSaveStatus('saved')
+      return
+    }
+
     if (!options?.forceFull && newContentStr === lastSavedContentRef.current) {
       setSaveStatus('saved')
       return
