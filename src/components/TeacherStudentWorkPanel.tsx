@@ -432,8 +432,10 @@ export function TeacherStudentWorkPanel({
               <ScoreInput label="Thinking" value={scoreThinking} onChange={setScoreThinking} />
               <ScoreInput label="Workflow" value={scoreWorkflow} onChange={setScoreWorkflow} />
 
-              <div className="text-sm font-medium text-text-default text-center">
-                {totalScore}/30 ({totalPercent}%)
+              <div className="relative flex items-center justify-center">
+                <span className="rounded border border-border px-3 py-0.5 text-sm font-semibold text-text-default">{totalScore}</span>
+                <span className="absolute left-1/2 ml-6 text-xs text-text-muted">/30</span>
+                <span className="absolute right-0 rounded px-1.5 py-0.5 text-sm font-semibold bg-green-100 text-green-700">{totalPercent}%</span>
               </div>
 
               <div>
