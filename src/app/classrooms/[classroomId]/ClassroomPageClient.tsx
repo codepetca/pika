@@ -186,6 +186,8 @@ function ClassroomPageContent({
     setAssignmentViewMode(mode)
     if (mode === 'assignment') {
       setIsMarkdownMode(false)
+      // Abort any in-flight markdown load to prevent it from re-enabling markdown mode
+      abortControllerRef.current?.abort()
     }
   }, [])
 
@@ -324,7 +326,7 @@ function ClassroomPageContent({
 
   useEffect(() => {
     if (isTeacher && activeTab === 'assignments' && selectedStudent) {
-      setRightSidebarWidth('70%')
+      setRightSidebarWidth('75%')
     } else if (isTeacher && activeTab === 'assignments') {
       setRightSidebarWidth('50%')
     } else if (isTeacher && activeTab === 'quizzes') {
