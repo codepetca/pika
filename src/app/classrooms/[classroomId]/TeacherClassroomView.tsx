@@ -34,7 +34,7 @@ import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
-  ACTIONBAR_ICON_BUTTON_CLASSNAME,
+  ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME,
   PageActionBar,
   PageContent,
   PageLayout,
@@ -195,8 +195,6 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
-  // Compact table when sidebar is wide or a student is selected (sidebar opens)
-  const isCompactTable = sidebarWidth === '70%' || sidebarWidth === '75%' || selectedStudentId !== null
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [error, setError] = useState('')
@@ -209,6 +207,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
+
+  // Compact table when sidebar is wide or a student is selected (sidebar opens)
+  const isCompactTable = sidebarWidth === '70%' || sidebarWidth === '75%' || selectedStudentId !== null
 
   const loadAssignments = useCallback(async () => {
     setLoading(true)
@@ -680,7 +681,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
             <Tooltip content={batchSelectedCount > 0 ? `AI grade (${batchSelectedCount})` : 'Select students to grade'}>
               <button
                 type="button"
-                className={`${ACTIONBAR_ICON_BUTTON_CLASSNAME} !px-4 ${batchSelectedCount === 0 ? 'opacity-50' : ''}`}
+                className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} ${batchSelectedCount === 0 ? 'opacity-50' : ''}`}
                 onClick={() => {
                   if (batchSelectedCount === 0) {
                     setWarning('Select students to grade')
@@ -697,7 +698,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
             <Tooltip content={batchSelectedCount > 0 ? `Return (${batchSelectedCount})` : 'Select students to return'}>
               <button
                 type="button"
-                className={`${ACTIONBAR_ICON_BUTTON_CLASSNAME} !px-4 ${batchSelectedCount === 0 ? 'opacity-50' : ''}`}
+                className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} ${batchSelectedCount === 0 ? 'opacity-50' : ''}`}
                 onClick={() => {
                   if (batchSelectedCount === 0) {
                     setWarning('Select students to return')
