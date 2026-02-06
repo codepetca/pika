@@ -11,13 +11,6 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
 
-function flagReasonLabel(reason: AuthenticityFlag['reason']): string {
-  switch (reason) {
-    case 'paste': return 'paste detected'
-    case 'high_wps': return 'high speed'
-  }
-}
-
 function AuthenticityGauge({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
   const hasScore = score !== null
   const displayScore = score ?? 0
