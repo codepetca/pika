@@ -7,7 +7,7 @@ import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
-import { getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
+import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import { Tooltip } from '@/ui'
 import type { AttendanceStatus } from '@/types'
 import {
@@ -141,7 +141,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     let present = 0
     let absent = 0
     for (const row of rows) {
-      if (row.entry) {
+      if (row.entry && entryHasContent(row.entry)) {
         present++
       } else if (selectedDate < today) {
         absent++
@@ -261,7 +261,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
             <DataTableBody>
               {rows.map((row) => {
                 const isSelected = selectedStudentId === row.student_id
-                const status: AttendanceStatus = row.entry
+                const status: AttendanceStatus = row.entry && entryHasContent(row.entry)
                   ? 'present'
                   : selectedDate >= today
                     ? 'pending'

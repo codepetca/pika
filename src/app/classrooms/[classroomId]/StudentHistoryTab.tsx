@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
-import { getAttendanceIcon } from '@/lib/attendance'
+import { entryHasContent, getAttendanceIcon } from '@/lib/attendance'
+import { getTodayInToronto } from '@/lib/timezone'
 import type { AttendanceStatus, ClassDay, Classroom, Entry } from '@/types'
 
 interface HistoryRow {
@@ -33,11 +34,20 @@ export function StudentHistoryTab({ classroom }: Props) {
         const entries: Entry[] = entriesData.entries || []
 
         const entryMap = new Map(entries.map(e => [e.date, e]))
+        const today = getTodayInToronto()
 
         const nextRows = classDays
           .map(day => {
             const entry = entryMap.get(day.date) || null
-            return { date: day.date, entry, status: entry ? 'present' : 'absent' as AttendanceStatus }
+            let status: AttendanceStatus
+            if (entry && entryHasContent(entry)) {
+              status = 'present'
+            } else if (day.date >= today) {
+              status = 'pending'
+            } else {
+              status = 'absent'
+            }
+            return { date: day.date, entry, status }
           })
           .sort((a, b) => b.date.localeCompare(a.date))
 

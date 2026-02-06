@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   computeAttendanceStatusForStudent,
   computeAttendanceRecords,
+  entryHasContent,
   getAttendanceIcon,
   getAttendanceLabel,
   getAttendanceDotClass,
@@ -334,6 +335,36 @@ describe('attendance utilities', () => {
 
     it('should return gray for pending', () => {
       expect(getAttendanceDotClass('pending')).toBe('bg-gray-400')
+    })
+  })
+
+  describe('entryHasContent', () => {
+    const base = {
+      id: '1',
+      student_id: 's1',
+      course_code: 'GLD2O',
+      date: '2024-09-01',
+      minutes_reported: 0,
+      mood: null,
+      created_at: '2024-09-01T00:00:00Z',
+      updated_at: '2024-09-01T00:00:00Z',
+      on_time: true,
+    }
+
+    it('should return true when entry has text content', () => {
+      expect(entryHasContent({ ...base, text: 'Hello world' })).toBe(true)
+    })
+
+    it('should return false when entry text is empty', () => {
+      expect(entryHasContent({ ...base, text: '' })).toBe(false)
+    })
+
+    it('should return false when entry text is only whitespace', () => {
+      expect(entryHasContent({ ...base, text: '   \n\t  ' })).toBe(false)
+    })
+
+    it('should return false when entry text is null (DB edge case)', () => {
+      expect(entryHasContent({ ...base, text: null as unknown as string })).toBe(false)
     })
   })
 })
