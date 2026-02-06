@@ -18,7 +18,6 @@ import {
 } from '@dnd-kit/sortable'
 import { Pencil, Plus } from 'lucide-react'
 import { ConfirmDialog, Tooltip } from '@/ui'
-import { BatchActionBar } from '@/components/BatchActionBar'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -26,6 +25,7 @@ import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
+  ACTIONBAR_BUTTON_SECONDARY_CLASSNAME,
   PageActionBar,
   PageContent,
   PageLayout,
@@ -581,20 +581,44 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         <span>New</span>
       </button>
     ) : (
-      <button
-        type="button"
-        className={`${ACTIONBAR_BUTTON_CLASSNAME} flex items-center gap-1`}
-        onClick={() => {
-          if (selectedAssignmentData) {
-            setEditAssignment(selectedAssignmentData.assignment)
-          }
-        }}
-        disabled={!canEditAssignment}
-        aria-label="Edit assignment"
-      >
-        <Pencil className="h-5 w-5" aria-hidden="true" />
-        <span>Edit</span>
-      </button>
+      <div className="flex gap-2 flex-wrap items-center">
+        <button
+          type="button"
+          className={`${ACTIONBAR_BUTTON_CLASSNAME} flex items-center gap-1`}
+          onClick={() => {
+            if (selectedAssignmentData) {
+              setEditAssignment(selectedAssignmentData.assignment)
+            }
+          }}
+          disabled={!canEditAssignment}
+          aria-label="Edit assignment"
+        >
+          <Pencil className="h-5 w-5" aria-hidden="true" />
+          <span>Edit</span>
+        </button>
+        {batchSelectedCount > 0 ? (
+          <>
+            <button
+              type="button"
+              className={`${ACTIONBAR_BUTTON_SECONDARY_CLASSNAME} flex items-center gap-1`}
+              onClick={handleBatchAutoGrade}
+              disabled={isAutoGrading || isReadOnly}
+            >
+              {isAutoGrading ? 'Grading...' : `AI grade (${batchSelectedCount})`}
+            </button>
+            <button
+              type="button"
+              className={`${ACTIONBAR_BUTTON_SECONDARY_CLASSNAME} flex items-center gap-1`}
+              onClick={() => setShowReturnConfirm(true)}
+              disabled={isReturning || isReadOnly}
+            >
+              {isReturning ? 'Returning...' : `Return (${batchSelectedCount})`}
+            </button>
+          </>
+        ) : (
+          <span className="text-sm text-text-muted">Select students to grade or return</span>
+        )}
+      </div>
     )
 
   // Show mobile toggle only when viewing an assignment (not a student)
@@ -675,28 +699,6 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
               </div>
             ) : (
               <>
-              {batchSelectedCount > 0 && (
-                <div className="p-3 border-b border-border">
-                  <BatchActionBar selectedCount={batchSelectedCount}>
-                    <button
-                      type="button"
-                      className="px-3 py-1 text-sm rounded border border-border bg-surface hover:bg-surface-hover text-text-default"
-                      onClick={handleBatchAutoGrade}
-                      disabled={isAutoGrading || isReadOnly}
-                    >
-                      {isAutoGrading ? 'Grading...' : 'AI grade'}
-                    </button>
-                    <button
-                      type="button"
-                      className="px-3 py-1 text-sm rounded border border-border bg-surface hover:bg-surface-hover text-text-default"
-                      onClick={() => setShowReturnConfirm(true)}
-                      disabled={isReturning || isReadOnly}
-                    >
-                      Return
-                    </button>
-                  </BatchActionBar>
-                </div>
-              )}
               <DataTable>
                 <DataTableHead>
                   <DataTableRow>
