@@ -615,9 +615,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
               {isReturning ? 'Returning...' : `Return (${batchSelectedCount})`}
             </button>
           </>
-        ) : (
+        ) : selectedAssignmentData ? (
           <span className="text-sm text-text-muted">Select students to grade or return</span>
-        )}
+        ) : null}
       </div>
     )
 
