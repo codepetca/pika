@@ -5,7 +5,8 @@ import { Button, Input, FormField } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { format, parse } from 'date-fns'
 import type { Entry, ClassDay, AttendanceStatus, Classroom } from '@/types'
-import { getAttendanceIcon, getAttendanceLabel } from '@/lib/attendance'
+import { entryHasContent, getAttendanceIcon, getAttendanceLabel } from '@/lib/attendance'
+import { getTodayInToronto } from '@/lib/timezone'
 
 interface HistoryEntry {
   date: string
@@ -78,13 +79,17 @@ export default function HistoryPage() {
         // Build history
         const entryMap = new Map<string, Entry>()
         entries.forEach(entry => entryMap.set(entry.date, entry))
+        const today = getTodayInToronto()
 
         const historyData: HistoryEntry[] = classDays.map(classDay => {
           const entry = entryMap.get(classDay.date) || null
-          let status: AttendanceStatus = 'absent'
-
-          if (entry) {
+          let status: AttendanceStatus
+          if (entry && entryHasContent(entry)) {
             status = 'present'
+          } else if (classDay.date >= today) {
+            status = 'pending'
+          } else {
+            status = 'absent'
           }
 
           return {
