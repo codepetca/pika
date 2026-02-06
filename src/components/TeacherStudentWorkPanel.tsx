@@ -355,7 +355,7 @@ export function TeacherStudentWorkPanel({
         </div>
 
         {/* Right panel with tabs */}
-        <div className="w-56 border-l border-border bg-page flex flex-col min-h-0">
+        <div className="w-64 border-l border-border bg-page flex flex-col min-h-0">
           {/* Tab switcher */}
           <div className="flex border-b border-border">
             <button

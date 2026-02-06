@@ -186,6 +186,8 @@ function ClassroomPageContent({
     setAssignmentViewMode(mode)
     if (mode === 'assignment') {
       setIsMarkdownMode(false)
+      // Abort any in-flight markdown load to prevent it from re-enabling markdown mode
+      abortControllerRef.current?.abort()
     }
   }, [])
 
