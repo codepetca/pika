@@ -16,9 +16,17 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Pencil, Plus } from 'lucide-react'
+import {
+  Check,
+  CheckCircle,
+  Circle,
+  ClockAlert,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Send,
+} from 'lucide-react'
 import { ConfirmDialog, Tooltip } from '@/ui'
-import { BatchActionBar } from '@/components/BatchActionBar'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -26,13 +34,14 @@ import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
+  ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME,
   PageActionBar,
   PageContent,
   PageLayout,
 } from '@/components/PageLayout'
 import { useRightSidebar, useMobileDrawer, useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import {
-  getAssignmentStatusDotClass,
+  getAssignmentStatusIconClass,
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
@@ -52,6 +61,7 @@ import {
 import {
   TEACHER_ASSIGNMENTS_SELECTION_EVENT,
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
+  TEACHER_GRADE_UPDATED_EVENT,
 } from '@/lib/events'
 
 interface AssignmentWithStats extends Assignment {
@@ -121,14 +131,39 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer border-l-2 border-l-transparent hover:bg-surface-hover'
 }
 
+const STATUS_ICON_CLASS = 'h-4 w-4'
+
+function StatusIcon({ status }: { status: AssignmentStatus }) {
+  const colorClass = getAssignmentStatusIconClass(status)
+  const cls = `${STATUS_ICON_CLASS} ${colorClass}`
+  switch (status) {
+    case 'not_started':
+      return <Circle className={cls} />
+    case 'in_progress':
+      return <Pencil className={cls} />
+    case 'in_progress_late':
+      return <ClockAlert className={cls} />
+    case 'submitted_on_time':
+      return <CheckCircle className={cls} />
+    case 'submitted_late':
+      return <ClockAlert className={cls} />
+    case 'graded':
+      return <Check className={cls} />
+    case 'returned':
+      return <Send className={cls} />
+    case 'resubmitted':
+      return <RotateCcw className={cls} />
+    default:
+      return <Circle className={cls} />
+  }
+}
+
 export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
   const { setExpanded: setLeftSidebarExpanded } = useLeftSidebar()
 
-  // Hide "Last updated" column when sidebar is 70% or wider to fit table without scrolling
-  const isCompactTable = sidebarWidth === '70%'
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
@@ -163,12 +198,18 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [error, setError] = useState('')
+  const [warning, setWarning] = useState('')
 
   // Batch grading state
   const [isAutoGrading, setIsAutoGrading] = useState(false)
   const [isReturning, setIsReturning] = useState(false)
+  const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
   const [refreshCounter, setRefreshCounter] = useState(0)
+  const tableContainerRef = useRef<HTMLDivElement>(null)
+
+  // Compact table when sidebar is wide or a student is selected (sidebar opens)
+  const isCompactTable = sidebarWidth === '70%' || sidebarWidth === '75%' || selectedStudentId !== null
 
   const loadAssignments = useCallback(async () => {
     setLoading(true)
@@ -418,8 +459,20 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     selectedCount: batchSelectedCount,
   } = useStudentSelection(studentRowIds)
 
+  // Auto-dismiss warning after 3 seconds, or immediately when students are selected
+  useEffect(() => {
+    if (!warning) return
+    if (batchSelectedCount > 0) {
+      setWarning('')
+      return
+    }
+    const timer = setTimeout(() => setWarning(''), 3000)
+    return () => clearTimeout(timer)
+  }, [warning, batchSelectedCount])
+
   async function handleBatchAutoGrade() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
+    setBatchProgressCount(batchSelectedCount)
     setIsAutoGrading(true)
     setError('')
     try {
@@ -448,6 +501,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
   async function handleBatchReturn() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
+    setBatchProgressCount(batchSelectedCount)
     setIsReturning(true)
     setError('')
     try {
@@ -534,6 +588,32 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [selectedStudentId])
 
+  // Refresh table when a grade is saved in the sidebar
+  useEffect(() => {
+    function onGradeUpdated() {
+      setRefreshCounter((c) => c + 1)
+    }
+
+    window.addEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
+    return () => window.removeEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
+  }, [])
+
+  // Click outside student table to deselect, but not when clicking
+  // the right sidebar (aside) or mobile drawer (fixed overlay).
+  useEffect(() => {
+    if (!selectedStudentId) return
+
+    function handleMouseDown(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      if (tableContainerRef.current?.contains(target)) return
+      if (target.closest('aside') || target.closest('[role="dialog"]')) return
+      setSelectedStudentId(null)
+    }
+
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [selectedStudentId])
+
   function toggleSort(column: 'first' | 'last') {
     if (sortColumn !== column) {
       setSortColumn(column)
@@ -581,20 +661,60 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         <span>New</span>
       </button>
     ) : (
-      <button
-        type="button"
-        className={`${ACTIONBAR_BUTTON_CLASSNAME} flex items-center gap-1`}
-        onClick={() => {
-          if (selectedAssignmentData) {
-            setEditAssignment(selectedAssignmentData.assignment)
-          }
-        }}
-        disabled={!canEditAssignment}
-        aria-label="Edit assignment"
-      >
-        <Pencil className="h-5 w-5" aria-hidden="true" />
-        <span>Edit</span>
-      </button>
+      <div className="flex gap-2 flex-wrap items-center">
+        <button
+          type="button"
+          className={`${ACTIONBAR_BUTTON_CLASSNAME} flex items-center gap-1`}
+          onClick={() => {
+            if (selectedAssignmentData) {
+              setEditAssignment(selectedAssignmentData.assignment)
+            }
+          }}
+          disabled={!canEditAssignment}
+          aria-label="Edit assignment"
+        >
+          <Pencil className="h-5 w-5" aria-hidden="true" />
+          <span>Edit</span>
+        </button>
+        {selectedAssignmentData && (
+          <>
+            <Tooltip content={batchSelectedCount > 0 ? `AI grade (${batchSelectedCount})` : 'Select students to grade'}>
+              <button
+                type="button"
+                className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} ${batchSelectedCount === 0 ? 'opacity-50' : ''}`}
+                onClick={() => {
+                  if (batchSelectedCount === 0) {
+                    setWarning('Select students to grade')
+                    return
+                  }
+                  handleBatchAutoGrade()
+                }}
+                disabled={isAutoGrading || isReadOnly}
+                aria-label={batchSelectedCount > 0 ? `AI grade ${batchSelectedCount} students` : 'Select students to grade'}
+              >
+                <Check className={`h-5 w-5 ${batchSelectedCount > 0 ? 'text-purple-500' : ''}`} aria-hidden="true" />
+              </button>
+            </Tooltip>
+            <Tooltip content={batchSelectedCount > 0 ? `Return (${batchSelectedCount})` : 'Select students to return'}>
+              <button
+                type="button"
+                className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} ${batchSelectedCount === 0 ? 'opacity-50' : ''}`}
+                onClick={() => {
+                  if (batchSelectedCount === 0) {
+                    setWarning('Select students to return')
+                    return
+                  }
+                  setShowReturnConfirm(true)
+                }}
+                disabled={isReturning || isReadOnly}
+                aria-label={batchSelectedCount > 0 ? `Return to ${batchSelectedCount} students` : 'Select students to return'}
+              >
+                <Send className={`h-5 w-5 ${batchSelectedCount > 0 ? 'text-blue-500' : ''}`} aria-hidden="true" />
+              </button>
+            </Tooltip>
+          </>
+        )}
+      </div>
     )
 
   // Show mobile toggle only when viewing an assignment (not a student)
@@ -611,6 +731,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         {error && (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
+          </div>
+        )}
+        {warning && (
+          <div className="rounded-md border border-yellow-400 bg-yellow-50 px-3 py-2 text-sm text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-600">
+            {warning}
           </div>
         )}
 
@@ -660,6 +785,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         </div>
       ) : (
         <KeyboardNavigableTable
+          ref={tableContainerRef}
           rowKeys={sortedStudents.map((s) => s.student_id)}
           selectedKey={selectedStudentId}
           onSelectKey={setSelectedStudentId}
@@ -674,30 +800,16 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                 {selectedAssignmentError || 'Failed to load assignment'}
               </div>
             ) : (
-              <>
-              {batchSelectedCount > 0 && (
-                <div className="p-3 border-b border-border">
-                  <BatchActionBar selectedCount={batchSelectedCount}>
-                    <button
-                      type="button"
-                      className="px-3 py-1 text-sm rounded border border-border bg-surface hover:bg-surface-hover text-text-default"
-                      onClick={handleBatchAutoGrade}
-                      disabled={isAutoGrading || isReadOnly}
-                    >
-                      {isAutoGrading ? 'Grading...' : 'AI grade'}
-                    </button>
-                    <button
-                      type="button"
-                      className="px-3 py-1 text-sm rounded border border-border bg-surface hover:bg-surface-hover text-text-default"
-                      onClick={() => setShowReturnConfirm(true)}
-                      disabled={isReturning || isReadOnly}
-                    >
-                      Return
-                    </button>
-                  </BatchActionBar>
+              <div className="relative">
+              {(isAutoGrading || isReturning) && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-surface/70">
+                  <div className="flex items-center gap-2 text-sm text-text-muted">
+                    <Spinner />
+                    <span>{isAutoGrading ? `Grading ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…` : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}</span>
+                  </div>
                 </div>
               )}
-              <DataTable>
+              <DataTable density={isCompactTable ? 'tight' : 'compact'}>
                 <DataTableHead>
                   <DataTableRow>
                     <DataTableHeaderCell className="w-10">
@@ -722,7 +834,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       direction={sortDirection}
                       onClick={() => toggleSort('last')}
                     />
-                    <DataTableHeaderCell>{isCompactTable ? '' : 'Status'}</DataTableHeaderCell>
+                    <DataTableHeaderCell className={isCompactTable ? 'w-8' : ''}>{isCompactTable ? '' : 'Status'}</DataTableHeaderCell>
                     <DataTableHeaderCell>Grade</DataTableHeaderCell>
                     {!isCompactTable && <DataTableHeaderCell>Last updated</DataTableHeaderCell>}
                   </DataTableRow>
@@ -774,9 +886,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       </DataTableCell>
                       <DataTableCell>
                         <Tooltip content={getAssignmentStatusLabel(student.status)}>
-                          <span
-                            className={`inline-block w-3 h-3 rounded-full ${getAssignmentStatusDotClass(student.status)}`}
-                          />
+                          <span className="inline-flex">
+                            <StatusIcon status={student.status} />
+                          </span>
                         </Tooltip>
                       </DataTableCell>
                       <DataTableCell className="text-text-muted">
@@ -795,7 +907,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                   )}
                 </DataTableBody>
               </DataTable>
-              </>
+              </div>
             )}
           </TableCard>
         </KeyboardNavigableTable>

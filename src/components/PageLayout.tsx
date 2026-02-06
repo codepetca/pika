@@ -26,6 +26,7 @@ export const ACTIONBAR_BUTTON_CLASSNAME = `${CONTROL_BASE} px-3 py-2`
 export const ACTIONBAR_BUTTON_PRIMARY_CLASSNAME = `${CONTROL_PRIMARY_BASE} px-3 py-2`
 export const ACTIONBAR_BUTTON_SECONDARY_CLASSNAME = `${CONTROL_SECONDARY_BASE} px-3 py-2`
 export const ACTIONBAR_ICON_BUTTON_CLASSNAME = `${CONTROL_BASE} px-2.5 py-2 inline-flex items-center justify-center`
+export const ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME = `${CONTROL_BASE} px-4 py-2 inline-flex items-center justify-center`
 
 export function PageLayout({
   children,

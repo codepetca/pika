@@ -113,31 +113,29 @@ export function getAssignmentStatusBadgeClass(status: AssignmentStatus): string 
 }
 
 /**
- * Get dot color class for assignment status indicator
- * Gray = not started, Yellow = in progress (on time or late),
- * Green = submitted on time, Lime = submitted late,
- * Purple = graded, Blue = returned, Orange = resubmitted
+ * Get icon color class for assignment status indicator.
+ * Used for the colored status icons in the student table.
  */
-export function getAssignmentStatusDotClass(status: AssignmentStatus): string {
+export function getAssignmentStatusIconClass(status: AssignmentStatus): string {
   switch (status) {
     case 'not_started':
-      return 'bg-gray-400'
+      return 'text-gray-400'
     case 'in_progress':
-      return 'bg-yellow-400'
+      return 'text-yellow-500'
     case 'in_progress_late':
-      return 'bg-yellow-400'
+      return 'text-yellow-500'
     case 'submitted_on_time':
-      return 'bg-green-500'
+      return 'text-green-500'
     case 'submitted_late':
-      return 'bg-lime-600'
+      return 'text-lime-600'
     case 'graded':
-      return 'bg-purple-500'
+      return 'text-purple-500'
     case 'returned':
-      return 'bg-blue-500'
+      return 'text-blue-500'
     case 'resubmitted':
-      return 'bg-orange-500'
+      return 'text-orange-500'
     default:
-      return 'bg-gray-400'
+      return 'text-gray-400'
   }
 }
 

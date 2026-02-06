@@ -8,7 +8,7 @@ import {
   calculateAssignmentStatus,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
-  getAssignmentStatusDotClass,
+  getAssignmentStatusIconClass,
   formatDueDate,
   isPastDue,
   formatRelativeDueDate,
@@ -420,44 +420,44 @@ describe('assignment utilities', () => {
   })
 
   // ==========================================================================
-  // getAssignmentStatusDotClass()
+  // getAssignmentStatusIconClass()
   // ==========================================================================
 
-  describe('getAssignmentStatusDotClass', () => {
+  describe('getAssignmentStatusIconClass', () => {
     it('should return gray for not_started', () => {
-      expect(getAssignmentStatusDotClass('not_started')).toBe('bg-gray-400')
+      expect(getAssignmentStatusIconClass('not_started')).toBe('text-gray-400')
     })
 
     it('should return yellow for in_progress', () => {
-      expect(getAssignmentStatusDotClass('in_progress')).toBe('bg-yellow-400')
+      expect(getAssignmentStatusIconClass('in_progress')).toBe('text-yellow-500')
     })
 
     it('should return yellow for in_progress_late', () => {
-      expect(getAssignmentStatusDotClass('in_progress_late')).toBe('bg-yellow-400')
+      expect(getAssignmentStatusIconClass('in_progress_late')).toBe('text-yellow-500')
     })
 
     it('should return green for submitted_on_time', () => {
-      expect(getAssignmentStatusDotClass('submitted_on_time')).toBe('bg-green-500')
+      expect(getAssignmentStatusIconClass('submitted_on_time')).toBe('text-green-500')
     })
 
     it('should return lime for submitted_late', () => {
-      expect(getAssignmentStatusDotClass('submitted_late')).toBe('bg-lime-600')
+      expect(getAssignmentStatusIconClass('submitted_late')).toBe('text-lime-600')
     })
 
     it('should return purple for graded', () => {
-      expect(getAssignmentStatusDotClass('graded')).toBe('bg-purple-500')
+      expect(getAssignmentStatusIconClass('graded')).toBe('text-purple-500')
     })
 
     it('should return blue for returned', () => {
-      expect(getAssignmentStatusDotClass('returned')).toBe('bg-blue-500')
+      expect(getAssignmentStatusIconClass('returned')).toBe('text-blue-500')
     })
 
     it('should return orange for resubmitted', () => {
-      expect(getAssignmentStatusDotClass('resubmitted')).toBe('bg-orange-500')
+      expect(getAssignmentStatusIconClass('resubmitted')).toBe('text-orange-500')
     })
 
     it('should return gray for invalid status', () => {
-      expect(getAssignmentStatusDotClass('invalid_status' as any)).toBe('bg-gray-400')
+      expect(getAssignmentStatusIconClass('invalid_status' as any)).toBe('text-gray-400')
     })
   })
 
