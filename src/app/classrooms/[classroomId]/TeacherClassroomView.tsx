@@ -734,7 +734,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
           </div>
         )}
         {warning && (
-          <div className="rounded-md border border-yellow-400 bg-yellow-50 px-3 py-2 text-sm text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-600">
+          <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
             {warning}
           </div>
         )}
