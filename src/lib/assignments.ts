@@ -142,6 +142,33 @@ export function getAssignmentStatusDotClass(status: AssignmentStatus): string {
 }
 
 /**
+ * Get icon color class for assignment status indicator.
+ * Used for the colored status icons in the student table.
+ */
+export function getAssignmentStatusIconClass(status: AssignmentStatus): string {
+  switch (status) {
+    case 'not_started':
+      return 'text-gray-400'
+    case 'in_progress':
+      return 'text-yellow-500'
+    case 'in_progress_late':
+      return 'text-yellow-500'
+    case 'submitted_on_time':
+      return 'text-green-500'
+    case 'submitted_late':
+      return 'text-lime-600'
+    case 'graded':
+      return 'text-purple-500'
+    case 'returned':
+      return 'text-blue-500'
+    case 'resubmitted':
+      return 'text-orange-500'
+    default:
+      return 'text-gray-400'
+  }
+}
+
+/**
  * Format a due date for display
  * Example: "Tue Dec 16"
  */
