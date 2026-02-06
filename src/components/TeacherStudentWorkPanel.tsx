@@ -8,6 +8,7 @@ import { HistoryList } from '@/components/HistoryList'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
+import { TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
 
 function AuthenticityGauge({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
@@ -251,6 +252,7 @@ export function TeacherStudentWorkPanel({
       if (!res.ok) throw new Error(result.error || 'Failed to save grade')
       // Update local state
       setData((prev) => prev ? { ...prev, doc: result.doc } : prev)
+      window.dispatchEvent(new CustomEvent(TEACHER_GRADE_UPDATED_EVENT))
     } catch (err: any) {
       setGradeError(err.message || 'Failed to save grade')
     } finally {
@@ -285,6 +287,7 @@ export function TeacherStudentWorkPanel({
         setData(reloadData)
         populateGradeForm(reloadData.doc)
         setRightTab('grading') // Stay on grading tab to show results
+        window.dispatchEvent(new CustomEvent(TEACHER_GRADE_UPDATED_EVENT))
       }
     } catch (err: any) {
       setGradeError(err.message || 'Auto-grade failed')

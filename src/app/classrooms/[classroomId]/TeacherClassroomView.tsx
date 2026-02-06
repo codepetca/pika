@@ -52,6 +52,7 @@ import {
 import {
   TEACHER_ASSIGNMENTS_SELECTION_EVENT,
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
+  TEACHER_GRADE_UPDATED_EVENT,
 } from '@/lib/events'
 
 interface AssignmentWithStats extends Assignment {
@@ -169,6 +170,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [isReturning, setIsReturning] = useState(false)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
   const [refreshCounter, setRefreshCounter] = useState(0)
+  const tableContainerRef = useRef<HTMLDivElement>(null)
 
   const loadAssignments = useCallback(async () => {
     setLoading(true)
@@ -534,6 +536,30 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [selectedStudentId])
 
+  // Refresh table when a grade is saved in the sidebar
+  useEffect(() => {
+    function onGradeUpdated() {
+      setRefreshCounter((c) => c + 1)
+    }
+
+    window.addEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
+    return () => window.removeEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
+  }, [])
+
+  // Click outside student table to deselect
+  useEffect(() => {
+    if (!selectedStudentId) return
+
+    function handleMouseDown(e: MouseEvent) {
+      if (tableContainerRef.current && !tableContainerRef.current.contains(e.target as Node)) {
+        setSelectedStudentId(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [selectedStudentId])
+
   function toggleSort(column: 'first' | 'last') {
     if (sortColumn !== column) {
       setSortColumn(column)
@@ -684,6 +710,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         </div>
       ) : (
         <KeyboardNavigableTable
+          ref={tableContainerRef}
           rowKeys={sortedStudents.map((s) => s.student_id)}
           selectedKey={selectedStudentId}
           onSelectKey={setSelectedStudentId}
