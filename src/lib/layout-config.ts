@@ -9,7 +9,7 @@
 // Types
 // ============================================================================
 
-export type RightSidebarWidth = 320 | 360 | 420 | '40%' | '50%' | '60%' | '70%'
+export type RightSidebarWidth = 320 | 360 | 420 | '40%' | '50%' | '60%' | '70%' | '75%'
 
 export type MainContentMaxWidth = 'reading' | 'standard' | 'wide' | 'full'
 

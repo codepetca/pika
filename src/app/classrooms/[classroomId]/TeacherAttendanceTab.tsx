@@ -300,7 +300,6 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                 <EmptyStateRow
                   colSpan={4}
                   message={isClassDay ? 'No students enrolled' : 'Not a class day'}
-                  density="tight"
                 />
               )}
             </DataTableBody>

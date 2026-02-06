@@ -1,10 +1,17 @@
 'use client'
 
-import { useCallback, type HTMLAttributes, type KeyboardEvent, type ReactNode, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
+import { createContext, forwardRef, useCallback, useContext, type HTMLAttributes, type KeyboardEvent, type ReactNode, type Ref, type TdHTMLAttributes, type ThHTMLAttributes } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
 export type DataTableDensity = 'tight' | 'compact' | 'normal'
 export type SortDirection = 'asc' | 'desc'
+
+const DensityContext = createContext<DataTableDensity>('compact')
+
+function useDensity(override?: DataTableDensity): DataTableDensity {
+  const ctx = useContext(DensityContext)
+  return override ?? ctx
+}
 
 function densityPadding(density: DataTableDensity) {
   if (density === 'tight') return 'px-3 py-1'
@@ -26,8 +33,9 @@ export function TableCard({
   )
 }
 
-export function DataTable({ children }: { children: ReactNode }) {
-  return <table className="w-full">{children}</table>
+export function DataTable({ children, density }: { children: ReactNode; density?: DataTableDensity }) {
+  const table = <table className="w-full">{children}</table>
+  return density ? <DensityContext.Provider value={density}>{table}</DensityContext.Provider> : table
 }
 
 export function DataTableHead({ children }: { children: ReactNode }) {
@@ -58,7 +66,7 @@ export function DataTableRow({
 
 export function DataTableHeaderCell({
   children,
-  density = 'compact',
+  density: densityProp,
   align = 'left',
   className = '',
   ...props
@@ -68,6 +76,7 @@ export function DataTableHeaderCell({
   align?: 'left' | 'center' | 'right'
   className?: string
 } & ThHTMLAttributes<HTMLTableCellElement>) {
+  const density = useDensity(densityProp)
   const alignClass =
     align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
   return (
@@ -90,7 +99,7 @@ export function SortableHeaderCell({
   isActive,
   direction,
   onClick,
-  density = 'compact',
+  density: densityProp,
   align = 'left',
   trailing,
 }: {
@@ -102,6 +111,7 @@ export function SortableHeaderCell({
   align?: 'left' | 'center' | 'right'
   trailing?: React.ReactNode
 }) {
+  const density = useDensity(densityProp)
   const alignClass =
     align === 'center' ? 'justify-center' : align === 'right' ? 'justify-end' : 'justify-start'
   const ariaSort = isActive ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'
@@ -135,7 +145,7 @@ export function SortableHeaderCell({
 
 export function DataTableCell({
   children,
-  density = 'compact',
+  density: densityProp,
   align = 'left',
   className = '',
   ...props
@@ -145,6 +155,7 @@ export function DataTableCell({
   align?: 'left' | 'center' | 'right'
   className?: string
 } & TdHTMLAttributes<HTMLTableCellElement>) {
+  const density = useDensity(densityProp)
   const alignClass =
     align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left'
   return (
@@ -165,11 +176,9 @@ export function DataTableCell({
 export function EmptyStateRow({
   colSpan,
   message,
-  density = 'compact',
 }: {
   colSpan: number
   message: string
-  density?: DataTableDensity
 }) {
   return (
     <DataTableRow>
@@ -184,7 +193,7 @@ export function EmptyStateRow({
  * Wrapper component that adds keyboard navigation (↑/↓ arrows) to a table.
  * Use this to wrap TableCard when you need row selection with keyboard support.
  */
-export function KeyboardNavigableTable<K extends string>({
+export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable<K extends string>({
   children,
   rowKeys,
   selectedKey,
@@ -200,7 +209,7 @@ export function KeyboardNavigableTable<K extends string>({
   onSelectKey: (key: K) => void
   /** Whether to wrap around at the ends (default: true) */
   wrap?: boolean
-}) {
+}, ref: Ref<HTMLDivElement>) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
       if (rowKeys.length === 0) return
@@ -239,6 +248,7 @@ export function KeyboardNavigableTable<K extends string>({
 
   return (
     <div
+      ref={ref}
       tabIndex={0}
       onKeyDown={handleKeyDown}
       className="outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
@@ -246,4 +256,11 @@ export function KeyboardNavigableTable<K extends string>({
       {children}
     </div>
   )
-}
+}) as <K extends string>(props: {
+  children: ReactNode
+  rowKeys: K[]
+  selectedKey: K | null
+  onSelectKey: (key: K) => void
+  wrap?: boolean
+  ref?: Ref<HTMLDivElement>
+}) => ReactNode
