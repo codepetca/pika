@@ -8,6 +8,7 @@ import {
   CircleHelp,
   ClipboardCheck,
   ClipboardList,
+  Heart,
   Settings,
   PenSquare,
   StickyNote,
@@ -34,6 +35,7 @@ export type ClassroomNavItemId =
   | 'quizzes'
   | 'calendar'
   | 'resources'
+  | 'pet'
   | 'roster'
   | 'settings'
   | 'today'
@@ -70,6 +72,7 @@ const studentItems: NavItem[] = [
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: StickyNote },
+  { id: 'pet', label: 'Pika', icon: Heart },
 ]
 
 // ============================================================================

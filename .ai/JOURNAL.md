@@ -2403,3 +2403,46 @@
 - dark: classes allowed ONLY in /ui CVA definitions, banned in app code
 - FormField pattern: all form controls wrapped with FormField for labels/errors
 - Dev-only UI (login quick fill buttons) uses light-only colors (acceptable)
+
+---
+## 2026-01-29 [AI - Claude Opus 4.5]
+**Goal:** Begin GitHub issue #205 - Pika Pet Gamification System
+**Completed:**
+- Set up worktree `issue/205-feat-pika-pet-gamification-system`
+- Merged `origin/main` twice to pick up latest changes (028_quizzes.sql, quiz feature, snapshot cleanup)
+- Confirmed `profiles` view was dropped in migration 027 — pet feature does not need it
+- Determined pet migration will be numbered `029_pet_gamification.sql`
+- Began requirements interview with user (scope, placeholders, XP triggers — pending answers)
+**Status:** in-progress (planning phase)
+**Artifacts:**
+- Branch: issue/205-feat-pika-pet-gamification-system
+- Worktree: /Users/stew/Repos/.worktrees/pika/issue/205-feat-pika-pet-gamification-system
+**Tests:** All existing tests passing (verified via verify-env.sh)
+**Blockers:** Awaiting user answers on scope/implementation questions before coding
+
+---
+
+### 2026-02-07 — [AI - Claude Opus 4.6] Pet Gamification System Implementation (Issue #205)
+
+**Task:** Implement Phase 0+1+2 of pet gamification system per approved plan.
+
+**Completed:**
+- **Migration:** Created `supabase/migrations/029_pet_gamification.sql` with 4 tables (user_pets, pet_unlocks, xp_events, pet_rewards), RLS policies (USING FALSE, service-role-only), indexes, and updated_at trigger
+- **Types:** Added `UserPet`, `PetUnlock`, `XpEvent`, `PetReward`, `PetState` to `src/types/index.ts`
+- **Config:** Created `src/lib/pet-config.ts` with XP_PER_LEVEL, XP_SOURCES (daily_login, assignment_complete, weekly_goal), PET_IMAGES (11 entries)
+- **Unit Tests (TDD):** Created `tests/unit/pet.test.ts` (33 tests) covering all pure functions; added mock factories to `tests/helpers/mocks.ts`
+- **Pure Utils:** Created `src/lib/pet.ts` with calculateLevel, calculateLevelProgress, getUnlockedImageIndices, detectNewUnlocks, getNextUnlockLevel, isValidXpSource, enrichPetState
+- **Server Functions:** Created `src/lib/server/pet.ts` with getOrCreatePet, getPetWithUnlocks, grantXp (with daily cap + idempotency), selectPetImage
+- **API Route:** Created `src/app/api/student/classrooms/[id]/pet/route.ts` (GET + POST)
+- **Navigation:** Added 'pet' tab to NavItems.tsx (Heart icon, "Pika" label) + layout-config.ts ('pet-student' route key)
+- **SVG Placeholders:** Created `src/components/pet/PetImagePlaceholder.tsx` with 11 unique mouse silhouettes
+- **Student Pet Tab:** Created `src/app/classrooms/[classroomId]/StudentPetTab.tsx` with level display, XP progress bar, gallery grid, image selection
+- **XP Hooks:** Added fire-and-forget daily login XP in classroom page.tsx; added assignment completion XP in assignment submit route
+- **Integration:** Wired StudentPetTab into ClassroomPageClient.tsx with valid tab + render
+
+**Status:** complete (pending migration application)
+**Tests:** 890 tests passing across 86 test files. 0 lint errors.
+**Artifacts:**
+- New files: 029_pet_gamification.sql, pet-config.ts, pet.ts, server/pet.ts, pet/route.ts, PetImagePlaceholder.tsx, StudentPetTab.tsx, pet.test.ts
+- Modified: index.ts (types), mocks.ts, NavItems.tsx, layout-config.ts, ClassroomPageClient.tsx, page.tsx, submit/route.ts, JOURNAL.md
+**Note:** Human must apply migration (`029_pet_gamification.sql`) before testing UI

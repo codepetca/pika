@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { countCharacters, countWords, isEmpty } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { grantXp } from '@/lib/server/pet'
 import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -112,6 +113,11 @@ export async function POST(
     if (doc) {
       doc.content = parseContentField(doc.content)
     }
+
+    // Fire-and-forget assignment completion XP (idempotent via metadata check)
+    grantXp(user.id, assignment.classroom_id, 'assignment_complete', {
+      assignment_id: assignmentId,
+    }).catch((err) => console.error('Assignment complete XP:', err))
 
     try {
       await supabase.from('assignment_doc_history').insert({

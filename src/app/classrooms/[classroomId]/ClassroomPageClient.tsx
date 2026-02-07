@@ -16,6 +16,7 @@ import { TeacherResourcesTab } from './TeacherResourcesTab'
 import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherQuizzesTab } from './TeacherQuizzesTab'
 import { StudentQuizzesTab } from './StudentQuizzesTab'
+import { StudentPetTab } from './StudentPetTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider } from '@/hooks/useClassDays'
 import {
@@ -75,7 +76,7 @@ export function ClassroomPageClient({
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
     ? (['attendance', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
-    : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const)
+    : (['today', 'assignments', 'quizzes', 'calendar', 'resources', 'pet'] as const)
 
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
 
@@ -427,6 +428,7 @@ function ClassroomPageContent({
               {activeTab === 'quizzes' && <StudentQuizzesTab classroom={classroom} />}
               {activeTab === 'calendar' && <StudentLessonCalendarTab classroom={classroom} />}
               {activeTab === 'resources' && <StudentResourcesTab classroom={classroom} />}
+              {activeTab === 'pet' && <StudentPetTab classroom={classroom} />}
             </>
           )}
         </MainContent>

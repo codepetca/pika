@@ -299,3 +299,47 @@ export interface QuizResultsAggregate {
   counts: number[] // count per option, same index
   total_responses: number
 }
+
+// Pet gamification types
+export interface UserPet {
+  id: string
+  user_id: string
+  classroom_id: string
+  xp: number
+  selected_image: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PetUnlock {
+  id: string
+  pet_id: string
+  image_index: number
+  unlocked_at: string
+}
+
+export interface XpEvent {
+  id: string
+  pet_id: string
+  source: string
+  xp_amount: number
+  metadata: Record<string, any> | null
+  created_at: string
+}
+
+export interface PetReward {
+  id: string
+  pet_id: string
+  reward_type: string
+  reward_key: string
+  metadata: Record<string, any> | null
+  granted_at: string
+}
+
+export interface PetState extends UserPet {
+  level: number
+  levelProgress: number
+  levelProgressPercent: number
+  nextUnlockLevel: number | null
+  unlocks: PetUnlock[]
+}

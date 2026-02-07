@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getUserDisplayInfo } from '@/lib/user-profile'
+import { grantXp } from '@/lib/server/pet'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
 
@@ -88,6 +89,11 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
   if (!enrollmentResult.data) {
     notFound() // Not enrolled in this classroom
   }
+
+  // Fire-and-forget daily login XP (non-blocking, capped at once per day)
+  grantXp(user.id, classroomId, 'daily_login').catch((err) =>
+    console.error('Daily login XP:', err)
+  )
 
   // Fetch the classroom
   const { data: classroom, error } = await supabase
