@@ -14,6 +14,7 @@ import {
   type RightSidebarWidth,
   type RouteKey,
   COOKIE_NAMES,
+  DESKTOP_BREAKPOINT,
   getLayoutConfig,
   getRightSidebarCookieName,
   LEFT_SIDEBAR,
@@ -36,6 +37,7 @@ type RightSidebarState = {
   setOpen: (open: boolean) => void
   setWidth: (width: RightSidebarWidth) => void
   toggle: () => void
+  desktopAlwaysOpen: boolean
 }
 
 type ThreePanelContextValue = {
@@ -98,9 +100,28 @@ export function ThreePanelProvider({
     config.rightSidebar.defaultWidth
   )
 
+  // Sync right sidebar state when routeKey (tab) changes
+  useEffect(() => {
+    setRightOpenState(config.rightSidebar.enabled && config.rightSidebar.defaultOpen)
+    setRightWidthState(config.rightSidebar.defaultWidth)
+  }, [routeKey, config])
+
   // Mobile drawer state
   const [mobileLeftOpen, setMobileLeftOpen] = useState(false)
   const [mobileRightOpen, setMobileRightOpen] = useState(false)
+
+  // Track if we're on desktop for desktopAlwaysOpen behavior
+  const [isDesktop, setIsDesktop] = useState(false)
+  useEffect(() => {
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT)
+    checkDesktop()
+    window.addEventListener('resize', checkDesktop)
+    return () => window.removeEventListener('resize', checkDesktop)
+  }, [])
+
+  // Force right sidebar open on desktop when desktopAlwaysOpen is true
+  const desktopAlwaysOpen = config.rightSidebar.desktopAlwaysOpen ?? false
+  const effectiveRightOpen = desktopAlwaysOpen && isDesktop ? true : rightOpen
 
   // Left sidebar handlers
   const setLeftExpanded = useCallback((expanded: boolean) => {
@@ -154,7 +175,7 @@ export function ThreePanelProvider({
       : LEFT_SIDEBAR.collapsedWidth
 
     let rightWidthCss: string
-    if (!config.rightSidebar.enabled || !rightOpen) {
+    if (!config.rightSidebar.enabled || !effectiveRightOpen) {
       rightWidthCss = '0px'
     } else if (typeof rightWidth === 'string') {
       rightWidthCss = rightWidth // percentage values like '50%', '60%', '70%'
@@ -163,7 +184,7 @@ export function ThreePanelProvider({
     }
 
     return { left: leftWidth, right: rightWidthCss }
-  }, [leftExpanded, config.rightSidebar.enabled, rightOpen, rightWidth])
+  }, [leftExpanded, config.rightSidebar.enabled, effectiveRightOpen, rightWidth])
 
   // Build context value
   const value = useMemo<ThreePanelContextValue>(
@@ -174,11 +195,12 @@ export function ThreePanelProvider({
         toggle: toggleLeft,
       },
       rightSidebar: {
-        isOpen: rightOpen,
+        isOpen: effectiveRightOpen,
         width: rightWidth,
         setOpen: setRightOpen,
         setWidth: setRightWidth,
         toggle: toggleRight,
+        desktopAlwaysOpen,
       },
       config,
       routeKey,
@@ -195,11 +217,12 @@ export function ThreePanelProvider({
       leftExpanded,
       setLeftExpanded,
       toggleLeft,
-      rightOpen,
+      effectiveRightOpen,
       rightWidth,
       setRightOpen,
       setRightWidth,
       toggleRight,
+      desktopAlwaysOpen,
       config,
       routeKey,
       widths,
@@ -225,8 +248,10 @@ export function ThreePanelProvider({
         e.preventDefault()
 
         if (e.shiftKey) {
-          // Cmd/Ctrl+Shift+\: toggle right panel
-          toggleRight()
+          // Cmd/Ctrl+Shift+\: toggle right panel (skip if desktopAlwaysOpen on desktop)
+          if (!(desktopAlwaysOpen && isDesktop)) {
+            toggleRight()
+          }
         } else {
           // Cmd/Ctrl+\: toggle left panel
           toggleLeft()
@@ -236,7 +261,7 @@ export function ThreePanelProvider({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [toggleLeft, toggleRight])
+  }, [toggleLeft, toggleRight, desktopAlwaysOpen, isDesktop])
 
   return (
     <ThreePanelContext.Provider value={value}>
@@ -268,6 +293,7 @@ export function useRightSidebar() {
     ...rightSidebar,
     enabled: config.rightSidebar.enabled,
     cssWidth: widths.right,
+    desktopAlwaysOpen: rightSidebar.desktopAlwaysOpen,
   }
 }
 

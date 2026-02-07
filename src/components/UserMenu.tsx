@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import Link from 'next/link'
-import { UserCircle, LogOut, Moon, Sun } from 'lucide-react'
+import { UserCircle, LogOut, Moon, Sun, Bug } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useDropdownNav } from '@/hooks/use-dropdown-nav'
+import { FeedbackDialog } from '@/components/FeedbackDialog'
 
 interface UserMenuProps {
   user?: {
@@ -54,11 +55,11 @@ function getAvatarColor(str: string): string {
  */
 function getInitials(firstName?: string | null, lastName?: string | null): string | null {
   const first = firstName?.trim()?.[0]?.toUpperCase()
-  const last = lastName?.trim()?.[0]?.toUpperCase()
-
-  if (first && last) return `${first}${last}`
   if (first) return first
+
+  const last = lastName?.trim()?.[0]?.toUpperCase()
   if (last) return last
+
   return null
 }
 
@@ -69,6 +70,7 @@ function getInitials(firstName?: string | null, lastName?: string | null): strin
  */
 export function UserMenu({ user }: UserMenuProps) {
   const { theme, mounted, toggleTheme } = useTheme()
+  const [showFeedback, setShowFeedback] = useState(false)
 
   const handleThemeToggle = useCallback(() => {
     toggleTheme()
@@ -89,7 +91,7 @@ export function UserMenu({ user }: UserMenuProps) {
     itemRefs,
     containerRef,
   } = useDropdownNav({
-    itemCount: 2, // theme toggle, logout
+    itemCount: 3, // theme toggle, feedback, logout
   })
 
   if (!user) {
@@ -189,12 +191,11 @@ export function UserMenu({ user }: UserMenuProps) {
           {mounted ? (theme === 'dark' ? 'Light mode' : 'Dark mode') : 'Toggle theme'}
         </button>
 
-        {/* Logout */}
-        <Link
+        {/* Send Feedback */}
+        <button
           id={getItemId(1)}
           ref={(el) => { itemRefs.current[1] = el }}
-          href="/logout"
-          onClick={() => setIsOpen(false)}
+          onClick={() => { setIsOpen(false); setShowFeedback(true) }}
           onMouseEnter={() => setFocusedIndex(1)}
           onKeyDown={handleItemKeyDown}
           className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
@@ -205,10 +206,32 @@ export function UserMenu({ user }: UserMenuProps) {
           role="menuitem"
           tabIndex={isOpen ? 0 : -1}
         >
+          <Bug className="w-4 h-4" />
+          Send Feedback
+        </button>
+
+        {/* Logout */}
+        <Link
+          id={getItemId(2)}
+          ref={(el) => { itemRefs.current[2] = el }}
+          href="/logout"
+          onClick={() => setIsOpen(false)}
+          onMouseEnter={() => setFocusedIndex(2)}
+          onKeyDown={handleItemKeyDown}
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
+            focusedIndex === 2
+              ? 'bg-surface-2'
+              : 'hover:bg-surface-hover'
+          }`}
+          role="menuitem"
+          tabIndex={isOpen ? 0 : -1}
+        >
           <LogOut className="w-4 h-4" />
           Logout
         </Link>
       </div>
+
+      <FeedbackDialog isOpen={showFeedback} onClose={() => setShowFeedback(false)} />
     </div>
   )
 }

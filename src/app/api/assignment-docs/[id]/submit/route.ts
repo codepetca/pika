@@ -4,7 +4,8 @@ import { requireRole } from '@/lib/auth'
 import { countCharacters, countWords, isEmpty } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { grantXp } from '@/lib/server/pet'
-import type { TiptapContent } from '@/types'
+import { analyzeAuthenticity } from '@/lib/authenticity'
+import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -36,7 +37,7 @@ export async function POST(
     // Get assignment and verify enrollment
     const { data: assignment, error: assignmentError } = await supabase
       .from('assignments')
-      .select('classroom_id')
+      .select('classroom_id, track_authenticity')
       .eq('id', assignmentId)
       .single()
 
@@ -130,6 +131,37 @@ export async function POST(
       })
     } catch (historyError) {
       console.error('Error saving assignment doc history:', historyError)
+    }
+
+    // Compute authenticity score from history (if tracking is enabled)
+    if (assignment.track_authenticity !== false) {
+      try {
+        const { data: historyEntries } = await supabase
+          .from('assignment_doc_history')
+          .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at')
+          .eq('assignment_doc_id', existingDoc.id)
+          .order('created_at', { ascending: true })
+
+        if (historyEntries && historyEntries.length > 1) {
+          const result = analyzeAuthenticity(historyEntries as AssignmentDocHistoryEntry[])
+          if (result.score !== null) {
+            const { error: authError } = await supabase
+              .from('assignment_docs')
+              .update({
+                authenticity_score: result.score,
+                authenticity_flags: result.flags,
+              })
+              .eq('id', existingDoc.id)
+
+            if (!authError && doc) {
+              doc.authenticity_score = result.score
+              doc.authenticity_flags = result.flags
+            }
+          }
+        }
+      } catch (authError) {
+        console.error('Error computing authenticity score:', authError)
+      }
     }
 
     return NextResponse.json({ doc })

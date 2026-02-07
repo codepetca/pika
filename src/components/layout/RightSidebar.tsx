@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, type ReactNode } from 'react'
-import { PanelRight, PanelRightClose, X } from 'lucide-react'
+import { ArrowLeft, PanelRight, PanelRightClose } from 'lucide-react'
 import { useRightSidebar, useMobileDrawer, useThreePanel } from './ThreePanelProvider'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { Tooltip } from '@/ui'
@@ -126,9 +126,9 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
                 type="button"
                 onClick={close}
                 className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
-                aria-label="Close panel"
+                aria-label="Back"
               >
-                <X className="h-5 w-5" aria-hidden="true" />
+                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
 
@@ -145,9 +145,10 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
  * Toggle button for opening right sidebar.
  * Place this in main content area when right sidebar is closed.
  * Hidden when right sidebar is disabled for the view.
+ * Hidden on desktop when desktopAlwaysOpen is true.
  */
 export function RightSidebarToggle({ className }: { className?: string }) {
-  const { isOpen, enabled, toggle } = useRightSidebar()
+  const { isOpen, enabled, toggle, desktopAlwaysOpen } = useRightSidebar()
   const { openRight } = useMobileDrawer()
   const { rightPanel } = useKeyboardShortcutHint()
 
@@ -158,31 +159,33 @@ export function RightSidebarToggle({ className }: { className?: string }) {
 
   return (
     <>
-      {/* Desktop toggle */}
-      <Tooltip content={isOpen ? closeTitle : openTitle}>
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={isOpen ? 'Close panel' : 'Open panel'}
-          className={[
-            'hidden lg:flex items-center justify-center',
-            'p-2 rounded-md text-sm',
-            'text-text-muted',
-            'hover:bg-surface-hover',
-            'hover:text-text-default',
-            'transition-colors',
-            className,
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          {isOpen ? (
-            <PanelRightClose className="h-5 w-5" aria-hidden="true" />
-          ) : (
-            <PanelRight className="h-5 w-5" aria-hidden="true" />
-          )}
-        </button>
-      </Tooltip>
+      {/* Desktop toggle - hidden when desktopAlwaysOpen */}
+      {!desktopAlwaysOpen && (
+        <Tooltip content={isOpen ? closeTitle : openTitle}>
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={isOpen ? 'Close panel' : 'Open panel'}
+            className={[
+              'hidden lg:flex items-center justify-center',
+              'p-2 rounded-md text-sm',
+              'text-text-muted',
+              'hover:bg-surface-hover',
+              'hover:text-text-default',
+              'transition-colors',
+              className,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            {isOpen ? (
+              <PanelRightClose className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <PanelRight className="h-5 w-5" aria-hidden="true" />
+            )}
+          </button>
+        </Tooltip>
+      )}
 
       {/* Mobile toggle */}
       <Tooltip content="Open panel">

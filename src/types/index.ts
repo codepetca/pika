@@ -158,9 +158,18 @@ export interface Assignment {
   position: number
   is_draft: boolean  // Whether assignment is a draft (not visible to students)
   released_at: string | null  // When the assignment was released to students
+  track_authenticity: boolean
   created_by: string
   created_at: string
   updated_at: string
+}
+
+export interface AuthenticityFlag {
+  timestamp: string
+  wordDelta: number
+  seconds: number
+  wps: number
+  reason: 'paste' | 'high_wps'
 }
 
 export interface AssignmentDoc {
@@ -171,6 +180,15 @@ export interface AssignmentDoc {
   is_submitted: boolean
   submitted_at: string | null
   viewed_at: string | null
+  score_completion: number | null
+  score_thinking: number | null
+  score_workflow: number | null
+  feedback: string | null
+  graded_at: string | null
+  graded_by: string | null
+  returned_at: string | null
+  authenticity_score: number | null
+  authenticity_flags: AuthenticityFlag[] | null
   created_at: string
   updated_at: string
 }
@@ -186,6 +204,8 @@ export interface AssignmentDocHistoryEntry {
   snapshot: TiptapContent | null
   word_count: number
   char_count: number
+  paste_word_count: number | null
+  keystroke_count: number | null
   trigger: AssignmentDocHistoryTrigger
   created_at: string
 }
@@ -197,6 +217,9 @@ export type AssignmentStatus =
   | 'in_progress_late'
   | 'submitted_on_time'
   | 'submitted_late'
+  | 'graded'
+  | 'returned'
+  | 'resubmitted'
 
 // Extended types for UI display
 export interface AssignmentWithStatus extends Assignment {
@@ -298,6 +321,17 @@ export interface QuizResultsAggregate {
   options: string[]
   counts: number[] // count per option, same index
   total_responses: number
+}
+
+// Announcement types
+export interface Announcement {
+  id: string
+  classroom_id: string
+  content: string
+  created_by: string
+  scheduled_for: string | null // NULL = published immediately, future timestamp = scheduled
+  created_at: string
+  updated_at: string
 }
 
 // Pet gamification types

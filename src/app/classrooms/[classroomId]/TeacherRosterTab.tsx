@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { ConfirmDialog } from '@/ui'
+import { Button, ConfirmDialog } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
-import { ACTIONBAR_BUTTON_CLASSNAME, ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   DataTable,
   DataTableBody,
@@ -19,7 +19,9 @@ import {
 } from '@/components/DataTable'
 import type { Classroom } from '@/types'
 import { Check, ChevronRight, Copy, Mail, Pencil, Trash2, X } from 'lucide-react'
+import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
+import { useStudentSelection } from '@/hooks/useStudentSelection'
 
 type Role = 'student' | 'teacher'
 
@@ -80,7 +82,6 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [isRemoving, setIsRemoving] = useState(false)
 
   // Selection state
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isEmailMenuOpen, setEmailMenuOpen] = useState(false)
   const [copiedMessage, setCopiedMessage] = useState<string | null>(null)
 
@@ -101,6 +102,10 @@ export function TeacherRosterTab({ classroom }: Props) {
     })
     return rows
   }, [roster, sortColumn, sortDirection])
+
+  const rosterIds = useMemo(() => sortedRoster.map((r) => r.id), [sortedRoster])
+  const joinedCount = useMemo(() => sortedRoster.filter((r) => r.joined).length, [sortedRoster])
+  const { selectedIds, toggleSelect, toggleSelectAll, allSelected, clearSelection } = useStudentSelection(rosterIds)
 
   function onSort(column: 'first_name' | 'last_name') {
     setSortState((prev) => toggleSort(prev, column))
@@ -128,7 +133,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         throw new Error(data.error || 'Failed to load roster')
       }
       setRoster(normalizeRosterRows(data.roster || []))
-      setSelectedIds(new Set())
+      clearSelection()
     } catch (err: any) {
       setError(err.message || 'Failed to load roster')
     } finally {
@@ -164,29 +169,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     }
   }
 
-  // Selection helpers
-  const allSelected = sortedRoster.length > 0 && selectedIds.size === sortedRoster.length
   const someSelected = selectedIds.size > 0
-
-  function toggleSelectAll() {
-    if (allSelected) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(sortedRoster.map((r) => r.id)))
-    }
-  }
-
-  function toggleSelect(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
 
   // Get emails for selected students
   const selectedRows = sortedRoster.filter((r) => selectedIds.has(r.id))
@@ -284,22 +267,16 @@ export function TeacherRosterTab({ classroom }: Props) {
       <PageActionBar
         primary={
           <div className="flex gap-2 flex-wrap">
-            <button
-              type="button"
-              className={ACTIONBAR_BUTTON_CLASSNAME}
-              onClick={() => setAddModalOpen(true)}
-              disabled={isReadOnly}
-            >
-              Add Students
-            </button>
-            <button
-              type="button"
-              className={ACTIONBAR_BUTTON_SECONDARY_CLASSNAME}
+            <Button onClick={() => setAddModalOpen(true)} disabled={isReadOnly}>
+              + Students
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => setUploadModalOpen(true)}
               disabled={isReadOnly}
             >
-              Upload CSV
-            </button>
+              + CSV
+            </Button>
             {someSelected && (
               <div className="relative" onMouseLeave={() => setEmailMenuOpen(false)}>
                 <button
@@ -322,7 +299,15 @@ export function TeacherRosterTab({ classroom }: Props) {
                         <span>Students ({selectedStudentEmails.length})</span>
                         <ChevronRight className="h-4 w-4" />
                       </button>
-                      <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                      <div className="absolute left-full top-0 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
+                          onClick={() => copyToClipboard(selectedStudentEmails, 'Student emails')}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy
+                        </button>
                         <button
                           type="button"
                           className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
@@ -337,14 +322,6 @@ export function TeacherRosterTab({ classroom }: Props) {
                         >
                           Outlook
                         </button>
-                        <button
-                          type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
-                          onClick={() => copyToClipboard(selectedStudentEmails, 'Student emails')}
-                        >
-                          <Copy className="h-4 w-4" />
-                          Copy
-                        </button>
                       </div>
                     </div>
 
@@ -358,7 +335,15 @@ export function TeacherRosterTab({ classroom }: Props) {
                           <span>Counselors ({selectedCounselorEmails.length})</span>
                           <ChevronRight className="h-4 w-4" />
                         </button>
-                        <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                        <div className="absolute left-full top-0 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                          <button
+                            type="button"
+                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
+                            onClick={() => copyToClipboard(selectedCounselorEmails, 'Counselor emails')}
+                          >
+                            <Copy className="h-4 w-4" />
+                            Copy
+                          </button>
                           <button
                             type="button"
                             className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
@@ -373,14 +358,6 @@ export function TeacherRosterTab({ classroom }: Props) {
                           >
                             Outlook
                           </button>
-                          <button
-                            type="button"
-                            className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
-                            onClick={() => copyToClipboard(selectedCounselorEmails, 'Counselor emails')}
-                          >
-                            <Copy className="h-4 w-4" />
-                            Copy
-                          </button>
                         </div>
                       </div>
                     )}
@@ -394,7 +371,15 @@ export function TeacherRosterTab({ classroom }: Props) {
                         <span>All ({selectedStudentEmails.length + selectedCounselorEmails.length})</span>
                         <ChevronRight className="h-4 w-4" />
                       </button>
-                      <div className="absolute left-full top-0 ml-1 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                      <div className="absolute left-full top-0 w-36 rounded-md border border-border bg-surface shadow-lg hidden group-hover:block">
+                        <button
+                          type="button"
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
+                          onClick={() => copyToClipboard([...selectedStudentEmails, ...selectedCounselorEmails], 'All emails')}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy
+                        </button>
                         <button
                           type="button"
                           className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default"
@@ -408,14 +393,6 @@ export function TeacherRosterTab({ classroom }: Props) {
                           onClick={() => openOutlook([...selectedStudentEmails, ...selectedCounselorEmails])}
                         >
                           Outlook
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full px-4 py-2 text-left text-sm hover:bg-surface-hover text-text-default flex items-center gap-2"
-                          onClick={() => copyToClipboard([...selectedStudentEmails, ...selectedCounselorEmails], 'All emails')}
-                        >
-                          <Copy className="h-4 w-4" />
-                          Copy
                         </button>
                       </div>
                     </div>
@@ -460,6 +437,7 @@ export function TeacherRosterTab({ classroom }: Props) {
                   isActive={sortColumn === 'first_name'}
                   direction={sortDirection}
                   onClick={() => onSort('first_name')}
+                  trailing={sortedRoster.length > 0 ? <StudentCountBadge count={sortedRoster.length} /> : undefined}
                 />
                 <SortableHeaderCell
                   label="Last Name"
@@ -469,7 +447,12 @@ export function TeacherRosterTab({ classroom }: Props) {
                 />
                 <DataTableHeaderCell>Email</DataTableHeaderCell>
                 <DataTableHeaderCell>Counselor</DataTableHeaderCell>
-                <DataTableHeaderCell align="center">Joined</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">
+                  <span className="flex items-center justify-center gap-2">
+                    Joined
+                    <CountBadge count={joinedCount} tooltip={`${joinedCount} ${joinedCount === 1 ? 'student' : 'students'} joined`} variant="success" />
+                  </span>
+                </DataTableHeaderCell>
                 <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import type { Assignment, ClassDay, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
-import { ConfirmDialog } from '@/ui'
+import { ConfirmDialog, DialogPanel } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -31,6 +31,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   const [title, setTitle] = useState('')
   const [instructions, setInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
+  const [trackAuthenticity, setTrackAuthenticity] = useState(true)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false)
@@ -44,8 +45,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAtRef = useRef<number>(0)
-  const lastSavedValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
-  const pendingValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
+  const lastSavedValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean } | null>(null)
+  const pendingValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean } | null>(null)
 
   const isCreateMode = !assignment
 
@@ -67,14 +68,16 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setCurrentAssignment(assignment)
       setTitle(nextTitle)
       setInstructions(nextInstructions)
+      setTrackAuthenticity(assignment.track_authenticity ?? true)
       setDueAt(nextDueAt)
-      lastSavedValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt }
+      lastSavedValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt, trackAuthenticity: assignment.track_authenticity ?? true }
       setSaveStatus('saved')
     } else {
       // Create mode: immediately create a draft
       setCurrentAssignment(null)
       setTitle('')
       setInstructions(EMPTY_INSTRUCTIONS)
+      setTrackAuthenticity(true)
       setDueAt(defaultDueAt)
       lastSavedValuesRef.current = null
       setSaveStatus('saving')
@@ -110,7 +113,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   }, [assignment, isOpen, setDueAt, setError, defaultDueAt])
 
   // Get only the fields that changed compared to last saved values
-  function getChangedFields(values: { title: string; instructions: TiptapContent; dueAt: string }) {
+  function getChangedFields(values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean }) {
     const saved = lastSavedValuesRef.current
     if (!saved) return null
 
@@ -120,13 +123,14 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (JSON.stringify(values.instructions) !== JSON.stringify(saved.instructions)) {
       changes.rich_instructions = values.instructions
     }
+    if (values.trackAuthenticity !== saved.trackAuthenticity) changes.track_authenticity = values.trackAuthenticity
 
     return Object.keys(changes).length > 0 ? changes : null
   }
 
   // Create a new assignment
   const createAssignment = useCallback(async (
-    values: { title: string; instructions: TiptapContent; dueAt: string }
+    values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean }
   ): Promise<Assignment | null> => {
     try {
       const response = await fetch('/api/teacher/assignments', {
@@ -137,6 +141,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           title: values.title.trim() || `Untitled (${format(nowInToronto(), 'yyyy-MM-dd HH:mm:ss')})`,
           rich_instructions: values.instructions,
           due_at: toTorontoEndOfDayIso(values.dueAt),
+          track_authenticity: values.trackAuthenticity,
         }),
       })
 
@@ -161,7 +166,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (!creating) return
 
     const createDraft = async () => {
-      const initialValues = { title: '', instructions: EMPTY_INSTRUCTIONS, dueAt: defaultDueAt }
+      const initialValues = { title: '', instructions: EMPTY_INSTRUCTIONS, dueAt: defaultDueAt, trackAuthenticity: true }
       const newAssignment = await createAssignment(initialValues)
       setCreating(false)
 
@@ -171,7 +176,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         setInstructions(newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS)
         const assignmentDueAt = formatDateInToronto(new Date(newAssignment.due_at))
         setDueAt(assignmentDueAt)
-        lastSavedValuesRef.current = { title: newAssignment.title, instructions: newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS, dueAt: assignmentDueAt }
+        lastSavedValuesRef.current = { title: newAssignment.title, instructions: newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS, dueAt: assignmentDueAt, trackAuthenticity: newAssignment.track_authenticity ?? true }
         setSaveStatus('saved')
 
         // Focus and select title after creation
@@ -190,7 +195,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
-    values: { title: string; instructions: TiptapContent; dueAt: string },
+    values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean },
     options?: { closeAfter?: boolean }
   ) => {
     setSaveStatus('saving')
@@ -255,7 +260,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   // Schedule a debounced save with minimum interval throttling
   const scheduleSave = useCallback((
-    values: { title: string; instructions: TiptapContent; dueAt: string },
+    values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean },
     options?: { force?: boolean }
   ) => {
     pendingValuesRef.current = values
@@ -284,7 +289,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   }, [saveChanges])
 
   // Schedule autosave after a debounce period
-  function scheduleAutosave(values: { title: string; instructions: TiptapContent; dueAt: string }) {
+  function scheduleAutosave(values: { title: string; instructions: TiptapContent; dueAt: string; trackAuthenticity: boolean }) {
     pendingValuesRef.current = values
     setSaveStatus('unsaved')
 
@@ -299,7 +304,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
-    scheduleAutosave({ title: newTitle, instructions, dueAt })
+    scheduleAutosave({ title: newTitle, instructions, dueAt, trackAuthenticity })
   }
 
   function handleInstructionsChange(newInstructions: TiptapContent) {
@@ -311,12 +316,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       return
     }
     setInstructions(newInstructions)
-    scheduleAutosave({ title, instructions: newInstructions, dueAt })
+    scheduleAutosave({ title, instructions: newInstructions, dueAt, trackAuthenticity })
   }
 
   function handleDueAtChange(newDueAt: string) {
     updateDueDate(newDueAt)
-    scheduleAutosave({ title, instructions, dueAt: newDueAt })
+    scheduleAutosave({ title, instructions, dueAt: newDueAt, trackAuthenticity })
+  }
+
+  function handleTrackAuthenticityChange(newValue: boolean) {
+    setTrackAuthenticity(newValue)
+    scheduleAutosave({ title, instructions, dueAt, trackAuthenticity: newValue })
   }
 
   function handlePrevDate() {
@@ -355,7 +365,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
 
     if ((saveStatus === 'unsaved' || pendingValuesRef.current) && currentAssignment) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt, trackAuthenticity }
       const changedFields = getChangedFields(valuesToSave)
 
       if (changedFields) {
@@ -387,7 +397,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
     pendingValuesRef.current = null
     setSaving(true)
-    await saveChanges({ title, instructions, dueAt }, { closeAfter: true })
+    await saveChanges({ title, instructions, dueAt, trackAuthenticity }, { closeAfter: true })
     setSaving(false)
   }
 
@@ -403,7 +413,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
     // If there are unsaved changes, save before closing
     if (saveStatus === 'unsaved' || pendingValuesRef.current) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt, trackAuthenticity }
       await saveChanges(valuesToSave, { closeAfter: true })
     } else {
       if (currentAssignment) {
@@ -443,20 +453,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
   }
 
-  if (!isOpen) return null
-
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) {
-      void handleClose()
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') {
-      void handleClose()
-    }
-  }
-
   // Determine if this is a draft (new or existing draft)
   const isDraft = !currentAssignment || currentAssignment.is_draft
 
@@ -470,18 +466,15 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         : 'Edit Assignment'
 
   return (
-    <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
-      onClick={handleBackdropClick}
-      onKeyDown={handleKeyDown}
-    >
-      <div
-        className="bg-surface rounded-lg shadow-xl border border-border w-[min(90vw,56rem)] p-6"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="assignment-modal-title"
+    <>
+      <DialogPanel
+        isOpen={isOpen}
+        onClose={handleClose}
+        maxWidth="w-[min(90vw,56rem)]"
+        className="p-6"
+        ariaLabelledBy="assignment-modal-title"
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <h2 id="assignment-modal-title" className="text-xl font-bold text-text-default">
             {modalTitle}
           </h2>
@@ -498,36 +491,40 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           </span>
         </div>
 
-        <AssignmentForm
-          title={title}
-          instructions={instructions}
-          dueAt={dueAt}
-          classDays={classDays}
-          onTitleChange={handleTitleChange}
-          onInstructionsChange={handleInstructionsChange}
-          onDueAtChange={handleDueAtChange}
-          onPrevDate={handlePrevDate}
-          onNextDate={handleNextDate}
-          onSubmit={handleSubmit}
-          submitLabel={saving ? 'Saving...' : saveStatus === 'saved' ? 'Done' : 'Save'}
-          disabled={saving || releasing || creating}
-          error={error}
-          titleInputRef={titleInputRef}
-          onBlur={flushAutosave}
-          extraAction={isDraft && !creating ? {
-            label: releasing ? 'Posting...' : (
-              <span className="inline-flex items-center gap-1.5">
-                Post
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                </svg>
-              </span>
-            ),
-            onClick: () => setShowReleaseConfirm(true),
-            variant: 'success',
-          } : undefined}
-        />
-      </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <AssignmentForm
+            title={title}
+            instructions={instructions}
+            dueAt={dueAt}
+            classDays={classDays}
+            trackAuthenticity={trackAuthenticity}
+            onTitleChange={handleTitleChange}
+            onInstructionsChange={handleInstructionsChange}
+            onDueAtChange={handleDueAtChange}
+            onTrackAuthenticityChange={handleTrackAuthenticityChange}
+            onPrevDate={handlePrevDate}
+            onNextDate={handleNextDate}
+            onSubmit={handleSubmit}
+            submitLabel={saving ? 'Saving...' : saveStatus === 'saved' ? 'Done' : 'Save'}
+            disabled={saving || releasing || creating}
+            error={error}
+            titleInputRef={titleInputRef}
+            onBlur={flushAutosave}
+            extraAction={isDraft && !creating ? {
+              label: releasing ? 'Posting...' : (
+                <span className="inline-flex items-center gap-1.5">
+                  Post
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                  </svg>
+                </span>
+              ),
+              onClick: () => setShowReleaseConfirm(true),
+              variant: 'success',
+            } : undefined}
+          />
+        </div>
+      </DialogPanel>
 
       <ConfirmDialog
         isOpen={showReleaseConfirm}
@@ -540,6 +537,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         onCancel={() => setShowReleaseConfirm(false)}
         onConfirm={handleRelease}
       />
-    </div>
+    </>
   )
 }

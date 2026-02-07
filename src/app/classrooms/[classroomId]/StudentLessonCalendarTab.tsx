@@ -8,7 +8,7 @@ import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useClassDays } from '@/hooks/useClassDays'
 import { readCookie, writeCookie } from '@/lib/cookies'
-import type { Classroom, LessonPlan, Assignment } from '@/types'
+import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
 
 interface Props {
   classroom: Classroom
@@ -18,6 +18,7 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
   const router = useRouter()
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
@@ -71,6 +72,20 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
     loadAssignments()
   }, [classroom.id])
 
+  // Fetch announcements for the classroom
+  useEffect(() => {
+    async function loadAnnouncements() {
+      try {
+        const res = await fetch(`/api/student/classrooms/${classroom.id}/announcements`)
+        const data = await res.json()
+        setAnnouncements(data.announcements || [])
+      } catch (err) {
+        console.error('Error loading announcements:', err)
+      }
+    }
+    loadAnnouncements()
+  }, [classroom.id])
+
   // Handle assignment click - navigate to assignments tab with the assignment selected
   const handleAssignmentClick = useCallback(
     (assignment: Assignment) => {
@@ -78,6 +93,11 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
     },
     [router, classroom.id]
   )
+
+  // Handle announcement click - navigate to Resources > Announcements
+  const handleAnnouncementClick = useCallback(() => {
+    router.push(`/classrooms/${classroom.id}?tab=resources&section=announcements`)
+  }, [router, classroom.id])
 
   // Prevent navigation beyond max date
   const handleDateChange = (newDate: Date) => {
@@ -105,11 +125,12 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
 
   return (
     <PageLayout>
-      <PageContent className="-mt-4">
+      <PageContent className="-mt-[8px]">
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}
           assignments={assignments}
+          announcements={announcements}
           classDays={classDays}
           viewMode={viewMode}
           currentDate={currentDate}
@@ -117,6 +138,7 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
           onDateChange={handleDateChange}
           onViewModeChange={handleViewModeChange}
           onAssignmentClick={handleAssignmentClick}
+          onAnnouncementClick={handleAnnouncementClick}
         />
       </PageContent>
     </PageLayout>

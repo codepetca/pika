@@ -9,7 +9,7 @@
 // Types
 // ============================================================================
 
-export type RightSidebarWidth = 320 | 360 | 420 | '40%' | '50%' | '60%' | '70%'
+export type RightSidebarWidth = 320 | 360 | 420 | '40%' | '50%' | '60%' | '70%' | '75%'
 
 export type MainContentMaxWidth = 'reading' | 'standard' | 'wide' | 'full'
 
@@ -27,6 +27,8 @@ export type LayoutConfig = {
     defaultOpen: boolean
     /** Default width when open */
     defaultWidth: RightSidebarWidth
+    /** Panel always visible on desktop, no toggle button */
+    desktopAlwaysOpen?: boolean
   }
   mainContent: {
     /** Max width constraint for main content area */
@@ -89,7 +91,7 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'full' },
   },
   attendance: {
-    rightSidebar: { enabled: true, defaultOpen: false, defaultWidth: '50%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%' },
     mainContent: { maxWidth: 'full' },
   },
   roster: {
@@ -105,11 +107,11 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     mainContent: { maxWidth: 'full' },
   },
   'assignments-teacher-list': {
-    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '40%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%', desktopAlwaysOpen: true },
     mainContent: { maxWidth: 'full' },
   },
   'assignments-teacher-viewing': {
-    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '40%' },
+    rightSidebar: { enabled: true, defaultOpen: true, defaultWidth: '50%', desktopAlwaysOpen: true },
     mainContent: { maxWidth: 'full' },
   },
   'quizzes-teacher': {

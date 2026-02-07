@@ -14,11 +14,13 @@ type NotificationState = {
   hasTodayEntry: boolean
   unviewedAssignmentsCount: number
   activeQuizzesCount: number
+  unreadAnnouncementsCount: number
   loading: boolean
   refresh: () => Promise<void>
   markTodayComplete: () => void
   decrementUnviewedCount: () => void
   clearActiveQuizzesCount: () => void
+  markAnnouncementsRead: () => void
 }
 
 const NotificationsContext = createContext<NotificationState | null>(null)
@@ -33,6 +35,7 @@ export function StudentNotificationsProvider({
   const [hasTodayEntry, setHasTodayEntry] = useState(true) // Assume complete to avoid flash
   const [unviewedAssignmentsCount, setUnviewedAssignmentsCount] = useState(0)
   const [activeQuizzesCount, setActiveQuizzesCount] = useState(0)
+  const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   const fetchNotifications = useCallback(async () => {
@@ -46,6 +49,7 @@ export function StudentNotificationsProvider({
       setHasTodayEntry(data.hasTodayEntry)
       setUnviewedAssignmentsCount(data.unviewedAssignmentsCount)
       setActiveQuizzesCount(data.activeQuizzesCount ?? 0)
+      setUnreadAnnouncementsCount(data.unreadAnnouncementsCount ?? 0)
     } catch (error) {
       console.error('Error fetching notifications:', error)
     } finally {
@@ -83,18 +87,24 @@ export function StudentNotificationsProvider({
     setActiveQuizzesCount(0)
   }, [])
 
+  const markAnnouncementsRead = useCallback(() => {
+    setUnreadAnnouncementsCount(0)
+  }, [])
+
   const value = useMemo<NotificationState>(
     () => ({
       hasTodayEntry,
       unviewedAssignmentsCount,
       activeQuizzesCount,
+      unreadAnnouncementsCount,
       loading,
       refresh,
       markTodayComplete,
       decrementUnviewedCount,
       clearActiveQuizzesCount,
+      markAnnouncementsRead,
     }),
-    [hasTodayEntry, unviewedAssignmentsCount, activeQuizzesCount, loading, refresh, markTodayComplete, decrementUnviewedCount, clearActiveQuizzesCount]
+    [hasTodayEntry, unviewedAssignmentsCount, activeQuizzesCount, unreadAnnouncementsCount, loading, refresh, markTodayComplete, decrementUnviewedCount, clearActiveQuizzesCount, markAnnouncementsRead]
   )
 
   return (

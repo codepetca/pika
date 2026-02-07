@@ -44,7 +44,7 @@ export function AppHeader({
   }, [])
 
   return (
-    <header className="h-12 bg-surface border-b border-border grid grid-cols-[1fr_auto_1fr] items-center px-4">
+    <header className="sticky top-0 z-50 h-12 bg-surface border-b border-border grid grid-cols-[1fr_auto_1fr] items-center px-4">
       {/* Left section */}
       <div className="flex items-center gap-3">
         {/* Mobile sidebar trigger (classroom pages) */}

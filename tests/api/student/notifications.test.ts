@@ -43,7 +43,13 @@ function createTableMock(config: {
   assignment_docs?: { data: any; error: any }
   quizzes?: { data: any; error: any }
   quiz_responses?: { data: any; error: any }
+  announcements?: { data: any; error: any }
+  announcement_reads?: { data: any; error: any }
 }) {
+  // Default announcements to empty array if not specified
+  const announcementsConfig = config.announcements ?? { data: [], error: null }
+  const announcementReadsConfig = config.announcement_reads ?? { data: [], error: null }
+
   return vi.fn((table: string) => {
     if (table === 'class_days' && config.class_days) {
       return {
@@ -65,6 +71,7 @@ function createTableMock(config: {
       return {
         select: vi.fn(() => ({
           eq: vi.fn().mockReturnThis(),
+          not: vi.fn().mockReturnThis(),
           then: vi.fn((resolve: any) => resolve(config.assignments)),
         })),
       }
@@ -92,6 +99,24 @@ function createTableMock(config: {
           eq: vi.fn().mockReturnThis(),
           in: vi.fn().mockReturnThis(),
           then: vi.fn((resolve: any) => resolve(config.quiz_responses)),
+        })),
+      }
+    }
+    if (table === 'announcements') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          or: vi.fn().mockReturnThis(),
+          then: vi.fn((resolve: any) => resolve(announcementsConfig)),
+        })),
+      }
+    }
+    if (table === 'announcement_reads') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          then: vi.fn((resolve: any) => resolve(announcementReadsConfig)),
         })),
       }
     }

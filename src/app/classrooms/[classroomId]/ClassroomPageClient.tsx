@@ -37,6 +37,7 @@ import { Spinner } from '@/components/Spinner'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { TEACHER_ASSIGNMENTS_UPDATED_EVENT, TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
+import { StudentLogHistory } from '@/components/StudentLogHistory'
 import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo, Assignment, QuizWithStats } from '@/types'
 
 interface UserInfo {
@@ -120,8 +121,8 @@ function ClassroomPageContent({
   const isTeacher = user.role === 'teacher'
 
   // State for selected student log (teacher attendance tab)
-  const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null)
   const [selectedStudentName, setSelectedStudentName] = useState<string>('')
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
 
   // State for selected assignment instructions (assignments tab)
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
@@ -165,9 +166,9 @@ function ClassroomPageContent({
   const prevViewModeRef = useRef<AssignmentViewMode>('summary')
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  const handleSelectEntry = useCallback((entry: Entry | null, studentName: string) => {
-    setSelectedEntry(entry)
+  const handleSelectEntry = useCallback((_entry: Entry | null, studentName: string, studentId: string | null) => {
     setSelectedStudentName(studentName)
+    setSelectedStudentId(studentId)
   }, [])
 
   const handleSelectAssignment = useCallback((assignment: SelectedAssignmentInstructions | null) => {
@@ -186,6 +187,8 @@ function ClassroomPageContent({
     setAssignmentViewMode(mode)
     if (mode === 'assignment') {
       setIsMarkdownMode(false)
+      // Abort any in-flight markdown load to prevent it from re-enabling markdown mode
+      abortControllerRef.current?.abort()
     }
   }, [])
 
@@ -324,9 +327,9 @@ function ClassroomPageContent({
 
   useEffect(() => {
     if (isTeacher && activeTab === 'assignments' && selectedStudent) {
-      setRightSidebarWidth('70%')
+      setRightSidebarWidth('75%')
     } else if (isTeacher && activeTab === 'assignments') {
-      setRightSidebarWidth('40%')
+      setRightSidebarWidth('50%')
     } else if (isTeacher && activeTab === 'quizzes') {
       setRightSidebarWidth('50%')
     }
@@ -422,7 +425,6 @@ function ClassroomPageContent({
               {activeTab === 'assignments' && (
                 <StudentAssignmentsTab
                   classroom={classroom}
-                  onSelectAssignment={handleSelectAssignment}
                 />
               )}
               {activeTab === 'quizzes' && <StudentQuizzesTab classroom={classroom} />}
@@ -536,17 +538,16 @@ function ClassroomPageContent({
                 Select a quiz to view details.
               </p>
             </div>
+          ) : isTeacher && activeTab === 'attendance' && selectedStudentId ? (
+            <StudentLogHistory
+              studentId={selectedStudentId}
+              classroomId={classroom.id}
+            />
           ) : isTeacher && activeTab === 'attendance' ? (
             <div className="p-4">
-              {selectedEntry ? (
-                <p className="text-sm text-text-default whitespace-pre-wrap">
-                  {selectedEntry.text}
-                </p>
-              ) : (
-                <p className="text-sm text-text-muted">
-                  Select a student to view their log.
-                </p>
-              )}
+              <p className="text-sm text-text-muted">
+                Select a student to view their log.
+              </p>
             </div>
           ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
             <TeacherStudentWorkPanel

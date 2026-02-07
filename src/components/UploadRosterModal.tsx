@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, FormEvent, ChangeEvent, useId } from 'react'
-import { Button } from '@/ui'
+import { Button, DialogPanel } from '@/ui'
 
 interface StudentChange {
   email: string
@@ -139,15 +139,19 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
     onClose()
   }
 
-  if (!isOpen) return null
-
   // Confirmation screen - show when existing students would be overwritten
   if (confirmationData) {
     return (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-        <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
-          <h2 className="text-xl font-bold text-text-default mb-4">Confirm Roster Update</h2>
+      <DialogPanel
+        isOpen={isOpen}
+        onClose={handleCancelConfirmation}
+        maxWidth="max-w-lg"
+        className="p-6"
+        ariaLabelledBy="confirm-roster-title"
+      >
+        <h2 id="confirm-roster-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Confirm Roster Update</h2>
 
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="mb-4 p-4 bg-warning-bg border border-warning rounded">
             <p className="text-sm font-medium text-warning mb-2">
               {confirmationData.updateCount} student{confirmationData.updateCount !== 1 ? 's' : ''} will be updated
@@ -210,110 +214,116 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
               {error}
             </div>
           )}
+        </div>
 
-          <div className="flex gap-3">
+        <div className="flex gap-3 flex-shrink-0">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleCancelConfirmation}
+            disabled={loading}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleConfirmUpload}
+            disabled={loading}
+            className="flex-1"
+          >
+            {loading ? 'Uploading...' : 'Confirm Update'}
+          </Button>
+        </div>
+      </DialogPanel>
+    )
+  }
+
+  return (
+    <DialogPanel
+      isOpen={isOpen}
+      onClose={handleClose}
+      maxWidth="max-w-lg"
+      className="p-6"
+      ariaLabelledBy="upload-roster-title"
+    >
+      <h2 id="upload-roster-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">Upload Roster</h2>
+
+      {!result ? (
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="mb-4 space-y-3 flex-1 min-h-0 overflow-y-auto">
+            <label className="block text-sm font-medium text-text-muted">
+              CSV File Format
+            </label>
+            <div className="rounded-md border border-border bg-surface text-xs text-text-default overflow-hidden max-w-full">
+              <div className="grid grid-cols-[minmax(0,_1.2fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1.2fr)] gap-0 text-center text-[10px] leading-tight">
+                {[
+                  { label: 'Student Number', optional: false },
+                  { label: 'First Name', optional: false },
+                  { label: 'Last Name', optional: false },
+                  { label: 'Email', optional: false },
+                  { label: 'Counselor Email', optional: true },
+                ].map(({ label, optional }, index, arr) => (
+                  <span
+                    key={label}
+                    className={`bg-surface-2 py-2 px-1 font-semibold ${
+                      index < arr.length - 1 ? 'border-r border-border' : ''
+                    } whitespace-nowrap`}
+                  >
+                    {label}
+                    {optional && <span className="text-text-muted font-normal"> (opt)</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <label htmlFor={fileInputId} className="block text-sm font-medium text-text-muted mb-2">
+              Choose CSV file
+            </label>
+            <div className="rounded-lg border border-dashed border-border bg-surface-2 p-3">
+              <input
+                id={fileInputId}
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+                disabled={loading}
+                className="block w-full text-sm text-text-default
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded file:border-0
+                  file:text-sm file:font-medium
+                  file:bg-info-bg file:text-info
+                  hover:file:bg-info-bg
+                  disabled:opacity-50"
+              />
+            </div>
+            {error && (
+              <div className="text-sm text-danger">
+                {error}
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 flex-shrink-0">
             <Button
               type="button"
               variant="secondary"
-              onClick={handleCancelConfirmation}
+              onClick={handleClose}
               disabled={loading}
               className="flex-1"
             >
               Cancel
             </Button>
             <Button
-              type="button"
-              onClick={handleConfirmUpload}
-              disabled={loading}
+              type="submit"
+              disabled={loading || !csvFile}
               className="flex-1"
             >
-              {loading ? 'Uploading...' : 'Confirm Update'}
+              {loading ? 'Uploading...' : 'Upload'}
             </Button>
           </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-lg shadow-xl border border-border max-w-lg w-full p-6">
-        <h2 className="text-xl font-bold text-text-default mb-4">Upload Roster</h2>
-
-        {!result ? (
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4 space-y-3">
-              <label className="block text-sm font-medium text-text-muted">
-                CSV File Format
-              </label>
-              <div className="rounded-md border border-border bg-surface text-xs text-text-default overflow-hidden max-w-full">
-                <div className="grid grid-cols-[minmax(0,_1.2fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1fr)_minmax(0,_1.2fr)] gap-0 text-center text-[10px] leading-tight">
-                  {[
-                    { label: 'Student Number', optional: false },
-                    { label: 'First Name', optional: false },
-                    { label: 'Last Name', optional: false },
-                    { label: 'Email', optional: false },
-                    { label: 'Counselor Email', optional: true },
-                  ].map(({ label, optional }, index, arr) => (
-                    <span
-                      key={label}
-                      className={`bg-surface-2 py-2 px-1 font-semibold ${
-                        index < arr.length - 1 ? 'border-r border-border' : ''
-                      } whitespace-nowrap`}
-                    >
-                      {label}
-                      {optional && <span className="text-text-muted font-normal"> (opt)</span>}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <label htmlFor={fileInputId} className="block text-sm font-medium text-text-muted mb-2">
-                Choose CSV file
-              </label>
-              <div className="rounded-lg border border-dashed border-border bg-surface-2 p-3">
-                <input
-                  id={fileInputId}
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileChange}
-                  disabled={loading}
-                  className="block w-full text-sm text-text-default
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded file:border-0
-                    file:text-sm file:font-medium
-                    file:bg-info-bg file:text-info
-                    hover:file:bg-info-bg
-                    disabled:opacity-50"
-                />
-              </div>
-            </div>
-            {error && (
-              <div className="mb-4 text-sm text-danger">
-                {error}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleClose}
-                disabled={loading}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={loading || !csvFile}
-                className="flex-1"
-              >
-                {loading ? 'Uploading...' : 'Upload'}
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div>
+        </form>
+      ) : (
+        <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <div className="mb-4 p-4 bg-success-bg border border-success rounded">
               <p className="text-sm text-success">
                 Successfully processed {result.totalProcessed} students
@@ -338,13 +348,13 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
                 </ul>
               </div>
             )}
-
-            <Button onClick={handleClose} className="w-full">
-              Done
-            </Button>
           </div>
-        )}
-      </div>
-    </div>
+
+          <Button onClick={handleClose} className="w-full flex-shrink-0">
+            Done
+          </Button>
+        </div>
+      )}
+    </DialogPanel>
   )
 }

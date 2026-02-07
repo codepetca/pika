@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   computeAttendanceStatusForStudent,
   computeAttendanceRecords,
+  entryHasContent,
   getAttendanceIcon,
   getAttendanceLabel,
   getAttendanceDotClass,
@@ -150,6 +151,70 @@ describe('attendance utilities', () => {
       expect(result['2024-09-04']).toBeUndefined()
       expect(Object.keys(result)).not.toContain('2024-09-04')
     })
+
+    it('should return absent when entry exists but text is empty', () => {
+      const entries: Entry[] = [
+        {
+          id: '1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-01',
+          text: '',
+          minutes_reported: 0,
+          mood: null,
+          created_at: '2024-09-01T20:00:00Z',
+          updated_at: '2024-09-01T20:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      const result = computeAttendanceStatusForStudent(classDays, entries, pastToday)
+
+      expect(result['2024-09-01']).toBe('absent')
+    })
+
+    it('should return absent when entry exists but text is only whitespace', () => {
+      const entries: Entry[] = [
+        {
+          id: '1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-01',
+          text: '   \n\t  ',
+          minutes_reported: 0,
+          mood: null,
+          created_at: '2024-09-01T20:00:00Z',
+          updated_at: '2024-09-01T20:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      const result = computeAttendanceStatusForStudent(classDays, entries, pastToday)
+
+      expect(result['2024-09-01']).toBe('absent')
+    })
+
+    it('should return pending for today when entry exists but is empty', () => {
+      const today = '2024-09-02'
+      const entries: Entry[] = [
+        {
+          id: '1',
+          student_id: 'student1',
+          course_code: 'GLD2O',
+          date: '2024-09-02',
+          text: '',
+          minutes_reported: 0,
+          mood: null,
+          created_at: '2024-09-02T15:00:00Z',
+          updated_at: '2024-09-02T15:00:00Z',
+          on_time: true,
+        },
+      ]
+
+      const result = computeAttendanceStatusForStudent(classDays, entries, today)
+
+      expect(result['2024-09-02']).toBe('pending')
+    })
   })
 
   describe('computeAttendanceRecords', () => {
@@ -270,6 +335,36 @@ describe('attendance utilities', () => {
 
     it('should return gray for pending', () => {
       expect(getAttendanceDotClass('pending')).toBe('bg-gray-400')
+    })
+  })
+
+  describe('entryHasContent', () => {
+    const base = {
+      id: '1',
+      student_id: 's1',
+      course_code: 'GLD2O',
+      date: '2024-09-01',
+      minutes_reported: 0,
+      mood: null,
+      created_at: '2024-09-01T00:00:00Z',
+      updated_at: '2024-09-01T00:00:00Z',
+      on_time: true,
+    }
+
+    it('should return true when entry has text content', () => {
+      expect(entryHasContent({ ...base, text: 'Hello world' })).toBe(true)
+    })
+
+    it('should return false when entry text is empty', () => {
+      expect(entryHasContent({ ...base, text: '' })).toBe(false)
+    })
+
+    it('should return false when entry text is only whitespace', () => {
+      expect(entryHasContent({ ...base, text: '   \n\t  ' })).toBe(false)
+    })
+
+    it('should return false when entry text is null (DB edge case)', () => {
+      expect(entryHasContent({ ...base, text: null as unknown as string })).toBe(false)
     })
   })
 })

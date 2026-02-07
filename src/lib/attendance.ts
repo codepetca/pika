@@ -1,6 +1,13 @@
 import type { AttendanceStatus, ClassDay, Entry, AttendanceRecord } from '@/types'
 
 /**
+ * Checks if an entry has actual content (non-whitespace text)
+ */
+export function entryHasContent(entry: Entry): boolean {
+  return (entry.text || '').trim().length > 0
+}
+
+/**
  * Computes attendance status for a single student across all class days
  * Pure function - no side effects
  *
@@ -9,9 +16,9 @@ import type { AttendanceStatus, ClassDay, Entry, AttendanceRecord } from '@/type
  * @param today - Today's date in YYYY-MM-DD format (Toronto timezone)
  *
  * Status logic:
- * - present: entry exists for that class day
- * - absent: past class day with no entry
- * - pending: today or future class day with no entry yet
+ * - present: entry exists with content for that class day
+ * - absent: past class day with no entry or empty entry
+ * - pending: today or future class day with no entry or empty entry yet
  */
 export function computeAttendanceStatusForStudent(
   classDays: ClassDay[],
@@ -33,7 +40,7 @@ export function computeAttendanceStatusForStudent(
   actualClassDays.forEach(classDay => {
     const entry = entryMap.get(classDay.date)
 
-    if (entry) {
+    if (entry && entryHasContent(entry)) {
       result[classDay.date] = 'present'
     } else if (classDay.date >= today) {
       // Today or future: pending (student still has time to submit)

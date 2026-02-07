@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { countCharacters, countWords, isValidTiptapContent } from '@/lib/tiptap-content'
+import { sanitizeDocForStudent } from '@/lib/assignments'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 const HISTORY_MIN_INTERVAL_MS = 10_000
 const HISTORY_SELECT_FIELDS =
-  'id, assignment_doc_id, patch, snapshot, word_count, char_count, trigger, created_at'
+  'id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at'
 
 /**
  * Parse content field from database, handling both JSONB and legacy TEXT columns
@@ -102,7 +103,7 @@ export async function GET(
               raced.content = parseContentField(raced.content)
             }
             // Race condition: another request created the doc, so this wasn't first view
-            return NextResponse.json({ assignment, doc: raced, wasFirstView: false })
+            return NextResponse.json({ assignment, doc: raced ? sanitizeDocForStudent(raced) : raced, wasFirstView: false })
           }
 
           console.error('Error creating assignment doc:', createError)
@@ -143,7 +144,7 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({ assignment, doc: existingDoc, wasFirstView })
+    return NextResponse.json({ assignment, doc: sanitizeDocForStudent(existingDoc), wasFirstView })
   } catch (error: any) {
     // Authentication error (401)
     if (error.name === 'AuthenticationError') {
@@ -173,7 +174,13 @@ export async function PATCH(
     const user = await requireRole('student')
     const { id: assignmentId } = params
     const body = await request.json()
-    const { content, trigger } = body as { content: TiptapContent; trigger?: AssignmentDocHistoryTrigger }
+    const { content, trigger } = body as {
+      content: TiptapContent
+      trigger?: AssignmentDocHistoryTrigger
+    }
+    // Clamp client-reported tracking values to non-negative integers
+    const paste_word_count = Math.max(0, Math.round(Number(body.paste_word_count) || 0))
+    const keystroke_count = Math.max(0, Math.round(Number(body.keystroke_count) || 0))
 
     if (content === undefined) {
       return NextResponse.json(
@@ -260,6 +267,8 @@ export async function PATCH(
               snapshot: content,
               word_count: countWords(content),
               char_count: countCharacters(content),
+              paste_word_count,
+              keystroke_count,
               trigger: 'baseline',
             })
             .select(HISTORY_SELECT_FIELDS)
@@ -318,7 +327,7 @@ export async function PATCH(
     if (patch.length > 0) {
       const { data: lastHistory, error: lastHistoryError } = await supabase
         .from('assignment_doc_history')
-        .select('id, created_at, snapshot')
+        .select('id, created_at, snapshot, paste_word_count, keystroke_count')
         .eq('assignment_doc_id', existingDoc.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -344,6 +353,8 @@ export async function PATCH(
               snapshot: content,
               word_count: countWords(content),
               char_count: countCharacters(content),
+              paste_word_count,
+              keystroke_count,
               trigger: 'baseline',
             })
             .select(HISTORY_SELECT_FIELDS)
@@ -366,6 +377,8 @@ export async function PATCH(
               snapshot: content,
               word_count: countWords(content),
               char_count: countCharacters(content),
+              paste_word_count: (lastHistory.paste_word_count ?? 0) + paste_word_count,
+              keystroke_count: (lastHistory.keystroke_count ?? 0) + keystroke_count,
               trigger: trigger ?? 'autosave',
               created_at: new Date().toISOString(),
             })
@@ -392,6 +405,8 @@ export async function PATCH(
               snapshot: storeSnapshot ? content : null,
               word_count: countWords(content),
               char_count: countCharacters(content),
+              paste_word_count,
+              keystroke_count,
               trigger: trigger ?? 'autosave',
             })
             .select(HISTORY_SELECT_FIELDS)

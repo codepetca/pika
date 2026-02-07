@@ -84,6 +84,8 @@ export async function GET(request: NextRequest) {
       .from('assignments')
       .select('id')
       .eq('classroom_id', classroomId)
+      .eq('is_draft', false)
+      .not('released_at', 'is', null)
 
     if (assignmentsError) {
       console.error('Error fetching assignments:', assignmentsError)
@@ -163,10 +165,49 @@ export async function GET(request: NextRequest) {
       activeQuizzesCount = activeQuizIds.filter((id) => !respondedQuizIds.has(id)).length
     }
 
+    // Count unread announcements for this classroom (only published ones)
+    let unreadAnnouncementsCount = 0
+
+    const { data: announcements, error: announcementsError } = await supabase
+      .from('announcements')
+      .select('id')
+      .eq('classroom_id', classroomId)
+      .or('scheduled_for.is.null,scheduled_for.lte.now()')
+
+    if (announcementsError) {
+      console.error('Error fetching announcements:', announcementsError)
+      return NextResponse.json(
+        { error: 'Failed to check notifications' },
+        { status: 500 }
+      )
+    }
+
+    const announcementIds = announcements?.map((a) => a.id) || []
+
+    if (announcementIds.length > 0) {
+      const { data: reads, error: readsError } = await supabase
+        .from('announcement_reads')
+        .select('announcement_id')
+        .eq('user_id', user.id)
+        .in('announcement_id', announcementIds)
+
+      if (readsError) {
+        console.error('Error fetching announcement reads:', readsError)
+        return NextResponse.json(
+          { error: 'Failed to check notifications' },
+          { status: 500 }
+        )
+      }
+
+      const readAnnouncementIds = new Set(reads?.map((r) => r.announcement_id) || [])
+      unreadAnnouncementsCount = announcementIds.filter((id) => !readAnnouncementIds.has(id)).length
+    }
+
     return NextResponse.json({
       hasTodayEntry,
       unviewedAssignmentsCount: unviewedCount,
       activeQuizzesCount,
+      unreadAnnouncementsCount,
     })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {

@@ -14,3 +14,6 @@ export const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated
 
 /** Dispatched when quizzes are created, updated, or deleted */
 export const TEACHER_QUIZZES_UPDATED_EVENT = 'pika:teacherQuizzesUpdated'
+
+/** Dispatched when a student's grade is saved (manual or AI) in the sidebar */
+export const TEACHER_GRADE_UPDATED_EVENT = 'pika:teacherGradeUpdated'

@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Button } from '@/ui'
+import { Button, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
-import { PageContent, PageLayout } from '@/components/PageLayout'
+import { ACTIONBAR_ICON_BUTTON_CLASSNAME, PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { format, parseISO } from 'date-fns'
@@ -21,7 +21,7 @@ import {
   upsertEntryIntoHistory,
 } from '@/lib/student-entry-history'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
-import { countCharacters, plainTextToTiptapContent } from '@/lib/tiptap-content'
+import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import type { Classroom, ClassDay, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
@@ -187,7 +187,14 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
   ) => {
     if (!today) return
 
+    // Don't create a new DB record for empty content (e.g. TipTap mount normalization)
     const newContentStr = JSON.stringify(newContent)
+    if (!entryIdRef.current && isEmpty(newContent)) {
+      lastSavedContentRef.current = newContentStr
+      setSaveStatus('saved')
+      return
+    }
+
     if (!options?.forceFull && newContentStr === lastSavedContentRef.current) {
       setSaveStatus('saved')
       return
@@ -413,7 +420,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
                   content={content}
                   onChange={handleContentChange}
                   onBlur={flushAutosave}
-                  placeholder="Write a short update..."
+                  placeholder="Write something..."
                   editable={true}
                   showToolbar={false}
                   className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
@@ -440,21 +447,23 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
 
           <div className="bg-surface border border-border rounded-lg shadow-sm">
             <div className="px-4 py-3 border-b border-border flex items-center justify-end">
-              <button
-                type="button"
-                className="inline-flex items-center p-1 text-info hover:bg-surface-hover rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-                aria-expanded={historyVisible}
-                aria-controls={historyListId}
-                aria-label={historyVisible ? 'Hide history' : 'Show history'}
-                onClick={() => setHistoryVisibility(!historyVisible)}
-              >
-                <ChevronDown
-                  className={[
-                    'h-5 w-5 transition-transform',
-                    historyVisible ? 'rotate-180' : 'rotate-0',
-                  ].join(' ')}
-                />
-              </button>
+              <Tooltip content="History">
+                <button
+                  type="button"
+                  className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+                  aria-expanded={historyVisible}
+                  aria-controls={historyListId}
+                  aria-label={historyVisible ? 'Hide history' : 'Show history'}
+                  onClick={() => setHistoryVisibility(!historyVisible)}
+                >
+                  <ChevronDown
+                    className={[
+                      'h-5 w-5 transition-transform',
+                      historyVisible ? 'rotate-180' : 'rotate-0',
+                    ].join(' ')}
+                  />
+                </button>
+              </Tooltip>
             </div>
             {historyVisible && (
               <div id={historyListId} className="divide-y divide-border">

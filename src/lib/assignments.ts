@@ -4,8 +4,11 @@ import { formatInTimeZone } from 'date-fns-tz'
 /**
  * Calculate the status of an assignment for a student
  *
- * Status logic:
+ * Status logic (checked in order):
  * - no assignment_docs row: "not_started"
+ * - returned_at set AND is_submitted AND submitted_at > returned_at: "resubmitted"
+ * - returned_at set: "returned"
+ * - graded_at set (returned_at null): "graded"
  * - is_submitted = false && now <= due_at: "in_progress"
  * - is_submitted = false && now > due_at: "in_progress_late"
  * - is_submitted = true && submitted_at <= due_at: "submitted_on_time"
@@ -21,6 +24,25 @@ export function calculateAssignmentStatus(
   // No doc exists - not started
   if (!doc) {
     return 'not_started'
+  }
+
+  // Resubmitted: returned, then student submitted again
+  if (doc.returned_at && doc.is_submitted && doc.submitted_at) {
+    const submittedAt = new Date(doc.submitted_at)
+    const returnedAt = new Date(doc.returned_at)
+    if (submittedAt > returnedAt) {
+      return 'resubmitted'
+    }
+  }
+
+  // Returned
+  if (doc.returned_at) {
+    return 'returned'
+  }
+
+  // Graded but not yet returned
+  if (doc.graded_at) {
+    return 'graded'
   }
 
   // Doc exists but not submitted
@@ -53,6 +75,12 @@ export function getAssignmentStatusLabel(status: AssignmentStatus): string {
       return 'Submitted'
     case 'submitted_late':
       return 'Submitted (late)'
+    case 'graded':
+      return 'Graded'
+    case 'returned':
+      return 'Returned'
+    case 'resubmitted':
+      return 'Resubmitted'
     default:
       return 'Unknown'
   }
@@ -73,30 +101,41 @@ export function getAssignmentStatusBadgeClass(status: AssignmentStatus): string 
       return 'bg-green-100 text-green-700'
     case 'submitted_late':
       return 'bg-orange-100 text-orange-700'
+    case 'graded':
+      return 'bg-purple-100 text-purple-700'
+    case 'returned':
+      return 'bg-blue-100 text-blue-700'
+    case 'resubmitted':
+      return 'bg-orange-100 text-orange-700'
     default:
       return 'bg-gray-100 text-gray-700'
   }
 }
 
 /**
- * Get dot color class for assignment status indicator
- * Gray = not started, Yellow = in progress (on time or late),
- * Green = submitted on time, Lime = submitted late
+ * Get icon color class for assignment status indicator.
+ * Used for the colored status icons in the student table.
  */
-export function getAssignmentStatusDotClass(status: AssignmentStatus): string {
+export function getAssignmentStatusIconClass(status: AssignmentStatus): string {
   switch (status) {
     case 'not_started':
-      return 'bg-gray-400'
+      return 'text-gray-400'
     case 'in_progress':
-      return 'bg-yellow-400'
+      return 'text-yellow-500'
     case 'in_progress_late':
-      return 'bg-yellow-400'
+      return 'text-yellow-500'
     case 'submitted_on_time':
-      return 'bg-green-500'
+      return 'text-green-500'
     case 'submitted_late':
-      return 'bg-lime-600'
+      return 'text-lime-600'
+    case 'graded':
+      return 'text-purple-500'
+    case 'returned':
+      return 'text-blue-500'
+    case 'resubmitted':
+      return 'text-orange-500'
     default:
-      return 'bg-gray-400'
+      return 'text-gray-400'
   }
 }
 
@@ -147,4 +186,31 @@ export function formatRelativeDueDate(dueAt: string): string {
     if (absMins > 1) return `${absMins} minutes overdue`
     return 'Just passed'
   }
+}
+
+const GRADE_FIELDS = [
+  'score_completion',
+  'score_thinking',
+  'score_workflow',
+  'feedback',
+  'graded_at',
+  'graded_by',
+  'returned_at',
+  'authenticity_score',
+  'authenticity_flags',
+] as const
+
+/**
+ * Strip grade fields from an assignment doc unless it has been returned to the student.
+ * This prevents students from seeing grades before the teacher returns them.
+ */
+export function sanitizeDocForStudent<T extends Record<string, any>>(doc: T): T {
+  if (!doc) return doc
+  if (doc.returned_at) return doc // Student can see grades after return
+
+  const sanitized = { ...doc }
+  for (const field of GRADE_FIELDS) {
+    ;(sanitized as any)[field] = null
+  }
+  return sanitized
 }

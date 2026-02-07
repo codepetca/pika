@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/ui'
-import { Eye, EyeOff } from 'lucide-react'
+import { Button, Tooltip } from '@/ui'
+import { History } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -75,6 +75,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
   const draftBeforePreviewRef = useRef<TiptapContent | null>(null)
+
+  // Input tracking for authenticity
+  const pasteWordCountRef = useRef(0)
+  const keystrokeCountRef = useRef(0)
 
   const loadAssignment = useCallback(async () => {
     setLoading(true)
@@ -155,6 +159,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         body: JSON.stringify({
           content: newContent,
           trigger: options?.trigger ?? 'autosave',
+          paste_word_count: pasteWordCountRef.current,
+          keystroke_count: keystrokeCountRef.current,
         })
       })
 
@@ -181,6 +187,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         setPreviewEntry(prev => (prev?.id === historyEntry.id ? historyEntry : prev))
       }
       lastSavedContentRef.current = newContentStr
+      pasteWordCountRef.current = 0
+      keystrokeCountRef.current = 0
       setSaveStatus('saved')
     } catch (err: any) {
       console.error('Error saving:', err)
@@ -493,19 +501,17 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             >
               {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
             </div>
-            <button
-              type="button"
-              onClick={handleHistoryToggle}
-              className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover"
-              aria-expanded={isHistoryOpen}
-              aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
-            >
-              {isHistoryOpen ? (
-                <EyeOff className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <Eye className="h-4 w-4" aria-hidden="true" />
-              )}
-            </button>
+            <Tooltip content={isHistoryOpen ? 'Hide history' : 'Show history'}>
+              <button
+                type="button"
+                onClick={handleHistoryToggle}
+                className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover"
+                aria-expanded={isHistoryOpen}
+                aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
+              >
+                <History className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </Tooltip>
           </div>
         </div>
 
@@ -521,7 +527,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                 disabled={submitting || !!previewEntry}
                 editable={!isSubmitted && !previewEntry}
                 onBlur={flushAutosave}
+                onPaste={(wordCount) => { pasteWordCountRef.current += wordCount }}
+                onKeystroke={() => { keystrokeCountRef.current++ }}
                 className="h-full"
+                enableImageUpload
+                onImageUploadError={(message) => setError(message)}
               />
             </div>
 
@@ -657,6 +667,36 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Grade panel (shown when work has been returned) */}
+      {doc?.returned_at && doc.score_completion != null && (
+        <div className="bg-surface rounded-lg shadow-sm border border-border p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-text-default">Grade</h3>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div>
+              <div className="text-text-muted text-xs">Completion</div>
+              <div className="font-medium">{doc.score_completion}/10</div>
+            </div>
+            <div>
+              <div className="text-text-muted text-xs">Thinking</div>
+              <div className="font-medium">{doc.score_thinking}/10</div>
+            </div>
+            <div>
+              <div className="text-text-muted text-xs">Workflow</div>
+              <div className="font-medium">{doc.score_workflow}/10</div>
+            </div>
+          </div>
+          <div className="text-sm font-medium">
+            Total: {(doc.score_completion ?? 0) + (doc.score_thinking ?? 0) + (doc.score_workflow ?? 0)}/30
+          </div>
+          {doc.feedback && (
+            <div>
+              <div className="text-xs text-text-muted mb-1">Feedback</div>
+              <div className="text-sm text-text-default whitespace-pre-wrap">{doc.feedback}</div>
+            </div>
+          )}
         </div>
       )}
 

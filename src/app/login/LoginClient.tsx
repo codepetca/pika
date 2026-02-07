@@ -48,6 +48,10 @@ export function LoginClient() {
         throw new Error(data.error || 'Login failed')
       }
 
+      // Invalidate Next.js client-side router cache so stale pages
+      // from a previous user session are not served.
+      router.refresh()
+
       const next = searchParams.get('next')
       if (next && isSafeNextPath(next)) {
         router.push(next)

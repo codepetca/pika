@@ -7,7 +7,7 @@ import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
-import { getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
+import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import { Tooltip } from '@/ui'
 import type { AttendanceStatus } from '@/types'
 import {
@@ -22,8 +22,8 @@ import {
   SortableHeaderCell,
   TableCard,
 } from '@/components/DataTable'
+import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
-import { useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import type { ClassDay, Classroom, Entry } from '@/types'
 
 type SortColumn = 'first_name' | 'last_name' | 'id'
@@ -35,12 +35,11 @@ interface LogRow {
   student_last_name: string
   email_username: string
   entry: Entry | null
-  summary: string | null
 }
 
 interface Props {
   classroom: Classroom
-  onSelectEntry?: (entry: Entry | null, studentName: string) => void
+  onSelectEntry?: (entry: Entry | null, studentName: string, studentId: string | null) => void
 }
 
 export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
@@ -53,8 +52,6 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     column: SortColumn
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
-
-  const { isExpanded: isLeftExpanded } = useLeftSidebar()
 
   useEffect(() => {
     async function load() {
@@ -84,10 +81,12 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
       if (!isClassDayOnDate(classDays, selectedDate)) {
         setLogs([])
         setSelectedStudentId(null)
-        onSelectEntry?.(null, '')
+        onSelectEntry?.(null, '', null)
         return
       }
 
+      // Clear logs immediately to prevent showing stale status colors
+      setLogs([])
       setLoading(true)
       try {
         const res = await fetch(`/api/teacher/logs?classroom_id=${classroom.id}&date=${selectedDate}`)
@@ -104,10 +103,10 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
           const firstLog = mappedLogs[0]
           setSelectedStudentId(firstLog.student_id)
           const studentName = [firstLog.student_first_name, firstLog.student_last_name].filter(Boolean).join(' ') || firstLog.email_username
-          onSelectEntry?.(firstLog.entry, studentName)
+          onSelectEntry?.(firstLog.entry, studentName, firstLog.student_id)
         } else {
           setSelectedStudentId(null)
-          onSelectEntry?.(null, '')
+          onSelectEntry?.(null, '', null)
         }
       } catch (err) {
         console.error('Error loading logs:', err)
@@ -138,6 +137,20 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     })
   }, [logs, sortColumn, sortDirection])
 
+  const { presentCount, absentCount } = useMemo(() => {
+    let present = 0
+    let absent = 0
+    for (const row of rows) {
+      if (row.entry && entryHasContent(row.entry)) {
+        present++
+      } else if (selectedDate < today) {
+        absent++
+      }
+      // pending (selectedDate >= today && no entry) - not counted
+    }
+    return { presentCount: present, absentCount: absent }
+  }, [rows, selectedDate, today])
+
   function handleSort(column: SortColumn) {
     setSortState((prev) => toggleSort(prev, column))
   }
@@ -155,16 +168,10 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
 
     if (newSelectedId) {
       const studentName = [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') || row.email_username
-      onSelectEntry?.(row.entry, studentName)
+      onSelectEntry?.(row.entry, studentName, row.student_id)
     } else {
-      onSelectEntry?.(null, '')
+      onSelectEntry?.(null, '', null)
     }
-  }
-
-  function getLogText(row: LogRow): string {
-    if (row.summary) return row.summary
-    if (row.entry?.text) return row.entry.text
-    return '—'
   }
 
   // Keyboard navigation handler
@@ -177,7 +184,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
       const studentName =
         [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') ||
         row.email_username
-      onSelectEntry?.(row.entry, studentName)
+      onSelectEntry?.(row.entry, studentName, row.student_id)
     },
     [rows, onSelectEntry]
   )
@@ -204,7 +211,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
             onNext={() => moveDateBy(1)}
           />
         }
-        trailing={<RightSidebarToggle />}
+        trailing={null}
       />
 
       <PageContent>
@@ -223,6 +230,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                   direction={sortDirection}
                   onClick={() => handleSort('first_name')}
                   density="tight"
+                  trailing={isClassDay && rows.length > 0 ? <StudentCountBadge count={rows.length} /> : undefined}
                 />
                 <SortableHeaderCell
                   label="Last Name"
@@ -239,23 +247,25 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                   density="tight"
                 />
                 <DataTableHeaderCell density="tight" align="center">
-                  Status
-                </DataTableHeaderCell>
-                <DataTableHeaderCell density="tight">
-                  Log
+                  {isClassDay ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <CountBadge count={presentCount} tooltip="Present" variant="success" />
+                      <CountBadge count={absentCount} tooltip="Absent" variant="danger" />
+                    </div>
+                  ) : (
+                    'Status'
+                  )}
                 </DataTableHeaderCell>
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
               {rows.map((row) => {
                 const isSelected = selectedStudentId === row.student_id
-                const status: AttendanceStatus = row.entry
+                const status: AttendanceStatus = row.entry && entryHasContent(row.entry)
                   ? 'present'
                   : selectedDate >= today
                     ? 'pending'
                     : 'absent'
-                const logText = getLogText(row)
-
                 return (
                   <DataTableRow
                     key={row.student_id}
@@ -283,25 +293,13 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                         <span className="text-text-muted">—</span>
                       )}
                     </DataTableCell>
-                    <DataTableCell density="tight" className={isLeftExpanded ? 'max-w-xs' : 'max-w-md'}>
-                      {logText !== '—' ? (
-                        <Tooltip content={logText}>
-                          <div className="truncate text-text-muted">
-                            {logText}
-                          </div>
-                        </Tooltip>
-                      ) : (
-                        <div className="text-text-muted">—</div>
-                      )}
-                    </DataTableCell>
                   </DataTableRow>
                 )
               })}
               {rows.length === 0 && (
                 <EmptyStateRow
-                  colSpan={5}
+                  colSpan={4}
                   message={isClassDay ? 'No students enrolled' : 'Not a class day'}
-                  density="tight"
                 />
               )}
             </DataTableBody>
