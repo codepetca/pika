@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { countCharacters, countWords, isEmpty, parseContentField } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
+import { grantXp } from '@/lib/server/pet'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
@@ -104,6 +105,11 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   if (doc) {
     doc.content = parseContentField(doc.content)
   }
+
+  // Fire-and-forget assignment completion XP (idempotent via metadata check)
+  grantXp(user.id, assignment.classroom_id, 'assignment_complete', {
+    assignment_id: assignmentId,
+  }).catch((err) => console.error('Assignment complete XP:', err))
 
   try {
     await supabase.from('assignment_doc_history').insert({

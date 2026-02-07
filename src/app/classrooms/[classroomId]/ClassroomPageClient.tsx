@@ -16,6 +16,7 @@ import { TeacherResourcesTab } from './TeacherResourcesTab'
 import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherQuizzesTab } from './TeacherQuizzesTab'
 import { StudentQuizzesTab } from './StudentQuizzesTab'
+import { StudentPetTab } from './StudentPetTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider } from '@/hooks/useClassDays'
 import {
@@ -141,7 +142,7 @@ export function ClassroomPageClient({
     () =>
       isTeacher
         ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'tests', 'calendar', 'resources', 'roster', 'settings'] as const)
-        : (['today', 'assignments', 'quizzes', 'tests', 'calendar', 'resources'] as const),
+        : (['today', 'assignments', 'quizzes', 'tests', 'calendar', 'resources', 'pet'] as const),
     [isTeacher]
   )
 
@@ -1158,6 +1159,7 @@ function ClassroomPageContent({
                   />
                 </TabContentTransition>
               )}
+              {activeTab === 'pet' && <StudentPetTab classroom={classroom} />}
             </>
           )}
         </MainContent>

@@ -54,6 +54,7 @@ export type RouteKey =
   | 'calendar-student'
   | 'resources-teacher'
   | 'resources-student'
+  | 'pet-student'
 
 // ============================================================================
 // Constants
@@ -152,6 +153,10 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
     rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 320 },
     mainContent: { maxWidth: 'reading' },
   },
+  'pet-student': {
+    rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 320 },
+    mainContent: { maxWidth: 'reading' },
+  },
 }
 
 // ============================================================================
@@ -241,6 +246,7 @@ export function getRouteKeyFromTab(
   if (tab === 'tests') {
     return role === 'teacher' ? 'tests-teacher' : 'tests-student'
   }
+  if (tab === 'pet') return 'pet-student'
 
   // Default fallback
   return role === 'teacher' ? 'attendance' : 'today'
