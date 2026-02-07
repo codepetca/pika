@@ -18,9 +18,8 @@ import {
 } from '@dnd-kit/sortable'
 import {
   Check,
-  CheckCircle,
   Circle,
-  ClockAlert,
+  Clock,
   Pencil,
   Plus,
   RotateCcw,
@@ -133,26 +132,28 @@ function getRowClassName(isSelected: boolean): string {
 
 const STATUS_ICON_CLASS = 'h-4 w-4'
 
-function StatusIcon({ status }: { status: AssignmentStatus }) {
+function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: boolean }) {
   const colorClass = getAssignmentStatusIconClass(status)
   const cls = `${STATUS_ICON_CLASS} ${colorClass}`
+  const late = wasLate ? <Clock className="h-3 w-3" /> : null
+
   switch (status) {
     case 'not_started':
       return <Circle className={cls} />
     case 'in_progress':
-      return <Pencil className={cls} />
+      return <Circle className={cls} />
     case 'in_progress_late':
-      return <ClockAlert className={cls} />
+      return <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><Circle className={STATUS_ICON_CLASS} /><Clock className="h-3 w-3" /></span>
     case 'submitted_on_time':
-      return <CheckCircle className={cls} />
-    case 'submitted_late':
-      return <ClockAlert className={cls} />
-    case 'graded':
       return <Check className={cls} />
+    case 'submitted_late':
+      return <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><Check className={STATUS_ICON_CLASS} /><Clock className="h-3 w-3" /></span>
+    case 'graded':
+      return late ? <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><Check className={STATUS_ICON_CLASS} />{late}</span> : <Check className={cls} />
     case 'returned':
-      return <Send className={cls} />
+      return late ? <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><Send className={STATUS_ICON_CLASS} />{late}</span> : <Send className={cls} />
     case 'resubmitted':
-      return <RotateCcw className={cls} />
+      return late ? <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><RotateCcw className={STATUS_ICON_CLASS} />{late}</span> : <RotateCcw className={cls} />
     default:
       return <Circle className={cls} />
   }
@@ -887,7 +888,10 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       <DataTableCell>
                         <Tooltip content={getAssignmentStatusLabel(student.status)}>
                           <span className="inline-flex">
-                            <StatusIcon status={student.status} />
+                            <StatusIcon
+                              status={student.status}
+                              wasLate={!!(student.doc?.submitted_at && selectedAssignmentData && new Date(student.doc.submitted_at) > new Date(selectedAssignmentData.assignment.due_at))}
+                            />
                           </span>
                         </Tooltip>
                       </DataTableCell>

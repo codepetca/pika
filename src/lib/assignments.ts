@@ -127,7 +127,7 @@ export function getAssignmentStatusIconClass(status: AssignmentStatus): string {
     case 'submitted_on_time':
       return 'text-green-500'
     case 'submitted_late':
-      return 'text-lime-600'
+      return 'text-green-500'
     case 'graded':
       return 'text-purple-500'
     case 'returned':
