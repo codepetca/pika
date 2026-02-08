@@ -481,11 +481,412 @@ async function seed() {
       },
     ]
 
-    const { error: docsError } = await supabase.from('assignment_docs').insert(assignmentDocs)
+    const { data: createdDocs, error: docsError } = await supabase
+      .from('assignment_docs')
+      .insert(assignmentDocs)
+      .select('id, assignment_id, student_id')
     if (docsError) {
       console.log(`⚠ Failed to create assignment docs: ${formatSupabaseError(docsError)}`)
     } else {
-      console.log(`✓ Created ${assignmentDocs.length} assignment docs (student work)\n`)
+      console.log(`✓ Created ${createdDocs.length} assignment docs (student work)`)
+
+      // Create assignment_doc_history entries for realistic graph data
+      // Rich 10-day history with edge cases: dense bursts, gaps, large pastes,
+      // late-night sessions, early-morning starts, heavy deletions, etc.
+      console.log('Creating assignment doc history...')
+
+      // Delete existing history for these docs
+      await supabase
+        .from('assignment_doc_history')
+        .delete()
+        .in('assignment_doc_id', createdDocs.map(d => d.id))
+
+      // Helper: build a TipTap doc snapshot from paragraphs
+      function tiptapDoc(paragraphs: string[]) {
+        return {
+          type: 'doc',
+          content: paragraphs.map(text => ({
+            type: 'paragraph',
+            content: text ? [{ type: 'text', text }] : [],
+          })),
+        }
+      }
+
+      // Helper: generate an ISO timestamp relative to a base time
+      // day = day offset (0 = base day), hour/min/sec in Toronto time (EST = UTC-5)
+      function torontoTime(baseMs: number, day: number, hour: number, min: number, sec: number = 0): string {
+        // Toronto EST is UTC-5, so add 5 hours to get UTC
+        const utcHour = hour + 5
+        const dayOffset = day + Math.floor(utcHour / 24)
+        const adjustedHour = utcHour % 24
+        return new Date(
+          baseMs + dayOffset * 86400000 + adjustedHour * 3600000 + min * 60000 + sec * 1000
+        ).toISOString()
+      }
+
+      interface HistoryStep {
+        charCount: number
+        wordCount: number
+        trigger: string
+        day: number
+        hour: number
+        min: number
+        sec?: number
+        paste: number | null
+        keys: number | null
+        snapshot: ReturnType<typeof tiptapDoc> | null
+      }
+
+      const historyEntries: {
+        assignment_doc_id: string
+        patch: null
+        snapshot: ReturnType<typeof tiptapDoc> | null
+        word_count: number
+        char_count: number
+        trigger: string
+        created_at: string
+        paste_word_count: number | null
+        keystroke_count: number | null
+      }[] = []
+
+      // ── Student 1 narrative essay — 10 days of realistic writing ──
+      // Scenarios tested:
+      // Day 0: Afternoon start, 4 entries
+      // Day 1: Morning burst, 10 rapid entries
+      // Day 2: Two sessions (afternoon + evening gap)
+      // Day 3: Single quick edit
+      // Day 4: Heavy editing — additions and big deletions
+      // Day 5: (no activity — gap day)
+      // Day 6: Late night session near midnight (3 entries)
+      // Day 7: Dense burst — 16 entries in 30 min
+      // Day 8: Large paste + cleanup
+      // Day 9: Final edits + submit
+      const s1NarrativeDoc = createdDocs.find(
+        d => d.student_id === students[0]!.id && d.assignment_id === narrative.id
+      )
+      if (s1NarrativeDoc) {
+        // Base: 10 days ago at midnight Toronto time
+        const baseDateMs = new Date(now.getTime() - 10 * 86400000).setUTCHours(0, 0, 0, 0)
+
+        const steps: HistoryStep[] = [
+          // ── Day 0: Afternoon start (3:00–3:16 PM) — 4 entries ──
+          { charCount: 0,   wordCount: 0,   trigger: 'baseline', day: 0, hour: 15, min: 0,  paste: null, keys: null,
+            snapshot: tiptapDoc(['']) },
+          { charCount: 45,  wordCount: 8,   trigger: 'autosave', day: 0, hour: 15, min: 4,  paste: null, keys: 48,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother']) },
+          { charCount: 120, wordCount: 22,  trigger: 'autosave', day: 0, hour: 15, min: 10, paste: null, keys: 80,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising.']) },
+          { charCount: 170, wordCount: 32,  trigger: 'blur',     day: 0, hour: 15, min: 16, paste: null, keys: 55,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine.']) },
+
+          // ── Day 1: Morning burst (9:02–9:20 AM) — 10 rapid entries ──
+          { charCount: 180, wordCount: 34,  trigger: 'autosave', day: 1, hour: 9,  min: 2,  paste: null, keys: 12,
+            snapshot: null },
+          { charCount: 210, wordCount: 40,  trigger: 'autosave', day: 1, hour: 9,  min: 4,  paste: null, keys: 35,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said.']) },
+          { charCount: 245, wordCount: 46,  trigger: 'autosave', day: 1, hour: 9,  min: 6,  paste: null, keys: 40,
+            snapshot: null },
+          { charCount: 280, wordCount: 52,  trigger: 'autosave', day: 1, hour: 9,  min: 8,  paste: null, keys: 38,
+            snapshot: null },
+          { charCount: 310, wordCount: 58,  trigger: 'autosave', day: 1, hour: 9,  min: 10, paste: null, keys: 35,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise.']) },
+          { charCount: 340, wordCount: 63,  trigger: 'autosave', day: 1, hour: 9,  min: 12, paste: null, keys: 33,
+            snapshot: null },
+          { charCount: 375, wordCount: 70,  trigger: 'autosave', day: 1, hour: 9,  min: 14, paste: null, keys: 38,
+            snapshot: null },
+          { charCount: 395, wordCount: 74,  trigger: 'autosave', day: 1, hour: 9,  min: 16, paste: null, keys: 22,
+            snapshot: null },
+          { charCount: 420, wordCount: 78,  trigger: 'autosave', day: 1, hour: 9,  min: 18, paste: null, keys: 28,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully, trying to memorize every detail.']) },
+          { charCount: 440, wordCount: 82,  trigger: 'blur',     day: 1, hour: 9,  min: 20, paste: null, keys: 24,
+            snapshot: null },
+
+          // ── Day 2: Two sessions (2:00 PM + 7:30 PM) — 7 entries ──
+          // Afternoon session
+          { charCount: 455, wordCount: 84,  trigger: 'autosave', day: 2, hour: 14, min: 0,  paste: null, keys: 18,
+            snapshot: null },
+          { charCount: 480, wordCount: 89,  trigger: 'autosave', day: 2, hour: 14, min: 5,  paste: null, keys: 28,
+            snapshot: null },
+          { charCount: 460, wordCount: 85,  trigger: 'blur',     day: 2, hour: 14, min: 12, paste: null, keys: 15,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully. The bread came out golden and perfect.']) },
+          // Evening session (5.5 hour gap)
+          { charCount: 475, wordCount: 88,  trigger: 'autosave', day: 2, hour: 19, min: 30, paste: null, keys: 18,
+            snapshot: null },
+          { charCount: 510, wordCount: 95,  trigger: 'autosave', day: 2, hour: 19, min: 36, paste: null, keys: 38,
+            snapshot: null },
+          { charCount: 530, wordCount: 98,  trigger: 'autosave', day: 2, hour: 19, min: 42, paste: null, keys: 24,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully, trying to memorize every detail. The bread came out golden and perfect.', 'Now, whenever I bake bread, I think of her.']) },
+          { charCount: 540, wordCount: 100, trigger: 'blur',     day: 2, hour: 19, min: 48, paste: null, keys: 14,
+            snapshot: null },
+
+          // ── Day 3: Single quick edit (4:15 PM) — 1 entry ──
+          { charCount: 535, wordCount: 99,  trigger: 'autosave', day: 3, hour: 16, min: 15, paste: null, keys: 8,
+            snapshot: null },
+
+          // ── Day 4: Heavy editing — additions and deletions (10:00–10:30 AM) — 6 entries ──
+          { charCount: 560, wordCount: 104, trigger: 'autosave', day: 4, hour: 10, min: 0,  paste: null, keys: 28,
+            snapshot: null },
+          { charCount: 490, wordCount: 91,  trigger: 'autosave', day: 4, hour: 10, min: 6,  paste: null, keys: 15,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch. She told me stories about her childhood in Portugal. I listened carefully. The bread came out golden and perfect.', 'Now, whenever I bake bread, I think of her.']) },
+          { charCount: 530, wordCount: 98,  trigger: 'autosave', day: 4, hour: 10, min: 12, paste: null, keys: 45,
+            snapshot: null },
+          { charCount: 450, wordCount: 83,  trigger: 'autosave', day: 4, hour: 10, min: 18, paste: null, keys: 10,
+            snapshot: null },
+          { charCount: 520, wordCount: 96,  trigger: 'autosave', day: 4, hour: 10, min: 24, paste: null, keys: 75,
+            snapshot: null },
+          { charCount: 550, wordCount: 102, trigger: 'blur',     day: 4, hour: 10, min: 30, paste: null, keys: 35,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully. The bread came out golden and perfect.', 'Now, whenever I bake bread, I think of her. The recipe is more than flour and water.']) },
+
+          // ── Day 5: (no activity) ──
+
+          // ── Day 6: Late night (11:15–11:45 PM) — 3 entries ──
+          { charCount: 565, wordCount: 105, trigger: 'autosave', day: 6, hour: 23, min: 15, paste: null, keys: 18,
+            snapshot: null },
+          { charCount: 590, wordCount: 110, trigger: 'autosave', day: 6, hour: 23, min: 30, paste: null, keys: 28,
+            snapshot: null },
+          { charCount: 600, wordCount: 112, trigger: 'blur',     day: 6, hour: 23, min: 45, paste: null, keys: 14,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully, trying to memorize every detail. The bread came out golden and perfect.', 'Now, whenever I bake bread, I think of her. The recipe is more than flour and water — it\'s a connection to my family\'s history.']) },
+
+          // ── Day 7: Dense burst with same-minute clusters (1:00–1:30 PM) — 20 entries ──
+          // Several saves at 1:03, rapid fire at 1:10–1:11, cluster at 1:20
+          { charCount: 605, wordCount: 113, trigger: 'autosave', day: 7, hour: 13, min: 0,  paste: null, keys: 8,
+            snapshot: null },
+          // 4 saves at 1:03 (10s apart — rapid autosaves)
+          { charCount: 610, wordCount: 114, trigger: 'autosave', day: 7, hour: 13, min: 3, sec: 0,  paste: null, keys: 6,
+            snapshot: null },
+          { charCount: 615, wordCount: 115, trigger: 'autosave', day: 7, hour: 13, min: 3, sec: 12, paste: null, keys: 6,
+            snapshot: null },
+          { charCount: 618, wordCount: 115, trigger: 'autosave', day: 7, hour: 13, min: 3, sec: 25, paste: null, keys: 4,
+            snapshot: null },
+          { charCount: 625, wordCount: 116, trigger: 'autosave', day: 7, hour: 13, min: 3, sec: 38, paste: null, keys: 8,
+            snapshot: null },
+          { charCount: 630, wordCount: 117, trigger: 'autosave', day: 7, hour: 13, min: 6,  paste: null, keys: 6,
+            snapshot: null },
+          // 6 saves at 1:10–1:11 (rapid typing burst, ~8s apart)
+          { charCount: 635, wordCount: 118, trigger: 'autosave', day: 7, hour: 13, min: 10, sec: 0,  paste: null, keys: 6,
+            snapshot: null },
+          { charCount: 640, wordCount: 119, trigger: 'autosave', day: 7, hour: 13, min: 10, sec: 8,  paste: null, keys: 6,
+            snapshot: null },
+          { charCount: 643, wordCount: 119, trigger: 'autosave', day: 7, hour: 13, min: 10, sec: 18, paste: null, keys: 4,
+            snapshot: null },
+          { charCount: 648, wordCount: 120, trigger: 'autosave', day: 7, hour: 13, min: 10, sec: 30, paste: null, keys: 6,
+            snapshot: null },
+          { charCount: 650, wordCount: 121, trigger: 'autosave', day: 7, hour: 13, min: 10, sec: 42, paste: null, keys: 3,
+            snapshot: null },
+          { charCount: 655, wordCount: 122, trigger: 'autosave', day: 7, hour: 13, min: 11, sec: 5,  paste: null, keys: 6,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully, trying to memorize every detail. The bread came out golden and perfect.', 'Now, whenever I bake bread, I think of her. The recipe is more than flour and water — it\'s a connection to my family\'s history. That summer taught me that the most important things are passed down.']) },
+          { charCount: 660, wordCount: 122, trigger: 'autosave', day: 7, hour: 13, min: 15, paste: null, keys: 6,
+            snapshot: null },
+          // 5 saves at 1:20 (blur/focus/blur cycle — student switching tabs)
+          { charCount: 665, wordCount: 123, trigger: 'blur',     day: 7, hour: 13, min: 20, sec: 0,  paste: null, keys: 6,
+            snapshot: null },
+          { charCount: 665, wordCount: 123, trigger: 'autosave', day: 7, hour: 13, min: 20, sec: 10, paste: null, keys: 0,
+            snapshot: null },
+          { charCount: 668, wordCount: 124, trigger: 'autosave', day: 7, hour: 13, min: 20, sec: 22, paste: null, keys: 4,
+            snapshot: null },
+          { charCount: 670, wordCount: 124, trigger: 'blur',     day: 7, hour: 13, min: 20, sec: 35, paste: null, keys: 3,
+            snapshot: null },
+          { charCount: 672, wordCount: 125, trigger: 'autosave', day: 7, hour: 13, min: 20, sec: 48, paste: null, keys: 3,
+            snapshot: null },
+          { charCount: 680, wordCount: 126, trigger: 'autosave', day: 7, hour: 13, min: 25, paste: null, keys: 10,
+            snapshot: null },
+          { charCount: 690, wordCount: 128, trigger: 'blur',     day: 7, hour: 13, min: 30, paste: null, keys: 14,
+            snapshot: null },
+
+          // ── Day 8: Large paste + rapid cleanup saves (8:30–8:50 AM) — 9 entries ──
+          { charCount: 950, wordCount: 176, trigger: 'autosave', day: 8, hour: 8,  min: 30, paste: 48, keys: 5,
+            snapshot: null },
+          // 4 rapid deletes at 8:33 (cutting pasted text, saving every few seconds)
+          { charCount: 880, wordCount: 163, trigger: 'autosave', day: 8, hour: 8,  min: 33, sec: 0,  paste: null, keys: 3,
+            snapshot: null },
+          { charCount: 830, wordCount: 154, trigger: 'autosave', day: 8, hour: 8,  min: 33, sec: 15, paste: null, keys: 2,
+            snapshot: null },
+          { charCount: 790, wordCount: 147, trigger: 'autosave', day: 8, hour: 8,  min: 33, sec: 28, paste: null, keys: 2,
+            snapshot: null },
+          { charCount: 750, wordCount: 139, trigger: 'autosave', day: 8, hour: 8,  min: 33, sec: 42, paste: null, keys: 2,
+            snapshot: null },
+          { charCount: 720, wordCount: 134, trigger: 'autosave', day: 8, hour: 8,  min: 40, paste: null, keys: 8,
+            snapshot: null },
+          { charCount: 710, wordCount: 132, trigger: 'autosave', day: 8, hour: 8,  min: 45, paste: null, keys: 6,
+            snapshot: null },
+          { charCount: 700, wordCount: 130, trigger: 'blur',     day: 8, hour: 8,  min: 50, paste: null, keys: 6,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully, trying to memorize every detail. The bread came out golden and perfect.', 'Now, whenever I bake bread, I think of her. The recipe is more than flour and water — it\'s a connection to my family\'s history. That summer taught me that the most important things are passed down not through books, but through hands and hearts.']) },
+
+          // ── Day 9: Final edits + submit (3:00–3:20 PM) — 4 entries ──
+          { charCount: 695, wordCount: 129, trigger: 'autosave', day: 9, hour: 15, min: 0,  paste: null, keys: 8,
+            snapshot: null },
+          { charCount: 680, wordCount: 126, trigger: 'autosave', day: 9, hour: 15, min: 8,  paste: null, keys: 18,
+            snapshot: null },
+          { charCount: 685, wordCount: 127, trigger: 'autosave', day: 9, hour: 15, min: 14, paste: null, keys: 8,
+            snapshot: null },
+          { charCount: 680, wordCount: 126, trigger: 'submit',   day: 9, hour: 15, min: 20, paste: null, keys: 6,
+            snapshot: tiptapDoc(['The summer I turned twelve, my grandmother taught me how to bake bread. I remember the warm kitchen, the smell of yeast rising, and her flour-dusted hands guiding mine as I kneaded the dough. "Feel the dough," she said. "It will tell you when it\'s ready."', 'That afternoon we sat on the porch waiting for the bread to rise. She told me stories about her childhood in Portugal, about olive groves and fishing boats. I listened carefully, trying to memorize every detail. The bread came out golden and perfect.', 'Now, whenever I bake bread, I think of her. The recipe is more than flour and water — it\'s a connection to my family\'s history. That summer taught me that the most important things are passed down not through books, but through hands and hearts.']) },
+        ]
+        for (const step of steps) {
+          historyEntries.push({
+            assignment_doc_id: s1NarrativeDoc.id,
+            patch: null,
+            snapshot: step.snapshot,
+            word_count: step.wordCount,
+            char_count: step.charCount,
+            trigger: step.trigger,
+            created_at: torontoTime(baseDateMs, step.day, step.hour, step.min, step.sec),
+            paste_word_count: step.paste,
+            keystroke_count: step.keys,
+          })
+        }
+      }
+
+      // ── Student 2 narrative essay — paste-heavy with huge paste + huge delete ──
+      // Day 0: Baseline + slow start
+      // Day 1: Massive paste (+550 chars — copied from another doc) then trimming
+      // Day 2: Massive deletion (-350 chars — cuts most of pasted content) then rebuilds
+      // Day 3: Steady writing
+      // Day 4: Final edits + submit
+      const s2NarrativeDoc = createdDocs.find(
+        d => d.student_id === students[1]!.id && d.assignment_id === narrative.id
+      )
+      if (s2NarrativeDoc) {
+        const baseDateMs = new Date(now.getTime() - 5 * 86400000).setUTCHours(0, 0, 0, 0)
+
+        const steps: HistoryStep[] = [
+          // Day 0: Slow start (4:00–4:10 PM)
+          { charCount: 0,   wordCount: 0,   trigger: 'baseline', day: 0, hour: 16, min: 0,  paste: null, keys: null,
+            snapshot: tiptapDoc(['']) },
+          { charCount: 30,  wordCount: 6,   trigger: 'autosave', day: 0, hour: 16, min: 5,  paste: null, keys: 35,
+            snapshot: tiptapDoc(['Last year I joined the soccer']) },
+          { charCount: 85,  wordCount: 16,  trigger: 'blur',     day: 0, hour: 16, min: 10, paste: null, keys: 60,
+            snapshot: tiptapDoc(['Last year I joined the soccer team even though I was scared. The first practice was really hard.']) },
+
+          // Day 1: Massive paste (+550 chars, clearly from another source) then trimming (11:00–11:30 AM)
+          { charCount: 635, wordCount: 118, trigger: 'autosave', day: 1, hour: 11, min: 0,  paste: 100, keys: 5,
+            snapshot: tiptapDoc(['Last year I joined the soccer team even though I was scared. The first practice was really hard and I wanted to quit. But my coach said to give it one more week. The drills were exhausting and my legs hurt every day after practice. Some of the other kids were much better than me and it was embarrassing at first. But I kept showing up and eventually I started to improve. My teammates were really supportive and that helped a lot. Soccer taught me discipline and teamwork. Every morning we had to wake up early for conditioning. The coach made us run laps and do push-ups before we even touched a ball. It was brutal but it built character.']) },
+          { charCount: 580, wordCount: 107, trigger: 'autosave', day: 1, hour: 11, min: 6,  paste: null, keys: 15,
+            snapshot: null },
+          { charCount: 520, wordCount: 96,  trigger: 'autosave', day: 1, hour: 11, min: 12, paste: null, keys: 10,
+            snapshot: null },
+          { charCount: 490, wordCount: 91,  trigger: 'autosave', day: 1, hour: 11, min: 18, paste: null, keys: 8,
+            snapshot: null },
+          { charCount: 470, wordCount: 87,  trigger: 'blur',     day: 1, hour: 11, min: 30, paste: null, keys: 6,
+            snapshot: tiptapDoc(['Last year I joined the soccer team even though I was scared. The first practice was really hard and I wanted to quit. But my coach said to give it one more week. The drills were exhausting and my legs hurt every day after practice. But I kept showing up and eventually I started to improve. My teammates were really supportive and that helped a lot. Soccer taught me discipline and teamwork.']) },
+
+          // Day 2: Massive deletion (-350 chars — realizes pasted text doesn't fit) then starts rewriting (2:00–2:30 PM)
+          { charCount: 120, wordCount: 22,  trigger: 'autosave', day: 2, hour: 14, min: 0,  paste: null, keys: 5,
+            snapshot: tiptapDoc(['Last year I joined the soccer team even though I was scared. The first practice was really hard and I wanted to quit.']) },
+          { charCount: 135, wordCount: 25,  trigger: 'autosave', day: 2, hour: 14, min: 5,  paste: null, keys: 18,
+            snapshot: null },
+          { charCount: 165, wordCount: 30,  trigger: 'autosave', day: 2, hour: 14, min: 10, paste: null, keys: 35,
+            snapshot: null },
+          { charCount: 200, wordCount: 37,  trigger: 'autosave', day: 2, hour: 14, min: 16, paste: null, keys: 40,
+            snapshot: null },
+          { charCount: 250, wordCount: 46,  trigger: 'autosave', day: 2, hour: 14, min: 22, paste: null, keys: 55,
+            snapshot: tiptapDoc(['Last year I joined the soccer team even though I was scared. The first practice was really hard and I wanted to quit. But my coach said to give it one more week.', 'The drills were exhausting but I kept showing up. My teammates helped me get better.']) },
+          { charCount: 280, wordCount: 52,  trigger: 'blur',     day: 2, hour: 14, min: 30, paste: null, keys: 35,
+            snapshot: null },
+
+          // Day 3: Steady writing (7:00–7:30 PM)
+          { charCount: 310, wordCount: 57,  trigger: 'autosave', day: 3, hour: 19, min: 0,  paste: null, keys: 35,
+            snapshot: null },
+          { charCount: 340, wordCount: 63,  trigger: 'autosave', day: 3, hour: 19, min: 8,  paste: null, keys: 35,
+            snapshot: null },
+          { charCount: 360, wordCount: 67,  trigger: 'autosave', day: 3, hour: 19, min: 16, paste: null, keys: 24,
+            snapshot: tiptapDoc(['Last year I joined the soccer team even though I was scared. The first practice was really hard and I wanted to quit. But my coach said to give it one more week.', 'By the end of the season I scored my first goal. It felt amazing. I learned that trying new things is worth it even when it\'s scary at first.']) },
+          { charCount: 375, wordCount: 70,  trigger: 'blur',     day: 3, hour: 19, min: 24, paste: null, keys: 18,
+            snapshot: null },
+
+          // Day 4: Quick edits + submit (8:00–8:10 AM)
+          { charCount: 370, wordCount: 69,  trigger: 'autosave', day: 4, hour: 8,  min: 0,  paste: null, keys: 8,
+            snapshot: null },
+          { charCount: 380, wordCount: 70,  trigger: 'submit',   day: 4, hour: 8,  min: 10, paste: null, keys: 14,
+            snapshot: tiptapDoc(['Last year I joined the soccer team even though I was scared. The first practice was really hard and I wanted to quit. But my coach said to give it one more week.', 'By the end of the season I scored my first goal. It felt amazing. I learned that trying new things is worth it even when it\'s scary at first.']) },
+        ]
+        for (const step of steps) {
+          historyEntries.push({
+            assignment_doc_id: s2NarrativeDoc.id,
+            patch: null,
+            snapshot: step.snapshot,
+            word_count: step.wordCount,
+            char_count: step.charCount,
+            trigger: step.trigger,
+            created_at: torontoTime(baseDateMs, step.day, step.hour, step.min, step.sec),
+            paste_word_count: step.paste,
+            keystroke_count: step.keys,
+          })
+        }
+      }
+
+      // ── Student 1 persuasive letter — in-progress, 3 days ──
+      // Day 0: Early morning start (7:30 AM) + late evening continuation (9:00 PM)
+      // Day 1: Cluster of 8 entries (lunch hour)
+      // Day 2: Short session, still in progress
+      const s1LetterDoc = createdDocs.find(
+        d => d.student_id === students[0]!.id && d.assignment_id === letter.id
+      )
+      if (s1LetterDoc) {
+        const baseDateMs = new Date(now.getTime() - 3 * 86400000).setUTCHours(0, 0, 0, 0)
+
+        const steps: HistoryStep[] = [
+          // Day 0: Early morning (7:30–7:45 AM)
+          { charCount: 0,   wordCount: 0,  trigger: 'baseline', day: 0, hour: 7,  min: 30, paste: null, keys: null,
+            snapshot: tiptapDoc(['']) },
+          { charCount: 25,  wordCount: 5,  trigger: 'autosave', day: 0, hour: 7,  min: 34, paste: null, keys: 28,
+            snapshot: tiptapDoc(['Dear Mayor Thompson,']) },
+          { charCount: 70,  wordCount: 13, trigger: 'blur',     day: 0, hour: 7,  min: 45, paste: null, keys: 50,
+            snapshot: tiptapDoc(['Dear Mayor Thompson,', 'I am writing to you about the lack of bike lanes.']) },
+          // Day 0: Late evening (9:00–9:20 PM) — tests start-of-day + end-of-day spread
+          { charCount: 130, wordCount: 24, trigger: 'autosave', day: 0, hour: 21, min: 0,  paste: null, keys: 65,
+            snapshot: tiptapDoc(['Dear Mayor Thompson,', 'I am writing to you about the lack of bike lanes on Main Street. As a student who rides my bike to school every day, I have seen how dangerous it can be.']) },
+          { charCount: 180, wordCount: 33, trigger: 'autosave', day: 0, hour: 21, min: 10, paste: null, keys: 55,
+            snapshot: null },
+          { charCount: 200, wordCount: 37, trigger: 'blur',     day: 0, hour: 21, min: 20, paste: null, keys: 24,
+            snapshot: tiptapDoc(['Dear Mayor Thompson,', 'I am writing to you about the lack of bike lanes on Main Street. As a student who rides my bike to school every day, I have seen how dangerous it can be. Cars pass too closely and there is nowhere safe to ride.']) },
+
+          // Day 1: Lunch hour burst (12:00–12:28 PM) — 8 entries
+          { charCount: 210, wordCount: 39, trigger: 'autosave', day: 1, hour: 12, min: 0,  paste: null, keys: 14,
+            snapshot: null },
+          { charCount: 230, wordCount: 42, trigger: 'autosave', day: 1, hour: 12, min: 4,  paste: null, keys: 24,
+            snapshot: null },
+          { charCount: 250, wordCount: 46, trigger: 'autosave', day: 1, hour: 12, min: 8,  paste: null, keys: 24,
+            snapshot: null },
+          { charCount: 240, wordCount: 44, trigger: 'autosave', day: 1, hour: 12, min: 12, paste: null, keys: 8,
+            snapshot: null },
+          { charCount: 270, wordCount: 50, trigger: 'autosave', day: 1, hour: 12, min: 16, paste: null, keys: 35,
+            snapshot: tiptapDoc(['Dear Mayor Thompson,', 'I am writing to you about the lack of bike lanes on Main Street. As a student who rides my bike to school every day, I have seen how dangerous it can be. Cars pass too closely and there is nowhere safe to ride.', 'My friend was nearly hit by a car while biking to school.']) },
+          { charCount: 290, wordCount: 54, trigger: 'autosave', day: 1, hour: 12, min: 20, paste: null, keys: 24,
+            snapshot: null },
+          { charCount: 310, wordCount: 57, trigger: 'autosave', day: 1, hour: 12, min: 24, paste: null, keys: 24,
+            snapshot: null },
+          { charCount: 320, wordCount: 59, trigger: 'blur',     day: 1, hour: 12, min: 28, paste: null, keys: 14,
+            snapshot: tiptapDoc(['Dear Mayor Thompson,', 'I am writing to you about the lack of bike lanes on Main Street. As a student who rides my bike to school every day, I have seen how dangerous it can be. Cars pass too closely and there is nowhere safe to ride.', 'My friend was nearly hit by a car while biking to school. Adding protected bike lanes would make our streets safer for everyone, not just cyclists. Studies show that bike lanes also reduce traffic congestion and improve air quality.']) },
+
+          // Day 2: Short session (3:00–3:10 PM)
+          { charCount: 315, wordCount: 58, trigger: 'autosave', day: 2, hour: 15, min: 0,  paste: null, keys: 6,
+            snapshot: null },
+          { charCount: 325, wordCount: 60, trigger: 'blur',     day: 2, hour: 15, min: 10, paste: null, keys: 14,
+            snapshot: null },
+        ]
+        for (const step of steps) {
+          historyEntries.push({
+            assignment_doc_id: s1LetterDoc.id,
+            patch: null,
+            snapshot: step.snapshot,
+            word_count: step.wordCount,
+            char_count: step.charCount,
+            trigger: step.trigger,
+            created_at: torontoTime(baseDateMs, step.day, step.hour, step.min, step.sec),
+            paste_word_count: step.paste,
+            keystroke_count: step.keys,
+          })
+        }
+      }
+
+      if (historyEntries.length > 0) {
+        ensureOk(
+          await supabase.from('assignment_doc_history').insert(historyEntries),
+          'Insert assignment_doc_history'
+        )
+        console.log(`✓ Created ${historyEntries.length} history entries across 10 days\n`)
+      }
     }
   }
 

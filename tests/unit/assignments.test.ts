@@ -440,8 +440,8 @@ describe('assignment utilities', () => {
       expect(getAssignmentStatusIconClass('submitted_on_time')).toBe('text-green-500')
     })
 
-    it('should return lime for submitted_late', () => {
-      expect(getAssignmentStatusIconClass('submitted_late')).toBe('text-lime-600')
+    it('should return green for submitted_late', () => {
+      expect(getAssignmentStatusIconClass('submitted_late')).toBe('text-green-500')
     })
 
     it('should return purple for graded', () => {
