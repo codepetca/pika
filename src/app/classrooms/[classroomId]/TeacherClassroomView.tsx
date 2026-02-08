@@ -131,32 +131,46 @@ function getRowClassName(isSelected: boolean): string {
 }
 
 const STATUS_ICON_CLASS = 'h-4 w-4'
+const LATE_CLOCK_CLASS = 'h-3 w-3'
 
 function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: boolean }) {
   const colorClass = getAssignmentStatusIconClass(status)
   const cls = `${STATUS_ICON_CLASS} ${colorClass}`
-  const late = wasLate ? <Clock className="h-3 w-3" /> : null
 
+  // Determine if this status should show the late clock indicator.
+  // "late" statuses always show it; downstream statuses show it when wasLate is true.
+  const showLate =
+    status === 'in_progress_late' ||
+    status === 'submitted_late' ||
+    ((status === 'graded' || status === 'returned' || status === 'resubmitted') && wasLate)
+
+  // Pick the base icon for each status
+  let icon: React.ReactElement
   switch (status) {
     case 'not_started':
-      return <Circle className={cls} />
     case 'in_progress':
-      return <Circle className={cls} />
     case 'in_progress_late':
-      return <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><Circle className={STATUS_ICON_CLASS} /><Clock className="h-3 w-3" /></span>
+      icon = <Circle className={showLate ? `${STATUS_ICON_CLASS} ${colorClass}` : cls} />
+      break
     case 'submitted_on_time':
-      return <Check className={cls} />
     case 'submitted_late':
-      return <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><Check className={STATUS_ICON_CLASS} /><Clock className="h-3 w-3" /></span>
     case 'graded':
-      return late ? <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><Check className={STATUS_ICON_CLASS} />{late}</span> : <Check className={cls} />
+      icon = <Check className={showLate ? `${STATUS_ICON_CLASS} ${colorClass}` : cls} />
+      break
     case 'returned':
-      return late ? <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><Send className={STATUS_ICON_CLASS} />{late}</span> : <Send className={cls} />
+      icon = <Send className={showLate ? `${STATUS_ICON_CLASS} ${colorClass}` : cls} />
+      break
     case 'resubmitted':
-      return late ? <span className={`inline-flex items-center gap-0.5 ${colorClass}`}><RotateCcw className={STATUS_ICON_CLASS} />{late}</span> : <RotateCcw className={cls} />
+      icon = <RotateCcw className={showLate ? `${STATUS_ICON_CLASS} ${colorClass}` : cls} />
+      break
     default:
-      return <Circle className={cls} />
+      icon = <Circle className={cls} />
   }
+
+  if (showLate) {
+    return <span className={`inline-flex items-center gap-0.5 ${colorClass}`}>{icon}<Clock className={LATE_CLOCK_CLASS} /></span>
+  }
+  return icon
 }
 
 export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
@@ -841,7 +855,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
-                  {sortedStudents.map((student) => {
+                  {(() => {
+                    const dueAtMs = selectedAssignmentData ? new Date(selectedAssignmentData.assignment.due_at).getTime() : 0
+                    return sortedStudents.map((student) => {
                     const isSelected = selectedStudentId === student.student_id
                     const totalScore =
                       student.doc?.score_completion != null &&
@@ -849,6 +865,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       student.doc?.score_workflow != null
                         ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
                         : null
+                    const wasLate = !!(student.doc?.submitted_at && dueAtMs && new Date(student.doc.submitted_at).getTime() > dueAtMs)
                     return (
                     <DataTableRow
                       key={student.student_id}
@@ -887,10 +904,10 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       </DataTableCell>
                       <DataTableCell>
                         <Tooltip content={getAssignmentStatusLabel(student.status)}>
-                          <span className="inline-flex">
+                          <span className="inline-flex" aria-label={getAssignmentStatusLabel(student.status)}>
                             <StatusIcon
                               status={student.status}
-                              wasLate={!!(student.doc?.submitted_at && selectedAssignmentData && new Date(student.doc.submitted_at) > new Date(selectedAssignmentData.assignment.due_at))}
+                              wasLate={wasLate}
                             />
                           </span>
                         </Tooltip>
@@ -905,7 +922,8 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       )}
                     </DataTableRow>
                     )
-                  })}
+                  })
+                  })()}
                   {sortedStudents.length === 0 && (
                     <EmptyStateRow colSpan={isCompactTable ? 5 : 6} message="No students enrolled" />
                   )}
