@@ -17,6 +17,16 @@ vi.mock('@/ui', async (importOriginal) => {
   }
 })
 
+vi.mock('@/hooks/useClassDays', () => ({
+  useClassDaysContext: () => ({
+    classDays: [
+      { id: 'd1', classroom_id: 'c1', date: '2025-12-16', prompt_text: null, is_class_day: true },
+    ],
+    isLoading: false,
+    refresh: vi.fn(),
+  }),
+}))
+
 const classroom: Classroom = {
   id: 'c1',
   teacher_id: 't1',
@@ -81,19 +91,6 @@ describe('StudentTodayTab history section', () => {
   it('toggles history without refetching', async () => {
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/classrooms/${classroom.id}/class-days`)) {
-        return mockJson({
-          class_days: [
-            {
-              id: 'd1',
-              classroom_id: classroom.id,
-              date: '2025-12-16',
-              prompt_text: null,
-              is_class_day: true,
-            },
-          ],
-        })
-      }
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=5`)) {
         return mockJson({ entries })
       }
@@ -126,9 +123,6 @@ describe('StudentTodayTab history section', () => {
   it('persists toggle state via cookie', async () => {
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/classrooms/${classroom.id}/class-days`)) {
-        return mockJson({ class_days: [{ id: 'd1', classroom_id: classroom.id, date: '2025-12-16', prompt_text: null, is_class_day: true }] })
-      }
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}&limit=5`)) {
         return mockJson({ entries })
       }
@@ -160,9 +154,6 @@ describe('StudentTodayTab history section', () => {
 
     const fetchMock = vi.fn((input: RequestInfo) => {
       const url = String(input)
-      if (url.startsWith(`/api/classrooms/${classroom.id}/class-days`)) {
-        return mockJson({ class_days: [{ id: 'd1', classroom_id: classroom.id, date: '2025-12-16', prompt_text: null, is_class_day: true }] })
-      }
       if (url.startsWith(`/api/student/entries?`)) {
         return mockJson({ entries })
       }

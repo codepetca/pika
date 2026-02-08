@@ -164,6 +164,7 @@ function ClassroomPageContent({
   const prevSidebarOpenRef = useRef(false)
   const prevViewModeRef = useRef<AssignmentViewMode>('summary')
   const abortControllerRef = useRef<AbortController | null>(null)
+  const markdownStaleRef = useRef(true) // Start stale so first open loads
 
   const handleSelectEntry = useCallback((_entry: Entry | null, studentName: string, studentId: string | null) => {
     setSelectedStudentName(studentName)
@@ -216,6 +217,7 @@ function ClassroomPageContent({
       setHasRichContent(result.hasRichContent)
       setIsMarkdownMode(true)
       setRightSidebarWidth('50%')
+      markdownStaleRef.current = false
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         return
@@ -239,7 +241,7 @@ function ClassroomPageContent({
     const sidebarJustOpened = isRightSidebarOpen && !wasOpen
     const returnedToSummary = assignmentViewMode === 'summary' && wasViewMode === 'assignment'
 
-    if (assignmentViewMode === 'summary' && (sidebarJustOpened || (returnedToSummary && isRightSidebarOpen))) {
+    if (assignmentViewMode === 'summary' && (sidebarJustOpened || (returnedToSummary && isRightSidebarOpen)) && markdownStaleRef.current) {
       loadAssignmentsMarkdown()
     } else if (!isRightSidebarOpen && wasOpen) {
       setIsMarkdownMode(false)
@@ -251,6 +253,7 @@ function ClassroomPageContent({
     if (!isTeacher || activeTab !== 'assignments' || !isMarkdownMode) return
 
     const handleAssignmentsUpdated = () => {
+      markdownStaleRef.current = true
       loadAssignmentsMarkdown()
     }
 

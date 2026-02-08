@@ -38,53 +38,33 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
     end: classroom.end_date || format(endOfMonth(currentDate), 'yyyy-MM-dd'),
   }
 
-  // Fetch all lesson plans for the term once
+  // Fetch lesson plans, assignments, and announcements in parallel
   useEffect(() => {
-    async function loadLessonPlans() {
+    async function loadCalendarData() {
       setLoading(true)
       try {
-        const res = await fetch(
-          `/api/student/classrooms/${classroom.id}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`
-        )
-        const data = await res.json()
-        setLessonPlans(data.lesson_plans || [])
-        setMaxDate(data.max_date || null)
+        const [lessonPlansRes, assignmentsRes, announcementsRes] = await Promise.all([
+          fetch(`/api/student/classrooms/${classroom.id}/lesson-plans?start=${fetchRange.start}&end=${fetchRange.end}`),
+          fetch(`/api/student/assignments?classroom_id=${classroom.id}`),
+          fetch(`/api/student/classrooms/${classroom.id}/announcements`),
+        ])
+        const [lessonPlansData, assignmentsData, announcementsData] = await Promise.all([
+          lessonPlansRes.json(),
+          assignmentsRes.json(),
+          announcementsRes.json(),
+        ])
+        setLessonPlans(lessonPlansData.lesson_plans || [])
+        setMaxDate(lessonPlansData.max_date || null)
+        setAssignments(assignmentsData.assignments || [])
+        setAnnouncements(announcementsData.announcements || [])
       } catch (err) {
-        console.error('Error loading lesson plans:', err)
+        console.error('Error loading calendar data:', err)
       } finally {
         setLoading(false)
       }
     }
-    loadLessonPlans()
+    loadCalendarData()
   }, [classroom.id, fetchRange.start, fetchRange.end])
-
-  // Fetch assignments for the classroom
-  useEffect(() => {
-    async function loadAssignments() {
-      try {
-        const res = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
-        const data = await res.json()
-        setAssignments(data.assignments || [])
-      } catch (err) {
-        console.error('Error loading assignments:', err)
-      }
-    }
-    loadAssignments()
-  }, [classroom.id])
-
-  // Fetch announcements for the classroom
-  useEffect(() => {
-    async function loadAnnouncements() {
-      try {
-        const res = await fetch(`/api/student/classrooms/${classroom.id}/announcements`)
-        const data = await res.json()
-        setAnnouncements(data.announcements || [])
-      } catch (err) {
-        console.error('Error loading announcements:', err)
-      }
-    }
-    loadAnnouncements()
-  }, [classroom.id])
 
   // Handle assignment click - navigate to assignments tab with the assignment selected
   const handleAssignmentClick = useCallback(
