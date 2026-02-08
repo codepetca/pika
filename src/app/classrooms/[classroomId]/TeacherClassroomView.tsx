@@ -150,18 +150,18 @@ function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: b
     case 'not_started':
     case 'in_progress':
     case 'in_progress_late':
-      icon = <Circle className={showLate ? `${STATUS_ICON_CLASS} ${colorClass}` : cls} />
+      icon = <Circle className={cls} />
       break
     case 'submitted_on_time':
     case 'submitted_late':
     case 'graded':
-      icon = <Check className={showLate ? `${STATUS_ICON_CLASS} ${colorClass}` : cls} />
+      icon = <Check className={cls} />
       break
     case 'returned':
-      icon = <Send className={showLate ? `${STATUS_ICON_CLASS} ${colorClass}` : cls} />
+      icon = <Send className={cls} />
       break
     case 'resubmitted':
-      icon = <RotateCcw className={showLate ? `${STATUS_ICON_CLASS} ${colorClass}` : cls} />
+      icon = <RotateCcw className={cls} />
       break
     default:
       icon = <Circle className={cls} />
@@ -465,6 +465,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   }, [selectedAssignmentData, sortColumn, sortDirection])
 
   const studentRowIds = useMemo(() => sortedStudents.map((s) => s.student_id), [sortedStudents])
+  const dueAtMs = useMemo(() => selectedAssignmentData ? new Date(selectedAssignmentData.assignment.due_at).getTime() : 0, [selectedAssignmentData])
   const {
     selectedIds: batchSelectedIds,
     toggleSelect: batchToggleSelect,
@@ -855,9 +856,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
-                  {(() => {
-                    const dueAtMs = selectedAssignmentData ? new Date(selectedAssignmentData.assignment.due_at).getTime() : 0
-                    return sortedStudents.map((student) => {
+                  {sortedStudents.map((student) => {
                     const isSelected = selectedStudentId === student.student_id
                     const totalScore =
                       student.doc?.score_completion != null &&
@@ -904,7 +903,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       </DataTableCell>
                       <DataTableCell>
                         <Tooltip content={getAssignmentStatusLabel(student.status)}>
-                          <span className="inline-flex" aria-label={getAssignmentStatusLabel(student.status)}>
+                          <span className="inline-flex" role="img" aria-label={getAssignmentStatusLabel(student.status)}>
                             <StatusIcon
                               status={student.status}
                               wasLate={wasLate}
@@ -922,8 +921,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       )}
                     </DataTableRow>
                     )
-                  })
-                  })()}
+                  })}
                   {sortedStudents.length === 0 && (
                     <EmptyStateRow colSpan={isCompactTable ? 5 : 6} message="No students enrolled" />
                   )}
