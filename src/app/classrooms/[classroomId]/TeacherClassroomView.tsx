@@ -18,9 +18,8 @@ import {
 } from '@dnd-kit/sortable'
 import {
   Check,
-  CheckCircle,
   Circle,
-  ClockAlert,
+  Clock,
   Pencil,
   Plus,
   RotateCcw,
@@ -132,30 +131,46 @@ function getRowClassName(isSelected: boolean): string {
 }
 
 const STATUS_ICON_CLASS = 'h-4 w-4'
+const LATE_CLOCK_CLASS = 'h-3 w-3'
 
-function StatusIcon({ status }: { status: AssignmentStatus }) {
+function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: boolean }) {
   const colorClass = getAssignmentStatusIconClass(status)
   const cls = `${STATUS_ICON_CLASS} ${colorClass}`
+
+  // Determine if this status should show the late clock indicator.
+  // "late" statuses always show it; downstream statuses show it when wasLate is true.
+  const showLate =
+    status === 'in_progress_late' ||
+    status === 'submitted_late' ||
+    ((status === 'graded' || status === 'returned' || status === 'resubmitted') && wasLate)
+
+  // Pick the base icon for each status
+  let icon: React.ReactElement
   switch (status) {
     case 'not_started':
-      return <Circle className={cls} />
     case 'in_progress':
-      return <Pencil className={cls} />
     case 'in_progress_late':
-      return <ClockAlert className={cls} />
+      icon = <Circle className={cls} />
+      break
     case 'submitted_on_time':
-      return <CheckCircle className={cls} />
     case 'submitted_late':
-      return <ClockAlert className={cls} />
     case 'graded':
-      return <Check className={cls} />
+      icon = <Check className={cls} />
+      break
     case 'returned':
-      return <Send className={cls} />
+      icon = <Send className={cls} />
+      break
     case 'resubmitted':
-      return <RotateCcw className={cls} />
+      icon = <RotateCcw className={cls} />
+      break
     default:
-      return <Circle className={cls} />
+      icon = <Circle className={cls} />
   }
+
+  if (showLate) {
+    return <span className={`inline-flex items-center gap-0.5 ${colorClass}`}>{icon}<Clock className={LATE_CLOCK_CLASS} /></span>
+  }
+  return icon
 }
 
 export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
@@ -450,6 +465,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   }, [selectedAssignmentData, sortColumn, sortDirection])
 
   const studentRowIds = useMemo(() => sortedStudents.map((s) => s.student_id), [sortedStudents])
+  const dueAtMs = useMemo(() => selectedAssignmentData ? new Date(selectedAssignmentData.assignment.due_at).getTime() : 0, [selectedAssignmentData])
   const {
     selectedIds: batchSelectedIds,
     toggleSelect: batchToggleSelect,
@@ -848,6 +864,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       student.doc?.score_workflow != null
                         ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
                         : null
+                    const wasLate = !!(student.doc?.submitted_at && dueAtMs && new Date(student.doc.submitted_at).getTime() > dueAtMs)
                     return (
                     <DataTableRow
                       key={student.student_id}
@@ -886,8 +903,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       </DataTableCell>
                       <DataTableCell>
                         <Tooltip content={getAssignmentStatusLabel(student.status)}>
-                          <span className="inline-flex">
-                            <StatusIcon status={student.status} />
+                          <span className="inline-flex" role="img" aria-label={getAssignmentStatusLabel(student.status)}>
+                            <StatusIcon
+                              status={student.status}
+                              wasLate={wasLate}
+                            />
                           </span>
                         </Tooltip>
                       </DataTableCell>

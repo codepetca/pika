@@ -99,7 +99,7 @@ export async function GET(
 
     const { data: history, error: historyError } = await supabase
       .from('assignment_doc_history')
-      .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, trigger, created_at')
+      .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at')
       .eq('assignment_doc_id', doc.id)
       .order('created_at', { ascending: false })
 
