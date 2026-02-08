@@ -7,6 +7,7 @@ import { RichTextEditor } from '@/components/editor'
 import { ACTIONBAR_ICON_BUTTON_CLASSNAME, PageContent, PageLayout } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
+import { useClassDaysContext } from '@/hooks/useClassDays'
 import { format, parseISO } from 'date-fns'
 import { ChevronDown } from 'lucide-react'
 import {
@@ -23,7 +24,7 @@ import {
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
-import type { Classroom, ClassDay, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
+import type { Classroom, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 
@@ -54,6 +55,7 @@ interface StudentTodayTabProps {
 
 export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTabProps) {
   const notifications = useStudentNotifications()
+  const { classDays } = useClassDaysContext()
 
   // Constants
   const historyLimit = 5
@@ -65,7 +67,6 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
   // State
   const [loading, setLoading] = useState(true)
   const [today, setToday] = useState('')
-  const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
   const [historyVisible, setHistoryVisible] = useState<boolean>(() =>
@@ -97,11 +98,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
         })
         const cached = safeSessionGetJson<Entry[]>(historyCacheKey)
 
-        const classDayPromise = fetch(`/api/classrooms/${classroom.id}/class-days`)
-          .then(r => r.json())
-          .then(data => setClassDays(data.class_days || []))
-
-        // Fetch today's lesson plan
+        // Fetch today's lesson plan (class days come from context)
         const lessonPlanPromise = fetch(
           `/api/student/classrooms/${classroom.id}/lesson-plans?start=${todayDate}&end=${todayDate}`
         )
@@ -131,7 +128,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
           setHistoryEntries(cached)
           const todayEntry = cached.find((e: Entry) => e.date === todayDate) || null
           applyEntryState(todayEntry)
-          await Promise.all([classDayPromise, lessonPlanPromise])
+          await lessonPlanPromise
           return
         }
 
@@ -147,7 +144,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
             applyEntryState(todayEntry)
           })
 
-        await Promise.all([classDayPromise, entriesPromise, lessonPlanPromise])
+        await Promise.all([entriesPromise, lessonPlanPromise])
       } catch (err) {
         console.error('Error loading today tab:', err)
       } finally {
