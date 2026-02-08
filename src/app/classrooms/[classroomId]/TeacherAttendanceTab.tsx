@@ -8,6 +8,7 @@ import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
+import { useClassDaysContext } from '@/hooks/useClassDays'
 import { Tooltip } from '@/ui'
 import type { AttendanceStatus } from '@/types'
 import {
@@ -24,7 +25,7 @@ import {
 } from '@/components/DataTable'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
-import type { ClassDay, Classroom, Entry } from '@/types'
+import type { Classroom, Entry } from '@/types'
 
 type SortColumn = 'first_name' | 'last_name' | 'id'
 
@@ -43,7 +44,7 @@ interface Props {
 }
 
 export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
-  const [classDays, setClassDays] = useState<ClassDay[]>([])
+  const { classDays, isLoading: classDaysLoading } = useClassDaysContext()
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string>('')
@@ -53,26 +54,15 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     direction: 'asc' | 'desc'
   }>({ column: 'last_name', direction: 'asc' })
 
+  // Set initial date once class days are loaded from context
   useEffect(() => {
-    async function load() {
-      setLoading(true)
-      try {
-        const classDaysRes = await fetch(`/api/classrooms/${classroom.id}/class-days`)
-        const classDaysData = await classDaysRes.json()
-        const nextClassDays: ClassDay[] = classDaysData.class_days || []
-        setClassDays(nextClassDays)
-
-        const today = getTodayInToronto()
-        const previousClassDay = getMostRecentClassDayBefore(nextClassDays, today)
-        setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
-      } catch (err) {
-        console.error('Error loading attendance tab:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [classroom.id])
+    if (classDaysLoading) return
+    if (selectedDate) return // Already initialized
+    const today = getTodayInToronto()
+    const previousClassDay = getMostRecentClassDayBefore(classDays, today)
+    setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
+    setLoading(false)
+  }, [classDaysLoading, classDays, selectedDate])
 
   // Fetch logs when date changes
   useEffect(() => {

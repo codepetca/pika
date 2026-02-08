@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -37,6 +38,8 @@ export function StudentNotificationsProvider({
   const [activeQuizzesCount, setActiveQuizzesCount] = useState(0)
   const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const lastFetchRef = useRef(0)
+  const FOCUS_COOLDOWN_MS = 30_000
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -50,6 +53,7 @@ export function StudentNotificationsProvider({
       setUnviewedAssignmentsCount(data.unviewedAssignmentsCount)
       setActiveQuizzesCount(data.activeQuizzesCount ?? 0)
       setUnreadAnnouncementsCount(data.unreadAnnouncementsCount ?? 0)
+      lastFetchRef.current = Date.now()
     } catch (error) {
       console.error('Error fetching notifications:', error)
     } finally {
@@ -61,14 +65,15 @@ export function StudentNotificationsProvider({
     fetchNotifications()
   }, [fetchNotifications])
 
-  // Refresh notifications when window regains focus (handles tab switches, etc.)
+  // Refresh notifications when window regains focus, with cooldown
   useEffect(() => {
     const onFocus = () => {
+      if (Date.now() - lastFetchRef.current < FOCUS_COOLDOWN_MS) return
       fetchNotifications()
     }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [fetchNotifications])
+  }, [fetchNotifications, FOCUS_COOLDOWN_MS])
 
   const refresh = useCallback(async () => {
     setLoading(true)

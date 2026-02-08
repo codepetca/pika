@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Copy } from 'lucide-react'
 import { Button, Tooltip } from '@/ui'
+import { useClassDaysContext } from '@/hooks/useClassDays'
 import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -15,8 +16,9 @@ interface Props {
 
 export function TeacherCalendarTab({ classroom }: Props) {
   const isReadOnly = !!classroom.archived_at
-  const [loading, setLoading] = useState(true)
+  const { classDays: contextClassDays, isLoading: contextLoading } = useClassDaysContext()
   const [classDays, setClassDays] = useState<ClassDay[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const [success, setSuccess] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
@@ -24,27 +26,13 @@ export function TeacherCalendarTab({ classroom }: Props) {
   const [saving, setSaving] = useState(false)
   const [copyNotice, setCopyNotice] = useState<string>('')
 
-  async function load() {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch(`/api/classrooms/${classroom.id}/class-days`)
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to load class days')
-      }
-      setClassDays(data.class_days || [])
-    } catch (err: any) {
-      setError(err.message || 'Failed to load class days')
-    } finally {
+  // Sync from shared context (used for initial load and after event-driven refreshes)
+  useEffect(() => {
+    if (!contextLoading) {
+      setClassDays(contextClassDays)
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classroom.id])
+  }, [contextClassDays, contextLoading])
 
   const isInitialized = classDays.length > 0
 
@@ -97,8 +85,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
         throw new Error(data.error || 'Failed to generate class days')
       }
       setSuccess(`Generated ${data.count ?? 0} class days.`)
-      await load()
-      // Notify other components (e.g., calendar) that class days changed
+      // Notify context and other components to refresh class days
       window.dispatchEvent(new CustomEvent(CLASS_DAYS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     } catch (err: any) {
       setError(err.message || 'Failed to generate class days')

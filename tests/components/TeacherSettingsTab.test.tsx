@@ -139,7 +139,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     })
   })
 
-  it('calls router.refresh() after successful save', async () => {
+  it('does not call router.refresh() after successful save (#304)', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -153,8 +153,9 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     fireEvent.blur(input)
 
     await waitFor(() => {
-      expect(mockRefresh).toHaveBeenCalledTimes(1)
+      expect(screen.getByText('Course name updated.')).toBeInTheDocument()
     })
+    expect(mockRefresh).not.toHaveBeenCalled()
   })
 
   it('shows error message on API failure', async () => {

@@ -75,7 +75,6 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
 
   function handleQuizCreated() {
     setShowModal(false)
-    loadQuizzes()
     window.dispatchEvent(
       new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
     )
@@ -93,7 +92,6 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
       if (selectedQuizId === deleteQuiz.quiz.id) {
         setSelectedQuizId(null)
       }
-      loadQuizzes()
       window.dispatchEvent(
         new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
       )
