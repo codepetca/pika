@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState, useId } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Info } from 'lucide-react'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -24,7 +24,6 @@ interface Props {
 }
 
 export function TeacherSettingsTab({ classroom }: Props) {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const sectionParam = searchParams.get('section')
   const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
@@ -99,7 +98,6 @@ export function TeacherSettingsTab({ classroom }: Props) {
       setTitle(data.classroom?.title || trimmed)
       setTitleSuccess('Course name updated.')
       setTimeout(() => setTitleSuccess(''), 2000)
-      router.refresh()
     } catch (err: any) {
       setTitleError(err.message || 'Failed to update course name')
     } finally {
