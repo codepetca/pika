@@ -27,7 +27,7 @@ import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import type { Classroom, Entry } from '@/types'
 
-type SortColumn = 'first_name' | 'last_name' | 'id'
+type SortColumn = 'first_name' | 'last_name' | 'id' | 'status'
 
 interface LogRow {
   student_id: string
@@ -116,6 +116,21 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
 
   const rows = useMemo(() => {
     return [...logs].sort((a, b) => {
+      if (sortColumn === 'status') {
+        const rankOf = (row: LogRow) => {
+          if (row.entry && entryHasContent(row.entry)) return 0 // present
+          if (selectedDate >= today) return 1 // pending
+          return 2 // absent
+        }
+        const cmp = rankOf(a) - rankOf(b)
+        if (cmp !== 0) return applyDirection(cmp, sortDirection)
+        return compareByNameFields(
+          { firstName: a.student_first_name, lastName: a.student_last_name, id: a.email_username },
+          { firstName: b.student_first_name, lastName: b.student_last_name, id: b.email_username },
+          'last_name',
+          sortDirection
+        )
+      }
       if (sortColumn === 'id') {
         return applyDirection(a.email_username.localeCompare(b.email_username), sortDirection)
       }
@@ -126,7 +141,7 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
         sortDirection
       )
     })
-  }, [logs, sortColumn, sortDirection])
+  }, [logs, sortColumn, sortDirection, selectedDate, today])
 
   const { presentCount, absentCount } = useMemo(() => {
     let present = 0
@@ -237,16 +252,20 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                   onClick={() => handleSort('id')}
                   density="tight"
                 />
-                <DataTableHeaderCell density="tight" align="center">
-                  {isClassDay ? (
-                    <div className="flex items-center justify-center gap-2">
+                <SortableHeaderCell
+                  label={isClassDay ? '' : 'Status'}
+                  isActive={sortColumn === 'status'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('status')}
+                  density="tight"
+                  align="center"
+                  trailing={isClassDay ? (
+                    <div className="flex items-center gap-2">
                       <CountBadge count={presentCount} tooltip="Present" variant="success" />
                       <CountBadge count={absentCount} tooltip="Absent" variant="danger" />
                     </div>
-                  ) : (
-                    'Status'
-                  )}
-                </DataTableHeaderCell>
+                  ) : undefined}
+                />
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
