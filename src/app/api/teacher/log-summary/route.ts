@@ -9,6 +9,7 @@ import {
   callOpenAIForSummary,
   restoreNames,
   getSummaryModel,
+  type RawSummaryResponse,
 } from '@/lib/log-summary'
 import type { TiptapContent } from '@/types'
 
@@ -116,18 +117,24 @@ export async function GET(request: NextRequest) {
       (!maxUpdatedAt || !cached.entries_updated_at || cached.entries_updated_at >= maxUpdatedAt)
 
     if (isCacheFresh) {
-      const restoredItems = restoreNames(
-        (cached.summary_items as any[]).map((item: any) => ({
-          text: String(item.text || ''),
-          type: String(item.type || 'reflection'),
-          initials: String(item.initials || ''),
-        })),
+      const rawItems = cached.summary_items as any
+      const rawSummary: RawSummaryResponse = {
+        overview: String(rawItems.overview || ''),
+        action_items: Array.isArray(rawItems.action_items)
+          ? rawItems.action_items.map((item: any) => ({
+              text: String(item.text || ''),
+              initials: String(item.initials || ''),
+            }))
+          : [],
+      }
+      const restored = restoreNames(
+        rawSummary,
         cached.initials_map as Record<string, string>
       )
 
       return NextResponse.json({
         summary: {
-          items: restoredItems,
+          ...restored,
           generated_at: cached.generated_at,
         },
       })
@@ -228,15 +235,17 @@ async function generateSummary(
 
   // Call OpenAI
   const { system, user } = buildSummaryPrompt(date, sanitizedLogs)
-  const rawItems = await callOpenAIForSummary(system, user)
-  const restoredItems = restoreNames(rawItems, initialsMap)
+  const rawResponse = await callOpenAIForSummary(system, user)
+  const restored = restoreNames(rawResponse, initialsMap)
 
-  // Store raw items (with initials) for cache, alongside initials_map for restoration
-  const summaryItemsForStorage = rawItems.map((item) => ({
-    text: item.text,
-    type: item.type,
-    initials: item.initials,
-  }))
+  // Store raw response (with initials) for cache
+  const summaryItemsForStorage = {
+    overview: rawResponse.overview,
+    action_items: rawResponse.action_items.map((item) => ({
+      text: item.text,
+      initials: item.initials,
+    })),
+  }
 
   const model = getSummaryModel()
   const now = new Date().toISOString()
@@ -261,7 +270,7 @@ async function generateSummary(
   }
 
   return {
-    items: restoredItems,
+    ...restored,
     generated_at: now,
   }
 }

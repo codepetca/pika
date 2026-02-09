@@ -2,26 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import type { LogSummaryItem } from '@/types'
+import type { LogSummaryActionItem } from '@/types'
 
 interface LogSummaryProps {
   classroomId: string
   date: string
+  onStudentClick?: (studentName: string) => void
 }
 
 interface SummaryData {
-  items: LogSummaryItem[]
+  overview: string
+  action_items: LogSummaryActionItem[]
   generated_at: string
 }
 
-const TYPE_CONFIG: Record<LogSummaryItem['type'], { label: string; className: string }> = {
-  question: { label: 'Question', className: 'bg-info-bg text-info' },
-  suggestion: { label: 'Suggestion', className: 'bg-success-bg text-success' },
-  concern: { label: 'Concern', className: 'bg-warning-bg text-warning' },
-  reflection: { label: 'Reflection', className: 'bg-surface-hover text-text-muted' },
-}
-
-export function LogSummary({ classroomId, date }: LogSummaryProps) {
+export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProps) {
   const [summary, setSummary] = useState<SummaryData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -90,36 +85,51 @@ export function LogSummary({ classroomId, date }: LogSummaryProps) {
     )
   }
 
-  if (summary.items.length === 0) {
-    return (
-      <div className="p-4">
-        <p className="text-sm text-text-muted">
-          No notable items found in student logs.
-        </p>
-      </div>
-    )
-  }
-
   return (
-    <div className="p-4 space-y-3">
-      <ul className="space-y-2">
-        {summary.items.map((item, index) => {
-          const config = TYPE_CONFIG[item.type] || TYPE_CONFIG.reflection
-          return (
-            <li key={index} className="flex gap-2 text-sm">
-              <span
-                className={`inline-flex items-center shrink-0 px-1.5 py-0.5 rounded text-xs font-medium ${config.className}`}
-              >
-                {config.label}
-              </span>
-              <span className="text-text-default">
-                <span className="font-medium">{item.studentName}:</span>{' '}
-                {item.text}
-              </span>
-            </li>
-          )
-        })}
-      </ul>
+    <div className="p-4 space-y-4">
+      {summary.overview && (
+        <p className="text-sm text-text-default leading-relaxed">
+          {summary.overview}
+        </p>
+      )}
+
+      {summary.action_items.length > 0 && (
+        <div>
+          <h4 className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">
+            Needs Attention
+          </h4>
+          <ul className="space-y-1.5">
+            {summary.action_items.map((item, index) => {
+              // The text starts with the student name — make it clickable
+              const startsWithName = item.text.startsWith(item.studentName)
+              const restOfText = startsWithName
+                ? item.text.slice(item.studentName.length)
+                : item.text
+
+              return (
+                <li key={index} className="text-sm text-text-default">
+                  <span className="text-warning mr-1.5">&#x25CF;</span>
+                  {startsWithName && onStudentClick ? (
+                    <>
+                      <button
+                        type="button"
+                        className="font-medium text-primary hover:underline"
+                        onClick={() => onStudentClick(item.studentName)}
+                      >
+                        {item.studentName}
+                      </button>
+                      {restOfText}
+                    </>
+                  ) : (
+                    item.text
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
       <p className="text-xs text-text-muted pt-2 border-t border-border">
         Generated {new Date(summary.generated_at).toLocaleString()}
       </p>

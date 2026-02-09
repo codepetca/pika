@@ -139,18 +139,17 @@ describe('buildSummaryPrompt', () => {
     ]
     const { system, user } = buildSummaryPrompt('2025-01-15', logs)
     expect(system).toContain('teaching assistant')
-    expect(system).toContain('JSON array')
+    expect(system).toContain('overview')
+    expect(system).toContain('action_items')
     expect(user).toContain('2025-01-15')
     expect(user).toContain('[J.S.]: I worked on the project.')
     expect(user).toContain('[A.B.]: I had trouble with the assignment.')
   })
 
-  it('includes all required type tags in system prompt', () => {
+  it('mentions teacher attention in system prompt', () => {
     const { system } = buildSummaryPrompt('2025-01-15', [])
-    expect(system).toContain('question')
-    expect(system).toContain('suggestion')
-    expect(system).toContain('concern')
-    expect(system).toContain('reflection')
+    expect(system).toContain('teacher attention')
+    expect(system).toContain('struggling')
   })
 })
 
@@ -160,42 +159,36 @@ describe('restoreNames', () => {
     'A.B.': 'Alice Brown',
   }
 
-  it('replaces initials in text with full names', () => {
-    const items = [
-      { text: 'J.S. asked about the homework deadline.', type: 'question', initials: 'J.S.' },
-    ]
-    const result = restoreNames(items, initialsMap)
-    expect(result).toEqual([
-      {
-        text: 'John Smith asked about the homework deadline.',
-        type: 'question',
-        studentName: 'John Smith',
-      },
-    ])
+  it('replaces initials in overview with full names', () => {
+    const raw = {
+      overview: 'J.S. and A.B. are doing well.',
+      action_items: [],
+    }
+    const result = restoreNames(raw, initialsMap)
+    expect(result.overview).toBe('John Smith and Alice Brown are doing well.')
   })
 
-  it('maps studentName from initials', () => {
-    const items = [
-      { text: 'Showed great progress.', type: 'reflection', initials: 'A.B.' },
-    ]
-    const result = restoreNames(items, initialsMap)
-    expect(result[0].studentName).toBe('Alice Brown')
+  it('replaces initials in action item text', () => {
+    const raw = {
+      overview: 'Students are doing well.',
+      action_items: [
+        { text: 'J.S. needs help with fractions.', initials: 'J.S.' },
+      ],
+    }
+    const result = restoreNames(raw, initialsMap)
+    expect(result.action_items[0].text).toBe('John Smith needs help with fractions.')
+    expect(result.action_items[0].studentName).toBe('John Smith')
   })
 
   it('falls back to initials for unknown mappings', () => {
-    const items = [
-      { text: 'Unknown student.', type: 'concern', initials: 'X.Y.' },
-    ]
-    const result = restoreNames(items, initialsMap)
-    expect(result[0].studentName).toBe('X.Y.')
-  })
-
-  it('defaults invalid type to reflection', () => {
-    const items = [
-      { text: 'Some text.', type: 'invalid_type', initials: 'J.S.' },
-    ]
-    const result = restoreNames(items, initialsMap)
-    expect(result[0].type).toBe('reflection')
+    const raw = {
+      overview: 'Students are fine.',
+      action_items: [
+        { text: 'Unknown student issue.', initials: 'X.Y.' },
+      ],
+    }
+    const result = restoreNames(raw, initialsMap)
+    expect(result.action_items[0].studentName).toBe('X.Y.')
   })
 
   it('handles collision initials without corruption (J.S.1 vs J.S.)', () => {
@@ -203,12 +196,25 @@ describe('restoreNames', () => {
       'J.S.1': 'John Smith',
       'J.S.2': 'Jane Saunders',
     }
-    const items = [
-      { text: 'J.S.1 and J.S.2 worked together.', type: 'reflection', initials: 'J.S.1' },
-    ]
-    const result = restoreNames(items, collisionMap)
-    expect(result[0].text).toBe('John Smith and Jane Saunders worked together.')
-    expect(result[0].studentName).toBe('John Smith')
+    const raw = {
+      overview: 'J.S.1 and J.S.2 worked together.',
+      action_items: [
+        { text: 'J.S.1 needs more practice.', initials: 'J.S.1' },
+      ],
+    }
+    const result = restoreNames(raw, collisionMap)
+    expect(result.overview).toBe('John Smith and Jane Saunders worked together.')
+    expect(result.action_items[0].text).toBe('John Smith needs more practice.')
+    expect(result.action_items[0].studentName).toBe('John Smith')
+  })
+
+  it('returns empty action_items when none provided', () => {
+    const raw = {
+      overview: 'Everyone is doing well.',
+      action_items: [],
+    }
+    const result = restoreNames(raw, initialsMap)
+    expect(result.action_items).toEqual([])
   })
 })
 
@@ -232,9 +238,12 @@ describe('callOpenAIForSummary', () => {
   })
 
   it('calls OpenAI and parses JSON response', async () => {
-    const mockResponse = [
-      { text: 'Student asked about deadline.', type: 'question', initials: 'J.S.' },
-    ]
+    const mockResponse = {
+      overview: 'Students are doing well overall.',
+      action_items: [
+        { text: 'J.S. asked about deadline.', initials: 'J.S.' },
+      ],
+    }
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
@@ -242,11 +251,17 @@ describe('callOpenAIForSummary', () => {
     } as Response)
 
     const result = await callOpenAIForSummary('system prompt', 'user prompt')
-    expect(result).toEqual(mockResponse)
+    expect(result.overview).toBe('Students are doing well overall.')
+    expect(result.action_items).toEqual([
+      { text: 'J.S. asked about deadline.', initials: 'J.S.' },
+    ])
   })
 
   it('handles markdown code block in response', async () => {
-    const mockResponse = [{ text: 'Test.', type: 'reflection', initials: 'A.B.' }]
+    const mockResponse = {
+      overview: 'Test overview.',
+      action_items: [],
+    }
     const wrappedResponse = '```json\n' + JSON.stringify(mockResponse) + '\n```'
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -255,7 +270,8 @@ describe('callOpenAIForSummary', () => {
     } as Response)
 
     const result = await callOpenAIForSummary('system', 'user')
-    expect(result).toEqual(mockResponse)
+    expect(result.overview).toBe('Test overview.')
+    expect(result.action_items).toEqual([])
   })
 
   it('throws on non-OK response', async () => {
@@ -281,14 +297,14 @@ describe('callOpenAIForSummary', () => {
     ).rejects.toThrow('Failed to parse summary response as JSON')
   })
 
-  it('throws when response is not an array', async () => {
+  it('throws when response is an array instead of object', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ output_text: '{"text": "not an array"}' }),
+      json: async () => ({ output_text: '[{"text": "item"}]' }),
     } as Response)
 
     await expect(
       callOpenAIForSummary('system', 'user')
-    ).rejects.toThrow('Expected JSON array from OpenAI summary response')
+    ).rejects.toThrow('Expected JSON object with overview and action_items')
   })
 })

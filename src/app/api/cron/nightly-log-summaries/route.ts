@@ -168,13 +168,15 @@ async function generateSummaryForClassroom(
   }
 
   const { system, user } = buildSummaryPrompt(date, sanitizedLogs)
-  const rawItems = await callOpenAIForSummary(system, user)
+  const rawResponse = await callOpenAIForSummary(system, user)
 
-  const summaryItemsForStorage = rawItems.map((item) => ({
-    text: item.text,
-    type: item.type,
-    initials: item.initials,
-  }))
+  const summaryItemsForStorage = {
+    overview: rawResponse.overview,
+    action_items: rawResponse.action_items.map((item) => ({
+      text: item.text,
+      initials: item.initials,
+    })),
+  }
 
   const model = getSummaryModel()
 

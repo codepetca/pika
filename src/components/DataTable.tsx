@@ -198,6 +198,7 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
   rowKeys,
   selectedKey,
   onSelectKey,
+  onDeselect,
   wrap = true,
 }: {
   children: ReactNode
@@ -207,11 +208,19 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
   selectedKey: K | null
   /** Callback when selection changes */
   onSelectKey: (key: K) => void
+  /** Callback when selection is cleared (Escape key) */
+  onDeselect?: () => void
   /** Whether to wrap around at the ends (default: true) */
   wrap?: boolean
 }, ref: Ref<HTMLDivElement>) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Escape' && selectedKey && onDeselect) {
+        e.preventDefault()
+        onDeselect()
+        return
+      }
+
       if (rowKeys.length === 0) return
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
 
@@ -243,7 +252,7 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
         onSelectKey(rowKeys[nextIndex])
       }
     },
-    [rowKeys, selectedKey, onSelectKey, wrap]
+    [rowKeys, selectedKey, onSelectKey, onDeselect, wrap]
   )
 
   return (
@@ -261,6 +270,7 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
   rowKeys: K[]
   selectedKey: K | null
   onSelectKey: (key: K) => void
+  onDeselect?: () => void
   wrap?: boolean
   ref?: Ref<HTMLDivElement>
 }) => ReactNode

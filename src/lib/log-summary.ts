@@ -1,4 +1,4 @@
-import type { LogSummaryItem } from '@/types'
+import type { LogSummaryActionItem } from '@/types'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
 
@@ -95,18 +95,18 @@ export function buildSummaryPrompt(
   date: string,
   sanitizedLogs: { initials: string; text: string }[]
 ): { system: string; user: string } {
-  const system = `You are a teaching assistant summarizing student daily logs. Analyze the logs and produce a JSON array of summary items. Each item has:
-- "text": a concise summary point (1-2 sentences)
-- "type": one of "question", "suggestion", "concern", or "reflection"
-- "initials": the student's initials this item relates to
+  const system = `You are a teaching assistant. Summarize student daily logs for a teacher as a JSON object:
 
-Tags:
-- "question": student asked a question or expressed confusion
-- "suggestion": student suggested something or had a creative idea
-- "concern": student expressed frustration, difficulty, or something the teacher should follow up on
-- "reflection": notable insight, progress, or positive observation
+1. "overview": 1-2 sentences on how students are generally doing. Be brief — capture overall sentiment and themes only.
 
-Respond with ONLY valid JSON: an array of objects. No markdown, no code blocks, no extra text.`
+2. "action_items": Things needing teacher attention. Each has:
+   - "text": a short note starting with the student's initials, e.g. "J.S. needs help with fractions"
+   - "initials": the student's initials
+
+Only flag things the teacher should act on: students struggling, unanswered questions, or reported issues. Empty array if none.
+Do not repeat action items in the overview.
+
+Respond with ONLY valid JSON. No markdown, no code blocks.`
 
   const logEntries = sanitizedLogs
     .map((log) => `[${log.initials}]: ${log.text}`)
@@ -120,6 +120,11 @@ ${logEntries}`
   return { system, user }
 }
 
+export interface RawSummaryResponse {
+  overview: string
+  action_items: { text: string; initials: string }[]
+}
+
 /**
  * Call the OpenAI API to generate a log summary.
  * Follows the same pattern as ai-grading.ts.
@@ -127,7 +132,7 @@ ${logEntries}`
 export async function callOpenAIForSummary(
   systemPrompt: string,
   userPrompt: string
-): Promise<{ text: string; type: string; initials: string }[]> {
+): Promise<RawSummaryResponse> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured')
@@ -183,45 +188,52 @@ export async function callOpenAIForSummary(
     )
   }
 
-  if (!Array.isArray(parsed)) {
-    throw new Error('Expected JSON array from OpenAI summary response')
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('Expected JSON object with overview and action_items')
   }
 
-  return parsed.map((item: any) => ({
-    text: String(item.text || ''),
-    type: String(item.type || 'reflection'),
-    initials: String(item.initials || ''),
-  }))
+  const obj = parsed as Record<string, unknown>
+
+  return {
+    overview: String(obj.overview || ''),
+    action_items: Array.isArray(obj.action_items)
+      ? obj.action_items.map((item: any) => ({
+          text: String(item.text || ''),
+          initials: String(item.initials || ''),
+        }))
+      : [],
+  }
 }
 
 /**
- * Replace initials back to full student names in the summary items.
+ * Replace initials with full student names in overview text and action items.
  */
 export function restoreNames(
-  items: { text: string; type: string; initials: string }[],
+  raw: RawSummaryResponse,
   initialsMap: Record<string, string>
-): LogSummaryItem[] {
+): { overview: string; action_items: LogSummaryActionItem[] } {
   // Sort by initials length descending so "J.S.1" is replaced before "J.S."
   const sortedEntries = Object.entries(initialsMap).sort(
     ([a], [b]) => b.length - a.length
   )
 
-  return items.map((item) => {
-    let text = item.text
-    // Replace all initials in the text with full names
+  function replaceInitials(text: string): string {
+    let result = text
     for (const [initials, fullName] of sortedEntries) {
       const escaped = escapeRegExp(initials)
-      text = text.replace(new RegExp(escaped, 'g'), fullName)
+      result = result.replace(new RegExp(escaped, 'g'), fullName)
     }
+    return result
+  }
 
-    const studentName = initialsMap[item.initials] || item.initials
-    const validTypes = ['question', 'suggestion', 'concern', 'reflection'] as const
-    const type = validTypes.includes(item.type as any)
-      ? (item.type as LogSummaryItem['type'])
-      : 'reflection'
+  const overview = replaceInitials(raw.overview)
 
-    return { text, type, studentName }
-  })
+  const action_items = raw.action_items.map((item) => ({
+    text: replaceInitials(item.text),
+    studentName: initialsMap[item.initials] || item.initials,
+  }))
+
+  return { overview, action_items }
 }
 
 function getOpenAIKey(): string | null {

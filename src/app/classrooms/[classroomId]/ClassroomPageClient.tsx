@@ -7,7 +7,7 @@ import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type Assignmen
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
-import { TeacherAttendanceTab } from './TeacherAttendanceTab'
+import { TeacherAttendanceTab, type TeacherAttendanceTabHandle } from './TeacherAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
@@ -122,6 +122,7 @@ function ClassroomPageContent({
 
   // State for attendance date (teacher attendance tab)
   const [attendanceDate, setAttendanceDate] = useState<string>('')
+  const attendanceTabRef = useRef<TeacherAttendanceTabHandle>(null)
 
   // State for selected student log (teacher attendance tab)
   const [selectedStudentName, setSelectedStudentName] = useState<string>('')
@@ -173,6 +174,10 @@ function ClassroomPageContent({
   const handleSelectEntry = useCallback((_entry: Entry | null, studentName: string, studentId: string | null) => {
     setSelectedStudentName(studentName)
     setSelectedStudentId(studentId)
+  }, [])
+
+  const handleSummaryStudentClick = useCallback((studentName: string) => {
+    attendanceTabRef.current?.selectStudentByName(studentName)
   }, [])
 
   const handleSelectAssignment = useCallback((assignment: SelectedAssignmentInstructions | null) => {
@@ -392,6 +397,7 @@ function ClassroomPageContent({
             <>
               {activeTab === 'attendance' && (
                 <TeacherAttendanceTab
+                  ref={attendanceTabRef}
                   classroom={classroom}
                   onSelectEntry={handleSelectEntry}
                   onDateChange={setAttendanceDate}
@@ -550,7 +556,7 @@ function ClassroomPageContent({
               classroomId={classroom.id}
             />
           ) : isTeacher && activeTab === 'attendance' ? (
-            <LogSummary classroomId={classroom.id} date={attendanceDate} />
+            <LogSummary classroomId={classroom.id} date={attendanceDate} onStudentClick={handleSummaryStudentClick} />
           ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
             <TeacherStudentWorkPanel
               assignmentId={selectedStudent.assignmentId}

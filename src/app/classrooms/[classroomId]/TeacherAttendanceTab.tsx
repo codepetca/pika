@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { DateActionBar } from '@/components/DateActionBar'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -44,7 +44,11 @@ interface Props {
   onDateChange?: (date: string) => void
 }
 
-export function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }: Props) {
+export interface TeacherAttendanceTabHandle {
+  selectStudentByName: (name: string) => void
+}
+
+export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props>(function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }: Props, ref) {
   const { classDays, isLoading: classDaysLoading } = useClassDaysContext()
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -96,16 +100,9 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }:
         }))
         setLogs(mappedLogs)
 
-        // Auto-select first student
-        if (mappedLogs.length > 0) {
-          const firstLog = mappedLogs[0]
-          setSelectedStudentId(firstLog.student_id)
-          const studentName = [firstLog.student_first_name, firstLog.student_last_name].filter(Boolean).join(' ') || firstLog.email_username
-          onSelectEntry?.(firstLog.entry, studentName, firstLog.student_id)
-        } else {
-          setSelectedStudentId(null)
-          onSelectEntry?.(null, '', null)
-        }
+        // Clear selection when date changes so summary is visible
+        setSelectedStudentId(null)
+        onSelectEntry?.(null, '', null)
       } catch (err) {
         console.error('Error loading logs:', err)
       } finally {
@@ -172,6 +169,11 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }:
     }
   }
 
+  const handleDeselect = useCallback(() => {
+    setSelectedStudentId(null)
+    onSelectEntry?.(null, '', null)
+  }, [onSelectEntry])
+
   // Keyboard navigation handler
   const handleKeyboardSelect = useCallback(
     (studentId: string) => {
@@ -186,6 +188,16 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }:
     },
     [rows, onSelectEntry]
   )
+
+  useImperativeHandle(ref, () => ({
+    selectStudentByName(name: string) {
+      const row = logs.find((r) => {
+        const fullName = [r.student_first_name, r.student_last_name].filter(Boolean).join(' ')
+        return fullName === name
+      })
+      if (row) handleRowClick(row)
+    },
+  }), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Row keys for keyboard navigation (in sorted order)
   const rowKeys = useMemo(() => rows.map((r) => r.student_id), [rows])
@@ -213,10 +225,18 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }:
       />
 
       <PageContent>
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        <div className="min-h-[200px]" onClick={(e) => {
+          // Deselect when clicking outside the table
+          if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
+            handleDeselect()
+          }
+        }}>
         <KeyboardNavigableTable
           rowKeys={rowKeys}
           selectedKey={selectedStudentId}
           onSelectKey={handleKeyboardSelect}
+          onDeselect={handleDeselect}
         >
           <TableCard>
             <DataTable>
@@ -304,7 +324,8 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }:
             </DataTable>
           </TableCard>
         </KeyboardNavigableTable>
+        </div>
       </PageContent>
     </PageLayout>
   )
-}
+})
