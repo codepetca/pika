@@ -5,11 +5,5 @@
       "production": true,
       "*": false
     }
-  },
-  "crons": [
-    {
-      "path": "/api/cron/nightly-assignment-summaries",
-      "schedule": "0 6 * * *"
-    }
-  ]
+  }
 }
