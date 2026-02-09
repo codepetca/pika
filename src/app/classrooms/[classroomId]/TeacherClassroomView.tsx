@@ -62,6 +62,8 @@ import {
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
   TEACHER_GRADE_UPDATED_EVENT,
 } from '@/lib/events'
+import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
+import type { SortDirection } from '@/lib/table-sort'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -204,8 +206,10 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [selectedAssignmentLoading, setSelectedAssignmentLoading] = useState(false)
   const [selectedAssignmentError, setSelectedAssignmentError] = useState<string>('')
 
-  const [sortColumn, setSortColumn] = useState<'first' | 'last'>('last')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
+    column: 'first' | 'last' | 'status'
+    direction: SortDirection
+  }>({ column: 'last', direction: 'asc' })
 
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -444,23 +448,34 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
   const sortedStudents = useMemo(() => {
     if (!selectedAssignmentData) return []
-    const dir = sortDirection === 'asc' ? 1 : -1
     const rows = [...selectedAssignmentData.students]
-    rows.sort((a, b) => {
-      const primaryA = sortColumn === 'first' ? a.student_first_name : a.student_last_name
-      const primaryB = sortColumn === 'first' ? b.student_first_name : b.student_last_name
-
-      const missingA = primaryA ? 0 : 1
-      const missingB = primaryB ? 0 : 1
-      if (missingA !== missingB) return (missingA - missingB) * dir
-
-      const valueA = (primaryA || '').trim()
-      const valueB = (primaryB || '').trim()
-      const cmp = valueA.localeCompare(valueB)
-      if (cmp !== 0) return cmp * dir
-
-      return a.student_email.localeCompare(b.student_email) * dir
-    })
+    if (sortColumn === 'status') {
+      const submittedStatuses = new Set<AssignmentStatus>([
+        'submitted_on_time', 'submitted_late', 'graded', 'returned', 'resubmitted',
+      ])
+      rows.sort((a, b) => {
+        const rankA = submittedStatuses.has(a.status) ? 0 : 1
+        const rankB = submittedStatuses.has(b.status) ? 0 : 1
+        const cmp = rankA - rankB
+        if (cmp !== 0) return applyDirection(cmp, sortDirection)
+        return compareByNameFields(
+          { firstName: a.student_first_name, lastName: a.student_last_name, id: a.student_email },
+          { firstName: b.student_first_name, lastName: b.student_last_name, id: b.student_email },
+          'last_name',
+          sortDirection
+        )
+      })
+    } else {
+      const nameColumn = sortColumn === 'first' ? 'first_name' as const : 'last_name' as const
+      rows.sort((a, b) =>
+        compareByNameFields(
+          { firstName: a.student_first_name, lastName: a.student_last_name, id: a.student_email },
+          { firstName: b.student_first_name, lastName: b.student_last_name, id: b.student_email },
+          nameColumn,
+          sortDirection
+        )
+      )
+    }
     return rows
   }, [selectedAssignmentData, sortColumn, sortDirection])
 
@@ -630,13 +645,8 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     return () => document.removeEventListener('mousedown', handleMouseDown)
   }, [selectedStudentId])
 
-  function toggleSort(column: 'first' | 'last') {
-    if (sortColumn !== column) {
-      setSortColumn(column)
-      setSortDirection('asc')
-      return
-    }
-    setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+  function toggleSort(column: 'first' | 'last' | 'status') {
+    setSortState((prev) => toggleSortState(prev, column))
   }
 
   async function deleteAssignment() {
@@ -850,7 +860,12 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       direction={sortDirection}
                       onClick={() => toggleSort('last')}
                     />
-                    <DataTableHeaderCell className={isCompactTable ? 'w-8' : ''}>{isCompactTable ? '' : 'Status'}</DataTableHeaderCell>
+                    <SortableHeaderCell
+                      label={isCompactTable ? '' : 'Status'}
+                      isActive={sortColumn === 'status'}
+                      direction={sortDirection}
+                      onClick={() => toggleSort('status')}
+                    />
                     <DataTableHeaderCell>Grade</DataTableHeaderCell>
                     {!isCompactTable && <DataTableHeaderCell>Last updated</DataTableHeaderCell>}
                   </DataTableRow>
