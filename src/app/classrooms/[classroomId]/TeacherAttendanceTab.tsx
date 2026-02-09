@@ -24,7 +24,7 @@ import {
   TableCard,
 } from '@/components/DataTable'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
-import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
+import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import type { Classroom, Entry } from '@/types'
 
 type SortColumn = 'first_name' | 'last_name' | 'id'
@@ -119,11 +119,12 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
       if (sortColumn === 'id') {
         return applyDirection(a.email_username.localeCompare(b.email_username), sortDirection)
       }
-      const aValue = sortColumn === 'first_name' ? a.student_first_name : a.student_last_name
-      const bValue = sortColumn === 'first_name' ? b.student_first_name : b.student_last_name
-      const cmp = compareNullableStrings(aValue, bValue, { missingLast: true })
-      if (cmp !== 0) return applyDirection(cmp, sortDirection)
-      return applyDirection(a.email_username.localeCompare(b.email_username), sortDirection)
+      return compareByNameFields(
+        { firstName: a.student_first_name, lastName: a.student_last_name, id: a.email_username },
+        { firstName: b.student_first_name, lastName: b.student_last_name, id: b.email_username },
+        sortColumn,
+        sortDirection
+      )
     })
   }, [logs, sortColumn, sortDirection])
 

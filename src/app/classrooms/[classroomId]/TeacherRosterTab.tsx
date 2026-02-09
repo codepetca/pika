@@ -20,7 +20,7 @@ import {
 import type { Classroom } from '@/types'
 import { Check, ChevronRight, Copy, Mail, Pencil, Trash2, X } from 'lucide-react'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
-import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
+import { compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 
 type Role = 'student' | 'teacher'
@@ -92,14 +92,14 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   const sortedRoster = useMemo(() => {
     const rows = [...roster]
-    rows.sort((a, b) => {
-      const aValue = sortColumn === 'first_name' ? a.first_name : a.last_name
-      const bValue = sortColumn === 'first_name' ? b.first_name : b.last_name
-      const cmp = compareNullableStrings(aValue, bValue, { missingLast: true })
-      if (cmp !== 0) return applyDirection(cmp, sortDirection)
-
-      return applyDirection(a.email.localeCompare(b.email), sortDirection)
-    })
+    rows.sort((a, b) =>
+      compareByNameFields(
+        { firstName: a.first_name, lastName: a.last_name, id: a.email },
+        { firstName: b.first_name, lastName: b.last_name, id: b.email },
+        sortColumn,
+        sortDirection
+      )
+    )
     return rows
   }, [roster, sortColumn, sortDirection])
 
