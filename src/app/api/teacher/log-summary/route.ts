@@ -110,14 +110,16 @@ export async function GET(request: NextRequest) {
       .eq('date', date)
       .single()
 
-    // Cache hit: fresh if entry count matches AND no entries updated since generation
+    // Cache hit: fresh if correct format, entry count matches, AND no entries updated since generation
+    const rawItems = cached?.summary_items as any
+    const isNewFormat = rawItems && typeof rawItems === 'object' && !Array.isArray(rawItems) && 'overview' in rawItems
     const isCacheFresh =
       cached &&
+      isNewFormat &&
       cached.entry_count === actualEntryCount &&
       (!maxUpdatedAt || !cached.entries_updated_at || cached.entries_updated_at >= maxUpdatedAt)
 
     if (isCacheFresh) {
-      const rawItems = cached.summary_items as any
       const rawSummary: RawSummaryResponse = {
         overview: String(rawItems.overview || ''),
         action_items: Array.isArray(rawItems.action_items)

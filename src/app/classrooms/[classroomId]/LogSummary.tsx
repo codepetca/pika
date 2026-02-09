@@ -85,6 +85,16 @@ export function LogSummary({ classroomId, date, onStudentClick }: LogSummaryProp
     )
   }
 
+  if (!summary.overview && summary.action_items.length === 0) {
+    return (
+      <div className="p-4">
+        <p className="text-sm text-text-muted">
+          No notable items found in student logs.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 space-y-4">
       {summary.overview && (

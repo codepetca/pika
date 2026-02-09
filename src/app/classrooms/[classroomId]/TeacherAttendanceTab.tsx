@@ -195,9 +195,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         const fullName = [r.student_first_name, r.student_last_name].filter(Boolean).join(' ')
         return fullName === name
       })
-      if (row) handleRowClick(row)
+      if (row) {
+        setSelectedStudentId(row.student_id)
+        const studentName = [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') || row.email_username
+        onSelectEntry?.(row.entry, studentName, row.student_id)
+      }
     },
-  }), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
+  }), [logs, onSelectEntry])
 
   // Row keys for keyboard navigation (in sorted order)
   const rowKeys = useMemo(() => rows.map((r) => r.student_id), [rows])
