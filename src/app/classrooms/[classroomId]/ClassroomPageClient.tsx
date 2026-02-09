@@ -7,7 +7,7 @@ import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type Assignmen
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
 import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
-import { TeacherAttendanceTab } from './TeacherAttendanceTab'
+import { TeacherAttendanceTab, type TeacherAttendanceTabHandle } from './TeacherAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
@@ -37,6 +37,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { TEACHER_ASSIGNMENTS_UPDATED_EVENT, TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
+import { LogSummary } from './LogSummary'
 import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo, Assignment, QuizWithStats } from '@/types'
 
 interface UserInfo {
@@ -119,6 +120,10 @@ function ClassroomPageContent({
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const isTeacher = user.role === 'teacher'
 
+  // State for attendance date (teacher attendance tab)
+  const [attendanceDate, setAttendanceDate] = useState<string>('')
+  const attendanceTabRef = useRef<TeacherAttendanceTabHandle>(null)
+
   // State for selected student log (teacher attendance tab)
   const [selectedStudentName, setSelectedStudentName] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
@@ -169,6 +174,10 @@ function ClassroomPageContent({
   const handleSelectEntry = useCallback((_entry: Entry | null, studentName: string, studentId: string | null) => {
     setSelectedStudentName(studentName)
     setSelectedStudentId(studentId)
+  }, [])
+
+  const handleSummaryStudentClick = useCallback((studentName: string) => {
+    attendanceTabRef.current?.selectStudentByName(studentName)
   }, [])
 
   const handleSelectAssignment = useCallback((assignment: SelectedAssignmentInstructions | null) => {
@@ -388,8 +397,10 @@ function ClassroomPageContent({
             <>
               {activeTab === 'attendance' && (
                 <TeacherAttendanceTab
+                  ref={attendanceTabRef}
                   classroom={classroom}
                   onSelectEntry={handleSelectEntry}
+                  onDateChange={setAttendanceDate}
                 />
               )}
               {activeTab === 'assignments' && (
@@ -450,7 +461,7 @@ function ClassroomPageContent({
               ? (selectedAssignment?.title || 'Instructions')
               : activeTab === 'today'
               ? "Today's Plan"
-              : (selectedStudentName || 'Student Log')
+              : (selectedStudentName || 'Log Summary')
           }
           headerActions={
             isTeacher && activeTab === 'assignments' && isMarkdownMode ? (
@@ -545,11 +556,7 @@ function ClassroomPageContent({
               classroomId={classroom.id}
             />
           ) : isTeacher && activeTab === 'attendance' ? (
-            <div className="p-4">
-              <p className="text-sm text-text-muted">
-                Select a student to view their log.
-              </p>
-            </div>
+            <LogSummary classroomId={classroom.id} date={attendanceDate} onStudentClick={handleSummaryStudentClick} />
           ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
             <TeacherStudentWorkPanel
               assignmentId={selectedStudent.assignmentId}
