@@ -41,9 +41,10 @@ interface LogRow {
 interface Props {
   classroom: Classroom
   onSelectEntry?: (entry: Entry | null, studentName: string, studentId: string | null) => void
+  onDateChange?: (date: string) => void
 }
 
-export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
+export function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }: Props) {
   const { classDays, isLoading: classDaysLoading } = useClassDaysContext()
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +64,13 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
     setLoading(false)
   }, [classDaysLoading, classDays, selectedDate])
+
+  // Notify parent of date changes
+  useEffect(() => {
+    if (selectedDate) {
+      onDateChange?.(selectedDate)
+    }
+  }, [selectedDate, onDateChange])
 
   // Fetch logs when date changes
   useEffect(() => {
