@@ -323,6 +323,25 @@ export interface QuizResultsAggregate {
   total_responses: number
 }
 
+// Log summary types
+export interface LogSummaryActionItem {
+  text: string
+  studentName: string
+}
+
+export interface LogSummary {
+  id: string
+  classroom_id: string
+  date: string
+  summary_items: { overview: string; action_items: { text: string; initials: string }[] }
+  initials_map: Record<string, string>
+  entry_count: number
+  entries_updated_at: string | null
+  model: string
+  generated_at: string
+  created_at: string
+}
+
 // Announcement types
 export interface Announcement {
   id: string
