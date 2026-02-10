@@ -8,10 +8,6 @@
   },
   "crons": [
     {
-      "path": "/api/cron/nightly-assignment-summaries",
-      "schedule": "0 6 * * *"
-    },
-    {
       "path": "/api/cron/nightly-log-summaries",
       "schedule": "0 6 * * *"
     }
