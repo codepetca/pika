@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { DateActionBar } from '@/components/DateActionBar'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -24,10 +24,10 @@ import {
   TableCard,
 } from '@/components/DataTable'
 import { CountBadge, StudentCountBadge } from '@/components/StudentCountBadge'
-import { applyDirection, compareNullableStrings, toggleSort } from '@/lib/table-sort'
+import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import type { Classroom, Entry } from '@/types'
 
-type SortColumn = 'first_name' | 'last_name' | 'id'
+type SortColumn = 'first_name' | 'last_name' | 'id' | 'status'
 
 interface LogRow {
   student_id: string
@@ -41,9 +41,14 @@ interface LogRow {
 interface Props {
   classroom: Classroom
   onSelectEntry?: (entry: Entry | null, studentName: string, studentId: string | null) => void
+  onDateChange?: (date: string) => void
 }
 
-export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
+export interface TeacherAttendanceTabHandle {
+  selectStudentByName: (name: string) => void
+}
+
+export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props>(function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }: Props, ref) {
   const { classDays, isLoading: classDaysLoading } = useClassDaysContext()
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +68,13 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
     setLoading(false)
   }, [classDaysLoading, classDays, selectedDate])
+
+  // Notify parent of date changes
+  useEffect(() => {
+    if (selectedDate) {
+      onDateChange?.(selectedDate)
+    }
+  }, [selectedDate, onDateChange])
 
   // Fetch logs when date changes
   useEffect(() => {
@@ -88,16 +100,9 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
         }))
         setLogs(mappedLogs)
 
-        // Auto-select first student
-        if (mappedLogs.length > 0) {
-          const firstLog = mappedLogs[0]
-          setSelectedStudentId(firstLog.student_id)
-          const studentName = [firstLog.student_first_name, firstLog.student_last_name].filter(Boolean).join(' ') || firstLog.email_username
-          onSelectEntry?.(firstLog.entry, studentName, firstLog.student_id)
-        } else {
-          setSelectedStudentId(null)
-          onSelectEntry?.(null, '', null)
-        }
+        // Clear selection when date changes so summary is visible
+        setSelectedStudentId(null)
+        onSelectEntry?.(null, '', null)
       } catch (err) {
         console.error('Error loading logs:', err)
       } finally {
@@ -116,16 +121,32 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
 
   const rows = useMemo(() => {
     return [...logs].sort((a, b) => {
+      if (sortColumn === 'status') {
+        const rankOf = (row: LogRow) => {
+          if (row.entry && entryHasContent(row.entry)) return 0 // present
+          if (selectedDate >= today) return 1 // pending
+          return 2 // absent
+        }
+        const cmp = rankOf(a) - rankOf(b)
+        if (cmp !== 0) return applyDirection(cmp, sortDirection)
+        return compareByNameFields(
+          { firstName: a.student_first_name, lastName: a.student_last_name, id: a.email_username },
+          { firstName: b.student_first_name, lastName: b.student_last_name, id: b.email_username },
+          'last_name',
+          sortDirection
+        )
+      }
       if (sortColumn === 'id') {
         return applyDirection(a.email_username.localeCompare(b.email_username), sortDirection)
       }
-      const aValue = sortColumn === 'first_name' ? a.student_first_name : a.student_last_name
-      const bValue = sortColumn === 'first_name' ? b.student_first_name : b.student_last_name
-      const cmp = compareNullableStrings(aValue, bValue, { missingLast: true })
-      if (cmp !== 0) return applyDirection(cmp, sortDirection)
-      return applyDirection(a.email_username.localeCompare(b.email_username), sortDirection)
+      return compareByNameFields(
+        { firstName: a.student_first_name, lastName: a.student_last_name, id: a.email_username },
+        { firstName: b.student_first_name, lastName: b.student_last_name, id: b.email_username },
+        sortColumn,
+        sortDirection
+      )
     })
-  }, [logs, sortColumn, sortDirection])
+  }, [logs, sortColumn, sortDirection, selectedDate, today])
 
   const { presentCount, absentCount } = useMemo(() => {
     let present = 0
@@ -164,6 +185,11 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     }
   }
 
+  const handleDeselect = useCallback(() => {
+    setSelectedStudentId(null)
+    onSelectEntry?.(null, '', null)
+  }, [onSelectEntry])
+
   // Keyboard navigation handler
   const handleKeyboardSelect = useCallback(
     (studentId: string) => {
@@ -178,6 +204,20 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
     },
     [rows, onSelectEntry]
   )
+
+  useImperativeHandle(ref, () => ({
+    selectStudentByName(name: string) {
+      const row = logs.find((r) => {
+        const fullName = [r.student_first_name, r.student_last_name].filter(Boolean).join(' ')
+        return fullName === name
+      })
+      if (row) {
+        setSelectedStudentId(row.student_id)
+        const studentName = [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') || row.email_username
+        onSelectEntry?.(row.entry, studentName, row.student_id)
+      }
+    },
+  }), [logs, onSelectEntry])
 
   // Row keys for keyboard navigation (in sorted order)
   const rowKeys = useMemo(() => rows.map((r) => r.student_id), [rows])
@@ -205,10 +245,18 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
       />
 
       <PageContent>
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        <div className="min-h-[200px]" onClick={(e) => {
+          // Deselect when clicking outside the table
+          if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
+            handleDeselect()
+          }
+        }}>
         <KeyboardNavigableTable
           rowKeys={rowKeys}
           selectedKey={selectedStudentId}
           onSelectKey={handleKeyboardSelect}
+          onDeselect={handleDeselect}
         >
           <TableCard>
             <DataTable>
@@ -236,16 +284,20 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
                   onClick={() => handleSort('id')}
                   density="tight"
                 />
-                <DataTableHeaderCell density="tight" align="center">
-                  {isClassDay ? (
-                    <div className="flex items-center justify-center gap-2">
+                <SortableHeaderCell
+                  label={isClassDay ? '' : 'Status'}
+                  isActive={sortColumn === 'status'}
+                  direction={sortDirection}
+                  onClick={() => handleSort('status')}
+                  density="tight"
+                  align="center"
+                  trailing={isClassDay ? (
+                    <div className="flex items-center gap-2">
                       <CountBadge count={presentCount} tooltip="Present" variant="success" />
                       <CountBadge count={absentCount} tooltip="Absent" variant="danger" />
                     </div>
-                  ) : (
-                    'Status'
-                  )}
-                </DataTableHeaderCell>
+                  ) : undefined}
+                />
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
@@ -296,7 +348,8 @@ export function TeacherAttendanceTab({ classroom, onSelectEntry }: Props) {
             </DataTable>
           </TableCard>
         </KeyboardNavigableTable>
+        </div>
       </PageContent>
     </PageLayout>
   )
-}
+})

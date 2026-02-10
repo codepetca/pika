@@ -317,6 +317,56 @@ async function seed() {
     console.log(`✓ Created ${sampleEntries.length} sample entries\n`)
   }
 
+  // 5b. Create entries for yesterday (for log summary cron testing)
+  console.log('Creating yesterday entries for log summary testing...')
+  const yesterdayDate = format(subDays(new Date(), 1), 'yyyy-MM-dd')
+
+  // Ensure yesterday is a class day
+  await supabase.from('class_days').upsert({
+    classroom_id: createdClassroom.id,
+    date: yesterdayDate,
+    is_class_day: true,
+  }, { onConflict: 'classroom_id,date' })
+
+  // Delete any existing entries for yesterday
+  await supabase.from('entries').delete()
+    .eq('classroom_id', createdClassroom.id)
+    .eq('date', yesterdayDate)
+
+  const yesterdayEntries = [
+    {
+      student_id: students[0]!.id,
+      classroom_id: createdClassroom.id,
+      date: yesterdayDate,
+      text: 'Today I worked on my persuasive letter about bike lanes. I\'m having trouble with Student2 because we disagree on the topic. I think the city should prioritize cycling infrastructure, but I\'m not sure how to structure my argument. Can the teacher give us some examples of strong thesis statements? I also spent time reading about urban planning which was really interesting.',
+      minutes_reported: 90,
+      mood: '🙂' as const,
+      on_time: true,
+    },
+    {
+      student_id: students[1]!.id,
+      classroom_id: createdClassroom.id,
+      date: yesterdayDate,
+      text: 'I\'m feeling really frustrated with this course. The assignments are piling up and I don\'t understand the feedback on my narrative essay. Student1 tried to help me but I still don\'t get what "show don\'t tell" means. I think I need extra help from the teacher. On a positive note, I did finish reading the short story for homework.',
+      minutes_reported: 60,
+      mood: '😟' as const,
+      on_time: true,
+    },
+  ]
+
+  const yesterdayWithTimestamps = yesterdayEntries.map(entry => {
+    const baseDate = new Date(entry.date)
+    baseDate.setHours(20, 0, 0, 0)
+    return {
+      ...entry,
+      created_at: baseDate.toISOString(),
+      updated_at: baseDate.toISOString(),
+    }
+  })
+
+  ensureOk(await supabase.from('entries').insert(yesterdayWithTimestamps), 'Insert yesterday entries')
+  console.log(`✓ Created ${yesterdayEntries.length} entries for ${yesterdayDate}\n`)
+
   // 6. Create sample lesson plans
   console.log('Creating sample lesson plans...')
 
