@@ -2403,3 +2403,25 @@
 - dark: classes allowed ONLY in /ui CVA definitions, banned in app code
 - FormField pattern: all form controls wrapped with FormField for labels/errors
 - Dev-only UI (login quick fill buttons) uses light-only colors (acceptable)
+
+---
+## 2026-02-11 [AI - GPT-5 Codex]
+**Goal:** Tighten teacher assignment table density and readability after removing track-authenticity toggle
+**Completed:**
+- Updated assignment table header label from `Last updated` to `Updated`
+- Rendered compact updated date (`Mon D` format, e.g., `Feb 11`) in cells
+- Added tooltip on updated date hover with Toronto-formatted date/time
+- Tightened table widths for `Status`, `Grade`, and `Updated` columns to reduce wrapping/noise
+- Reduced vertical spacing in teacher classroom content container (`space-y-4` -> `space-y-3`)
+- Extended `SortableHeaderCell` to support custom `className` for precise width control
+- Captured fresh teacher and student screenshots for visual verification
+**Status:** completed
+**Artifacts:**
+- Branch: codex/remove-track-auth-toggle
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-remove-track-auth-toggle
+- Files: src/app/classrooms/[classroomId]/TeacherClassroomView.tsx, src/components/DataTable.tsx
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test tests/components/AssignmentModal.test.tsx` passed
+**Blockers:**
+- None

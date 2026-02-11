@@ -101,6 +101,7 @@ export function SortableHeaderCell({
   onClick,
   density: densityProp,
   align = 'left',
+  className = '',
   trailing,
 }: {
   label: string
@@ -109,6 +110,7 @@ export function SortableHeaderCell({
   onClick: () => void
   density?: DataTableDensity
   align?: 'left' | 'center' | 'right'
+  className?: string
   trailing?: React.ReactNode
 }) {
   const density = useDensity(densityProp)
@@ -118,7 +120,7 @@ export function SortableHeaderCell({
   const Icon = direction === 'asc' ? ChevronUp : ChevronDown
 
   return (
-    <DataTableHeaderCell density={density} align={align} className="!p-0" aria-sort={ariaSort}>
+    <DataTableHeaderCell density={density} align={align} className={['!p-0', className].join(' ')} aria-sort={ariaSort}>
       <button
         type="button"
         onClick={onClick}
