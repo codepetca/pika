@@ -77,6 +77,7 @@ interface StudentSubmissionRow {
   student_first_name: string | null
   student_last_name: string | null
   status: AssignmentStatus
+  student_updated_at?: string | null
   doc: {
     submitted_at?: string | null
     updated_at?: string | null
@@ -940,9 +941,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       </DataTableCell>
                       {!isCompactTable && (
                         <DataTableCell className="w-[5.5rem] whitespace-nowrap text-text-muted">
-                          {student.doc?.updated_at ? (
-                            <Tooltip content={formatTorontoDateTime(student.doc.updated_at)}>
-                              <span>{formatTorontoDateShort(student.doc.updated_at)}</span>
+                          {student.student_updated_at ? (
+                            <Tooltip content={formatTorontoDateTime(student.student_updated_at)}>
+                              <span>{formatTorontoDateShort(student.student_updated_at)}</span>
                             </Tooltip>
                           ) : '—'}
                         </DataTableCell>
