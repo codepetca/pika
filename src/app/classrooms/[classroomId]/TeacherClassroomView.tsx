@@ -77,6 +77,7 @@ interface StudentSubmissionRow {
   student_first_name: string | null
   student_last_name: string | null
   status: AssignmentStatus
+  student_updated_at?: string | null
   doc: {
     submitted_at?: string | null
     updated_at?: string | null
@@ -123,6 +124,14 @@ function formatTorontoDateTime(iso: string) {
     minute: '2-digit',
     hour12: true,
   }).replace(' AM', ' am').replace(' PM', ' pm')
+}
+
+function formatTorontoDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', {
+    timeZone: 'America/Toronto',
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 function getRowClassName(isSelected: boolean): string {
@@ -753,7 +762,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     <PageLayout>
       <PageActionBar primary={primaryButtons} actions={[]} trailing={showMobileToggle ? <RightSidebarToggle /> : undefined} />
 
-      <PageContent className="space-y-4">
+      <PageContent className="space-y-3">
         {error && (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
@@ -865,9 +874,10 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       isActive={sortColumn === 'status'}
                       direction={sortDirection}
                       onClick={() => toggleSort('status')}
+                      className="w-[5.75rem]"
                     />
-                    <DataTableHeaderCell>Grade</DataTableHeaderCell>
-                    {!isCompactTable && <DataTableHeaderCell>Last updated</DataTableHeaderCell>}
+                    <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
+                    {!isCompactTable && <DataTableHeaderCell className="w-[5.5rem]">Updated</DataTableHeaderCell>}
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
@@ -916,7 +926,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                           )
                         ) : '—'}
                       </DataTableCell>
-                      <DataTableCell>
+                      <DataTableCell className="w-[5.75rem]">
                         <Tooltip content={getAssignmentStatusLabel(student.status)}>
                           <span className="inline-flex" role="img" aria-label={getAssignmentStatusLabel(student.status)}>
                             <StatusIcon
@@ -926,12 +936,16 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                           </span>
                         </Tooltip>
                       </DataTableCell>
-                      <DataTableCell className="text-text-muted">
+                      <DataTableCell className="w-[4.75rem] whitespace-nowrap text-text-muted">
                         {totalScore !== null ? `${Math.round((totalScore / 30) * 100)}` : '—'}
                       </DataTableCell>
                       {!isCompactTable && (
-                        <DataTableCell className="text-text-muted">
-                          {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
+                        <DataTableCell className="w-[5.5rem] whitespace-nowrap text-text-muted">
+                          {student.student_updated_at ? (
+                            <Tooltip content={formatTorontoDateTime(student.student_updated_at)}>
+                              <span>{formatTorontoDateShort(student.student_updated_at)}</span>
+                            </Tooltip>
+                          ) : '—'}
                         </DataTableCell>
                       )}
                     </DataTableRow>
