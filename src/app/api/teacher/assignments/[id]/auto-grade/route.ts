@@ -105,7 +105,7 @@ export async function POST(
             gradedCount++
 
             // Compute authenticity if not already set
-            if (doc.authenticity_score == null && assignment.track_authenticity !== false) {
+            if (doc.authenticity_score == null) {
               try {
                 const { data: historyEntries } = await supabase
                   .from('assignment_doc_history')

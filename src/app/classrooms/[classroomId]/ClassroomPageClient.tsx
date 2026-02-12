@@ -250,8 +250,13 @@ function ClassroomPageContent({
     const sidebarJustOpened = isRightSidebarOpen && !wasOpen
     const returnedToSummary = assignmentViewMode === 'summary' && wasViewMode === 'assignment'
 
-    if (assignmentViewMode === 'summary' && (sidebarJustOpened || (returnedToSummary && isRightSidebarOpen)) && markdownStaleRef.current) {
-      loadAssignmentsMarkdown()
+    if (assignmentViewMode === 'summary' && (sidebarJustOpened || (returnedToSummary && isRightSidebarOpen))) {
+      if (markdownStaleRef.current) {
+        loadAssignmentsMarkdown()
+      } else {
+        // Reuse cached markdown when returning from assignment detail.
+        setIsMarkdownMode(true)
+      }
     } else if (!isRightSidebarOpen && wasOpen) {
       setIsMarkdownMode(false)
     }
@@ -563,7 +568,7 @@ function ClassroomPageContent({
               studentId={selectedStudent.studentId}
             />
           ) : activeTab === 'assignments' ? (
-            <div className="p-4">
+            <div>
               {selectedAssignment ? (
                 selectedAssignment.instructions ? (
                   typeof selectedAssignment.instructions === 'string' ? (
