@@ -138,7 +138,7 @@ function getRowClassName(isSelected: boolean): string {
   if (isSelected) {
     return 'cursor-pointer bg-info-bg border-l-2 border-l-blue-500'
   }
-  return 'cursor-pointer border-l-2 border-l-transparent hover:bg-surface-hover'
+  return 'cursor-pointer hover:bg-surface-hover'
 }
 
 const STATUS_ICON_CLASS = 'h-4 w-4'
@@ -227,6 +227,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [error, setError] = useState('')
   const [warning, setWarning] = useState('')
+  const [info, setInfo] = useState('')
 
   // Batch grading state
   const [isAutoGrading, setIsAutoGrading] = useState(false)
@@ -498,6 +499,17 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     clearSelection: batchClearSelection,
     selectedCount: batchSelectedCount,
   } = useStudentSelection(studentRowIds)
+  const batchSelectedGradedCount = useMemo(() => {
+    if (!selectedAssignmentData) return 0
+    let graded = 0
+    for (const student of selectedAssignmentData.students) {
+      if (batchSelectedIds.has(student.student_id) && student.doc?.graded_at) {
+        graded += 1
+      }
+    }
+    return graded
+  }, [selectedAssignmentData, batchSelectedIds])
+  const batchSelectedUngradedCount = batchSelectedCount - batchSelectedGradedCount
 
   // Auto-dismiss warning after 3 seconds, or immediately when students are selected
   useEffect(() => {
@@ -509,6 +521,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     const timer = setTimeout(() => setWarning(''), 3000)
     return () => clearTimeout(timer)
   }, [warning, batchSelectedCount])
+  useEffect(() => {
+    if (!info) return
+    const timer = setTimeout(() => setInfo(''), 4000)
+    return () => clearTimeout(timer)
+  }, [info])
 
   async function handleBatchAutoGrade() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
@@ -544,6 +561,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     setBatchProgressCount(batchSelectedCount)
     setIsReturning(true)
     setError('')
+    setInfo('')
     try {
       const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/return`, {
         method: 'POST',
@@ -552,6 +570,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Return failed')
+      const returnedCount = Number(data.returned_count ?? 0)
+      const skippedCount = Number(data.skipped_count ?? 0)
+      setInfo(`Returned ${returnedCount} graded work item(s)${skippedCount > 0 ? ` • ${skippedCount} ungraded skipped` : ''}`)
       batchClearSelection()
       setShowReturnConfirm(false)
       // Reload assignment data to refresh statuses/grades
@@ -773,6 +794,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
             {warning}
           </div>
         )}
+        {info && (
+          <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
+            {info}
+          </div>
+        )}
 
         {selection.mode === 'summary' ? (
         <div>
@@ -978,8 +1004,8 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
       <ConfirmDialog
         isOpen={showReturnConfirm}
-        title="Return graded work?"
-        description={`Return graded assignments to ${batchSelectedCount} selected student(s).\n\nOnly graded work will be returned. Students will be able to view their grades and edit/resubmit.`}
+        title={`Return work to ${batchSelectedCount} selected student(s)?`}
+        description={`Eligible to return now: ${batchSelectedGradedCount} graded${batchSelectedUngradedCount > 0 ? ` • ${batchSelectedUngradedCount} ungraded will be skipped` : ''}`}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
         isConfirmDisabled={isReturning}

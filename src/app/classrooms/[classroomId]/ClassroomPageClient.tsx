@@ -563,7 +563,7 @@ function ClassroomPageContent({
               studentId={selectedStudent.studentId}
             />
           ) : activeTab === 'assignments' ? (
-            <div className="p-4">
+            <div>
               {selectedAssignment ? (
                 selectedAssignment.instructions ? (
                   typeof selectedAssignment.instructions === 'string' ? (

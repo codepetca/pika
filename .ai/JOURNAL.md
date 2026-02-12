@@ -2445,3 +2445,42 @@
 - `pnpm test tests/api/teacher/assignments-id.test.ts` passed
 **Blockers:**
 - None
+
+---
+## 2026-02-12 [AI - GPT-5 Codex]
+**Goal:** Tighten assignments UI by removing right-sidebar content padding and fixing row edge artifact
+**Completed:**
+- Removed left-edge artifact in assignment student table rows by dropping transparent `border-l-2` on non-selected rows
+- Kept selected-row accent border only (`border-l-2 border-l-blue-500`)
+- Removed right-sidebar wrapper padding for teacher assignments instructions content
+- Removed student-work content area padding in `TeacherStudentWorkPanel` so content extends to panel edge
+- Ran lint + targeted tests and captured updated teacher/student screenshots for visual verification
+**Status:** completed
+**Artifacts:**
+- Branch: codex/remove-track-auth-toggle
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-remove-track-auth-toggle
+- Files: src/app/classrooms/[classroomId]/ClassroomPageClient.tsx, src/app/classrooms/[classroomId]/TeacherClassroomView.tsx, src/components/TeacherStudentWorkPanel.tsx
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test tests/api/teacher/assignments-id.test.ts` passed
+**Blockers:**
+- None
+
+---
+## 2026-02-12 [AI - GPT-5 Codex]
+**Goal:** Polish assignment history/graded-work UX in teacher and student views
+**Completed:**
+- Removed preview banner text in teacher student-work panel (history hover/preview)
+- Removed preview banner text in student assignment editor (history hover/preview)
+- Updated teacher preview highlight to use full-pane outline (works with flush content)
+- Centered character count in teacher student-work panel
+- Widened teacher history/grading side pane (`w-64` -> `w-80`)
+- Made grading feedback textarea consume remaining vertical space in grading pane
+- Verified teacher + student screenshots across assignment/history/grade flows
+**Status:** completed
+**Artifacts:**
+- Branch: codex/remove-track-auth-toggle
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-remove-track-auth-toggle
+- Files: src/components/TeacherStudentWorkPanel.tsx, src/components/StudentAssignmentEditor.tsx
+**Validation:**
+- `pnpm lint` passed
