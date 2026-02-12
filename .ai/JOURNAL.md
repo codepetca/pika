@@ -2484,3 +2484,20 @@
 - Files: src/components/TeacherStudentWorkPanel.tsx, src/components/StudentAssignmentEditor.tsx
 **Validation:**
 - `pnpm lint` passed
+
+---
+## 2026-02-12 [AI - GPT-5 Codex]
+**Goal:** Build PR B modular TeachAssist sync engine scaffolding and API surface
+**Completed:**
+- Added TeachAssist sync persistence migration (`teachassist_mappings`, `external_identity_map`, `sync_jobs`, `sync_job_items`)
+- Implemented modular engine pipeline (`ingestor`, `normalizer`, `validator`, `mapper`, `planner`, `executor`, `state-store`, `client`, `engine`)
+- Added teacher APIs to create sync jobs, fetch sync job details, and retry failed jobs
+- Added focused unit tests for teachassist planner and validator
+**Status:** completed
+**Artifacts:**
+- Branch: codex/teachassist-sync-engine
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-teachassist-sync-engine
+- Files: supabase/migrations/038_teachassist_sync_engine.sql, src/lib/teachassist/*, src/app/api/teacher/sync/teachassist/jobs/*, tests/unit/teachassist/*
+**Validation:**
+- `pnpm lint` passed
+- `pnpm vitest run tests/unit/teachassist/planner.test.ts tests/unit/teachassist/validator.test.ts` passed
