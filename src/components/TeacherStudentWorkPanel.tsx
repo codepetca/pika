@@ -50,37 +50,60 @@ function AuthenticityGauge({ score, flags }: { score: number | null; flags: Auth
 }
 
 function ScoreInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  const n = Number(value) || 0
+  const [hoverScore, setHoverScore] = useState<number | null>(null)
+  const n = Number(value)
+  const selected = Number.isInteger(n) && n >= 1 && n <= 10 ? n : null
+  const displayValue = hoverScore !== null ? String(hoverScore) : value
+
+  function handleInputChange(next: string) {
+    setHoverScore(null)
+    onChange(next)
+  }
+
   return (
-    <div>
-      <label className="block text-xs font-medium text-text-muted mb-1">{label}</label>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => onChange(String(Math.max(0, n - 1)))}
-          disabled={n <= 0}
-          className="flex items-center justify-center w-8 h-8 rounded border border-border bg-surface text-lg font-bold text-text-default hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label={`Decrease ${label}`}
-        >
-          ‹
-        </button>
+    <div className="space-y-1.5">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <label className="text-sm font-medium text-text-muted">
+          {label}
+        </label>
         <input
           type="number"
           min={0}
           max={10}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="flex-1 rounded border border-border bg-surface px-2 py-1 text-sm text-text-default text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          value={displayValue}
+          onChange={(e) => handleInputChange(e.target.value)}
+          onFocus={() => setHoverScore(null)}
+          className="h-8 w-12 rounded border border-border bg-surface px-2 py-0.5 text-sm font-medium text-text-default text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          aria-label={`${label} score`}
         />
-        <button
-          type="button"
-          onClick={() => onChange(String(Math.min(10, n + 1)))}
-          disabled={n >= 10}
-          className="flex items-center justify-center w-8 h-8 rounded border border-border bg-surface text-lg font-bold text-text-default hover:bg-surface-hover disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label={`Increase ${label}`}
-        >
-          ›
-        </button>
+        <span aria-hidden="true" />
+      </div>
+      <div className="grid grid-cols-10 gap-0" onMouseLeave={() => setHoverScore(null)}>
+        {Array.from({ length: 10 }, (_, i) => {
+          const score = i + 1
+          const isActive = selected === score
+          return (
+            <button
+              key={score}
+              type="button"
+              onMouseEnter={() => setHoverScore(score)}
+              onClick={() => {
+                setHoverScore(null)
+                onChange(String(score))
+              }}
+              className={[
+                'h-6 rounded border text-[10px] font-medium transition-colors',
+                isActive
+                  ? 'border-primary bg-primary text-text-inverse'
+                  : 'border-border bg-surface text-text-muted hover:bg-surface-hover hover:text-text-default',
+              ].join(' ')}
+              aria-label={`Set ${label} score to ${score}`}
+              aria-pressed={isActive}
+            >
+              {''}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -438,10 +461,28 @@ export function TeacherStudentWorkPanel({
               <ScoreInput label="Thinking" value={scoreThinking} onChange={setScoreThinking} />
               <ScoreInput label="Workflow" value={scoreWorkflow} onChange={setScoreWorkflow} />
 
-              <div className="relative flex items-center justify-center">
-                <span className="rounded border border-border px-3 py-0.5 text-sm font-semibold text-text-default">{totalScore}</span>
-                <span className="absolute left-1/2 ml-6 text-xs text-text-muted">/30</span>
-                <span className={`absolute right-0 rounded px-1.5 py-0.5 text-sm font-semibold ${totalPercent >= 80 ? 'bg-green-100 text-green-700' : totalPercent >= 60 ? 'bg-yellow-100 text-yellow-700' : totalPercent >= 50 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>{totalPercent}%</span>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
+                <span aria-hidden="true" />
+                <div className="relative justify-self-center">
+                  <span className="inline-flex h-8 w-12 items-center justify-center rounded border border-border bg-surface text-sm font-medium text-text-default">
+                    {totalScore}
+                  </span>
+                  <span className="absolute left-full ml-1 top-1/2 -translate-y-1/2 text-xs text-text-muted">/30</span>
+                </div>
+                <span
+                  className={[
+                    'inline-flex h-8 w-12 items-center justify-center justify-self-end rounded border text-sm font-medium',
+                    totalPercent >= 80
+                      ? 'border-green-200 bg-green-100 text-green-700'
+                      : totalPercent >= 60
+                        ? 'border-yellow-200 bg-yellow-100 text-yellow-700'
+                        : totalPercent >= 50
+                          ? 'border-orange-200 bg-orange-100 text-orange-700'
+                          : 'border-red-200 bg-red-100 text-red-700',
+                  ].join(' ')}
+                >
+                  {totalPercent}%
+                </span>
               </div>
 
               <div className="min-h-0 flex-1">
@@ -453,12 +494,12 @@ export function TeacherStudentWorkPanel({
                 />
               </div>
 
-              <div className="flex shrink-0 flex-col gap-2">
-                <Button size="sm" onClick={handleSaveGrade} disabled={gradeSaving}>
-                  {gradeSaving ? 'Saving...' : 'Save Grade'}
-                </Button>
-                <Button size="sm" variant="secondary" onClick={handleAutoGrade} disabled={autoGrading}>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button size="sm" variant="secondary" className="flex-1" onClick={handleAutoGrade} disabled={autoGrading}>
                   {autoGrading ? 'Grading...' : 'AI grade'}
+                </Button>
+                <Button size="sm" className="flex-1" onClick={handleSaveGrade} disabled={gradeSaving}>
+                  {gradeSaving ? 'Saving...' : 'Save'}
                 </Button>
               </div>
 

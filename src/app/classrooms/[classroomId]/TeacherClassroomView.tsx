@@ -978,8 +978,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
       <ConfirmDialog
         isOpen={showReturnConfirm}
-        title="Return graded work?"
-        description={`Return graded assignments to ${batchSelectedCount} selected student(s).\n\nOnly graded work will be returned. Students will be able to view their grades and edit/resubmit.`}
+        title={`Return work to ${batchSelectedCount} selected student(s)?`}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
         isConfirmDisabled={isReturning}
