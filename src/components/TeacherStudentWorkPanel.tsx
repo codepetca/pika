@@ -348,7 +348,7 @@ export function TeacherStudentWorkPanel({
       {/* Main content area: Student work + Right panel side by side */}
       <div className="flex-1 min-h-0 flex">
         {/* Student work content */}
-        <div className={`flex-1 min-h-0 overflow-auto p-4 ${previewEntry ? 'ring-2 ring-primary ring-inset' : ''}`}>
+        <div className={`flex-1 min-h-0 overflow-auto ${previewEntry ? 'ring-2 ring-primary ring-inset' : ''}`}>
           {displayContent && !isEmpty(displayContent) ? (
             <div>
               <RichTextViewer content={displayContent} />
