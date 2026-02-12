@@ -9,6 +9,7 @@ import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab, type TeacherAttendanceTabHandle } from './TeacherAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
+import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
@@ -76,7 +77,7 @@ export function ClassroomPageClient({
   const tab = searchParams.get('tab') ?? initialTab
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
-    ? (['attendance', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
+    ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
     : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const)
 
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
@@ -352,7 +353,7 @@ function ClassroomPageContent({
   }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
 
   useEffect(() => {
-    if (activeTab === 'roster') {
+    if (activeTab === 'roster' || activeTab === 'gradebook') {
       setRightSidebarOpen(false)
     }
   }, [activeTab, setRightSidebarOpen])
@@ -408,6 +409,7 @@ function ClassroomPageContent({
                   onDateChange={setAttendanceDate}
                 />
               )}
+              {activeTab === 'gradebook' && <TeacherGradebookTab classroom={classroom} />}
               {activeTab === 'assignments' && (
                 <TeacherClassroomView
                   classroom={classroom}

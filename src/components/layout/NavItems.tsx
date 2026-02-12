@@ -8,6 +8,7 @@ import {
   CircleHelp,
   ClipboardCheck,
   ClipboardList,
+  Percent,
   Settings,
   PenSquare,
   StickyNote,
@@ -30,6 +31,7 @@ import {
 
 export type ClassroomNavItemId =
   | 'attendance'
+  | 'gradebook'
   | 'assignments'
   | 'quizzes'
   | 'calendar'
@@ -56,6 +58,7 @@ type SidebarAssignment = {
 
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
+  { id: 'gradebook', label: 'Gradebook', icon: Percent },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'calendar', label: 'Calendar', icon: Calendar },

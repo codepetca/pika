@@ -159,6 +159,8 @@ export interface Assignment {
   is_draft: boolean  // Whether assignment is a draft (not visible to students)
   released_at: string | null  // When the assignment was released to students
   track_authenticity: boolean
+  points_possible?: number
+  include_in_final?: boolean
   created_by: string
   created_at: string
   updated_at: string
@@ -271,6 +273,8 @@ export interface Quiz {
   status: QuizStatus
   show_results: boolean
   position: number
+  points_possible?: number
+  include_in_final?: boolean
   created_by: string
   created_at: string
   updated_at: string
@@ -282,6 +286,7 @@ export interface QuizQuestion {
   question_text: string
   options: string[]
   position: number
+  correct_option?: number | null
   created_at: string
   updated_at: string
 }
@@ -352,3 +357,22 @@ export interface Announcement {
   created_at: string
   updated_at: string
 }
+
+export interface GradebookSettings {
+  classroom_id: string
+  use_weights: boolean
+  assignments_weight: number
+  quizzes_weight: number
+}
+
+export interface GradebookStudentSummary {
+  student_id: string
+  student_email: string
+  student_first_name: string | null
+  student_last_name: string | null
+  assignments_percent: number | null
+  quizzes_percent: number | null
+  final_percent: number | null
+}
+
+export type ReportCardTerm = 'midterm' | 'final'
