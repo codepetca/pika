@@ -783,7 +783,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     <PageLayout>
       <PageActionBar primary={primaryButtons} actions={[]} trailing={showMobileToggle ? <RightSidebarToggle /> : undefined} />
 
-      <PageContent className="space-y-4">
+      <PageContent className="space-y-3">
         {error && (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
