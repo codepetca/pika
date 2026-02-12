@@ -2465,3 +2465,22 @@
 - `pnpm test tests/api/teacher/assignments-id.test.ts` passed
 **Blockers:**
 - None
+
+---
+## 2026-02-12 [AI - GPT-5 Codex]
+**Goal:** Polish assignment history/graded-work UX in teacher and student views
+**Completed:**
+- Removed preview banner text in teacher student-work panel (history hover/preview)
+- Removed preview banner text in student assignment editor (history hover/preview)
+- Updated teacher preview highlight to use full-pane outline (works with flush content)
+- Centered character count in teacher student-work panel
+- Widened teacher history/grading side pane (`w-64` -> `w-80`)
+- Made grading feedback textarea consume remaining vertical space in grading pane
+- Verified teacher + student screenshots across assignment/history/grade flows
+**Status:** completed
+**Artifacts:**
+- Branch: codex/remove-track-auth-toggle
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-remove-track-auth-toggle
+- Files: src/components/TeacherStudentWorkPanel.tsx, src/components/StudentAssignmentEditor.tsx
+**Validation:**
+- `pnpm lint` passed

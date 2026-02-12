@@ -336,23 +336,20 @@ export function TeacherStudentWorkPanel({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Preview banner */}
-      {previewEntry && (
-        <div className="px-4 py-2 bg-info-bg border-b border-primary">
-          <div className="text-xs text-info">
-            Previewing: {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
-          </div>
-        </div>
-      )}
-
       {/* Main content area: Student work + Right panel side by side */}
       <div className="flex-1 min-h-0 flex">
         {/* Student work content */}
-        <div className={`flex-1 min-h-0 overflow-auto ${previewEntry ? 'ring-2 ring-primary ring-inset' : ''}`}>
+        <div
+          className={`flex-1 min-h-0 overflow-auto ${
+            previewEntry
+              ? 'outline outline-2 outline-primary outline-offset-[-2px]'
+              : ''
+          }`}
+        >
           {displayContent && !isEmpty(displayContent) ? (
             <div>
               <RichTextViewer content={displayContent} />
-              <div className="mt-4 text-xs text-text-muted">
+              <div className="mt-4 text-center text-xs text-text-muted">
                 {countCharacters(displayContent)} characters
               </div>
             </div>
@@ -364,7 +361,7 @@ export function TeacherStudentWorkPanel({
         </div>
 
         {/* Right panel with tabs */}
-        <div className="w-64 border-l border-border bg-page flex flex-col min-h-0">
+        <div className="w-80 border-l border-border bg-page flex flex-col min-h-0">
           {/* Tab switcher */}
           <div className="flex border-b border-border">
             <button
@@ -427,7 +424,7 @@ export function TeacherStudentWorkPanel({
               )}
             </>
           ) : (
-            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+            <div className="flex h-full min-h-0 flex-col gap-3 p-3">
               <AuthenticityGauge
                 score={data.doc?.authenticity_score ?? null}
                 flags={data.doc?.authenticity_flags ?? []}
@@ -447,17 +444,16 @@ export function TeacherStudentWorkPanel({
                 <span className={`absolute right-0 rounded px-1.5 py-0.5 text-sm font-semibold ${totalPercent >= 80 ? 'bg-green-100 text-green-700' : totalPercent >= 60 ? 'bg-yellow-100 text-yellow-700' : totalPercent >= 50 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>{totalPercent}%</span>
               </div>
 
-              <div>
+              <div className="min-h-0 flex-1">
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  rows={8}
-                  className="w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default resize-none"
+                  className="h-full min-h-[8rem] w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default resize-none"
                   placeholder="Feedback"
                 />
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex shrink-0 flex-col gap-2">
                 <Button size="sm" onClick={handleSaveGrade} disabled={gradeSaving}>
                   {gradeSaving ? 'Saving...' : 'Save Grade'}
                 </Button>
@@ -467,7 +463,7 @@ export function TeacherStudentWorkPanel({
               </div>
 
               {data.doc?.graded_at && (
-                <div className="text-xs text-text-muted">
+                <div className="shrink-0 text-xs text-text-muted">
                   Graded {formatInTimeZone(new Date(data.doc.graded_at), 'America/Toronto', 'MMM d, h:mm a')}
                   {data.doc.graded_by && ` by ${data.doc.graded_by.startsWith('ai:') ? 'AI' : data.doc.graded_by}`}
                 </div>
