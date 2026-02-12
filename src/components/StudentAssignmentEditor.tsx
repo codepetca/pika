@@ -484,11 +484,6 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               <div className="text-sm font-medium text-text-muted truncate">
                 {assignment.title}
               </div>
-              {previewEntry && (
-                <div className="text-xs text-warning">
-                  Previewing save from {formatInTimeZone(new Date(previewEntry.created_at), 'America/Toronto', 'MMM d, h:mm a')}
-                </div>
-              )}
             </div>
             <div
               className={`text-xs ${

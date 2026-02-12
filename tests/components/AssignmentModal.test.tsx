@@ -31,6 +31,20 @@ describe('AssignmentModal', () => {
   })
 
   describe('edit mode', () => {
+    it('does not render the track writing authenticity toggle', () => {
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={baseAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByText('Track writing authenticity')).not.toBeInTheDocument()
+    })
+
     it('prefills the form with assignment data', () => {
       render(
         <AssignmentModal
