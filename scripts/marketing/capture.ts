@@ -12,6 +12,8 @@ const studentStorage = resolve(WORKTREE, '.auth', 'student.json')
 const CLASS_CODE = process.env.CAPTURE_CLASS_CODE || 'MKT101'
 const CLASSROOM_ID_OVERRIDE = process.env.CAPTURE_CLASSROOM_ID
 const CAPTURE_TEACHER_EMAIL = process.env.CAPTURE_TEACHER_EMAIL || 'teacher.marketing@example.com'
+const FORCE_LEFT_SIDEBAR_EXPANDED = process.env.CAPTURE_LEFT_SIDEBAR_EXPANDED === 'true'
+const FORCE_DARK_MODE = process.env.CAPTURE_DARK_MODE === 'true'
 const ENV_FILE = process.env.ENV_FILE || '.env.local'
 config({ path: resolve(WORKTREE, ENV_FILE) })
 
@@ -70,11 +72,40 @@ async function capture(spec: CaptureSpec, classroomId: string) {
     storageState: spec.storagePath,
     viewport: { width: 1440, height: 900 },
   })
+
+  if (FORCE_LEFT_SIDEBAR_EXPANDED) {
+    await context.addCookies([
+      {
+        name: 'pika_left_sidebar',
+        value: 'expanded',
+        domain: 'localhost',
+        path: '/',
+      },
+    ])
+  }
+
+  if (FORCE_DARK_MODE) {
+    await context.addInitScript(() => {
+      localStorage.setItem('theme', 'dark')
+      document.documentElement.classList.add('dark')
+      document.documentElement.style.colorScheme = 'dark'
+      document.documentElement.style.backgroundColor = '#030712'
+    })
+  }
+
   const page = await context.newPage()
 
   await page.goto(spec.url(classroomId), { waitUntil: 'domcontentloaded' })
   await page.waitForSelector(`text=${spec.readyText}`, { timeout: spec.readyTimeoutMs ?? 30_000 })
   await page.waitForTimeout(1200)
+
+  if (FORCE_DARK_MODE) {
+    await page.evaluate(() => {
+      document.documentElement.classList.add('dark')
+      document.documentElement.style.colorScheme = 'dark'
+      document.documentElement.style.backgroundColor = '#030712'
+    })
+  }
 
   if (spec.action) {
     await spec.action(page)
