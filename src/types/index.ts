@@ -370,7 +370,11 @@ export interface GradebookStudentSummary {
   student_email: string
   student_first_name: string | null
   student_last_name: string | null
+  assignments_earned: number | null
+  assignments_possible: number | null
   assignments_percent: number | null
+  quizzes_earned: number | null
+  quizzes_possible: number | null
   quizzes_percent: number | null
   final_percent: number | null
 }

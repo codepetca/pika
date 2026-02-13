@@ -359,20 +359,40 @@ export async function GET(request: NextRequest) {
     const students = (enrollments || []).map((enrollment) => {
       const studentId = enrollment.student_id
       const profile = profileMap.get(studentId)
+      const assignmentRows = assignmentRowsByStudent.get(studentId) || []
+      const quizRows = quizRowsByStudent.get(studentId) || []
       const calc = calculateFinalPercent({
         useWeights: settings.use_weights,
         assignmentsWeight: settings.assignments_weight,
         quizzesWeight: settings.quizzes_weight,
-        assignments: assignmentRowsByStudent.get(studentId) || [],
-        quizzes: quizRowsByStudent.get(studentId) || [],
+        assignments: assignmentRows,
+        quizzes: quizRows,
       })
+      const assignmentTotals = assignmentRows.reduce(
+        (totals, row) => ({
+          earned: totals.earned + row.earned,
+          possible: totals.possible + row.possible,
+        }),
+        { earned: 0, possible: 0 }
+      )
+      const quizTotals = quizRows.reduce(
+        (totals, row) => ({
+          earned: totals.earned + row.earned,
+          possible: totals.possible + row.possible,
+        }),
+        { earned: 0, possible: 0 }
+      )
 
       return {
         student_id: studentId,
         student_email: (enrollment.users as unknown as { email: string }).email,
         student_first_name: profile?.first_name ?? null,
         student_last_name: profile?.last_name ?? null,
+        assignments_earned: assignmentTotals.possible > 0 ? round2(assignmentTotals.earned) : null,
+        assignments_possible: assignmentTotals.possible > 0 ? round2(assignmentTotals.possible) : null,
         assignments_percent: calc.assignmentsPercent,
+        quizzes_earned: quizTotals.possible > 0 ? round2(quizTotals.earned) : null,
+        quizzes_possible: quizTotals.possible > 0 ? round2(quizTotals.possible) : null,
         quizzes_percent: calc.quizzesPercent,
         final_percent: calc.finalPercent,
       }

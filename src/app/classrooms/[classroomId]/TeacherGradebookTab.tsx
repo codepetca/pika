@@ -35,6 +35,19 @@ function formatPercent(value: number | null): string {
   return `${value.toFixed(2)}%`
 }
 
+function formatPoints(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+}
+
+function formatScoreWithPercent(
+  earned: number | null,
+  possible: number | null,
+  percent: number | null
+): string {
+  if (earned == null || possible == null || percent == null) return '—'
+  return `${formatPoints(earned)}/${formatPoints(possible)} (${percent.toFixed(2)}%)`
+}
+
 export function TeacherGradebookTab({
   classroom,
   selectedStudentId = null,
@@ -215,13 +228,13 @@ export function TeacherGradebookTab({
             >
               <DataTable>
                 <DataTableHead>
-                  <DataTableRow>
-                    <DataTableHeaderCell>Student</DataTableHeaderCell>
-                    <DataTableHeaderCell align="right">Assignments %</DataTableHeaderCell>
-                    <DataTableHeaderCell align="right">Quizzes %</DataTableHeaderCell>
-                    <DataTableHeaderCell align="right">Final %</DataTableHeaderCell>
-                  </DataTableRow>
-                </DataTableHead>
+                <DataTableRow>
+                  <DataTableHeaderCell>Student</DataTableHeaderCell>
+                  <DataTableHeaderCell align="right">Assignments</DataTableHeaderCell>
+                  <DataTableHeaderCell align="right">Quizzes</DataTableHeaderCell>
+                  <DataTableHeaderCell align="right">Final %</DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
                 <DataTableBody>
                   {students.map((student) => {
                     const fullName = `${student.student_first_name || ''} ${student.student_last_name || ''}`.trim()
@@ -233,14 +246,26 @@ export function TeacherGradebookTab({
                           'cursor-pointer transition-colors',
                           isSelected ? 'bg-info-bg hover:bg-info-bg-hover' : 'hover:bg-surface-hover',
                         ].join(' ')}
-                        onClick={() => onSelectStudent?.(isSelected ? null : student)}
-                      >
-                        <DataTableCell>{fullName || student.student_email}</DataTableCell>
-                        <DataTableCell align="right">{formatPercent(student.assignments_percent)}</DataTableCell>
-                        <DataTableCell align="right">{formatPercent(student.quizzes_percent)}</DataTableCell>
-                        <DataTableCell align="right" className="font-semibold">
-                          {formatPercent(student.final_percent)}
-                        </DataTableCell>
+                      onClick={() => onSelectStudent?.(isSelected ? null : student)}
+                    >
+                      <DataTableCell>{fullName || student.student_email}</DataTableCell>
+                      <DataTableCell align="right">
+                        {formatScoreWithPercent(
+                          student.assignments_earned,
+                          student.assignments_possible,
+                          student.assignments_percent
+                        )}
+                      </DataTableCell>
+                      <DataTableCell align="right">
+                        {formatScoreWithPercent(
+                          student.quizzes_earned,
+                          student.quizzes_possible,
+                          student.quizzes_percent
+                        )}
+                      </DataTableCell>
+                      <DataTableCell align="right" className="font-semibold">
+                        {formatPercent(student.final_percent)}
+                      </DataTableCell>
                       </DataTableRow>
                     )
                   })}
