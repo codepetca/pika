@@ -80,6 +80,10 @@ function formatTorontoDateShort(iso: string): string {
   })
 }
 
+function formatPoints(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+}
+
 export function ClassroomPageClient({
   classroom,
   user,
@@ -673,6 +677,33 @@ function ClassroomPageContent({
                         ? `${gradebookStudentDetail.final_percent.toFixed(2)}%`
                         : '—'}
                     </div>
+                    {(() => {
+                      if (!gradebookStudentDetail) return null
+                      const assignmentTotals = (gradebookStudentDetail.assignments || [])
+                        .filter((item) => item.is_graded && item.earned != null)
+                        .reduce(
+                          (totals, item) => ({
+                            earned: totals.earned + Number(item.earned),
+                            possible: totals.possible + Number(item.possible),
+                          }),
+                          { earned: 0, possible: 0 }
+                        )
+                      const quizTotals = (gradebookStudentDetail.quizzes || []).reduce(
+                        (totals, item) => ({
+                          earned: totals.earned + Number(item.earned),
+                          possible: totals.possible + Number(item.possible),
+                        }),
+                        { earned: 0, possible: 0 }
+                      )
+                      const earnedTotal = assignmentTotals.earned + quizTotals.earned
+                      const possibleTotal = assignmentTotals.possible + quizTotals.possible
+                      if (possibleTotal <= 0) return null
+                      return (
+                        <div className="mt-1 text-xs text-text-muted">
+                          {formatPoints(earnedTotal)}/{formatPoints(possibleTotal)} pts
+                        </div>
+                      )
+                    })()}
                   </div>
 
                   <div>
@@ -693,8 +724,8 @@ function ClassroomPageContent({
                             </div>
                             <div className="text-xs text-text-muted">
                               {item.is_graded && item.earned != null && item.percent != null
-                                ? `${item.earned.toFixed(2)} / ${item.possible.toFixed(2)} (${item.percent.toFixed(2)}%)`
-                                : `No grade (${item.possible.toFixed(2)} pts)`}
+                                ? `${formatPoints(item.earned)}/${formatPoints(item.possible)} (${item.percent.toFixed(2)}%)`
+                                : `No grade (${formatPoints(item.possible)} pts)`}
                             </div>
                           </div>
                         ))}
