@@ -400,6 +400,7 @@ function ClassroomPageContent({
 
   useEffect(() => {
     if (!isTeacher || activeTab !== 'gradebook' || !selectedGradebookStudent) return
+    const selectedStudentId = selectedGradebookStudent.student_id
 
     if (window.innerWidth < DESKTOP_BREAKPOINT) {
       openRight()
@@ -414,7 +415,7 @@ function ClassroomPageContent({
       setGradebookStudentDetailError('')
       try {
         const response = await fetch(
-          `/api/teacher/gradebook?classroom_id=${classroom.id}&student_id=${selectedGradebookStudent.student_id}`
+          `/api/teacher/gradebook?classroom_id=${classroom.id}&student_id=${selectedStudentId}`
         )
         const data = await response.json()
         if (!response.ok) {

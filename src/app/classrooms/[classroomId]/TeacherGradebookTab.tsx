@@ -193,64 +193,66 @@ export function TeacherGradebookTab({
         }
       />
 
-      <PageContent ref={tableContainerRef}>
-        <TableCard>
-          {error && (
-            <div className="p-3 border-b border-border">
-              <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-                {error}
+      <PageContent>
+        <div ref={tableContainerRef}>
+          <TableCard>
+            {error && (
+              <div className="p-3 border-b border-border">
+                <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                  {error}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <KeyboardNavigableTable
-            rowKeys={rowKeys}
-            selectedKey={selectedStudentId}
-            onSelectKey={(studentId) => {
-              const student = students.find((row) => row.student_id === studentId) || null
-              onSelectStudent?.(student)
-            }}
-            onDeselect={() => onSelectStudent?.(null)}
-          >
-            <DataTable>
-              <DataTableHead>
-                <DataTableRow>
-                  <DataTableHeaderCell>Student</DataTableHeaderCell>
-                  <DataTableHeaderCell align="right">Assignments %</DataTableHeaderCell>
-                  <DataTableHeaderCell align="right">Quizzes %</DataTableHeaderCell>
-                  <DataTableHeaderCell align="right">Final %</DataTableHeaderCell>
-                </DataTableRow>
-              </DataTableHead>
-              <DataTableBody>
-                {students.map((student) => {
-                  const fullName = `${student.student_first_name || ''} ${student.student_last_name || ''}`.trim()
-                  const isSelected = student.student_id === selectedStudentId
-                  return (
-                    <DataTableRow
-                      key={student.student_id}
-                      className={[
-                        'cursor-pointer transition-colors',
-                        isSelected ? 'bg-info-bg hover:bg-info-bg-hover' : 'hover:bg-surface-hover',
-                      ].join(' ')}
-                      onClick={() => onSelectStudent?.(isSelected ? null : student)}
-                    >
-                      <DataTableCell>{fullName || student.student_email}</DataTableCell>
-                      <DataTableCell align="right">{formatPercent(student.assignments_percent)}</DataTableCell>
-                      <DataTableCell align="right">{formatPercent(student.quizzes_percent)}</DataTableCell>
-                      <DataTableCell align="right" className="font-semibold">
-                        {formatPercent(student.final_percent)}
-                      </DataTableCell>
-                    </DataTableRow>
-                  )
-                })}
+            <KeyboardNavigableTable
+              rowKeys={rowKeys}
+              selectedKey={selectedStudentId}
+              onSelectKey={(studentId) => {
+                const student = students.find((row) => row.student_id === studentId) || null
+                onSelectStudent?.(student)
+              }}
+              onDeselect={() => onSelectStudent?.(null)}
+            >
+              <DataTable>
+                <DataTableHead>
+                  <DataTableRow>
+                    <DataTableHeaderCell>Student</DataTableHeaderCell>
+                    <DataTableHeaderCell align="right">Assignments %</DataTableHeaderCell>
+                    <DataTableHeaderCell align="right">Quizzes %</DataTableHeaderCell>
+                    <DataTableHeaderCell align="right">Final %</DataTableHeaderCell>
+                  </DataTableRow>
+                </DataTableHead>
+                <DataTableBody>
+                  {students.map((student) => {
+                    const fullName = `${student.student_first_name || ''} ${student.student_last_name || ''}`.trim()
+                    const isSelected = student.student_id === selectedStudentId
+                    return (
+                      <DataTableRow
+                        key={student.student_id}
+                        className={[
+                          'cursor-pointer transition-colors',
+                          isSelected ? 'bg-info-bg hover:bg-info-bg-hover' : 'hover:bg-surface-hover',
+                        ].join(' ')}
+                        onClick={() => onSelectStudent?.(isSelected ? null : student)}
+                      >
+                        <DataTableCell>{fullName || student.student_email}</DataTableCell>
+                        <DataTableCell align="right">{formatPercent(student.assignments_percent)}</DataTableCell>
+                        <DataTableCell align="right">{formatPercent(student.quizzes_percent)}</DataTableCell>
+                        <DataTableCell align="right" className="font-semibold">
+                          {formatPercent(student.final_percent)}
+                        </DataTableCell>
+                      </DataTableRow>
+                    )
+                  })}
 
-                {students.length === 0 && (
-                  <EmptyStateRow colSpan={4} message="No students enrolled yet" />
-                )}
-              </DataTableBody>
-            </DataTable>
-          </KeyboardNavigableTable>
-        </TableCard>
+                  {students.length === 0 && (
+                    <EmptyStateRow colSpan={4} message="No students enrolled yet" />
+                  )}
+                </DataTableBody>
+              </DataTable>
+            </KeyboardNavigableTable>
+          </TableCard>
+        </div>
       </PageContent>
     </PageLayout>
   )

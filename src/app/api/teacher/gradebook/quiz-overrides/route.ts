@@ -42,7 +42,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Quiz does not belong to classroom' }, { status: 400 })
     }
 
-    if (quiz.classrooms.teacher_id !== user.id) {
+    const classroomRelation = Array.isArray(quiz.classrooms) ? quiz.classrooms[0] : quiz.classrooms
+    if (!classroomRelation || classroomRelation.teacher_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
