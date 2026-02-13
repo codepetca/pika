@@ -2501,3 +2501,19 @@
 **Validation:**
 - `pnpm lint` passed
 - `pnpm vitest run tests/unit/teachassist/planner.test.ts tests/unit/teachassist/validator.test.ts` passed
+**Goal:** Build PR A foundation for centralized gradebook (weights + percentages) and split PR B for modular TeachAssist sync engine
+**Completed:**
+- Added gradebook foundation migration with settings, assessment metadata, quiz override storage, and report-card snapshot tables
+- Added pure grade calculation utility and unit tests
+- Added teacher gradebook APIs for matrix/settings and quiz override updates
+- Added new teacher `gradebook` tab, layout/nav wiring, and gradebook roster-style table UI
+- Performed teacher/student screenshot verification and fixed loading-state validation by waiting for rendered selectors
+**Status:** completed
+**Artifacts:**
+- Branch: codex/gradebook-foundation
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-gradebook-foundation
+- Files: supabase/migrations/037_gradebook_foundation.sql, src/lib/gradebook.ts, src/app/api/teacher/gradebook/*, src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx, layout/nav wiring files
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test -- tests/unit/gradebook.test.ts tests/unit/layout-config.test.ts` passed
+- Visual checks: `/tmp/teacher-gradebook-tab.png`, `/tmp/student-gradebook-tab.png`

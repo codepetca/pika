@@ -54,27 +54,35 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    // Update the assignment doc
-    const { data: doc, error: updateError } = await supabase
+    const { data: enrollment } = await supabase
+      .from('classroom_enrollments')
+      .select('id')
+      .eq('classroom_id', assignment.classroom_id)
+      .eq('student_id', student_id)
+      .maybeSingle()
+
+    if (!enrollment) {
+      return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 400 })
+    }
+
+    // Upsert supports grading students even when no submission/doc exists yet.
+    const { data: doc, error: upsertError } = await supabase
       .from('assignment_docs')
-      .update({
+      .upsert({
+        assignment_id: id,
+        student_id,
         score_completion: Number(score_completion),
         score_thinking: Number(score_thinking),
         score_workflow: Number(score_workflow),
         feedback,
         graded_at: new Date().toISOString(),
         graded_by: 'teacher',
-      })
-      .eq('assignment_id', id)
-      .eq('student_id', student_id)
+      }, { onConflict: 'assignment_id,student_id' })
       .select()
       .single()
 
-    if (updateError) {
-      if (updateError.code === 'PGRST116') {
-        return NextResponse.json({ error: 'No assignment doc found for this student' }, { status: 404 })
-      }
-      console.error('Error saving grade:', updateError)
+    if (upsertError) {
+      console.error('Error saving grade:', upsertError)
       return NextResponse.json({ error: 'Failed to save grade' }, { status: 500 })
     }
 

@@ -9,6 +9,7 @@ import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab, type TeacherAttendanceTabHandle } from './TeacherAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
+import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
@@ -29,7 +30,7 @@ import {
   useMobileDrawer,
   useRightSidebar,
 } from '@/components/layout'
-import { getRouteKeyFromTab } from '@/lib/layout-config'
+import { DESKTOP_BREAKPOINT, getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { Spinner } from '@/components/Spinner'
@@ -38,7 +39,18 @@ import { TEACHER_ASSIGNMENTS_UPDATED_EVENT, TEACHER_QUIZZES_UPDATED_EVENT } from
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
-import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo, Assignment, QuizWithStats } from '@/types'
+import type {
+  Classroom,
+  Entry,
+  LessonPlan,
+  TiptapContent,
+  SelectedStudentInfo,
+  Assignment,
+  QuizWithStats,
+  GradebookStudentSummary,
+  GradebookStudentDetail,
+  GradebookClassSummary,
+} from '@/types'
 
 interface UserInfo {
   id: string
@@ -60,6 +72,23 @@ interface ClassroomPageClientProps {
   initialTab?: string
 }
 
+function formatTorontoDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    timeZone: 'America/Toronto',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function formatPoints(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+}
+
+function formatPercent1(value: number | null): string {
+  if (value == null) return '—'
+  return `${value.toFixed(1)} %`
+}
+
 export function ClassroomPageClient({
   classroom,
   user,
@@ -76,7 +105,7 @@ export function ClassroomPageClient({
   const tab = searchParams.get('tab') ?? initialTab
   const defaultTab = isTeacher ? 'attendance' : 'today'
   const validTabs = isTeacher
-    ? (['attendance', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
+    ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
     : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const)
 
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
@@ -116,7 +145,7 @@ function ClassroomPageContent({
   activeTab: string
   isArchived: boolean
 }) {
-  const { openLeft } = useMobileDrawer()
+  const { openLeft, openRight } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const isTeacher = user.role === 'teacher'
 
@@ -142,6 +171,11 @@ function ClassroomPageContent({
 
   // State for selected quiz (teacher quizzes tab)
   const [selectedQuiz, setSelectedQuiz] = useState<QuizWithStats | null>(null)
+  const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
+  const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
+  const [gradebookClassSummary, setGradebookClassSummary] = useState<GradebookClassSummary | null>(null)
+  const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
+  const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
 
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
     setSelectedQuiz(quiz)
@@ -152,6 +186,10 @@ function ClassroomPageContent({
       new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
     )
   }, [classroom.id])
+
+  const handleSelectGradebookStudent = useCallback((student: GradebookStudentSummary | null) => {
+    setSelectedGradebookStudent(student)
+  }, [])
 
   // State for markdown mode (teacher assignments tab - summary view only)
   const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
@@ -348,6 +386,8 @@ function ClassroomPageContent({
       setRightSidebarWidth('50%')
     } else if (isTeacher && activeTab === 'quizzes') {
       setRightSidebarWidth('50%')
+    } else if (isTeacher && activeTab === 'gradebook') {
+      setRightSidebarWidth(420)
     }
   }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
 
@@ -356,6 +396,61 @@ function ClassroomPageContent({
       setRightSidebarOpen(false)
     }
   }, [activeTab, setRightSidebarOpen])
+
+  useEffect(() => {
+    if (activeTab !== 'gradebook') {
+      setSelectedGradebookStudent(null)
+      setGradebookStudentDetail(null)
+      setGradebookClassSummary(null)
+      setGradebookStudentDetailError('')
+      setGradebookStudentDetailLoading(false)
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!isTeacher || activeTab !== 'gradebook' || !selectedGradebookStudent) return
+    const selectedStudentId = selectedGradebookStudent.student_id
+
+    if (window.innerWidth < DESKTOP_BREAKPOINT) {
+      openRight()
+    } else {
+      setRightSidebarOpen(true)
+    }
+
+    let cancelled = false
+
+    async function loadStudentDetail() {
+      setGradebookStudentDetailLoading(true)
+      setGradebookStudentDetailError('')
+      try {
+        const response = await fetch(
+          `/api/teacher/gradebook?classroom_id=${classroom.id}&student_id=${selectedStudentId}`
+        )
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load gradebook details')
+        }
+
+        if (!cancelled) {
+          setGradebookStudentDetail((data.selected_student as GradebookStudentDetail | null) || null)
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setGradebookStudentDetail(null)
+          setGradebookStudentDetailError(err.message || 'Failed to load gradebook details')
+        }
+      } finally {
+        if (!cancelled) {
+          setGradebookStudentDetailLoading(false)
+        }
+      }
+    }
+
+    loadStudentDetail()
+    return () => {
+      cancelled = true
+    }
+  }, [isTeacher, activeTab, selectedGradebookStudent, classroom.id, setRightSidebarOpen, openRight])
 
   const content = (
     <AppShell
@@ -408,6 +503,14 @@ function ClassroomPageContent({
                   onDateChange={setAttendanceDate}
                 />
               )}
+              {activeTab === 'gradebook' && (
+                <TeacherGradebookTab
+                  classroom={classroom}
+                  selectedStudentId={selectedGradebookStudent?.student_id ?? null}
+                  onSelectStudent={handleSelectGradebookStudent}
+                  onClassSummaryChange={setGradebookClassSummary}
+                />
+              )}
               {activeTab === 'assignments' && (
                 <TeacherClassroomView
                   classroom={classroom}
@@ -458,6 +561,10 @@ function ClassroomPageContent({
               ? 'Assignments'
               : isTeacher && activeTab === 'calendar' && calendarSidebarState
               ? 'Calendar'
+              : isTeacher && activeTab === 'gradebook'
+              ? selectedGradebookStudent
+                ? `${selectedGradebookStudent.student_first_name || ''} ${selectedGradebookStudent.student_last_name || ''}`.trim() || selectedGradebookStudent.student_email
+                : 'Gradebook'
               : isTeacher && activeTab === 'quizzes'
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
@@ -554,6 +661,159 @@ function ClassroomPageContent({
               <p className="text-sm text-text-muted">
                 Select a quiz to view details.
               </p>
+            </div>
+          ) : isTeacher && activeTab === 'gradebook' && selectedGradebookStudent ? (
+            <div className="space-y-4 p-4">
+              {gradebookStudentDetailError && (
+                <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                  {gradebookStudentDetailError}
+                </div>
+              )}
+              {gradebookStudentDetailLoading ? (
+                <div className="flex justify-center py-8">
+                  <Spinner />
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-md border border-border bg-surface-2 p-3">
+                    <div className="text-xs text-text-muted">Overall</div>
+                    <div className="mt-1 text-lg font-semibold text-text-default">
+                      {formatPercent1(gradebookStudentDetail?.final_percent ?? null)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-default">Assignments</h3>
+                    {gradebookStudentDetail?.assignments?.length ? (
+                      <div className="mt-2 space-y-2">
+                        {gradebookStudentDetail.assignments.map((item) => (
+                          <div
+                            key={item.assignment_id}
+                            className={[
+                              'rounded-md border px-3 py-2',
+                              item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
+                            ].join(' ')}
+                          >
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3">
+                              <div className="min-w-0">
+                                <div className="truncate text-sm text-text-default">{item.title}</div>
+                                <div className="text-xs text-text-muted">
+                                  {`Due ${formatTorontoDateShort(item.due_at)}${item.is_draft ? ' . Draft' : ''}`}
+                                  {!item.is_graded ? ` . No grade (${formatPoints(item.possible)} pts)` : ''}
+                                </div>
+                              </div>
+                              <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                                {item.is_graded && item.earned != null
+                                  ? `${formatPoints(item.earned)}/${formatPoints(item.possible)}`
+                                  : '—'}
+                              </div>
+                              <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                                {item.is_graded && item.percent != null ? `${item.percent.toFixed(1)}%` : '—'}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-text-muted">No assignments yet.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-default">Quizzes</h3>
+                    {gradebookStudentDetail?.quizzes?.length ? (
+                      <div className="mt-2 space-y-2">
+                        {gradebookStudentDetail.quizzes.map((item) => (
+                          <div key={item.quiz_id} className="rounded-md border border-border px-3 py-2">
+                            <div className="text-sm text-text-default">{item.title}</div>
+                            <div className="text-xs text-text-muted">
+                              <span className="font-semibold text-text-default">
+                                {formatPoints(item.earned)}/{formatPoints(item.possible)}
+                              </span>
+                              {' . '}
+                              <span className="font-semibold text-text-default">{formatPercent1(item.percent)}</span>
+                              {item.is_manual_override ? ' • Manual override' : ''}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-text-muted">No scored quizzes yet.</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : isTeacher && activeTab === 'gradebook' ? (
+            <div className="space-y-4 p-4">
+              <div className="rounded-md border border-border bg-surface-2 p-3">
+                <div className="text-lg font-semibold text-text-default">
+                  {formatPercent1(gradebookClassSummary?.average_final_percent ?? null)}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-text-default">Assignments</h3>
+                {gradebookClassSummary?.assignments?.length ? (
+                  <div className="mt-2 space-y-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3 px-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                      <div />
+                      <div className="text-right">Avg</div>
+                      <div className="text-right">Med</div>
+                      <div className="text-right">#</div>
+                    </div>
+                    {gradebookClassSummary.assignments.map((item) => (
+                      <div
+                        key={item.assignment_id}
+                        className={[
+                          'rounded-md border px-3 py-2',
+                          item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
+                        ].join(' ')}
+                      >
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm text-text-default">{item.title}</div>
+                            <div className="text-xs text-text-muted">
+                              {`Due ${formatTorontoDateShort(item.due_at)}${item.is_draft ? ' . Draft' : ''}`}
+                            </div>
+                          </div>
+                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                            {item.average_percent != null ? item.average_percent.toFixed(1) : '—'}
+                          </div>
+                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                            {item.median_percent != null ? item.median_percent.toFixed(1) : '—'}
+                          </div>
+                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                            {item.graded_count}/{gradebookClassSummary.total_students}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-text-muted">No assignments yet.</p>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-text-default">Quizzes</h3>
+                {gradebookClassSummary?.quizzes?.length ? (
+                  <div className="mt-2 space-y-2">
+                    {gradebookClassSummary.quizzes.map((item) => (
+                      <div key={item.quiz_id} className="rounded-md border border-border px-3 py-2">
+                        <div className="text-sm text-text-default">{item.title}</div>
+                        <div className="text-xs text-text-muted">
+                          {item.status || 'unknown'} • {item.average_percent != null
+                            ? `Avg ${formatPercent1(item.average_percent)} • Scored ${item.scored_count}/${gradebookClassSummary.total_students}`
+                            : `No scored responses • Scored ${item.scored_count}/${gradebookClassSummary.total_students}`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-text-muted">No quizzes yet.</p>
+                )}
+              </div>
             </div>
           ) : isTeacher && activeTab === 'attendance' && selectedStudentId ? (
             <StudentLogHistory

@@ -159,6 +159,8 @@ export interface Assignment {
   is_draft: boolean  // Whether assignment is a draft (not visible to students)
   released_at: string | null  // When the assignment was released to students
   track_authenticity: boolean
+  points_possible?: number
+  include_in_final?: boolean
   created_by: string
   created_at: string
   updated_at: string
@@ -271,6 +273,8 @@ export interface Quiz {
   status: QuizStatus
   show_results: boolean
   position: number
+  points_possible?: number
+  include_in_final?: boolean
   created_by: string
   created_at: string
   updated_at: string
@@ -282,6 +286,7 @@ export interface QuizQuestion {
   question_text: string
   options: string[]
   position: number
+  correct_option?: number | null
   created_at: string
   updated_at: string
 }
@@ -352,3 +357,80 @@ export interface Announcement {
   created_at: string
   updated_at: string
 }
+
+export interface GradebookSettings {
+  classroom_id: string
+  use_weights: boolean
+  assignments_weight: number
+  quizzes_weight: number
+}
+
+export interface GradebookStudentSummary {
+  student_id: string
+  student_email: string
+  student_first_name: string | null
+  student_last_name: string | null
+  assignments_earned: number | null
+  assignments_possible: number | null
+  assignments_percent: number | null
+  quizzes_earned: number | null
+  quizzes_possible: number | null
+  quizzes_percent: number | null
+  final_percent: number | null
+}
+
+export interface GradebookAssignmentDetail {
+  assignment_id: string
+  title: string
+  due_at: string
+  is_draft: boolean
+  earned: number | null
+  possible: number
+  percent: number | null
+  is_graded: boolean
+}
+
+export interface GradebookQuizDetail {
+  quiz_id: string
+  title: string
+  earned: number
+  possible: number
+  percent: number
+  status: 'draft' | 'active' | 'closed' | null
+  is_manual_override: boolean
+}
+
+export interface GradebookStudentDetail extends GradebookStudentSummary {
+  assignments: GradebookAssignmentDetail[]
+  quizzes: GradebookQuizDetail[]
+}
+
+export interface GradebookClassAssignmentSummary {
+  assignment_id: string
+  title: string
+  due_at: string
+  is_draft: boolean
+  possible: number
+  graded_count: number
+  average_percent: number | null
+  median_percent: number | null
+}
+
+export interface GradebookClassQuizSummary {
+  quiz_id: string
+  title: string
+  status: 'draft' | 'active' | 'closed' | null
+  possible: number
+  scored_count: number
+  average_percent: number | null
+}
+
+export interface GradebookClassSummary {
+  total_students: number
+  students_with_final: number
+  average_final_percent: number | null
+  assignments: GradebookClassAssignmentSummary[]
+  quizzes: GradebookClassQuizSummary[]
+}
+
+export type ReportCardTerm = 'midterm' | 'final'
