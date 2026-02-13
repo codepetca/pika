@@ -35,19 +35,6 @@ function formatPercent(value: number | null): string {
   return `${value.toFixed(1)} %`
 }
 
-function formatPoints(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2)
-}
-
-function formatScoreWithPercent(
-  earned: number | null,
-  possible: number | null,
-  percent: number | null
-): string {
-  if (earned == null || possible == null || percent == null) return '—'
-  return `${formatPoints(earned)}/${formatPoints(possible)} (${percent.toFixed(1)} %)`
-}
-
 export function TeacherGradebookTab({
   classroom,
   selectedStudentId = null,
@@ -250,18 +237,10 @@ export function TeacherGradebookTab({
                     >
                       <DataTableCell>{fullName || student.student_email}</DataTableCell>
                       <DataTableCell align="right">
-                        {formatScoreWithPercent(
-                          student.assignments_earned,
-                          student.assignments_possible,
-                          student.assignments_percent
-                        )}
+                        {formatPercent(student.assignments_percent)}
                       </DataTableCell>
                       <DataTableCell align="right">
-                        {formatScoreWithPercent(
-                          student.quizzes_earned,
-                          student.quizzes_possible,
-                          student.quizzes_percent
-                        )}
+                        {formatPercent(student.quizzes_percent)}
                       </DataTableCell>
                       <DataTableCell align="right" className="font-semibold">
                         {formatPercent(student.final_percent)}
