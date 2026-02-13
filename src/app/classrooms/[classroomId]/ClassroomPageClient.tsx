@@ -760,6 +760,12 @@ function ClassroomPageContent({
                 <h3 className="text-sm font-semibold text-text-default">Assignments</h3>
                 {gradebookClassSummary?.assignments?.length ? (
                   <div className="mt-2 space-y-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3 px-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                      <div className="truncate">Assignment</div>
+                      <div className="text-right">Avg</div>
+                      <div className="text-right">Med</div>
+                      <div className="text-right">#</div>
+                    </div>
                     {gradebookClassSummary.assignments.map((item) => (
                       <div
                         key={item.assignment_id}
@@ -768,14 +774,22 @@ function ClassroomPageContent({
                           item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
                         ].join(' ')}
                       >
-                        <div className="text-sm text-text-default">{item.title}</div>
-                        <div className="text-xs text-text-muted">
-                          {[
-                            `Due ${formatTorontoDateShort(item.due_at)}`,
-                            item.average_percent != null ? `Avg ${formatPercent1(item.average_percent)}` : 'No graded work',
-                            item.median_percent != null ? `Med ${formatPercent1(item.median_percent)}` : 'Med —',
-                            `Graded ${item.graded_count}/${gradebookClassSummary.total_students}`,
-                          ].join(' . ')}
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm text-text-default">{item.title}</div>
+                            <div className="text-xs text-text-muted">
+                              {`Due ${formatTorontoDateShort(item.due_at)}${item.is_draft ? ' . Draft' : ''}`}
+                            </div>
+                          </div>
+                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                            {item.average_percent != null ? item.average_percent.toFixed(1) : '—'}
+                          </div>
+                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                            {item.median_percent != null ? item.median_percent.toFixed(1) : '—'}
+                          </div>
+                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                            {item.graded_count}/{gradebookClassSummary.total_students}
+                          </div>
                         </div>
                       </div>
                     ))}
