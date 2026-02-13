@@ -84,6 +84,11 @@ function formatPoints(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
+function formatPercent1(value: number | null): string {
+  if (value == null) return '—'
+  return `${value.toFixed(1)} %`
+}
+
 export function ClassroomPageClient({
   classroom,
   user,
@@ -673,9 +678,7 @@ function ClassroomPageContent({
                   <div className="rounded-md border border-border bg-surface-2 p-3">
                     <div className="text-xs text-text-muted">Overall</div>
                     <div className="mt-1 text-lg font-semibold text-text-default">
-                      {gradebookStudentDetail?.final_percent != null
-                        ? `${gradebookStudentDetail.final_percent.toFixed(2)}%`
-                        : '—'}
+                      {formatPercent1(gradebookStudentDetail?.final_percent ?? null)}
                     </div>
                   </div>
 
@@ -693,12 +696,20 @@ function ClassroomPageContent({
                           >
                             <div className="text-sm text-text-default">{item.title}</div>
                             <div className="text-xs text-text-muted">
-                              {item.is_draft ? 'Draft' : 'Assigned'} . Due {formatTorontoDateShort(item.due_at)}
-                            </div>
-                            <div className="text-xs text-text-muted">
                               {item.is_graded && item.earned != null && item.percent != null
-                                ? `${formatPoints(item.earned)}/${formatPoints(item.possible)} (${item.percent.toFixed(2)}%)`
-                                : `No grade (${formatPoints(item.possible)} pts)`}
+                                ? (
+                                  <>
+                                    {`Due ${formatTorontoDateShort(item.due_at)} . `}
+                                    <span className="font-semibold text-text-default">
+                                      {formatPoints(item.earned)}/{formatPoints(item.possible)}
+                                    </span>
+                                    {' . '}
+                                    <span className="font-semibold text-text-default">
+                                      {formatPercent1(item.percent)}
+                                    </span>
+                                  </>
+                                )
+                                : `Due ${formatTorontoDateShort(item.due_at)} . No grade (${formatPoints(item.possible)} pts)`}
                             </div>
                           </div>
                         ))}
@@ -716,7 +727,11 @@ function ClassroomPageContent({
                           <div key={item.quiz_id} className="rounded-md border border-border px-3 py-2">
                             <div className="text-sm text-text-default">{item.title}</div>
                             <div className="text-xs text-text-muted">
-                              {item.earned.toFixed(2)} / {item.possible.toFixed(2)} ({item.percent.toFixed(2)}%)
+                              <span className="font-semibold text-text-default">
+                                {formatPoints(item.earned)}/{formatPoints(item.possible)}
+                              </span>
+                              {' . '}
+                              <span className="font-semibold text-text-default">{formatPercent1(item.percent)}</span>
                               {item.is_manual_override ? ' • Manual override' : ''}
                             </div>
                           </div>
@@ -734,9 +749,7 @@ function ClassroomPageContent({
               <div className="rounded-md border border-border bg-surface-2 p-3">
                 <div className="text-xs text-text-muted">Class final average</div>
                 <div className="mt-1 text-lg font-semibold text-text-default">
-                  {gradebookClassSummary?.average_final_percent != null
-                    ? `${gradebookClassSummary.average_final_percent.toFixed(2)}%`
-                    : '—'}
+                  {formatPercent1(gradebookClassSummary?.average_final_percent ?? null)}
                 </div>
                 <div className="text-xs text-text-muted">
                   {gradebookClassSummary?.students_with_final ?? 0} / {gradebookClassSummary?.total_students ?? 0} students with final grade
@@ -759,8 +772,8 @@ function ClassroomPageContent({
                         <div className="text-xs text-text-muted">
                           {[
                             `Due ${formatTorontoDateShort(item.due_at)}`,
-                            item.average_percent != null ? `Avg ${item.average_percent.toFixed(0)}%` : 'No graded work',
-                            item.median_percent != null ? `Med ${item.median_percent.toFixed(0)}%` : 'Med —',
+                            item.average_percent != null ? `Avg ${formatPercent1(item.average_percent)}` : 'No graded work',
+                            item.median_percent != null ? `Med ${formatPercent1(item.median_percent)}` : 'Med —',
                             `Graded ${item.graded_count}/${gradebookClassSummary.total_students}`,
                           ].join(' . ')}
                         </div>
@@ -781,7 +794,7 @@ function ClassroomPageContent({
                         <div className="text-sm text-text-default">{item.title}</div>
                         <div className="text-xs text-text-muted">
                           {item.status || 'unknown'} • {item.average_percent != null
-                            ? `Avg ${item.average_percent.toFixed(2)}% • Scored ${item.scored_count}/${gradebookClassSummary.total_students}`
+                            ? `Avg ${formatPercent1(item.average_percent)} • Scored ${item.scored_count}/${gradebookClassSummary.total_students}`
                             : `No scored responses • Scored ${item.scored_count}/${gradebookClassSummary.total_students}`}
                         </div>
                       </div>

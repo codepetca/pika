@@ -32,7 +32,7 @@ interface Props {
 
 function formatPercent(value: number | null): string {
   if (value == null) return '—'
-  return `${value.toFixed(2)}%`
+  return `${value.toFixed(1)} %`
 }
 
 function formatPoints(value: number): string {
@@ -45,7 +45,7 @@ function formatScoreWithPercent(
   percent: number | null
 ): string {
   if (earned == null || possible == null || percent == null) return '—'
-  return `${formatPoints(earned)}/${formatPoints(possible)} (${percent.toFixed(2)}%)`
+  return `${formatPoints(earned)}/${formatPoints(possible)} (${percent.toFixed(1)} %)`
 }
 
 export function TeacherGradebookTab({
