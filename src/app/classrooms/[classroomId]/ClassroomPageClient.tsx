@@ -747,12 +747,8 @@ function ClassroomPageContent({
           ) : isTeacher && activeTab === 'gradebook' ? (
             <div className="space-y-4 p-4">
               <div className="rounded-md border border-border bg-surface-2 p-3">
-                <div className="text-xs text-text-muted">Class final average</div>
-                <div className="mt-1 text-lg font-semibold text-text-default">
+                <div className="text-lg font-semibold text-text-default">
                   {formatPercent1(gradebookClassSummary?.average_final_percent ?? null)}
-                </div>
-                <div className="text-xs text-text-muted">
-                  {gradebookClassSummary?.students_with_final ?? 0} / {gradebookClassSummary?.total_students ?? 0} students with final grade
                 </div>
               </div>
 
