@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import type { Classroom, GradebookStudentSummary } from '@/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Classroom, GradebookClassSummary, GradebookStudentSummary } from '@/types'
 import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -13,6 +13,7 @@ import {
   DataTableHeaderCell,
   DataTableRow,
   EmptyStateRow,
+  KeyboardNavigableTable,
   TableCard,
 } from '@/components/DataTable'
 
@@ -24,6 +25,9 @@ interface GradebookSettingsState {
 
 interface Props {
   classroom: Classroom
+  selectedStudentId?: string | null
+  onSelectStudent?: (student: GradebookStudentSummary | null) => void
+  onClassSummaryChange?: (summary: GradebookClassSummary | null) => void
 }
 
 function formatPercent(value: number | null): string {
@@ -31,7 +35,12 @@ function formatPercent(value: number | null): string {
   return `${value.toFixed(2)}%`
 }
 
-export function TeacherGradebookTab({ classroom }: Props) {
+export function TeacherGradebookTab({
+  classroom,
+  selectedStudentId = null,
+  onSelectStudent,
+  onClassSummaryChange,
+}: Props) {
   const isReadOnly = !!classroom.archived_at
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -42,6 +51,9 @@ export function TeacherGradebookTab({ classroom }: Props) {
     quizzes_weight: 30,
   })
   const [students, setStudents] = useState<GradebookStudentSummary[]>([])
+  const tableContainerRef = useRef<HTMLDivElement>(null)
+
+  const rowKeys = useMemo(() => students.map((student) => student.student_id), [students])
 
   async function loadGradebook() {
     setLoading(true)
@@ -55,8 +67,10 @@ export function TeacherGradebookTab({ classroom }: Props) {
 
       setSettings(data.settings)
       setStudents(data.students || [])
+      onClassSummaryChange?.((data.class_summary as GradebookClassSummary | null) || null)
     } catch (err: any) {
       setError(err.message || 'Failed to load gradebook')
+      onClassSummaryChange?.(null)
     } finally {
       setLoading(false)
     }
@@ -65,7 +79,21 @@ export function TeacherGradebookTab({ classroom }: Props) {
   useEffect(() => {
     loadGradebook()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classroom.id])
+  }, [classroom.id, onClassSummaryChange])
+
+  useEffect(() => {
+    if (!selectedStudentId) return
+
+    function handleMouseDown(event: MouseEvent) {
+      const target = event.target as HTMLElement
+      if (tableContainerRef.current?.contains(target)) return
+      if (target.closest('aside') || target.closest('[role="dialog"]')) return
+      onSelectStudent?.(null)
+    }
+
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [selectedStudentId, onSelectStudent])
 
   async function saveSettings() {
     if (isReadOnly) return
@@ -165,7 +193,7 @@ export function TeacherGradebookTab({ classroom }: Props) {
         }
       />
 
-      <PageContent>
+      <PageContent ref={tableContainerRef}>
         <TableCard>
           {error && (
             <div className="p-3 border-b border-border">
@@ -175,35 +203,53 @@ export function TeacherGradebookTab({ classroom }: Props) {
             </div>
           )}
 
-          <DataTable>
-            <DataTableHead>
-              <DataTableRow>
-                <DataTableHeaderCell>Student</DataTableHeaderCell>
-                <DataTableHeaderCell align="right">Assignments %</DataTableHeaderCell>
-                <DataTableHeaderCell align="right">Quizzes %</DataTableHeaderCell>
-                <DataTableHeaderCell align="right">Final %</DataTableHeaderCell>
-              </DataTableRow>
-            </DataTableHead>
-            <DataTableBody>
-              {students.map((student) => {
-                const fullName = `${student.student_first_name || ''} ${student.student_last_name || ''}`.trim()
-                return (
-                  <DataTableRow key={student.student_id}>
-                    <DataTableCell>{fullName || student.student_email}</DataTableCell>
-                    <DataTableCell align="right">{formatPercent(student.assignments_percent)}</DataTableCell>
-                    <DataTableCell align="right">{formatPercent(student.quizzes_percent)}</DataTableCell>
-                    <DataTableCell align="right" className="font-semibold">
-                      {formatPercent(student.final_percent)}
-                    </DataTableCell>
-                  </DataTableRow>
-                )
-              })}
+          <KeyboardNavigableTable
+            rowKeys={rowKeys}
+            selectedKey={selectedStudentId}
+            onSelectKey={(studentId) => {
+              const student = students.find((row) => row.student_id === studentId) || null
+              onSelectStudent?.(student)
+            }}
+            onDeselect={() => onSelectStudent?.(null)}
+          >
+            <DataTable>
+              <DataTableHead>
+                <DataTableRow>
+                  <DataTableHeaderCell>Student</DataTableHeaderCell>
+                  <DataTableHeaderCell align="right">Assignments %</DataTableHeaderCell>
+                  <DataTableHeaderCell align="right">Quizzes %</DataTableHeaderCell>
+                  <DataTableHeaderCell align="right">Final %</DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
+                {students.map((student) => {
+                  const fullName = `${student.student_first_name || ''} ${student.student_last_name || ''}`.trim()
+                  const isSelected = student.student_id === selectedStudentId
+                  return (
+                    <DataTableRow
+                      key={student.student_id}
+                      className={[
+                        'cursor-pointer transition-colors',
+                        isSelected ? 'bg-info-bg hover:bg-info-bg-hover' : 'hover:bg-surface-hover',
+                      ].join(' ')}
+                      onClick={() => onSelectStudent?.(isSelected ? null : student)}
+                    >
+                      <DataTableCell>{fullName || student.student_email}</DataTableCell>
+                      <DataTableCell align="right">{formatPercent(student.assignments_percent)}</DataTableCell>
+                      <DataTableCell align="right">{formatPercent(student.quizzes_percent)}</DataTableCell>
+                      <DataTableCell align="right" className="font-semibold">
+                        {formatPercent(student.final_percent)}
+                      </DataTableCell>
+                    </DataTableRow>
+                  )
+                })}
 
-              {students.length === 0 && (
-                <EmptyStateRow colSpan={4} message="No students enrolled yet" />
-              )}
-            </DataTableBody>
-          </DataTable>
+                {students.length === 0 && (
+                  <EmptyStateRow colSpan={4} message="No students enrolled yet" />
+                )}
+              </DataTableBody>
+            </DataTable>
+          </KeyboardNavigableTable>
         </TableCard>
       </PageContent>
     </PageLayout>

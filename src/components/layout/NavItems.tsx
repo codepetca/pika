@@ -58,9 +58,9 @@ type SidebarAssignment = {
 
 const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
-  { id: 'gradebook', label: 'Gradebook', icon: Percent },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
+  { id: 'gradebook', label: 'Gradebook', icon: Percent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: StickyNote },
   { id: 'roster', label: 'Roster', icon: Users },

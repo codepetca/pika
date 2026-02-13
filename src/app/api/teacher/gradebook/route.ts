@@ -12,6 +12,13 @@ const DEFAULT_SETTINGS = {
   quizzes_weight: 30,
 }
 
+const ASSIGNMENT_POINTS_DEFAULT = 30
+const QUIZ_POINTS_DEFAULT = 100
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
 async function assertTeacherOwnsClassroom(teacherId: string, classroomId: string) {
   const supabase = getServiceRoleClient()
   const { data, error } = await supabase
@@ -29,6 +36,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireRole('teacher')
     const classroomId = request.nextUrl.searchParams.get('classroom_id')
+    const selectedStudentId = request.nextUrl.searchParams.get('student_id')?.trim() || null
 
     if (!classroomId) {
       return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
@@ -60,6 +68,10 @@ export async function GET(request: NextRequest) {
     }
 
     const studentIds = (enrollments || []).map((row) => row.student_id)
+    if (selectedStudentId && !studentIds.includes(selectedStudentId)) {
+      return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 404 })
+    }
+
     const { data: profiles } = studentIds.length
       ? await supabase
           .from('student_profiles')
@@ -69,13 +81,57 @@ export async function GET(request: NextRequest) {
 
     const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]))
 
-    const { data: assignments } = await supabase
-      .from('assignments')
-      .select('id, title, points_possible, include_in_final, is_draft')
-      .eq('classroom_id', classroomId)
-      .eq('is_draft', false)
+    let assignments: Array<{
+      id: string
+      title: string
+      due_at: string
+      position: number
+      is_draft: boolean
+      points_possible: number
+      include_in_final: boolean
+    }> = []
 
-    const assignmentIds = (assignments || []).map((a) => a.id)
+    const { data: assignmentsWithMeta, error: assignmentsWithMetaError } = await supabase
+      .from('assignments')
+      .select('id, title, due_at, position, points_possible, include_in_final, is_draft')
+      .eq('classroom_id', classroomId)
+      .order('position', { ascending: true })
+
+    if (!assignmentsWithMetaError) {
+      assignments = (assignmentsWithMeta || []).map((assignment) => ({
+        id: assignment.id,
+        title: assignment.title,
+        due_at: assignment.due_at || new Date(0).toISOString(),
+        position: Number(assignment.position ?? 0),
+        is_draft: assignment.is_draft,
+        points_possible: Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT),
+        include_in_final: assignment.include_in_final !== false,
+      }))
+    } else {
+      // Backward-compatible fallback for databases that have not applied gradebook metadata columns yet.
+      const { data: assignmentsLegacy, error: assignmentsLegacyError } = await supabase
+        .from('assignments')
+        .select('id, title, due_at, position, is_draft')
+        .eq('classroom_id', classroomId)
+        .order('position', { ascending: true })
+
+      if (assignmentsLegacyError) {
+        console.error('Error loading assignments for gradebook:', assignmentsWithMetaError, assignmentsLegacyError)
+        return NextResponse.json({ error: 'Failed to load assignments for gradebook' }, { status: 500 })
+      }
+
+      assignments = (assignmentsLegacy || []).map((assignment) => ({
+        id: assignment.id,
+        title: assignment.title,
+        due_at: assignment.due_at || new Date(0).toISOString(),
+        position: Number(assignment.position ?? 0),
+        is_draft: assignment.is_draft,
+        points_possible: ASSIGNMENT_POINTS_DEFAULT,
+        include_in_final: true,
+      }))
+    }
+
+    const assignmentIds = assignments.map((a) => a.id)
     const { data: docs } = assignmentIds.length
       ? await supabase
           .from('assignment_docs')
@@ -83,12 +139,39 @@ export async function GET(request: NextRequest) {
           .in('assignment_id', assignmentIds)
       : { data: [] as Array<any> }
 
-    const assignmentMap = new Map((assignments || []).map((a) => [a.id, a]))
+    const assignmentMap = new Map(assignments.map((a) => [a.id, a]))
     const assignmentRowsByStudent = new Map<string, Array<{ earned: number; possible: number }>>()
+    const assignmentDocMap = new Map<string, {
+      score_completion: number | null
+      score_thinking: number | null
+      score_workflow: number | null
+    }>()
+    const docsByAssignment = new Map<string, Array<{
+      student_id: string
+      score_completion: number | null
+      score_thinking: number | null
+      score_workflow: number | null
+    }>>()
 
     for (const doc of docs || []) {
+      const docsForAssignment = docsByAssignment.get(doc.assignment_id) || []
+      docsForAssignment.push({
+        student_id: doc.student_id,
+        score_completion: doc.score_completion,
+        score_thinking: doc.score_thinking,
+        score_workflow: doc.score_workflow,
+      })
+      docsByAssignment.set(doc.assignment_id, docsForAssignment)
+
+      assignmentDocMap.set(`${doc.student_id}:${doc.assignment_id}`, {
+        score_completion: doc.score_completion,
+        score_thinking: doc.score_thinking,
+        score_workflow: doc.score_workflow,
+      })
+
       const assignment = assignmentMap.get(doc.assignment_id)
       if (!assignment || assignment.include_in_final === false) continue
+      if (assignment.is_draft) continue
 
       const sc = doc.score_completion
       const st = doc.score_thinking
@@ -96,7 +179,7 @@ export async function GET(request: NextRequest) {
       if (sc == null || st == null || sw == null) continue
 
       const raw = Number(sc) + Number(st) + Number(sw)
-      const possible = Number(assignment.points_possible ?? 30)
+      const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
       const earned = (raw / 30) * possible
 
       const rows = assignmentRowsByStudent.get(doc.student_id) || []
@@ -104,12 +187,49 @@ export async function GET(request: NextRequest) {
       assignmentRowsByStudent.set(doc.student_id, rows)
     }
 
-    const { data: quizzes } = await supabase
+    let quizzes: Array<{
+      id: string
+      title: string
+      status: 'draft' | 'active' | 'closed' | null
+      points_possible: number
+      include_in_final: boolean
+    }> = []
+
+    const { data: quizzesWithMeta, error: quizzesWithMetaError } = await supabase
       .from('quizzes')
-      .select('id, title, points_possible, include_in_final')
+      .select('id, title, status, points_possible, include_in_final')
       .eq('classroom_id', classroomId)
 
-    const quizIds = (quizzes || []).map((q) => q.id)
+    if (!quizzesWithMetaError) {
+      quizzes = (quizzesWithMeta || []).map((quiz) => ({
+        id: quiz.id,
+        title: quiz.title,
+        status: quiz.status ?? null,
+        points_possible: Number(quiz.points_possible ?? QUIZ_POINTS_DEFAULT),
+        include_in_final: quiz.include_in_final !== false,
+      }))
+    } else {
+      // Backward-compatible fallback for databases that have not applied gradebook metadata columns yet.
+      const { data: quizzesLegacy, error: quizzesLegacyError } = await supabase
+        .from('quizzes')
+        .select('id, title, status')
+        .eq('classroom_id', classroomId)
+
+      if (quizzesLegacyError) {
+        console.error('Error loading quizzes for gradebook:', quizzesWithMetaError, quizzesLegacyError)
+        return NextResponse.json({ error: 'Failed to load quizzes for gradebook' }, { status: 500 })
+      }
+
+      quizzes = (quizzesLegacy || []).map((quiz) => ({
+        id: quiz.id,
+        title: quiz.title,
+        status: quiz.status ?? null,
+        points_possible: QUIZ_POINTS_DEFAULT,
+        include_in_final: true,
+      }))
+    }
+
+    const quizIds = quizzes.map((q) => q.id)
 
     const { data: quizQuestions } = quizIds.length
       ? await supabase
@@ -134,11 +254,7 @@ export async function GET(request: NextRequest) {
           .in('student_id', studentIds)
       : { data: [] as Array<any> }
 
-    const quizMap = new Map((quizzes || []).map((q) => [q.id, q]))
-    const questionMap = new Map<string, { quiz_id: string; correct_option: number | null }>()
-    for (const q of quizQuestions || []) {
-      questionMap.set(q.id, { quiz_id: q.quiz_id, correct_option: q.correct_option })
-    }
+    const quizMap = new Map(quizzes.map((q) => [q.id, q]))
 
     const responsesByStudentQuiz = new Map<string, Map<string, Array<{ question_id: string; selected_option: number }>>>()
     for (const response of quizResponses || []) {
@@ -162,14 +278,26 @@ export async function GET(request: NextRequest) {
     }
 
     const quizRowsByStudent = new Map<string, Array<{ earned: number; possible: number }>>()
+    const quizScoresByQuiz = new Map<string, Array<{ earned: number; possible: number }>>()
+    const quizDetailsByStudent = new Map<string, Array<{
+      quiz_id: string
+      title: string
+      earned: number
+      possible: number
+      percent: number
+      status: 'active' | 'closed' | 'draft' | null
+      is_manual_override: boolean
+    }>>()
 
     for (const studentId of studentIds) {
       for (const quizId of quizIds) {
         const quiz = quizMap.get(quizId)
         if (!quiz || quiz.include_in_final === false) continue
+        if (quiz.status === 'draft') continue
 
-        const possible = Number(quiz.points_possible ?? 100)
+        const possible = Number(quiz.points_possible ?? QUIZ_POINTS_DEFAULT)
         const override = overrideMap.get(`${quizId}:${studentId}`)
+        const hasManualOverride = override != null
 
         let earned: number | null = override ?? null
         if (earned == null) {
@@ -177,6 +305,9 @@ export async function GET(request: NextRequest) {
           const scorable = quizQuestionsForQuiz.filter((q) => q.correct_option != null)
           if (scorable.length > 0) {
             const selected = responsesByStudentQuiz.get(studentId)?.get(quizId) || []
+            if (selected.length === 0 && quiz.status !== 'closed') {
+              continue
+            }
             const selectedByQuestion = new Map(selected.map((s) => [s.question_id, s.selected_option]))
 
             let correctCount = 0
@@ -186,8 +317,6 @@ export async function GET(request: NextRequest) {
                 correctCount += 1
               }
             }
-
-            // A quiz with no responses still participates as 0 when it has scorable questions.
             earned = (correctCount / scorable.length) * possible
           }
         }
@@ -197,6 +326,22 @@ export async function GET(request: NextRequest) {
         const rows = quizRowsByStudent.get(studentId) || []
         rows.push({ earned, possible })
         quizRowsByStudent.set(studentId, rows)
+
+        const quizScores = quizScoresByQuiz.get(quiz.id) || []
+        quizScores.push({ earned, possible })
+        quizScoresByQuiz.set(quiz.id, quizScores)
+
+        const details = quizDetailsByStudent.get(studentId) || []
+        details.push({
+          quiz_id: quiz.id,
+          title: quiz.title,
+          earned: round2(earned),
+          possible: round2(possible),
+          percent: round2((earned / possible) * 100),
+          status: quiz.status,
+          is_manual_override: hasManualOverride,
+        })
+        quizDetailsByStudent.set(studentId, details)
       }
     }
 
@@ -228,12 +373,121 @@ export async function GET(request: NextRequest) {
       return aName.localeCompare(bName)
     })
 
+    const selectedStudent = selectedStudentId
+      ? students.find((student) => student.student_id === selectedStudentId) || null
+      : null
+
+    const classAssignmentSummaries = assignments.map((assignment) => {
+      const docsForAssignment = docsByAssignment.get(assignment.id) || []
+      const graded = docsForAssignment
+        .map((doc) => {
+          const sc = doc.score_completion
+          const st = doc.score_thinking
+          const sw = doc.score_workflow
+          if (sc == null || st == null || sw == null) return null
+          const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
+          const raw = Number(sc) + Number(st) + Number(sw)
+          const earned = (raw / 30) * possible
+          return round2((earned / possible) * 100)
+        })
+        .filter((value): value is number => value != null)
+
+      const averagePercent = graded.length > 0
+        ? round2(graded.reduce((sum, value) => sum + value, 0) / graded.length)
+        : null
+
+      return {
+        assignment_id: assignment.id,
+        title: assignment.title,
+        due_at: assignment.due_at,
+        is_draft: assignment.is_draft,
+        possible: round2(assignment.points_possible),
+        graded_count: graded.length,
+        average_percent: averagePercent,
+      }
+    })
+
+    const classQuizSummaries = quizzes
+      .filter((quiz) => quiz.status !== 'draft')
+      .map((quiz) => {
+        const scored = quizScoresByQuiz.get(quiz.id) || []
+        const averagePercent = scored.length > 0
+          ? round2(
+              scored.reduce((sum, row) => sum + (row.earned / row.possible) * 100, 0) / scored.length
+            )
+          : null
+
+        return {
+          quiz_id: quiz.id,
+          title: quiz.title,
+          status: quiz.status,
+          possible: round2(quiz.points_possible),
+          scored_count: scored.length,
+          average_percent: averagePercent,
+        }
+      })
+
+    const finalPercents = students
+      .map((student) => student.final_percent)
+      .filter((value): value is number => value != null)
+
     return NextResponse.json({
       settings,
       students,
+      selected_student: selectedStudent
+        ? {
+            ...selectedStudent,
+            assignments: assignments
+              .map((assignment) => {
+                const score = assignmentDocMap.get(`${selectedStudent.student_id}:${assignment.id}`)
+                const sc = score?.score_completion
+                const st = score?.score_thinking
+                const sw = score?.score_workflow
+                const hasGrade = sc != null && st != null && sw != null
+                if (!hasGrade) {
+                  return {
+                    assignment_id: assignment.id,
+                    title: assignment.title,
+                    due_at: assignment.due_at,
+                    is_draft: assignment.is_draft,
+                    earned: null,
+                    possible: round2(assignment.points_possible),
+                    percent: null,
+                    is_graded: false,
+                  }
+                }
+
+                const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
+                const raw = Number(sc) + Number(st) + Number(sw)
+                const earned = (raw / 30) * possible
+                return {
+                  assignment_id: assignment.id,
+                  title: assignment.title,
+                  due_at: assignment.due_at,
+                  is_draft: assignment.is_draft,
+                  earned: round2(earned),
+                  possible: round2(possible),
+                  percent: round2((earned / possible) * 100),
+                  is_graded: true,
+                }
+              }),
+            quizzes: (quizDetailsByStudent.get(selectedStudent.student_id) || []).sort((a, b) =>
+              a.title.localeCompare(b.title)
+            ),
+          }
+        : null,
+      class_summary: {
+        total_students: studentIds.length,
+        students_with_final: finalPercents.length,
+        average_final_percent: finalPercents.length > 0
+          ? round2(finalPercents.reduce((sum, value) => sum + value, 0) / finalPercents.length)
+          : null,
+        assignments: classAssignmentSummaries,
+        quizzes: classQuizSummaries,
+      },
       totals: {
-        assignments: assignments?.length || 0,
-        quizzes: quizzes?.length || 0,
+        assignments: assignments.length || 0,
+        quizzes: quizzes.filter((quiz) => quiz.status !== 'draft').length || 0,
       },
     })
   } catch (error: any) {
@@ -279,7 +533,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'quizzes_weight must be an integer 0-100' }, { status: 400 })
     }
 
-    if (assignmentsWeight + quizzesWeight !== 100) {
+    if (useWeights && assignmentsWeight + quizzesWeight !== 100) {
       return NextResponse.json({ error: 'assignments_weight + quizzes_weight must equal 100' }, { status: 400 })
     }
 

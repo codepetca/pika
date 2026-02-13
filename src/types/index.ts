@@ -375,4 +375,57 @@ export interface GradebookStudentSummary {
   final_percent: number | null
 }
 
+export interface GradebookAssignmentDetail {
+  assignment_id: string
+  title: string
+  due_at: string
+  is_draft: boolean
+  earned: number | null
+  possible: number
+  percent: number | null
+  is_graded: boolean
+}
+
+export interface GradebookQuizDetail {
+  quiz_id: string
+  title: string
+  earned: number
+  possible: number
+  percent: number
+  status: 'draft' | 'active' | 'closed' | null
+  is_manual_override: boolean
+}
+
+export interface GradebookStudentDetail extends GradebookStudentSummary {
+  assignments: GradebookAssignmentDetail[]
+  quizzes: GradebookQuizDetail[]
+}
+
+export interface GradebookClassAssignmentSummary {
+  assignment_id: string
+  title: string
+  due_at: string
+  is_draft: boolean
+  possible: number
+  graded_count: number
+  average_percent: number | null
+}
+
+export interface GradebookClassQuizSummary {
+  quiz_id: string
+  title: string
+  status: 'draft' | 'active' | 'closed' | null
+  possible: number
+  scored_count: number
+  average_percent: number | null
+}
+
+export interface GradebookClassSummary {
+  total_students: number
+  students_with_final: number
+  average_final_percent: number | null
+  assignments: GradebookClassAssignmentSummary[]
+  quizzes: GradebookClassQuizSummary[]
+}
+
 export type ReportCardTerm = 'midterm' | 'final'
