@@ -761,7 +761,7 @@ function ClassroomPageContent({
                 {gradebookClassSummary?.assignments?.length ? (
                   <div className="mt-2 space-y-2">
                     <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3 px-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                      <div className="truncate">Assignment</div>
+                      <div />
                       <div className="text-right">Avg</div>
                       <div className="text-right">Med</div>
                       <div className="text-right">#</div>
