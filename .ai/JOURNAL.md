@@ -2484,3 +2484,27 @@
 - Files: src/components/TeacherStudentWorkPanel.tsx, src/components/StudentAssignmentEditor.tsx
 **Validation:**
 - `pnpm lint` passed
+
+---
+## 2026-02-13 [AI - GPT-5 Codex]
+**Goal:** Add modular marketing engine scripts (seed/capture/voiceover) with safer seeding and reliable capture targeting
+**Completed:**
+- Added `seed:marketing`, `capture:marketing`, and `voiceover:marketing` npm scripts
+- Added marketing seed script: `scripts/seed-marketing-demo.ts`
+- Added modular marketing scripts under `scripts/marketing/` with thin root wrappers
+- Added marketing docs under `docs/marketing/` (plan + voiceover script)
+- Hardened seed safety with explicit opt-in guard `ALLOW_MARKETING_SEED=true`
+- Added production safety gate `ALLOW_MARKETING_SEED_PRODUCTION=true` when `NODE_ENV=production`
+- Added strict DB error handling for previously unchecked writes/deletes
+- Fixed mood seed data to satisfy DB check constraint (`😟`)
+- Improved capture classroom targeting by filtering with teacher email and optional `CAPTURE_CLASSROOM_ID`
+**Status:** completed
+**Artifacts:**
+- Branch: codex/marketing-demo-assets
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets
+- Key files: package.json, scripts/seed-marketing-demo.ts, scripts/marketing/capture.ts, scripts/marketing/generate-voiceover.sh, scripts/capture-marketing-shots.ts, scripts/generate-marketing-voiceover.sh, docs/marketing/pika-web-media-plan.md, docs/marketing/voiceover-60s.txt
+**Validation:**
+- `pnpm lint` passed
+- `ALLOW_MARKETING_SEED=true ENV_FILE=/Users/stew/Repos/pika/.env.staging pnpm seed:marketing` passed
+**Blockers:**
+- None

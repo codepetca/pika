@@ -23,6 +23,9 @@
     "seed": "tsx scripts/seed.ts",
     "seed:fresh": "tsx scripts/clear-and-seed.ts",
     "seed:gld2o": "tsx scripts/seed-gld2o.ts",
+    "seed:marketing": "tsx scripts/seed-marketing-demo.ts",
+    "capture:marketing": "tsx scripts/capture-marketing-shots.ts",
+    "voiceover:marketing": "bash scripts/generate-marketing-voiceover.sh",
     "generate:secret": "node scripts/generate-env.js"
   },
   "dependencies": {
