@@ -92,6 +92,24 @@ export async function GET(
       .eq('assignment_id', id)
 
     const docMap = new Map(docs?.map(d => [d.student_id, d]) || [])
+    const docIds = (docs || []).map((d) => d.id)
+
+    // Student-only activity signal: most recent history entry per assignment doc.
+    // This excludes teacher grading updates that also touch assignment_docs.updated_at.
+    const studentUpdatedAtByDocId = new Map<string, string>()
+    if (docIds.length > 0) {
+      const { data: historyRows } = await supabase
+        .from('assignment_doc_history')
+        .select('assignment_doc_id, created_at')
+        .in('assignment_doc_id', docIds)
+
+      for (const row of historyRows || []) {
+        const existing = studentUpdatedAtByDocId.get(row.assignment_doc_id)
+        if (!existing || row.created_at > existing) {
+          studentUpdatedAtByDocId.set(row.assignment_doc_id, row.created_at)
+        }
+      }
+    }
 
     // Build student submission list
     const students = (enrollments || []).map(enrollment => {
@@ -108,6 +126,7 @@ export async function GET(
         student_last_name: profile?.last_name ?? null,
         student_name: profile?.full_name || null,
         status,
+        student_updated_at: doc ? (studentUpdatedAtByDocId.get(doc.id) ?? null) : null,
         doc: doc || null
       }
     })
@@ -167,7 +186,7 @@ export async function PATCH(
     const user = await requireRole('teacher')
     const { id } = await params
     const body = await request.json()
-    const { title, rich_instructions, due_at, track_authenticity } = body
+    const { title, rich_instructions, due_at } = body
 
     const supabase = getServiceRoleClient()
 
@@ -214,7 +233,6 @@ export async function PATCH(
       updates.description = extractPlainText(instructions)  // Keep plain text in sync
     }
     if (due_at !== undefined) updates.due_at = due_at
-    if (track_authenticity !== undefined) updates.track_authenticity = track_authenticity
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(

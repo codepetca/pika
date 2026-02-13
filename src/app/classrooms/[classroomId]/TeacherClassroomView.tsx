@@ -18,9 +18,8 @@ import {
 } from '@dnd-kit/sortable'
 import {
   Check,
-  CheckCircle,
   Circle,
-  ClockAlert,
+  Clock,
   Pencil,
   Plus,
   RotateCcw,
@@ -63,6 +62,8 @@ import {
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
   TEACHER_GRADE_UPDATED_EVENT,
 } from '@/lib/events'
+import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
+import type { SortDirection } from '@/lib/table-sort'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -76,6 +77,7 @@ interface StudentSubmissionRow {
   student_first_name: string | null
   student_last_name: string | null
   status: AssignmentStatus
+  student_updated_at?: string | null
   doc: {
     submitted_at?: string | null
     updated_at?: string | null
@@ -124,38 +126,62 @@ function formatTorontoDateTime(iso: string) {
   }).replace(' AM', ' am').replace(' PM', ' pm')
 }
 
+function formatTorontoDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString('en-US', {
+    timeZone: 'America/Toronto',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 function getRowClassName(isSelected: boolean): string {
   if (isSelected) {
     return 'cursor-pointer bg-info-bg border-l-2 border-l-blue-500'
   }
-  return 'cursor-pointer border-l-2 border-l-transparent hover:bg-surface-hover'
+  return 'cursor-pointer hover:bg-surface-hover'
 }
 
 const STATUS_ICON_CLASS = 'h-4 w-4'
+const LATE_CLOCK_CLASS = 'h-3 w-3'
 
-function StatusIcon({ status }: { status: AssignmentStatus }) {
+function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: boolean }) {
   const colorClass = getAssignmentStatusIconClass(status)
   const cls = `${STATUS_ICON_CLASS} ${colorClass}`
+
+  // Determine if this status should show the late clock indicator.
+  // "late" statuses always show it; downstream statuses show it when wasLate is true.
+  const showLate =
+    status === 'in_progress_late' ||
+    status === 'submitted_late' ||
+    ((status === 'graded' || status === 'returned' || status === 'resubmitted') && wasLate)
+
+  // Pick the base icon for each status
+  let icon: React.ReactElement
   switch (status) {
     case 'not_started':
-      return <Circle className={cls} />
     case 'in_progress':
-      return <Pencil className={cls} />
     case 'in_progress_late':
-      return <ClockAlert className={cls} />
+      icon = <Circle className={cls} />
+      break
     case 'submitted_on_time':
-      return <CheckCircle className={cls} />
     case 'submitted_late':
-      return <ClockAlert className={cls} />
     case 'graded':
-      return <Check className={cls} />
+      icon = <Check className={cls} />
+      break
     case 'returned':
-      return <Send className={cls} />
+      icon = <Send className={cls} />
+      break
     case 'resubmitted':
-      return <RotateCcw className={cls} />
+      icon = <RotateCcw className={cls} />
+      break
     default:
-      return <Circle className={cls} />
+      icon = <Circle className={cls} />
   }
+
+  if (showLate) {
+    return <span className={`inline-flex items-center gap-0.5 ${colorClass}`}>{icon}<Clock className={LATE_CLOCK_CLASS} /></span>
+  }
+  return icon
 }
 
 export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
@@ -189,8 +215,10 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [selectedAssignmentLoading, setSelectedAssignmentLoading] = useState(false)
   const [selectedAssignmentError, setSelectedAssignmentError] = useState<string>('')
 
-  const [sortColumn, setSortColumn] = useState<'first' | 'last'>('last')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
+    column: 'first' | 'last' | 'status'
+    direction: SortDirection
+  }>({ column: 'last', direction: 'asc' })
 
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -199,6 +227,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [error, setError] = useState('')
   const [warning, setWarning] = useState('')
+  const [info, setInfo] = useState('')
 
   // Batch grading state
   const [isAutoGrading, setIsAutoGrading] = useState(false)
@@ -429,27 +458,39 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
   const sortedStudents = useMemo(() => {
     if (!selectedAssignmentData) return []
-    const dir = sortDirection === 'asc' ? 1 : -1
     const rows = [...selectedAssignmentData.students]
-    rows.sort((a, b) => {
-      const primaryA = sortColumn === 'first' ? a.student_first_name : a.student_last_name
-      const primaryB = sortColumn === 'first' ? b.student_first_name : b.student_last_name
-
-      const missingA = primaryA ? 0 : 1
-      const missingB = primaryB ? 0 : 1
-      if (missingA !== missingB) return (missingA - missingB) * dir
-
-      const valueA = (primaryA || '').trim()
-      const valueB = (primaryB || '').trim()
-      const cmp = valueA.localeCompare(valueB)
-      if (cmp !== 0) return cmp * dir
-
-      return a.student_email.localeCompare(b.student_email) * dir
-    })
+    if (sortColumn === 'status') {
+      const submittedStatuses = new Set<AssignmentStatus>([
+        'submitted_on_time', 'submitted_late', 'graded', 'returned', 'resubmitted',
+      ])
+      rows.sort((a, b) => {
+        const rankA = submittedStatuses.has(a.status) ? 0 : 1
+        const rankB = submittedStatuses.has(b.status) ? 0 : 1
+        const cmp = rankA - rankB
+        if (cmp !== 0) return applyDirection(cmp, sortDirection)
+        return compareByNameFields(
+          { firstName: a.student_first_name, lastName: a.student_last_name, id: a.student_email },
+          { firstName: b.student_first_name, lastName: b.student_last_name, id: b.student_email },
+          'last_name',
+          sortDirection
+        )
+      })
+    } else {
+      const nameColumn = sortColumn === 'first' ? 'first_name' as const : 'last_name' as const
+      rows.sort((a, b) =>
+        compareByNameFields(
+          { firstName: a.student_first_name, lastName: a.student_last_name, id: a.student_email },
+          { firstName: b.student_first_name, lastName: b.student_last_name, id: b.student_email },
+          nameColumn,
+          sortDirection
+        )
+      )
+    }
     return rows
   }, [selectedAssignmentData, sortColumn, sortDirection])
 
   const studentRowIds = useMemo(() => sortedStudents.map((s) => s.student_id), [sortedStudents])
+  const dueAtMs = useMemo(() => selectedAssignmentData ? new Date(selectedAssignmentData.assignment.due_at).getTime() : 0, [selectedAssignmentData])
   const {
     selectedIds: batchSelectedIds,
     toggleSelect: batchToggleSelect,
@@ -458,6 +499,17 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     clearSelection: batchClearSelection,
     selectedCount: batchSelectedCount,
   } = useStudentSelection(studentRowIds)
+  const batchSelectedGradedCount = useMemo(() => {
+    if (!selectedAssignmentData) return 0
+    let graded = 0
+    for (const student of selectedAssignmentData.students) {
+      if (batchSelectedIds.has(student.student_id) && student.doc?.graded_at) {
+        graded += 1
+      }
+    }
+    return graded
+  }, [selectedAssignmentData, batchSelectedIds])
+  const batchSelectedUngradedCount = batchSelectedCount - batchSelectedGradedCount
 
   // Auto-dismiss warning after 3 seconds, or immediately when students are selected
   useEffect(() => {
@@ -469,6 +521,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     const timer = setTimeout(() => setWarning(''), 3000)
     return () => clearTimeout(timer)
   }, [warning, batchSelectedCount])
+  useEffect(() => {
+    if (!info) return
+    const timer = setTimeout(() => setInfo(''), 4000)
+    return () => clearTimeout(timer)
+  }, [info])
 
   async function handleBatchAutoGrade() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
@@ -504,6 +561,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     setBatchProgressCount(batchSelectedCount)
     setIsReturning(true)
     setError('')
+    setInfo('')
     try {
       const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/return`, {
         method: 'POST',
@@ -512,6 +570,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Return failed')
+      const returnedCount = Number(data.returned_count ?? 0)
+      const skippedCount = Number(data.skipped_count ?? 0)
+      setInfo(`Returned ${returnedCount} graded work item(s)${skippedCount > 0 ? ` • ${skippedCount} ungraded skipped` : ''}`)
       batchClearSelection()
       setShowReturnConfirm(false)
       // Reload assignment data to refresh statuses/grades
@@ -614,13 +675,8 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     return () => document.removeEventListener('mousedown', handleMouseDown)
   }, [selectedStudentId])
 
-  function toggleSort(column: 'first' | 'last') {
-    if (sortColumn !== column) {
-      setSortColumn(column)
-      setSortDirection('asc')
-      return
-    }
-    setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+  function toggleSort(column: 'first' | 'last' | 'status') {
+    setSortState((prev) => toggleSortState(prev, column))
   }
 
   async function deleteAssignment() {
@@ -727,7 +783,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
     <PageLayout>
       <PageActionBar primary={primaryButtons} actions={[]} trailing={showMobileToggle ? <RightSidebarToggle /> : undefined} />
 
-      <PageContent className="space-y-4">
+      <PageContent className="space-y-3">
         {error && (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
@@ -736,6 +792,11 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
         {warning && (
           <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
             {warning}
+          </div>
+        )}
+        {info && (
+          <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
+            {info}
           </div>
         )}
 
@@ -834,9 +895,15 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       direction={sortDirection}
                       onClick={() => toggleSort('last')}
                     />
-                    <DataTableHeaderCell className={isCompactTable ? 'w-8' : ''}>{isCompactTable ? '' : 'Status'}</DataTableHeaderCell>
-                    <DataTableHeaderCell>Grade</DataTableHeaderCell>
-                    {!isCompactTable && <DataTableHeaderCell>Last updated</DataTableHeaderCell>}
+                    <SortableHeaderCell
+                      label={isCompactTable ? '' : 'Status'}
+                      isActive={sortColumn === 'status'}
+                      direction={sortDirection}
+                      onClick={() => toggleSort('status')}
+                      className="w-[5.75rem]"
+                    />
+                    <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
+                    {!isCompactTable && <DataTableHeaderCell className="w-[5.5rem]">Updated</DataTableHeaderCell>}
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
@@ -848,6 +915,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                       student.doc?.score_workflow != null
                         ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
                         : null
+                    const wasLate = !!(student.doc?.submitted_at && dueAtMs && new Date(student.doc.submitted_at).getTime() > dueAtMs)
                     return (
                     <DataTableRow
                       key={student.student_id}
@@ -884,19 +952,26 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
                           )
                         ) : '—'}
                       </DataTableCell>
-                      <DataTableCell>
+                      <DataTableCell className="w-[5.75rem]">
                         <Tooltip content={getAssignmentStatusLabel(student.status)}>
-                          <span className="inline-flex">
-                            <StatusIcon status={student.status} />
+                          <span className="inline-flex" role="img" aria-label={getAssignmentStatusLabel(student.status)}>
+                            <StatusIcon
+                              status={student.status}
+                              wasLate={wasLate}
+                            />
                           </span>
                         </Tooltip>
                       </DataTableCell>
-                      <DataTableCell className="text-text-muted">
+                      <DataTableCell className="w-[4.75rem] whitespace-nowrap text-text-muted">
                         {totalScore !== null ? `${Math.round((totalScore / 30) * 100)}` : '—'}
                       </DataTableCell>
                       {!isCompactTable && (
-                        <DataTableCell className="text-text-muted">
-                          {student.doc?.updated_at ? formatTorontoDateTime(student.doc.updated_at) : '—'}
+                        <DataTableCell className="w-[5.5rem] whitespace-nowrap text-text-muted">
+                          {student.student_updated_at ? (
+                            <Tooltip content={formatTorontoDateTime(student.student_updated_at)}>
+                              <span>{formatTorontoDateShort(student.student_updated_at)}</span>
+                            </Tooltip>
+                          ) : '—'}
                         </DataTableCell>
                       )}
                     </DataTableRow>
@@ -929,8 +1004,8 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
 
       <ConfirmDialog
         isOpen={showReturnConfirm}
-        title="Return graded work?"
-        description={`Return graded assignments to ${batchSelectedCount} selected student(s).\n\nOnly graded work will be returned. Students will be able to view their grades and edit/resubmit.`}
+        title={`Return work to ${batchSelectedCount} selected student(s)?`}
+        description={`Eligible to return now: ${batchSelectedGradedCount} graded${batchSelectedUngradedCount > 0 ? ` • ${batchSelectedUngradedCount} ungraded will be skipped` : ''}`}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
         isConfirmDisabled={isReturning}

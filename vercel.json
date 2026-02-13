@@ -5,5 +5,11 @@
       "production": true,
       "*": false
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/nightly-log-summaries",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }

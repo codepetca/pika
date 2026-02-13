@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireRole('teacher')
     const body = await request.json()
-    const { classroom_id, title, rich_instructions, due_at, track_authenticity } = body
+    const { classroom_id, title, rich_instructions, due_at } = body
 
     // Validate required fields
     if (!classroom_id) {
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
       description: extractPlainText(instructions),  // Keep plain text for backwards compatibility
       due_at,
       created_by: user.id,
-      ...(track_authenticity !== undefined && { track_authenticity }),
+      track_authenticity: true,
     }
 
     // If the position column doesn't exist yet, omit it for backwards compatibility.

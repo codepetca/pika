@@ -2446,3 +2446,101 @@
 - New files: 029_pet_gamification.sql, pet-config.ts, pet.ts, server/pet.ts, pet/route.ts, PetImagePlaceholder.tsx, StudentPetTab.tsx, pet.test.ts
 - Modified: index.ts (types), mocks.ts, NavItems.tsx, layout-config.ts, ClassroomPageClient.tsx, page.tsx, submit/route.ts, JOURNAL.md
 **Note:** Human must apply migration (`029_pet_gamification.sql`) before testing UI
+## 2026-02-11 [AI - GPT-5 Codex]
+**Goal:** Tighten teacher assignment table density and readability after removing track-authenticity toggle
+**Completed:**
+- Updated assignment table header label from `Last updated` to `Updated`
+- Rendered compact updated date (`Mon D` format, e.g., `Feb 11`) in cells
+- Added tooltip on updated date hover with Toronto-formatted date/time
+- Tightened table widths for `Status`, `Grade`, and `Updated` columns to reduce wrapping/noise
+- Reduced vertical spacing in teacher classroom content container (`space-y-4` -> `space-y-3`)
+- Extended `SortableHeaderCell` to support custom `className` for precise width control
+- Captured fresh teacher and student screenshots for visual verification
+**Status:** completed
+**Artifacts:**
+- Branch: codex/remove-track-auth-toggle
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-remove-track-auth-toggle
+- Files: src/app/classrooms/[classroomId]/TeacherClassroomView.tsx, src/components/DataTable.tsx
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test tests/components/AssignmentModal.test.tsx` passed
+**Blockers:**
+- None
+
+---
+## 2026-02-11 [AI - GPT-5 Codex]
+**Goal:** Make assignment-table `Updated` reflect student activity only
+**Completed:**
+- Updated `GET /api/teacher/assignments/[id]` to compute per-doc student activity timestamp from `assignment_doc_history` (`max(created_at)` by `assignment_doc_id`)
+- Added `student_updated_at` to each student row in the API response
+- Updated teacher assignment table UI to render `student_updated_at` instead of `doc.updated_at`
+- Kept compact date rendering (`Feb 11`) and full Toronto timestamp tooltip behavior
+- Ran lint and targeted API tests; regenerated auth state and captured teacher/student screenshots for UI verification
+**Status:** completed
+**Artifacts:**
+- Branch: codex/remove-track-auth-toggle
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-remove-track-auth-toggle
+- Files: src/app/api/teacher/assignments/[id]/route.ts, src/app/classrooms/[classroomId]/TeacherClassroomView.tsx
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test tests/api/teacher/assignments-id.test.ts` passed
+**Blockers:**
+- None
+
+---
+## 2026-02-12 [AI - GPT-5 Codex]
+**Goal:** Tighten assignments UI by removing right-sidebar content padding and fixing row edge artifact
+**Completed:**
+- Removed left-edge artifact in assignment student table rows by dropping transparent `border-l-2` on non-selected rows
+- Kept selected-row accent border only (`border-l-2 border-l-blue-500`)
+- Removed right-sidebar wrapper padding for teacher assignments instructions content
+- Removed student-work content area padding in `TeacherStudentWorkPanel` so content extends to panel edge
+- Ran lint + targeted tests and captured updated teacher/student screenshots for visual verification
+**Status:** completed
+**Artifacts:**
+- Branch: codex/remove-track-auth-toggle
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-remove-track-auth-toggle
+- Files: src/app/classrooms/[classroomId]/ClassroomPageClient.tsx, src/app/classrooms/[classroomId]/TeacherClassroomView.tsx, src/components/TeacherStudentWorkPanel.tsx
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test tests/api/teacher/assignments-id.test.ts` passed
+**Blockers:**
+- None
+
+---
+## 2026-02-12 [AI - GPT-5 Codex]
+**Goal:** Polish assignment history/graded-work UX in teacher and student views
+**Completed:**
+- Removed preview banner text in teacher student-work panel (history hover/preview)
+- Removed preview banner text in student assignment editor (history hover/preview)
+- Updated teacher preview highlight to use full-pane outline (works with flush content)
+- Centered character count in teacher student-work panel
+- Widened teacher history/grading side pane (`w-64` -> `w-80`)
+- Made grading feedback textarea consume remaining vertical space in grading pane
+- Verified teacher + student screenshots across assignment/history/grade flows
+**Status:** completed
+**Artifacts:**
+- Branch: codex/remove-track-auth-toggle
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-remove-track-auth-toggle
+- Files: src/components/TeacherStudentWorkPanel.tsx, src/components/StudentAssignmentEditor.tsx
+**Validation:**
+- `pnpm lint` passed
+
+---
+## 2026-02-12 [AI - GPT-5 Codex]
+**Goal:** Build PR A foundation for centralized gradebook (weights + percentages) and split PR B for modular TeachAssist sync engine
+**Completed:**
+- Added gradebook foundation migration with settings, assessment metadata, quiz override storage, and report-card snapshot tables
+- Added pure grade calculation utility and unit tests
+- Added teacher gradebook APIs for matrix/settings and quiz override updates
+- Added new teacher `gradebook` tab, layout/nav wiring, and gradebook roster-style table UI
+- Performed teacher/student screenshot verification and fixed loading-state validation by waiting for rendered selectors
+**Status:** completed
+**Artifacts:**
+- Branch: codex/gradebook-foundation
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-gradebook-foundation
+- Files: supabase/migrations/037_gradebook_foundation.sql, src/lib/gradebook.ts, src/app/api/teacher/gradebook/*, src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx, layout/nav wiring files
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test -- tests/unit/gradebook.test.ts tests/unit/layout-config.test.ts` passed
+- Visual checks: `/tmp/teacher-gradebook-tab.png`, `/tmp/student-gradebook-tab.png`

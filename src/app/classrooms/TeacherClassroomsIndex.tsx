@@ -81,19 +81,13 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     setActiveClassrooms(initialClassrooms)
   }, [initialClassrooms])
 
-  // Refetch when navigating back to this page
+  // Refetch when navigating back to this page (not on initial mount — server data is fresh)
   useEffect(() => {
-    // Only refetch if we navigated back (pathname changed from something else to /classrooms)
     if (pathname === '/classrooms' && lastPathRef.current !== '/classrooms') {
       refreshActiveClassrooms()
     }
     lastPathRef.current = pathname
   }, [pathname, refreshActiveClassrooms])
-
-  // Also fetch on initial mount
-  useEffect(() => {
-    refreshActiveClassrooms()
-  }, [refreshActiveClassrooms])
 
   useEffect(() => {
     if (view !== 'archived') return

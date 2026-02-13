@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Heart,
+  Percent,
   Settings,
   PenSquare,
   StickyNote,
@@ -31,6 +32,7 @@ import {
 
 export type ClassroomNavItemId =
   | 'attendance'
+  | 'gradebook'
   | 'assignments'
   | 'quizzes'
   | 'calendar'
@@ -60,6 +62,7 @@ const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
+  { id: 'gradebook', label: 'Gradebook', icon: Percent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: StickyNote },
   { id: 'roster', label: 'Roster', icon: Users },
