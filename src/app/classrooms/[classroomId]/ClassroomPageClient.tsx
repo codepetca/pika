@@ -694,22 +694,22 @@ function ClassroomPageContent({
                               item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
                             ].join(' ')}
                           >
-                            <div className="text-sm text-text-default">{item.title}</div>
-                            <div className="text-xs text-text-muted">
-                              {item.is_graded && item.earned != null && item.percent != null
-                                ? (
-                                  <>
-                                    {`Due ${formatTorontoDateShort(item.due_at)} . `}
-                                    <span className="font-semibold text-text-default">
-                                      {formatPoints(item.earned)}/{formatPoints(item.possible)}
-                                    </span>
-                                    {' . '}
-                                    <span className="font-semibold text-text-default">
-                                      {formatPercent1(item.percent)}
-                                    </span>
-                                  </>
-                                )
-                                : `Due ${formatTorontoDateShort(item.due_at)} . No grade (${formatPoints(item.possible)} pts)`}
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3">
+                              <div className="min-w-0">
+                                <div className="truncate text-sm text-text-default">{item.title}</div>
+                                <div className="text-xs text-text-muted">
+                                  {`Due ${formatTorontoDateShort(item.due_at)}${item.is_draft ? ' . Draft' : ''}`}
+                                  {!item.is_graded ? ` . No grade (${formatPoints(item.possible)} pts)` : ''}
+                                </div>
+                              </div>
+                              <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                                {item.is_graded && item.earned != null
+                                  ? `${formatPoints(item.earned)}/${formatPoints(item.possible)}`
+                                  : '—'}
+                              </div>
+                              <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                                {item.is_graded && item.percent != null ? `${item.percent.toFixed(1)}%` : '—'}
+                              </div>
                             </div>
                           </div>
                         ))}
