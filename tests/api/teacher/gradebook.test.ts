@@ -310,6 +310,72 @@ describe('GET /api/teacher/gradebook', () => {
     ])
   })
 
+  it('returns assignment average and median in class summary', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      enrollments: [
+        { student_id: 'student-1', users: { email: 'student1@example.com' } },
+        { student_id: 'student-2', users: { email: 'student2@example.com' } },
+      ],
+      profiles: [
+        { user_id: 'student-1', first_name: 'Student', last_name: 'One' },
+        { user_id: 'student-2', first_name: 'Student', last_name: 'Two' },
+      ],
+      assignments: [
+        { id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
+      ],
+      docs: [
+        { assignment_id: 'a1', student_id: 'student-1', score_completion: 2, score_thinking: 2, score_workflow: 2 }, // 20%
+        { assignment_id: 'a1', student_id: 'student-2', score_completion: 5, score_thinking: 5, score_workflow: 5 }, // 50%
+      ],
+      quizzes: [],
+      quizQuestions: [],
+      quizResponses: [],
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.class_summary.assignments).toHaveLength(1)
+    expect(body.class_summary.assignments[0]).toMatchObject({
+      assignment_id: 'a1',
+      average_percent: 35,
+      median_percent: 35,
+      graded_count: 2,
+    })
+  })
+
+  it('excludes unenrolled students from class assignment summary aggregates', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      enrollments: [{ student_id: 'student-1', users: { email: 'student1@example.com' } }],
+      profiles: [{ user_id: 'student-1', first_name: 'Student', last_name: 'One' }],
+      assignments: [
+        { id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true },
+      ],
+      docs: [
+        { assignment_id: 'a1', student_id: 'student-1', score_completion: 3, score_thinking: 3, score_workflow: 3 }, // 30%
+        { assignment_id: 'a1', student_id: 'withdrawn-student', score_completion: 10, score_thinking: 10, score_workflow: 10 }, // 100% (must be ignored)
+      ],
+      quizzes: [],
+      quizQuestions: [],
+      quizResponses: [],
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.class_summary.total_students).toBe(1)
+    expect(body.class_summary.assignments[0]).toMatchObject({
+      assignment_id: 'a1',
+      graded_count: 1,
+      average_percent: 30,
+      median_percent: 30,
+    })
+  })
+
   it('falls back to legacy assignment/quiz columns when gradebook metadata columns are unavailable', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classrooms') {

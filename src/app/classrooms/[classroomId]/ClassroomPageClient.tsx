@@ -72,6 +72,14 @@ interface ClassroomPageClientProps {
   initialTab?: string
 }
 
+function formatTorontoDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    timeZone: 'America/Toronto',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 export function ClassroomPageClient({
   classroom,
   user,
@@ -671,14 +679,16 @@ function ClassroomPageContent({
                     {gradebookStudentDetail?.assignments?.length ? (
                       <div className="mt-2 space-y-2">
                         {gradebookStudentDetail.assignments.map((item) => (
-                          <div key={item.assignment_id} className="rounded-md border border-border px-3 py-2">
+                          <div
+                            key={item.assignment_id}
+                            className={[
+                              'rounded-md border px-3 py-2',
+                              item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
+                            ].join(' ')}
+                          >
                             <div className="text-sm text-text-default">{item.title}</div>
                             <div className="text-xs text-text-muted">
-                              {item.is_draft ? 'Draft' : 'Assigned'} • Due {new Date(item.due_at).toLocaleDateString('en-US', {
-                                timeZone: 'America/Toronto',
-                                month: 'short',
-                                day: 'numeric',
-                              })}
+                              {item.is_draft ? 'Draft' : 'Assigned'} . Due {formatTorontoDateShort(item.due_at)}
                             </div>
                             <div className="text-xs text-text-muted">
                               {item.is_graded && item.earned != null && item.percent != null
@@ -733,19 +743,21 @@ function ClassroomPageContent({
                 {gradebookClassSummary?.assignments?.length ? (
                   <div className="mt-2 space-y-2">
                     {gradebookClassSummary.assignments.map((item) => (
-                      <div key={item.assignment_id} className="rounded-md border border-border px-3 py-2">
+                      <div
+                        key={item.assignment_id}
+                        className={[
+                          'rounded-md border px-3 py-2',
+                          item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
+                        ].join(' ')}
+                      >
                         <div className="text-sm text-text-default">{item.title}</div>
                         <div className="text-xs text-text-muted">
-                          {item.is_draft ? 'Draft' : 'Assigned'} • Due {new Date(item.due_at).toLocaleDateString('en-US', {
-                            timeZone: 'America/Toronto',
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </div>
-                        <div className="text-xs text-text-muted">
-                          {item.average_percent != null
-                            ? `Avg ${item.average_percent.toFixed(2)}% • Graded ${item.graded_count}/${gradebookClassSummary.total_students}`
-                            : `No graded work • Graded ${item.graded_count}/${gradebookClassSummary.total_students}`}
+                          {[
+                            `Due ${formatTorontoDateShort(item.due_at)}`,
+                            item.average_percent != null ? `Avg ${item.average_percent.toFixed(0)}%` : 'No graded work',
+                            item.median_percent != null ? `Med ${item.median_percent.toFixed(0)}%` : 'Med —',
+                            `Graded ${item.graded_count}/${gradebookClassSummary.total_students}`,
+                          ].join(' . ')}
                         </div>
                       </div>
                     ))}

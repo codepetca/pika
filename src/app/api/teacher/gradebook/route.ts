@@ -19,6 +19,16 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+function median(values: number[]): number | null {
+  if (values.length === 0) return null
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 0) {
+    return round2((sorted[mid - 1] + sorted[mid]) / 2)
+  }
+  return round2(sorted[mid])
+}
+
 async function assertTeacherOwnsClassroom(teacherId: string, classroomId: string) {
   const supabase = getServiceRoleClient()
   const { data, error } = await supabase
@@ -68,6 +78,7 @@ export async function GET(request: NextRequest) {
     }
 
     const studentIds = (enrollments || []).map((row) => row.student_id)
+    const enrolledStudentIds = new Set(studentIds)
     if (selectedStudentId && !studentIds.includes(selectedStudentId)) {
       return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 404 })
     }
@@ -380,6 +391,7 @@ export async function GET(request: NextRequest) {
     const classAssignmentSummaries = assignments.map((assignment) => {
       const docsForAssignment = docsByAssignment.get(assignment.id) || []
       const graded = docsForAssignment
+        .filter((doc) => enrolledStudentIds.has(doc.student_id))
         .map((doc) => {
           const sc = doc.score_completion
           const st = doc.score_thinking
@@ -395,6 +407,7 @@ export async function GET(request: NextRequest) {
       const averagePercent = graded.length > 0
         ? round2(graded.reduce((sum, value) => sum + value, 0) / graded.length)
         : null
+      const medianPercent = median(graded)
 
       return {
         assignment_id: assignment.id,
@@ -404,6 +417,7 @@ export async function GET(request: NextRequest) {
         possible: round2(assignment.points_possible),
         graded_count: graded.length,
         average_percent: averagePercent,
+        median_percent: medianPercent,
       }
     })
 

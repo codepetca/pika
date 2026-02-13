@@ -409,6 +409,7 @@ export interface GradebookClassAssignmentSummary {
   possible: number
   graded_count: number
   average_percent: number | null
+  median_percent: number | null
 }
 
 export interface GradebookClassQuizSummary {
