@@ -677,33 +677,6 @@ function ClassroomPageContent({
                         ? `${gradebookStudentDetail.final_percent.toFixed(2)}%`
                         : '—'}
                     </div>
-                    {(() => {
-                      if (!gradebookStudentDetail) return null
-                      const assignmentTotals = (gradebookStudentDetail.assignments || [])
-                        .filter((item) => item.is_graded && item.earned != null)
-                        .reduce(
-                          (totals, item) => ({
-                            earned: totals.earned + Number(item.earned),
-                            possible: totals.possible + Number(item.possible),
-                          }),
-                          { earned: 0, possible: 0 }
-                        )
-                      const quizTotals = (gradebookStudentDetail.quizzes || []).reduce(
-                        (totals, item) => ({
-                          earned: totals.earned + Number(item.earned),
-                          possible: totals.possible + Number(item.possible),
-                        }),
-                        { earned: 0, possible: 0 }
-                      )
-                      const earnedTotal = assignmentTotals.earned + quizTotals.earned
-                      const possibleTotal = assignmentTotals.possible + quizTotals.possible
-                      if (possibleTotal <= 0) return null
-                      return (
-                        <div className="mt-1 text-xs text-text-muted">
-                          {formatPoints(earnedTotal)}/{formatPoints(possibleTotal)} pts
-                        </div>
-                      )
-                    })()}
                   </div>
 
                   <div>
