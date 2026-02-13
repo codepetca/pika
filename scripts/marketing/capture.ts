@@ -148,7 +148,7 @@ async function run() {
       readyText: 'Returned',
       action: async (page) => {
         await page.getByText('Personal Narrative: A Moment That Changed Me').first().click()
-        await page.waitForSelector('text=3 days overdue', { timeout: 45_000 })
+        await page.waitForTimeout(1200)
       },
     },
     {
