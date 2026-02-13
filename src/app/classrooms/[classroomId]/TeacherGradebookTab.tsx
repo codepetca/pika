@@ -186,7 +186,10 @@ export function TeacherGradebookTab({
               Total: {totalWeight}%
             </div>
 
-            <Button onClick={saveSettings} disabled={isReadOnly || saving || totalWeight !== 100}>
+            <Button
+              onClick={saveSettings}
+              disabled={isReadOnly || saving || (settings.use_weights && totalWeight !== 100)}
+            >
               {saving ? 'Saving...' : 'Save'}
             </Button>
           </div>
