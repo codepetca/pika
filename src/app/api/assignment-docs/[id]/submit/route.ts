@@ -4,7 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { countCharacters, countWords, isEmpty, parseContentField } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
-import { grantXp } from '@/lib/server/pet'
+import { awardAssignmentSubmission } from '@/lib/server/world-engine'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
@@ -18,10 +18,9 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   const { id: assignmentId } = await context.params
   const supabase = getServiceRoleClient()
 
-  // Get assignment and verify enrollment
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
-    .select('classroom_id, is_draft, released_at')
+    .select('classroom_id, is_draft, released_at, track_authenticity, due_at')
     .eq('id', assignmentId)
     .single()
 
@@ -106,10 +105,41 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     doc.content = parseContentField(doc.content)
   }
 
-  // Fire-and-forget assignment completion XP (idempotent via metadata check)
-  grantXp(user.id, assignment.classroom_id, 'assignment_complete', {
-    assignment_id: assignmentId,
-  }).catch((err) => console.error('Assignment complete XP:', err))
+  let achievementsResult: {
+    achievements: { achievementId: string; label: string; xp: number }[]
+    totalXpAwarded: number
+    newLevel: number
+    newUnlocks: number[]
+  } | null = null
+
+  try {
+    const isOnTime = !assignment.due_at ||
+      (Boolean(doc.submitted_at) &&
+        new Date(doc.submitted_at as string).getTime() <= new Date(assignment.due_at as string).getTime())
+
+    const response = await awardAssignmentSubmission(
+      user.id,
+      assignment.classroom_id,
+      assignmentId,
+      isOnTime
+    )
+    if (response.ok) {
+      achievementsResult = {
+        achievements: response.data.xpAwarded > 0
+          ? [{
+              achievementId: response.data.source,
+              label: isOnTime ? 'On-time Submission' : 'Late Submission',
+              xp: response.data.xpAwarded,
+            }]
+          : [],
+        totalXpAwarded: response.data.xpAwarded,
+        newLevel: response.data.newLevel,
+        newUnlocks: response.data.newUnlocks,
+      }
+    }
+  } catch (err) {
+    console.error('Assignment world reward:', err)
+  }
 
   try {
     await supabase.from('assignment_doc_history').insert({
@@ -124,34 +154,35 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     console.error('Error saving assignment doc history:', historyError)
   }
 
-  // Compute authenticity score from history.
-  try {
-    const { data: historyEntries } = await supabase
-      .from('assignment_doc_history')
-      .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at')
-      .eq('assignment_doc_id', existingDoc.id)
-      .order('created_at', { ascending: true })
+  if (assignment.track_authenticity !== false) {
+    try {
+      const { data: historyEntries } = await supabase
+        .from('assignment_doc_history')
+        .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at')
+        .eq('assignment_doc_id', existingDoc.id)
+        .order('created_at', { ascending: true })
 
-    if (historyEntries && historyEntries.length > 1) {
-      const result = analyzeAuthenticity(historyEntries as AssignmentDocHistoryEntry[])
-      if (result.score !== null) {
-        const { error: authError } = await supabase
-          .from('assignment_docs')
-          .update({
-            authenticity_score: result.score,
-            authenticity_flags: result.flags,
-          })
-          .eq('id', existingDoc.id)
+      if (historyEntries && historyEntries.length > 1) {
+        const result = analyzeAuthenticity(historyEntries as AssignmentDocHistoryEntry[])
+        if (result.score !== null) {
+          const { error: authError } = await supabase
+            .from('assignment_docs')
+            .update({
+              authenticity_score: result.score,
+              authenticity_flags: result.flags,
+            })
+            .eq('id', existingDoc.id)
 
-        if (!authError && doc) {
-          doc.authenticity_score = result.score
-          doc.authenticity_flags = result.flags
+          if (!authError && doc) {
+            doc.authenticity_score = result.score
+            doc.authenticity_flags = result.flags
+          }
         }
       }
+    } catch (authError) {
+      console.error('Error computing authenticity score:', authError)
     }
-  } catch (authError) {
-    console.error('Error computing authenticity score:', authError)
   }
 
-  return NextResponse.json({ doc })
+  return NextResponse.json({ doc, achievements: achievementsResult })
 })

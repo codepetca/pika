@@ -1,5 +1,5 @@
-import { XP_PER_LEVEL, XP_SOURCES, PET_IMAGES } from './pet-config'
-import type { XpSourceKey } from './pet-config'
+import { XP_PER_LEVEL, ACHIEVEMENTS, PET_IMAGES, PET_TITLES } from './pet-config'
+import type { AchievementId } from './pet-config'
 import type { UserPet, PetUnlock, PetState } from '@/types'
 
 export function calculateLevel(xp: number): number {
@@ -29,8 +29,13 @@ export function getNextUnlockLevel(currentLevel: number): number | null {
   return next ? next.unlockLevel : null
 }
 
-export function isValidXpSource(source: string): source is XpSourceKey {
-  return source in XP_SOURCES
+export function getTitleForLevel(level: number): string {
+  const entry = [...PET_TITLES].reverse().find((t) => t.level <= level)
+  return entry?.title ?? 'Newcomer'
+}
+
+export function isValidAchievement(id: string): id is AchievementId {
+  return id in ACHIEVEMENTS
 }
 
 export function enrichPetState(pet: UserPet, unlocks: PetUnlock[]): PetState {

@@ -1,5 +1,6 @@
 import { ReactNode } from 'react'
 import { AppHeader } from './AppHeader'
+import { WorldOverlayMount } from './world/WorldOverlayMount'
 
 interface AppShellProps {
   children: ReactNode
@@ -62,6 +63,10 @@ export function AppShell({
       <main className={mainClassName || 'max-w-7xl mx-auto px-4 py-3'}>
         {children}
       </main>
+      <WorldOverlayMount
+        classroomId={currentClassroomId}
+        enabled={Boolean(user && user.role === 'student')}
+      />
     </div>
   )
 }

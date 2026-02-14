@@ -6,7 +6,7 @@ import {
   getUnlockedImageIndices,
   detectNewUnlocks,
   getNextUnlockLevel,
-  isValidXpSource,
+  isValidAchievement,
   enrichPetState,
 } from '@/lib/pet'
 import { createMockUserPet, createMockPetUnlock } from '../helpers/mocks'
@@ -78,76 +78,76 @@ describe('getUnlockedImageIndices', () => {
     expect(getUnlockedImageIndices(1)).toEqual([0])
   })
 
-  it('returns [0, 1] for level 2', () => {
-    expect(getUnlockedImageIndices(2)).toEqual([0, 1])
+  it('returns [0, 1] for level 3', () => {
+    expect(getUnlockedImageIndices(3)).toEqual([0, 1])
   })
 
-  it('returns all 11 indices for level 20', () => {
-    expect(getUnlockedImageIndices(20)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+  it('returns all 11 indices for level 30', () => {
+    expect(getUnlockedImageIndices(30)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
   })
 })
 
 describe('detectNewUnlocks', () => {
   it('returns new indices not in existing unlocks', () => {
     const existingIndices = [0]
-    const newLevel = 2 // unlocks index 1
+    const newLevel = 3 // unlocks index 1 (unlockLevel: 3)
     expect(detectNewUnlocks(existingIndices, newLevel)).toEqual([1])
   })
 
   it('returns empty array when all already unlocked', () => {
     const existingIndices = [0, 1]
-    const newLevel = 2
+    const newLevel = 3
     expect(detectNewUnlocks(existingIndices, newLevel)).toEqual([])
   })
 
   it('returns multiple new unlocks when skipping levels', () => {
     const existingIndices = [0]
-    const newLevel = 6 // unlocks 0,1,2,3 → new ones: 1,2,3
+    const newLevel = 9 // unlocks 0(lv0),1(lv3),2(lv6),3(lv9) → new ones: 1,2,3
     expect(detectNewUnlocks(existingIndices, newLevel)).toEqual([1, 2, 3])
   })
 })
 
 describe('getNextUnlockLevel', () => {
-  it('returns 2 for level 0', () => {
-    expect(getNextUnlockLevel(0)).toBe(2)
+  it('returns 3 for level 0', () => {
+    expect(getNextUnlockLevel(0)).toBe(3)
   })
 
-  it('returns 4 for level 2', () => {
-    expect(getNextUnlockLevel(2)).toBe(4)
+  it('returns 6 for level 3', () => {
+    expect(getNextUnlockLevel(3)).toBe(6)
   })
 
-  it('returns 4 for level 3 (between unlock levels)', () => {
-    expect(getNextUnlockLevel(3)).toBe(4)
+  it('returns 6 for level 4 (between unlock levels)', () => {
+    expect(getNextUnlockLevel(4)).toBe(6)
   })
 
-  it('returns null for level 20 (all unlocked)', () => {
-    expect(getNextUnlockLevel(20)).toBeNull()
+  it('returns null for level 30 (all unlocked)', () => {
+    expect(getNextUnlockLevel(30)).toBeNull()
   })
 
-  it('returns null for level above 20', () => {
-    expect(getNextUnlockLevel(25)).toBeNull()
+  it('returns null for level above 30', () => {
+    expect(getNextUnlockLevel(35)).toBeNull()
   })
 })
 
-describe('isValidXpSource', () => {
-  it('returns true for daily_login', () => {
-    expect(isValidXpSource('daily_login')).toBe(true)
+describe('isValidAchievement', () => {
+  it('returns true for assignment_submitted', () => {
+    expect(isValidAchievement('assignment_submitted')).toBe(true)
   })
 
-  it('returns true for assignment_complete', () => {
-    expect(isValidXpSource('assignment_complete')).toBe(true)
+  it('returns true for on_time_submit', () => {
+    expect(isValidAchievement('on_time_submit')).toBe(true)
   })
 
-  it('returns true for weekly_goal', () => {
-    expect(isValidXpSource('weekly_goal')).toBe(true)
+  it('returns true for streak_3', () => {
+    expect(isValidAchievement('streak_3')).toBe(true)
   })
 
   it('returns false for invalid source', () => {
-    expect(isValidXpSource('invalid_source')).toBe(false)
+    expect(isValidAchievement('invalid_source')).toBe(false)
   })
 
   it('returns false for empty string', () => {
-    expect(isValidXpSource('')).toBe(false)
+    expect(isValidAchievement('')).toBe(false)
   })
 })
 
@@ -164,7 +164,7 @@ describe('enrichPetState', () => {
     expect(state.level).toBe(2)
     expect(state.levelProgress).toBe(50)
     expect(state.levelProgressPercent).toBe(50)
-    expect(state.nextUnlockLevel).toBe(4)
+    expect(state.nextUnlockLevel).toBe(3)
     expect(state.unlocks).toBe(unlocks)
     expect(state.xp).toBe(250)
   })
@@ -178,18 +178,18 @@ describe('enrichPetState', () => {
     expect(state.level).toBe(0)
     expect(state.levelProgress).toBe(0)
     expect(state.levelProgressPercent).toBe(0)
-    expect(state.nextUnlockLevel).toBe(2)
+    expect(state.nextUnlockLevel).toBe(3)
   })
 
   it('handles max level pet', () => {
-    const pet = createMockUserPet({ xp: 2000 })
+    const pet = createMockUserPet({ xp: 3000 })
     const unlocks = Array.from({ length: 11 }, (_, i) =>
       createMockPetUnlock({ id: `unlock-${i}`, image_index: i })
     )
 
     const state = enrichPetState(pet, unlocks)
 
-    expect(state.level).toBe(20)
+    expect(state.level).toBe(30)
     expect(state.nextUnlockLevel).toBeNull()
   })
 })

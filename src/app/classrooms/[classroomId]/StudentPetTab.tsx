@@ -5,6 +5,9 @@ import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { PetImagePlaceholder } from '@/components/pet/PetImagePlaceholder'
 import { PET_IMAGES } from '@/lib/pet-config'
+import { getTitleForLevel } from '@/lib/pet'
+import { usePetLevelUp } from '@/hooks/usePetLevelUp'
+import { LevelUpCelebration } from '@/components/pet/LevelUpCelebration'
 import type { Classroom, PetState } from '@/types'
 
 interface Props {
@@ -15,6 +18,7 @@ export function StudentPetTab({ classroom }: Props) {
   const [pet, setPet] = useState<PetState | null>(null)
   const [loading, setLoading] = useState(true)
   const [selecting, setSelecting] = useState(false)
+  const { checkLevel, celebrationState, dismissCelebration } = usePetLevelUp(classroom.id)
 
   const loadPet = useCallback(async () => {
     try {
@@ -25,12 +29,15 @@ export function StudentPetTab({ classroom }: Props) {
       }
       const data = await res.json()
       setPet(data.pet)
+      if (data.pet?.level != null) {
+        checkLevel(data.pet.level)
+      }
     } catch (err) {
       console.error('Error loading pet:', err)
     } finally {
       setLoading(false)
     }
-  }, [classroom.id])
+  }, [classroom.id, checkLevel])
 
   useEffect(() => {
     loadPet()
@@ -104,7 +111,7 @@ export function StudentPetTab({ classroom }: Props) {
           {/* Level and XP progress */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-text-default">Level {pet.level}</span>
+              <span className="font-medium text-text-default">Level {pet.level} — {getTitleForLevel(pet.level)}</span>
               <span className="text-text-muted">
                 {pet.levelProgress} / 100 XP
               </span>
@@ -117,7 +124,7 @@ export function StudentPetTab({ classroom }: Props) {
             </div>
             {pet.nextUnlockLevel !== null && (
               <p className="text-xs text-text-muted text-center">
-                Next unlock at Level {pet.nextUnlockLevel} —{' '}
+                Next image at Level {pet.nextUnlockLevel} —{' '}
                 {PET_IMAGES.find((img) => img.unlockLevel === pet.nextUnlockLevel)?.name}
               </p>
             )}
@@ -150,6 +157,14 @@ export function StudentPetTab({ classroom }: Props) {
             </div>
           </div>
         </div>
+
+        {celebrationState && (
+          <LevelUpCelebration
+            isOpen={celebrationState.isOpen}
+            newLevel={celebrationState.newLevel}
+            onClose={dismissCelebration}
+          />
+        )}
       </PageContent>
     </PageLayout>
   )

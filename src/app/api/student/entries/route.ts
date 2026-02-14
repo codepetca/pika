@@ -11,6 +11,7 @@ import {
 } from '@/lib/tiptap-content'
 import { tryApplyJsonPatch } from '@/lib/json-patch'
 import { withErrorHandler } from '@/lib/api-handler'
+import { awardAttendanceForDate } from '@/lib/server/world-engine'
 import type { JsonPatchOperation, MoodEmoji, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -298,6 +299,10 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
     }
 
     entry = data
+
+    awardAttendanceForDate(user.id, classroom_id, date).catch((err) =>
+      console.error('Attendance world reward error:', err)
+    )
   }
 
   return NextResponse.json({ entry })
@@ -437,6 +442,10 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
         { status: 500 }
       )
     }
+
+    awardAttendanceForDate(user.id, classroom_id, date).catch((err) =>
+      console.error('Attendance world reward error:', err)
+    )
 
     return NextResponse.json({ entry: data })
   }
