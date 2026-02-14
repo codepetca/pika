@@ -10,6 +10,7 @@ import {
   plainTextToTiptapContent,
 } from '@/lib/tiptap-content'
 import { tryApplyJsonPatch } from '@/lib/json-patch'
+import { awardAttendanceForDate } from '@/lib/server/world-engine'
 import type { JsonPatchOperation, MoodEmoji, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -314,6 +315,11 @@ export async function POST(request: NextRequest) {
       }
 
       entry = data
+
+      // Fire-and-forget world attendance reward (idempotent per date/classroom)
+      awardAttendanceForDate(user.id, classroom_id, date).catch((err) =>
+        console.error('Attendance world reward error:', err)
+      )
     }
 
     return NextResponse.json({ entry })
@@ -469,6 +475,11 @@ export async function PATCH(request: NextRequest) {
           { status: 500 }
         )
       }
+
+      // Fire-and-forget world attendance reward (idempotent per date/classroom)
+      awardAttendanceForDate(user.id, classroom_id, date).catch((err) =>
+        console.error('Attendance world reward error:', err)
+      )
 
       return NextResponse.json({ entry: data })
     }

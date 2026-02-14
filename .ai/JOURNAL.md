@@ -2622,3 +2622,47 @@
 - Added `/docs/plans/205-gamified-world-implementation-plan.md` with phased PR execution order.
 - Posted GitHub issue #205 comment linking to the in-repo plan path.
 **Status:** implementation plan persisted in repo + GitHub.
+
+---
+## 2026-02-14 [AI - GPT-5 Codex]
+**Goal:** Implement issue #205 gamified world overlay foundation end-to-end (DB, server engine, APIs, UI overlay, scheduling, tests, and verification).
+**Completed:**
+- Added world foundation migration `supabase/migrations/038_world_overlay_foundation.sql`:
+  - Expanded `user_pets` with world-state fields.
+  - Added `world_daily_events`, `world_weekly_results`, and `world_event_catalog` tables.
+  - Seeded daily/weekly event catalog entries and added service-role policies.
+- Added world rules/scoring modules:
+  - `src/lib/world-rules.ts`
+  - `src/lib/world-scoring.ts`
+- Added world engine orchestration in `src/lib/server/world-engine.ts`:
+  - Login streak progression, daily spawn/claim cadence, attendance + submission rewards.
+  - Friday weekly evaluation, tier selection, track progression, and weekly event selection.
+  - Cron tick entry point for automated scheduling.
+- Added student world API route `src/app/api/student/classrooms/[id]/world/route.ts` for snapshot, daily claim, and overlay toggle.
+- Added cron endpoint `src/app/api/cron/world-cadence/route.ts` secured by `CRON_SECRET`.
+- Wired lifecycle triggers:
+  - Login hook in `src/app/api/auth/login/route.ts`
+  - Attendance reward in `src/app/api/student/entries/route.ts`
+  - Submission reward in `src/app/api/assignment-docs/[id]/submit/route.ts`
+- Added world overlay UI components and mounted in app shell:
+  - `src/components/world/WorldOverlayProvider.tsx`
+  - `src/components/world/WorldOverlay.tsx`
+  - `src/components/world/WorldOverlayMount.tsx`
+  - integration in `src/components/AppShell.tsx`
+- Added Vercel hourly cron schedule for world cadence in `vercel.json`.
+- Added tests:
+  - `tests/unit/world-scoring.test.ts`
+  - `tests/api/student/world.test.ts`
+  - `tests/api/cron/world-cadence.test.ts`
+**Validation:**
+- `bash scripts/verify-env.sh` (full test suite pass: 106 files / 1139 tests).
+- `pnpm lint` (pass).
+- `pnpm build` (pass).
+- UI screenshots captured for teacher/student classrooms + classroom view:
+  - `/tmp/teacher-world-overlay-classrooms.png`
+  - `/tmp/student-world-overlay-classrooms.png`
+  - `/tmp/teacher-world-overlay-classroom.png`
+  - `/tmp/student-world-overlay-classroom.png`
+**Notes:**
+- Runtime world behavior requires migration `038_world_overlay_foundation.sql` to be applied by human before overlay world data can fully hydrate.
+**Status:** implementation complete; ready for PR.

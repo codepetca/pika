@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { verifyPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { clearExpiredLockout, getLockoutMinutesLeft, incrementLoginAttempts, loginAttempts } from '@/lib/login-lockout'
+import { processLoginStreakForAllClassrooms } from '@/lib/server/world-engine'
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,6 +74,13 @@ export async function POST(request: NextRequest) {
 
     // Create session
     await createSession(user.id, user.email, user.role)
+
+    // Fire-and-forget world login streak update (per classroom world)
+    if (user.role === 'student') {
+      processLoginStreakForAllClassrooms(user.id).catch((error) => {
+        console.error('World login streak update error:', error)
+      })
+    }
 
     const redirectUrl = '/classrooms'
 

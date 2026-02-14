@@ -529,6 +529,20 @@ async function seed() {
         is_submitted: false,
         submitted_at: null,
       },
+      // Student 2 started the persuasive letter but hasn't submitted
+      {
+        assignment_id: letter.id,
+        student_id: students[1]!.id,
+        content: {
+          type: 'doc',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'Dear Principal Garcia,' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'I believe our school should start a recycling program. Every day I see students throwing plastic bottles in the trash when they could be recycled...' }] },
+          ],
+        },
+        is_submitted: false,
+        submitted_at: null,
+      },
     ]
 
     const { data: createdDocs, error: docsError } = await supabase
@@ -940,6 +954,101 @@ async function seed() {
     }
   }
 
+  // 8. Create pet data for level-up celebration testing
+  console.log('Creating pet data...')
+
+  // Clean up existing pet data for these students in this classroom
+  const existingPets = await supabase
+    .from('user_pets')
+    .select('id')
+    .eq('classroom_id', createdClassroom.id)
+    .in('user_id', students.map(s => s.id))
+  const existingPetIds = (existingPets.data || []).map((p: any) => p.id)
+  if (existingPetIds.length > 0) {
+    await supabase.from('pet_rewards').delete().in('pet_id', existingPetIds)
+    await supabase.from('xp_events').delete().in('pet_id', existingPetIds)
+    await supabase.from('pet_unlocks').delete().in('pet_id', existingPetIds)
+    await supabase.from('user_pets').delete().in('id', existingPetIds)
+  }
+
+  // Student 1: XP = 75 (level 0, 75/100 progress)
+  // Submitting the persuasive letter (+10 assignment_submitted +15 on_time_submit +25 first_submission = 50 XP)
+  // will push to 125 XP → level 1 → celebration!
+  const { data: pet1 } = await supabase
+    .from('user_pets')
+    .insert({ user_id: students[0]!.id, classroom_id: createdClassroom.id, xp: 75 })
+    .select()
+    .single()
+
+  if (pet1) {
+    // Default unlock (image 0)
+    await supabase.from('pet_unlocks').insert({ pet_id: pet1.id, image_index: 0 })
+
+    // XP history: assignment_submitted (10) + on_time_submit (15) + full_week (50) = 75 XP
+    if (createdAssignments) {
+      await supabase.from('xp_events').insert([
+        {
+          pet_id: pet1.id,
+          source: 'assignment_submitted',
+          xp_amount: 10,
+          metadata: { assignment_id: createdAssignments[0]!.id },
+        },
+        {
+          pet_id: pet1.id,
+          source: 'on_time_submit',
+          xp_amount: 15,
+          metadata: { assignment_id: createdAssignments[0]!.id },
+        },
+        { pet_id: pet1.id, source: 'full_week', xp_amount: 50, metadata: null },
+      ])
+
+      // pet_rewards for idempotency
+      await supabase.from('pet_rewards').insert([
+        { pet_id: pet1.id, reward_type: 'assignment_submitted', reward_key: createdAssignments[0]!.id },
+        { pet_id: pet1.id, reward_type: 'on_time_submit', reward_key: createdAssignments[0]!.id },
+        { pet_id: pet1.id, reward_type: 'full_week', reward_key: 'week:2026-W05' },
+      ])
+    }
+    console.log('  ✓ Student 1: 75 XP (level 0) — submit persuasive letter to trigger level-up!')
+  }
+
+  // Student 2: XP = 75 (level 0, 75/100 progress) — submit persuasive letter to trigger level-up!
+  const { data: pet2 } = await supabase
+    .from('user_pets')
+    .insert({ user_id: students[1]!.id, classroom_id: createdClassroom.id, xp: 75 })
+    .select()
+    .single()
+
+  if (pet2) {
+    await supabase.from('pet_unlocks').insert({ pet_id: pet2.id, image_index: 0 })
+    if (createdAssignments) {
+      await supabase.from('xp_events').insert([
+        {
+          pet_id: pet2.id,
+          source: 'assignment_submitted',
+          xp_amount: 10,
+          metadata: { assignment_id: createdAssignments[0]!.id },
+        },
+        {
+          pet_id: pet2.id,
+          source: 'on_time_submit',
+          xp_amount: 15,
+          metadata: { assignment_id: createdAssignments[0]!.id },
+        },
+        { pet_id: pet2.id, source: 'full_week', xp_amount: 50, metadata: null },
+      ])
+
+      await supabase.from('pet_rewards').insert([
+        { pet_id: pet2.id, reward_type: 'assignment_submitted', reward_key: createdAssignments[0]!.id },
+        { pet_id: pet2.id, reward_type: 'on_time_submit', reward_key: createdAssignments[0]!.id },
+        { pet_id: pet2.id, reward_type: 'full_week', reward_key: 'week:2026-W05' },
+      ])
+    }
+    console.log('  ✓ Student 2: 75 XP (level 0) — submit persuasive letter to trigger level-up!')
+  }
+
+  console.log('')
+
   // Summary
   console.log('✅ Seed completed successfully!\n')
   console.log('Classroom:')
@@ -948,6 +1057,10 @@ async function seed() {
   console.log('  Teacher: teacher@example.com')
   console.log('  Student 1: student1@example.com (good attendance)')
   console.log('  Student 2: student2@example.com (mixed attendance)')
+  console.log('\nLevel-up celebration test (either student):')
+  console.log('  1. Login as student1@example.com or student2@example.com')
+  console.log('  2. Open "Persuasive Letter" assignment and submit it')
+  console.log('  3. 75 XP + 50 XP (submitted+on_time+first) = 125 XP → Level 1 → confetti celebration!')
   console.log('\nLogin at /login with email + password.')
 }
 
