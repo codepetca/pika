@@ -2544,3 +2544,81 @@
 - `pnpm lint` passed
 - `pnpm test -- tests/unit/gradebook.test.ts tests/unit/layout-config.test.ts` passed
 - Visual checks: `/tmp/teacher-gradebook-tab.png`, `/tmp/student-gradebook-tab.png`
+
+---
+## 2026-02-14 [AI - GPT-5 Codex]
+**Goal:** Reframe issue #205 from pet-tab gamification to app-wide world-overlay gamified learning architecture.
+**Completed:**
+- Created architecture/guidance doc for world overlay vision at `docs/guidance/gamified-world.md`.
+- Updated GitHub issue #205 body to V2 direction (event-driven world engine, overlay runtime, streak unlocks, course-driven progression, phased rollout).
+- Captured explicit open product decisions for follow-up (world scope, streak policy, balancing, overlay density, teacher visibility).
+**Status:** documentation complete; implementation planning pending product decision answers.
+**Artifacts:**
+- Worktree: `/Users/stew/Repos/.worktrees/pika/issue/205-feat-pika-pet-gamification-system`
+- Files: `docs/guidance/gamified-world.md`, `.ai/JOURNAL.md`
+- Issue: https://github.com/codepetca/pika/issues/205
+**Validation:**
+- Verified issue update with `gh issue view 205 -R codepetca/pika --json number,title,body`.
+**Blockers:**
+- Need product decisions on world scope and streak/reset policy before implementation.
+
+---
+## 2026-02-14 [AI - GPT-5 Codex]
+**Goal:** Incorporate user-confirmed product decisions for gamified world overlay (issue #205).
+**Completed:**
+- Updated `docs/guidance/gamified-world.md` with confirmed decisions: per-classroom worlds, strict streak reset, dismissible overlay interactions.
+- Added `docs/guidance/gamified-world-rules.md` as centralized rule list with stable rule IDs and idempotency notes.
+- Updated GitHub issue #205 body to reflect the new constraints and rulebook requirement.
+**Status:** architecture and product rules updated; implementation details pending balancing/frequency decisions.
+**Artifacts:**
+- Docs: `docs/guidance/gamified-world.md`, `docs/guidance/gamified-world-rules.md`
+- Issue: https://github.com/codepetca/pika/issues/205
+
+---
+## 2026-02-14 [AI - GPT-5 Codex]
+**Goal:** Lock cadence-first decisions for gamified world model.
+**Completed:**
+- Updated `docs/guidance/gamified-world.md` with fixed cadence rules: daily spawn at 05:00 Toronto, hybrid same-day claim window, Friday weekly evaluation, and rotating daily care events.
+- Updated `docs/guidance/gamified-world-rules.md` with scheduler/claim/expiry/weekly-eval rules and idempotency keys.
+- Updated GitHub issue #205 body to match cadence-first architecture and automation constraints.
+**Status:** planning docs aligned; ready for implementation planning once balancing thresholds are finalized.
+
+---
+## 2026-02-14 [AI - GPT-5 Codex]
+**Goal:** Update weekly scoring model to remove attendance streak from tier calculation.
+**Completed:**
+- Updated `docs/guidance/gamified-world.md` to use attendance ratio (`x/y`) for weekly scoring and documented no-opportunity normalization.
+- Updated `docs/guidance/gamified-world-rules.md` with explicit weekly attendance ratio + no-opportunity rules.
+- Updated GitHub issue #205 to align with ratio-based weekly attendance scoring and fairness handling.
+**Status:** aligned docs/issues for weekly scoring model.
+
+---
+## 2026-02-14 [AI - GPT-5 Codex]
+**Goal:** Define what constitutes an upgraded weekly event.
+**Completed:**
+- Added explicit event tier contract (`baseline`, `nicer`, `special`) to `docs/guidance/gamified-world.md`.
+- Added data-driven event catalog model + 12 sample weekly episode keys to `docs/guidance/gamified-world.md`.
+- Added catalog selection and tier assignment rules to `docs/guidance/gamified-world-rules.md`.
+- Synced issue #205 with tier contract + catalog approach.
+**Status:** event tier semantics and catalog strategy documented for implementation.
+
+---
+## 2026-02-14 [AI - GPT-5 Codex]
+**Goal:** Lock approved v1 weekly scoring, XP rewards, and track progression constants.
+**Completed:**
+- Added approved v1 scoring model to `docs/guidance/gamified-world.md` (bucket weights, tier thresholds, normalization, special-tier guard).
+- Added approved v1 reward matrix and weekly track progression values to `docs/guidance/gamified-world.md`.
+- Added matching constants and rules to `docs/guidance/gamified-world-rules.md`.
+- Updated issue #205 with the same approved constants so docs + issue remain aligned.
+**Status:** scoring and rewards are now locked as implementation baseline.
+**Artifacts:**
+- Docs: `docs/guidance/gamified-world.md`, `docs/guidance/gamified-world-rules.md`
+- Issue: https://github.com/codepetca/pika/issues/205
+
+---
+## 2026-02-14 [AI - GPT-5 Codex]
+**Goal:** Persist implementation plan for issue #205 to avoid context loss.
+**Completed:**
+- Added `/docs/plans/205-gamified-world-implementation-plan.md` with phased PR execution order.
+- Posted GitHub issue #205 comment linking to the in-repo plan path.
+**Status:** implementation plan persisted in repo + GitHub.
