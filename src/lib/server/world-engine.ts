@@ -269,13 +269,20 @@ export async function claimDailyCareEvent(
     return { ok: true, data: { event: null, xpAwarded: 0, newLevel: calculateLevel(pet.xp ?? 0), newUnlocks: [] } }
   }
 
-  const { error: updateError } = await supabase
+  const { data: claimedRows, error: updateError } = await supabase
     .from('world_daily_events')
     .update({ status: 'claimed', claimed_at: now.toISOString() })
     .eq('id', event.id)
     .eq('status', 'claimable')
+    .select('id')
+    .limit(1)
   if (updateError) {
     console.error('world:claim daily update error', updateError)
+    return { ok: false, status: 500, error: 'Failed to claim daily event' }
+  }
+  if (!claimedRows || claimedRows.length === 0) {
+    // Another request may have claimed this event first.
+    return { ok: true, data: { event: null, xpAwarded: 0, newLevel: calculateLevel(pet.xp ?? 0), newUnlocks: [] } }
   }
 
   const xp = await awardXpInternal(pet, 'daily_care_claimed', BASE_XP.daily_care_claimed, {
@@ -673,4 +680,3 @@ export async function runWorldCadenceTick(): Promise<{ dailySpawned: number; exp
 
   return { dailySpawned, expired, weeklyEvaluated }
 }
-
