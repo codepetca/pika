@@ -2666,3 +2666,4 @@
 **Notes:**
 - Runtime world behavior requires migration `038_world_overlay_foundation.sql` to be applied by human before overlay world data can fully hydrate.
 **Status:** implementation complete; ready for PR.
+- Follow-up: fixed concurrency guard in `src/lib/server/world-engine.ts` so daily claim XP is awarded only when status transition to `claimed` succeeds (prevents duplicate XP on racing requests).
