@@ -2523,3 +2523,5 @@
 - Visual checks: `/tmp/teacher-view-grade-card-2.png`, `/tmp/student-view-grade-card-full.png`
 - Follow-up polish: moved Grade to left / Feedback to right, restored divider, and adjusted score chips to box only earned values (max values unboxed/muted).
 - Final visual checks: `/tmp/student-view-grade-card-6.png`, `/tmp/teacher-view-grade-card-6.png`
+- Final polish pass: card title changed to "Feedback", removed feedback column subheading, set grade/feedback columns to 1/3 and 2/3 with centered inline 80% in Total row.
+- Visual checks: `/tmp/student-view-grade-card-10.png`, `/tmp/teacher-view-grade-card-10.png`

@@ -668,8 +668,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       {/* Grade panel (shown when work has been returned) */}
       {doc?.returned_at && doc.score_completion != null && (
         <div className="bg-surface rounded-lg shadow-sm border border-border p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-text-default">Grade</h3>
-          <div className="grid gap-4 md:grid-cols-2">
+          <h3 className="text-sm font-semibold text-text-default">Feedback</h3>
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <div className="space-y-2 text-sm md:pr-4 md:border-r md:border-border">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-text-muted">Completion</span>
@@ -698,8 +698,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   <span className="text-xs text-text-muted">10</span>
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-3 pt-1">
+              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 pt-1">
                 <span className="text-text-default font-medium">Total</span>
+                <div className="flex justify-center">
+                  <span className="inline-flex items-center border border-border rounded-md px-3 py-1 text-xl font-semibold text-text-default">
+                    {Math.round((((doc.score_completion ?? 0) + (doc.score_thinking ?? 0) + (doc.score_workflow ?? 0)) / 30) * 100)}%
+                  </span>
+                </div>
                 <span className="inline-flex items-center gap-1 font-semibold">
                   <span className="inline-flex items-center border border-border rounded-md px-2 py-1 text-base text-text-default">
                     {(doc.score_completion ?? 0) + (doc.score_thinking ?? 0) + (doc.score_workflow ?? 0)}
@@ -707,14 +712,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   <span className="text-xs text-text-muted">30</span>
                 </span>
               </div>
-              <div className="flex justify-end">
-                <span className="inline-flex items-center border border-border rounded-md px-3 py-1 text-xl font-semibold text-text-default">
-                  {Math.round((((doc.score_completion ?? 0) + (doc.score_thinking ?? 0) + (doc.score_workflow ?? 0)) / 30) * 100)}%
-                </span>
-              </div>
             </div>
             <div>
-              <div className="text-xs text-text-muted mb-1">Feedback</div>
               <div className="text-sm text-text-default whitespace-pre-wrap">
                 {doc.feedback?.trim() || 'No feedback provided yet.'}
               </div>
