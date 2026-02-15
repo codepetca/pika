@@ -461,6 +461,12 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   const status = calculateAssignmentStatus(assignment, doc)
   const isPreviewLocked = lockedEntryId !== null
+  const hasFeedback = Boolean(doc?.feedback?.trim())
+  const hasCompletionScore = doc?.score_completion != null
+  const hasThinkingScore = doc?.score_thinking != null
+  const hasWorkflowScore = doc?.score_workflow != null
+  const hasAnyScore = hasCompletionScore || hasThinkingScore || hasWorkflowScore
+  const hasFullScoreSet = hasCompletionScore && hasThinkingScore && hasWorkflowScore
 
   const editorContent = (
     <div className="flex flex-col gap-6 h-full min-h-0">
@@ -666,52 +672,63 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       )}
 
       {/* Grade panel (shown when work has been returned) */}
-      {doc?.returned_at && doc.score_completion != null && doc.score_thinking != null && doc.score_workflow != null && (
+      {doc?.returned_at && (hasFeedback || hasAnyScore) && (
         <div className="bg-surface rounded-lg shadow-sm border border-border p-4 space-y-3">
           <h3 className="text-sm font-semibold text-text-default">Feedback</h3>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <div className="space-y-2 text-sm md:pr-4 md:border-r md:border-border">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-text-muted">Completion</span>
-                <span className="inline-flex items-center gap-1 font-medium">
-                  <span className="inline-flex items-center border border-border rounded-md px-2 py-1 text-base text-text-default">
-                    {doc.score_completion}
-                  </span>
-                  <span className="text-xs text-text-muted">10</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-text-muted">Thinking</span>
-                <span className="inline-flex items-center gap-1 font-medium">
-                  <span className="inline-flex items-center border border-border rounded-md px-2 py-1 text-base text-text-default">
-                    {doc.score_thinking}
-                  </span>
-                  <span className="text-xs text-text-muted">10</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-text-muted">Workflow</span>
-                <span className="inline-flex items-center gap-1 font-medium">
-                  <span className="inline-flex items-center border border-border rounded-md px-2 py-1 text-base text-text-default">
-                    {doc.score_workflow}
-                  </span>
-                  <span className="text-xs text-text-muted">10</span>
-                </span>
-              </div>
-              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 pt-1">
-                <span className="text-text-default font-medium">Total</span>
-                <div className="flex justify-center">
-                  <span className="inline-flex items-center border border-border rounded-md px-3 py-1 text-xl font-semibold text-text-default">
-                    {Math.round((((doc.score_completion ?? 0) + (doc.score_thinking ?? 0) + (doc.score_workflow ?? 0)) / 30) * 100)}%
+              {hasCompletionScore && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-text-muted">Completion</span>
+                  <span className="inline-flex items-center gap-1 font-medium">
+                    <span className="inline-flex items-center border border-border rounded-md px-2 py-1 text-base text-text-default">
+                      {doc.score_completion}
+                    </span>
+                    <span className="text-xs text-text-muted">10</span>
                   </span>
                 </div>
-                <span className="inline-flex items-center gap-1 font-semibold">
-                  <span className="inline-flex items-center border border-border rounded-md px-2 py-1 text-base text-text-default">
-                    {(doc.score_completion ?? 0) + (doc.score_thinking ?? 0) + (doc.score_workflow ?? 0)}
+              )}
+              {hasThinkingScore && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-text-muted">Thinking</span>
+                  <span className="inline-flex items-center gap-1 font-medium">
+                    <span className="inline-flex items-center border border-border rounded-md px-2 py-1 text-base text-text-default">
+                      {doc.score_thinking}
+                    </span>
+                    <span className="text-xs text-text-muted">10</span>
                   </span>
-                  <span className="text-xs text-text-muted">30</span>
-                </span>
-              </div>
+                </div>
+              )}
+              {hasWorkflowScore && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-text-muted">Workflow</span>
+                  <span className="inline-flex items-center gap-1 font-medium">
+                    <span className="inline-flex items-center border border-border rounded-md px-2 py-1 text-base text-text-default">
+                      {doc.score_workflow}
+                    </span>
+                    <span className="text-xs text-text-muted">10</span>
+                  </span>
+                </div>
+              )}
+              {hasFullScoreSet && (
+                <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 pt-1">
+                  <span className="text-text-default font-medium">Total</span>
+                  <div className="flex justify-center">
+                    <span className="inline-flex items-center border border-border rounded-md px-3 py-1 text-xl font-semibold text-text-default">
+                      {Math.round((((doc.score_completion ?? 0) + (doc.score_thinking ?? 0) + (doc.score_workflow ?? 0)) / 30) * 100)}%
+                    </span>
+                  </div>
+                  <span className="inline-flex items-center gap-1 font-semibold">
+                    <span className="inline-flex items-center border border-border rounded-md px-2 py-1 text-base text-text-default">
+                      {(doc.score_completion ?? 0) + (doc.score_thinking ?? 0) + (doc.score_workflow ?? 0)}
+                    </span>
+                    <span className="text-xs text-text-muted">30</span>
+                  </span>
+                </div>
+              )}
+              {!hasAnyScore && (
+                <div className="text-xs text-text-muted">No score assigned.</div>
+              )}
             </div>
             <div>
               <div className="text-sm text-text-default whitespace-pre-wrap">

@@ -2527,3 +2527,6 @@
 - Visual checks: `/tmp/student-view-grade-card-10.png`, `/tmp/teacher-view-grade-card-10.png`
 - Review fix: grade card now renders only when all three score components are present (completion, thinking, workflow) to prevent partial/null score rows.
 - Verification: `pnpm test tests/components/StudentAssignmentsTab.test.tsx`, `/tmp/student-view-grade-card-11.png`, `/tmp/teacher-view-grade-card-11.png`
+- Behavior update: show returned feedback card when returned_at and either feedback text exists or any score exists.
+- Score section now supports incomplete grades (renders available rows), shows Total only for full score set, and shows "No score assigned." when none.
+- Verification: `pnpm test tests/components/StudentAssignmentsTab.test.tsx`, `/tmp/student-view-grade-card-12.png`, `/tmp/teacher-view-grade-card-12.png`
