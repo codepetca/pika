@@ -666,7 +666,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       )}
 
       {/* Grade panel (shown when work has been returned) */}
-      {doc?.returned_at && doc.score_completion != null && (
+      {doc?.returned_at && doc.score_completion != null && doc.score_thinking != null && doc.score_workflow != null && (
         <div className="bg-surface rounded-lg shadow-sm border border-border p-4 space-y-3">
           <h3 className="text-sm font-semibold text-text-default">Feedback</h3>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">

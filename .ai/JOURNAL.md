@@ -2525,3 +2525,5 @@
 - Final visual checks: `/tmp/student-view-grade-card-6.png`, `/tmp/teacher-view-grade-card-6.png`
 - Final polish pass: card title changed to "Feedback", removed feedback column subheading, set grade/feedback columns to 1/3 and 2/3 with centered inline 80% in Total row.
 - Visual checks: `/tmp/student-view-grade-card-10.png`, `/tmp/teacher-view-grade-card-10.png`
+- Review fix: grade card now renders only when all three score components are present (completion, thinking, workflow) to prevent partial/null score rows.
+- Verification: `pnpm test tests/components/StudentAssignmentsTab.test.tsx`, `/tmp/student-view-grade-card-11.png`, `/tmp/teacher-view-grade-card-11.png`
