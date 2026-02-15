@@ -2503,3 +2503,23 @@
 - `pnpm lint` passed
 - `pnpm test -- tests/unit/gradebook.test.ts tests/unit/layout-config.test.ts` passed
 - Visual checks: `/tmp/teacher-gradebook-tab.png`, `/tmp/student-gradebook-tab.png`
+
+---
+## 2026-02-15 [AI - GPT-5 Codex]
+**Goal:** Fix student assignment grade feedback card layout to a two-column split
+**Completed:**
+- Updated returned-work grade panel to a responsive two-column layout
+- Left column now contains completion/thinking/workflow scores and total
+- Right column now contains feedback text with fallback when empty
+- Added a vertical divider on desktop (`md`) and stacked layout on smaller screens
+- Performed visual verification screenshots for both teacher and student roles
+**Status:** completed
+**Artifacts:**
+- Branch: codex/student-grade-feedback-card
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-student-grade-feedback-card
+- File: src/components/StudentAssignmentEditor.tsx
+**Validation:**
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx` passed
+- Visual checks: `/tmp/teacher-view-grade-card-2.png`, `/tmp/student-view-grade-card-full.png`
+- Follow-up polish: moved Grade to left / Feedback to right, restored divider, and adjusted score chips to box only earned values (max values unboxed/muted).
+- Final visual checks: `/tmp/student-view-grade-card-6.png`, `/tmp/teacher-view-grade-card-6.png`
