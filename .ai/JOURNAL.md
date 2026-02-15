@@ -2530,3 +2530,6 @@
 - Behavior update: show returned feedback card when returned_at and either feedback text exists or any score exists.
 - Score section now supports incomplete grades (renders available rows), shows Total only for full score set, and shows "No score assigned." when none.
 - Verification: `pnpm test tests/components/StudentAssignmentsTab.test.tsx`, `/tmp/student-view-grade-card-12.png`, `/tmp/teacher-view-grade-card-12.png`
+- Added regression tests for returned feedback card behavior in `tests/components/StudentAssignmentEditor.feedback-card.test.tsx`.
+- Covered feedback-only return, partial-score return, and full-score return with total/percent.
+- Validation: `pnpm test tests/components/StudentAssignmentEditor.feedback-card.test.tsx` and `pnpm test tests/components/StudentAssignmentsTab.test.tsx`
