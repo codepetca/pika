@@ -7,6 +7,7 @@ import { Info } from 'lucide-react'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
+import { TeachAssistSettings } from './TeachAssistSettings'
 import type { Classroom, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -17,7 +18,7 @@ function generateJoinCode() {
     .join('')
 }
 
-type SettingsSection = 'general' | 'class-days'
+type SettingsSection = 'general' | 'class-days' | 'teachassist'
 
 interface Props {
   classroom: Classroom
@@ -26,7 +27,10 @@ interface Props {
 export function TeacherSettingsTab({ classroom }: Props) {
   const searchParams = useSearchParams()
   const sectionParam = searchParams.get('section')
-  const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
+  const section: SettingsSection =
+    sectionParam === 'class-days' ? 'class-days' :
+    sectionParam === 'teachassist' ? 'teachassist' :
+    'general'
   const allowEnrollmentId = useId()
   const titleId = useId()
   const isReadOnly = !!classroom.archived_at
@@ -204,9 +208,21 @@ export function TeacherSettingsTab({ classroom }: Props) {
         >
           Class Days
         </Link>
+        <Link
+          href={`/classrooms/${classroom.id}?tab=settings&section=teachassist`}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            section === 'teachassist'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-text-muted hover:text-text-default hover:border-border'
+          }`}
+        >
+          TeachAssist
+        </Link>
       </div>
 
-      {section === 'general' ? (
+      {section === 'teachassist' ? (
+        <TeachAssistSettings classroom={classroom} />
+      ) : section === 'general' ? (
         <PageContent className="space-y-5">
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
