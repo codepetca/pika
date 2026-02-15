@@ -23,7 +23,9 @@
     "seed": "tsx scripts/seed.ts",
     "seed:fresh": "tsx scripts/clear-and-seed.ts",
     "seed:gld2o": "tsx scripts/seed-gld2o.ts",
-    "generate:secret": "node scripts/generate-env.js"
+    "generate:secret": "node scripts/generate-env.js",
+    "test:ta": "tsx scripts/test-ta-sync.ts",
+    "test:ta:json": "tsx scripts/test-ta-sync.ts --json"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -68,6 +70,7 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-hotkeys-hook": "^5.2.1",
+    "playwright": "^1.57.0",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {

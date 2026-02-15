@@ -1,16 +1,18 @@
 'use client'
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react'
+import { Upload, AlertTriangle, Check } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { DateActionBar } from '@/components/DateActionBar'
-import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { PageActionBar, PageContent, PageLayout, ACTIONBAR_BUTTON_SECONDARY_CLASSNAME } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
-import { Tooltip } from '@/ui'
+import { ConfirmDialog, Tooltip } from '@/ui'
 import type { AttendanceStatus } from '@/types'
+import type { AttendanceSyncResult, SyncError, StudentMatchResult } from '@/lib/teachassist/types'
 import {
   DataTable,
   DataTableBody,
@@ -111,6 +113,65 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     }
     loadLogs()
   }, [classroom.id, classDays, selectedDate, onSelectEntry])
+
+  // --- TeachAssist sync state ---
+  const [taConfigured, setTaConfigured] = useState(false)
+  const [taSyncing, setTaSyncing] = useState(false)
+  const [taSyncResult, setTaSyncResult] = useState<AttendanceSyncResult | null>(null)
+  const [taSyncError, setTaSyncError] = useState('')
+  const [showTaConfirm, setShowTaConfirm] = useState(false)
+
+  // Check if TA is configured for this classroom (once on mount)
+  useEffect(() => {
+    async function checkTaConfig() {
+      try {
+        const res = await fetch(`/api/teacher/teachassist/config?classroom_id=${classroom.id}`)
+        const data = await res.json()
+        if (res.ok && data.config && data.config.has_password && data.config.ta_course_search) {
+          setTaConfigured(true)
+        }
+      } catch {
+        // Silently ignore — button just won't show
+      }
+    }
+    checkTaConfig()
+  }, [classroom.id])
+
+  // Run sync for the currently selected date
+  async function runTaSync() {
+    if (!selectedDate || taSyncing) return
+
+    setTaSyncing(true)
+    setTaSyncError('')
+    setTaSyncResult(null)
+    try {
+      const res = await fetch('/api/teacher/teachassist/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classroom_id: classroom.id,
+          mode: 'execute',
+          date_range: { from: selectedDate, to: selectedDate },
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok && !data.jobId) {
+        throw new Error(data.error || 'Sync failed')
+      }
+      setTaSyncResult(data as AttendanceSyncResult)
+    } catch (err: any) {
+      setTaSyncError(err.message || 'Sync failed')
+    } finally {
+      setTaSyncing(false)
+      setShowTaConfirm(false)
+    }
+  }
+
+  // Clear sync results when date changes
+  useEffect(() => {
+    setTaSyncResult(null)
+    setTaSyncError('')
+  }, [selectedDate])
 
   const isClassDay = useMemo(() => {
     if (!selectedDate) return true
@@ -241,7 +302,45 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             onNext={() => moveDateBy(1)}
           />
         }
-        trailing={null}
+        trailing={
+          taConfigured && isClassDay && !classroom.archived_at ? (
+            <button
+              type="button"
+              className={ACTIONBAR_BUTTON_SECONDARY_CLASSNAME}
+              onClick={() => setShowTaConfirm(true)}
+              disabled={taSyncing || rows.length === 0}
+            >
+              <Upload className="h-4 w-4 mr-1.5 inline-block" />
+              {taSyncing ? 'Syncing...' : 'Sync to TA'}
+            </button>
+          ) : null
+        }
+      />
+
+      {/* TeachAssist sync result banner */}
+      {taSyncResult && (
+        <TaSyncBanner result={taSyncResult} onDismiss={() => setTaSyncResult(null)} />
+      )}
+      {taSyncError && (
+        <div className="mx-0 mt-2 flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+          <AlertTriangle size={14} />
+          {taSyncError}
+          <button type="button" className="ml-auto text-xs underline" onClick={() => setTaSyncError('')}>Dismiss</button>
+        </div>
+      )}
+
+      {/* TeachAssist confirm dialog */}
+      <ConfirmDialog
+        isOpen={showTaConfirm}
+        title="Record attendance in TeachAssist?"
+        description={`This will push Pika attendance for ${selectedDate} to TeachAssist. The browser will open so you can review before submitting.`}
+        confirmLabel={taSyncing ? 'Syncing...' : 'Sync Now'}
+        cancelLabel="Cancel"
+        confirmVariant="default"
+        isConfirmDisabled={taSyncing}
+        isCancelDisabled={taSyncing}
+        onCancel={() => (taSyncing ? null : setShowTaConfirm(false))}
+        onConfirm={() => runTaSync()}
       />
 
       <PageContent>
@@ -353,3 +452,70 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     </PageLayout>
   )
 })
+
+// ---------------------------------------------------------------------------
+// TeachAssist sync result banner (shown inline above the table)
+// ---------------------------------------------------------------------------
+
+function TaSyncBanner({
+  result,
+  onDismiss,
+}: {
+  result: AttendanceSyncResult
+  onDismiss: () => void
+}) {
+  const summary = result.summary || { planned: 0, upserted: 0, skipped: 0, failed: 0 }
+  const errors = result.errors || []
+  const unmatchedStudents = result.unmatchedStudents || []
+  const ok = result.ok ?? true
+  const totalRecords = summary.planned + summary.upserted + summary.skipped + summary.failed
+
+  return (
+    <div className={`mx-0 mt-2 rounded-md border px-3 py-2 text-sm ${ok ? 'border-success/30 bg-success/10' : 'border-danger/30 bg-danger/10'}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {ok ? <Check size={14} className="text-success flex-shrink-0" /> : <AlertTriangle size={14} className="text-danger flex-shrink-0" />}
+          <div>
+            <span className="font-medium">
+              {ok
+                ? totalRecords === 0
+                  ? 'No attendance records to sync for this date'
+                  : `Synced ${summary.upserted} record${summary.upserted !== 1 ? 's' : ''} to TeachAssist`
+                : 'Sync completed with errors'}
+            </span>
+            {totalRecords > 0 && (
+              <span className="ml-2 text-xs text-text-muted">
+                (Planned: {summary.planned}, Updated: {summary.upserted}, Skipped: {summary.skipped}, Failed: {summary.failed})
+              </span>
+            )}
+          </div>
+        </div>
+        <button type="button" className="text-xs text-text-muted underline flex-shrink-0" onClick={onDismiss}>
+          Dismiss
+        </button>
+      </div>
+
+      {/* Unmatched students */}
+      {unmatchedStudents.length > 0 && (
+        <div className="mt-2 text-xs text-text-muted">
+          <span className="font-medium text-warning">
+            {unmatchedStudents.length} unmatched student{unmatchedStudents.length !== 1 ? 's' : ''}:
+          </span>{' '}
+          {unmatchedStudents.map((s: StudentMatchResult) => `${s.pika.last}, ${s.pika.first}`).join('; ')}
+        </div>
+      )}
+
+      {/* Errors */}
+      {errors.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {errors.map((err: SyncError, i: number) => (
+            <div key={i} className="text-xs text-danger">
+              [{err.type}] {err.message}
+              {err.date && <span className="text-text-muted ml-1">({err.date})</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

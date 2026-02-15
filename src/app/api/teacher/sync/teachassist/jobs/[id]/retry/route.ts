@@ -25,7 +25,9 @@ export async function POST(
       return NextResponse.json({ error: 'Sync job not found' }, { status: 404 })
     }
 
-    if (job.classrooms.teacher_id !== user.id) {
+    // Supabase types the !inner join as an array, but .single() returns it as an object at runtime
+    const classroom = job.classrooms as unknown as { teacher_id: string }
+    if (classroom.teacher_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
