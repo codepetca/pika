@@ -205,7 +205,6 @@ export function TeacherStudentWorkPanel({
   useEffect(() => {
     setLoading(true)
     setError('')
-    setData(null)
     handleExitPreview()
     setGradeError('')
 
@@ -233,7 +232,6 @@ export function TeacherStudentWorkPanel({
   useEffect(() => {
     setHistoryLoading(true)
     setHistoryError('')
-    setHistoryEntries([])
 
     async function loadHistory() {
       try {
@@ -328,7 +326,7 @@ export function TeacherStudentWorkPanel({
     }
   }
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
@@ -359,6 +357,9 @@ export function TeacherStudentWorkPanel({
 
   return (
     <div className="flex flex-col h-full">
+      {loading && (
+        <div className="px-3 py-2 text-xs text-text-muted">Refreshing…</div>
+      )}
       {/* Main content area: Student work + Right panel side by side */}
       <div className="flex-1 min-h-0 flex">
         {/* Student work content */}
@@ -417,7 +418,7 @@ export function TeacherStudentWorkPanel({
                 className="flex-1 min-h-0 overflow-y-auto"
                 onMouseLeave={handleHistoryMouseLeave}
               >
-                {historyLoading ? (
+                {historyLoading && historyEntries.length === 0 ? (
                   <div className="p-4 text-center">
                     <Spinner size="sm" />
                   </div>
@@ -436,6 +437,9 @@ export function TeacherStudentWorkPanel({
                     onEntryClick={handlePreviewLock}
                     onEntryHover={handlePreviewHover}
                   />
+                )}
+                {historyLoading && historyEntries.length > 0 && (
+                  <div className="px-3 pb-2 text-xs text-text-muted">Refreshing history…</div>
                 )}
               </div>
               {isPreviewLocked && previewEntry && (

@@ -95,6 +95,32 @@ test.describe('classroom loading - teacher', () => {
     await backLink.click()
     await expect(page).toHaveURL(/\/classrooms$/, { timeout: 10_000 })
   })
+
+  test('same-classroom tab switches do not show route skeleton and back/forward restores tab', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.waitForLoadState('networkidle')
+
+    const classroomCard = page.locator('[data-testid="classroom-card"]').first()
+    await expect(classroomCard).toBeVisible({ timeout: 15_000 })
+    await classroomCard.click()
+    await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
+    await expect(page.getByRole('link', { name: 'Attendance' })).toBeVisible({ timeout: 15_000 })
+
+    const skeleton = page.locator('[data-testid="classroom-skeleton"]')
+    await expect(skeleton).not.toBeVisible()
+
+    await page.getByRole('link', { name: 'Assignments' }).click()
+    await expect(skeleton).not.toBeVisible()
+    await expect(page).toHaveURL(/tab=assignments/)
+
+    await page.getByRole('link', { name: 'Quizzes' }).click()
+    await expect(skeleton).not.toBeVisible()
+    await expect(page).toHaveURL(/tab=quizzes/)
+
+    await page.evaluate(() => window.history.back())
+    await expect(page).toHaveURL(/tab=assignments/)
+    await expect(skeleton).not.toBeVisible()
+  })
 })
 
 test.describe('classroom loading - student', () => {
@@ -127,6 +153,31 @@ test.describe('classroom loading - student', () => {
     await expect(notFound).toBeVisible({ timeout: 15_000 })
 
     await expect(page.getByText("Classroom not found or you don't have access")).toBeVisible()
+  })
+
+  test('student same-classroom tab switches do not show route skeleton', async ({ page }) => {
+    await page.goto('/classrooms')
+    await page.waitForLoadState('networkidle')
+
+    const classroomCard = page.locator('[data-testid="classroom-card"]').first()
+    await expect(classroomCard).toBeVisible({ timeout: 15_000 })
+    await classroomCard.click()
+    await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
+
+    const skeleton = page.locator('[data-testid="classroom-skeleton"]')
+    await expect(skeleton).not.toBeVisible()
+
+    await page.getByRole('link', { name: 'Assignments' }).click()
+    await expect(skeleton).not.toBeVisible()
+    await expect(page).toHaveURL(/tab=assignments/)
+
+    await page.getByRole('link', { name: 'Calendar' }).click()
+    await expect(skeleton).not.toBeVisible()
+    await expect(page).toHaveURL(/tab=calendar/)
+
+    await page.evaluate(() => window.history.back())
+    await expect(page).toHaveURL(/tab=assignments/)
+    await expect(skeleton).not.toBeVisible()
   })
 })
 

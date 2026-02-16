@@ -1,8 +1,6 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar,
   CircleHelp,
@@ -96,6 +94,9 @@ export interface NavItemsProps {
   role: 'student' | 'teacher'
   activeTab: string
   isReadOnly?: boolean
+  assignmentId: string | null
+  onTabChange: (tab: ClassroomNavItemId) => void
+  updateSearchParams: (updater: (params: URLSearchParams) => void, options?: { replace?: boolean }) => void
 }
 
 export function NavItems({
@@ -103,10 +104,10 @@ export function NavItems({
   role,
   activeTab,
   isReadOnly = false,
+  assignmentId,
+  onTabChange,
+  updateSearchParams,
 }: NavItemsProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const assignmentIdParam = searchParams.get('assignmentId')
   const { isExpanded } = useLeftSidebar()
   const { close: closeMobileDrawer } = useMobileDrawer()
   const notifications = useStudentNotifications()
@@ -167,8 +168,8 @@ export function NavItems({
       setActiveAssignmentId(null)
       return
     }
-    setActiveAssignmentId(assignmentIdParam)
-  }, [activeTab, assignmentIdParam, role])
+    setActiveAssignmentId(assignmentId)
+  }, [activeTab, assignmentId, role])
 
   // Load teacher assignments
   const loadTeacherAssignments = useCallback(async () => {
@@ -254,17 +255,15 @@ export function NavItems({
   }
 
   function setStudentAssignmentsSelection(assignmentId: string | null) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', 'assignments')
-
-    if (assignmentId) {
-      params.set('assignmentId', assignmentId)
-    } else {
-      params.delete('assignmentId')
-    }
-
     setActiveAssignmentId(assignmentId)
-    router.push(`/classrooms/${classroomId}?${params.toString()}`)
+    updateSearchParams((params) => {
+      params.set('tab', 'assignments')
+      if (assignmentId) {
+        params.set('assignmentId', assignmentId)
+      } else {
+        params.delete('assignmentId')
+      }
+    })
   }
 
   function onNavigate() {
@@ -288,9 +287,11 @@ export function NavItems({
           const canShowNested = isExpanded
 
           const studentAssignmentsLink = (
-              <Link
+              <a
                 href={href}
-                onClick={() => {
+                onClick={(event) => {
+                  event.preventDefault()
+                  onTabChange('assignments')
                   setStudentAssignmentsSelection(null)
                   onNavigate()
                 }}
@@ -316,7 +317,7 @@ export function NavItems({
                 />
                 {isExpanded && <span className="truncate">{item.label}</span>}
                 {!isExpanded && <span className="sr-only">{item.label}</span>}
-              </Link>
+              </a>
             )
 
           return (
@@ -371,11 +372,12 @@ export function NavItems({
           const isExpandedState = assignmentsExpanded
 
           const teacherAssignmentsLink = (
-              <Link
+              <a
                 href={href}
-                onClick={() => {
+                onClick={(event) => {
+                  event.preventDefault()
+                  onTabChange('assignments')
                   setAssignmentsSelectionCookie(null)
-                  toggleAssignmentsExpanded()
                   onNavigate()
                 }}
                 aria-current={isActive ? 'page' : undefined}
@@ -403,7 +405,7 @@ export function NavItems({
                   </>
                 )}
                 {!isExpanded && <span className="sr-only">{item.label}</span>}
-              </Link>
+              </a>
             )
 
           return (
@@ -426,7 +428,7 @@ export function NavItems({
                           type="button"
                           onClick={() => {
                             setAssignmentsSelectionCookie(assignment.id)
-                            router.push(tabHref(classroomId, 'assignments'))
+                            onTabChange('assignments')
                             onNavigate()
                           }}
                           className={[
@@ -455,9 +457,13 @@ export function NavItems({
           (item.id === 'resources' && showResourcesPulse)
 
         const navLink = (
-          <Link
+          <a
             href={href}
-            onClick={onNavigate}
+            onClick={(event) => {
+              event.preventDefault()
+              onTabChange(item.id)
+              onNavigate()
+            }}
             aria-current={isActive ? 'page' : undefined}
             aria-label={item.label}
             className={[
@@ -479,7 +485,7 @@ export function NavItems({
             />
             {isExpanded && <span className="truncate">{item.label}</span>}
             {!isExpanded && <span className="sr-only">{item.label}</span>}
-          </Link>
+          </a>
         )
 
         return !isExpanded ? (

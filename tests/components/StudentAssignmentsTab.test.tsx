@@ -85,7 +85,12 @@ describe('StudentAssignmentsTab', () => {
     searchParamsMap.set('assignmentId', 'asgn-1')
     mockFetchAssignments([unviewed])
 
-    render(<StudentAssignmentsTab classroom={classroom} />)
+    render(
+      <StudentAssignmentsTab
+        classroom={classroom}
+        selectedAssignmentId={searchParamsMap.get('assignmentId') ?? null}
+      />
+    )
 
     // Modal should auto-appear for first-time view with assignment description
     await waitFor(() => {
@@ -112,7 +117,12 @@ describe('StudentAssignmentsTab', () => {
     searchParamsMap.set('assignmentId', 'asgn-1')
     mockFetchAssignments([viewed])
 
-    render(<StudentAssignmentsTab classroom={classroom} />)
+    render(
+      <StudentAssignmentsTab
+        classroom={classroom}
+        selectedAssignmentId={searchParamsMap.get('assignmentId') ?? null}
+      />
+    )
 
     // Wait for the Instructions button to appear
     await waitFor(() => {
@@ -134,7 +144,12 @@ describe('StudentAssignmentsTab', () => {
     searchParamsMap.set('assignmentId', 'asgn-1')
     mockFetchAssignments([unviewed])
 
-    render(<StudentAssignmentsTab classroom={classroom} />)
+    render(
+      <StudentAssignmentsTab
+        classroom={classroom}
+        selectedAssignmentId={searchParamsMap.get('assignmentId') ?? null}
+      />
+    )
 
     // Wait for modal
     await waitFor(() => {
