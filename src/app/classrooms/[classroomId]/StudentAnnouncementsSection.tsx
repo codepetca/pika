@@ -5,6 +5,7 @@ import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Announcement, Classroom } from '@/types'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 
 interface Props {
   classroom: Classroom
@@ -19,9 +20,15 @@ export function StudentAnnouncementsSection({ classroom }: Props) {
 
   const loadAnnouncements = useCallback(async () => {
     try {
-      const res = await fetch(`/api/student/classrooms/${classroom.id}/announcements`)
-      if (!res.ok) throw new Error('Failed to load announcements')
-      const data = await res.json()
+      const data = await fetchJSONWithCache(
+        `student-announcements:${classroom.id}`,
+        async () => {
+          const res = await fetch(`/api/student/classrooms/${classroom.id}/announcements`)
+          if (!res.ok) throw new Error('Failed to load announcements')
+          return res.json()
+        },
+        20_000,
+      )
       setAnnouncements(data.announcements || [])
     } catch (err) {
       console.error('Error loading announcements:', err)
@@ -39,6 +46,7 @@ export function StudentAnnouncementsSection({ classroom }: Props) {
         method: 'POST',
       })
       if (res.ok) {
+        invalidateCachedJSON(`student-announcements:${classroom.id}`)
         // Clear the notification count for this classroom
         notifications?.markAnnouncementsRead?.()
       }

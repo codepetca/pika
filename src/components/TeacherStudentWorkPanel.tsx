@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { Button, Tooltip } from '@/ui'
+import { Button, RefreshingIndicator, Tooltip } from '@/ui'
 import { RichTextViewer } from '@/components/editor'
 import { HistoryList } from '@/components/HistoryList'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
@@ -10,6 +10,7 @@ import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
+import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 
 function AuthenticityGauge({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
   const hasScore = score !== null
@@ -149,6 +150,7 @@ export function TeacherStudentWorkPanel({
   const [gradeSaving, setGradeSaving] = useState(false)
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
+  const showInitialSpinner = useDelayedBusy(loading && !data)
 
   function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
     const oldestFirst = [...historyEntries].reverse()
@@ -205,7 +207,6 @@ export function TeacherStudentWorkPanel({
   useEffect(() => {
     setLoading(true)
     setError('')
-    setData(null)
     handleExitPreview()
     setGradeError('')
 
@@ -233,7 +234,6 @@ export function TeacherStudentWorkPanel({
   useEffect(() => {
     setHistoryLoading(true)
     setHistoryError('')
-    setHistoryEntries([])
 
     async function loadHistory() {
       try {
@@ -268,6 +268,36 @@ export function TeacherStudentWorkPanel({
 
     setGradeSaving(true)
     setGradeError('')
+    const previousDoc = data.doc
+    const optimisticDoc: AssignmentDoc = {
+      ...(previousDoc || {
+        id: '',
+        assignment_id: assignmentId,
+        student_id: studentId,
+        content: { type: 'doc', content: [] },
+        is_submitted: false,
+        submitted_at: null,
+        viewed_at: null,
+        score_completion: null,
+        score_thinking: null,
+        score_workflow: null,
+        feedback: null,
+        graded_at: null,
+        graded_by: null,
+        returned_at: null,
+        authenticity_score: null,
+        authenticity_flags: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+      score_completion: sc,
+      score_thinking: st,
+      score_workflow: sw,
+      feedback,
+      graded_at: previousDoc?.graded_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    setData((prev) => (prev ? { ...prev, doc: optimisticDoc } : prev))
     try {
       const res = await fetch(`/api/teacher/assignments/${assignmentId}/grade`, {
         method: 'POST',
@@ -286,6 +316,7 @@ export function TeacherStudentWorkPanel({
       setData((prev) => prev ? { ...prev, doc: result.doc } : prev)
       window.dispatchEvent(new CustomEvent(TEACHER_GRADE_UPDATED_EVENT))
     } catch (err: any) {
+      setData((prev) => (prev ? { ...prev, doc: previousDoc } : prev))
       setGradeError(err.message || 'Failed to save grade')
     } finally {
       setGradeSaving(false)
@@ -328,7 +359,7 @@ export function TeacherStudentWorkPanel({
     }
   }
 
-  if (loading) {
+  if (showInitialSpinner) {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
@@ -359,6 +390,9 @@ export function TeacherStudentWorkPanel({
 
   return (
     <div className="flex flex-col h-full">
+      {loading && (
+        <RefreshingIndicator />
+      )}
       {/* Main content area: Student work + Right panel side by side */}
       <div className="flex-1 min-h-0 flex">
         {/* Student work content */}
@@ -417,7 +451,7 @@ export function TeacherStudentWorkPanel({
                 className="flex-1 min-h-0 overflow-y-auto"
                 onMouseLeave={handleHistoryMouseLeave}
               >
-                {historyLoading ? (
+                {historyLoading && historyEntries.length === 0 ? (
                   <div className="p-4 text-center">
                     <Spinner size="sm" />
                   </div>
@@ -436,6 +470,9 @@ export function TeacherStudentWorkPanel({
                     onEntryClick={handlePreviewLock}
                     onEntryHover={handlePreviewHover}
                   />
+                )}
+                {historyLoading && historyEntries.length > 0 && (
+                  <RefreshingIndicator label="Refreshing history..." className="px-3 pb-2 pt-0" />
                 )}
               </div>
               {isPreviewLocked && previewEntry && (

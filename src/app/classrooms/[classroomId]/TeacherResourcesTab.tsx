@@ -1,13 +1,13 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { TeacherAnnouncementsSection } from './TeacherAnnouncementsSection'
 import type { Classroom, TiptapContent } from '@/types'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 2000
@@ -16,17 +16,22 @@ type ResourcesSection = 'announcements' | 'class-resources'
 
 interface Props {
   classroom: Classroom
+  sectionParam?: string | null
+  onSectionChange?: (section: ResourcesSection) => void
 }
 
-export function TeacherResourcesTab({ classroom }: Props) {
-  const searchParams = useSearchParams()
-  const sectionParam = searchParams.get('section')
+export function TeacherResourcesTab({
+  classroom,
+  sectionParam,
+  onSectionChange = () => {},
+}: Props) {
   const section: ResourcesSection = sectionParam === 'class-resources' ? 'class-resources' : 'announcements'
 
   const [loading, setLoading] = useState(true)
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null)
+  const showLoadingSpinner = useDelayedBusy(loading)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const pendingContentRef = useRef<TiptapContent | null>(null)
@@ -38,8 +43,15 @@ export function TeacherResourcesTab({ classroom }: Props) {
     async function loadResources() {
       setLoading(true)
       try {
-        const res = await fetch(`/api/teacher/classrooms/${classroom.id}/resources`)
-        const data = await res.json()
+        const data = await fetchJSONWithCache(
+          `teacher-resources:${classroom.id}`,
+          async () => {
+            const res = await fetch(`/api/teacher/classrooms/${classroom.id}/resources`)
+            if (!res.ok) throw new Error('Failed to load resources')
+            return res.json()
+          },
+          20_000,
+        )
         const loadedContent = data.resources?.content || EMPTY_DOC
         setContent(loadedContent)
         lastSavedContentRef.current = JSON.stringify(loadedContent)
@@ -73,6 +85,8 @@ export function TeacherResourcesTab({ classroom }: Props) {
       if (!res.ok) {
         throw new Error('Failed to save')
       }
+      invalidateCachedJSON(`teacher-resources:${classroom.id}`)
+      invalidateCachedJSON(`student-resources:${classroom.id}`)
 
       lastSavedContentRef.current = newContentStr
       setSaveStatus('saved')
@@ -141,8 +155,9 @@ export function TeacherResourcesTab({ classroom }: Props) {
     <PageLayout>
       {/* Sub-tab navigation */}
       <div className="flex border-b border-border mb-4">
-        <Link
-          href={`/classrooms/${classroom.id}?tab=resources&section=announcements`}
+        <button
+          type="button"
+          onClick={() => onSectionChange('announcements')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'announcements'
               ? 'border-primary text-primary'
@@ -150,9 +165,10 @@ export function TeacherResourcesTab({ classroom }: Props) {
           }`}
         >
           Announcements
-        </Link>
-        <Link
-          href={`/classrooms/${classroom.id}?tab=resources&section=class-resources`}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSectionChange('class-resources')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'class-resources'
               ? 'border-primary text-primary'
@@ -160,7 +176,7 @@ export function TeacherResourcesTab({ classroom }: Props) {
           }`}
         >
           Class Resources
-        </Link>
+        </button>
       </div>
 
       {section === 'announcements' ? (
@@ -169,7 +185,7 @@ export function TeacherResourcesTab({ classroom }: Props) {
         </PageContent>
       ) : (
         <PageContent>
-          {loading ? (
+          {showLoadingSpinner ? (
             <div className="flex items-center justify-center h-64">
               <Spinner />
             </div>

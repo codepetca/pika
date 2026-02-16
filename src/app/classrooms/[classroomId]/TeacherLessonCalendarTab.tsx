@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
@@ -51,10 +50,16 @@ export interface CalendarSidebarState {
 interface Props {
   classroom: Classroom
   onSidebarStateChange?: (state: CalendarSidebarState | null) => void
+  onNavigateToAssignments?: () => void
+  onNavigateToAnnouncements?: () => void
 }
 
-export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Props) {
-  const router = useRouter()
+export function TeacherLessonCalendarTab({
+  classroom,
+  onSidebarStateChange,
+  onNavigateToAssignments = () => {},
+  onNavigateToAnnouncements = () => {},
+}: Props) {
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const lessonPlansRef = useRef(lessonPlans)
   lessonPlansRef.current = lessonPlans
@@ -390,15 +395,15 @@ export function TeacherLessonCalendarTab({ classroom, onSidebarStateChange }: Pr
           detail: { classroomId: classroom.id, value: assignment.id },
         })
       )
-      router.push(`/classrooms/${classroom.id}?tab=assignments`)
+      onNavigateToAssignments()
     },
-    [router, classroom.id]
+    [onNavigateToAssignments, classroom.id]
   )
 
   // Handle announcement click - navigate to Resources > Announcements
   const handleAnnouncementClick = useCallback(() => {
-    router.push(`/classrooms/${classroom.id}?tab=resources&section=announcements`)
-  }, [router, classroom.id])
+    onNavigateToAnnouncements()
+  }, [onNavigateToAnnouncements])
 
   // Notify parent when sidebar opens/closes, content changes, or error/saving state changes
   // Note: markdownContent IS included because the sidebar uses local state to avoid cursor jump.
