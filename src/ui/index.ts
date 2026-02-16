@@ -16,6 +16,8 @@ export { FormField, type FormFieldProps } from './FormField'
 export { AlertDialog, ConfirmDialog, ContentDialog, DialogPanel, type AlertDialogProps, type AlertDialogState, type AlertDialogVariant, type ConfirmDialogProps, type ContentDialogProps, type DialogPanelProps } from './Dialog'
 export { Card, type CardProps } from './Card'
 export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip'
+export { RefreshingIndicator } from './RefreshingIndicator'
+export { TabContentTransition } from './TabContentTransition'
 
 // Utilities
 export { cn } from './utils'

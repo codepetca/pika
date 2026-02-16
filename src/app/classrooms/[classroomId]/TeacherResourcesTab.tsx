@@ -6,6 +6,8 @@ import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { TeacherAnnouncementsSection } from './TeacherAnnouncementsSection'
 import type { Classroom, TiptapContent } from '@/types'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 2000
@@ -29,6 +31,7 @@ export function TeacherResourcesTab({
   const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null)
+  const showLoadingSpinner = useDelayedBusy(loading)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const pendingContentRef = useRef<TiptapContent | null>(null)
@@ -40,8 +43,15 @@ export function TeacherResourcesTab({
     async function loadResources() {
       setLoading(true)
       try {
-        const res = await fetch(`/api/teacher/classrooms/${classroom.id}/resources`)
-        const data = await res.json()
+        const data = await fetchJSONWithCache(
+          `teacher-resources:${classroom.id}`,
+          async () => {
+            const res = await fetch(`/api/teacher/classrooms/${classroom.id}/resources`)
+            if (!res.ok) throw new Error('Failed to load resources')
+            return res.json()
+          },
+          20_000,
+        )
         const loadedContent = data.resources?.content || EMPTY_DOC
         setContent(loadedContent)
         lastSavedContentRef.current = JSON.stringify(loadedContent)
@@ -75,6 +85,8 @@ export function TeacherResourcesTab({
       if (!res.ok) {
         throw new Error('Failed to save')
       }
+      invalidateCachedJSON(`teacher-resources:${classroom.id}`)
+      invalidateCachedJSON(`student-resources:${classroom.id}`)
 
       lastSavedContentRef.current = newContentStr
       setSaveStatus('saved')
@@ -173,7 +185,7 @@ export function TeacherResourcesTab({
         </PageContent>
       ) : (
         <PageContent>
-          {loading ? (
+          {showLoadingSpinner ? (
             <div className="flex items-center justify-center h-64">
               <Spinner />
             </div>

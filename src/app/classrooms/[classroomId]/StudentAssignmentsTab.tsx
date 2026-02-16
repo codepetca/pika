@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, ContentDialog } from '@/ui'
+import { Button, ContentDialog, RefreshingIndicator } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
@@ -13,6 +13,8 @@ import {
 import type { AssignmentWithStatus, Classroom, TiptapContent } from '@/types'
 import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
 import { RichTextViewer } from '@/components/editor'
+import { useDelayedBusy } from '@/hooks/useDelayedBusy'
+import { fetchJSONWithCache } from '@/lib/request-cache'
 
 interface Props {
   classroom: Classroom
@@ -37,6 +39,7 @@ export function StudentAssignmentsTab({
   const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
   const wasActiveRef = useRef(isActive)
+  const showBlockingSpinner = useDelayedBusy(loading && assignments.length === 0)
 
   const loadAssignments = useCallback(
     async (options?: { preserveContent?: boolean }) => {
@@ -47,8 +50,15 @@ export function StudentAssignmentsTab({
         setLoading(true)
       }
       try {
-        const res = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
-        const data = await res.json()
+        const data = await fetchJSONWithCache(
+          `student-assignments:${classroom.id}`,
+          async () => {
+            const res = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
+            if (!res.ok) throw new Error('Failed to load assignments')
+            return res.json()
+          },
+          20_000,
+        )
         setAssignments(data.assignments || [])
         setHasLoaded(true)
       } catch (err) {
@@ -195,9 +205,9 @@ export function StudentAssignmentsTab({
       <PageContent className="flex-1 min-h-0">
         <div className="min-w-0 h-full flex flex-col">
           {refreshing && (
-            <div className="mb-2 text-xs text-text-muted">Refreshing…</div>
+            <RefreshingIndicator className="mb-2 px-0 py-0" />
           )}
-          {loading ? (
+          {showBlockingSpinner ? (
               <div className="bg-surface rounded-lg shadow-sm">
                 <div className="p-4">
                   <div className="flex justify-center py-8">

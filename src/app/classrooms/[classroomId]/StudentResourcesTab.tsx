@@ -6,6 +6,8 @@ import { RichTextViewer } from '@/components/editor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { StudentAnnouncementsSection } from './StudentAnnouncementsSection'
 import type { Classroom, TiptapContent } from '@/types'
+import { fetchJSONWithCache } from '@/lib/request-cache'
+import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 
 type ResourcesSection = 'announcements' | 'class-resources'
 
@@ -24,13 +26,21 @@ export function StudentResourcesTab({
 
   const [loading, setLoading] = useState(true)
   const [content, setContent] = useState<TiptapContent | null>(null)
+  const showLoadingSpinner = useDelayedBusy(loading)
 
   useEffect(() => {
     async function loadResources() {
       setLoading(true)
       try {
-        const res = await fetch(`/api/student/classrooms/${classroom.id}/resources`)
-        const data = await res.json()
+        const data = await fetchJSONWithCache(
+          `student-resources:${classroom.id}`,
+          async () => {
+            const res = await fetch(`/api/student/classrooms/${classroom.id}/resources`)
+            if (!res.ok) throw new Error('Failed to load resources')
+            return res.json()
+          },
+          20_000,
+        )
         setContent(data.resources?.content || null)
       } catch (err) {
         console.error('Error loading resources:', err)
@@ -77,7 +87,7 @@ export function StudentResourcesTab({
         </PageContent>
       ) : (
         <PageContent>
-          {loading ? (
+          {showLoadingSpinner ? (
             <div className="flex items-center justify-center h-64">
               <Spinner />
             </div>

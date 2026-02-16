@@ -10,6 +10,7 @@ import { test, expect } from '@playwright/test'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
+const TAB_READY_THRESHOLD_MS = 1200
 
 test.describe('classroom loading - teacher', () => {
   test.use({ storageState: TEACHER_STORAGE })
@@ -112,10 +113,36 @@ test.describe('classroom loading - teacher', () => {
     await page.getByRole('link', { name: 'Assignments' }).click()
     await expect(skeleton).not.toBeVisible()
     await expect(page).toHaveURL(/tab=assignments/)
+    await page.waitForFunction(
+      () => {
+        const metrics = (window as any).__classroomTabMetrics || []
+        return metrics.length > 0 && metrics[metrics.length - 1]?.tab === 'assignments'
+      },
+      { timeout: 15_000 },
+    )
+    const teacherAssignmentMetrics = await page.evaluate(() => {
+      const metrics = (window as any).__classroomTabMetrics || []
+      return metrics[metrics.length - 1] || null
+    })
+    expect(teacherAssignmentMetrics?.tab).toBe('assignments')
+    expect(teacherAssignmentMetrics?.durationMs ?? Number.POSITIVE_INFINITY).toBeLessThan(TAB_READY_THRESHOLD_MS)
 
     await page.getByRole('link', { name: 'Quizzes' }).click()
     await expect(skeleton).not.toBeVisible()
     await expect(page).toHaveURL(/tab=quizzes/)
+    await page.waitForFunction(
+      () => {
+        const metrics = (window as any).__classroomTabMetrics || []
+        return metrics.length > 0 && metrics[metrics.length - 1]?.tab === 'quizzes'
+      },
+      { timeout: 15_000 },
+    )
+    const teacherQuizMetrics = await page.evaluate(() => {
+      const metrics = (window as any).__classroomTabMetrics || []
+      return metrics[metrics.length - 1] || null
+    })
+    expect(teacherQuizMetrics?.tab).toBe('quizzes')
+    expect(teacherQuizMetrics?.durationMs ?? Number.POSITIVE_INFINITY).toBeLessThan(TAB_READY_THRESHOLD_MS)
 
     await page.evaluate(() => window.history.back())
     await expect(page).toHaveURL(/tab=assignments/)
@@ -170,10 +197,36 @@ test.describe('classroom loading - student', () => {
     await page.getByRole('link', { name: 'Assignments' }).click()
     await expect(skeleton).not.toBeVisible()
     await expect(page).toHaveURL(/tab=assignments/)
+    await page.waitForFunction(
+      () => {
+        const metrics = (window as any).__classroomTabMetrics || []
+        return metrics.length > 0 && metrics[metrics.length - 1]?.tab === 'assignments'
+      },
+      { timeout: 15_000 },
+    )
+    const studentAssignmentMetrics = await page.evaluate(() => {
+      const metrics = (window as any).__classroomTabMetrics || []
+      return metrics[metrics.length - 1] || null
+    })
+    expect(studentAssignmentMetrics?.tab).toBe('assignments')
+    expect(studentAssignmentMetrics?.durationMs ?? Number.POSITIVE_INFINITY).toBeLessThan(TAB_READY_THRESHOLD_MS)
 
     await page.getByRole('link', { name: 'Calendar' }).click()
     await expect(skeleton).not.toBeVisible()
     await expect(page).toHaveURL(/tab=calendar/)
+    await page.waitForFunction(
+      () => {
+        const metrics = (window as any).__classroomTabMetrics || []
+        return metrics.length > 0 && metrics[metrics.length - 1]?.tab === 'calendar'
+      },
+      { timeout: 15_000 },
+    )
+    const studentCalendarMetrics = await page.evaluate(() => {
+      const metrics = (window as any).__classroomTabMetrics || []
+      return metrics[metrics.length - 1] || null
+    })
+    expect(studentCalendarMetrics?.tab).toBe('calendar')
+    expect(studentCalendarMetrics?.durationMs ?? Number.POSITIVE_INFINITY).toBeLessThan(TAB_READY_THRESHOLD_MS)
 
     await page.evaluate(() => window.history.back())
     await expect(page).toHaveURL(/tab=assignments/)
