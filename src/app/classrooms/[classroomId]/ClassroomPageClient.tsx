@@ -38,6 +38,9 @@ import { TEACHER_ASSIGNMENTS_UPDATED_EVENT, TEACHER_QUIZZES_UPDATED_EVENT } from
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
+import { TabContentTransition } from '@/ui'
+import { prefetchJSON } from '@/lib/request-cache'
+import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import type {
   Classroom,
   Entry,
@@ -225,6 +228,9 @@ function ClassroomPageContent({
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
   }))
+  const lastTabIntentRef = useRef<Record<string, number>>({})
+  const scrollPositionsRef = useRef<Record<string, number>>({})
+  const prevActiveTabRef = useRef(activeTab)
 
   const navigateInClassroom = useCallback<UpdateSearchParamsFn>(
     (updater, options) => {
@@ -240,6 +246,14 @@ function ClassroomPageContent({
       if (previous[activeTab]) return previous
       return { ...previous, [activeTab]: true }
     })
+  }, [activeTab])
+
+  useEffect(() => {
+    const previousTab = prevActiveTabRef.current
+    scrollPositionsRef.current[previousTab] = window.scrollY
+    prevActiveTabRef.current = activeTab
+    const nextScrollTop = scrollPositionsRef.current[activeTab] ?? 0
+    window.scrollTo({ top: nextScrollTop, left: 0, behavior: 'auto' })
   }, [activeTab])
 
   // State for attendance date (teacher attendance tab)
@@ -545,8 +559,109 @@ function ClassroomPageContent({
     }
   }, [isTeacher, activeTab, selectedGradebookStudent, classroom.id, setRightSidebarOpen, openRight])
 
+  const prefetchTabData = useCallback((tab: string) => {
+    const now = Date.now()
+    const lastIntentAt = lastTabIntentRef.current[tab] || 0
+    if (now - lastIntentAt < 500) return
+    lastTabIntentRef.current[tab] = now
+
+    const runPrefetch = () => {
+      if (tab === 'assignments') {
+        if (isTeacher) {
+          prefetchJSON(
+            `teacher-assignments:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        } else {
+          prefetchJSON(
+            `student-assignments:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        }
+      }
+
+      if (tab === 'resources') {
+        if (isTeacher) {
+          prefetchJSON(
+            `teacher-resources:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/teacher/classrooms/${classroom.id}/resources`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+          prefetchJSON(
+            `teacher-announcements:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        } else {
+          prefetchJSON(
+            `student-resources:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/student/classrooms/${classroom.id}/resources`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+          prefetchJSON(
+            `student-announcements:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/student/classrooms/${classroom.id}/announcements`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        }
+      }
+    }
+
+    runPrefetch()
+  }, [classroom.id, isTeacher])
+
+  useEffect(() => {
+    const idleCallback = (window as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined
+    if (idleCallback) {
+      const id = idleCallback(
+        () => {
+          prefetchTabData('assignments')
+          prefetchTabData('resources')
+        },
+        { timeout: 1200 },
+      )
+      return () => {
+        const cancelIdleCallback = (window as any).cancelIdleCallback as ((idleId: number) => void) | undefined
+        cancelIdleCallback?.(id)
+      }
+    }
+
+    const timer = window.setTimeout(() => {
+      prefetchTabData('assignments')
+      prefetchTabData('resources')
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [prefetchTabData])
+
   const handleTabChange = useCallback(
     (tab: string) => {
+      markClassroomTabSwitchStart(tab)
       navigateInClassroom((params) => {
         params.set('tab', tab)
         if (tab !== 'assignments') {
@@ -556,14 +671,19 @@ function ClassroomPageContent({
           params.delete('section')
         }
       })
+      window.requestAnimationFrame(() => {
+        markClassroomTabSwitchReady(tab)
+      })
     },
     [navigateInClassroom]
   )
 
-  const getTabPanelClassName = useCallback(
-    (tabName: string) => (activeTab === tabName ? 'contents' : 'hidden'),
-    [activeTab]
-  )
+  useEffect(() => {
+    const rafId = window.requestAnimationFrame(() => {
+      markClassroomTabSwitchReady(activeTab)
+    })
+    return () => window.cancelAnimationFrame(rafId)
+  }, [activeTab])
 
   const content = (
     <AppShell
@@ -597,6 +717,7 @@ function ClassroomPageContent({
             isReadOnly={isArchived}
             assignmentId={assignmentIdParam}
             onTabChange={handleTabChange}
+            onTabIntent={prefetchTabData}
             updateSearchParams={navigateInClassroom}
           />
         </LeftSidebar>
@@ -612,7 +733,7 @@ function ClassroomPageContent({
           {isTeacher ? (
             <>
               {mountedTabs.attendance && (
-                <div className={getTabPanelClassName('attendance')}>
+                <TabContentTransition isActive={activeTab === 'attendance'}>
                   <TeacherAttendanceTab
                     ref={attendanceTabRef}
                     classroom={classroom}
@@ -620,20 +741,20 @@ function ClassroomPageContent({
                     onDateChange={setAttendanceDate}
                     isActive={activeTab === 'attendance'}
                   />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.gradebook && (
-                <div className={getTabPanelClassName('gradebook')}>
+                <TabContentTransition isActive={activeTab === 'gradebook'}>
                   <TeacherGradebookTab
                     classroom={classroom}
                     selectedStudentId={selectedGradebookStudent?.student_id ?? null}
                     onSelectStudent={handleSelectGradebookStudent}
                     onClassSummaryChange={setGradebookClassSummary}
                   />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.assignments && (
-                <div className={getTabPanelClassName('assignments')}>
+                <TabContentTransition isActive={activeTab === 'assignments'}>
                   <TeacherClassroomView
                     classroom={classroom}
                     onSelectAssignment={handleSelectAssignment}
@@ -641,18 +762,18 @@ function ClassroomPageContent({
                     onViewModeChange={handleViewModeChange}
                     isActive={activeTab === 'assignments'}
                   />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.quizzes && (
-                <div className={getTabPanelClassName('quizzes')}>
+                <TabContentTransition isActive={activeTab === 'quizzes'}>
                   <TeacherQuizzesTab
                     classroom={classroom}
                     onSelectQuiz={handleSelectQuiz}
                   />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.calendar && (
-                <div className={getTabPanelClassName('calendar')}>
+                <TabContentTransition isActive={activeTab === 'calendar'}>
                   <TeacherLessonCalendarTab
                     classroom={classroom}
                     onSidebarStateChange={setCalendarSidebarState}
@@ -665,10 +786,10 @@ function ClassroomPageContent({
                       })
                     }
                   />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.resources && (
-                <div className={getTabPanelClassName('resources')}>
+                <TabContentTransition isActive={activeTab === 'resources'}>
                   <TeacherResourcesTab
                     classroom={classroom}
                     sectionParam={sectionParam}
@@ -679,15 +800,15 @@ function ClassroomPageContent({
                       })
                     }
                   />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.roster && (
-                <div className={getTabPanelClassName('roster')}>
+                <TabContentTransition isActive={activeTab === 'roster'}>
                   <TeacherRosterTab classroom={classroom} />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.settings && (
-                <div className={getTabPanelClassName('settings')}>
+                <TabContentTransition isActive={activeTab === 'settings'}>
                   <TeacherSettingsTab
                     classroom={classroom}
                     sectionParam={sectionParam}
@@ -698,36 +819,36 @@ function ClassroomPageContent({
                       })
                     }
                   />
-                </div>
+                </TabContentTransition>
               )}
             </>
           ) : (
             <>
               {mountedTabs.today && (
-                <div className={getTabPanelClassName('today')}>
+                <TabContentTransition isActive={activeTab === 'today'}>
                   <StudentTodayTab
                     classroom={classroom}
                     onLessonPlanLoad={handleSetLessonPlan}
                   />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.assignments && (
-                <div className={getTabPanelClassName('assignments')}>
+                <TabContentTransition isActive={activeTab === 'assignments'}>
                   <StudentAssignmentsTab
                     classroom={classroom}
                     selectedAssignmentId={assignmentIdParam}
                     isActive={activeTab === 'assignments'}
                     updateSearchParams={navigateInClassroom}
                   />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.quizzes && (
-                <div className={getTabPanelClassName('quizzes')}>
+                <TabContentTransition isActive={activeTab === 'quizzes'}>
                   <StudentQuizzesTab classroom={classroom} />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.calendar && (
-                <div className={getTabPanelClassName('calendar')}>
+                <TabContentTransition isActive={activeTab === 'calendar'}>
                   <StudentLessonCalendarTab
                     classroom={classroom}
                     onNavigateToAssignments={(assignmentId) =>
@@ -748,10 +869,10 @@ function ClassroomPageContent({
                       })
                     }
                   />
-                </div>
+                </TabContentTransition>
               )}
               {mountedTabs.resources && (
-                <div className={getTabPanelClassName('resources')}>
+                <TabContentTransition isActive={activeTab === 'resources'}>
                   <StudentResourcesTab
                     classroom={classroom}
                     sectionParam={sectionParam}
@@ -762,7 +883,7 @@ function ClassroomPageContent({
                       })
                     }
                   />
-                </div>
+                </TabContentTransition>
               )}
             </>
           )}

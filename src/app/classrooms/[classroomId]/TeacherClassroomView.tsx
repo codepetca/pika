@@ -25,7 +25,8 @@ import {
   RotateCcw,
   Send,
 } from 'lucide-react'
-import { ConfirmDialog, Tooltip } from '@/ui'
+import { ConfirmDialog, RefreshingIndicator, Tooltip } from '@/ui'
+import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -64,6 +65,7 @@ import {
 } from '@/lib/events'
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -246,6 +248,7 @@ export function TeacherClassroomView({
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const wasActiveRef = useRef(isActive)
+  const showSummarySpinner = useDelayedBusy(loading && assignments.length === 0)
 
   // Compact table when sidebar is wide or a student is selected (sidebar opens)
   const isCompactTable = sidebarWidth === '70%' || sidebarWidth === '75%' || selectedStudentId !== null
@@ -258,11 +261,18 @@ export function TeacherClassroomView({
       setLoading(true)
     }
     try {
-      const [assignmentsRes, classDaysRes] = await Promise.all([
-        fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`),
+      const [assignmentsData, classDaysRes] = await Promise.all([
+        fetchJSONWithCache(
+          `teacher-assignments:${classroom.id}`,
+          async () => {
+            const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+            if (!response.ok) throw new Error('Failed to load assignments')
+            return response.json()
+          },
+          20_000,
+        ),
         fetch(`/api/classrooms/${classroom.id}/class-days`),
       ])
-      const assignmentsData = await assignmentsRes.json()
       const classDaysData = await classDaysRes.json().catch(() => ({ class_days: [] }))
       setAssignments(assignmentsData.assignments || [])
       setClassDays(classDaysData.class_days || [])
@@ -314,6 +324,7 @@ export function TeacherClassroomView({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ classroom_id: classroom.id, assignment_ids: orderedIds }),
         })
+        invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
         // Notify sidebar to refresh
         window.dispatchEvent(
           new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
@@ -453,6 +464,7 @@ export function TeacherClassroomView({
     // Optimistically add the new assignment to the list
     setAssignments((prev) => [...prev, { ...created, stats: { total_students: 0, submitted: 0, late: 0 } }])
     // Reload to get accurate stats from server
+    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     loadAssignments()
   }
 
@@ -469,6 +481,7 @@ export function TeacherClassroomView({
       return { ...prev, assignment: updated }
     })
     // Reload to ensure consistency
+    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     loadAssignments()
   }
 
@@ -714,6 +727,7 @@ export function TeacherClassroomView({
         throw new Error(data.error || 'Failed to delete assignment')
       }
       setPendingDelete(null)
+      invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
       await loadAssignments()
       if (selection.mode === 'assignment' && selection.assignmentId === pendingDelete.id) {
         setSelectionAndPersist({ mode: 'summary' })
@@ -809,7 +823,7 @@ export function TeacherClassroomView({
 
       <PageContent className="space-y-3">
         {refreshing && (
-          <div className="text-xs text-text-muted">Refreshing…</div>
+          <RefreshingIndicator className="px-0 py-0" />
         )}
         {error && (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
@@ -829,7 +843,7 @@ export function TeacherClassroomView({
 
         {selection.mode === 'summary' ? (
         <div>
-          {loading ? (
+          {showSummarySpinner ? (
             <div className="flex justify-center py-8">
               <Spinner />
             </div>

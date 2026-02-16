@@ -2554,3 +2554,29 @@
 - `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/ThreePanelProvider.test.tsx` passed
 - `npx playwright test e2e/classroom-loading.spec.ts --project=chromium-desktop -g "same-classroom"` passed
 - Visual checks: `/tmp/issue330-teacher.png`, `/tmp/issue330-student.png`
+
+---
+## 2026-02-15 [AI - GPT-5 Codex]
+**Goal:** Implement issue #332 phased classroom UX transition/load improvements (Phases 1-5)
+**Completed:**
+- Added shared UX primitives: `TabContentTransition`, `RefreshingIndicator`, and delayed busy helper `useDelayedBusy`
+- Integrated transition/loading primitives into classroom tab shells and key teacher/student tabs to reduce spinner flashes and standardize refresh cues
+- Added same-document tab timing instrumentation (`markClassroomTabSwitchStart/Ready`) and exposed recent metrics for E2E regression checks
+- Implemented intent-based prefetch (hover/focus + idle) for assignments/resources data with bounded request throttling and TTL-backed request cache
+- Added short-lived request cache utility (`fetchJSONWithCache`, `prefetchJSON`, cache invalidation) and wired through assignments/resources/announcements loading paths
+- Added basic per-tab scroll restoration in classroom page client when switching tabs
+- Implemented optimistic UI + rollback for high-frequency teacher actions:
+  - grade save in `TeacherStudentWorkPanel`
+  - create/edit/delete in `TeacherAnnouncementsSection`
+- Extended classroom loading E2E coverage to assert tab-switch timing thresholds using captured metrics
+- Updated affected component/unit tests to match current modal/tab behavior
+- Performed mandatory visual verification screenshots for teacher + student classroom views after UX changes
+**Status:** completed
+**Artifacts:**
+- Branch: codex/332-classroom-ux-phases
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-332-classroom-ux-phases
+- Screenshots: `/tmp/phase332-teacher-classroom.png`, `/tmp/phase332-student-classroom.png`
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/ThreePanelProvider.test.tsx` passed
+- `npx playwright test e2e/classroom-loading.spec.ts --project=chromium-desktop -g "same-classroom"` passed

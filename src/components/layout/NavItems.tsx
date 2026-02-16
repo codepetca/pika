@@ -18,6 +18,7 @@ import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Tooltip } from '@/ui'
 import { readCookie, writeCookie } from '@/lib/cookies'
+import { fetchJSONWithCache } from '@/lib/request-cache'
 import {
   TEACHER_ASSIGNMENTS_SELECTION_EVENT,
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
@@ -96,6 +97,7 @@ export interface NavItemsProps {
   isReadOnly?: boolean
   assignmentId: string | null
   onTabChange: (tab: ClassroomNavItemId) => void
+  onTabIntent?: (tab: ClassroomNavItemId) => void
   updateSearchParams: (updater: (params: URLSearchParams) => void, options?: { replace?: boolean }) => void
 }
 
@@ -106,6 +108,7 @@ export function NavItems({
   isReadOnly = false,
   assignmentId,
   onTabChange,
+  onTabIntent = () => {},
   updateSearchParams,
 }: NavItemsProps) {
   const { isExpanded } = useLeftSidebar()
@@ -133,6 +136,9 @@ export function NavItems({
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null)
 
   const items = useMemo(() => getItems(role), [role])
+  const handleTabIntent = useCallback((tab: ClassroomNavItemId) => {
+    onTabIntent(tab)
+  }, [onTabIntent])
 
   // Mark an assignment as viewed (optimistic update for students)
   const markAssignmentViewed = useCallback((assignmentId: string) => {
@@ -174,12 +180,12 @@ export function NavItems({
   // Load teacher assignments
   const loadTeacherAssignments = useCallback(async () => {
     try {
-      const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
-      if (!response.ok) {
-        setAssignments([])
-        return
-      }
-      const data = await response.json()
+      const key = `teacher-assignments:${classroomId}`
+      const data = await fetchJSONWithCache(key, async () => {
+        const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
+        if (!response.ok) throw new Error('Failed to load teacher assignments')
+        return response.json()
+      }, 20_000)
       setAssignments(
         (data.assignments || []).map((a: { id: string; title: string }) => ({
           id: a.id,
@@ -214,12 +220,12 @@ export function NavItems({
     if (role !== 'student') return
     async function loadAssignments() {
       try {
-        const response = await fetch(`/api/student/assignments?classroom_id=${classroomId}`)
-        if (!response.ok) {
-          setAssignments([])
-          return
-        }
-        const data = await response.json()
+        const key = `student-assignments:${classroomId}`
+        const data = await fetchJSONWithCache(key, async () => {
+          const response = await fetch(`/api/student/assignments?classroom_id=${classroomId}`)
+          if (!response.ok) throw new Error('Failed to load student assignments')
+          return response.json()
+        }, 20_000)
         setAssignments(
           (data.assignments || []).map(
             (a: { id: string; title: string; doc?: { viewed_at?: string | null } }) => ({
@@ -295,6 +301,8 @@ export function NavItems({
                   setStudentAssignmentsSelection(null)
                   onNavigate()
                 }}
+                onMouseEnter={() => handleTabIntent('assignments')}
+                onFocus={() => handleTabIntent('assignments')}
                 aria-current={isActive ? 'page' : undefined}
                 aria-label={item.label}
                 className={[
@@ -380,6 +388,8 @@ export function NavItems({
                   setAssignmentsSelectionCookie(null)
                   onNavigate()
                 }}
+                onMouseEnter={() => handleTabIntent('assignments')}
+                onFocus={() => handleTabIntent('assignments')}
                 aria-current={isActive ? 'page' : undefined}
                 aria-expanded={canShowNested ? isExpandedState : undefined}
                 aria-label={item.label}
@@ -464,6 +474,8 @@ export function NavItems({
               onTabChange(item.id)
               onNavigate()
             }}
+            onMouseEnter={() => handleTabIntent(item.id)}
+            onFocus={() => handleTabIntent(item.id)}
             aria-current={isActive ? 'page' : undefined}
             aria-label={item.label}
             className={[

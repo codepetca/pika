@@ -9,7 +9,8 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
-import { Tooltip } from '@/ui'
+import { RefreshingIndicator, Tooltip } from '@/ui'
+import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import type { AttendanceStatus } from '@/types'
 import {
   DataTable,
@@ -62,6 +63,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const showBlockingSpinner = useDelayedBusy(loading && logs.length === 0)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
@@ -238,7 +240,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   // Row keys for keyboard navigation (in sorted order)
   const rowKeys = useMemo(() => rows.map((r) => r.student_id), [rows])
 
-  if (loading && logs.length === 0) {
+  if (showBlockingSpinner) {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
@@ -276,7 +278,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         >
           <TableCard>
             {refreshing && (
-              <div className="px-3 py-2 text-xs text-text-muted">Refreshing…</div>
+              <RefreshingIndicator />
             )}
             <DataTable>
             <DataTableHead>
