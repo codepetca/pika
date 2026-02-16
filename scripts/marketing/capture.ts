@@ -78,8 +78,7 @@ async function capture(spec: CaptureSpec, classroomId: string) {
       {
         name: 'pika_left_sidebar',
         value: 'expanded',
-        domain: 'localhost',
-        path: '/',
+        url: BASE_URL,
       },
     ])
   }

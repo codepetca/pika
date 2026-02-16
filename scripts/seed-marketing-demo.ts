@@ -135,18 +135,20 @@ async function removeExistingDemoData(teacherId: string) {
 
   const classIds = existingClassrooms.map((row) => row.id)
 
-  const { data: assignments } = await supabase
+  const { data: assignments, error: assignmentsError } = await supabase
     .from('assignments')
     .select('id')
     .in('classroom_id', classIds)
+  throwIfError(assignmentsError, 'Failed loading assignments for cleanup')
 
   const assignmentIds = (assignments ?? []).map((row) => row.id)
 
   if (assignmentIds.length > 0) {
-    const { data: docs } = await supabase
+    const { data: docs, error: docsError } = await supabase
       .from('assignment_docs')
       .select('id')
       .in('assignment_id', assignmentIds)
+    throwIfError(docsError, 'Failed loading assignment docs for cleanup')
 
     const docIds = (docs ?? []).map((row) => row.id)
 

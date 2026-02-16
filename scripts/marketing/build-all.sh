@@ -35,7 +35,13 @@ echo "[4/8] Recording walkthrough raw clips..."
 pnpm walkthrough:marketing
 
 echo "[5/8] Generating voiceover audio..."
-pnpm voiceover:marketing
+if ! pnpm voiceover:marketing; then
+  echo "Warning: voiceover generation failed (continuing without narration)." >&2
+  echo "Set VOICEOVER_REQUIRED=true to fail hard when voiceover cannot be generated." >&2
+  if [[ "${VOICEOVER_REQUIRED:-false}" == "true" ]]; then
+    exit 1
+  fi
+fi
 
 echo "[6/8] Generating captions..."
 pnpm captions:marketing
