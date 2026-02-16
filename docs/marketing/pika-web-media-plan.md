@@ -7,14 +7,26 @@ Create believable demo media for `/codepetca/pika-web` using fake but realistic 
 Run from repo root:
 
 ```bash
-pnpm seed:marketing
+ALLOW_MARKETING_SEED=true pnpm seed:marketing
 ```
 
-Then generate screenshots and voiceover:
+Generate everything (seed/auth/screens/video/audio/captions/bundle):
 
 ```bash
+ALLOW_MARKETING_SEED=true CAPTURE_BASE_URL=http://localhost:3017 pnpm build:marketing
+```
+
+Or run phases manually:
+
+```bash
+ALLOW_MARKETING_SEED=true pnpm seed:marketing
+pnpm auth:marketing
 pnpm capture:marketing
+pnpm walkthrough:marketing
 pnpm voiceover:marketing
+pnpm captions:marketing
+pnpm video:marketing
+pnpm bundle:marketing
 ```
 
 Demo credentials:
@@ -65,15 +77,13 @@ Pika Classroom makes online and in-person learning feel simple.
 Try Pika Classroom."
 
 ## Capture Workflow
-1. Start app and login as teacher/student in separate browser profiles.
-2. Capture raw screenshots first, then re-capture polished/cropped variants.
-3. Record short action clips per storyboard section (6-12 seconds each).
-4. Edit final promo at 60 seconds with subtitles and soft transitions.
-5. Export:
-   - `/marketing/pika-hero.mp4` (website)
-   - `/marketing/pika-hero.webm` (website alt)
-   - `/marketing/pika-hero-poster.png`
-   - `/marketing/screens/*.png`
+1. Start app locally on `http://localhost:3017`.
+2. Seed deterministic demo data (`ALLOW_MARKETING_SEED=true` required).
+3. Generate auth storage for teacher + student marketing accounts.
+4. Capture screenshots with deterministic URLs/selectors.
+5. Record scripted teacher/student walkthrough clips.
+6. Render silent + narrated + web variants + poster + 9:16 + 1:1.
+7. Build publish bundle with manifest under `artifacts/marketing/publish`.
 
 ## Current Automation Notes
 - `pnpm capture:marketing` auto-resolves the demo classroom by class code (`MKT101` by default).
@@ -81,7 +91,18 @@ Try Pika Classroom."
   - `CAPTURE_CLASS_CODE=MKT201 CAPTURE_BASE_URL=http://localhost:3017 pnpm capture:marketing`
 - `pnpm voiceover:marketing` outputs:
   - `artifacts/marketing/audio/pika-voiceover-60s.aiff`
-- `ffmpeg` is required separately for final MP4/WebM assembly.
+- `pnpm captions:marketing` outputs:
+  - `artifacts/marketing/captions/pika-voiceover-60s.srt`
+- `pnpm video:marketing` outputs:
+  - `artifacts/marketing/video/pika-walkthrough-60s.mp4`
+  - `artifacts/marketing/video/pika-walkthrough-60s-silent.mp4`
+  - `artifacts/marketing/video/pika-walkthrough-60s.webm`
+  - `artifacts/marketing/video/pika-walkthrough-poster.png`
+  - `artifacts/marketing/video/pika-walkthrough-60s-9x16.mp4`
+  - `artifacts/marketing/video/pika-walkthrough-60s-1x1.mp4`
+- `pnpm bundle:marketing` outputs:
+  - `artifacts/marketing/publish/**`
+  - `artifacts/marketing/publish/manifest.json`
 
 ## Next Repurposing Plan
 - 1:1 square cut for social feed

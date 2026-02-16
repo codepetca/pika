@@ -2602,3 +2602,26 @@
 - `pnpm lint` passed
 - `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/ThreePanelProvider.test.tsx` passed
 - `npx playwright test e2e/classroom-loading.spec.ts --project=chromium-desktop -g "same-classroom"` passed
+
+---
+## 2026-02-15 [AI - GPT-5 Codex]
+**Goal:** Execute full modular marketing pipeline end-to-end and produce publish-ready demo assets
+**Completed:**
+- Added full modular pipeline scripts for auth, walkthrough capture, caption generation, render variants, bundling, and one-command orchestration
+- Added npm script entrypoints for each phase and a single `build:marketing` command
+- Implemented API-based auth-state generation for stable teacher/student capture sessions
+- Generated caption file from voiceover script with duration-aware timing
+- Rendered final video outputs (master, silent, webm, captioned, 9:16, 1:1, poster)
+- Produced publish bundle and runbook/publish docs for reuse
+**Status:** completed
+**Artifacts:**
+- Branch: codex/marketing-demo-assets
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets
+- Key files: scripts/marketing/auth.ts, scripts/marketing/walkthrough.ts, scripts/marketing/generate-captions.ts, scripts/marketing/render-video.sh, scripts/marketing/build-all.sh, scripts/marketing/bundle.ts, docs/marketing/runbook.md, docs/marketing/pika-web-publish-notes.md
+- Outputs: /Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets/artifacts/marketing/
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test` passed
+- `ALLOW_MARKETING_SEED=true CAPTURE_BASE_URL=http://localhost:3017 CAPTURE_LEFT_SIDEBAR_EXPANDED=true CAPTURE_DARK_MODE=true pnpm build:marketing` passed
+**Blockers:**
+- None

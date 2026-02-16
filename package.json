@@ -24,8 +24,14 @@
     "seed:fresh": "tsx scripts/clear-and-seed.ts",
     "seed:gld2o": "tsx scripts/seed-gld2o.ts",
     "seed:marketing": "tsx scripts/seed-marketing-demo.ts",
+    "auth:marketing": "tsx scripts/marketing/auth.ts",
     "capture:marketing": "tsx scripts/capture-marketing-shots.ts",
+    "walkthrough:marketing": "tsx scripts/marketing/walkthrough.ts",
     "voiceover:marketing": "bash scripts/generate-marketing-voiceover.sh",
+    "captions:marketing": "tsx scripts/marketing/generate-captions.ts",
+    "video:marketing": "bash scripts/marketing/render-video.sh",
+    "bundle:marketing": "tsx scripts/marketing/bundle.ts",
+    "build:marketing": "bash scripts/marketing/build-all.sh",
     "generate:secret": "node scripts/generate-env.js"
   },
   "dependencies": {
