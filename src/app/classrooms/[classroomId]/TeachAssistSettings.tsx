@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState, useId } from 'react'
-import { Info, Check } from 'lucide-react'
-import { Button, Tooltip } from '@/ui'
+import { useCallback, useEffect, useState } from 'react'
+import { Info } from 'lucide-react'
+import { Button, Tooltip, Input, FormField } from '@/ui'
 import { PageContent } from '@/components/PageLayout'
 import type { Classroom } from '@/types'
+import type { TAExecutionMode } from '@/lib/teachassist/types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -13,8 +14,6 @@ import type { Classroom } from '@/types'
 interface Props {
   classroom: Classroom
 }
-
-type TAExecutionMode = 'confirmation' | 'full_auto'
 
 interface ConfigState {
   ta_username: string
@@ -45,13 +44,6 @@ export function TeachAssistSettings({ classroom }: Props) {
   const [configError, setConfigError] = useState('')
   const [configSuccess, setConfigSuccess] = useState('')
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
-
-  // IDs for accessibility
-  const usernameId = useId()
-  const passwordId = useId()
-  const baseUrlId = useId()
-  const courseSearchId = useId()
-  const blockId = useId()
 
   // --- Load config on mount ---
   const loadConfig = useCallback(async () => {
@@ -147,101 +139,59 @@ export function TeachAssistSettings({ classroom }: Props) {
         <div className="text-sm font-semibold text-text-default">TeachAssist Credentials</div>
 
         {/* Username */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <label htmlFor={usernameId} className="text-sm text-text-default">Username</label>
-            <Tooltip content="Your TeachAssist login username" side="right">
-              <span className="text-text-muted cursor-help"><Info size={14} /></span>
-            </Tooltip>
-          </div>
-          <input
-            id={usernameId}
+        <FormField label="Username" hint="Your TeachAssist login username">
+          <Input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             disabled={configSaving || isReadOnly}
-            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             placeholder="e.g. john.smith"
           />
-        </div>
+        </FormField>
 
         {/* Password */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <label htmlFor={passwordId} className="text-sm text-text-default">Password</label>
-            {hasPassword && (
-              <span className="inline-flex items-center gap-1 text-xs text-success">
-                <Check size={12} /> Saved
-              </span>
-            )}
-          </div>
-          <input
-            id={passwordId}
+        <FormField label="Password" hint={hasPassword ? 'Password saved — leave blank to keep it.' : undefined}>
+          <Input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={configSaving || isReadOnly}
-            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             placeholder={hasPassword ? 'Leave blank to keep current password' : 'Enter password'}
           />
-        </div>
+        </FormField>
 
         {/* Base URL */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <label htmlFor={baseUrlId} className="text-sm text-text-default">Base URL</label>
-            <Tooltip content="The TeachAssist base URL for your school board" side="right">
-              <span className="text-text-muted cursor-help"><Info size={14} /></span>
-            </Tooltip>
-          </div>
-          <input
-            id={baseUrlId}
+        <FormField label="Base URL" hint="The TeachAssist base URL for your school board">
+          <Input
             type="text"
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             disabled={configSaving || isReadOnly}
-            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             placeholder="https://ta.yrdsb.ca/yrdsb/"
           />
-        </div>
+        </FormField>
 
         {/* Course Search */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <label htmlFor={courseSearchId} className="text-sm text-text-default">Course Search</label>
-            <Tooltip content="Substring to match in the TA sidebar, e.g. GLD2OOH" side="right">
-              <span className="text-text-muted cursor-help"><Info size={14} /></span>
-            </Tooltip>
-          </div>
-          <input
-            id={courseSearchId}
+        <FormField label="Course Search" hint="Substring to match in the TA sidebar, e.g. GLD2OOH">
+          <Input
             type="text"
             value={courseSearch}
             onChange={(e) => setCourseSearch(e.target.value)}
             disabled={configSaving || isReadOnly}
-            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             placeholder="e.g. GLD2OOH"
           />
-        </div>
+        </FormField>
 
         {/* Block */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <label htmlFor={blockId} className="text-sm text-text-default">Block</label>
-            <Tooltip content="The period/block code in TeachAssist, e.g. A1" side="right">
-              <span className="text-text-muted cursor-help"><Info size={14} /></span>
-            </Tooltip>
-          </div>
-          <input
-            id={blockId}
+        <FormField label="Block" hint="The period/block code in TeachAssist, e.g. A1">
+          <Input
             type="text"
             value={block}
             onChange={(e) => setBlock(e.target.value)}
             disabled={configSaving || isReadOnly}
-            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             placeholder="e.g. A1"
           />
-        </div>
+        </FormField>
 
         {/* Execution Mode */}
         <div className="space-y-2">
