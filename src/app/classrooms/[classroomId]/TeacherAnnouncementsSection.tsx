@@ -242,6 +242,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
       id: tempId,
       classroom_id: classroom.id,
       content: newContent.trim(),
+      created_by: classroom.teacher_id,
       scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null,
       created_at: now,
       updated_at: now,
