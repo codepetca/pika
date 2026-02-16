@@ -85,7 +85,12 @@ describe('StudentAssignmentsTab', () => {
     searchParamsMap.set('assignmentId', 'asgn-1')
     mockFetchAssignments([unviewed])
 
-    render(<StudentAssignmentsTab classroom={classroom} />)
+    render(
+      <StudentAssignmentsTab
+        classroom={classroom}
+        selectedAssignmentId={searchParamsMap.get('assignmentId') ?? null}
+      />
+    )
 
     // Modal should auto-appear for first-time view with assignment description
     await waitFor(() => {
@@ -95,7 +100,7 @@ describe('StudentAssignmentsTab', () => {
     expect(screen.getAllByText('Instructions').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('clicking Instructions button opens modal for viewed assignment', async () => {
+  it('Instructions button reopens modal for viewed assignment', async () => {
     const viewed = makeAssignment({
       doc: {
         id: 'doc-1',
@@ -112,20 +117,30 @@ describe('StudentAssignmentsTab', () => {
     searchParamsMap.set('assignmentId', 'asgn-1')
     mockFetchAssignments([viewed])
 
-    render(<StudentAssignmentsTab classroom={classroom} />)
+    render(
+      <StudentAssignmentsTab
+        classroom={classroom}
+        selectedAssignmentId={searchParamsMap.get('assignmentId') ?? null}
+      />
+    )
 
     // Wait for the Instructions button to appear
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Instructions' })).toBeInTheDocument()
     })
 
-    // Modal should not be visible yet
-    expect(screen.queryByText('Write an essay')).not.toBeInTheDocument()
+    // Modal can be opened by default; close it first.
+    const closeButton = screen.getAllByRole('button', { name: 'Close' })[0]
+    fireEvent.click(closeButton)
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Instructions' })).not.toBeInTheDocument()
+    })
 
     // Click the Instructions button
     fireEvent.click(screen.getByRole('button', { name: 'Instructions' }))
 
     // Modal should now be visible
+    expect(screen.getByRole('dialog', { name: 'Instructions' })).toBeInTheDocument()
     expect(screen.getByText('Write an essay')).toBeInTheDocument()
   })
 
@@ -134,7 +149,12 @@ describe('StudentAssignmentsTab', () => {
     searchParamsMap.set('assignmentId', 'asgn-1')
     mockFetchAssignments([unviewed])
 
-    render(<StudentAssignmentsTab classroom={classroom} />)
+    render(
+      <StudentAssignmentsTab
+        classroom={classroom}
+        selectedAssignmentId={searchParamsMap.get('assignmentId') ?? null}
+      />
+    )
 
     // Wait for modal
     await waitFor(() => {

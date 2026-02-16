@@ -5,6 +5,7 @@ import { Trash2, Plus, Clock, ChevronDown, Calendar } from 'lucide-react'
 import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import type { Announcement, Classroom } from '@/types'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 
 interface Props {
   classroom: Classroom
@@ -79,9 +80,15 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
 
   const loadAnnouncements = useCallback(async () => {
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
-      if (!res.ok) throw new Error('Failed to load announcements')
-      const data = await res.json()
+      const data = await fetchJSONWithCache(
+        `teacher-announcements:${classroom.id}`,
+        async () => {
+          const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
+          if (!res.ok) throw new Error('Failed to load announcements')
+          return res.json()
+        },
+        20_000,
+      )
       setAnnouncements(data.announcements || [])
     } catch (err) {
       console.error('Error loading announcements:', err)
@@ -178,6 +185,20 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     }
 
     setSaving(true)
+    const prevAnnouncements = announcements
+    const optimisticScheduledFor = editScheduleDateTime ? new Date(editScheduleDateTime).toISOString() : null
+    setAnnouncements((prev) =>
+      prev.map((a) =>
+        a.id === editingId
+          ? {
+              ...a,
+              content: editContent.trim(),
+              scheduled_for: optimisticScheduledFor,
+              updated_at: new Date().toISOString(),
+            }
+          : a,
+      ),
+    )
     try {
       const body: { content?: string; scheduled_for?: string | null } = {}
       if (contentChanged) {
@@ -200,8 +221,11 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === data.announcement.id ? data.announcement : a))
       )
+      invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
+      invalidateCachedJSON(`student-announcements:${classroom.id}`)
       cancelEditing()
     } catch (err) {
+      setAnnouncements(prevAnnouncements)
       console.error('Error updating announcement:', err)
     } finally {
       setSaving(false)
@@ -212,6 +236,18 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     if (!newContent.trim() || saving) return
 
     setSaving(true)
+    const tempId = `temp-${Date.now()}`
+    const now = new Date().toISOString()
+    const optimisticAnnouncement: Announcement = {
+      id: tempId,
+      classroom_id: classroom.id,
+      content: newContent.trim(),
+      created_by: classroom.teacher_id,
+      scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null,
+      created_at: now,
+      updated_at: now,
+    }
+    setAnnouncements((prev) => [optimisticAnnouncement, ...prev])
     try {
       const body: { content: string; scheduled_for?: string } = { content: newContent.trim() }
       if (scheduledFor) {
@@ -225,12 +261,17 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
       })
       if (!res.ok) throw new Error('Failed to create')
       const data = await res.json()
-      setAnnouncements((prev) => [data.announcement, ...prev])
+      setAnnouncements((prev) =>
+        prev.map((a) => (a.id === tempId ? data.announcement : a))
+      )
+      invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
+      invalidateCachedJSON(`student-announcements:${classroom.id}`)
       setIsCreating(false)
       setNewContent('')
       setScheduleDateTime('')
       setShowScheduleDropdown(false)
     } catch (err) {
+      setAnnouncements((prev) => prev.filter((a) => a.id !== tempId))
       console.error('Error creating announcement:', err)
     } finally {
       setSaving(false)
@@ -241,15 +282,20 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     if (!deleteTarget) return
 
     setDeleting(true)
+    const target = deleteTarget
+    const prevAnnouncements = announcements
+    setAnnouncements((prev) => prev.filter((a) => a.id !== target.id))
     try {
       const res = await fetch(
-        `/api/teacher/classrooms/${classroom.id}/announcements/${deleteTarget.id}`,
+        `/api/teacher/classrooms/${classroom.id}/announcements/${target.id}`,
         { method: 'DELETE' }
       )
       if (!res.ok) throw new Error('Failed to delete')
-      setAnnouncements((prev) => prev.filter((a) => a.id !== deleteTarget.id))
+      invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
+      invalidateCachedJSON(`student-announcements:${classroom.id}`)
       setDeleteTarget(null)
     } catch (err) {
+      setAnnouncements(prevAnnouncements)
       console.error('Delete error:', err)
       setDeleteTarget(null)
     } finally {

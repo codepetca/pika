@@ -20,8 +20,6 @@ export function StudentLogHistory({ studentId, classroomId }: Props) {
     const controller = new AbortController()
     abortRef.current = controller
 
-    setEntries([])
-    setHasMore(false)
     setLoading(true)
 
     const params = new URLSearchParams({
