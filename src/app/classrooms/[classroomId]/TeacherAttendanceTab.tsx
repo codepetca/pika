@@ -116,6 +116,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
   // --- TeachAssist sync state ---
   const [taConfigured, setTaConfigured] = useState(false)
+  const [taExecutionMode, setTaExecutionMode] = useState<'confirmation' | 'full_auto'>('confirmation')
   const [taSyncing, setTaSyncing] = useState(false)
   const [taSyncResult, setTaSyncResult] = useState<AttendanceSyncResult | null>(null)
   const [taSyncError, setTaSyncError] = useState('')
@@ -129,6 +130,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         const data = await res.json()
         if (res.ok && data.config && data.config.has_password && data.config.ta_course_search) {
           setTaConfigured(true)
+          setTaExecutionMode(data.config.ta_execution_mode || 'confirmation')
         }
       } catch {
         // Silently ignore — button just won't show
@@ -333,7 +335,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       <ConfirmDialog
         isOpen={showTaConfirm}
         title="Record attendance in TeachAssist?"
-        description={`This will push Pika attendance for ${selectedDate} to TeachAssist. The browser will open so you can review before submitting.`}
+        description={`This will push Pika attendance for ${selectedDate} to TeachAssist. ${taExecutionMode === 'full_auto' ? 'Attendance will be submitted automatically.' : 'The browser will open so you can review before submitting.'}`}
         confirmLabel={taSyncing ? 'Syncing...' : 'Sync Now'}
         cancelLabel="Cancel"
         confirmVariant="default"

@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { encryptPassword } from '@/lib/teachassist/crypto'
 import type { TAConfig } from '@/lib/teachassist/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-async function assertTeacherOwnsClassroom(teacherId: string, classroomId: string) {
-  const supabase = getServiceRoleClient()
-  const { data, error } = await supabase
-    .from('classrooms')
-    .select('id, teacher_id')
-    .eq('id', classroomId)
-    .single()
-
-  if (error || !data) return { ok: false as const, status: 404 as const, error: 'Classroom not found' }
-  if (data.teacher_id !== teacherId) return { ok: false as const, status: 403 as const, error: 'Forbidden' }
-  return { ok: true as const }
-}
 
 /**
  * GET /api/teacher/teachassist/config?classroom_id=xxx
@@ -104,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     const username = String(body.ta_username || '').trim()
-    const password = String(body.ta_password || '').trim()
+    const newPassword = String(body.ta_password || '').trim()
     const courseSearch = String(body.ta_course_search || '').trim()
     const block = String(body.ta_block || '').trim()
     const baseUrl = String(body.ta_base_url || 'https://ta.yrdsb.ca/yrdsb/').trim()
@@ -117,11 +106,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Resolve password: use new password if provided, otherwise keep existing
+    // Resolve the encrypted password to store:
+    //   - New password provided → encrypt it fresh
+    //   - No password provided → carry the existing ciphertext through unchanged
+    //     (avoids double-encryption once a new password is provided)
     const supabase = getServiceRoleClient()
-    let resolvedPassword = password
+    let resolvedEncryptedPassword: string
 
-    if (!resolvedPassword) {
+    if (newPassword) {
+      resolvedEncryptedPassword = encryptPassword(newPassword)
+    } else {
       const { data: existing } = await supabase
         .from('teachassist_mappings')
         .select('config')
@@ -130,7 +124,8 @@ export async function POST(request: NextRequest) {
 
       const existingConfig = existing?.config as TAConfig | undefined
       if (existingConfig?.ta_password_encrypted) {
-        resolvedPassword = existingConfig.ta_password_encrypted
+        // Pass the existing ciphertext through unchanged — do NOT re-encrypt
+        resolvedEncryptedPassword = existingConfig.ta_password_encrypted
       } else {
         return NextResponse.json(
           { error: 'ta_password is required for initial configuration' },
@@ -139,11 +134,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // TODO: Encrypt password with AES-256-GCM using TEACHASSIST_ENCRYPTION_KEY
-    // For now, store as plaintext during development
     const config: TAConfig = {
       ta_username: username,
-      ta_password_encrypted: resolvedPassword,
+      ta_password_encrypted: resolvedEncryptedPassword,
       ta_base_url: baseUrl,
       ta_course_search: courseSearch,
       ta_block: block,

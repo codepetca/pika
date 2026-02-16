@@ -8,26 +8,15 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertTeacherOwnsClassroom: vi.fn(async () => ({
+    ok: true,
+    classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
+  })),
+}))
 vi.mock('@/lib/teachassist/engine', () => ({ runTeachAssistSyncJob: vi.fn() }))
 
 const mockSupabaseClient = { from: vi.fn() }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeClassroomsChain(result: { data: any; error: any }) {
-  return {
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        single: vi.fn().mockResolvedValue(result),
-      })),
-    })),
-  }
-}
-
-const ownerOk = { data: { id: 'c-1', teacher_id: 'teacher-1' }, error: null }
-const ownerWrong = { data: { id: 'c-1', teacher_id: 'other-teacher' }, error: null }
 
 // ---------------------------------------------------------------------------
 // POST tests
@@ -64,9 +53,13 @@ describe('POST /api/teacher/sync/teachassist/jobs', () => {
   })
 
   it('should return 403 when teacher does not own classroom', async () => {
-    ;(mockSupabaseClient.from as any) = vi.fn().mockReturnValueOnce(
-      makeClassroomsChain(ownerWrong)
-    )
+    const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
+    ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      error: 'Forbidden',
+    })
+
     const request = new NextRequest('http://localhost:3000/api/teacher/sync/teachassist/jobs', {
       method: 'POST',
       body: JSON.stringify({ classroom_id: 'c-1' }),
@@ -77,9 +70,6 @@ describe('POST /api/teacher/sync/teachassist/jobs', () => {
 
   it('should return 200 on successful job creation', async () => {
     const { runTeachAssistSyncJob } = await import('@/lib/teachassist/engine')
-    ;(mockSupabaseClient.from as any) = vi.fn().mockReturnValueOnce(
-      makeClassroomsChain(ownerOk)
-    )
     ;(runTeachAssistSyncJob as any).mockResolvedValueOnce({
       ok: true,
       jobId: 'job-42',

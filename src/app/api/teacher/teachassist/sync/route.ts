@@ -1,24 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
-import { getServiceRoleClient } from '@/lib/supabase'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { runAttendanceSync } from '@/lib/teachassist/attendance-sync'
 import type { TAExecutionMode } from '@/lib/teachassist/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-async function assertTeacherOwnsClassroom(teacherId: string, classroomId: string) {
-  const supabase = getServiceRoleClient()
-  const { data, error } = await supabase
-    .from('classrooms')
-    .select('id, teacher_id')
-    .eq('id', classroomId)
-    .single()
-
-  if (error || !data) return { ok: false as const, status: 404 as const, error: 'Classroom not found' }
-  if (data.teacher_id !== teacherId) return { ok: false as const, status: 403 as const, error: 'Forbidden' }
-  return { ok: true as const }
-}
 
 /**
  * POST /api/teacher/teachassist/sync

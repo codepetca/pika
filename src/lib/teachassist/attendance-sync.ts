@@ -1,6 +1,7 @@
 import { getServiceRoleClient } from '@/lib/supabase'
 import { computeAttendanceRecords } from '@/lib/attendance'
 import { getTodayInToronto } from '@/lib/timezone'
+import { decryptPassword } from './crypto'
 import { planOperations } from './planner'
 import { mapDatasetToOperations } from './mapper'
 import { normalizeDataset } from './normalizer'
@@ -55,13 +56,11 @@ async function loadTAConfig(classroomId: string): Promise<TAConfig> {
   return data.config as TAConfig
 }
 
-/** Decrypt password from the TA config. For now, reads plaintext (encryption TBD). */
+/** Decrypt credentials from the stored TA config using AES-256-GCM. */
 function decryptCredentials(config: TAConfig): TACredentials {
-  // TODO: Implement AES-256-GCM decryption using TEACHASSIST_ENCRYPTION_KEY
-  // For now, we treat the stored password as plaintext during development
   return {
     username: config.ta_username,
-    password: config.ta_password_encrypted,
+    password: decryptPassword(config.ta_password_encrypted),
     baseUrl: config.ta_base_url,
   }
 }
