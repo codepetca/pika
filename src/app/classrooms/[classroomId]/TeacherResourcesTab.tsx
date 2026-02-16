@@ -1,8 +1,6 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -16,11 +14,15 @@ type ResourcesSection = 'announcements' | 'class-resources'
 
 interface Props {
   classroom: Classroom
+  sectionParam?: string | null
+  onSectionChange?: (section: ResourcesSection) => void
 }
 
-export function TeacherResourcesTab({ classroom }: Props) {
-  const searchParams = useSearchParams()
-  const sectionParam = searchParams.get('section')
+export function TeacherResourcesTab({
+  classroom,
+  sectionParam,
+  onSectionChange = () => {},
+}: Props) {
   const section: ResourcesSection = sectionParam === 'class-resources' ? 'class-resources' : 'announcements'
 
   const [loading, setLoading] = useState(true)
@@ -141,8 +143,9 @@ export function TeacherResourcesTab({ classroom }: Props) {
     <PageLayout>
       {/* Sub-tab navigation */}
       <div className="flex border-b border-border mb-4">
-        <Link
-          href={`/classrooms/${classroom.id}?tab=resources&section=announcements`}
+        <button
+          type="button"
+          onClick={() => onSectionChange('announcements')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'announcements'
               ? 'border-primary text-primary'
@@ -150,9 +153,10 @@ export function TeacherResourcesTab({ classroom }: Props) {
           }`}
         >
           Announcements
-        </Link>
-        <Link
-          href={`/classrooms/${classroom.id}?tab=resources&section=class-resources`}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSectionChange('class-resources')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'class-resources'
               ? 'border-primary text-primary'
@@ -160,7 +164,7 @@ export function TeacherResourcesTab({ classroom }: Props) {
           }`}
         >
           Class Resources
-        </Link>
+        </button>
       </div>
 
       {section === 'announcements' ? (

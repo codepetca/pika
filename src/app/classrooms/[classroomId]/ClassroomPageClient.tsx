@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type AssignmentViewMode } from './TeacherClassroomView'
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
@@ -70,7 +69,17 @@ interface ClassroomPageClientProps {
   user: UserInfo
   teacherClassrooms: Classroom[]
   initialTab?: string
+  initialSearchParams?: Record<string, string | undefined>
 }
+
+type UpdateSearchOptions = {
+  replace?: boolean
+}
+
+type UpdateSearchParamsFn = (
+  updater: (params: URLSearchParams) => void,
+  options?: UpdateSearchOptions
+) => void
 
 function formatTorontoDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -94,21 +103,78 @@ export function ClassroomPageClient({
   user,
   teacherClassrooms,
   initialTab,
+  initialSearchParams,
 }: ClassroomPageClientProps) {
-  const searchParams = useSearchParams()
   const { leftSidebarExpanded } = useLayoutInitialState()
 
   const isTeacher = user.role === 'teacher'
   const isArchived = isTeacher && !!classroom.archived_at
-
-  // Determine active tab from URL or default
-  const tab = searchParams.get('tab') ?? initialTab
+  const basePath = `/classrooms/${classroom.id}`
   const defaultTab = isTeacher ? 'attendance' : 'today'
-  const validTabs = isTeacher
-    ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
-    : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const)
+  const validTabs = useMemo(
+    () =>
+      isTeacher
+        ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
+        : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const),
+    [isTeacher]
+  )
 
+  const [queryString, setQueryString] = useState(() => {
+    const initial = new URLSearchParams()
+    for (const [key, value] of Object.entries(initialSearchParams || {})) {
+      if (value) initial.set(key, value)
+    }
+    if (!initial.get('tab') && initialTab) {
+      initial.set('tab', initialTab)
+    }
+    return initial.toString()
+  })
+  const queryStringRef = useRef(queryString)
+
+  useEffect(() => {
+    queryStringRef.current = queryString
+  }, [queryString])
+
+  useEffect(() => {
+    const syncFromLocation = () => {
+      const fromLocation = new URLSearchParams(window.location.search)
+      setQueryString(fromLocation.toString())
+    }
+    syncFromLocation()
+    window.addEventListener('popstate', syncFromLocation)
+    return () => window.removeEventListener('popstate', syncFromLocation)
+  }, [])
+
+  const updateSearchParams = useCallback<UpdateSearchParamsFn>(
+    (updater, options = {}) => {
+      const params = new URLSearchParams(queryStringRef.current)
+      updater(params)
+      const next = params.toString()
+      if (next === queryStringRef.current) return
+
+      const nextUrl = next ? `${basePath}?${next}` : basePath
+      const nextState = window.history.state ? { ...window.history.state } : {}
+      if (options.replace) {
+        window.history.replaceState(nextState, '', nextUrl)
+      } else {
+        window.history.pushState(nextState, '', nextUrl)
+      }
+      queryStringRef.current = next
+      setQueryString(next)
+    },
+    [basePath]
+  )
+
+  const activeSearchParams = useMemo(() => new URLSearchParams(queryString), [queryString])
+  const tab = activeSearchParams.get('tab')
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
+
+  useEffect(() => {
+    if ((validTabs as readonly string[]).includes(tab ?? '')) return
+    updateSearchParams((params) => {
+      params.set('tab', defaultTab)
+    }, { replace: true })
+  }, [defaultTab, tab, updateSearchParams, validTabs])
 
   // Determine route key for layout config
   const routeKey = getRouteKeyFromTab(activeTab, user.role)
@@ -125,6 +191,8 @@ export function ClassroomPageClient({
           teacherClassrooms={teacherClassrooms}
           activeTab={activeTab}
           isArchived={isArchived}
+          searchParams={activeSearchParams}
+          updateSearchParams={updateSearchParams}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -138,16 +206,41 @@ function ClassroomPageContent({
   teacherClassrooms,
   activeTab,
   isArchived,
+  searchParams,
+  updateSearchParams,
 }: {
   classroom: Classroom
   user: UserInfo
   teacherClassrooms: Classroom[]
   activeTab: string
   isArchived: boolean
+  searchParams: URLSearchParams
+  updateSearchParams: UpdateSearchParamsFn
 }) {
   const { openLeft, openRight } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const isTeacher = user.role === 'teacher'
+  const assignmentIdParam = searchParams.get('assignmentId')
+  const sectionParam = searchParams.get('section')
+  const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
+    [activeTab]: true,
+  }))
+
+  const navigateInClassroom = useCallback<UpdateSearchParamsFn>(
+    (updater, options) => {
+      updateSearchParams((params) => {
+        updater(params)
+      }, options)
+    },
+    [updateSearchParams]
+  )
+
+  useEffect(() => {
+    setMountedTabs((previous) => {
+      if (previous[activeTab]) return previous
+      return { ...previous, [activeTab]: true }
+    })
+  }, [activeTab])
 
   // State for attendance date (teacher attendance tab)
   const [attendanceDate, setAttendanceDate] = useState<string>('')
@@ -452,6 +545,26 @@ function ClassroomPageContent({
     }
   }, [isTeacher, activeTab, selectedGradebookStudent, classroom.id, setRightSidebarOpen, openRight])
 
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      navigateInClassroom((params) => {
+        params.set('tab', tab)
+        if (tab !== 'assignments') {
+          params.delete('assignmentId')
+        }
+        if (tab !== 'resources' && tab !== 'settings') {
+          params.delete('section')
+        }
+      })
+    },
+    [navigateInClassroom]
+  )
+
+  const getTabPanelClassName = useCallback(
+    (tabName: string) => (activeTab === tabName ? 'contents' : 'hidden'),
+    [activeTab]
+  )
+
   const content = (
     <AppShell
       user={user}
@@ -482,6 +595,9 @@ function ClassroomPageContent({
             role={user.role}
             activeTab={activeTab}
             isReadOnly={isArchived}
+            assignmentId={assignmentIdParam}
+            onTabChange={handleTabChange}
+            updateSearchParams={navigateInClassroom}
           />
         </LeftSidebar>
 
@@ -495,62 +611,159 @@ function ClassroomPageContent({
 
           {isTeacher ? (
             <>
-              {activeTab === 'attendance' && (
-                <TeacherAttendanceTab
-                  ref={attendanceTabRef}
-                  classroom={classroom}
-                  onSelectEntry={handleSelectEntry}
-                  onDateChange={setAttendanceDate}
-                />
+              {mountedTabs.attendance && (
+                <div className={getTabPanelClassName('attendance')}>
+                  <TeacherAttendanceTab
+                    ref={attendanceTabRef}
+                    classroom={classroom}
+                    onSelectEntry={handleSelectEntry}
+                    onDateChange={setAttendanceDate}
+                    isActive={activeTab === 'attendance'}
+                  />
+                </div>
               )}
-              {activeTab === 'gradebook' && (
-                <TeacherGradebookTab
-                  classroom={classroom}
-                  selectedStudentId={selectedGradebookStudent?.student_id ?? null}
-                  onSelectStudent={handleSelectGradebookStudent}
-                  onClassSummaryChange={setGradebookClassSummary}
-                />
+              {mountedTabs.gradebook && (
+                <div className={getTabPanelClassName('gradebook')}>
+                  <TeacherGradebookTab
+                    classroom={classroom}
+                    selectedStudentId={selectedGradebookStudent?.student_id ?? null}
+                    onSelectStudent={handleSelectGradebookStudent}
+                    onClassSummaryChange={setGradebookClassSummary}
+                  />
+                </div>
               )}
-              {activeTab === 'assignments' && (
-                <TeacherClassroomView
-                  classroom={classroom}
-                  onSelectAssignment={handleSelectAssignment}
-                  onSelectStudent={handleSelectStudent}
-                  onViewModeChange={handleViewModeChange}
-                />
+              {mountedTabs.assignments && (
+                <div className={getTabPanelClassName('assignments')}>
+                  <TeacherClassroomView
+                    classroom={classroom}
+                    onSelectAssignment={handleSelectAssignment}
+                    onSelectStudent={handleSelectStudent}
+                    onViewModeChange={handleViewModeChange}
+                    isActive={activeTab === 'assignments'}
+                  />
+                </div>
               )}
-              {activeTab === 'quizzes' && (
-                <TeacherQuizzesTab
-                  classroom={classroom}
-                  onSelectQuiz={handleSelectQuiz}
-                />
+              {mountedTabs.quizzes && (
+                <div className={getTabPanelClassName('quizzes')}>
+                  <TeacherQuizzesTab
+                    classroom={classroom}
+                    onSelectQuiz={handleSelectQuiz}
+                  />
+                </div>
               )}
-              {activeTab === 'calendar' && (
-                <TeacherLessonCalendarTab
-                  classroom={classroom}
-                  onSidebarStateChange={setCalendarSidebarState}
-                />
+              {mountedTabs.calendar && (
+                <div className={getTabPanelClassName('calendar')}>
+                  <TeacherLessonCalendarTab
+                    classroom={classroom}
+                    onSidebarStateChange={setCalendarSidebarState}
+                    onNavigateToAssignments={() => handleTabChange('assignments')}
+                    onNavigateToAnnouncements={() =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'resources')
+                        params.set('section', 'announcements')
+                        params.delete('assignmentId')
+                      })
+                    }
+                  />
+                </div>
               )}
-              {activeTab === 'resources' && <TeacherResourcesTab classroom={classroom} />}
-              {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
-              {activeTab === 'settings' && <TeacherSettingsTab classroom={classroom} />}
+              {mountedTabs.resources && (
+                <div className={getTabPanelClassName('resources')}>
+                  <TeacherResourcesTab
+                    classroom={classroom}
+                    sectionParam={sectionParam}
+                    onSectionChange={(section) =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'resources')
+                        params.set('section', section)
+                      })
+                    }
+                  />
+                </div>
+              )}
+              {mountedTabs.roster && (
+                <div className={getTabPanelClassName('roster')}>
+                  <TeacherRosterTab classroom={classroom} />
+                </div>
+              )}
+              {mountedTabs.settings && (
+                <div className={getTabPanelClassName('settings')}>
+                  <TeacherSettingsTab
+                    classroom={classroom}
+                    sectionParam={sectionParam}
+                    onSectionChange={(section) =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'settings')
+                        params.set('section', section)
+                      })
+                    }
+                  />
+                </div>
+              )}
             </>
           ) : (
             <>
-              {activeTab === 'today' && (
-                <StudentTodayTab
-                  classroom={classroom}
-                  onLessonPlanLoad={handleSetLessonPlan}
-                />
+              {mountedTabs.today && (
+                <div className={getTabPanelClassName('today')}>
+                  <StudentTodayTab
+                    classroom={classroom}
+                    onLessonPlanLoad={handleSetLessonPlan}
+                  />
+                </div>
               )}
-              {activeTab === 'assignments' && (
-                <StudentAssignmentsTab
-                  classroom={classroom}
-                />
+              {mountedTabs.assignments && (
+                <div className={getTabPanelClassName('assignments')}>
+                  <StudentAssignmentsTab
+                    classroom={classroom}
+                    selectedAssignmentId={assignmentIdParam}
+                    isActive={activeTab === 'assignments'}
+                    updateSearchParams={navigateInClassroom}
+                  />
+                </div>
               )}
-              {activeTab === 'quizzes' && <StudentQuizzesTab classroom={classroom} />}
-              {activeTab === 'calendar' && <StudentLessonCalendarTab classroom={classroom} />}
-              {activeTab === 'resources' && <StudentResourcesTab classroom={classroom} />}
+              {mountedTabs.quizzes && (
+                <div className={getTabPanelClassName('quizzes')}>
+                  <StudentQuizzesTab classroom={classroom} />
+                </div>
+              )}
+              {mountedTabs.calendar && (
+                <div className={getTabPanelClassName('calendar')}>
+                  <StudentLessonCalendarTab
+                    classroom={classroom}
+                    onNavigateToAssignments={(assignmentId) =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'assignments')
+                        if (assignmentId) {
+                          params.set('assignmentId', assignmentId)
+                        } else {
+                          params.delete('assignmentId')
+                        }
+                      })
+                    }
+                    onNavigateToAnnouncements={() =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'resources')
+                        params.set('section', 'announcements')
+                        params.delete('assignmentId')
+                      })
+                    }
+                  />
+                </div>
+              )}
+              {mountedTabs.resources && (
+                <div className={getTabPanelClassName('resources')}>
+                  <StudentResourcesTab
+                    classroom={classroom}
+                    sectionParam={sectionParam}
+                    onSectionChange={(section) =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'resources')
+                        params.set('section', section)
+                      })
+                    }
+                  />
+                </div>
+              )}
             </>
           )}
         </MainContent>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, ContentDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -17,38 +16,63 @@ import { RichTextViewer } from '@/components/editor'
 
 interface Props {
   classroom: Classroom
+  selectedAssignmentId?: string | null
+  isActive?: boolean
+  updateSearchParams?: (updater: (params: URLSearchParams) => void, options?: { replace?: boolean }) => void
 }
 
 type StudentAssignmentsView = 'summary' | 'edit'
 
-export function StudentAssignmentsTab({ classroom }: Props) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const search = searchParams.toString()
-
+export function StudentAssignmentsTab({
+  classroom,
+  selectedAssignmentId = null,
+  isActive = true,
+  updateSearchParams = () => {},
+}: Props) {
   const [assignments, setAssignments] = useState<AssignmentWithStatus[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [hasLoaded, setHasLoaded] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
   const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
+  const wasActiveRef = useRef(isActive)
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
+  const loadAssignments = useCallback(
+    async (options?: { preserveContent?: boolean }) => {
+      const preserveContent = options?.preserveContent ?? false
+      if (preserveContent) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
       try {
         const res = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
         const data = await res.json()
         setAssignments(data.assignments || [])
+        setHasLoaded(true)
       } catch (err) {
         console.error('Error loading assignments:', err)
       } finally {
         setLoading(false)
+        setRefreshing(false)
       }
-    }
-    load()
-  }, [classroom.id])
+    },
+    [classroom.id]
+  )
 
-  const selectedAssignmentId = searchParams.get('assignmentId')
+  useEffect(() => {
+    if (isActive && !hasLoaded) {
+      wasActiveRef.current = true
+      loadAssignments()
+      return
+    }
+    if (isActive && !wasActiveRef.current && hasLoaded) {
+      loadAssignments({ preserveContent: true })
+    }
+    wasActiveRef.current = isActive
+  }, [hasLoaded, isActive, loadAssignments])
+
   const selectedAssignment = useMemo(() => {
     if (!selectedAssignmentId) return null
     return assignments.find((a) => a.id === selectedAssignmentId) ?? null
@@ -62,20 +86,17 @@ export function StudentAssignmentsTab({ classroom }: Props) {
 
   const navigate = useCallback(
     (next: { assignmentId?: string | null }) => {
-      const params = new URLSearchParams(search)
-      params.set('tab', 'assignments')
-      params.delete('view')
-
-      if (next.assignmentId) {
-        params.set('assignmentId', next.assignmentId)
-      } else {
-        params.delete('assignmentId')
-      }
-
-      const query = params.toString()
-      router.push(`/classrooms/${classroom.id}${query ? `?${query}` : ''}`)
+      updateSearchParams((params) => {
+        params.set('tab', 'assignments')
+        params.delete('view')
+        if (next.assignmentId) {
+          params.set('assignmentId', next.assignmentId)
+        } else {
+          params.delete('assignmentId')
+        }
+      })
     },
-    [classroom.id, router, search],
+    [updateSearchParams],
   )
 
   const handleSubmit = useCallback(async () => {
@@ -173,6 +194,9 @@ export function StudentAssignmentsTab({ classroom }: Props) {
       />
       <PageContent className="flex-1 min-h-0">
         <div className="min-w-0 h-full flex flex-col">
+          {refreshing && (
+            <div className="mb-2 text-xs text-text-muted">Refreshing…</div>
+          )}
           {loading ? (
               <div className="bg-surface rounded-lg shadow-sm">
                 <div className="p-4">

@@ -2533,3 +2533,24 @@
 - Added regression tests for returned feedback card behavior in `tests/components/StudentAssignmentEditor.feedback-card.test.tsx`.
 - Covered feedback-only return, partial-score return, and full-score return with total/percent.
 - Validation: `pnpm test tests/components/StudentAssignmentEditor.feedback-card.test.tsx` and `pnpm test tests/components/StudentAssignmentsTab.test.tsx`
+
+---
+## 2026-02-15 [AI - GPT-5 Codex]
+**Goal:** Fix GH issue #330 classroom UX tab transitions/loading regressions
+**Completed:**
+- Reworked classroom tab navigation to same-document URL/history updates (no App Router churn) for assignments/resources/settings/calendar sections
+- Added popstate synchronization and strict-mode-safe history handling to preserve back/forward behavior
+- Implemented keep-alive tab mounting and stale-while-refresh loading across teacher/student classroom tabs to remove skeleton flashes and full-panel resets
+- Updated assignment/resource/setting/calendar tab components and nav wiring to use callback-driven query param updates
+- Added/updated e2e and unit coverage for same-classroom tab switching and component API updates
+- Performed mandatory visual verification for teacher and student classroom views after UX changes
+**Status:** completed
+**Artifacts:**
+- Branch: codex/330-fix-classroom-tab-transitions
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-330-fix-classroom-tab-transitions
+- Key files: src/app/classrooms/[classroomId]/ClassroomPageClient.tsx, src/components/layout/NavItems.tsx, src/app/classrooms/[classroomId]/*Tab.tsx, e2e/classroom-loading.spec.ts
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/ThreePanelProvider.test.tsx` passed
+- `npx playwright test e2e/classroom-loading.spec.ts --project=chromium-desktop -g "same-classroom"` passed
+- Visual checks: `/tmp/issue330-teacher.png`, `/tmp/issue330-student.png`

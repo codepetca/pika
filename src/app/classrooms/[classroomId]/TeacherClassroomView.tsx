@@ -96,6 +96,7 @@ interface Props {
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onSelectStudent?: (student: SelectedStudentInfo | null) => void
   onViewModeChange?: (mode: AssignmentViewMode) => void
+  isActive?: boolean
 }
 
 function getCookieValue(name: string) {
@@ -184,7 +185,13 @@ function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: b
   return icon
 }
 
-export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectStudent, onViewModeChange }: Props) {
+export function TeacherClassroomView({
+  classroom,
+  onSelectAssignment,
+  onSelectStudent,
+  onViewModeChange,
+  isActive = true,
+}: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
   const { openRight: openMobileSidebar } = useMobileDrawer()
@@ -193,6 +200,8 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
   const [isReordering, setIsReordering] = useState(false)
@@ -236,12 +245,18 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
+  const wasActiveRef = useRef(isActive)
 
   // Compact table when sidebar is wide or a student is selected (sidebar opens)
   const isCompactTable = sidebarWidth === '70%' || sidebarWidth === '75%' || selectedStudentId !== null
 
-  const loadAssignments = useCallback(async () => {
-    setLoading(true)
+  const loadAssignments = useCallback(async (options?: { preserveContent?: boolean }) => {
+    const preserveContent = options?.preserveContent ?? false
+    if (preserveContent) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
+    }
     try {
       const [assignmentsRes, classDaysRes] = await Promise.all([
         fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`),
@@ -251,6 +266,7 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       const classDaysData = await classDaysRes.json().catch(() => ({ class_days: [] }))
       setAssignments(assignmentsData.assignments || [])
       setClassDays(classDaysData.class_days || [])
+      setHasLoadedOnce(true)
       window.dispatchEvent(
         new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
           detail: { classroomId: classroom.id },
@@ -260,12 +276,20 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       console.error('Error loading assignments:', err)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }, [classroom.id])
 
   useEffect(() => {
     loadAssignments()
   }, [loadAssignments])
+
+  useEffect(() => {
+    if (isActive && !wasActiveRef.current && hasLoadedOnce) {
+      loadAssignments({ preserveContent: true })
+    }
+    wasActiveRef.current = isActive
+  }, [hasLoadedOnce, isActive, loadAssignments])
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
@@ -784,6 +808,9 @@ export function TeacherClassroomView({ classroom, onSelectAssignment, onSelectSt
       <PageActionBar primary={primaryButtons} actions={[]} trailing={showMobileToggle ? <RightSidebarToggle /> : undefined} />
 
       <PageContent className="space-y-3">
+        {refreshing && (
+          <div className="text-xs text-text-muted">Refreshing…</div>
+        )}
         {error && (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}

@@ -42,16 +42,24 @@ interface Props {
   classroom: Classroom
   onSelectEntry?: (entry: Entry | null, studentName: string, studentId: string | null) => void
   onDateChange?: (date: string) => void
+  isActive?: boolean
 }
 
 export interface TeacherAttendanceTabHandle {
   selectStudentByName: (name: string) => void
 }
 
-export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props>(function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }: Props, ref) {
+export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props>(function TeacherAttendanceTab({
+  classroom,
+  onSelectEntry,
+  onDateChange,
+  isActive = true,
+}: Props, ref) {
   const { classDays, isLoading: classDaysLoading } = useClassDaysContext()
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
@@ -80,16 +88,22 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   useEffect(() => {
     async function loadLogs() {
       if (!selectedDate) return
+      if (!isActive) return
       if (!isClassDayOnDate(classDays, selectedDate)) {
         setLogs([])
+        setHasLoadedOnce(true)
         setSelectedStudentId(null)
         onSelectEntry?.(null, '', null)
+        setLoading(false)
+        setRefreshing(false)
         return
       }
 
-      // Clear logs immediately to prevent showing stale status colors
-      setLogs([])
-      setLoading(true)
+      if (hasLoadedOnce) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
       try {
         const res = await fetch(`/api/teacher/logs?classroom_id=${classroom.id}&date=${selectedDate}`)
         const data = await res.json()
@@ -103,14 +117,16 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         // Clear selection when date changes so summary is visible
         setSelectedStudentId(null)
         onSelectEntry?.(null, '', null)
+        setHasLoadedOnce(true)
       } catch (err) {
         console.error('Error loading logs:', err)
       } finally {
         setLoading(false)
+        setRefreshing(false)
       }
     }
     loadLogs()
-  }, [classroom.id, classDays, selectedDate, onSelectEntry])
+  }, [classroom.id, classDays, selectedDate, onSelectEntry, hasLoadedOnce, isActive])
 
   const isClassDay = useMemo(() => {
     if (!selectedDate) return true
@@ -259,6 +275,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           onDeselect={handleDeselect}
         >
           <TableCard>
+            {refreshing && (
+              <div className="px-3 py-2 text-xs text-text-muted">Refreshing…</div>
+            )}
             <DataTable>
             <DataTableHead>
               <DataTableRow>
