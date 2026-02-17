@@ -2,12 +2,18 @@ import type { CanonicalSyncDataset } from './types'
 
 export function validateDataset(dataset: CanonicalSyncDataset): string[] {
   const errors: string[] = []
+  const attendanceDates = new Set<string>()
 
   dataset.attendance.forEach((row, index) => {
     if (!row.entity_key) errors.push(`attendance[${index}].entity_key is required`)
     if (!row.student_key) errors.push(`attendance[${index}].student_key is required`)
     if (!row.date) errors.push(`attendance[${index}].date is required`)
+    if (row.date) attendanceDates.add(row.date)
   })
+
+  if (attendanceDates.size > 1) {
+    errors.push('attendance sync payload must contain exactly one date per job')
+  }
 
   dataset.marks.forEach((row, index) => {
     if (!row.entity_key) errors.push(`marks[${index}].entity_key is required`)

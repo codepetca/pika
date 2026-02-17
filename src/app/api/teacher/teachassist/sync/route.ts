@@ -7,6 +7,17 @@ import type { TAExecutionMode } from '@/lib/teachassist/types'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function isValidDateString(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const [year, month, day] = value.split('-').map((part) => Number(part))
+  const parsed = new Date(Date.UTC(year, month - 1, day))
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  )
+}
+
 /**
  * POST /api/teacher/teachassist/sync
  *
@@ -16,7 +27,7 @@ export const revalidate = 0
  *   classroom_id: string (required)
  *   mode: 'dry_run' | 'execute' (default: 'dry_run')
  *   execution_mode?: 'confirmation' | 'full_auto' (overrides classroom config)
- *   date_range?: { from: string; to: string } (optional, YYYY-MM-DD)
+ *   date_range: { from: string; to: string } (required, YYYY-MM-DD, and from must equal to)
  *
  * Returns:
  *   { jobId, ok, summary, errors, unmatchedStudents }
@@ -38,15 +49,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: ownership.error }, { status: ownership.status })
     }
 
-    // Parse optional date range
+    // Parse required single-day date range
     let dateRange: { from: string; to: string } | undefined
-    if (body.date_range && typeof body.date_range === 'object') {
-      const from = String(body.date_range.from || '').trim()
-      const to = String(body.date_range.to || '').trim()
-      if (from && to) {
-        dateRange = { from, to }
-      }
+    if (!body.date_range || typeof body.date_range !== 'object') {
+      return NextResponse.json(
+        { error: 'date_range is required and must be an object with from and to fields' },
+        { status: 400 }
+      )
     }
+
+    const from = String(body.date_range.from || '').trim()
+    const to = String(body.date_range.to || '').trim()
+
+    if (!from || !to) {
+      return NextResponse.json(
+        { error: 'date_range.from and date_range.to are required' },
+        { status: 400 }
+      )
+    }
+
+    if (!isValidDateString(from) || !isValidDateString(to)) {
+      return NextResponse.json(
+        { error: 'date_range must use valid calendar dates in YYYY-MM-DD format' },
+        { status: 400 }
+      )
+    }
+
+    if (from !== to) {
+      return NextResponse.json(
+        { error: 'Attendance sync only supports a single date. date_range.from must equal date_range.to' },
+        { status: 400 }
+      )
+    }
+
+    dateRange = { from, to }
 
     // Parse optional execution mode override
     const executionMode: TAExecutionMode | undefined =

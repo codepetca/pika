@@ -470,7 +470,7 @@ function TaSyncBanner({
   const errors = result.errors || []
   const unmatchedStudents = result.unmatchedStudents || []
   const ok = result.ok ?? true
-  const totalRecords = summary.planned + summary.upserted + summary.skipped + summary.failed
+  const totalRecords = summary.planned
 
   return (
     <div className={`mx-0 mt-2 rounded-md border px-3 py-2 text-sm ${ok ? 'border-success/30 bg-success/10' : 'border-danger/30 bg-danger/10'}`}>

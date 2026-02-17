@@ -56,6 +56,9 @@ export async function GET(request: NextRequest) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    if (error.name === 'AuthorizationError') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     console.error('Get TeachAssist config error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -163,6 +166,9 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (error.name === 'AuthorizationError') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     console.error('Save TeachAssist config error:', error)

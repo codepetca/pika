@@ -78,32 +78,44 @@ async function fetchPikaAttendance(
   const today = getTodayInToronto()
 
   // Fetch class days
-  const { data: classDays } = await supabase
+  const { data: classDays, error: classDaysError } = await supabase
     .from('class_days')
     .select('*')
     .eq('classroom_id', classroomId)
     .eq('is_class_day', true)
     .order('date', { ascending: true })
 
+  if (classDaysError) {
+    throw new Error(`Failed to load class days: ${classDaysError.message}`)
+  }
+
   if (!classDays || classDays.length === 0) {
     return { records: [], dates: [] }
   }
 
   // Fetch enrolled students with profiles
-  const { data: enrollments } = await supabase
+  const { data: enrollments, error: enrollmentsError } = await supabase
     .from('classroom_enrollments')
     .select('student_id, users!inner(id, email), student_profiles!inner(first_name, last_name)')
     .eq('classroom_id', classroomId)
+
+  if (enrollmentsError) {
+    throw new Error(`Failed to load classroom enrollments: ${enrollmentsError.message}`)
+  }
 
   if (!enrollments || enrollments.length === 0) {
     return { records: [], dates: [] }
   }
 
   // Fetch all entries for this classroom
-  const { data: entries } = await supabase
+  const { data: entries, error: entriesError } = await supabase
     .from('entries')
     .select('*')
     .eq('classroom_id', classroomId)
+
+  if (entriesError) {
+    throw new Error(`Failed to load attendance entries: ${entriesError.message}`)
+  }
 
   // Build student list in the format computeAttendanceRecords expects
   const students = enrollments.map((e: any) => ({
@@ -187,6 +199,14 @@ export async function runAttendanceSync(input: AttendanceSyncInput): Promise<Att
   })
 
   try {
+    if (!input.dateRange) {
+      throw new Error('Attendance sync requires a date range')
+    }
+
+    if (input.dateRange.from !== input.dateRange.to) {
+      throw new Error('Attendance sync only supports a single date per run')
+    }
+
     // -----------------------------------------------------------------------
     // 1. Fetch Pika attendance data
     // -----------------------------------------------------------------------
@@ -281,10 +301,14 @@ export async function runAttendanceSync(input: AttendanceSyncInput): Promise<Att
 
       // Fetch Pika student profiles for matching
       const supabase = getServiceRoleClient()
-      const { data: enrollments } = await supabase
+      const { data: enrollments, error: enrollmentLoadError } = await supabase
         .from('classroom_enrollments')
         .select('student_id, student_profiles!inner(first_name, last_name)')
         .eq('classroom_id', input.classroomId)
+
+      if (enrollmentLoadError) {
+        throw new Error(`Failed to load enrolled students for matching: ${enrollmentLoadError.message}`)
+      }
 
       const pikaStudents = (enrollments || []).map((e: any) => ({
         student_id: e.student_id,

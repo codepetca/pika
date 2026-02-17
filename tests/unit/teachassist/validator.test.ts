@@ -21,4 +21,17 @@ describe('teachassist validator', () => {
 
     expect(errors.length).toBeGreaterThan(0)
   })
+
+  it('rejects attendance payloads containing more than one date', () => {
+    const errors = validateDataset({
+      attendance: [
+        { entity_key: 's1:2026-02-12', student_key: 's1', date: '2026-02-12', status: 'present' },
+        { entity_key: 's2:2026-02-13', student_key: 's2', date: '2026-02-13', status: 'absent' },
+      ],
+      marks: [],
+      report_cards: [],
+    })
+
+    expect(errors).toContain('attendance sync payload must contain exactly one date per job')
+  })
 })

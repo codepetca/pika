@@ -38,6 +38,80 @@ describe('POST /api/teacher/teachassist/sync', () => {
     expect(data.error).toContain('classroom_id')
   })
 
+  it('should return 400 when date_range is missing', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/teachassist/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: 'c-1',
+        mode: 'execute',
+      }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(400)
+    const data = await response.json()
+    expect(data.error).toContain('date_range is required')
+  })
+
+  it('should return 400 for invalid date_range format', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/teachassist/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: 'c-1',
+        mode: 'execute',
+        date_range: { from: '2025/01/01', to: '2025-01-31' },
+      }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(400)
+    const data = await response.json()
+    expect(data.error).toContain('YYYY-MM-DD')
+  })
+
+  it('should return 400 when only one date_range boundary is provided', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/teachassist/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: 'c-1',
+        mode: 'execute',
+        date_range: { from: '2025-01-01' },
+      }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(400)
+    const data = await response.json()
+    expect(data.error).toContain('are required')
+  })
+
+  it('should return 400 for impossible calendar dates in date_range', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/teachassist/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: 'c-1',
+        mode: 'execute',
+        date_range: { from: '2025-02-30', to: '2025-03-01' },
+      }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(400)
+    const data = await response.json()
+    expect(data.error).toContain('valid calendar dates')
+  })
+
+  it('should return 400 when date_range spans more than one day', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/teachassist/sync', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: 'c-1',
+        mode: 'execute',
+        date_range: { from: '2025-01-01', to: '2025-01-31' },
+      }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(400)
+    const data = await response.json()
+    expect(data.error).toContain('single date')
+  })
+
   it('should return 401 when not authenticated', async () => {
     const { requireRole } = await import('@/lib/auth')
     const authError = new Error('Not authenticated')
@@ -80,7 +154,11 @@ describe('POST /api/teacher/teachassist/sync', () => {
 
     const request = new NextRequest('http://localhost:3000/api/teacher/teachassist/sync', {
       method: 'POST',
-      body: JSON.stringify({ classroom_id: 'c-1', mode: 'dry_run' }),
+      body: JSON.stringify({
+        classroom_id: 'c-1',
+        mode: 'dry_run',
+        date_range: { from: '2025-01-15', to: '2025-01-15' },
+      }),
     })
     const response = await POST(request)
     expect(response.status).toBe(200)
@@ -108,7 +186,7 @@ describe('POST /api/teacher/teachassist/sync', () => {
         classroom_id: 'c-1',
         mode: 'execute',
         execution_mode: 'full_auto',
-        date_range: { from: '2025-01-01', to: '2025-01-31' },
+        date_range: { from: '2025-01-31', to: '2025-01-31' },
       }),
     })
     const response = await POST(request)
@@ -119,7 +197,7 @@ describe('POST /api/teacher/teachassist/sync', () => {
       expect.objectContaining({
         mode: 'execute',
         executionMode: 'full_auto',
-        dateRange: { from: '2025-01-01', to: '2025-01-31' },
+        dateRange: { from: '2025-01-31', to: '2025-01-31' },
       })
     )
   })
@@ -136,7 +214,11 @@ describe('POST /api/teacher/teachassist/sync', () => {
 
     const request = new NextRequest('http://localhost:3000/api/teacher/teachassist/sync', {
       method: 'POST',
-      body: JSON.stringify({ classroom_id: 'c-1', mode: 'execute' }),
+      body: JSON.stringify({
+        classroom_id: 'c-1',
+        mode: 'execute',
+        date_range: { from: '2025-01-20', to: '2025-01-20' },
+      }),
     })
     const response = await POST(request)
     expect(response.status).toBe(400)

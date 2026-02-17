@@ -75,6 +75,19 @@ describe('GET /api/teacher/teachassist/config', () => {
     expect(response.status).toBe(401)
   })
 
+  it('should return 403 when user is authenticated but not a teacher', async () => {
+    const { requireRole } = await import('@/lib/auth')
+    const authzError = new Error('Forbidden')
+    authzError.name = 'AuthorizationError'
+    ;(requireRole as any).mockRejectedValueOnce(authzError)
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/teachassist/config?classroom_id=c-1'
+    )
+    const response = await GET(request)
+    expect(response.status).toBe(403)
+  })
+
   it('should return 404 when classroom does not exist', async () => {
     const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
     ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
@@ -215,6 +228,20 @@ describe('POST /api/teacher/teachassist/config', () => {
     })
     const response = await POST(request)
     expect(response.status).toBe(401)
+  })
+
+  it('should return 403 when user is authenticated but not a teacher', async () => {
+    const { requireRole } = await import('@/lib/auth')
+    const authzError = new Error('Forbidden')
+    authzError.name = 'AuthorizationError'
+    ;(requireRole as any).mockRejectedValueOnce(authzError)
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/teachassist/config', {
+      method: 'POST',
+      body: JSON.stringify({ classroom_id: 'c-1', ta_username: 'jsmith', ta_course_search: 'GLD', ta_block: 'A1', ta_password: 'pass' }),
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(403)
   })
 
   it('should return 404 when classroom does not exist', async () => {
