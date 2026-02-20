@@ -11,6 +11,7 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
+import { readCookie, writeCookie } from '@/lib/cookies'
 
 function AuthenticityGauge({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
   const hasScore = score !== null
@@ -114,13 +115,20 @@ interface StudentWorkData {
 }
 
 interface TeacherStudentWorkPanelProps {
+  classroomId: string
   assignmentId: string
   studentId: string
 }
 
 type RightTab = 'history' | 'grading'
+const RIGHT_TAB_COOKIE_PREFIX = 'pika_teacher_student_work_tab'
+
+function getRightTabCookieName(classroomId: string) {
+  return `${RIGHT_TAB_COOKIE_PREFIX}:${classroomId}`
+}
 
 export function TeacherStudentWorkPanel({
+  classroomId,
   assignmentId,
   studentId,
 }: TeacherStudentWorkPanelProps) {
@@ -135,9 +143,12 @@ export function TeacherStudentWorkPanel({
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
+  const rightTabCookieName = getRightTabCookieName(classroomId)
 
   // Grading state
-  const [rightTab, setRightTab] = useState<RightTab>('history')
+  const [rightTab, setRightTab] = useState<RightTab>(() => (
+    readCookie(getRightTabCookieName(classroomId)) === 'grading' ? 'grading' : 'history'
+  ))
   const [scoreCompletion, setScoreCompletion] = useState<string>('')
   const [scoreThinking, setScoreThinking] = useState<string>('')
   const [scoreWorkflow, setScoreWorkflow] = useState<string>('')
@@ -146,6 +157,11 @@ export function TeacherStudentWorkPanel({
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
   const showInitialSpinner = useDelayedBusy(loading && !data)
+
+  function handleRightTabChange(nextTab: RightTab) {
+    setRightTab(nextTab)
+    writeCookie(rightTabCookieName, nextTab)
+  }
 
   function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
     const oldestFirst = [...historyEntries].reverse()
@@ -188,13 +204,11 @@ export function TeacherStudentWorkPanel({
       setScoreThinking(doc.score_thinking?.toString() ?? '')
       setScoreWorkflow(doc.score_workflow?.toString() ?? '')
       setFeedback(doc.feedback ?? '')
-      setRightTab('grading')
     } else {
       setScoreCompletion('')
       setScoreThinking('')
       setScoreWorkflow('')
       setFeedback('')
-      setRightTab('history')
     }
   }
 
@@ -344,7 +358,7 @@ export function TeacherStudentWorkPanel({
       if (reloadRes.ok) {
         setData(reloadData)
         populateGradeForm(reloadData.doc)
-        setRightTab('grading') // Stay on grading tab to show results
+        handleRightTabChange('grading') // Stay on grading tab to show results
         window.dispatchEvent(new CustomEvent(TEACHER_GRADE_UPDATED_EVENT))
       }
     } catch (err: any) {
@@ -423,7 +437,7 @@ export function TeacherStudentWorkPanel({
                   ? 'text-primary border-b-2 border-primary'
                   : 'text-text-muted hover:text-text-default'
               }`}
-              onClick={() => setRightTab('history')}
+              onClick={() => handleRightTabChange('history')}
             >
               History
             </button>
@@ -434,7 +448,7 @@ export function TeacherStudentWorkPanel({
                   ? 'text-primary border-b-2 border-primary'
                   : 'text-text-muted hover:text-text-default'
               }`}
-              onClick={() => setRightTab('grading')}
+              onClick={() => handleRightTabChange('grading')}
             >
               Grading
             </button>

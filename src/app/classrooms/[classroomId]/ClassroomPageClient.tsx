@@ -1158,6 +1158,7 @@ function ClassroomPageContent({
             <LogSummary classroomId={classroom.id} date={attendanceDate} onStudentClick={handleSummaryStudentClick} />
           ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
             <TeacherStudentWorkPanel
+              classroomId={classroom.id}
               assignmentId={selectedStudent.assignmentId}
               studentId={selectedStudent.studentId}
             />
