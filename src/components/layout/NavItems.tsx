@@ -1,13 +1,12 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar,
   CircleHelp,
   ClipboardCheck,
   ClipboardList,
+  Percent,
   Settings,
   PenSquare,
   StickyNote,
@@ -19,6 +18,7 @@ import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Tooltip } from '@/ui'
 import { readCookie, writeCookie } from '@/lib/cookies'
+import { fetchJSONWithCache } from '@/lib/request-cache'
 import {
   TEACHER_ASSIGNMENTS_SELECTION_EVENT,
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
@@ -30,6 +30,7 @@ import {
 
 export type ClassroomNavItemId =
   | 'attendance'
+  | 'gradebook'
   | 'assignments'
   | 'quizzes'
   | 'calendar'
@@ -58,6 +59,7 @@ const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
+  { id: 'gradebook', label: 'Gradebook', icon: Percent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: StickyNote },
   { id: 'roster', label: 'Roster', icon: Users },
@@ -93,6 +95,10 @@ export interface NavItemsProps {
   role: 'student' | 'teacher'
   activeTab: string
   isReadOnly?: boolean
+  assignmentId: string | null
+  onTabChange: (tab: ClassroomNavItemId) => void
+  onTabIntent?: (tab: ClassroomNavItemId) => void
+  updateSearchParams: (updater: (params: URLSearchParams) => void, options?: { replace?: boolean }) => void
 }
 
 export function NavItems({
@@ -100,10 +106,11 @@ export function NavItems({
   role,
   activeTab,
   isReadOnly = false,
+  assignmentId,
+  onTabChange,
+  onTabIntent = () => {},
+  updateSearchParams,
 }: NavItemsProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const assignmentIdParam = searchParams.get('assignmentId')
   const { isExpanded } = useLeftSidebar()
   const { close: closeMobileDrawer } = useMobileDrawer()
   const notifications = useStudentNotifications()
@@ -129,6 +136,9 @@ export function NavItems({
   const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null)
 
   const items = useMemo(() => getItems(role), [role])
+  const handleTabIntent = useCallback((tab: ClassroomNavItemId) => {
+    onTabIntent(tab)
+  }, [onTabIntent])
 
   // Mark an assignment as viewed (optimistic update for students)
   const markAssignmentViewed = useCallback((assignmentId: string) => {
@@ -164,18 +174,18 @@ export function NavItems({
       setActiveAssignmentId(null)
       return
     }
-    setActiveAssignmentId(assignmentIdParam)
-  }, [activeTab, assignmentIdParam, role])
+    setActiveAssignmentId(assignmentId)
+  }, [activeTab, assignmentId, role])
 
   // Load teacher assignments
   const loadTeacherAssignments = useCallback(async () => {
     try {
-      const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
-      if (!response.ok) {
-        setAssignments([])
-        return
-      }
-      const data = await response.json()
+      const key = `teacher-assignments:${classroomId}`
+      const data = await fetchJSONWithCache(key, async () => {
+        const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
+        if (!response.ok) throw new Error('Failed to load teacher assignments')
+        return response.json()
+      }, 20_000)
       setAssignments(
         (data.assignments || []).map((a: { id: string; title: string }) => ({
           id: a.id,
@@ -210,12 +220,12 @@ export function NavItems({
     if (role !== 'student') return
     async function loadAssignments() {
       try {
-        const response = await fetch(`/api/student/assignments?classroom_id=${classroomId}`)
-        if (!response.ok) {
-          setAssignments([])
-          return
-        }
-        const data = await response.json()
+        const key = `student-assignments:${classroomId}`
+        const data = await fetchJSONWithCache(key, async () => {
+          const response = await fetch(`/api/student/assignments?classroom_id=${classroomId}`)
+          if (!response.ok) throw new Error('Failed to load student assignments')
+          return response.json()
+        }, 20_000)
         setAssignments(
           (data.assignments || []).map(
             (a: { id: string; title: string; doc?: { viewed_at?: string | null } }) => ({
@@ -251,17 +261,15 @@ export function NavItems({
   }
 
   function setStudentAssignmentsSelection(assignmentId: string | null) {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', 'assignments')
-
-    if (assignmentId) {
-      params.set('assignmentId', assignmentId)
-    } else {
-      params.delete('assignmentId')
-    }
-
     setActiveAssignmentId(assignmentId)
-    router.push(`/classrooms/${classroomId}?${params.toString()}`)
+    updateSearchParams((params) => {
+      params.set('tab', 'assignments')
+      if (assignmentId) {
+        params.set('assignmentId', assignmentId)
+      } else {
+        params.delete('assignmentId')
+      }
+    })
   }
 
   function onNavigate() {
@@ -285,12 +293,16 @@ export function NavItems({
           const canShowNested = isExpanded
 
           const studentAssignmentsLink = (
-              <Link
+              <a
                 href={href}
-                onClick={() => {
+                onClick={(event) => {
+                  event.preventDefault()
+                  onTabChange('assignments')
                   setStudentAssignmentsSelection(null)
                   onNavigate()
                 }}
+                onMouseEnter={() => handleTabIntent('assignments')}
+                onFocus={() => handleTabIntent('assignments')}
                 aria-current={isActive ? 'page' : undefined}
                 aria-label={item.label}
                 className={[
@@ -313,7 +325,7 @@ export function NavItems({
                 />
                 {isExpanded && <span className="truncate">{item.label}</span>}
                 {!isExpanded && <span className="sr-only">{item.label}</span>}
-              </Link>
+              </a>
             )
 
           return (
@@ -368,13 +380,16 @@ export function NavItems({
           const isExpandedState = assignmentsExpanded
 
           const teacherAssignmentsLink = (
-              <Link
+              <a
                 href={href}
-                onClick={() => {
+                onClick={(event) => {
+                  event.preventDefault()
+                  onTabChange('assignments')
                   setAssignmentsSelectionCookie(null)
-                  toggleAssignmentsExpanded()
                   onNavigate()
                 }}
+                onMouseEnter={() => handleTabIntent('assignments')}
+                onFocus={() => handleTabIntent('assignments')}
                 aria-current={isActive ? 'page' : undefined}
                 aria-expanded={canShowNested ? isExpandedState : undefined}
                 aria-label={item.label}
@@ -400,7 +415,7 @@ export function NavItems({
                   </>
                 )}
                 {!isExpanded && <span className="sr-only">{item.label}</span>}
-              </Link>
+              </a>
             )
 
           return (
@@ -423,7 +438,7 @@ export function NavItems({
                           type="button"
                           onClick={() => {
                             setAssignmentsSelectionCookie(assignment.id)
-                            router.push(tabHref(classroomId, 'assignments'))
+                            onTabChange('assignments')
                             onNavigate()
                           }}
                           className={[
@@ -452,9 +467,15 @@ export function NavItems({
           (item.id === 'resources' && showResourcesPulse)
 
         const navLink = (
-          <Link
+          <a
             href={href}
-            onClick={onNavigate}
+            onClick={(event) => {
+              event.preventDefault()
+              onTabChange(item.id)
+              onNavigate()
+            }}
+            onMouseEnter={() => handleTabIntent(item.id)}
+            onFocus={() => handleTabIntent(item.id)}
             aria-current={isActive ? 'page' : undefined}
             aria-label={item.label}
             className={[
@@ -476,7 +497,7 @@ export function NavItems({
             />
             {isExpanded && <span className="truncate">{item.label}</span>}
             {!isExpanded && <span className="sr-only">{item.label}</span>}
-          </Link>
+          </a>
         )
 
         return !isExpanded ? (

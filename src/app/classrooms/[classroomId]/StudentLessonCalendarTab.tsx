@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { startOfWeek, format, startOfMonth, endOfMonth } from 'date-fns'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
@@ -12,10 +11,15 @@ import type { Classroom, LessonPlan, Assignment, Announcement } from '@/types'
 
 interface Props {
   classroom: Classroom
+  onNavigateToAssignments?: (assignmentId: string) => void
+  onNavigateToAnnouncements?: () => void
 }
 
-export function StudentLessonCalendarTab({ classroom }: Props) {
-  const router = useRouter()
+export function StudentLessonCalendarTab({
+  classroom,
+  onNavigateToAssignments = () => {},
+  onNavigateToAnnouncements = () => {},
+}: Props) {
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
@@ -69,15 +73,15 @@ export function StudentLessonCalendarTab({ classroom }: Props) {
   // Handle assignment click - navigate to assignments tab with the assignment selected
   const handleAssignmentClick = useCallback(
     (assignment: Assignment) => {
-      router.push(`/classrooms/${classroom.id}?tab=assignments&assignmentId=${assignment.id}`)
+      onNavigateToAssignments(assignment.id)
     },
-    [router, classroom.id]
+    [onNavigateToAssignments]
   )
 
   // Handle announcement click - navigate to Resources > Announcements
   const handleAnnouncementClick = useCallback(() => {
-    router.push(`/classrooms/${classroom.id}?tab=resources&section=announcements`)
-  }, [router, classroom.id])
+    onNavigateToAnnouncements()
+  }, [onNavigateToAnnouncements])
 
   // Prevent navigation beyond max date
   const handleDateChange = (newDate: Date) => {

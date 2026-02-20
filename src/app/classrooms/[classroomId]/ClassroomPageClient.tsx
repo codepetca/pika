@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomView, TeacherAssignmentsMarkdownSidebar, type AssignmentViewMode } from './TeacherClassroomView'
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
@@ -9,6 +8,7 @@ import { StudentTodayTab } from './StudentTodayTab'
 import { StudentAssignmentsTab } from './StudentAssignmentsTab'
 import { TeacherAttendanceTab, type TeacherAttendanceTabHandle } from './TeacherAttendanceTab'
 import { TeacherRosterTab } from './TeacherRosterTab'
+import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
@@ -29,7 +29,7 @@ import {
   useMobileDrawer,
   useRightSidebar,
 } from '@/components/layout'
-import { getRouteKeyFromTab } from '@/lib/layout-config'
+import { DESKTOP_BREAKPOINT, getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { Spinner } from '@/components/Spinner'
@@ -38,7 +38,21 @@ import { TEACHER_ASSIGNMENTS_UPDATED_EVENT, TEACHER_QUIZZES_UPDATED_EVENT } from
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
-import type { Classroom, Entry, LessonPlan, TiptapContent, SelectedStudentInfo, Assignment, QuizWithStats } from '@/types'
+import { TabContentTransition } from '@/ui'
+import { prefetchJSON } from '@/lib/request-cache'
+import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
+import type {
+  Classroom,
+  Entry,
+  LessonPlan,
+  TiptapContent,
+  SelectedStudentInfo,
+  Assignment,
+  QuizWithStats,
+  GradebookStudentSummary,
+  GradebookStudentDetail,
+  GradebookClassSummary,
+} from '@/types'
 
 interface UserInfo {
   id: string
@@ -58,6 +72,33 @@ interface ClassroomPageClientProps {
   user: UserInfo
   teacherClassrooms: Classroom[]
   initialTab?: string
+  initialSearchParams?: Record<string, string | undefined>
+}
+
+type UpdateSearchOptions = {
+  replace?: boolean
+}
+
+type UpdateSearchParamsFn = (
+  updater: (params: URLSearchParams) => void,
+  options?: UpdateSearchOptions
+) => void
+
+function formatTorontoDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    timeZone: 'America/Toronto',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function formatPoints(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+}
+
+function formatPercent1(value: number | null): string {
+  if (value == null) return '—'
+  return `${value.toFixed(1)} %`
 }
 
 export function ClassroomPageClient({
@@ -65,21 +106,78 @@ export function ClassroomPageClient({
   user,
   teacherClassrooms,
   initialTab,
+  initialSearchParams,
 }: ClassroomPageClientProps) {
-  const searchParams = useSearchParams()
   const { leftSidebarExpanded } = useLayoutInitialState()
 
   const isTeacher = user.role === 'teacher'
   const isArchived = isTeacher && !!classroom.archived_at
-
-  // Determine active tab from URL or default
-  const tab = searchParams.get('tab') ?? initialTab
+  const basePath = `/classrooms/${classroom.id}`
   const defaultTab = isTeacher ? 'attendance' : 'today'
-  const validTabs = isTeacher
-    ? (['attendance', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
-    : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const)
+  const validTabs = useMemo(
+    () =>
+      isTeacher
+        ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
+        : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const),
+    [isTeacher]
+  )
 
+  const [queryString, setQueryString] = useState(() => {
+    const initial = new URLSearchParams()
+    for (const [key, value] of Object.entries(initialSearchParams || {})) {
+      if (value) initial.set(key, value)
+    }
+    if (!initial.get('tab') && initialTab) {
+      initial.set('tab', initialTab)
+    }
+    return initial.toString()
+  })
+  const queryStringRef = useRef(queryString)
+
+  useEffect(() => {
+    queryStringRef.current = queryString
+  }, [queryString])
+
+  useEffect(() => {
+    const syncFromLocation = () => {
+      const fromLocation = new URLSearchParams(window.location.search)
+      setQueryString(fromLocation.toString())
+    }
+    syncFromLocation()
+    window.addEventListener('popstate', syncFromLocation)
+    return () => window.removeEventListener('popstate', syncFromLocation)
+  }, [])
+
+  const updateSearchParams = useCallback<UpdateSearchParamsFn>(
+    (updater, options = {}) => {
+      const params = new URLSearchParams(queryStringRef.current)
+      updater(params)
+      const next = params.toString()
+      if (next === queryStringRef.current) return
+
+      const nextUrl = next ? `${basePath}?${next}` : basePath
+      const nextState = window.history.state ? { ...window.history.state } : {}
+      if (options.replace) {
+        window.history.replaceState(nextState, '', nextUrl)
+      } else {
+        window.history.pushState(nextState, '', nextUrl)
+      }
+      queryStringRef.current = next
+      setQueryString(next)
+    },
+    [basePath]
+  )
+
+  const activeSearchParams = useMemo(() => new URLSearchParams(queryString), [queryString])
+  const tab = activeSearchParams.get('tab')
   const activeTab = (validTabs as readonly string[]).includes(tab ?? '') ? (tab as string) : defaultTab
+
+  useEffect(() => {
+    if ((validTabs as readonly string[]).includes(tab ?? '')) return
+    updateSearchParams((params) => {
+      params.set('tab', defaultTab)
+    }, { replace: true })
+  }, [defaultTab, tab, updateSearchParams, validTabs])
 
   // Determine route key for layout config
   const routeKey = getRouteKeyFromTab(activeTab, user.role)
@@ -96,6 +194,8 @@ export function ClassroomPageClient({
           teacherClassrooms={teacherClassrooms}
           activeTab={activeTab}
           isArchived={isArchived}
+          searchParams={activeSearchParams}
+          updateSearchParams={updateSearchParams}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -109,16 +209,52 @@ function ClassroomPageContent({
   teacherClassrooms,
   activeTab,
   isArchived,
+  searchParams,
+  updateSearchParams,
 }: {
   classroom: Classroom
   user: UserInfo
   teacherClassrooms: Classroom[]
   activeTab: string
   isArchived: boolean
+  searchParams: URLSearchParams
+  updateSearchParams: UpdateSearchParamsFn
 }) {
-  const { openLeft } = useMobileDrawer()
+  const { openLeft, openRight } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const isTeacher = user.role === 'teacher'
+  const assignmentIdParam = searchParams.get('assignmentId')
+  const sectionParam = searchParams.get('section')
+  const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
+    [activeTab]: true,
+  }))
+  const lastTabIntentRef = useRef<Record<string, number>>({})
+  const scrollPositionsRef = useRef<Record<string, number>>({})
+  const prevActiveTabRef = useRef(activeTab)
+
+  const navigateInClassroom = useCallback<UpdateSearchParamsFn>(
+    (updater, options) => {
+      updateSearchParams((params) => {
+        updater(params)
+      }, options)
+    },
+    [updateSearchParams]
+  )
+
+  useEffect(() => {
+    setMountedTabs((previous) => {
+      if (previous[activeTab]) return previous
+      return { ...previous, [activeTab]: true }
+    })
+  }, [activeTab])
+
+  useEffect(() => {
+    const previousTab = prevActiveTabRef.current
+    scrollPositionsRef.current[previousTab] = window.scrollY
+    prevActiveTabRef.current = activeTab
+    const nextScrollTop = scrollPositionsRef.current[activeTab] ?? 0
+    window.scrollTo({ top: nextScrollTop, left: 0, behavior: 'auto' })
+  }, [activeTab])
 
   // State for attendance date (teacher attendance tab)
   const [attendanceDate, setAttendanceDate] = useState<string>('')
@@ -142,6 +278,11 @@ function ClassroomPageContent({
 
   // State for selected quiz (teacher quizzes tab)
   const [selectedQuiz, setSelectedQuiz] = useState<QuizWithStats | null>(null)
+  const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
+  const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
+  const [gradebookClassSummary, setGradebookClassSummary] = useState<GradebookClassSummary | null>(null)
+  const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
+  const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
 
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
     setSelectedQuiz(quiz)
@@ -152,6 +293,10 @@ function ClassroomPageContent({
       new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
     )
   }, [classroom.id])
+
+  const handleSelectGradebookStudent = useCallback((student: GradebookStudentSummary | null) => {
+    setSelectedGradebookStudent(student)
+  }, [])
 
   // State for markdown mode (teacher assignments tab - summary view only)
   const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
@@ -348,6 +493,8 @@ function ClassroomPageContent({
       setRightSidebarWidth('50%')
     } else if (isTeacher && activeTab === 'quizzes') {
       setRightSidebarWidth('50%')
+    } else if (isTeacher && activeTab === 'gradebook') {
+      setRightSidebarWidth(420)
     }
   }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
 
@@ -356,6 +503,187 @@ function ClassroomPageContent({
       setRightSidebarOpen(false)
     }
   }, [activeTab, setRightSidebarOpen])
+
+  useEffect(() => {
+    if (activeTab !== 'gradebook') {
+      setSelectedGradebookStudent(null)
+      setGradebookStudentDetail(null)
+      setGradebookClassSummary(null)
+      setGradebookStudentDetailError('')
+      setGradebookStudentDetailLoading(false)
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!isTeacher || activeTab !== 'gradebook' || !selectedGradebookStudent) return
+    const selectedStudentId = selectedGradebookStudent.student_id
+
+    if (window.innerWidth < DESKTOP_BREAKPOINT) {
+      openRight()
+    } else {
+      setRightSidebarOpen(true)
+    }
+
+    let cancelled = false
+
+    async function loadStudentDetail() {
+      setGradebookStudentDetailLoading(true)
+      setGradebookStudentDetailError('')
+      try {
+        const response = await fetch(
+          `/api/teacher/gradebook?classroom_id=${classroom.id}&student_id=${selectedStudentId}`
+        )
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load gradebook details')
+        }
+
+        if (!cancelled) {
+          setGradebookStudentDetail((data.selected_student as GradebookStudentDetail | null) || null)
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setGradebookStudentDetail(null)
+          setGradebookStudentDetailError(err.message || 'Failed to load gradebook details')
+        }
+      } finally {
+        if (!cancelled) {
+          setGradebookStudentDetailLoading(false)
+        }
+      }
+    }
+
+    loadStudentDetail()
+    return () => {
+      cancelled = true
+    }
+  }, [isTeacher, activeTab, selectedGradebookStudent, classroom.id, setRightSidebarOpen, openRight])
+
+  const prefetchTabData = useCallback((tab: string) => {
+    const now = Date.now()
+    const lastIntentAt = lastTabIntentRef.current[tab] || 0
+    if (now - lastIntentAt < 500) return
+    lastTabIntentRef.current[tab] = now
+
+    const runPrefetch = () => {
+      if (tab === 'assignments') {
+        if (isTeacher) {
+          prefetchJSON(
+            `teacher-assignments:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        } else {
+          prefetchJSON(
+            `student-assignments:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        }
+      }
+
+      if (tab === 'resources') {
+        if (isTeacher) {
+          prefetchJSON(
+            `teacher-resources:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/teacher/classrooms/${classroom.id}/resources`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+          prefetchJSON(
+            `teacher-announcements:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        } else {
+          prefetchJSON(
+            `student-resources:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/student/classrooms/${classroom.id}/resources`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+          prefetchJSON(
+            `student-announcements:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/student/classrooms/${classroom.id}/announcements`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        }
+      }
+    }
+
+    runPrefetch()
+  }, [classroom.id, isTeacher])
+
+  useEffect(() => {
+    const idleCallback = (window as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined
+    if (idleCallback) {
+      const id = idleCallback(
+        () => {
+          prefetchTabData('assignments')
+          prefetchTabData('resources')
+        },
+        { timeout: 1200 },
+      )
+      return () => {
+        const cancelIdleCallback = (window as any).cancelIdleCallback as ((idleId: number) => void) | undefined
+        cancelIdleCallback?.(id)
+      }
+    }
+
+    const timer = window.setTimeout(() => {
+      prefetchTabData('assignments')
+      prefetchTabData('resources')
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [prefetchTabData])
+
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      markClassroomTabSwitchStart(tab)
+      navigateInClassroom((params) => {
+        params.set('tab', tab)
+        if (tab !== 'assignments') {
+          params.delete('assignmentId')
+        }
+        if (tab !== 'resources' && tab !== 'settings') {
+          params.delete('section')
+        }
+      })
+      window.requestAnimationFrame(() => {
+        markClassroomTabSwitchReady(tab)
+      })
+    },
+    [navigateInClassroom]
+  )
+
+  useEffect(() => {
+    const rafId = window.requestAnimationFrame(() => {
+      markClassroomTabSwitchReady(activeTab)
+    })
+    return () => window.cancelAnimationFrame(rafId)
+  }, [activeTab])
 
   const content = (
     <AppShell
@@ -387,6 +715,10 @@ function ClassroomPageContent({
             role={user.role}
             activeTab={activeTab}
             isReadOnly={isArchived}
+            assignmentId={assignmentIdParam}
+            onTabChange={handleTabChange}
+            onTabIntent={prefetchTabData}
+            updateSearchParams={navigateInClassroom}
           />
         </LeftSidebar>
 
@@ -400,54 +732,159 @@ function ClassroomPageContent({
 
           {isTeacher ? (
             <>
-              {activeTab === 'attendance' && (
-                <TeacherAttendanceTab
-                  ref={attendanceTabRef}
-                  classroom={classroom}
-                  onSelectEntry={handleSelectEntry}
-                  onDateChange={setAttendanceDate}
-                />
+              {mountedTabs.attendance && (
+                <TabContentTransition isActive={activeTab === 'attendance'}>
+                  <TeacherAttendanceTab
+                    ref={attendanceTabRef}
+                    classroom={classroom}
+                    onSelectEntry={handleSelectEntry}
+                    onDateChange={setAttendanceDate}
+                    isActive={activeTab === 'attendance'}
+                  />
+                </TabContentTransition>
               )}
-              {activeTab === 'assignments' && (
-                <TeacherClassroomView
-                  classroom={classroom}
-                  onSelectAssignment={handleSelectAssignment}
-                  onSelectStudent={handleSelectStudent}
-                  onViewModeChange={handleViewModeChange}
-                />
+              {mountedTabs.gradebook && (
+                <TabContentTransition isActive={activeTab === 'gradebook'}>
+                  <TeacherGradebookTab
+                    classroom={classroom}
+                    selectedStudentId={selectedGradebookStudent?.student_id ?? null}
+                    onSelectStudent={handleSelectGradebookStudent}
+                    onClassSummaryChange={setGradebookClassSummary}
+                  />
+                </TabContentTransition>
               )}
-              {activeTab === 'quizzes' && (
-                <TeacherQuizzesTab
-                  classroom={classroom}
-                  onSelectQuiz={handleSelectQuiz}
-                />
+              {mountedTabs.assignments && (
+                <TabContentTransition isActive={activeTab === 'assignments'}>
+                  <TeacherClassroomView
+                    classroom={classroom}
+                    onSelectAssignment={handleSelectAssignment}
+                    onSelectStudent={handleSelectStudent}
+                    onViewModeChange={handleViewModeChange}
+                    isActive={activeTab === 'assignments'}
+                  />
+                </TabContentTransition>
               )}
-              {activeTab === 'calendar' && (
-                <TeacherLessonCalendarTab
-                  classroom={classroom}
-                  onSidebarStateChange={setCalendarSidebarState}
-                />
+              {mountedTabs.quizzes && (
+                <TabContentTransition isActive={activeTab === 'quizzes'}>
+                  <TeacherQuizzesTab
+                    classroom={classroom}
+                    onSelectQuiz={handleSelectQuiz}
+                  />
+                </TabContentTransition>
               )}
-              {activeTab === 'resources' && <TeacherResourcesTab classroom={classroom} />}
-              {activeTab === 'roster' && <TeacherRosterTab classroom={classroom} />}
-              {activeTab === 'settings' && <TeacherSettingsTab classroom={classroom} />}
+              {mountedTabs.calendar && (
+                <TabContentTransition isActive={activeTab === 'calendar'}>
+                  <TeacherLessonCalendarTab
+                    classroom={classroom}
+                    onSidebarStateChange={setCalendarSidebarState}
+                    onNavigateToAssignments={() => handleTabChange('assignments')}
+                    onNavigateToAnnouncements={() =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'resources')
+                        params.set('section', 'announcements')
+                        params.delete('assignmentId')
+                      })
+                    }
+                  />
+                </TabContentTransition>
+              )}
+              {mountedTabs.resources && (
+                <TabContentTransition isActive={activeTab === 'resources'}>
+                  <TeacherResourcesTab
+                    classroom={classroom}
+                    sectionParam={sectionParam}
+                    onSectionChange={(section) =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'resources')
+                        params.set('section', section)
+                      })
+                    }
+                  />
+                </TabContentTransition>
+              )}
+              {mountedTabs.roster && (
+                <TabContentTransition isActive={activeTab === 'roster'}>
+                  <TeacherRosterTab classroom={classroom} />
+                </TabContentTransition>
+              )}
+              {mountedTabs.settings && (
+                <TabContentTransition isActive={activeTab === 'settings'}>
+                  <TeacherSettingsTab
+                    classroom={classroom}
+                    sectionParam={sectionParam}
+                    onSectionChange={(section) =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'settings')
+                        params.set('section', section)
+                      })
+                    }
+                  />
+                </TabContentTransition>
+              )}
             </>
           ) : (
             <>
-              {activeTab === 'today' && (
-                <StudentTodayTab
-                  classroom={classroom}
-                  onLessonPlanLoad={handleSetLessonPlan}
-                />
+              {mountedTabs.today && (
+                <TabContentTransition isActive={activeTab === 'today'}>
+                  <StudentTodayTab
+                    classroom={classroom}
+                    onLessonPlanLoad={handleSetLessonPlan}
+                  />
+                </TabContentTransition>
               )}
-              {activeTab === 'assignments' && (
-                <StudentAssignmentsTab
-                  classroom={classroom}
-                />
+              {mountedTabs.assignments && (
+                <TabContentTransition isActive={activeTab === 'assignments'}>
+                  <StudentAssignmentsTab
+                    classroom={classroom}
+                    selectedAssignmentId={assignmentIdParam}
+                    isActive={activeTab === 'assignments'}
+                    updateSearchParams={navigateInClassroom}
+                  />
+                </TabContentTransition>
               )}
-              {activeTab === 'quizzes' && <StudentQuizzesTab classroom={classroom} />}
-              {activeTab === 'calendar' && <StudentLessonCalendarTab classroom={classroom} />}
-              {activeTab === 'resources' && <StudentResourcesTab classroom={classroom} />}
+              {mountedTabs.quizzes && (
+                <TabContentTransition isActive={activeTab === 'quizzes'}>
+                  <StudentQuizzesTab classroom={classroom} />
+                </TabContentTransition>
+              )}
+              {mountedTabs.calendar && (
+                <TabContentTransition isActive={activeTab === 'calendar'}>
+                  <StudentLessonCalendarTab
+                    classroom={classroom}
+                    onNavigateToAssignments={(assignmentId) =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'assignments')
+                        if (assignmentId) {
+                          params.set('assignmentId', assignmentId)
+                        } else {
+                          params.delete('assignmentId')
+                        }
+                      })
+                    }
+                    onNavigateToAnnouncements={() =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'resources')
+                        params.set('section', 'announcements')
+                        params.delete('assignmentId')
+                      })
+                    }
+                  />
+                </TabContentTransition>
+              )}
+              {mountedTabs.resources && (
+                <TabContentTransition isActive={activeTab === 'resources'}>
+                  <StudentResourcesTab
+                    classroom={classroom}
+                    sectionParam={sectionParam}
+                    onSectionChange={(section) =>
+                      navigateInClassroom((params) => {
+                        params.set('tab', 'resources')
+                        params.set('section', section)
+                      })
+                    }
+                  />
+                </TabContentTransition>
+              )}
             </>
           )}
         </MainContent>
@@ -458,6 +895,10 @@ function ClassroomPageContent({
               ? 'Assignments'
               : isTeacher && activeTab === 'calendar' && calendarSidebarState
               ? 'Calendar'
+              : isTeacher && activeTab === 'gradebook'
+              ? selectedGradebookStudent
+                ? `${selectedGradebookStudent.student_first_name || ''} ${selectedGradebookStudent.student_last_name || ''}`.trim() || selectedGradebookStudent.student_email
+                : 'Gradebook'
               : isTeacher && activeTab === 'quizzes'
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
@@ -555,6 +996,159 @@ function ClassroomPageContent({
                 Select a quiz to view details.
               </p>
             </div>
+          ) : isTeacher && activeTab === 'gradebook' && selectedGradebookStudent ? (
+            <div className="space-y-4 p-4">
+              {gradebookStudentDetailError && (
+                <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                  {gradebookStudentDetailError}
+                </div>
+              )}
+              {gradebookStudentDetailLoading ? (
+                <div className="flex justify-center py-8">
+                  <Spinner />
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-md border border-border bg-surface-2 p-3">
+                    <div className="text-xs text-text-muted">Overall</div>
+                    <div className="mt-1 text-lg font-semibold text-text-default">
+                      {formatPercent1(gradebookStudentDetail?.final_percent ?? null)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-default">Assignments</h3>
+                    {gradebookStudentDetail?.assignments?.length ? (
+                      <div className="mt-2 space-y-2">
+                        {gradebookStudentDetail.assignments.map((item) => (
+                          <div
+                            key={item.assignment_id}
+                            className={[
+                              'rounded-md border px-3 py-2',
+                              item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
+                            ].join(' ')}
+                          >
+                            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3">
+                              <div className="min-w-0">
+                                <div className="truncate text-sm text-text-default">{item.title}</div>
+                                <div className="text-xs text-text-muted">
+                                  {`Due ${formatTorontoDateShort(item.due_at)}${item.is_draft ? ' . Draft' : ''}`}
+                                  {!item.is_graded ? ` . No grade (${formatPoints(item.possible)} pts)` : ''}
+                                </div>
+                              </div>
+                              <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                                {item.is_graded && item.earned != null
+                                  ? `${formatPoints(item.earned)}/${formatPoints(item.possible)}`
+                                  : '—'}
+                              </div>
+                              <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                                {item.is_graded && item.percent != null ? `${item.percent.toFixed(1)}%` : '—'}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-text-muted">No assignments yet.</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-text-default">Quizzes</h3>
+                    {gradebookStudentDetail?.quizzes?.length ? (
+                      <div className="mt-2 space-y-2">
+                        {gradebookStudentDetail.quizzes.map((item) => (
+                          <div key={item.quiz_id} className="rounded-md border border-border px-3 py-2">
+                            <div className="text-sm text-text-default">{item.title}</div>
+                            <div className="text-xs text-text-muted">
+                              <span className="font-semibold text-text-default">
+                                {formatPoints(item.earned)}/{formatPoints(item.possible)}
+                              </span>
+                              {' . '}
+                              <span className="font-semibold text-text-default">{formatPercent1(item.percent)}</span>
+                              {item.is_manual_override ? ' • Manual override' : ''}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm text-text-muted">No scored quizzes yet.</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : isTeacher && activeTab === 'gradebook' ? (
+            <div className="space-y-4 p-4">
+              <div className="rounded-md border border-border bg-surface-2 p-3">
+                <div className="text-lg font-semibold text-text-default">
+                  {formatPercent1(gradebookClassSummary?.average_final_percent ?? null)}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-text-default">Assignments</h3>
+                {gradebookClassSummary?.assignments?.length ? (
+                  <div className="mt-2 space-y-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3 px-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                      <div />
+                      <div className="text-right">Avg</div>
+                      <div className="text-right">Med</div>
+                      <div className="text-right">#</div>
+                    </div>
+                    {gradebookClassSummary.assignments.map((item) => (
+                      <div
+                        key={item.assignment_id}
+                        className={[
+                          'rounded-md border px-3 py-2',
+                          item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
+                        ].join(' ')}
+                      >
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate text-sm text-text-default">{item.title}</div>
+                            <div className="text-xs text-text-muted">
+                              {`Due ${formatTorontoDateShort(item.due_at)}${item.is_draft ? ' . Draft' : ''}`}
+                            </div>
+                          </div>
+                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                            {item.average_percent != null ? item.average_percent.toFixed(1) : '—'}
+                          </div>
+                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                            {item.median_percent != null ? item.median_percent.toFixed(1) : '—'}
+                          </div>
+                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
+                            {item.graded_count}/{gradebookClassSummary.total_students}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-text-muted">No assignments yet.</p>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-text-default">Quizzes</h3>
+                {gradebookClassSummary?.quizzes?.length ? (
+                  <div className="mt-2 space-y-2">
+                    {gradebookClassSummary.quizzes.map((item) => (
+                      <div key={item.quiz_id} className="rounded-md border border-border px-3 py-2">
+                        <div className="text-sm text-text-default">{item.title}</div>
+                        <div className="text-xs text-text-muted">
+                          {item.status || 'unknown'} • {item.average_percent != null
+                            ? `Avg ${formatPercent1(item.average_percent)} • Scored ${item.scored_count}/${gradebookClassSummary.total_students}`
+                            : `No scored responses • Scored ${item.scored_count}/${gradebookClassSummary.total_students}`}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-text-muted">No quizzes yet.</p>
+                )}
+              </div>
+            </div>
           ) : isTeacher && activeTab === 'attendance' && selectedStudentId ? (
             <StudentLogHistory
               studentId={selectedStudentId}
@@ -564,6 +1158,7 @@ function ClassroomPageContent({
             <LogSummary classroomId={classroom.id} date={attendanceDate} onStudentClick={handleSummaryStudentClick} />
           ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
             <TeacherStudentWorkPanel
+              classroomId={classroom.id}
               assignmentId={selectedStudent.assignmentId}
               studentId={selectedStudent.studentId}
             />

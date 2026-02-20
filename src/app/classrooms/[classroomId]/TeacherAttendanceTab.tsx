@@ -9,7 +9,8 @@ import { addDaysToDateString } from '@/lib/date-string'
 import { getMostRecentClassDayBefore, isClassDayOnDate } from '@/lib/class-days'
 import { entryHasContent, getAttendanceDotClass, getAttendanceLabel } from '@/lib/attendance'
 import { useClassDaysContext } from '@/hooks/useClassDays'
-import { Tooltip } from '@/ui'
+import { RefreshingIndicator, Tooltip } from '@/ui'
+import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import type { AttendanceStatus } from '@/types'
 import {
   DataTable,
@@ -42,18 +43,27 @@ interface Props {
   classroom: Classroom
   onSelectEntry?: (entry: Entry | null, studentName: string, studentId: string | null) => void
   onDateChange?: (date: string) => void
+  isActive?: boolean
 }
 
 export interface TeacherAttendanceTabHandle {
   selectStudentByName: (name: string) => void
 }
 
-export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props>(function TeacherAttendanceTab({ classroom, onSelectEntry, onDateChange }: Props, ref) {
+export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props>(function TeacherAttendanceTab({
+  classroom,
+  onSelectEntry,
+  onDateChange,
+  isActive = true,
+}: Props, ref) {
   const { classDays, isLoading: classDaysLoading } = useClassDaysContext()
   const [logs, setLogs] = useState<LogRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const showBlockingSpinner = useDelayedBusy(loading && logs.length === 0)
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: SortColumn
     direction: 'asc' | 'desc'
@@ -80,16 +90,22 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   useEffect(() => {
     async function loadLogs() {
       if (!selectedDate) return
+      if (!isActive) return
       if (!isClassDayOnDate(classDays, selectedDate)) {
         setLogs([])
+        setHasLoadedOnce(true)
         setSelectedStudentId(null)
         onSelectEntry?.(null, '', null)
+        setLoading(false)
+        setRefreshing(false)
         return
       }
 
-      // Clear logs immediately to prevent showing stale status colors
-      setLogs([])
-      setLoading(true)
+      if (hasLoadedOnce) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
       try {
         const res = await fetch(`/api/teacher/logs?classroom_id=${classroom.id}&date=${selectedDate}`)
         const data = await res.json()
@@ -103,14 +119,16 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         // Clear selection when date changes so summary is visible
         setSelectedStudentId(null)
         onSelectEntry?.(null, '', null)
+        setHasLoadedOnce(true)
       } catch (err) {
         console.error('Error loading logs:', err)
       } finally {
         setLoading(false)
+        setRefreshing(false)
       }
     }
     loadLogs()
-  }, [classroom.id, classDays, selectedDate, onSelectEntry])
+  }, [classroom.id, classDays, selectedDate, onSelectEntry, hasLoadedOnce, isActive])
 
   const isClassDay = useMemo(() => {
     if (!selectedDate) return true
@@ -222,7 +240,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   // Row keys for keyboard navigation (in sorted order)
   const rowKeys = useMemo(() => rows.map((r) => r.student_id), [rows])
 
-  if (loading && logs.length === 0) {
+  if (showBlockingSpinner) {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
@@ -259,6 +277,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           onDeselect={handleDeselect}
         >
           <TableCard>
+            {refreshing && (
+              <RefreshingIndicator />
+            )}
             <DataTable>
             <DataTableHead>
               <DataTableRow>
