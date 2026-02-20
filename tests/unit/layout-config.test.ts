@@ -118,6 +118,7 @@ describe('getRightSidebarCssWidth', () => {
 describe('getRouteKeyFromTab', () => {
   it('should return correct route key for teacher tabs', () => {
     expect(getRouteKeyFromTab('attendance', 'teacher')).toBe('attendance')
+    expect(getRouteKeyFromTab('gradebook', 'teacher')).toBe('gradebook')
     expect(getRouteKeyFromTab('roster', 'teacher')).toBe('roster')
     expect(getRouteKeyFromTab('settings', 'teacher')).toBe('settings')
   })
@@ -151,6 +152,7 @@ describe('ROUTE_CONFIGS', () => {
       'classrooms-list',
       'settings',
       'attendance',
+      'gradebook',
       'roster',
       'today',
       'assignments-student',

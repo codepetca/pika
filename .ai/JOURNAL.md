@@ -2484,3 +2484,152 @@
 - Files: src/components/TeacherStudentWorkPanel.tsx, src/components/StudentAssignmentEditor.tsx
 **Validation:**
 - `pnpm lint` passed
+
+---
+## 2026-02-12 [AI - GPT-5 Codex]
+**Goal:** Build PR A foundation for centralized gradebook (weights + percentages) and split PR B for modular TeachAssist sync engine
+**Completed:**
+- Added gradebook foundation migration with settings, assessment metadata, quiz override storage, and report-card snapshot tables
+- Added pure grade calculation utility and unit tests
+- Added teacher gradebook APIs for matrix/settings and quiz override updates
+- Added new teacher `gradebook` tab, layout/nav wiring, and gradebook roster-style table UI
+- Performed teacher/student screenshot verification and fixed loading-state validation by waiting for rendered selectors
+**Status:** completed
+**Artifacts:**
+- Branch: codex/gradebook-foundation
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-gradebook-foundation
+- Files: supabase/migrations/037_gradebook_foundation.sql, src/lib/gradebook.ts, src/app/api/teacher/gradebook/*, src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx, layout/nav wiring files
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test -- tests/unit/gradebook.test.ts tests/unit/layout-config.test.ts` passed
+- Visual checks: `/tmp/teacher-gradebook-tab.png`, `/tmp/student-gradebook-tab.png`
+
+---
+## 2026-02-15 [AI - GPT-5 Codex]
+**Goal:** Fix student assignment grade feedback card layout to a two-column split
+**Completed:**
+- Updated returned-work grade panel to a responsive two-column layout
+- Left column now contains completion/thinking/workflow scores and total
+- Right column now contains feedback text with fallback when empty
+- Added a vertical divider on desktop (`md`) and stacked layout on smaller screens
+- Performed visual verification screenshots for both teacher and student roles
+**Status:** completed
+**Artifacts:**
+- Branch: codex/student-grade-feedback-card
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-student-grade-feedback-card
+- File: src/components/StudentAssignmentEditor.tsx
+**Validation:**
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx` passed
+- Visual checks: `/tmp/teacher-view-grade-card-2.png`, `/tmp/student-view-grade-card-full.png`
+- Follow-up polish: moved Grade to left / Feedback to right, restored divider, and adjusted score chips to box only earned values (max values unboxed/muted).
+- Final visual checks: `/tmp/student-view-grade-card-6.png`, `/tmp/teacher-view-grade-card-6.png`
+- Final polish pass: card title changed to "Feedback", removed feedback column subheading, set grade/feedback columns to 1/3 and 2/3 with centered inline 80% in Total row.
+- Visual checks: `/tmp/student-view-grade-card-10.png`, `/tmp/teacher-view-grade-card-10.png`
+- Review fix: grade card now renders only when all three score components are present (completion, thinking, workflow) to prevent partial/null score rows.
+- Verification: `pnpm test tests/components/StudentAssignmentsTab.test.tsx`, `/tmp/student-view-grade-card-11.png`, `/tmp/teacher-view-grade-card-11.png`
+- Behavior update: show returned feedback card when returned_at and either feedback text exists or any score exists.
+- Score section now supports incomplete grades (renders available rows), shows Total only for full score set, and shows "No score assigned." when none.
+- Verification: `pnpm test tests/components/StudentAssignmentsTab.test.tsx`, `/tmp/student-view-grade-card-12.png`, `/tmp/teacher-view-grade-card-12.png`
+- Added regression tests for returned feedback card behavior in `tests/components/StudentAssignmentEditor.feedback-card.test.tsx`.
+- Covered feedback-only return, partial-score return, and full-score return with total/percent.
+- Validation: `pnpm test tests/components/StudentAssignmentEditor.feedback-card.test.tsx` and `pnpm test tests/components/StudentAssignmentsTab.test.tsx`
+
+---
+## 2026-02-15 [AI - GPT-5 Codex]
+**Goal:** Fix GH issue #330 classroom UX tab transitions/loading regressions
+**Completed:**
+- Reworked classroom tab navigation to same-document URL/history updates (no App Router churn) for assignments/resources/settings/calendar sections
+- Added popstate synchronization and strict-mode-safe history handling to preserve back/forward behavior
+- Implemented keep-alive tab mounting and stale-while-refresh loading across teacher/student classroom tabs to remove skeleton flashes and full-panel resets
+- Updated assignment/resource/setting/calendar tab components and nav wiring to use callback-driven query param updates
+- Added/updated e2e and unit coverage for same-classroom tab switching and component API updates
+- Performed mandatory visual verification for teacher and student classroom views after UX changes
+**Status:** completed
+**Artifacts:**
+- Branch: codex/330-fix-classroom-tab-transitions
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-330-fix-classroom-tab-transitions
+- Key files: src/app/classrooms/[classroomId]/ClassroomPageClient.tsx, src/components/layout/NavItems.tsx, src/app/classrooms/[classroomId]/*Tab.tsx, e2e/classroom-loading.spec.ts
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/ThreePanelProvider.test.tsx` passed
+- `npx playwright test e2e/classroom-loading.spec.ts --project=chromium-desktop -g "same-classroom"` passed
+- Visual checks: `/tmp/issue330-teacher.png`, `/tmp/issue330-student.png`
+
+---
+## 2026-02-15 [AI - GPT-5 Codex]
+**Goal:** Implement issue #332 phased classroom UX transition/load improvements (Phases 1-5)
+**Completed:**
+- Added shared UX primitives: `TabContentTransition`, `RefreshingIndicator`, and delayed busy helper `useDelayedBusy`
+- Integrated transition/loading primitives into classroom tab shells and key teacher/student tabs to reduce spinner flashes and standardize refresh cues
+- Added same-document tab timing instrumentation (`markClassroomTabSwitchStart/Ready`) and exposed recent metrics for E2E regression checks
+- Implemented intent-based prefetch (hover/focus + idle) for assignments/resources data with bounded request throttling and TTL-backed request cache
+- Added short-lived request cache utility (`fetchJSONWithCache`, `prefetchJSON`, cache invalidation) and wired through assignments/resources/announcements loading paths
+- Added basic per-tab scroll restoration in classroom page client when switching tabs
+- Implemented optimistic UI + rollback for high-frequency teacher actions:
+  - grade save in `TeacherStudentWorkPanel`
+  - create/edit/delete in `TeacherAnnouncementsSection`
+- Extended classroom loading E2E coverage to assert tab-switch timing thresholds using captured metrics
+- Updated affected component/unit tests to match current modal/tab behavior
+- Performed mandatory visual verification screenshots for teacher + student classroom views after UX changes
+**Status:** completed
+**Artifacts:**
+- Branch: codex/332-classroom-ux-phases
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-332-classroom-ux-phases
+- Screenshots: `/tmp/phase332-teacher-classroom.png`, `/tmp/phase332-student-classroom.png`
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/ThreePanelProvider.test.tsx` passed
+- `npx playwright test e2e/classroom-loading.spec.ts --project=chromium-desktop -g "same-classroom"` passed
+
+---
+## 2026-02-20 [AI - GPT-5 Codex]
+**Goal:** Resolve GH issues #334 and #335 in worktree `codex/334-335-assignment-pane-history`
+**Completed:**
+- Closed issue #334 per reporter confirmation (no code change required).
+- Fixed #335 by preserving teacher-selected right-panel mode (`History`/`Grading`) across student switches in `TeacherStudentWorkPanel`.
+- Added regression tests covering both persistence directions:
+  - keep `Grading` selected when switching students
+  - keep `History` selected when switching students
+- Performed required visual verification screenshots for teacher and student views.
+- Closed issue #335 with implementation and validation summary.
+**Status:** completed
+**Artifacts:**
+- Branch: `codex/334-335-assignment-pane-history`
+- Worktree: `/Users/stew/Repos/.worktrees/pika/codex-334-335-assignment-pane-history`
+- Screenshots: `/tmp/issue335-teacher-view.png`, `/tmp/issue335-student-view.png`
+- Key files: `src/components/TeacherStudentWorkPanel.tsx`, `tests/components/TeacherStudentWorkPanel.test.tsx`
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed
+- `pnpm lint` passed
+
+---
+## 2026-02-20 [AI - GPT-5 Codex] (follow-up)
+**Goal:** Add reload persistence for teacher assignment right-panel mode (`History`/`Grading`)
+**Completed:**
+- Added cookie-backed mode persistence in `TeacherStudentWorkPanel` using key `pika_teacher_student_work_tab`.
+- Restored mode from cookie on mount and persisted mode on tab changes.
+- Persisted auto-grade transition to `Grading` via the same cookie path.
+- Extended tests to cover reload persistence and cookie writes.
+- Re-ran mandatory teacher/student screenshots after UI behavior update.
+**Status:** completed
+**Artifacts:**
+- Screenshots: `/tmp/issue335b-teacher-view.png`, `/tmp/issue335b-student-view.png`
+- Key files: `src/components/TeacherStudentWorkPanel.tsx`, `tests/components/TeacherStudentWorkPanel.test.tsx`
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed
+- `pnpm lint` passed
+
+---
+## 2026-02-20 [AI - GPT-5 Codex] (follow-up 2)
+**Goal:** Scope teacher work-panel mode persistence by classroom
+**Completed:**
+- Updated `TeacherStudentWorkPanel` cookie key to be classroom-scoped (`pika_teacher_student_work_tab:<classroomId>`).
+- Passed `classroomId` prop from classroom page into `TeacherStudentWorkPanel`.
+- Extended regression tests with classroom-scoping coverage.
+- Re-ran mandatory teacher/student UI screenshots after behavior update.
+**Status:** completed
+**Artifacts:**
+- Screenshots: `/tmp/issue335c-teacher-view.png`, `/tmp/issue335c-student-view.png`
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed (5 tests)
+- `pnpm lint` passed
