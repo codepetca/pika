@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
-import { readCookie } from '@/lib/cookies'
+import { readCookie, writeCookie } from '@/lib/cookies'
 
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div data-testid="spinner" />,
@@ -99,7 +99,8 @@ function mockFetchByStudent(studentMap: Record<string, { graded: boolean }>) {
 }
 
 function clearRightTabCookie() {
-  document.cookie = 'pika_teacher_student_work_tab=; Path=/; Max-Age=0; SameSite=Lax'
+  document.cookie = 'pika_teacher_student_work_tab%3Aclassroom-1=; Path=/; Max-Age=0; SameSite=Lax'
+  document.cookie = 'pika_teacher_student_work_tab%3Aclassroom-2=; Path=/; Max-Age=0; SameSite=Lax'
 }
 
 describe('TeacherStudentWorkPanel right-tab persistence', () => {
@@ -121,12 +122,16 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
     })
 
     const user = userEvent.setup()
-    const { rerender } = render(<TeacherStudentWorkPanel assignmentId="assignment-1" studentId="student-1" />)
+    const { rerender } = render(
+      <TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />
+    )
 
     await user.click(await screen.findByRole('button', { name: 'Grading' }))
     expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
 
-    rerender(<TeacherStudentWorkPanel assignmentId="assignment-1" studentId="student-2" />)
+    rerender(
+      <TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-2" />
+    )
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith('/api/teacher/assignments/assignment-1/students/student-2')
@@ -142,14 +147,18 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
     })
 
     const user = userEvent.setup()
-    const { rerender } = render(<TeacherStudentWorkPanel assignmentId="assignment-1" studentId="student-1" />)
+    const { rerender } = render(
+      <TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />
+    )
 
     await user.click(await screen.findByRole('button', { name: 'Grading' }))
     expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'History' }))
     expect(await screen.findByText('No saves yet')).toBeInTheDocument()
 
-    rerender(<TeacherStudentWorkPanel assignmentId="assignment-1" studentId="student-2" />)
+    rerender(
+      <TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-2" />
+    )
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith('/api/teacher/assignments/assignment-1/students/student-2')
@@ -159,12 +168,12 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
   })
 
   it('restores grading tab from cookie on initial load', async () => {
-    document.cookie = 'pika_teacher_student_work_tab=grading; Path=/; SameSite=Lax'
+    writeCookie('pika_teacher_student_work_tab:classroom-1', 'grading')
     mockFetchByStudent({
       'student-1': { graded: false },
     })
 
-    render(<TeacherStudentWorkPanel assignmentId="assignment-1" studentId="student-1" />)
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
 
     expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
     expect(screen.queryByText('No saves yet')).not.toBeInTheDocument()
@@ -176,12 +185,24 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
     })
 
     const user = userEvent.setup()
-    render(<TeacherStudentWorkPanel assignmentId="assignment-1" studentId="student-1" />)
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
 
     await user.click(await screen.findByRole('button', { name: 'Grading' }))
-    expect(readCookie('pika_teacher_student_work_tab')).toBe('grading')
+    expect(readCookie('pika_teacher_student_work_tab:classroom-1')).toBe('grading')
 
     await user.click(screen.getByRole('button', { name: 'History' }))
-    expect(readCookie('pika_teacher_student_work_tab')).toBe('history')
+    expect(readCookie('pika_teacher_student_work_tab:classroom-1')).toBe('history')
+  })
+
+  it('scopes right-tab preference per classroom', async () => {
+    writeCookie('pika_teacher_student_work_tab:classroom-2', 'grading')
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
+
+    expect(await screen.findByText('No saves yet')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
   })
 })

@@ -2618,3 +2618,18 @@
 **Validation:**
 - `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed
 - `pnpm lint` passed
+
+---
+## 2026-02-20 [AI - GPT-5 Codex] (follow-up 2)
+**Goal:** Scope teacher work-panel mode persistence by classroom
+**Completed:**
+- Updated `TeacherStudentWorkPanel` cookie key to be classroom-scoped (`pika_teacher_student_work_tab:<classroomId>`).
+- Passed `classroomId` prop from classroom page into `TeacherStudentWorkPanel`.
+- Extended regression tests with classroom-scoping coverage.
+- Re-ran mandatory teacher/student UI screenshots after behavior update.
+**Status:** completed
+**Artifacts:**
+- Screenshots: `/tmp/issue335c-teacher-view.png`, `/tmp/issue335c-student-view.png`
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed (5 tests)
+- `pnpm lint` passed

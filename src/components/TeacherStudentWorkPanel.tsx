@@ -115,14 +115,20 @@ interface StudentWorkData {
 }
 
 interface TeacherStudentWorkPanelProps {
+  classroomId: string
   assignmentId: string
   studentId: string
 }
 
 type RightTab = 'history' | 'grading'
-const RIGHT_TAB_COOKIE = 'pika_teacher_student_work_tab'
+const RIGHT_TAB_COOKIE_PREFIX = 'pika_teacher_student_work_tab'
+
+function getRightTabCookieName(classroomId: string) {
+  return `${RIGHT_TAB_COOKIE_PREFIX}:${classroomId}`
+}
 
 export function TeacherStudentWorkPanel({
+  classroomId,
   assignmentId,
   studentId,
 }: TeacherStudentWorkPanelProps) {
@@ -137,10 +143,11 @@ export function TeacherStudentWorkPanel({
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
+  const rightTabCookieName = getRightTabCookieName(classroomId)
 
   // Grading state
   const [rightTab, setRightTab] = useState<RightTab>(() => (
-    readCookie(RIGHT_TAB_COOKIE) === 'grading' ? 'grading' : 'history'
+    readCookie(getRightTabCookieName(classroomId)) === 'grading' ? 'grading' : 'history'
   ))
   const [scoreCompletion, setScoreCompletion] = useState<string>('')
   const [scoreThinking, setScoreThinking] = useState<string>('')
@@ -153,7 +160,7 @@ export function TeacherStudentWorkPanel({
 
   function handleRightTabChange(nextTab: RightTab) {
     setRightTab(nextTab)
-    writeCookie(RIGHT_TAB_COOKIE, nextTab)
+    writeCookie(rightTabCookieName, nextTab)
   }
 
   function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
