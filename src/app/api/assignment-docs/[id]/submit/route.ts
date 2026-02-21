@@ -118,10 +118,10 @@ export async function POST(
     // Award world XP for submission (idempotent per assignment)
     let achievementsResult: { achievements: { achievementId: string; label: string; xp: number }[]; totalXpAwarded: number; newLevel: number; newUnlocks: number[] } | null = null
     try {
-      const isOnTime =
-        Boolean(doc.submitted_at) &&
-        Boolean(assignment.due_at) &&
-        new Date(doc.submitted_at as string).getTime() <= new Date(assignment.due_at as string).getTime()
+      // No due date = on-time; otherwise compare submitted_at vs due_at
+      const isOnTime = !assignment.due_at ||
+        (Boolean(doc.submitted_at) &&
+         new Date(doc.submitted_at as string).getTime() <= new Date(assignment.due_at as string).getTime())
 
       const response = await awardAssignmentSubmission(
         user.id,

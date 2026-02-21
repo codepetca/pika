@@ -2,6 +2,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { ACHIEVEMENTS } from '@/lib/pet-config'
 import type { AchievementId } from '@/lib/pet-config'
 import { isValidAchievement, calculateLevel, detectNewUnlocks, enrichPetState } from '@/lib/pet'
+import { getTodayInToronto } from '@/lib/timezone'
 import type { UserPet, PetUnlock, PetState, AchievementGrant } from '@/types'
 
 type PetResult<T> =
@@ -174,14 +175,11 @@ export async function grantAchievements(
     }
   }
 
-  // Increment XP
-  const newXp = pet.xp + totalXp
-  const { error: updateError } = await supabase
-    .from('user_pets')
-    .update({ xp: newXp })
-    .eq('id', pet.id)
+  // Atomically increment XP to prevent lost updates under concurrency
+  const { data: newXp, error: updateError } = await supabase
+    .rpc('increment_pet_xp', { p_pet_id: pet.id, p_amount: totalXp })
 
-  if (updateError) {
+  if (updateError || newXp == null) {
     console.error('Error updating pet XP:', updateError)
     return { ok: false, status: 500, error: 'Failed to update XP' }
   }
@@ -215,13 +213,14 @@ export async function checkEntryAchievements(
 ): Promise<void> {
   const supabase = getServiceRoleClient()
 
-  // Fetch all class days (is_class_day=true, date <= today) for this classroom
+  // Fetch all class days (is_class_day=true, date <= today Toronto) for this classroom
+  const today = getTodayInToronto()
   const { data: classDays, error: classDaysError } = await supabase
     .from('class_days')
     .select('date')
     .eq('classroom_id', classroomId)
     .eq('is_class_day', true)
-    .lte('date', new Date().toISOString().slice(0, 10))
+    .lte('date', today)
     .order('date', { ascending: true })
 
   if (classDaysError || !classDays) {
@@ -270,7 +269,6 @@ export async function checkEntryAchievements(
 
   // --- Full week detection ---
   // Group class days by ISO week (Mon-Sun)
-  const today = new Date().toISOString().slice(0, 10)
   const weekMap = new Map<string, string[]>() // "YYYY-Www" -> dates[]
 
   for (const cd of classDays) {
