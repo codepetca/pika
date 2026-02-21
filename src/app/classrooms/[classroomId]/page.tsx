@@ -11,12 +11,19 @@ export const revalidate = 0
 
 interface PageProps {
   params: Promise<{ classroomId: string }>
-  searchParams: Promise<{ tab?: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
 export default async function ClassroomPage({ params, searchParams }: PageProps) {
   const { classroomId } = await params
-  const { tab } = await searchParams
+  const rawSearchParams = await searchParams
+  const initialSearchParams = Object.fromEntries(
+    Object.entries(rawSearchParams).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? value[0] : value,
+    ])
+  ) as Record<string, string | undefined>
+  const tab = initialSearchParams.tab
 
   // 1. Auth check - runs on server
   const user = await getCurrentUser()
@@ -69,6 +76,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         }}
         teacherClassrooms={teacherClassrooms}
         initialTab={tab}
+        initialSearchParams={initialSearchParams}
       />
     )
   }
@@ -112,6 +120,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
       }}
       teacherClassrooms={[]} // Students don't need this
       initialTab={tab}
+      initialSearchParams={initialSearchParams}
     />
   )
 }

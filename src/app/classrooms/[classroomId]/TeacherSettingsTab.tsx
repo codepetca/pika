@@ -1,8 +1,6 @@
 'use client'
 
-import Link from 'next/link'
 import { useMemo, useState, useId } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { Info } from 'lucide-react'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -21,11 +19,15 @@ type SettingsSection = 'general' | 'class-days'
 
 interface Props {
   classroom: Classroom
+  sectionParam?: string | null
+  onSectionChange?: (section: SettingsSection) => void
 }
 
-export function TeacherSettingsTab({ classroom }: Props) {
-  const searchParams = useSearchParams()
-  const sectionParam = searchParams.get('section')
+export function TeacherSettingsTab({
+  classroom,
+  sectionParam,
+  onSectionChange = () => {},
+}: Props) {
   const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
   const allowEnrollmentId = useId()
   const titleId = useId()
@@ -184,8 +186,9 @@ export function TeacherSettingsTab({ classroom }: Props) {
     <PageLayout>
       {/* Sub-tab navigation */}
       <div className="flex border-b border-border mb-4">
-        <Link
-          href={`/classrooms/${classroom.id}?tab=settings&section=general`}
+        <button
+          type="button"
+          onClick={() => onSectionChange('general')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'general'
               ? 'border-primary text-primary'
@@ -193,9 +196,10 @@ export function TeacherSettingsTab({ classroom }: Props) {
           }`}
         >
           General
-        </Link>
-        <Link
-          href={`/classrooms/${classroom.id}?tab=settings&section=class-days`}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSectionChange('class-days')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             section === 'class-days'
               ? 'border-primary text-primary'
@@ -203,7 +207,7 @@ export function TeacherSettingsTab({ classroom }: Props) {
           }`}
         >
           Class Days
-        </Link>
+        </button>
       </div>
 
       {section === 'general' ? (
