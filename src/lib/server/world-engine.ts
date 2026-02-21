@@ -447,11 +447,13 @@ export async function processLoginStreakForAllClassrooms(userId: string): Promis
   }
 }
 
-function getTorontoWeekWindow(now: Date): { start: string; end: string } {
+export function getTorontoWeekWindow(now: Date): { start: string; end: string } {
   const today = parseISO(`${torontoDateString(now)}T00:00:00`)
   const day = Number(formatInTimeZone(now, WORLD_TIMEZONE, 'i')) // 1..7
-  const daysFromFriday = (day + 2) % 7 // if Friday (5) =>0, Sat=>1...
-  const end = subDays(today, daysFromFriday)
+  // Weekly evaluation runs Friday morning; score the last *completed* week (Fri..Thu).
+  // This intentionally excludes the current Friday and carries it into next week's window.
+  const daysFromThursday = (day + 3) % 7 // Thu=4 =>0, Fri=5 =>1, Sat=6 =>2...
+  const end = subDays(today, daysFromThursday)
   const start = subDays(end, 6)
   return { start: torontoDateString(start), end: torontoDateString(end) }
 }
