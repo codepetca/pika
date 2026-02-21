@@ -46,7 +46,6 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     )
   }
 
-  // Check if doc exists
   const { data: existingDoc, error: docError } = await supabase
     .from('assignment_docs')
     .select('id, student_id, content')
@@ -69,7 +68,6 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     )
   }
 
-  // Parse content if it's a string (for backwards compatibility)
   if (existingDoc) {
     existingDoc.content = parseContentField(existingDoc.content)
   }
@@ -81,7 +79,6 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     )
   }
 
-  // Update to submitted state
   const { data: doc, error } = await supabase
     .from('assignment_docs')
     .update({
@@ -100,7 +97,6 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     )
   }
 
-  // Parse content if it's a string (for backwards compatibility)
   if (doc) {
     doc.content = parseContentField(doc.content)
   }

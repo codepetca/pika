@@ -130,13 +130,10 @@ async function awardXpInternal(
     metadata,
   })
 
-  const currentXp = pet.xp ?? 0
-  const updatedXp = currentXp + xpAmount
-  const { error: updateError } = await supabase
-    .from('user_pets')
-    .update({ xp: updatedXp })
-    .eq('id', pet.id)
-  if (updateError) {
+  // Atomically increment XP to prevent lost updates under concurrency
+  const { data: updatedXp, error: updateError } = await supabase
+    .rpc('increment_pet_xp', { p_pet_id: pet.id, p_amount: xpAmount })
+  if (updateError || updatedXp == null) {
     console.error('world:award xp update error', updateError)
   }
 
@@ -146,7 +143,8 @@ async function awardXpInternal(
     .eq('pet_id', pet.id)
 
   const existing = (unlockRows || []).map((u: any) => u.image_index as number)
-  const newLevel = calculateLevel(updatedXp)
+  const effectiveXp = updatedXp ?? ((pet.xp ?? 0) + xpAmount)
+  const newLevel = calculateLevel(effectiveXp)
   const newUnlocks = detectNewUnlocks(existing, newLevel)
   if (newUnlocks.length > 0) {
     await supabase
@@ -436,11 +434,15 @@ export async function processLoginStreakForAllClassrooms(userId: string): Promis
       .eq('id', pet.id)
 
     if (streakDays >= 3) {
-      await supabase.from('pet_rewards').insert({
+      const { error: rewardError } = await supabase.from('pet_rewards').insert({
         pet_id: pet.id,
         reward_type: 'companion.pika_unlocked',
         reward_key: 'streak_3',
       })
+      // 23505 = already granted (idempotent) — ignore; log other errors
+      if (rewardError && rewardError.code !== '23505') {
+        console.error('world:login streak reward error', rewardError)
+      }
     }
   }
 }
