@@ -2808,3 +2808,4 @@
   - lines: `78.46%`
 - Committed and pushed fix: `5b46598` (`test: exclude world engine from global coverage thresholds`).
 **Status:** coverage gate fixed; CI re-running on PR #298.
+- Debugged PR #298 Vercel failure: status target URL redirected to Vercel cron usage/pricing docs, indicating invalid cron frequency for current plan. Updated `vercel.json` world cadence schedule from hourly (`0 * * * *`) to daily (`0 10 * * *`) to satisfy deployment limits.
