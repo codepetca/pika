@@ -100,64 +100,81 @@ async function typeSlowly(locator: Locator, text: string) {
   await locator.type(text, { delay: 60 })
 }
 
-async function installCursorOverlay(page: Page) {
-  await page.addInitScript(() => {
+async function ensureCursorOverlay(page: Page) {
+  await page.evaluate(() => {
     if (document.getElementById('marketing-cursor')) return
+    if (!document.body) return
 
     const style = document.createElement('style')
+    style.id = 'marketing-cursor-style'
     style.innerHTML = `
       #marketing-cursor {
         position: fixed;
-        width: 18px;
-        height: 18px;
+        width: 26px;
+        height: 26px;
         border-radius: 9999px;
-        border: 2px solid rgba(37, 99, 235, 0.95);
-        background: rgba(255, 255, 255, 0.95);
-        box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3);
+        border: 3px solid rgba(37, 99, 235, 0.98);
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25), 0 4px 12px rgba(15, 23, 42, 0.35);
         z-index: 2147483647;
         pointer-events: none;
         transform: translate(-50%, -50%);
-        transition: transform 80ms ease-out;
+        transition: transform 120ms ease-out;
+      }
+      #marketing-cursor::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 6px;
+        height: 6px;
+        border-radius: 9999px;
+        background: rgba(37, 99, 235, 0.95);
+        transform: translate(-50%, -50%);
       }
       .marketing-click-ring {
         position: fixed;
-        width: 28px;
-        height: 28px;
+        width: 44px;
+        height: 44px;
         border-radius: 9999px;
-        border: 2px solid rgba(37, 99, 235, 0.7);
+        border: 3px solid rgba(37, 99, 235, 0.92);
+        box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.4);
         pointer-events: none;
         z-index: 2147483646;
-        transform: translate(-50%, -50%) scale(0.3);
-        animation: marketingClickPulse 360ms ease-out forwards;
+        transform: translate(-50%, -50%) scale(0.35);
+        animation: marketingClickPulse 650ms ease-out forwards;
       }
       @keyframes marketingClickPulse {
         to {
           opacity: 0;
-          transform: translate(-50%, -50%) scale(1.25);
+          transform: translate(-50%, -50%) scale(2);
         }
       }
     `
-    document.head.appendChild(style)
+
+    if (!document.getElementById('marketing-cursor-style')) {
+      document.head.appendChild(style)
+    }
 
     const cursor = document.createElement('div')
     cursor.id = 'marketing-cursor'
-    cursor.style.left = '-100px'
-    cursor.style.top = '-100px'
+    cursor.style.left = '80px'
+    cursor.style.top = '80px'
     document.body.appendChild(cursor)
 
-    document.addEventListener('mousemove', (event) => {
-      cursor.style.left = `${event.clientX}px`
-      cursor.style.top = `${event.clientY}px`
-    })
-
-    document.addEventListener('mousedown', (event) => {
+    const w = window as { [key: string]: unknown }
+    w.__marketingCursorMove = (x: number, y: number) => {
+      cursor.style.left = `${x}px`
+      cursor.style.top = `${y}px`
+    }
+    w.__marketingCursorClick = (x: number, y: number) => {
       const ring = document.createElement('div')
       ring.className = 'marketing-click-ring'
-      ring.style.left = `${event.clientX}px`
-      ring.style.top = `${event.clientY}px`
-      document.body.appendChild(ring)
-      setTimeout(() => ring.remove(), 450)
-    })
+      ring.style.left = `${x}px`
+      ring.style.top = `${y}px`
+      document.body?.appendChild(ring)
+      setTimeout(() => ring.remove(), 700)
+    }
   })
 }
 
@@ -167,8 +184,8 @@ async function clickWithMouse(
   options?: { timeout?: number; holdMs?: number; settleMs?: number }
 ) {
   const timeout = options?.timeout ?? 20_000
-  const holdMs = options?.holdMs ?? 70
-  const settleMs = options?.settleMs ?? 500
+  const holdMs = options?.holdMs ?? 120
+  const settleMs = options?.settleMs ?? 700
   const locator = target.first()
 
   await locator.waitFor({ state: 'visible', timeout })
@@ -179,8 +196,21 @@ async function clickWithMouse(
 
   const x = box.x + box.width / 2
   const y = box.y + box.height / 2
-  await page.mouse.move(x, y, { steps: 22 })
-  await page.waitForTimeout(180)
+
+  await page.evaluate(
+    ([cursorX, cursorY]) => {
+      ;(window as typeof window & { __marketingCursorMove?: (x: number, y: number) => void }).__marketingCursorMove?.(cursorX, cursorY)
+    },
+    [x, y] as const
+  )
+  await page.mouse.move(x, y, { steps: 36 })
+  await page.waitForTimeout(260)
+  await page.evaluate(
+    ([cursorX, cursorY]) => {
+      ;(window as typeof window & { __marketingCursorClick?: (x: number, y: number) => void }).__marketingCursorClick?.(cursorX, cursorY)
+    },
+    [x, y] as const
+  )
   await page.mouse.down()
   await page.waitForTimeout(holdMs)
   await page.mouse.up()
@@ -206,7 +236,6 @@ async function withRecordedContext(
   await applyForcedVisualMode(context)
 
   const page = await context.newPage()
-  await installCursorOverlay(page)
   const video = page.video()
 
   await action(page, classroomId)
@@ -232,6 +261,7 @@ async function withRecordedContext(
 
 async function recordLoginFlow(page: Page) {
   await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' })
+  await ensureCursorOverlay(page)
   await page.waitForSelector('text=Login to Pika', { timeout: 45_000 })
   await page.waitForTimeout(700)
 
@@ -266,6 +296,7 @@ async function recordLoginFlow(page: Page) {
 
 async function recordTeacherFlow(page: Page, classroomId: string) {
   await page.goto(`${BASE_URL}/classrooms`, { waitUntil: 'domcontentloaded' })
+  await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
   await page.waitForTimeout(1600)
 
@@ -274,10 +305,12 @@ async function recordTeacherFlow(page: Page, classroomId: string) {
   })
 
   await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=today`, { waitUntil: 'domcontentloaded' })
+  await ensureCursorOverlay(page)
   await page.waitForSelector('text=Log Summary', { timeout: 45_000 })
   await page.waitForTimeout(1900)
 
   await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=assignments`, { waitUntil: 'domcontentloaded' })
+  await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${ASSIGNMENT_TITLE}`, { timeout: 45_000 })
   await page.waitForTimeout(1600)
 
@@ -299,6 +332,7 @@ async function recordTeacherFlow(page: Page, classroomId: string) {
 
 async function recordStudentFlow(page: Page, classroomId: string) {
   await page.goto(`${BASE_URL}/classrooms`, { waitUntil: 'domcontentloaded' })
+  await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
   await page.waitForTimeout(1500)
 
@@ -307,10 +341,12 @@ async function recordStudentFlow(page: Page, classroomId: string) {
   })
 
   await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=today`, { waitUntil: 'domcontentloaded' })
+  await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
   await page.waitForTimeout(1600)
 
   await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=assignments`, { waitUntil: 'domcontentloaded' })
+  await ensureCursorOverlay(page)
   await page.waitForSelector('text=Returned', { timeout: 45_000 })
   await page.waitForTimeout(1600)
 
