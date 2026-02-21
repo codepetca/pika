@@ -358,6 +358,130 @@ export interface Announcement {
   updated_at: string
 }
 
+// Pet gamification types
+export interface UserPet {
+  id: string
+  user_id: string
+  classroom_id: string
+  xp: number
+  selected_image: number
+  overlay_enabled?: boolean
+  streak_days?: number
+  last_login_day?: string | null
+  season_start?: string | null
+  season_end?: string | null
+  next_daily_spawn_at?: string | null
+  next_weekly_eval_at?: string | null
+  weekly_track_level?: number
+  weekly_track_points?: number
+  created_at: string
+  updated_at: string
+}
+
+export interface PetUnlock {
+  id: string
+  pet_id: string
+  image_index: number
+  unlocked_at: string
+}
+
+export interface XpEvent {
+  id: string
+  pet_id: string
+  source: string
+  xp_amount: number
+  metadata: Record<string, any> | null
+  created_at: string
+}
+
+export interface PetReward {
+  id: string
+  pet_id: string
+  reward_type: string
+  reward_key: string
+  metadata: Record<string, any> | null
+  granted_at: string
+}
+
+export interface AchievementGrant {
+  achievementId: string
+  label: string
+  xp: number
+}
+
+export interface PetState extends UserPet {
+  level: number
+  levelProgress: number
+  levelProgressPercent: number
+  nextUnlockLevel: number | null
+  unlocks: PetUnlock[]
+}
+
+export type WorldTier = 'baseline' | 'nicer' | 'special'
+export type WorldEventStatus = 'claimable' | 'claimed' | 'expired'
+export type WorldEventCategory = 'daily_care' | 'weekly_episode'
+
+export interface WorldDailyEvent {
+  id: string
+  pet_id: string
+  event_day: string
+  event_key: string
+  status: WorldEventStatus
+  claimable_until: string
+  claimed_at: string | null
+  created_at: string
+}
+
+export interface WorldWeeklyResult {
+  id: string
+  pet_id: string
+  eval_week_start: string
+  eval_week_end: string
+  attendance_points: number
+  assignment_points: number
+  care_points: number
+  earned_points: number
+  available_points: number
+  weekly_pct: number
+  tier: WorldTier
+  event_key: string | null
+  bonus_xp: number
+  track_points_awarded: number
+  details: Record<string, any> | null
+  created_at: string
+}
+
+export interface WorldEventCatalogItem {
+  key: string
+  tier: WorldTier
+  category: WorldEventCategory
+  era_min: string
+  title: string
+  description: string
+  modifiers: Record<string, any>
+  weight: number
+  cooldown_weeks: number
+  active: boolean
+  created_at: string
+}
+
+export interface WorldState extends PetState {
+  overlay_enabled: boolean
+  streak_days: number
+  last_login_day: string | null
+  season_start: string | null
+  season_end: string | null
+  next_daily_spawn_at: string | null
+  next_weekly_eval_at: string | null
+  weekly_track_level: number
+  weekly_track_points: number
+}
+
+export interface StudentWorldSnapshot {
+  world: WorldState
+  dailyEvent: WorldDailyEvent | null
+  latestWeeklyResult: WorldWeeklyResult | null
+}
 export interface GradebookSettings {
   classroom_id: string
   use_weights: boolean

@@ -19,6 +19,8 @@ import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
+import { usePetLevelUp } from '@/hooks/usePetLevelUp'
+import { LevelUpCelebration } from '@/components/pet/LevelUpCelebration'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
 export interface StudentAssignmentEditorHandle {
@@ -46,6 +48,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 }, ref) {
   const router = useRouter()
   const notifications = useStudentNotifications()
+  const { checkLevel, celebrationState, dismissCelebration } = usePetLevelUp(classroomId)
   const isEmbedded = variant === 'embedded'
 
   const AUTOSAVE_DEBOUNCE_MS = 5000
@@ -267,6 +270,9 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       }
 
       setDoc(data.doc)
+      if (data.achievements?.newLevel != null) {
+        checkLevel(data.achievements.newLevel)
+      }
       // Update lastSavedContentRef to match the current content after successful submit
       lastSavedContentRef.current = JSON.stringify(content)
       setSaveStatus('saved')
@@ -276,7 +282,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     } finally {
       setSubmitting(false)
     }
-  }, [assignmentId, content, saveContent])
+  }, [assignmentId, content, saveContent, checkLevel])
 
   const handleUnsubmit = useCallback(async () => {
     setSubmitting(true)
@@ -749,6 +755,14 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
             timeStyle: 'short',
           })}
         </div>
+      )}
+
+      {celebrationState && (
+        <LevelUpCelebration
+          isOpen={celebrationState.isOpen}
+          newLevel={celebrationState.newLevel}
+          onClose={dismissCelebration}
+        />
       )}
     </div>
   )
