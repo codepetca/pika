@@ -5,6 +5,21 @@ import { mkdirSync } from 'fs'
 import { copyFile, rename } from 'fs/promises'
 import { basename, resolve } from 'path'
 
+type CapturePacingMode = 'normal' | 'slow'
+
+type CapturePacingProfile = {
+  typingDelayMs: number
+  preClickPauseMs: number
+  mouseMoveBaseMs: number
+  mouseMoveMaxMs: number
+  mouseMoveStepBase: number
+  holdMs: number
+  settleMs: number
+  shortPauseMs: number
+  mediumPauseMs: number
+  longPauseMs: number
+}
+
 const WORKTREE = process.cwd()
 const BASE_URL = process.env.CAPTURE_BASE_URL || 'http://localhost:3017'
 const ENV_FILE = process.env.ENV_FILE || '.env.local'
@@ -16,19 +31,134 @@ const ASSIGNMENT_TITLE = process.env.CAPTURE_ASSIGNMENT_TITLE || 'Personal Narra
 const CAPTURE_PASSWORD = process.env.CAPTURE_PASSWORD || 'test1234'
 const FORCE_LEFT_SIDEBAR_EXPANDED = process.env.CAPTURE_LEFT_SIDEBAR_EXPANDED === 'true'
 const FORCE_DARK_MODE = process.env.CAPTURE_DARK_MODE === 'true'
+const CAPTURE_ALLOW_LOCAL = process.env.CAPTURE_ALLOW_LOCAL_MARKETING === 'true'
+const CAPTURE_PACING_MODE = (process.env.CAPTURE_PACING_MODE || 'normal').toLowerCase() as CapturePacingMode
+
+const PACING_BY_MODE: Record<CapturePacingMode, CapturePacingProfile> = {
+  normal: {
+    typingDelayMs: 62,
+    preClickPauseMs: 220,
+    mouseMoveBaseMs: 350,
+    mouseMoveMaxMs: 900,
+    mouseMoveStepBase: 22,
+    holdMs: 110,
+    settleMs: 760,
+    shortPauseMs: 820,
+    mediumPauseMs: 1500,
+    longPauseMs: 2600,
+  },
+  slow: {
+    typingDelayMs: 86,
+    preClickPauseMs: 360,
+    mouseMoveBaseMs: 540,
+    mouseMoveMaxMs: 1300,
+    mouseMoveStepBase: 34,
+    holdMs: 150,
+    settleMs: 1100,
+    shortPauseMs: 1100,
+    mediumPauseMs: 2100,
+    longPauseMs: 3400,
+  },
+}
 
 const AUTH_DIR = resolve(WORKTREE, '.auth')
 const TEACHER_STORAGE = resolve(AUTH_DIR, 'teacher.json')
 const STUDENT_STORAGE = resolve(AUTH_DIR, 'student.json')
 const OUT_DIR = resolve(WORKTREE, 'artifacts', 'marketing', 'video')
 const RAW_DIR = resolve(OUT_DIR, 'raw')
+const CURSOR_POSITION = new WeakMap<Page, { x: number; y: number }>()
 
 config({ path: resolve(WORKTREE, ENV_FILE) })
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY
 
+const PACING = PACING_BY_MODE[CAPTURE_PACING_MODE] || PACING_BY_MODE.normal
+
 mkdirSync(RAW_DIR, { recursive: true })
+
+function assertNonLocalCaptureBaseUrl() {
+  let parsed: URL
+  try {
+    parsed = new URL(BASE_URL)
+  } catch {
+    throw new Error(`Invalid CAPTURE_BASE_URL: "${BASE_URL}"`)
+  }
+
+  const hostname = parsed.hostname.toLowerCase()
+  const localHosts = new Set(['localhost', '127.0.0.1', '::1'])
+
+  if (localHosts.has(hostname) && !CAPTURE_ALLOW_LOCAL) {
+    throw new Error(
+      `Marketing capture is locked to non-local URLs. Current CAPTURE_BASE_URL="${BASE_URL}". ` +
+        `Set CAPTURE_ALLOW_LOCAL_MARKETING=true only if you intentionally want local capture.`
+    )
+  }
+}
+
+function randomBetween(min: number, max: number) {
+  return Math.random() * (max - min) + min
+}
+
+function withVariance(baseMs: number, varianceFraction = 0.12, minimumMs = 40) {
+  const variance = baseMs * varianceFraction
+  const randomized = baseMs + randomBetween(-variance, variance)
+  return Math.max(minimumMs, Math.round(randomized))
+}
+
+async function humanPause(page: Page, baseMs: number, varianceFraction = 0.12) {
+  await page.waitForTimeout(withVariance(baseMs, varianceFraction))
+}
+
+async function setCursorOverlayPosition(page: Page, x: number, y: number) {
+  await page.evaluate(
+    ([cursorX, cursorY]) => {
+      ;(window as typeof window & { __marketingCursorMove?: (x: number, y: number) => void }).__marketingCursorMove?.(
+        cursorX,
+        cursorY
+      )
+    },
+    [x, y] as const
+  )
+}
+
+async function animateCursorTo(page: Page, targetX: number, targetY: number) {
+  const start = CURSOR_POSITION.get(page) || { x: 80, y: 80 }
+  const waypoints = [
+    {
+      x: start.x + (targetX - start.x) * 0.45 + randomBetween(-24, 24),
+      y: start.y + (targetY - start.y) * 0.45 + randomBetween(-18, 18),
+    },
+    {
+      x: targetX + randomBetween(-10, 10),
+      y: targetY + randomBetween(-8, 8),
+    },
+    { x: targetX, y: targetY },
+  ]
+
+  let previous = start
+  for (const waypoint of waypoints) {
+    const distance = Math.hypot(waypoint.x - previous.x, waypoint.y - previous.y)
+    const duration = Math.min(PACING.mouseMoveMaxMs, PACING.mouseMoveBaseMs + distance * 0.95)
+    const steps = Math.max(10, Math.round(PACING.mouseMoveStepBase + distance / 80))
+
+    for (let step = 1; step <= steps; step += 1) {
+      const t = step / steps
+      const eased = t * t * (3 - 2 * t)
+      const jitterScale = (1 - t) * 0.9
+      const x = previous.x + (waypoint.x - previous.x) * eased + randomBetween(-1.4, 1.4) * jitterScale
+      const y = previous.y + (waypoint.y - previous.y) * eased + randomBetween(-1.4, 1.4) * jitterScale
+
+      await page.mouse.move(x, y)
+      await setCursorOverlayPosition(page, x, y)
+      await page.waitForTimeout(Math.max(8, Math.round(duration / steps)))
+    }
+
+    previous = waypoint
+  }
+
+  CURSOR_POSITION.set(page, { x: targetX, y: targetY })
+}
 
 async function resolveClassroomId() {
   if (CLASSROOM_ID_OVERRIDE) return CLASSROOM_ID_OVERRIDE
@@ -97,7 +227,7 @@ async function clickFirstIfPresent(page: Page, selectorName: string, action: () 
 async function typeSlowly(locator: Locator, text: string) {
   await locator.click({ timeout: 10_000 })
   await locator.fill('')
-  await locator.type(text, { delay: 60 })
+  await locator.type(text, { delay: PACING.typingDelayMs })
 }
 
 async function ensureCursorOverlay(page: Page) {
@@ -176,6 +306,9 @@ async function ensureCursorOverlay(page: Page) {
       setTimeout(() => ring.remove(), 700)
     }
   })
+  if (!CURSOR_POSITION.has(page)) {
+    CURSOR_POSITION.set(page, { x: 80, y: 80 })
+  }
 }
 
 async function clickWithMouse(
@@ -184,8 +317,8 @@ async function clickWithMouse(
   options?: { timeout?: number; holdMs?: number; settleMs?: number }
 ) {
   const timeout = options?.timeout ?? 20_000
-  const holdMs = options?.holdMs ?? 120
-  const settleMs = options?.settleMs ?? 700
+  const holdMs = options?.holdMs ?? PACING.holdMs
+  const settleMs = options?.settleMs ?? PACING.settleMs
   const locator = target.first()
 
   await locator.waitFor({ state: 'visible', timeout })
@@ -197,14 +330,8 @@ async function clickWithMouse(
   const x = box.x + box.width / 2
   const y = box.y + box.height / 2
 
-  await page.evaluate(
-    ([cursorX, cursorY]) => {
-      ;(window as typeof window & { __marketingCursorMove?: (x: number, y: number) => void }).__marketingCursorMove?.(cursorX, cursorY)
-    },
-    [x, y] as const
-  )
-  await page.mouse.move(x, y, { steps: 36 })
-  await page.waitForTimeout(260)
+  await animateCursorTo(page, x, y)
+  await humanPause(page, PACING.preClickPauseMs)
   await page.evaluate(
     ([cursorX, cursorY]) => {
       ;(window as typeof window & { __marketingCursorClick?: (x: number, y: number) => void }).__marketingCursorClick?.(cursorX, cursorY)
@@ -212,9 +339,9 @@ async function clickWithMouse(
     [x, y] as const
   )
   await page.mouse.down()
-  await page.waitForTimeout(holdMs)
+  await humanPause(page, holdMs, 0.08)
   await page.mouse.up()
-  await page.waitForTimeout(settleMs)
+  await humanPause(page, settleMs, 0.1)
 }
 
 async function withRecordedContext(
@@ -239,7 +366,7 @@ async function withRecordedContext(
   const video = page.video()
 
   await action(page, classroomId)
-  await page.waitForTimeout(1000)
+  await humanPause(page, PACING.shortPauseMs)
 
   await context.close()
   await browser.close()
@@ -263,42 +390,29 @@ async function recordLoginFlow(page: Page) {
   await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' })
   await ensureCursorOverlay(page)
   await page.waitForSelector('text=Login to Pika', { timeout: 45_000 })
-  await page.waitForTimeout(700)
+  await humanPause(page, PACING.shortPauseMs)
 
-  let loggedIn = false
-  try {
-    await clickWithMouse(page, page.getByRole('button', { name: /^Teacher$/i }), {
-      timeout: 20_000,
-      settleMs: 1200,
-    })
-    await page.waitForURL(/\/classrooms/, { timeout: 12_000, waitUntil: 'domcontentloaded' })
-    loggedIn = true
-  } catch {
-    console.warn('Quick login not available, falling back to typed login')
-  }
-
-  if (!loggedIn) {
-    const emailInput = page.getByLabel(/School Email/i)
-    const passwordInput = page.getByLabel(/Password/i)
-    await emailInput.waitFor({ timeout: 15_000 })
-    await typeSlowly(emailInput, CAPTURE_TEACHER_EMAIL)
-    await typeSlowly(passwordInput, CAPTURE_PASSWORD)
-    await clickWithMouse(page, page.getByRole('button', { name: /^Login$/i }), {
-      timeout: 15_000,
-      settleMs: 1400,
-    })
-    await page.waitForURL(/\/classrooms/, { timeout: 45_000, waitUntil: 'domcontentloaded' })
-  }
+  const emailInput = page.getByLabel(/School Email/i)
+  const passwordInput = page.getByLabel(/Password/i)
+  await emailInput.waitFor({ timeout: 15_000 })
+  await typeSlowly(emailInput, CAPTURE_TEACHER_EMAIL)
+  await humanPause(page, PACING.shortPauseMs * 0.35)
+  await typeSlowly(passwordInput, CAPTURE_PASSWORD)
+  await clickWithMouse(page, page.getByRole('button', { name: /^Login$/i }), {
+    timeout: 15_000,
+    settleMs: withVariance(PACING.mediumPauseMs * 0.7, 0.08),
+  })
+  await page.waitForURL(/\/classrooms/, { timeout: 45_000, waitUntil: 'domcontentloaded' })
 
   await page.waitForSelector('text=Classrooms', { timeout: 45_000 })
-  await page.waitForTimeout(1800)
+  await humanPause(page, PACING.mediumPauseMs)
 }
 
 async function recordTeacherFlow(page: Page, classroomId: string) {
   await page.goto(`${BASE_URL}/classrooms`, { waitUntil: 'domcontentloaded' })
   await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
-  await page.waitForTimeout(1600)
+  await humanPause(page, PACING.mediumPauseMs)
 
   await clickFirstIfPresent(page, 'teacher classroom card click', async () => {
     await clickWithMouse(page, page.getByText(CLASSROOM_TITLE), { timeout: 15_000, settleMs: 1200 })
@@ -307,16 +421,16 @@ async function recordTeacherFlow(page: Page, classroomId: string) {
   await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=today`, { waitUntil: 'domcontentloaded' })
   await ensureCursorOverlay(page)
   await page.waitForSelector('text=Log Summary', { timeout: 45_000 })
-  await page.waitForTimeout(1900)
+  await humanPause(page, PACING.mediumPauseMs + 300)
 
   await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=assignments`, { waitUntil: 'domcontentloaded' })
   await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${ASSIGNMENT_TITLE}`, { timeout: 45_000 })
-  await page.waitForTimeout(1600)
+  await humanPause(page, PACING.mediumPauseMs)
 
   await clickWithMouse(page, page.getByText(ASSIGNMENT_TITLE), { timeout: 45_000, settleMs: 1300 })
   await page.waitForSelector('text=First Name', { timeout: 45_000 })
-  await page.waitForTimeout(1500)
+  await humanPause(page, PACING.mediumPauseMs)
 
   await clickFirstIfPresent(page, 'select Ava row', async () => {
     await clickWithMouse(page, page.getByRole('cell', { name: 'Ava', exact: true }), { timeout: 20_000, settleMs: 1000 })
@@ -327,14 +441,14 @@ async function recordTeacherFlow(page: Page, classroomId: string) {
   })
 
   await page.waitForSelector('text=Completion', { timeout: 45_000 })
-  await page.waitForTimeout(3000)
+  await humanPause(page, PACING.longPauseMs)
 }
 
 async function recordStudentFlow(page: Page, classroomId: string) {
   await page.goto(`${BASE_URL}/classrooms`, { waitUntil: 'domcontentloaded' })
   await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
-  await page.waitForTimeout(1500)
+  await humanPause(page, PACING.mediumPauseMs)
 
   await clickFirstIfPresent(page, 'student classroom card click', async () => {
     await clickWithMouse(page, page.getByText(CLASSROOM_TITLE), { timeout: 15_000, settleMs: 1000 })
@@ -343,12 +457,12 @@ async function recordStudentFlow(page: Page, classroomId: string) {
   await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=today`, { waitUntil: 'domcontentloaded' })
   await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
-  await page.waitForTimeout(1600)
+  await humanPause(page, PACING.mediumPauseMs)
 
   await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=assignments`, { waitUntil: 'domcontentloaded' })
   await ensureCursorOverlay(page)
   await page.waitForSelector('text=Returned', { timeout: 45_000 })
-  await page.waitForTimeout(1600)
+  await humanPause(page, PACING.mediumPauseMs)
 
   await clickFirstIfPresent(page, 'student returned work click', async () => {
     await clickWithMouse(page, page.getByText(ASSIGNMENT_TITLE), { timeout: 30_000, settleMs: 2300 })
@@ -356,6 +470,10 @@ async function recordStudentFlow(page: Page, classroomId: string) {
 }
 
 async function run() {
+  assertNonLocalCaptureBaseUrl()
+  console.log(`Walkthrough capture base URL: ${BASE_URL}`)
+  console.log(`Pacing mode: ${CAPTURE_PACING_MODE}`)
+
   const classroomId = await resolveClassroomId()
 
   await withRecordedContext(undefined, 'login-flow.webm', recordLoginFlow, classroomId)

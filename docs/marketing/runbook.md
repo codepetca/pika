@@ -1,16 +1,14 @@
 # Marketing Engine Runbook
 
 ## Preconditions
-1. Dev server running at `http://localhost:3017`:
-   ```bash
-   PORT=3017 pnpm dev
-   ```
+1. Staging URL available and reachable (recommended capture target).
 2. Valid env file present (`.env.local` by default), or set `ENV_FILE=...`.
 3. `ffmpeg` available on PATH.
+4. Non-local capture guard is enabled by default. To run locally, set `CAPTURE_ALLOW_LOCAL_MARKETING=true`.
 
 ## One-command build
 ```bash
-ALLOW_MARKETING_SEED=true CAPTURE_BASE_URL=http://localhost:3017 pnpm build:marketing
+CAPTURE_BASE_URL=https://your-staging-host CAPTURE_PACING_MODE=slow pnpm build:marketing
 ```
 
 ## Phase commands (optional)
@@ -23,6 +21,12 @@ pnpm voiceover:marketing
 pnpm captions:marketing
 pnpm video:marketing
 pnpm bundle:marketing
+```
+
+## Local dry-run override (optional)
+```bash
+PORT=3017 pnpm dev
+CAPTURE_ALLOW_LOCAL_MARKETING=true ALLOW_MARKETING_SEED=true CAPTURE_BASE_URL=http://localhost:3017 pnpm build:marketing
 ```
 
 ## Output

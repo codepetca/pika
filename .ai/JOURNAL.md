@@ -2625,3 +2625,23 @@
 - `ALLOW_MARKETING_SEED=true CAPTURE_BASE_URL=http://localhost:3017 CAPTURE_LEFT_SIDEBAR_EXPANDED=true CAPTURE_DARK_MODE=true pnpm build:marketing` passed
 **Blockers:**
 - None
+
+---
+## 2026-02-21 [AI - GPT-5 Codex]
+**Goal:** Tighten marketing capture scripts for staging-first operation and smoother human-like walkthrough pacing
+**Completed:**
+- Committed existing cursor overlay visibility/motion improvements in `scripts/marketing/walkthrough.ts` plus temporary cursor debug script `tmp-check-cursor.ts`
+- Enforced staging-first capture guard in `scripts/marketing/auth.ts`, `scripts/marketing/capture.ts`, and `scripts/marketing/walkthrough.ts`
+  - Default behavior now blocks localhost capture unless `CAPTURE_ALLOW_LOCAL_MARKETING=true` is explicitly set
+- Removed quick-login fallback from walkthrough login capture; login flow now always uses typed credentials
+- Added configurable pacing profiles in walkthrough capture (`CAPTURE_PACING_MODE=normal|slow`)
+  - Includes humanized delays, animated cursor travel, pre-click dwell, click hold, and settle timing
+- Updated marketing docs to reflect staging-first behavior and local override usage
+  - `scripts/marketing/README.md`
+  - `docs/marketing/runbook.md`
+**Status:** completed
+**Validation:**
+- `pnpm walkthrough:marketing` fails fast on localhost without override (expected)
+- `CAPTURE_ALLOW_LOCAL_MARKETING=true CAPTURE_BASE_URL=http://localhost:3017 pnpm walkthrough:marketing` reaches runtime capture path (fails only because local server was not running)
+- `pnpm auth:marketing` and `pnpm capture:marketing` both fail fast on localhost without override (expected)
+- `pnpm lint` passed

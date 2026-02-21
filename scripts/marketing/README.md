@@ -15,25 +15,29 @@ This folder contains modular capture/audio scripts used to generate marketing as
 
 ## Environment
 - Base URL: `CAPTURE_BASE_URL` (default `http://localhost:3017`)
+- Capture guard: non-local URLs are required by default. Set `CAPTURE_ALLOW_LOCAL_MARKETING=true` only when intentionally capturing local dev.
 - Classroom: `CAPTURE_CLASS_CODE` (default `MKT101`)
 - Env file: `ENV_FILE` (default `.env.local`)
 - Auth users:
   - `CAPTURE_TEACHER_EMAIL` (default `teacher.marketing@example.com`)
   - `CAPTURE_STUDENT_EMAIL` (default `ava.chen@example.com`)
   - `CAPTURE_PASSWORD` (default `test1234`)
+- Pacing: `CAPTURE_PACING_MODE=normal|slow` (default `normal`)
 - UI mode flags:
   - `CAPTURE_LEFT_SIDEBAR_EXPANDED=true`
   - `CAPTURE_DARK_MODE=true`
 
 ## Full Build
-Run this after starting the app locally:
+Run this against staging (recommended):
 
 ```bash
-PORT=3017 pnpm dev
+CAPTURE_BASE_URL=https://your-staging-host pnpm auth:marketing
+CAPTURE_BASE_URL=https://your-staging-host CAPTURE_PACING_MODE=slow pnpm walkthrough:marketing
+pnpm video:marketing
 ```
 
-Then in another terminal:
-
+For local-only dry runs:
 ```bash
-ALLOW_MARKETING_SEED=true CAPTURE_BASE_URL=http://localhost:3017 pnpm build:marketing
+PORT=3017 pnpm dev
+CAPTURE_ALLOW_LOCAL_MARKETING=true ALLOW_MARKETING_SEED=true CAPTURE_BASE_URL=http://localhost:3017 pnpm build:marketing
 ```

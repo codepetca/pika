@@ -14,6 +14,7 @@ const CLASSROOM_ID_OVERRIDE = process.env.CAPTURE_CLASSROOM_ID
 const CAPTURE_TEACHER_EMAIL = process.env.CAPTURE_TEACHER_EMAIL || 'teacher.marketing@example.com'
 const FORCE_LEFT_SIDEBAR_EXPANDED = process.env.CAPTURE_LEFT_SIDEBAR_EXPANDED === 'true'
 const FORCE_DARK_MODE = process.env.CAPTURE_DARK_MODE === 'true'
+const CAPTURE_ALLOW_LOCAL = process.env.CAPTURE_ALLOW_LOCAL_MARKETING === 'true'
 const ENV_FILE = process.env.ENV_FILE || '.env.local'
 config({ path: resolve(WORKTREE, ENV_FILE) })
 
@@ -21,6 +22,24 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY
 
 mkdirSync(OUT_DIR, { recursive: true })
+
+function assertNonLocalCaptureBaseUrl() {
+  let parsed: URL
+  try {
+    parsed = new URL(BASE_URL)
+  } catch {
+    throw new Error(`Invalid CAPTURE_BASE_URL: "${BASE_URL}"`)
+  }
+
+  const hostname = parsed.hostname.toLowerCase()
+  const localHosts = new Set(['localhost', '127.0.0.1', '::1'])
+  if (localHosts.has(hostname) && !CAPTURE_ALLOW_LOCAL) {
+    throw new Error(
+      `Marketing screenshot capture is locked to non-local URLs. Current CAPTURE_BASE_URL="${BASE_URL}". ` +
+        `Set CAPTURE_ALLOW_LOCAL_MARKETING=true only if local capture is intentional.`
+    )
+  }
+}
 
 type CaptureSpec = {
   name: string
@@ -118,6 +137,9 @@ async function capture(spec: CaptureSpec, classroomId: string) {
 }
 
 async function run() {
+  assertNonLocalCaptureBaseUrl()
+  console.log(`Screenshot capture base URL: ${BASE_URL}`)
+
   const classroomId = await resolveClassroomId()
   const specs: CaptureSpec[] = [
     {
