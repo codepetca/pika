@@ -2710,3 +2710,19 @@
 - `pnpm run lint` passed
 - `pnpm test tests/components/RichTextEditor.test.tsx` passed
 - `PORT=3103 E2E_BASE_URL=http://localhost:3103 CI=1 npx playwright test e2e/editor-spellcheck.spec.ts --project=chromium-desktop` passed (4 passed, 0 skipped)
+
+---
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Harden E2E assignment cleanup to prevent leaked test data
+**Completed:**
+- Updated `deleteAssignment` helper in `e2e/editor-spellcheck.spec.ts` to verify delete response success
+- Added one retry with short backoff for transient cleanup failures
+- Added detailed failure message including status code and response body when cleanup fails
+**Status:** completed
+**Artifacts:**
+- Branch: codex/spellcheck-phase1
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-spellcheck-phase1
+- File: e2e/editor-spellcheck.spec.ts
+**Validation:**
+- `pnpm run lint` passed
+- `PORT=3104 E2E_BASE_URL=http://localhost:3104 CI=1 npx playwright test e2e/editor-spellcheck.spec.ts --project=chromium-desktop` passed (4 passed, 0 skipped)

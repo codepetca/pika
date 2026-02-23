@@ -71,7 +71,20 @@ async function deleteAssignment(assignmentId: string): Promise<void> {
     storageState: TEACHER_STORAGE,
   })
   try {
-    await teacherApi.delete(`/api/teacher/assignments/${assignmentId}`)
+    let lastError: string | null = null
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const response = await teacherApi.delete(`/api/teacher/assignments/${assignmentId}`)
+      if (response.ok()) {
+        return
+      }
+
+      const bodyText = await response.text()
+      lastError = `Delete assignment failed (attempt ${attempt}, status ${response.status()}): ${bodyText || '<empty body>'}`
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+
+    throw new Error(lastError ?? 'Delete assignment failed with unknown error')
   } finally {
     await teacherApi.dispose()
   }
