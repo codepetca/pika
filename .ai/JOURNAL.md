@@ -2639,3 +2639,22 @@
 **Validation:**
 - `pnpm test tests/components/RichTextEditor.test.tsx` passed
 - `pnpm run lint` passed
+
+---
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Keep native spellcheck always on and remove user toggle UI
+**Completed:**
+- Removed spellcheck toggle UI and localStorage preference plumbing from `RichTextEditor`
+- Restored always-on native spellcheck/autocorrect/autocapitalize behavior for editable mode
+- Removed `showSpellcheckToggle` prop support and cleaned Student Today editor usage
+- Removed toggle-related unit tests and kept baseline editable/non-editable spellcheck assertions
+- Performed visual verification for teacher and student editor views after removing the toggle
+**Status:** completed
+**Artifacts:**
+- Branch: codex/spellcheck-phase1
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-spellcheck-phase1
+- Files: src/components/editor/RichTextEditor.tsx, src/app/classrooms/[classroomId]/StudentTodayTab.tsx, tests/components/RichTextEditor.test.tsx
+- Screenshots: `/tmp/spellcheck-no-toggle-teacher-editor.png`, `/tmp/spellcheck-no-toggle-student-editor.png`
+**Validation:**
+- `pnpm test tests/components/RichTextEditor.test.tsx` passed
+- `pnpm run lint` passed
