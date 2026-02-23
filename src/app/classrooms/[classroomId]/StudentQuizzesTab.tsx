@@ -1,12 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
-import { Button } from '@/ui'
 import { getQuizStatusBadgeClass } from '@/lib/quizzes'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
 import { StudentQuizResults } from '@/components/StudentQuizResults'
@@ -20,6 +18,7 @@ import type {
 
 interface Props {
   classroom: Classroom
+  assessmentType: QuizAssessmentType
 }
 
 type RouteExitSource = 'back_button' | 'pagehide' | 'component_unmount'
@@ -35,13 +34,7 @@ function createFocusSessionId(): string {
   return `focus_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-export function StudentQuizzesTab({ classroom }: Props) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const activeAssessmentType: QuizAssessmentType =
-    searchParams.get('quizType') === 'test' ? 'test' : 'quiz'
-
+export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
   const notifications = useStudentNotifications()
   const [quizzes, setQuizzes] = useState<StudentQuizView[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,7 +70,7 @@ export function StudentQuizzesTab({ classroom }: Props) {
     try {
       const query = new URLSearchParams({
         classroom_id: classroom.id,
-        assessment_type: activeAssessmentType,
+        assessment_type: assessmentType,
       })
       const res = await fetch(`/api/student/quizzes?${query.toString()}`)
       const data = await res.json()
@@ -87,26 +80,11 @@ export function StudentQuizzesTab({ classroom }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [activeAssessmentType, classroom.id])
+  }, [assessmentType, classroom.id])
 
   useEffect(() => {
     loadQuizzes()
   }, [loadQuizzes])
-
-  function handleAssessmentTypeChange(nextType: QuizAssessmentType) {
-    if (nextType === activeAssessmentType) return
-    const params = new URLSearchParams(searchParams.toString())
-    if (nextType === 'quiz') {
-      params.delete('quizType')
-    } else {
-      params.set('quizType', nextType)
-    }
-    const query = params.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-    setSelectedQuizId(null)
-    setSelectedQuiz(null)
-    setFocusSummary(null)
-  }
 
   async function handleSelectQuiz(quizId: string) {
     setSelectedQuizId(quizId)
@@ -284,6 +262,7 @@ export function StudentQuizzesTab({ classroom }: Props) {
   if (selectedQuizId && selectedQuiz) {
     const hasResponded = Object.keys(selectedQuiz.studentResponses).length > 0
     const isTest = selectedQuiz.quiz.assessment_type === 'test'
+    const assessmentLabelPlural = isTest ? 'tests' : 'quizzes'
 
     return (
       <PageLayout>
@@ -295,7 +274,7 @@ export function StudentQuizzesTab({ classroom }: Props) {
               className="flex items-center gap-1 text-sm text-text-muted hover:text-text-default mb-4"
             >
               <ChevronLeft className="h-4 w-4" />
-              Back to quizzes
+              Back to {assessmentLabelPlural}
             </button>
 
             <h2 className="text-xl font-bold text-text-default mb-1">{selectedQuiz.quiz.title}</h2>
@@ -349,34 +328,9 @@ export function StudentQuizzesTab({ classroom }: Props) {
     <PageLayout>
       <PageContent>
         <div className="max-w-2xl mx-auto">
-          <div className="mb-4 inline-flex rounded-lg border border-border bg-surface p-1">
-            <button
-              type="button"
-              onClick={() => handleAssessmentTypeChange('quiz')}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                activeAssessmentType === 'quiz'
-                  ? 'bg-primary text-text-inverse'
-                  : 'text-text-muted hover:text-text-default'
-              }`}
-            >
-              Quizzes
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAssessmentTypeChange('test')}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                activeAssessmentType === 'test'
-                  ? 'bg-primary text-text-inverse'
-                  : 'text-text-muted hover:text-text-default'
-              }`}
-            >
-              Tests
-            </button>
-          </div>
-
           {quizzes.length === 0 ? (
             <p className="text-text-muted text-center py-8">
-              No {activeAssessmentType === 'test' ? 'tests' : 'quizzes'} available.
+              No {assessmentType === 'test' ? 'tests' : 'quizzes'} available.
             </p>
           ) : (
             <div className="space-y-3">

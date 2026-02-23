@@ -2699,3 +2699,35 @@
 - `pnpm exec tsc --noEmit` passed
 - `pnpm lint` passed
 - `pnpm vitest run tests/unit/quizzes.test.ts tests/components/TeacherQuizzesTab.test.tsx` passed
+
+## 2026-02-23 — Follow-up: make Tests a first-class sidebar tab
+**Context:** Reworked classroom navigation so `Tests` is no longer nested within `Quizzes`, and cleaned up sidebar UX.
+
+**Changes:**
+- Added `tests` as a distinct classroom sidebar tab for both teacher and student in `src/components/layout/NavItems.tsx`.
+- Updated quizzes/tests rendering in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`:
+  - `tab=quizzes` renders quiz-only views.
+  - `tab=tests` renders test-only views.
+  - Right inspector empty state now adapts (`Select a quiz...` / `Select a test...`).
+- Updated quiz tab components to be route-driven by parent tab instead of internal toggle:
+  - `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`
+  - `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+- Mapped `tests` to existing quiz layout keys in `src/lib/layout-config.ts`.
+- Updated tests:
+  - `tests/components/TeacherQuizzesTab.test.tsx`
+  - `tests/unit/layout-config.test.ts`
+- Visual polish: changed `Tests` nav icon to `FileText` so it is distinct from `Quizzes` (`CircleHelp`).
+
+**Screenshots:**
+- `/tmp/teacher-quizzes-sidebar-tests-tab-settled.png`
+- `/tmp/teacher-tests-sidebar-tests-tab-settled.png`
+- `/tmp/student-quizzes-sidebar-tests-tab-settled.png`
+- `/tmp/student-tests-sidebar-tests-tab-settled.png`
+
+**Validation:**
+- `pnpm exec tsc --noEmit` passed
+- `pnpm lint` passed
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/unit/layout-config.test.ts` passed
+- `pnpm vitest run tests/components/ThreePanelProvider.test.tsx` passed
+- `pnpm e2e:auth` passed
+- Playwright screenshots verified for teacher and student

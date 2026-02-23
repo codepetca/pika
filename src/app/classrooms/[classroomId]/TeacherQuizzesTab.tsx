@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -14,17 +13,11 @@ import type { Classroom, QuizAssessmentType, QuizWithStats } from '@/types'
 
 interface Props {
   classroom: Classroom
+  assessmentType: QuizAssessmentType
   onSelectQuiz?: (quiz: QuizWithStats | null) => void
 }
 
-export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-
-  const activeAssessmentType: QuizAssessmentType =
-    searchParams.get('quizType') === 'test' ? 'test' : 'quiz'
-
+export function TeacherQuizzesTab({ classroom, assessmentType, onSelectQuiz }: Props) {
   const [quizzes, setQuizzes] = useState<QuizWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null)
@@ -41,7 +34,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
     try {
       const query = new URLSearchParams({
         classroom_id: classroom.id,
-        assessment_type: activeAssessmentType,
+        assessment_type: assessmentType,
       })
       const res = await fetch(`/api/teacher/quizzes?${query.toString()}`)
       const data = await res.json()
@@ -51,7 +44,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [activeAssessmentType, classroom.id])
+  }, [assessmentType, classroom.id])
 
   useEffect(() => {
     loadQuizzes()
@@ -80,20 +73,6 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
     if (newSelectedId) {
       setRightSidebarOpen(true)
     }
-  }
-
-  function handleAssessmentTypeChange(nextType: QuizAssessmentType) {
-    if (nextType === activeAssessmentType) return
-    const params = new URLSearchParams(searchParams.toString())
-    if (nextType === 'quiz') {
-      params.delete('quizType')
-    } else {
-      params.set('quizType', nextType)
-    }
-    const query = params.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-    setSelectedQuizId(null)
-    onSelectQuiz?.(null)
   }
 
   function handleNewQuiz() {
@@ -150,7 +129,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
 
   // Sort by position order
   const sortedQuizzes = [...quizzes].sort((a, b) => a.position - b.position)
-  const isTestsView = activeAssessmentType === 'test'
+  const isTestsView = assessmentType === 'test'
   const assessmentLabel = isTestsView ? 'test' : 'quiz'
   const assessmentLabelPlural = isTestsView ? 'Tests' : 'Quizzes'
 
@@ -168,27 +147,6 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
       />
 
       <PageContent>
-        <div className="mb-4 inline-flex rounded-lg border border-border bg-surface p-1">
-          <button
-            type="button"
-            onClick={() => handleAssessmentTypeChange('quiz')}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              !isTestsView ? 'bg-primary text-text-inverse' : 'text-text-muted hover:text-text-default'
-            }`}
-          >
-            Quizzes
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAssessmentTypeChange('test')}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              isTestsView ? 'bg-primary text-text-inverse' : 'text-text-muted hover:text-text-default'
-            }`}
-          >
-            Tests
-          </button>
-        </div>
-
         {sortedQuizzes.length === 0 ? (
           <p className="text-text-muted text-center py-8">
             No {assessmentLabelPlural.toLowerCase()} yet. Create one to get started.
@@ -213,7 +171,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
       <QuizModal
         isOpen={showModal}
         classroomId={classroom.id}
-        assessmentType={activeAssessmentType}
+        assessmentType={assessmentType}
         quiz={null}
         onClose={() => setShowModal(false)}
         onSuccess={handleQuizCreated}

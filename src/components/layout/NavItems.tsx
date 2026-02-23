@@ -6,6 +6,7 @@ import {
   CircleHelp,
   ClipboardCheck,
   ClipboardList,
+  FileText,
   Percent,
   Settings,
   PenSquare,
@@ -33,6 +34,7 @@ export type ClassroomNavItemId =
   | 'gradebook'
   | 'assignments'
   | 'quizzes'
+  | 'tests'
   | 'calendar'
   | 'resources'
   | 'roster'
@@ -59,6 +61,7 @@ const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
+  { id: 'tests', label: 'Tests', icon: FileText },
   { id: 'gradebook', label: 'Gradebook', icon: Percent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: StickyNote },
@@ -70,6 +73,7 @@ const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
+  { id: 'tests', label: 'Tests', icon: FileText },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: StickyNote },
 ]
@@ -464,6 +468,7 @@ export function NavItems({
           (item.id === 'today' && showTodayPulse) ||
           (item.id === 'assignments' && showAssignmentsPulse) ||
           (item.id === 'quizzes' && showQuizzesPulse) ||
+          (item.id === 'tests' && showQuizzesPulse) ||
           (item.id === 'resources' && showResourcesPulse)
 
         const navLink = (

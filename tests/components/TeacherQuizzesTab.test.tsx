@@ -5,16 +5,7 @@ import { TeacherQuizzesTab } from '@/app/classrooms/[classroomId]/TeacherQuizzes
 import { TooltipProvider } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
-import type { QuizWithStats } from '@/types'
-
-const replaceMock = vi.fn()
-const searchParamsState = new URLSearchParams()
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: replaceMock }),
-  usePathname: () => '/classrooms/classroom-1',
-  useSearchParams: () => searchParamsState,
-}))
+import type { QuizAssessmentType, QuizWithStats } from '@/types'
 
 vi.mock('@/components/layout', () => ({
   useRightSidebar: () => ({ setOpen: vi.fn() }),
@@ -51,8 +42,6 @@ describe('TeacherQuizzesTab', () => {
   beforeEach(() => {
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
-    replaceMock.mockReset()
-    searchParamsState.delete('quizType')
   })
 
   afterEach(() => {
@@ -67,18 +56,23 @@ describe('TeacherQuizzesTab', () => {
     })
   }
 
+  function renderTab(assessmentType: QuizAssessmentType = 'quiz') {
+    render(<TeacherQuizzesTab classroom={classroom} assessmentType={assessmentType} />, { wrapper: Wrapper })
+  }
+
   it('fetches quizzes once on mount', async () => {
     mockQuizzesResponse([])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
       expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
     })
+    expect(quizzesFetchCalls(fetchMock)[0][0]).toContain('assessment_type=quiz')
   })
 
   it('fetches quizzes once when update event fires (not twice)', async () => {
     mockQuizzesResponse([])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
       expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
@@ -106,7 +100,7 @@ describe('TeacherQuizzesTab', () => {
 
   it('does not double-fetch after quiz creation', async () => {
     mockQuizzesResponse([])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
       expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
@@ -132,7 +126,7 @@ describe('TeacherQuizzesTab', () => {
   it('does not double-fetch after quiz deletion', async () => {
     const quiz = makeQuiz({ id: 'quiz-del', title: 'Delete Me' })
     mockQuizzesResponse([quiz])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
       expect(screen.getByText('Delete Me')).toBeInTheDocument()
@@ -170,7 +164,7 @@ describe('TeacherQuizzesTab', () => {
 
   it('ignores update events for other classrooms', async () => {
     mockQuizzesResponse([])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
       expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
@@ -188,19 +182,15 @@ describe('TeacherQuizzesTab', () => {
     expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
   })
 
-  it('switches to tests tab and updates URL query param', async () => {
+  it('renders test mode and fetches with assessment_type=test', async () => {
     mockQuizzesResponse([])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab('test')
 
     await waitFor(() => {
       expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tests' }))
-
-    expect(replaceMock).toHaveBeenCalledWith(
-      '/classrooms/classroom-1?quizType=test',
-      { scroll: false }
-    )
+    expect(quizzesFetchCalls(fetchMock)[0][0]).toContain('assessment_type=test')
+    expect(screen.getByText('New Test')).toBeInTheDocument()
   })
 })
