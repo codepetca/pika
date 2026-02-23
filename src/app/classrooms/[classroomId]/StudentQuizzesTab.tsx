@@ -22,6 +22,8 @@ interface Props {
   classroom: Classroom
 }
 
+type RouteExitSource = 'back_button' | 'pagehide' | 'component_unmount'
+
 function formatDuration(totalSeconds: number): string {
   const safe = Math.max(0, Math.round(totalSeconds))
   const minutes = Math.floor(safe / 60)
@@ -51,13 +53,24 @@ export function StudentQuizzesTab({ classroom }: Props) {
     studentResponses: Record<string, number>
   } | null>(null)
   const [loadingQuiz, setLoadingQuiz] = useState(false)
+  const selectedQuizIdRef = useRef<string | null>(null)
   const focusSessionIdRef = useRef<string | null>(null)
   const awayStartedAtRef = useRef<number | null>(null)
+  const focusEnabledRef = useRef(false)
+  const routeExitLoggedRef = useRef(false)
   const focusEnabled = useMemo(() => {
     if (!selectedQuiz) return false
     const hasResponded = Object.keys(selectedQuiz.studentResponses).length > 0
     return selectedQuiz.quiz.assessment_type === 'test' && !hasResponded
   }, [selectedQuiz])
+
+  useEffect(() => {
+    selectedQuizIdRef.current = selectedQuizId
+  }, [selectedQuizId])
+
+  useEffect(() => {
+    focusEnabledRef.current = focusEnabled
+  }, [focusEnabled])
 
   const loadQuizzes = useCallback(async () => {
     setLoading(true)
@@ -100,6 +113,7 @@ export function StudentQuizzesTab({ classroom }: Props) {
     setLoadingQuiz(true)
     focusSessionIdRef.current = createFocusSessionId()
     awayStartedAtRef.current = null
+    routeExitLoggedRef.current = false
 
     try {
       const res = await fetch(`/api/student/quizzes/${quizId}`)
@@ -117,9 +131,56 @@ export function StudentQuizzesTab({ classroom }: Props) {
     }
   }
 
+  const postFocusEvent = useCallback(async (
+    eventType: 'away_start' | 'away_end' | 'route_exit_attempt',
+    metadata?: Record<string, unknown>,
+    options?: {
+      quizId?: string | null
+      sessionId?: string | null
+      updateSummary?: boolean
+    }
+  ) => {
+    const quizId = options?.quizId ?? selectedQuizIdRef.current
+    const sessionId = options?.sessionId ?? focusSessionIdRef.current
+
+    if (!quizId || !sessionId) return
+
+    try {
+      const res = await fetch(`/api/student/quizzes/${quizId}/focus-events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: eventType,
+          session_id: sessionId,
+          metadata: metadata || null,
+        }),
+        keepalive: true,
+      })
+
+      if (options?.updateSummary === false) return
+
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.focus_summary) {
+        setFocusSummary(data.focus_summary as QuizFocusSummary)
+      }
+    } catch (err) {
+      console.error('Error posting quiz focus event:', err)
+    }
+  }, [])
+
+  const logRouteExitAttempt = useCallback((source: RouteExitSource) => {
+    if (routeExitLoggedRef.current) return
+    routeExitLoggedRef.current = true
+    void postFocusEvent(
+      'route_exit_attempt',
+      { source },
+      { updateSummary: false }
+    )
+  }, [postFocusEvent])
+
   function handleBack() {
     if (focusEnabled) {
-      void postFocusEvent('route_exit_attempt')
+      logRouteExitAttempt('back_button')
     }
     setSelectedQuizId(null)
     setSelectedQuiz(null)
@@ -137,32 +198,18 @@ export function StudentQuizzesTab({ classroom }: Props) {
     }
   }
 
-  const postFocusEvent = useCallback(async (
-    eventType: 'away_start' | 'away_end' | 'route_exit_attempt',
-    metadata?: Record<string, unknown>
-  ) => {
-    if (!selectedQuizId || !focusSessionIdRef.current) return
+  useEffect(() => {
+    if (!focusEnabled) return
 
-    try {
-      const res = await fetch(`/api/student/quizzes/${selectedQuizId}/focus-events`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_type: eventType,
-          session_id: focusSessionIdRef.current,
-          metadata: metadata || null,
-        }),
-        keepalive: true,
-      })
-
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data?.focus_summary) {
-        setFocusSummary(data.focus_summary as QuizFocusSummary)
-      }
-    } catch (err) {
-      console.error('Error posting quiz focus event:', err)
+    const handlePageHide = () => {
+      logRouteExitAttempt('pagehide')
     }
-  }, [selectedQuizId])
+
+    window.addEventListener('pagehide', handlePageHide)
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide)
+    }
+  }, [focusEnabled, logRouteExitAttempt])
 
   useEffect(() => {
     if (!focusEnabled) return
@@ -208,6 +255,13 @@ export function StudentQuizzesTab({ classroom }: Props) {
       }
     }
   }, [focusEnabled, postFocusEvent])
+
+  useEffect(() => {
+    return () => {
+      if (!focusEnabledRef.current) return
+      logRouteExitAttempt('component_unmount')
+    }
+  }, [logRouteExitAttempt])
 
   if (loading) {
     return (

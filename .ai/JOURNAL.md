@@ -2681,3 +2681,21 @@
 - `pnpm lint` passed
 - `pnpm test -- tests/unit/quizzes.test.ts tests/components/TeacherQuizzesTab.test.tsx` (full suite execution) passed: 103 files / 1102 tests
 - Playwright visual checks completed for teacher and student views
+
+## 2026-02-23 — Follow-up: cleaner test route-exit telemetry + TS fix
+**Context:** Refined focus telemetry semantics after review feedback: log `route_exit_attempt` for any navigation away from an active test session, not only explicit back action. Also fixed PR TypeScript failures from stricter quiz typing.
+
+**Changes:**
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added one-time route-exit logging guard (`routeExitLoggedRef`) per active test session.
+  - Added explicit source-tagged route-exit logging for back button (`back_button`).
+  - Added page unload/navigation logging via `pagehide` (`pagehide`).
+  - Added component unmount fallback logging (`component_unmount`) so leaving the quizzes route/tab is captured.
+  - Kept away-time tracking (`away_start`/`away_end`) separate.
+- Updated `src/lib/quizzes.ts` function signatures to accept minimal quiz shape (`Pick<Quiz, ...>`) for status/visibility checks.
+- Updated `src/lib/server/quizzes.ts` `QuizAccessRecord` to include optional `assessment_type` for compatibility with assessment helper usage.
+
+**Validation:**
+- `pnpm exec tsc --noEmit` passed
+- `pnpm lint` passed
+- `pnpm vitest run tests/unit/quizzes.test.ts tests/components/TeacherQuizzesTab.test.tsx` passed

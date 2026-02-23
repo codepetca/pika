@@ -45,21 +45,27 @@ export function getQuizAssessmentType(quiz: { assessment_type?: QuizAssessmentTy
 /**
  * Check if a student can respond to a quiz
  */
-export function canStudentRespond(quiz: Quiz, hasResponded: boolean): boolean {
+export function canStudentRespond(quiz: Pick<Quiz, 'status'>, hasResponded: boolean): boolean {
   return quiz.status === 'active' && !hasResponded
 }
 
 /**
  * Check if a student can view quiz results
  */
-export function canStudentViewResults(quiz: Quiz, hasResponded: boolean): boolean {
+export function canStudentViewResults(
+  quiz: Pick<Quiz, 'show_results' | 'status'>,
+  hasResponded: boolean
+): boolean {
   return quiz.show_results && quiz.status === 'closed' && hasResponded
 }
 
 /**
  * Get the student's status for a quiz
  */
-export function getStudentQuizStatus(quiz: Quiz, hasResponded: boolean): StudentQuizStatus {
+export function getStudentQuizStatus(
+  quiz: Pick<Quiz, 'show_results' | 'status'>,
+  hasResponded: boolean
+): StudentQuizStatus {
   if (!hasResponded) return 'not_started'
   if (quiz.show_results && quiz.status === 'closed') return 'can_view_results'
   return 'responded'
@@ -68,7 +74,7 @@ export function getStudentQuizStatus(quiz: Quiz, hasResponded: boolean): Student
 /**
  * Check if quiz questions can be edited (before any responses)
  */
-export function canEditQuizQuestions(quiz: Quiz, hasResponses: boolean): boolean {
+export function canEditQuizQuestions(quiz: Pick<Quiz, 'status'>, hasResponses: boolean): boolean {
   return quiz.status === 'draft' && !hasResponses
 }
 
@@ -111,7 +117,7 @@ export function validateQuizOptions(options: string[]): { valid: boolean; error?
  * Check if a quiz can be activated (draft → active)
  */
 export function canActivateQuiz(
-  quiz: Quiz,
+  quiz: Pick<Quiz, 'status'>,
   questionsCount: number
 ): { valid: boolean; error?: string } {
   if (quiz.status !== 'draft') {
