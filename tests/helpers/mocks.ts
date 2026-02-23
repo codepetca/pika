@@ -14,6 +14,9 @@ import type {
   Quiz,
   QuizQuestion,
   QuizResponse,
+  UserPet,
+  PetUnlock,
+  XpEvent,
 } from '@/types'
 
 // ============================================================================
@@ -244,5 +247,47 @@ export const createMockQuizResponse = (overrides: Partial<QuizResponse> = {}): Q
   student_id: 'student-1',
   selected_option: 0,
   submitted_at: '2024-10-15T14:30:00Z',
+  ...overrides,
+})
+
+// ============================================================================
+// Pet Mock Factories
+// ============================================================================
+
+/**
+ * Create a mock user pet with default or custom values
+ */
+export const createMockUserPet = (overrides: Partial<UserPet> = {}): UserPet => ({
+  id: 'pet-1',
+  user_id: 'user-student-1',
+  classroom_id: 'classroom-1',
+  xp: 0,
+  selected_image: 0,
+  created_at: '2024-10-15T10:00:00Z',
+  updated_at: '2024-10-15T10:00:00Z',
+  ...overrides,
+})
+
+/**
+ * Create a mock pet unlock with default or custom values
+ */
+export const createMockPetUnlock = (overrides: Partial<PetUnlock> = {}): PetUnlock => ({
+  id: 'unlock-1',
+  pet_id: 'pet-1',
+  image_index: 0,
+  unlocked_at: '2024-10-15T10:00:00Z',
+  ...overrides,
+})
+
+/**
+ * Create a mock XP event with default or custom values
+ */
+export const createMockXpEvent = (overrides: Partial<XpEvent> = {}): XpEvent => ({
+  id: 'xp-event-1',
+  pet_id: 'pet-1',
+  source: 'daily_login',
+  xp_amount: 10,
+  metadata: null,
+  created_at: '2024-10-15T10:00:00Z',
   ...overrides,
 })

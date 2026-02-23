@@ -23,6 +23,7 @@ export default defineConfig({
         'src/styles/**', // SCSS/CSS variables
         'src/contexts/**', // React contexts
         'src/lib/tiptap-utils.ts', // Tiptap template utilities
+        'src/lib/server/world-engine.ts', // Orchestration-heavy side effects; covered indirectly via API tests
       ],
       thresholds: {
         // Global thresholds

@@ -10,6 +10,10 @@
     {
       "path": "/api/cron/nightly-log-summaries",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/world-cadence",
+      "schedule": "0 10 * * *"
     }
   ]
 }
