@@ -2674,3 +2674,39 @@
 - File: e2e/editor-spellcheck.spec.ts
 **Validation:**
 - `PORT=3100 E2E_BASE_URL=http://localhost:3100 CI=1 npx playwright test e2e/editor-spellcheck.spec.ts --project=chromium-desktop` passed (3 passed, 1 skipped)
+
+---
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Remove student spellcheck E2E skip path by making test deterministic
+**Completed:**
+- Reworked student spellcheck E2E flow to target the Today editor only, without runtime skip fallback
+- Added classroom-id parsing helper and class-days API lookup to pick a known class day for that classroom
+- Added browser `Date` freezing helper (via `addInitScript`) so Today tab renders as a class day consistently
+- Removed assignment fallback/skip logic from `e2e/editor-spellcheck.spec.ts`
+**Status:** completed
+**Artifacts:**
+- Branch: codex/spellcheck-phase1
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-spellcheck-phase1
+- File: e2e/editor-spellcheck.spec.ts
+**Validation:**
+- `pnpm run lint` passed
+- `PORT=3101 E2E_BASE_URL=http://localhost:3101 CI=1 npx playwright test e2e/editor-spellcheck.spec.ts --project=chromium-desktop` passed (4 passed, 0 skipped)
+
+---
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Remove class-day dependency from student spellcheck E2E test
+**Completed:**
+- Refactored student spellcheck test to use assignment editor instead of Today tab
+- Added deterministic setup via teacher API: create assignment + release assignment into the same classroom
+- Updated student flow to open the created assignment card by unique title and assert editor spellcheck attributes
+- Added cleanup via teacher API delete for the test-created assignment
+- Removed date-freezing and class-days helper logic from `e2e/editor-spellcheck.spec.ts`
+**Status:** completed
+**Artifacts:**
+- Branch: codex/spellcheck-phase1
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-spellcheck-phase1
+- File: e2e/editor-spellcheck.spec.ts
+**Validation:**
+- `pnpm run lint` passed
+- `pnpm test tests/components/RichTextEditor.test.tsx` passed
+- `PORT=3103 E2E_BASE_URL=http://localhost:3103 CI=1 npx playwright test e2e/editor-spellcheck.spec.ts --project=chromium-desktop` passed (4 passed, 0 skipped)
