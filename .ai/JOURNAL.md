@@ -2621,3 +2621,21 @@
 **Validation:**
 - `pnpm test tests/components/RichTextEditor.test.tsx` passed
 - `pnpm run lint` passed
+
+---
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Replace text spellcheck toggle label with icon-only control
+**Completed:**
+- Updated spellcheck toggle button content from text (`Spell`) to `SpellCheck` icon from lucide-react
+- Kept tooltip and accessible labels (`Enable spellcheck` / `Disable spellcheck`) intact
+- Re-ran editor tests and lint
+- Performed visual verification for teacher and student editor views with icon toggle
+**Status:** completed
+**Artifacts:**
+- Branch: codex/spellcheck-phase1
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-spellcheck-phase1
+- Files: src/components/editor/RichTextEditor.tsx
+- Screenshots: `/tmp/spellcheck-icon-teacher-editor.png`, `/tmp/spellcheck-icon-student-editor.png`
+**Validation:**
+- `pnpm test tests/components/RichTextEditor.test.tsx` passed
+- `pnpm run lint` passed

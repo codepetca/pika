@@ -53,6 +53,7 @@ import { ImageUploadButton } from '@/components/tiptap-ui/image-upload-button'
 // --- Icons ---
 import { ArrowLeftIcon } from '@/components/tiptap-icons/arrow-left-icon'
 import { LinkIcon } from '@/components/tiptap-icons/link-icon'
+import { SpellCheck } from 'lucide-react'
 
 // --- Hooks ---
 import { useIsBreakpoint } from '@/hooks/use-is-breakpoint'
@@ -227,7 +228,7 @@ function SpellcheckToggleButton({
       tooltip={enabled ? 'Spellcheck on' : 'Spellcheck off'}
       onClick={onToggle}
     >
-      <span className="tiptap-button-text">Spell</span>
+      <SpellCheck className="tiptap-button-icon" />
     </Button>
   )
 }
