@@ -2633,3 +2633,51 @@
 **Validation:**
 - `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed (5 tests)
 - `pnpm lint` passed
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Implement Quizzes tab split (`Quizzes`/`Tests`) plus test focus-away telemetry visibility for teacher/student.
+**Completed:**
+- Added new migration `038_quiz_tests_and_focus_events.sql`:
+  - `quizzes.assessment_type` (`quiz|test`)
+  - `quiz_focus_events` table + indexes + RLS policies
+- Extended quiz domain types/utilities:
+  - `QuizAssessmentType`, `QuizFocusSummary`, focus event summary helpers in `src/lib/quizzes.ts`
+- Updated teacher/student quizzes APIs:
+  - list filtering by `assessment_type`
+  - migration-safe fallbacks when column is not applied yet
+  - teacher create supports `assessment_type` (`New Quiz`/`New Test`)
+- Added student telemetry endpoint:
+  - `POST /api/student/quizzes/[id]/focus-events`
+- Added focus summary exposure:
+  - student quiz detail response includes `focus_summary`
+  - teacher quiz results include per-student focus summary
+- Implemented UI changes:
+  - Teacher and student sub-tabs inside Quizzes tab (`Quizzes`, `Tests`)
+  - URL persistence via `quizType` search param
+  - type-aware teacher CTA text (`New Quiz` / `New Test`)
+  - student focus metrics display (no inline explanatory note)
+  - teacher individual responses panel shows focus metrics where available
+- Updated tests/mocks:
+  - `tests/unit/quizzes.test.ts` coverage for focus summary helpers
+  - `tests/components/TeacherQuizzesTab.test.tsx` for next/navigation + tests-tab URL state
+  - quiz mock factory default `assessment_type: 'quiz'`
+**Status:** completed
+**Artifacts:**
+- Branch: `codex/tests-quizzes-focus`
+- Worktree: `/Users/stew/Repos/.worktrees/pika/codex-tests-quizzes-focus`
+- Key files:
+  - `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`
+  - `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - `src/app/api/teacher/quizzes/route.ts`
+  - `src/app/api/student/quizzes/route.ts`
+  - `src/app/api/student/quizzes/[id]/focus-events/route.ts`
+  - `supabase/migrations/038_quiz_tests_and_focus_events.sql`
+- Screenshots:
+  - `/tmp/teacher-quizzes-final.png`
+  - `/tmp/student-quizzes-final.png`
+  - `/tmp/teacher-tests.png`
+  - `/tmp/student-tests.png`
+**Validation:**
+- `pnpm vitest run tests/unit/quizzes.test.ts tests/components/TeacherQuizzesTab.test.tsx` passed
+- `pnpm lint` passed
+- `pnpm test -- tests/unit/quizzes.test.ts tests/components/TeacherQuizzesTab.test.tsx` (full suite execution) passed: 103 files / 1102 tests
+- Playwright visual checks completed for teacher and student views

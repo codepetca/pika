@@ -265,11 +265,22 @@ export interface ClassroomResources {
 
 // Quiz types
 export type QuizStatus = 'draft' | 'active' | 'closed'
+export type QuizAssessmentType = 'quiz' | 'test'
+export type QuizFocusEventType = 'away_start' | 'away_end' | 'route_exit_attempt'
+
+export interface QuizFocusSummary {
+  away_count: number
+  away_total_seconds: number
+  route_exit_attempts: number
+  last_away_started_at: string | null
+  last_away_ended_at: string | null
+}
 
 export interface Quiz {
   id: string
   classroom_id: string
   title: string
+  assessment_type: QuizAssessmentType
   status: QuizStatus
   show_results: boolean
   position: number
@@ -318,6 +329,7 @@ export type StudentQuizStatus = 'not_started' | 'responded' | 'can_view_results'
 export interface StudentQuizView extends Quiz {
   student_status: StudentQuizStatus
   questions?: QuizQuestion[]
+  focus_summary?: QuizFocusSummary | null
 }
 
 export interface QuizResultsAggregate {

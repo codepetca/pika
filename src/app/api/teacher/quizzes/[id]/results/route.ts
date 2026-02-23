@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { aggregateResults } from '@/lib/quizzes'
+import { aggregateResults, getQuizAssessmentType, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
-import type { QuizQuestion, QuizResponse } from '@/types'
+import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -22,6 +22,7 @@ export async function GET(
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
     const quiz = access.quiz
+    const assessmentType = getQuizAssessmentType(quiz)
     const supabase = getServiceRoleClient()
 
     // Fetch questions
@@ -51,7 +52,13 @@ export async function GET(
     const responderIds = [...new Set(responses?.map((r) => r.student_id) || [])]
 
     // Get responder details (names)
-    let responders: { student_id: string; name: string | null; email: string; answers: Record<string, number> }[] = []
+    let responders: {
+      student_id: string
+      name: string | null
+      email: string
+      answers: Record<string, number>
+      focus_summary: QuizFocusSummary | null
+    }[] = []
     if (responderIds.length > 0) {
       const { data: users } = await supabase
         .from('users')
@@ -77,11 +84,33 @@ export async function GET(
         studentAnswers[r.student_id][r.question_id] = r.selected_option
       }
 
+      let focusSummaryByStudent = new Map<string, QuizFocusSummary>()
+      if (assessmentType === 'test') {
+        const { data: focusEvents } = await supabase
+          .from('quiz_focus_events')
+          .select('student_id, event_type, occurred_at')
+          .eq('quiz_id', quizId)
+          .in('student_id', responderIds)
+          .order('occurred_at', { ascending: true })
+
+        const grouped = new Map<string, Array<{ event_type: any; occurred_at: string }>>()
+        for (const row of focusEvents || []) {
+          const current = grouped.get(row.student_id) || []
+          current.push({ event_type: row.event_type, occurred_at: row.occurred_at })
+          grouped.set(row.student_id, current)
+        }
+
+        for (const [studentId, events] of grouped) {
+          focusSummaryByStudent.set(studentId, summarizeQuizFocusEvents(events))
+        }
+      }
+
       responders = (users || []).map((u) => ({
         student_id: u.id,
         name: profileMap.get(u.id) || null,
         email: u.email,
         answers: studentAnswers[u.id] || {},
+        focus_summary: focusSummaryByStudent.get(u.id) || null,
       }))
 
       // Sort by name (with email fallback)
@@ -108,6 +137,7 @@ export async function GET(
       quiz: {
         id: quiz.id,
         title: quiz.title,
+        assessment_type: assessmentType,
         status: quiz.status,
         show_results: quiz.show_results,
       },

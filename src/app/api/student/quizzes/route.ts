@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
-import { getStudentQuizStatus } from '@/lib/quizzes'
-import type { Quiz } from '@/types'
+import { getQuizAssessmentType, getStudentQuizStatus } from '@/lib/quizzes'
+import type { Quiz, QuizAssessmentType } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -14,9 +14,17 @@ export async function GET(request: NextRequest) {
     const user = await requireRole('student')
     const { searchParams } = new URL(request.url)
     const classroomId = searchParams.get('classroom_id')
+    const assessmentTypeParam = searchParams.get('assessment_type')
 
     if (!classroomId) {
       return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
+    }
+
+    if (assessmentTypeParam && assessmentTypeParam !== 'quiz' && assessmentTypeParam !== 'test') {
+      return NextResponse.json(
+        { error: 'assessment_type must be "quiz" or "test"' },
+        { status: 400 }
+      )
     }
 
     const supabase = getServiceRoleClient()
@@ -26,26 +34,48 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
-    // Fetch active quizzes
-    const { data: activeQuizzes, error: activeError } = await supabase
-      .from('quizzes')
-      .select('*')
-      .eq('classroom_id', classroomId)
-      .eq('status', 'active')
-      .order('position', { ascending: true })
+    async function fetchByStatus(status: 'active' | 'closed', withAssessmentFilter: boolean) {
+      let query = supabase
+        .from('quizzes')
+        .select('*')
+        .eq('classroom_id', classroomId)
+        .eq('status', status)
+
+      if (withAssessmentFilter && assessmentTypeParam) {
+        query = query.eq('assessment_type', assessmentTypeParam)
+      }
+
+      return query.order('position', { ascending: true })
+    }
+
+    // Fetch active quizzes/tests
+    let { data: activeQuizzes, error: activeError } = await fetchByStatus('active', true)
+
+    if (activeError?.code === '42703') {
+      const fallback = await fetchByStatus('active', false)
+      activeQuizzes = fallback.data || []
+      activeError = fallback.error
+      if (!activeError && assessmentTypeParam) {
+        activeQuizzes = (activeQuizzes || []).filter((quiz) => getQuizAssessmentType(quiz) === assessmentTypeParam)
+      }
+    }
 
     if (activeError) {
       console.error('Error fetching active quizzes:', activeError)
       return NextResponse.json({ error: 'Failed to fetch quizzes' }, { status: 500 })
     }
 
-    // Also fetch closed quizzes the student has responded to
-    const { data: closedQuizzes, error: closedError } = await supabase
-      .from('quizzes')
-      .select('*')
-      .eq('classroom_id', classroomId)
-      .eq('status', 'closed')
-      .order('position', { ascending: true })
+    // Also fetch closed quizzes/tests the student has responded to
+    let { data: closedQuizzes, error: closedError } = await fetchByStatus('closed', true)
+
+    if (closedError?.code === '42703') {
+      const fallback = await fetchByStatus('closed', false)
+      closedQuizzes = fallback.data || []
+      closedError = fallback.error
+      if (!closedError && assessmentTypeParam) {
+        closedQuizzes = (closedQuizzes || []).filter((quiz) => getQuizAssessmentType(quiz) === assessmentTypeParam)
+      }
+    }
 
     if (closedError) {
       console.error('Error fetching closed quizzes:', closedError)
@@ -81,9 +111,11 @@ export async function GET(request: NextRequest) {
     const quizzesWithStatus = allQuizzes.map((quiz: Quiz) => {
       const hasResponded = respondedQuizIds.has(quiz.id)
       const studentStatus = getStudentQuizStatus(quiz, hasResponded)
+      const assessmentType: QuizAssessmentType = getQuizAssessmentType(quiz)
 
       return {
         ...quiz,
+        assessment_type: assessmentType,
         student_status: studentStatus,
       }
     })

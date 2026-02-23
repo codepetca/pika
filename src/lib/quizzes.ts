@@ -4,6 +4,9 @@
 
 import type {
   Quiz,
+  QuizAssessmentType,
+  QuizFocusEventType,
+  QuizFocusSummary,
   QuizQuestion,
   QuizResponse,
   QuizStatus,
@@ -33,6 +36,10 @@ export function getQuizStatusBadgeClass(status: QuizStatus): string {
     closed: 'bg-danger-bg text-danger',
   }
   return classes[status]
+}
+
+export function getQuizAssessmentType(quiz: { assessment_type?: QuizAssessmentType | null }): QuizAssessmentType {
+  return quiz.assessment_type === 'test' ? 'test' : 'quiz'
 }
 
 /**
@@ -114,4 +121,62 @@ export function canActivateQuiz(
     return { valid: false, error: 'Quiz must have at least 1 question' }
   }
   return { valid: true }
+}
+
+type FocusEventLike = {
+  event_type: QuizFocusEventType
+  occurred_at: string
+}
+
+export function emptyQuizFocusSummary(): QuizFocusSummary {
+  return {
+    away_count: 0,
+    away_total_seconds: 0,
+    route_exit_attempts: 0,
+    last_away_started_at: null,
+    last_away_ended_at: null,
+  }
+}
+
+export function summarizeQuizFocusEvents(events: FocusEventLike[]): QuizFocusSummary {
+  if (!events.length) return emptyQuizFocusSummary()
+
+  const sorted = [...events].sort(
+    (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()
+  )
+
+  const summary = emptyQuizFocusSummary()
+  let activeAwayStartedAtMs: number | null = null
+
+  for (const event of sorted) {
+    const eventAtMs = new Date(event.occurred_at).getTime()
+    if (Number.isNaN(eventAtMs)) continue
+
+    if (event.event_type === 'route_exit_attempt') {
+      summary.route_exit_attempts += 1
+      continue
+    }
+
+    if (event.event_type === 'away_start') {
+      if (activeAwayStartedAtMs === null) {
+        activeAwayStartedAtMs = eventAtMs
+        summary.away_count += 1
+      }
+      summary.last_away_started_at = event.occurred_at
+      continue
+    }
+
+    if (event.event_type === 'away_end') {
+      if (activeAwayStartedAtMs !== null && eventAtMs >= activeAwayStartedAtMs) {
+        summary.away_total_seconds += Math.max(
+          0,
+          Math.round((eventAtMs - activeAwayStartedAtMs) / 1000)
+        )
+      }
+      activeAwayStartedAtMs = null
+      summary.last_away_ended_at = event.occurred_at
+    }
+  }
+
+  return summary
 }

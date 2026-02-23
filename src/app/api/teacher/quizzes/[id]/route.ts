@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { canActivateQuiz } from '@/lib/quizzes'
 import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
+import { getQuizAssessmentType } from '@/lib/quizzes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -40,6 +41,7 @@ export async function GET(
         id: quiz.id,
         classroom_id: quiz.classroom_id,
         title: quiz.title,
+        assessment_type: getQuizAssessmentType(quiz),
         status: quiz.status,
         show_results: quiz.show_results,
         position: quiz.position,

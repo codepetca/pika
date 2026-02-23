@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { getStudentQuizStatus } from '@/lib/quizzes'
+import { getQuizAssessmentType, getStudentQuizStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertStudentCanAccessQuiz } from '@/lib/server/quizzes'
 
 export const dynamic = 'force-dynamic'
@@ -22,6 +22,7 @@ export async function GET(
     }
     const quiz = access.quiz
     const supabase = getServiceRoleClient()
+    const assessmentType = getQuizAssessmentType(quiz)
 
     // Check if student has responded
     const { data: responses } = await supabase
@@ -69,11 +70,24 @@ export async function GET(
       )
     }
 
+    let focusSummary = null
+    if (assessmentType === 'test') {
+      const { data: focusEvents } = await supabase
+        .from('quiz_focus_events')
+        .select('event_type, occurred_at')
+        .eq('quiz_id', quizId)
+        .eq('student_id', user.id)
+        .order('occurred_at', { ascending: true })
+
+      focusSummary = summarizeQuizFocusEvents(focusEvents || [])
+    }
+
     return NextResponse.json({
       quiz: {
         id: quiz.id,
         classroom_id: quiz.classroom_id,
         title: quiz.title,
+        assessment_type: assessmentType,
         status: quiz.status,
         show_results: quiz.show_results,
         position: quiz.position,
@@ -83,6 +97,7 @@ export async function GET(
       questions: questions || [],
       student_status: studentStatus,
       student_responses: studentResponses,
+      focus_summary: focusSummary,
     })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {

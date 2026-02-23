@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { getQuizAssessmentType } from '@/lib/quizzes'
+import type { QuizAssessmentType } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -12,10 +14,18 @@ export async function GET(request: NextRequest) {
     const user = await requireRole('teacher')
     const { searchParams } = new URL(request.url)
     const classroomId = searchParams.get('classroom_id')
+    const assessmentTypeParam = searchParams.get('assessment_type')
 
     if (!classroomId) {
       return NextResponse.json(
         { error: 'classroom_id is required' },
+        { status: 400 }
+      )
+    }
+
+    if (assessmentTypeParam && assessmentTypeParam !== 'quiz' && assessmentTypeParam !== 'test') {
+      return NextResponse.json(
+        { error: 'assessment_type must be "quiz" or "test"' },
         { status: 400 }
       )
     }
@@ -31,12 +41,31 @@ export async function GET(request: NextRequest) {
     const supabase = getServiceRoleClient()
 
     // Fetch quizzes with questions count
-    const { data: quizzes, error: quizzesError } = await supabase
-      .from('quizzes')
-      .select('*')
-      .eq('classroom_id', classroomId)
-      .order('position', { ascending: true })
-      .order('created_at', { ascending: true })
+    async function fetchQuizzes(withAssessmentFilter: boolean) {
+      let query = supabase
+        .from('quizzes')
+        .select('*')
+        .eq('classroom_id', classroomId)
+
+      if (withAssessmentFilter && assessmentTypeParam) {
+        query = query.eq('assessment_type', assessmentTypeParam)
+      }
+
+      return query
+        .order('position', { ascending: true })
+        .order('created_at', { ascending: true })
+    }
+
+    let { data: quizzes, error: quizzesError } = await fetchQuizzes(true)
+
+    if (quizzesError?.code === '42703') {
+      const fallback = await fetchQuizzes(false)
+      quizzes = fallback.data || []
+      quizzesError = fallback.error
+      if (!quizzesError && assessmentTypeParam) {
+        quizzes = (quizzes || []).filter((quiz) => getQuizAssessmentType(quiz) === assessmentTypeParam)
+      }
+    }
 
     if (quizzesError) {
       console.error('Error fetching quizzes:', quizzesError)
@@ -84,6 +113,7 @@ export async function GET(request: NextRequest) {
 
     const quizzesWithStats = (quizzes || []).map((quiz) => ({
       ...quiz,
+      assessment_type: getQuizAssessmentType(quiz),
       stats: {
         total_students: totalStudents || 0,
         responded: respondentCountMap[quiz.id] || 0,
@@ -109,13 +139,24 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireRole('teacher')
     const body = await request.json()
-    const { classroom_id, title } = body
+    const { classroom_id, title, assessment_type } = body
 
     if (!classroom_id) {
       return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
     }
     if (!title || !title.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    }
+
+    let assessmentType: QuizAssessmentType = 'quiz'
+    if (assessment_type !== undefined) {
+      if (assessment_type !== 'quiz' && assessment_type !== 'test') {
+        return NextResponse.json(
+          { error: 'assessment_type must be "quiz" or "test"' },
+          { status: 400 }
+        )
+      }
+      assessmentType = assessment_type
     }
 
     const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
@@ -139,16 +180,41 @@ export async function POST(request: NextRequest) {
 
     const nextPosition = typeof lastQuiz?.position === 'number' ? lastQuiz.position + 1 : 0
 
-    const { data: quiz, error } = await supabase
+    const insertPayload = {
+      classroom_id,
+      title: title.trim(),
+      assessment_type: assessmentType,
+      created_by: user.id,
+      position: nextPosition,
+    }
+
+    let { data: quiz, error } = await supabase
       .from('quizzes')
-      .insert({
-        classroom_id,
-        title: title.trim(),
-        created_by: user.id,
-        position: nextPosition,
-      })
+      .insert(insertPayload)
       .select()
       .single()
+
+    if (error?.code === '42703') {
+      if (assessmentType === 'test') {
+        return NextResponse.json(
+          { error: 'Tests require migration 038 to be applied (assessment_type column missing)' },
+          { status: 400 }
+        )
+      }
+
+      const retry = await supabase
+        .from('quizzes')
+        .insert({
+          classroom_id,
+          title: title.trim(),
+          created_by: user.id,
+          position: nextPosition,
+        })
+        .select()
+        .single()
+      quiz = retry.data
+      error = retry.error
+    }
 
     if (error) {
       console.error('Error creating quiz:', error)

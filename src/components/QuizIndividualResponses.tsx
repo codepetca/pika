@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import type { QuizFocusSummary } from '@/types'
 
 interface QuestionInfo {
   id: string
@@ -14,10 +15,18 @@ interface Responder {
   name: string | null
   email: string
   answers: Record<string, number>
+  focus_summary: QuizFocusSummary | null
 }
 
 interface Props {
   quizId: string
+}
+
+function formatDuration(totalSeconds: number): string {
+  const safe = Math.max(0, Math.round(totalSeconds))
+  const minutes = Math.floor(safe / 60)
+  const seconds = safe % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
 export function QuizIndividualResponses({ quizId }: Props) {
@@ -83,6 +92,15 @@ export function QuizIndividualResponses({ quizId }: Props) {
                 {expandedStudent === student.student_id ? '▾' : '▸'}
               </span>
             </button>
+            {student.focus_summary && (
+              <p className="ml-4 mt-0.5 text-xs text-text-muted">
+                Focus events: {student.focus_summary.away_count} · Away time:{' '}
+                {formatDuration(student.focus_summary.away_total_seconds)}
+                {student.focus_summary.route_exit_attempts > 0
+                  ? ` · Exit attempts: ${student.focus_summary.route_exit_attempts}`
+                  : ''}
+              </p>
+            )}
             {expandedStudent === student.student_id && (
               <ul className="ml-4 mt-1 space-y-0.5">
                 {questions.map((q, idx) => {

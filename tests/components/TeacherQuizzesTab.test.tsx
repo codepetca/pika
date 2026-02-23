@@ -7,6 +7,15 @@ import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizWithStats } from '@/types'
 
+const replaceMock = vi.fn()
+const searchParamsState = new URLSearchParams()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: replaceMock }),
+  usePathname: () => '/classrooms/classroom-1',
+  useSearchParams: () => searchParamsState,
+}))
+
 vi.mock('@/components/layout', () => ({
   useRightSidebar: () => ({ setOpen: vi.fn() }),
 }))
@@ -42,6 +51,8 @@ describe('TeacherQuizzesTab', () => {
   beforeEach(() => {
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
+    replaceMock.mockReset()
+    searchParamsState.delete('quizType')
   })
 
   afterEach(() => {
@@ -175,5 +186,21 @@ describe('TeacherQuizzesTab', () => {
 
     await new Promise((r) => setTimeout(r, 50))
     expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('switches to tests tab and updates URL query param', async () => {
+    mockQuizzesResponse([])
+    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+
+    await waitFor(() => {
+      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tests' }))
+
+    expect(replaceMock).toHaveBeenCalledWith(
+      '/classrooms/classroom-1?quizType=test',
+      { scroll: false }
+    )
   })
 })
