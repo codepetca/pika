@@ -2580,3 +2580,44 @@
 - `pnpm lint` passed
 - `pnpm test tests/components/StudentAssignmentsTab.test.tsx tests/components/ThreePanelProvider.test.tsx` passed
 - `npx playwright test e2e/classroom-loading.spec.ts --project=chromium-desktop -g "same-classroom"` passed
+
+---
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Implement Phase 1 native spellcheck support for the shared Tiptap editor
+**Completed:**
+- Enabled browser-native spellchecking in `RichTextEditor` via `spellcheck='true'` when editable
+- Enabled native text assistance defaults for editable mode (`autocorrect='on'`, `autocapitalize='sentences'`)
+- Kept spellcheck/text assistance disabled in non-editable mode
+- Added component test coverage for editable and non-editable editor attribute behavior
+- Performed mandatory visual verification for teacher and student views, including editor pages
+**Status:** completed
+**Artifacts:**
+- Branch: codex/spellcheck-phase1
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-spellcheck-phase1
+- Files: src/components/editor/RichTextEditor.tsx, tests/components/RichTextEditor.test.tsx
+- Screenshots: `/tmp/spellcheck-phase1-teacher-view.png`, `/tmp/spellcheck-phase1-student-view.png`, `/tmp/spellcheck-phase1-teacher-editor.png`, `/tmp/spellcheck-phase1-student-editor.png`
+**Validation:**
+- `pnpm test tests/components/RichTextEditor.test.tsx` passed
+- `pnpm run lint` passed
+- Browser attribute verification (Playwright): teacher/student editor both report `{ spellcheck: 'true', autocorrect: 'on', autocapitalize: 'sentences' }`
+
+---
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Add user-controllable spellcheck UX on top of Phase 1 native spellcheck
+**Completed:**
+- Added a spellcheck toggle button to the shared editor toolbar (`Spell`) with active state and accessibility labels
+- Persisted spellcheck preference in browser localStorage (`pika:editor:spellcheck-enabled`)
+- Synced ProseMirror DOM attributes live on toggle (`spellcheck`, `autocorrect`, `autocapitalize`)
+- Added `showSpellcheckToggle` prop so no-toolbar editors can still expose the control
+- Enabled this no-toolbar toggle in student Today tab
+- Expanded RichTextEditor tests for toggle behavior, persistence, and no-toolbar toggle rendering
+- Re-ran required visual verification for teacher + student editor views
+**Status:** completed
+**Artifacts:**
+- Branch: codex/spellcheck-phase1
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-spellcheck-phase1
+- Files: src/components/editor/RichTextEditor.tsx, src/app/classrooms/[classroomId]/StudentTodayTab.tsx, tests/components/RichTextEditor.test.tsx
+- Screenshots: `/tmp/spellcheck-toggle-teacher-editor-v2.png`, `/tmp/spellcheck-toggle-student-editor-v2.png`
+**Validation:**
+- `pnpm test tests/components/RichTextEditor.test.tsx` passed
+- `pnpm run lint` passed

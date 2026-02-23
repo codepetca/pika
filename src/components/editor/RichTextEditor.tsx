@@ -71,6 +71,7 @@ import { Button } from '@/components/tiptap-ui-primitive/button'
 const COMPRESS_THRESHOLD = 500 * 1024 // Compress images over 500KB
 const MAX_DIMENSION = 1920 // Max width/height after compression
 const JPEG_QUALITY = 0.8 // Quality for JPEG compression
+const SPELLCHECK_STORAGE_KEY = 'pika:editor:spellcheck-enabled'
 
 /**
  * Compress an image file using Canvas API
@@ -201,6 +202,8 @@ export interface RichTextEditorProps {
   disabled?: boolean
   editable?: boolean
   showToolbar?: boolean
+  /** Show spellcheck toggle even when toolbar is hidden */
+  showSpellcheckToggle?: boolean
   className?: string
   /** Enable image upload via button, paste, and drag-drop */
   enableImageUpload?: boolean
@@ -208,14 +211,39 @@ export interface RichTextEditorProps {
   onImageUploadError?: (message: string) => void
 }
 
+function SpellcheckToggleButton({
+  enabled,
+  onToggle,
+}: {
+  enabled: boolean
+  onToggle: () => void
+}) {
+  return (
+    <Button
+      data-style="ghost"
+      data-active-state={enabled ? 'on' : 'off'}
+      aria-pressed={enabled}
+      aria-label={enabled ? 'Disable spellcheck' : 'Enable spellcheck'}
+      tooltip={enabled ? 'Spellcheck on' : 'Spellcheck off'}
+      onClick={onToggle}
+    >
+      <span className="tiptap-button-text">Spell</span>
+    </Button>
+  )
+}
+
 const MainToolbarContent = ({
   onLinkClick,
   isMobile,
   enableImageUpload,
+  spellcheckEnabled,
+  onToggleSpellcheck,
 }: {
   onLinkClick: () => void
   isMobile: boolean
   enableImageUpload: boolean
+  spellcheckEnabled: boolean
+  onToggleSpellcheck: () => void
 }) => {
   return (
     <>
@@ -238,6 +266,11 @@ const MainToolbarContent = ({
       </ToolbarGroup>
 
       <Spacer />
+
+      <SpellcheckToggleButton
+        enabled={spellcheckEnabled}
+        onToggle={onToggleSpellcheck}
+      />
 
       <CharacterCount />
     </>
@@ -284,11 +317,14 @@ export function RichTextEditor({
   disabled = false,
   editable = true,
   showToolbar = true,
+  showSpellcheckToggle = false,
   className = '',
   enableImageUpload = false,
   onImageUploadError,
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
+  const [spellcheckEnabled, setSpellcheckEnabled] = useState(true)
+  const nativeSpellcheckEnabled = canEdit && spellcheckEnabled
   const isMobile = useIsBreakpoint()
   const { height } = useWindowSize()
   const [mobileView, setMobileView] = useState<'main' | 'link'>('main')
@@ -360,8 +396,9 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         autocomplete: 'off',
-        autocorrect: 'off',
-        autocapitalize: 'off',
+        spellcheck: nativeSpellcheckEnabled ? 'true' : 'false',
+        autocorrect: nativeSpellcheckEnabled ? 'on' : 'off',
+        autocapitalize: nativeSpellcheckEnabled ? 'sentences' : 'off',
         'aria-label': 'Main content area, start typing to enter text.',
         class: 'simple-editor',
       },
@@ -433,6 +470,24 @@ export function RichTextEditor({
     }
   }, [canEdit, editor])
 
+  // Load persisted user preference for spellcheck from browser storage.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = window.localStorage.getItem(SPELLCHECK_STORAGE_KEY)
+    if (stored === 'false') {
+      setSpellcheckEnabled(false)
+    }
+  }, [])
+
+  // Keep DOM attributes in sync when spellcheck preference changes.
+  useEffect(() => {
+    if (!editor) return
+    const editorElement = editor.view.dom as HTMLElement
+    editorElement.setAttribute('spellcheck', nativeSpellcheckEnabled ? 'true' : 'false')
+    editorElement.setAttribute('autocorrect', nativeSpellcheckEnabled ? 'on' : 'off')
+    editorElement.setAttribute('autocapitalize', nativeSpellcheckEnabled ? 'sentences' : 'off')
+  }, [editor, nativeSpellcheckEnabled])
+
   // Reset mobile view when switching to desktop
   useEffect(() => {
     if (!isMobile && mobileView !== 'main') {
@@ -491,6 +546,16 @@ export function RichTextEditor({
     return null
   }
 
+  const handleToggleSpellcheck = () => {
+    setSpellcheckEnabled((previous) => {
+      const next = !previous
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(SPELLCHECK_STORAGE_KEY, String(next))
+      }
+      return next
+    })
+  }
+
   return (
     <div
       ref={containerRef}
@@ -519,11 +584,22 @@ export function RichTextEditor({
                 onLinkClick={() => setMobileView('link')}
                 isMobile={isMobile}
                 enableImageUpload={enableImageUpload}
+                spellcheckEnabled={nativeSpellcheckEnabled}
+                onToggleSpellcheck={handleToggleSpellcheck}
               />
             ) : (
               <MobileToolbarContent onBack={() => setMobileView('main')} />
             )}
           </Toolbar>
+        )}
+
+        {canEdit && !showToolbar && showSpellcheckToggle && (
+          <div className="flex justify-end pb-1">
+            <SpellcheckToggleButton
+              enabled={nativeSpellcheckEnabled}
+              onToggle={handleToggleSpellcheck}
+            />
+          </div>
         )}
 
         <EditorContent

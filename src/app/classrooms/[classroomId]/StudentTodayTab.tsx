@@ -420,6 +420,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
                   placeholder="Write something..."
                   editable={true}
                   showToolbar={false}
+                  showSpellcheckToggle={true}
                   className="min-h-[200px] [&_.tiptap.ProseMirror]:!p-0"
                 />
 

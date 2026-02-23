@@ -1,9 +1,13 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { RichTextEditor } from '@/components/editor'
 import type { TiptapContent } from '@/types'
 
 describe('RichTextEditor', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+  })
+
   it('should render the editor with content', async () => {
     const onChange = vi.fn()
     const content: TiptapContent = {
@@ -20,6 +24,70 @@ describe('RichTextEditor', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Hello World')).toBeInTheDocument()
+    })
+  })
+
+  it('enables native spellcheck and text assistance while editable', async () => {
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+    const { container } = render(<RichTextEditor content={content} onChange={onChange} />)
+
+    await waitFor(() => {
+      const editorEl = container.querySelector('.tiptap.ProseMirror.simple-editor')
+      expect(editorEl).toBeTruthy()
+      expect(editorEl).toHaveAttribute('spellcheck', 'true')
+      expect(editorEl).toHaveAttribute('autocorrect', 'on')
+      expect(editorEl).toHaveAttribute('autocapitalize', 'sentences')
+    })
+  })
+
+  it('disables native spellcheck and text assistance when not editable', async () => {
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+    const { container } = render(
+      <RichTextEditor content={content} onChange={onChange} editable={false} />
+    )
+
+    await waitFor(() => {
+      const editorEl = container.querySelector('.tiptap.ProseMirror.simple-editor')
+      expect(editorEl).toBeTruthy()
+      expect(editorEl).toHaveAttribute('spellcheck', 'false')
+      expect(editorEl).toHaveAttribute('autocorrect', 'off')
+      expect(editorEl).toHaveAttribute('autocapitalize', 'off')
+    })
+  })
+
+  it('allows users to toggle spellcheck off from the toolbar', async () => {
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+    const { container } = render(<RichTextEditor content={content} onChange={onChange} />)
+
+    const toggle = await screen.findByLabelText('Disable spellcheck')
+    fireEvent.click(toggle)
+
+    await waitFor(() => {
+      const editorEl = container.querySelector('.tiptap.ProseMirror.simple-editor')
+      expect(editorEl).toBeTruthy()
+      expect(editorEl).toHaveAttribute('spellcheck', 'false')
+      expect(editorEl).toHaveAttribute('autocorrect', 'off')
+      expect(editorEl).toHaveAttribute('autocapitalize', 'off')
+      expect(window.localStorage.getItem('pika:editor:spellcheck-enabled')).toBe('false')
+    })
+  })
+
+  it('respects persisted spellcheck preference from localStorage', async () => {
+    window.localStorage.setItem('pika:editor:spellcheck-enabled', 'false')
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+    const { container } = render(<RichTextEditor content={content} onChange={onChange} />)
+
+    await waitFor(() => {
+      const editorEl = container.querySelector('.tiptap.ProseMirror.simple-editor')
+      expect(editorEl).toBeTruthy()
+      expect(editorEl).toHaveAttribute('spellcheck', 'false')
+      expect(editorEl).toHaveAttribute('autocorrect', 'off')
+      expect(editorEl).toHaveAttribute('autocapitalize', 'off')
+      expect(screen.getByLabelText('Enable spellcheck')).toBeInTheDocument()
     })
   })
 
@@ -72,6 +140,25 @@ describe('RichTextEditor', () => {
       expect(screen.queryByLabelText('Bold')).not.toBeInTheDocument()
       // Editor content area should still exist
       expect(screen.getByRole('presentation')).toBeInTheDocument()
+    })
+  })
+
+  it('can show spellcheck toggle when toolbar is hidden', async () => {
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+
+    render(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        showToolbar={false}
+        showSpellcheckToggle={true}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Disable spellcheck')).toBeInTheDocument()
+      expect(screen.queryByLabelText('Bold')).not.toBeInTheDocument()
     })
   })
 
