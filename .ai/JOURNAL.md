@@ -2810,3 +2810,4 @@
 **Status:** coverage gate fixed; CI re-running on PR #298.
 - Debugged PR #298 Vercel failure: status target URL redirected to Vercel cron usage/pricing docs, indicating invalid cron frequency for current plan. Updated `vercel.json` world cadence schedule from hourly (`0 * * * *`) to daily (`0 10 * * *`) to satisfy deployment limits.
 - Product rule update: weekly world scoring now evaluates the last completed Fri-Thu window when cron runs Friday morning. Current Friday is excluded from that run and is scored in the following week's evaluation. Added regression test: `tests/unit/world-engine-window.test.ts`.
+- 2026-02-23: Stabilized Toronto week-window/date shifting in `src/lib/server/world-engine.ts` to be host-timezone safe (UTC runner vs local), replacing `parseISO` midnight math with date-string shift helpers. Verified via focused world tests and full suite pass locally.

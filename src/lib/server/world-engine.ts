@@ -1,4 +1,4 @@
-import { addDays, parseISO, subDays } from 'date-fns'
+import { addDays } from 'date-fns'
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { BASE_XP, WEEKLY_BONUS_XP, WEEKLY_TRACK_POINTS, TRACK_POINTS_PER_LEVEL, resolveWeeklyTier, scoreAttendanceRatio, scoreDailyCareConsistency, scoreOnTimeSubmissions, summarizeWeeklyBuckets } from '@/lib/world-scoring'
@@ -14,19 +14,26 @@ function torontoDateString(date: Date): string {
   return formatInTimeZone(date, WORLD_TIMEZONE, 'yyyy-MM-dd')
 }
 
+function shiftTorontoDateString(dateString: string, days: number): string {
+  const [year, month, day] = dateString.split('-').map(Number)
+  // Use UTC noon anchor to avoid host-timezone midnight edge cases.
+  const anchor = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0))
+  anchor.setUTCDate(anchor.getUTCDate() + days)
+  return torontoDateString(anchor)
+}
+
 function buildTorontoWallClock(dateString: string, hour: number, minute: number): Date {
-  const base = parseISO(`${dateString}T00:00:00`)
-  const local = new Date(base)
-  local.setHours(hour, minute, 0, 0)
+  const [year, month, day] = dateString.split('-').map(Number)
+  const local = new Date(year, month - 1, day, hour, minute, 0, 0)
   return fromZonedTime(local, WORLD_TIMEZONE)
 }
 
 function tomorrowDateString(dateString: string): string {
-  return torontoDateString(addDays(parseISO(`${dateString}T00:00:00`), 1))
+  return shiftTorontoDateString(dateString, 1)
 }
 
 function yesterdayDateString(dateString: string): string {
-  return torontoDateString(subDays(parseISO(`${dateString}T00:00:00`), 1))
+  return shiftTorontoDateString(dateString, -1)
 }
 
 function nextDailySpawnAt(now: Date): string {
@@ -56,8 +63,8 @@ function nextWeeklyEvalAt(now: Date): string {
 }
 
 function careEventKeyForDate(dateString: string): string {
-  const dayNumber = parseISO(`${dateString}T00:00:00`).getTime() / (1000 * 60 * 60 * 24)
-  const idx = Math.abs(Math.floor(dayNumber)) % DAILY_CARE_EVENT_KEYS.length
+  const dayNumber = Number(dateString.replaceAll('-', ''))
+  const idx = Math.abs(dayNumber) % DAILY_CARE_EVENT_KEYS.length
   return DAILY_CARE_EVENT_KEYS[idx]
 }
 
@@ -448,14 +455,14 @@ export async function processLoginStreakForAllClassrooms(userId: string): Promis
 }
 
 export function getTorontoWeekWindow(now: Date): { start: string; end: string } {
-  const today = parseISO(`${torontoDateString(now)}T00:00:00`)
+  const today = torontoDateString(now)
   const day = Number(formatInTimeZone(now, WORLD_TIMEZONE, 'i')) // 1..7
   // Weekly evaluation runs Friday morning; score the last *completed* week (Fri..Thu).
   // This intentionally excludes the current Friday and carries it into next week's window.
   const daysFromThursday = (day + 3) % 7 // Thu=4 =>0, Fri=5 =>1, Sat=6 =>2...
-  const end = subDays(today, daysFromThursday)
-  const start = subDays(end, 6)
-  return { start: torontoDateString(start), end: torontoDateString(end) }
+  const end = shiftTorontoDateString(today, -daysFromThursday)
+  const start = shiftTorontoDateString(end, -6)
+  return { start, end }
 }
 
 async function pickWeeklyEventKey(
