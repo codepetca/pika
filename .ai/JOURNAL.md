@@ -2658,3 +2658,19 @@
 **Validation:**
 - `pnpm test tests/components/RichTextEditor.test.tsx` passed
 - `pnpm run lint` passed
+
+---
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Close E2E coverage gap for spellcheck behavior
+**Completed:**
+- Added Playwright spec `e2e/editor-spellcheck.spec.ts` to assert native spellcheck attributes on real editor instances
+- Added teacher coverage for class-resources editor (`spellcheck` JS property + `autocorrect`/`autocapitalize` attrs)
+- Added student coverage path with fallback logic and skip when no writable editor is available in current fixture data
+- Validated spec against isolated webserver port to avoid cross-worktree server reuse
+**Status:** completed
+**Artifacts:**
+- Branch: codex/spellcheck-phase1
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-spellcheck-phase1
+- File: e2e/editor-spellcheck.spec.ts
+**Validation:**
+- `PORT=3100 E2E_BASE_URL=http://localhost:3100 CI=1 npx playwright test e2e/editor-spellcheck.spec.ts --project=chromium-desktop` passed (3 passed, 1 skipped)
