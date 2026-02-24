@@ -88,6 +88,45 @@ tests/                             # Vitest unit + API suites
 - Classroom ownership/enrollment enforced in route logic and RLS.
 - Service role Supabase client used in API routes; iron-session used for identity.
 
+### API Route Error Handling (Required Pattern)
+All API routes **must** use the `withErrorHandler` wrapper from `@/lib/api-handler`:
+
+```ts
+import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { requireRole } from '@/lib/auth'
+
+export const GET = withErrorHandler('GetClassrooms', async (request) => {
+  const user = await requireRole('teacher')
+  // ... just write the happy path, errors are caught automatically
+  throw new ApiError(400, 'Missing required field')  // for domain errors
+})
+```
+
+**Error mapping** (handled automatically by the wrapper):
+- `AuthenticationError` → 401
+- `AuthorizationError` → 403
+- `ApiError(status, message)` → custom status code
+- Unknown errors → 500 (logged to console)
+
+**Do NOT** write manual try/catch blocks with error.name checks in new routes.
+
+### Request Validation (Zod)
+Use Zod schemas from `@/lib/validations/` for request body/query validation:
+
+```ts
+import { z } from 'zod'
+const schema = z.object({ email: z.string().email(), password: z.string().min(8) })
+const body = schema.parse(await request.json())  // throws ZodError on invalid
+```
+
+### Email-Based Role Detection (YRDSB-Specific)
+Role detection in `isTeacherEmail()` (`src/lib/auth.ts`) uses a **YRDSB-specific heuristic**:
+- `@yrdsb.ca` or `@gapps.yrdsb.ca` with **numeric-only** local part → **student** (e.g., `123456789@gapps.yrdsb.ca`)
+- `@yrdsb.ca` or `@gapps.yrdsb.ca` with **alphabetic** local part → **teacher** (e.g., `john.smith@gapps.yrdsb.ca`)
+- Other domains → student by default, unless listed in `DEV_TEACHER_EMAILS` env var
+
+This is non-portable; adapting for other schools requires updating `isTeacherEmail()`.
+
 ---
 
 ## Data Flows
@@ -164,7 +203,50 @@ Students: join classroom (code) -> daily entries -> open assignment -> autosave 
 
 ---
 
-## Database Schema (Migrations 001–008)
+## Query Patterns (IMPORTANT for AI agents)
+
+### N+1 Query Prevention
+**Never** loop over rows and issue individual queries. Always use Supabase joins or `IN` clauses:
+
+```ts
+// ✅ CORRECT — single query with join
+const { data } = await supabase
+  .from('classroom_enrollments')
+  .select('student_id, users!inner(id, email)')
+  .eq('classroom_id', classroomId)
+
+// ✅ CORRECT — batch query with IN
+const { data: docs } = await supabase
+  .from('assignment_docs')
+  .select('*')
+  .in('student_id', studentIds)
+
+// ❌ WRONG — N+1 pattern (one query per student)
+for (const student of students) {
+  const { data } = await supabase
+    .from('entries')
+    .select('*')
+    .eq('student_id', student.id)  // This runs N times!
+}
+```
+
+### When to Create an Index
+Add a database index (in a new migration) when:
+1. A query filters on a column that isn't the primary key
+2. A composite query filters on two+ columns together (e.g., `WHERE classroom_id = X AND date = Y`)
+3. A query uses `ORDER BY` on a non-indexed column in large tables
+4. You observe slow queries in production logs
+
+Existing indexes (migration 038):
+- `entries(classroom_id, date)` and `entries(student_id, classroom_id, date)`
+- `assignment_docs(assignment_id, student_id)`
+- `classroom_enrollments(student_id)`
+- `class_days(classroom_id, date)`
+- `assignment_doc_history(assignment_doc_id, created_at DESC)`
+
+---
+
+## Database Schema (Migrations 001–039)
 
 - `users` — `id`, `email`, `role`, `email_verified_at`, `password_hash`, timestamps
 - `verification_codes` — signup/reset codes with expiry/attempts
@@ -175,6 +257,7 @@ Students: join classroom (code) -> daily entries -> open assignment -> autosave 
 - `entries` — `student_id`, `classroom_id`, `date`, `text`, `mood`, `on_time`, timestamps
 - `assignments` — `classroom_id`, `title`, `description`, `due_at`, `created_by`
 - `assignment_docs` — one per (assignment, student); `content`, `is_submitted`, `submitted_at`
+- `login_attempts` — `email` (PK), `count`, `locked_until`, `updated_at` (migration 039)
 
 **RLS Highlights**
 - Auth tables (`verification_codes`) are server-managed only.

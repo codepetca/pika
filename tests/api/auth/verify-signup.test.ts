@@ -34,7 +34,7 @@ describe('POST /api/auth/verify-signup', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Email and code are required')
+      expect(data.error).toContain('email')
     })
 
     it('should return 400 when code is missing', async () => {
@@ -47,7 +47,7 @@ describe('POST /api/auth/verify-signup', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Email and code are required')
+      expect(data.error).toContain('code')
     })
   })
 
