@@ -28,11 +28,17 @@ export async function clearExpiredLockout(email: string): Promise<void> {
 
   try {
     const supabase = getServiceRoleClient()
+    const now = new Date().toISOString()
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    // Delete rows that are either:
+    //   (a) locked but the lockout has expired, or
+    //   (b) not locked (NULL) but stale (updated_at > 1 hour ago)
+    // This matches the cleanup_expired_login_attempts() SQL function in migration 039.
     await supabase
       .from('login_attempts')
       .delete()
       .eq('email', email)
-      .lt('locked_until', new Date().toISOString())
+      .or(`locked_until.lt.${now},and(locked_until.is.null,updated_at.lt.${oneHourAgo})`)
   } catch {
     // DB unavailable — in-memory was already cleared above
   }
