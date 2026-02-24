@@ -2720,3 +2720,21 @@
 - `pnpm auth:marketing` passed
 - `pnpm walkthrough:marketing` passed
 - `pnpm video:marketing` passed
+
+---
+## 2026-02-24 [AI - GPT-5 Codex]
+**Goal:** Replace marketing walkthrough dot-target cursor overlay with a pointer icon.
+**Completed:**
+- Updated cursor overlay styling in `scripts/marketing/walkthrough.ts` from circular target marker to a pointer-shaped cursor icon.
+- Kept click pulse ring effect for click emphasis.
+- Re-seeded marketing demo data locally and regenerated auth state.
+- Re-ran walkthrough capture and final marketing video render.
+**Status:** completed
+**Artifacts:**
+- Updated script: `scripts/marketing/walkthrough.ts`
+- Sample frame: `/tmp/teacher-flow-cursor-sample.png`
+- Output videos: `/Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets/artifacts/marketing/video`
+**Validation:**
+- `pnpm exec eslint scripts/marketing/walkthrough.ts` passed
+- `pnpm walkthrough:marketing` passed
+- `pnpm video:marketing` passed

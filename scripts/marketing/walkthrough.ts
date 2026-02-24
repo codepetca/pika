@@ -241,27 +241,27 @@ async function ensureCursorOverlay(page: Page) {
     style.innerHTML = `
       #marketing-cursor {
         position: fixed;
-        width: 26px;
-        height: 26px;
-        border-radius: 9999px;
-        border: 3px solid rgba(37, 99, 235, 0.98);
-        background: rgba(255, 255, 255, 0.98);
-        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25), 0 4px 12px rgba(15, 23, 42, 0.35);
+        width: 28px;
+        height: 40px;
         z-index: 2147483647;
         pointer-events: none;
-        transform: translate(-50%, -50%);
+        transform: translate(-2px, -2px);
         transition: transform 120ms ease-out;
+        filter: drop-shadow(0 2px 5px rgba(15, 23, 42, 0.35));
+      }
+      #marketing-cursor::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(37, 99, 235, 0.98);
+        clip-path: polygon(0 0, 0 100%, 32% 74%, 44% 100%, 58% 94%, 46% 70%, 100% 70%);
       }
       #marketing-cursor::after {
         content: '';
         position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 6px;
-        height: 6px;
-        border-radius: 9999px;
-        background: rgba(37, 99, 235, 0.95);
-        transform: translate(-50%, -50%);
+        inset: 2px;
+        background: rgba(255, 255, 255, 1);
+        clip-path: polygon(0 0, 0 100%, 32% 74%, 44% 100%, 58% 94%, 46% 70%, 100% 70%);
       }
       .marketing-click-ring {
         position: fixed;
