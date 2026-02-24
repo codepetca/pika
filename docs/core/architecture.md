@@ -106,6 +106,7 @@ export const GET = withErrorHandler('GetClassrooms', async (request) => {
 - `AuthenticationError` → 401
 - `AuthorizationError` → 403
 - `ApiError(status, message)` → custom status code
+- `ZodError` → 400 with field-level messages (e.g. `"email: Invalid email format"`)
 - Unknown errors → 500 (logged to console)
 
 **Do NOT** write manual try/catch blocks with error.name checks in new routes.

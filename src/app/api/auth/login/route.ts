@@ -3,16 +3,11 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { verifyPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { loginSchema } from '@/lib/validations/auth'
 
 export const POST = withErrorHandler('Login', async (request: NextRequest) => {
-  const body = await request.json()
-  const { email, password } = body
+  const { email: normalizedEmail, password } = loginSchema.parse(await request.json())
 
-  if (!email || !password) {
-    throw new ApiError(400, 'Email and password are required')
-  }
-
-  const normalizedEmail = email.toLowerCase().trim()
   const supabase = getServiceRoleClient()
 
   // Find user by email

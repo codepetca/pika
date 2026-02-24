@@ -61,7 +61,7 @@ describe('POST /api/auth/login', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Email and password are required')
+      expect(data.error).toContain('email')
     })
 
     it('should return 400 when password is missing', async () => {
@@ -74,7 +74,7 @@ describe('POST /api/auth/login', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Email and password are required')
+      expect(data.error).toContain('password')
     })
 
     it('should return 400 when both email and password are missing', async () => {
@@ -87,7 +87,7 @@ describe('POST /api/auth/login', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Email and password are required')
+      expect(data.error).toContain('email')
     })
   })
 
