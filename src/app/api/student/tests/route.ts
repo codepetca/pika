@@ -59,6 +59,23 @@ export async function GET(request: NextRequest) {
 
     const respondedTestIds = new Set<string>()
     if (classroomTestIds.length > 0) {
+      const { data: attempts, error: attemptsError } = await supabase
+        .from('test_attempts')
+        .select('test_id, is_submitted')
+        .eq('student_id', user.id)
+        .in('test_id', classroomTestIds)
+
+      if (attemptsError && attemptsError.code !== 'PGRST205') {
+        console.error('Error fetching submitted test attempts:', attemptsError)
+        return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
+      }
+
+      for (const attempt of attempts || []) {
+        if (attempt.is_submitted) {
+          respondedTestIds.add(attempt.test_id)
+        }
+      }
+
       const { data: allResponses } = await supabase
         .from('test_responses')
         .select('test_id')

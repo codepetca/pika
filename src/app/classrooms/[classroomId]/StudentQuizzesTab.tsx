@@ -55,8 +55,8 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
   const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
   const focusEnabled = useMemo(() => {
     if (!selectedQuiz) return false
-    const hasResponded = Object.keys(selectedQuiz.studentResponses).length > 0
-    return isTestsView && !hasResponded
+    const hasSubmitted = selectedQuiz.quiz.student_status !== 'not_started'
+    return isTestsView && !hasSubmitted
   }, [isTestsView, selectedQuiz])
 
   useEffect(() => {
@@ -263,7 +263,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
 
   // Quiz Detail View
   if (selectedQuizId && selectedQuiz) {
-    const hasResponded = Object.keys(selectedQuiz.studentResponses).length > 0
+    const hasResponded = selectedQuiz.quiz.student_status !== 'not_started'
     const isTest = isTestsView
     const assessmentLabel = isTest ? 'test' : 'quiz'
     const assessmentLabelPlural = isTest ? 'tests' : 'quizzes'
@@ -319,6 +319,8 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
               <StudentQuizForm
                 quizId={selectedQuizId}
                 questions={selectedQuiz.questions}
+                initialResponses={selectedQuiz.studentResponses}
+                enableDraftAutosave={isTestsView}
                 apiBasePath={apiBasePath}
                 onSubmitted={handleQuizSubmitted}
               />

@@ -66,12 +66,29 @@ export async function GET(request: NextRequest) {
 
     const respondentCountMap: Record<string, number> = {}
     if (testIds.length > 0) {
+      const seen: Record<string, Set<string>> = {}
+
+      const { data: attemptRows, error: attemptRowsError } = await supabase
+        .from('test_attempts')
+        .select('test_id, student_id, is_submitted')
+        .in('test_id', testIds)
+
+      if (attemptRowsError && attemptRowsError.code !== 'PGRST205') {
+        console.error('Error fetching test attempts:', attemptRowsError)
+        return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
+      }
+
+      for (const row of attemptRows || []) {
+        if (!row.is_submitted) continue
+        if (!seen[row.test_id]) seen[row.test_id] = new Set()
+        seen[row.test_id].add(row.student_id)
+      }
+
       const { data: responseRows } = await supabase
         .from('test_responses')
         .select('test_id, student_id')
         .in('test_id', testIds)
 
-      const seen: Record<string, Set<string>> = {}
       for (const row of responseRows || []) {
         if (!seen[row.test_id]) seen[row.test_id] = new Set()
         seen[row.test_id].add(row.student_id)

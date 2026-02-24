@@ -1,45 +1,50 @@
 import { applyPatch, compare } from 'fast-json-patch'
-import type { JsonPatchOperation, TiptapContent } from '@/types'
+import type { JsonPatchOperation } from '@/types'
 
-function cloneContent(content: TiptapContent): TiptapContent {
-  return JSON.parse(JSON.stringify(content)) as TiptapContent
+type JsonObject = object
+
+function cloneContent<TContent extends JsonObject>(content: TContent): TContent {
+  return JSON.parse(JSON.stringify(content)) as TContent
 }
 
-export function createJsonPatch(before: TiptapContent, after: TiptapContent): JsonPatchOperation[] {
+export function createJsonPatch<TContent extends JsonObject>(
+  before: TContent,
+  after: TContent
+): JsonPatchOperation[] {
   return compare(before, after) as JsonPatchOperation[]
 }
 
-export function applyJsonPatch(
-  base: TiptapContent,
+export function applyJsonPatch<TContent extends JsonObject>(
+  base: TContent,
   patch: JsonPatchOperation[]
-): TiptapContent {
+): TContent {
   const cloned = cloneContent(base)
   try {
     const result = applyPatch(cloned, patch, true, false)
-    return result.newDocument as TiptapContent
+    return result.newDocument as TContent
   } catch (error) {
     console.error('Error applying JSON patch:', error)
     return cloned
   }
 }
 
-export function tryApplyJsonPatch(
-  base: TiptapContent,
+export function tryApplyJsonPatch<TContent extends JsonObject>(
+  base: TContent,
   patch: JsonPatchOperation[]
-): { success: boolean; content: TiptapContent } {
+): { success: boolean; content: TContent } {
   const cloned = cloneContent(base)
   try {
     const result = applyPatch(cloned, patch, true, false)
-    return { success: true, content: result.newDocument as TiptapContent }
+    return { success: true, content: result.newDocument as TContent }
   } catch (error) {
     console.error('Error applying JSON patch:', error)
     return { success: false, content: cloned }
   }
 }
 
-export function shouldStoreSnapshot(
+export function shouldStoreSnapshot<TContent extends JsonObject>(
   patch: JsonPatchOperation[],
-  content: TiptapContent,
+  content: TContent,
   thresholdRatio = 0.5
 ): boolean {
   const patchSize = JSON.stringify(patch).length

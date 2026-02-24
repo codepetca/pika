@@ -24,6 +24,18 @@ export async function GET(
     const test = access.test
     const supabase = getServiceRoleClient()
 
+    const { data: attempt, error: attemptError } = await supabase
+      .from('test_attempts')
+      .select('is_submitted')
+      .eq('test_id', testId)
+      .eq('student_id', user.id)
+      .maybeSingle()
+
+    if (attemptError && attemptError.code !== 'PGRST205') {
+      console.error('Error checking test attempt submission:', attemptError)
+      return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
+    }
+
     const { data: studentResponses } = await supabase
       .from('test_responses')
       .select('id')
@@ -31,7 +43,7 @@ export async function GET(
       .eq('student_id', user.id)
       .limit(1)
 
-    const hasResponded = (studentResponses?.length || 0) > 0
+    const hasResponded = Boolean(attempt?.is_submitted) || (studentResponses?.length || 0) > 0
 
     if (!canStudentViewResults(test, hasResponded)) {
       return NextResponse.json(

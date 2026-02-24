@@ -311,6 +311,34 @@ export interface QuizResponse {
   submitted_at: string
 }
 
+export type TestAttemptHistoryTrigger = 'autosave' | 'blur' | 'submit' | 'baseline'
+
+export interface TestAttempt {
+  id: string
+  test_id: string
+  student_id: string
+  responses: Record<string, number>
+  is_submitted: boolean
+  submitted_at: string | null
+  authenticity_score: number | null
+  authenticity_flags: AuthenticityFlag[] | null
+  created_at: string
+  updated_at: string
+}
+
+export interface TestAttemptHistoryEntry {
+  id: string
+  test_attempt_id: string
+  patch: JsonPatchOperation[] | null
+  snapshot: Record<string, number> | null
+  word_count: number
+  char_count: number
+  paste_word_count: number | null
+  keystroke_count: number | null
+  trigger: TestAttemptHistoryTrigger
+  created_at: string
+}
+
 // Extended quiz types for UI
 export interface QuizWithQuestions extends Quiz {
   questions: QuizQuestion[]

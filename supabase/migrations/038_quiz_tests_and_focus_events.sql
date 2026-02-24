@@ -65,7 +65,62 @@ create trigger update_test_questions_updated_at
   execute function public.update_test_questions_updated_at();
 
 -- ============================================================================
--- 3) Create test_responses table
+-- 3) Create test_attempts table (draft + submit state)
+-- ============================================================================
+create table if not exists public.test_attempts (
+  id uuid primary key default gen_random_uuid(),
+  test_id uuid not null references public.tests (id) on delete cascade,
+  student_id uuid not null references public.users (id) on delete cascade,
+  responses jsonb not null default '{}'::jsonb,
+  is_submitted boolean not null default false,
+  submitted_at timestamptz,
+  authenticity_score integer,
+  authenticity_flags jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (test_id, student_id)
+);
+
+create index if not exists idx_test_attempts_test_id on public.test_attempts (test_id);
+create index if not exists idx_test_attempts_student_id on public.test_attempts (student_id);
+create index if not exists idx_test_attempts_test_student_submitted
+  on public.test_attempts (test_id, student_id, is_submitted);
+
+create or replace function public.update_test_attempts_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists update_test_attempts_updated_at on public.test_attempts;
+create trigger update_test_attempts_updated_at
+  before update on public.test_attempts
+  for each row
+  execute function public.update_test_attempts_updated_at();
+
+-- ============================================================================
+-- 4) Create test_attempt_history table (patch/snapshot history)
+-- ============================================================================
+create table if not exists public.test_attempt_history (
+  id uuid primary key default gen_random_uuid(),
+  test_attempt_id uuid not null references public.test_attempts (id) on delete cascade,
+  patch jsonb,
+  snapshot jsonb,
+  word_count integer not null default 0,
+  char_count integer not null default 0,
+  paste_word_count integer not null default 0,
+  keystroke_count integer not null default 0,
+  trigger text not null check (trigger in ('autosave', 'blur', 'submit', 'baseline')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_test_attempt_history_attempt_created
+  on public.test_attempt_history (test_attempt_id, created_at desc);
+
+-- ============================================================================
+-- 5) Create test_responses table (final answers for aggregation)
 -- ============================================================================
 create table if not exists public.test_responses (
   id uuid primary key default gen_random_uuid(),
@@ -81,7 +136,7 @@ create index if not exists idx_test_responses_test_id on public.test_responses (
 create index if not exists idx_test_responses_student_id on public.test_responses (student_id);
 
 -- ============================================================================
--- 4) Create test_focus_events table
+-- 6) Create test_focus_events table
 -- ============================================================================
 create table if not exists public.test_focus_events (
   id uuid primary key default gen_random_uuid(),
@@ -101,7 +156,7 @@ create index if not exists idx_test_focus_events_session
   on public.test_focus_events (session_id, occurred_at);
 
 -- ============================================================================
--- 5) RLS policies for tests
+-- 7) RLS policies for tests
 -- ============================================================================
 alter table public.tests enable row level security;
 
@@ -162,17 +217,25 @@ create policy "Students can view tests"
       status = 'active'
       or (
         status = 'closed'
-        and exists (
-          select 1 from public.test_responses
-          where test_responses.test_id = tests.id
-            and test_responses.student_id = auth.uid()
+        and (
+          exists (
+            select 1 from public.test_attempts
+            where test_attempts.test_id = tests.id
+              and test_attempts.student_id = auth.uid()
+              and test_attempts.is_submitted = true
+          )
+          or exists (
+            select 1 from public.test_responses
+            where test_responses.test_id = tests.id
+              and test_responses.student_id = auth.uid()
+          )
         )
       )
     )
   );
 
 -- ============================================================================
--- 6) RLS policies for test_questions
+-- 8) RLS policies for test_questions
 -- ============================================================================
 alter table public.test_questions enable row level security;
 
@@ -237,10 +300,18 @@ create policy "Students can view test questions"
           tests.status = 'active'
           or (
             tests.status = 'closed'
-            and exists (
-              select 1 from public.test_responses
-              where test_responses.test_id = tests.id
-                and test_responses.student_id = auth.uid()
+            and (
+              exists (
+                select 1 from public.test_attempts
+                where test_attempts.test_id = tests.id
+                  and test_attempts.student_id = auth.uid()
+                  and test_attempts.is_submitted = true
+              )
+              or exists (
+                select 1 from public.test_responses
+                where test_responses.test_id = tests.id
+                  and test_responses.student_id = auth.uid()
+              )
             )
           )
         )
@@ -248,7 +319,124 @@ create policy "Students can view test questions"
   );
 
 -- ============================================================================
--- 7) RLS policies for test_responses
+-- 9) RLS policies for test_attempts
+-- ============================================================================
+alter table public.test_attempts enable row level security;
+
+drop policy if exists "Teachers can view test attempts" on public.test_attempts;
+create policy "Teachers can view test attempts"
+  on public.test_attempts for select
+  using (
+    exists (
+      select 1
+      from public.tests
+      join public.classrooms on classrooms.id = tests.classroom_id
+      where tests.id = test_attempts.test_id
+        and classrooms.teacher_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Students can view their own test attempts" on public.test_attempts;
+create policy "Students can view their own test attempts"
+  on public.test_attempts for select
+  using (student_id = auth.uid());
+
+drop policy if exists "Students can create test attempts" on public.test_attempts;
+create policy "Students can create test attempts"
+  on public.test_attempts for insert
+  with check (
+    student_id = auth.uid()
+    and is_submitted = false
+    and submitted_at is null
+    and exists (
+      select 1
+      from public.tests
+      join public.classroom_enrollments on classroom_enrollments.classroom_id = tests.classroom_id
+      where tests.id = test_id
+        and classroom_enrollments.student_id = auth.uid()
+        and tests.status = 'active'
+    )
+  );
+
+drop policy if exists "Students can update their own open test attempts" on public.test_attempts;
+create policy "Students can update their own open test attempts"
+  on public.test_attempts for update
+  using (
+    student_id = auth.uid()
+    and is_submitted = false
+    and exists (
+      select 1
+      from public.tests
+      join public.classroom_enrollments on classroom_enrollments.classroom_id = tests.classroom_id
+      where tests.id = test_attempts.test_id
+        and classroom_enrollments.student_id = auth.uid()
+        and tests.status = 'active'
+    )
+  )
+  with check (
+    student_id = auth.uid()
+    and is_submitted = false
+    and submitted_at is null
+    and exists (
+      select 1
+      from public.tests
+      join public.classroom_enrollments on classroom_enrollments.classroom_id = tests.classroom_id
+      where tests.id = test_attempts.test_id
+        and classroom_enrollments.student_id = auth.uid()
+        and tests.status = 'active'
+    )
+  );
+
+-- ============================================================================
+-- 10) RLS policies for test_attempt_history
+-- ============================================================================
+alter table public.test_attempt_history enable row level security;
+
+drop policy if exists "Teachers can view test attempt history" on public.test_attempt_history;
+create policy "Teachers can view test attempt history"
+  on public.test_attempt_history for select
+  using (
+    exists (
+      select 1
+      from public.test_attempts
+      join public.tests on tests.id = test_attempts.test_id
+      join public.classrooms on classrooms.id = tests.classroom_id
+      where test_attempts.id = test_attempt_history.test_attempt_id
+        and classrooms.teacher_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Students can view their own test attempt history" on public.test_attempt_history;
+create policy "Students can view their own test attempt history"
+  on public.test_attempt_history for select
+  using (
+    exists (
+      select 1
+      from public.test_attempts
+      where test_attempts.id = test_attempt_history.test_attempt_id
+        and test_attempts.student_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Students can insert their own test attempt history" on public.test_attempt_history;
+create policy "Students can insert their own test attempt history"
+  on public.test_attempt_history for insert
+  with check (
+    exists (
+      select 1
+      from public.test_attempts
+      join public.tests on tests.id = test_attempts.test_id
+      join public.classroom_enrollments on classroom_enrollments.classroom_id = tests.classroom_id
+      where test_attempts.id = test_attempt_id
+        and test_attempts.student_id = auth.uid()
+        and test_attempts.is_submitted = false
+        and tests.status = 'active'
+        and classroom_enrollments.student_id = auth.uid()
+    )
+  );
+
+-- ============================================================================
+-- 11) RLS policies for test_responses
 -- ============================================================================
 alter table public.test_responses enable row level security;
 
@@ -284,7 +472,7 @@ create policy "Students can create test responses"
   );
 
 -- ============================================================================
--- 8) RLS policies for test_focus_events
+-- 12) RLS policies for test_focus_events
 -- ============================================================================
 alter table public.test_focus_events enable row level security;
 
@@ -318,6 +506,13 @@ create policy "Students can insert their own test focus events"
       where tests.id = test_id
         and classroom_enrollments.student_id = auth.uid()
         and tests.status = 'active'
+    )
+    and not exists (
+      select 1
+      from public.test_attempts
+      where test_attempts.test_id = test_id
+        and test_attempts.student_id = auth.uid()
+        and test_attempts.is_submitted = true
     )
     and not exists (
       select 1

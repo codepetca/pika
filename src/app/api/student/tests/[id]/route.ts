@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { getStudentQuizStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertStudentCanAccessTest } from '@/lib/server/tests'
+import { normalizeTestResponses } from '@/lib/test-attempts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -23,6 +24,20 @@ export async function GET(
     const test = access.test
     const supabase = getServiceRoleClient()
 
+    const { data: attempt, error: attemptError } = await supabase
+      .from('test_attempts')
+      .select('responses, is_submitted')
+      .eq('test_id', testId)
+      .eq('student_id', user.id)
+      .maybeSingle()
+
+    if (attemptError && attemptError.code !== 'PGRST205') {
+      console.error('Error fetching student test attempt:', attemptError)
+      return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
+    }
+
+    const draftResponses = normalizeTestResponses(attempt?.responses)
+
     const { data: responses } = await supabase
       .from('test_responses')
       .select('id')
@@ -30,16 +45,16 @@ export async function GET(
       .eq('student_id', user.id)
       .limit(1)
 
-    const hasResponded = (responses?.length || 0) > 0
+    const hasSubmitted = Boolean(attempt?.is_submitted) || (responses?.length || 0) > 0
 
     if (test.status === 'draft') {
       return NextResponse.json({ error: 'Test not found' }, { status: 404 })
     }
-    if (test.status === 'closed' && !hasResponded) {
+    if (test.status === 'closed' && !hasSubmitted) {
       return NextResponse.json({ error: 'Test not found' }, { status: 404 })
     }
 
-    const studentStatus = getStudentQuizStatus(test, hasResponded)
+    const studentStatus = getStudentQuizStatus(test, hasSubmitted)
 
     const { data: questions, error: questionsError } = await supabase
       .from('test_questions')
@@ -52,17 +67,20 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
-    let studentResponses: Record<string, number> = {}
-    if (hasResponded) {
+    let studentResponses: Record<string, number> = draftResponses
+    if (hasSubmitted) {
       const { data: allResponses } = await supabase
         .from('test_responses')
         .select('question_id, selected_option')
         .eq('test_id', testId)
         .eq('student_id', user.id)
 
-      studentResponses = Object.fromEntries(
+      const submittedResponses = Object.fromEntries(
         (allResponses || []).map((response) => [response.question_id, response.selected_option])
       )
+      if (Object.keys(submittedResponses).length > 0) {
+        studentResponses = submittedResponses
+      }
     }
 
     const { data: focusEvents } = await supabase

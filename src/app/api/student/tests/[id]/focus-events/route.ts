@@ -56,6 +56,25 @@ export async function POST(
       )
     }
 
+    const { data: existingAttempt, error: existingAttemptError } = await supabase
+      .from('test_attempts')
+      .select('id, is_submitted')
+      .eq('test_id', testId)
+      .eq('student_id', user.id)
+      .maybeSingle()
+
+    if (existingAttemptError && existingAttemptError.code !== 'PGRST205') {
+      console.error('Error checking existing test attempt:', existingAttemptError)
+      return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
+    }
+
+    if (existingAttempt?.is_submitted) {
+      return NextResponse.json(
+        { error: 'Focus telemetry is only available before submitting the test' },
+        { status: 400 }
+      )
+    }
+
     const { data: existingResponses, error: existingResponsesError } = await supabase
       .from('test_responses')
       .select('id')

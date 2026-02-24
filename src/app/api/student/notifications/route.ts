@@ -178,6 +178,26 @@ export async function GET(request: NextRequest) {
           respondedIds.add(assessmentId)
         }
       }
+
+      if (table === 'tests') {
+        const { data: submittedAttempts, error: attemptsError } = await supabase
+          .from('test_attempts')
+          .select('test_id, is_submitted')
+          .eq('student_id', user.id)
+          .in('test_id', activeIds)
+
+        if (attemptsError && attemptsError.code !== 'PGRST205') {
+          console.error('Error fetching test_attempts:', attemptsError)
+          return { count: 0, error: true }
+        }
+
+        for (const attempt of submittedAttempts || []) {
+          if (attempt.is_submitted && attempt.test_id) {
+            respondedIds.add(attempt.test_id)
+          }
+        }
+      }
+
       return {
         count: activeIds.filter((id) => !respondedIds.has(id)).length,
         error: false,

@@ -44,12 +44,14 @@ function createTableMock(config: {
   quizzes?: { data: any; error: any }
   quiz_responses?: { data: any; error: any }
   tests?: { data: any; error: any }
+  test_attempts?: { data: any; error: any }
   test_responses?: { data: any; error: any }
   announcements?: { data: any; error: any }
   announcement_reads?: { data: any; error: any }
 }) {
   // Default announcements to empty array if not specified
   const testsConfig = config.tests ?? { data: [], error: null }
+  const testAttemptsConfig = config.test_attempts ?? { data: [], error: null }
   const testResponsesConfig = config.test_responses ?? { data: [], error: null }
   const announcementsConfig = config.announcements ?? { data: [], error: null }
   const announcementReadsConfig = config.announcement_reads ?? { data: [], error: null }
@@ -120,6 +122,15 @@ function createTableMock(config: {
           eq: vi.fn().mockReturnThis(),
           in: vi.fn().mockReturnThis(),
           then: vi.fn((resolve: any) => resolve(testResponsesConfig)),
+        })),
+      }
+    }
+    if (table === 'test_attempts') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          then: vi.fn((resolve: any) => resolve(testAttemptsConfig)),
         })),
       }
     }

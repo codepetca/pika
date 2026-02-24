@@ -2787,3 +2787,55 @@
   - `/tmp/teacher-tests-fix-review.png`
   - `/tmp/student-quizzes-fix-review.png`
   - `/tmp/student-tests-fix-review.png`
+
+## 2026-02-24 — Phase A/B complete: reusable versioned history + test autosave/history
+**Context:** Implemented the test-first flow end-to-end: reuse assignment history persistence mechanics, add draft autosave/history for tests, keep quiz and test UX split in sidebar tabs, and preserve compatibility where existing consumers still read `test_responses`.
+
+**Phase A (modularization) completed:**
+- Added `/src/lib/server/versioned-history.ts` with generic history persistence helpers:
+  - `insertVersionedBaselineHistory(...)`
+  - `persistVersionedHistory(...)`
+- Generalized JSON patch utilities in `/src/lib/json-patch.ts` to support non-Tiptap payload objects.
+- Refactored `/src/app/api/assignment-docs/[id]/route.ts` to use the new shared helper while preserving assignment behavior.
+
+**Phase B (tests feature) completed:**
+- Updated migration `/supabase/migrations/038_quiz_tests_and_focus_events.sql` to add test draft/history model:
+  - `test_attempts`
+  - `test_attempt_history`
+  - indexes, triggers, and RLS; focus-event insert policy aligned with active/unsubmitted test constraints.
+- Added `/src/lib/test-attempts.ts` for test response normalization/validation + history metrics.
+- Added student test draft autosave endpoint:
+  - `/src/app/api/student/tests/[id]/attempt/route.ts`
+- Added test history endpoint (student + teacher read path with enrollment/ownership checks):
+  - `/src/app/api/student/tests/[id]/history/route.ts`
+- Updated test APIs to support attempts while retaining compatibility where needed:
+  - `/src/app/api/student/tests/[id]/route.ts`
+  - `/src/app/api/student/tests/[id]/respond/route.ts`
+  - `/src/app/api/student/tests/[id]/results/route.ts`
+  - `/src/app/api/student/tests/[id]/focus-events/route.ts`
+  - `/src/app/api/student/tests/route.ts`
+  - `/src/app/api/teacher/tests/route.ts`
+  - `/src/app/api/student/notifications/route.ts`
+- Updated student UI for test draft autosave/save-state messaging:
+  - `/src/components/StudentQuizForm.tsx`
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+- Added types in `/src/types/index.ts` for attempts/history.
+
+**Tests added/updated:**
+- New:
+  - `/tests/unit/test-attempts.test.ts`
+  - `/tests/api/student/tests-attempt.test.ts`
+  - `/tests/api/student/tests-history.test.ts`
+  - `/tests/api/student/tests-respond.test.ts`
+- Updated:
+  - `/tests/api/student/tests-focus-events.test.ts`
+  - `/tests/api/student/notifications.test.ts`
+
+**Verification:**
+- `bash scripts/verify-env.sh --full` passed (tests + lint + build).
+- Full suite result: `109 files / 1126 tests` passed.
+- Mandatory UI screenshots (teacher + student) captured after waiting for tab content to load:
+  - `/tmp/teacher-quizzes-phaseB-final.png`
+  - `/tmp/teacher-tests-phaseB-final.png`
+  - `/tmp/student-quizzes-phaseB-final.png`
+  - `/tmp/student-tests-phaseB-final.png`
