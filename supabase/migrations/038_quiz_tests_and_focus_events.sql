@@ -12,6 +12,8 @@ create table if not exists public.tests (
   position integer not null default 0,
   points_possible numeric(6,2) not null default 100 check (points_possible > 0),
   include_in_final boolean not null default true,
+  grading_finalized_at timestamptz,
+  grading_finalized_by uuid references public.users (id),
   created_by uuid not null references public.users (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -40,12 +42,31 @@ create trigger update_tests_updated_at
 create table if not exists public.test_questions (
   id uuid primary key default gen_random_uuid(),
   test_id uuid not null references public.tests (id) on delete cascade,
+  question_type text not null default 'multiple_choice' check (question_type in ('multiple_choice', 'open_response')),
   question_text text not null,
-  options jsonb not null,
-  correct_option integer check (correct_option is null or correct_option >= 0),
+  options jsonb not null default '[]'::jsonb,
+  correct_option integer,
+  points numeric(6,2) not null default 1 check (points > 0),
+  response_max_chars integer not null default 5000 check (response_max_chars >= 1 and response_max_chars <= 20000),
   position integer not null default 0,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  check (
+    (
+      question_type = 'multiple_choice'
+      and jsonb_typeof(options) = 'array'
+      and jsonb_array_length(options) >= 2
+      and correct_option is not null
+      and correct_option >= 0
+      and correct_option < jsonb_array_length(options)
+    )
+    or (
+      question_type = 'open_response'
+      and jsonb_typeof(options) = 'array'
+      and jsonb_array_length(options) = 0
+      and correct_option is null
+    )
+  )
 );
 
 create index if not exists idx_test_questions_test_id on public.test_questions (test_id);
@@ -127,13 +148,73 @@ create table if not exists public.test_responses (
   test_id uuid not null references public.tests (id) on delete cascade,
   question_id uuid not null references public.test_questions (id) on delete cascade,
   student_id uuid not null references public.users (id) on delete cascade,
-  selected_option integer not null check (selected_option >= 0),
+  selected_option integer check (selected_option is null or selected_option >= 0),
+  response_text text,
+  score numeric(6,2) check (score is null or score >= 0),
+  feedback text,
+  graded_at timestamptz,
+  graded_by uuid references public.users (id),
   submitted_at timestamptz not null default now(),
+  check (
+    (selected_option is not null and response_text is null)
+    or (selected_option is null and response_text is not null)
+  ),
+  check (response_text is null or char_length(response_text) <= 20000),
   unique (question_id, student_id)
 );
 
 create index if not exists idx_test_responses_test_id on public.test_responses (test_id);
 create index if not exists idx_test_responses_student_id on public.test_responses (student_id);
+create index if not exists idx_test_responses_test_question on public.test_responses (test_id, question_id);
+create index if not exists idx_test_responses_ungraded_open on public.test_responses (test_id, question_id) where score is null;
+
+create or replace function public.validate_test_response_shape()
+returns trigger as $$
+declare
+  question_type_value text;
+  question_options jsonb;
+  max_chars integer;
+begin
+  select question_type, options, response_max_chars
+    into question_type_value, question_options, max_chars
+  from public.test_questions
+  where id = new.question_id
+    and test_id = new.test_id;
+
+  if question_type_value is null then
+    raise exception 'Test question not found for response';
+  end if;
+
+  if question_type_value = 'multiple_choice' then
+    if new.selected_option is null or new.response_text is not null then
+      raise exception 'Multiple-choice responses must provide selected_option only';
+    end if;
+    if new.selected_option < 0 or new.selected_option >= jsonb_array_length(question_options) then
+      raise exception 'Selected option is out of range';
+    end if;
+    if new.score is null then
+      new.score = 0;
+    end if;
+  elsif question_type_value = 'open_response' then
+    if new.selected_option is not null or new.response_text is null then
+      raise exception 'Open-response answers must provide response_text only';
+    end if;
+    if char_length(new.response_text) > coalesce(max_chars, 5000) then
+      raise exception 'Open-response answer exceeds max characters';
+    end if;
+  else
+    raise exception 'Unsupported question type %', question_type_value;
+  end if;
+
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists validate_test_response_shape on public.test_responses;
+create trigger validate_test_response_shape
+  before insert or update on public.test_responses
+  for each row
+  execute function public.validate_test_response_shape();
 
 -- ============================================================================
 -- 6) Create test_focus_events table
@@ -444,6 +525,26 @@ drop policy if exists "Teachers can view test responses" on public.test_response
 create policy "Teachers can view test responses"
   on public.test_responses for select
   using (
+    exists (
+      select 1 from public.tests
+      join public.classrooms on classrooms.id = tests.classroom_id
+      where tests.id = test_responses.test_id
+        and classrooms.teacher_id = auth.uid()
+    )
+  );
+
+drop policy if exists "Teachers can grade test responses" on public.test_responses;
+create policy "Teachers can grade test responses"
+  on public.test_responses for update
+  using (
+    exists (
+      select 1 from public.tests
+      join public.classrooms on classrooms.id = tests.classroom_id
+      where tests.id = test_responses.test_id
+        and classrooms.teacher_id = auth.uid()
+    )
+  )
+  with check (
     exists (
       select 1 from public.tests
       join public.classrooms on classrooms.id = tests.classroom_id

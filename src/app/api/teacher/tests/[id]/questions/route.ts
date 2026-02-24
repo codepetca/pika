@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { validateQuizOptions } from '@/lib/quizzes'
+import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 
 export const dynamic = 'force-dynamic'
@@ -15,18 +15,8 @@ export async function POST(
   try {
     const user = await requireRole('teacher')
     const { id: testId } = await params
-    const body = await request.json()
-    const { question_text, options } = body
-
-    if (!question_text || !question_text.trim()) {
-      return NextResponse.json({ error: 'Question text is required' }, { status: 400 })
-    }
-
-    if (!options || !Array.isArray(options)) {
-      return NextResponse.json({ error: 'Options must be an array' }, { status: 400 })
-    }
-
-    const validation = validateQuizOptions(options)
+    const body = (await request.json()) as Record<string, unknown>
+    const validation = validateTestQuestionCreate(body)
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }
@@ -59,8 +49,7 @@ export async function POST(
       .from('test_questions')
       .insert({
         test_id: testId,
-        question_text: question_text.trim(),
-        options,
+        ...validation.value,
         position: nextPosition,
       })
       .select()

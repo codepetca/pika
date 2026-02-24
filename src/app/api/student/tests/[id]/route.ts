@@ -3,7 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { getStudentQuizStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertStudentCanAccessTest } from '@/lib/server/tests'
-import { normalizeTestResponses } from '@/lib/test-attempts'
+import { normalizeTestResponses, type TestResponses } from '@/lib/test-attempts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -72,11 +72,11 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
-    let studentResponses: Record<string, number> = draftResponses
+    let studentResponses: TestResponses = draftResponses
     if (hasSubmitted) {
       const { data: allResponses, error: allResponsesError } = await supabase
         .from('test_responses')
-        .select('question_id, selected_option')
+        .select('question_id, selected_option, response_text')
         .eq('test_id', testId)
         .eq('student_id', user.id)
 
@@ -85,9 +85,22 @@ export async function GET(
         return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
       }
 
-      const submittedResponses = Object.fromEntries(
-        (allResponses || []).map((response) => [response.question_id, response.selected_option])
-      )
+      const submittedResponses: TestResponses = {}
+      for (const response of allResponses || []) {
+        if (typeof response.selected_option === 'number') {
+          submittedResponses[response.question_id] = {
+            question_type: 'multiple_choice',
+            selected_option: response.selected_option,
+          }
+          continue
+        }
+        if (typeof response.response_text === 'string') {
+          submittedResponses[response.question_id] = {
+            question_type: 'open_response',
+            response_text: response.response_text,
+          }
+        }
+      }
       if (Object.keys(submittedResponses).length > 0) {
         studentResponses = submittedResponses
       }
@@ -108,7 +121,9 @@ export async function GET(
         assessment_type: 'test' as const,
         status: test.status,
         show_results: test.show_results,
+        grading_finalized_at: test.grading_finalized_at,
         position: test.position,
+        student_status: studentStatus,
         created_at: test.created_at,
         updated_at: test.updated_at,
       },

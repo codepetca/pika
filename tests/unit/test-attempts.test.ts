@@ -17,20 +17,33 @@ describe('test-attempts utilities', () => {
     })
 
     expect(result).toEqual({
-      'q-1': 0,
-      'q-2': 1,
+      'q-1': {
+        question_type: 'multiple_choice',
+        selected_option: 0,
+      },
+      'q-2': {
+        question_type: 'multiple_choice',
+        selected_option: 1,
+      },
+      'q-5': {
+        question_type: 'open_response',
+        response_text: '1',
+      },
     })
   })
 
   it('validates response option ranges and question ids', () => {
     const questions = [
-      { id: 'q-1', options: ['A', 'B'] },
-      { id: 'q-2', options: ['A', 'B', 'C'] },
+      { id: 'q-1', question_type: 'multiple_choice' as const, options: ['A', 'B'] },
+      { id: 'q-2', question_type: 'open_response' as const, options: [], response_max_chars: 50 },
     ]
 
     expect(
       validateTestResponsesAgainstQuestions(
-        { 'q-1': 1, 'q-2': 2 },
+        {
+          'q-1': { question_type: 'multiple_choice', selected_option: 1 },
+          'q-2': { question_type: 'open_response', response_text: 'Short response' },
+        },
         questions,
         { requireAllQuestions: true }
       )
@@ -38,21 +51,21 @@ describe('test-attempts utilities', () => {
 
     expect(
       validateTestResponsesAgainstQuestions(
-        { 'q-1': 3 },
+        { 'q-1': { question_type: 'multiple_choice', selected_option: 3 } },
         questions
       )
     ).toEqual({ valid: false, error: 'Invalid option for question q-1' })
 
     expect(
       validateTestResponsesAgainstQuestions(
-        { 'missing-q': 0 },
+        { 'missing-q': { question_type: 'multiple_choice', selected_option: 0 } },
         questions
       )
     ).toEqual({ valid: false, error: 'Invalid question ID: missing-q' })
 
     expect(
       validateTestResponsesAgainstQuestions(
-        { 'q-1': 0 },
+        { 'q-1': { question_type: 'multiple_choice', selected_option: 0 } },
         questions,
         { requireAllQuestions: true }
       )
@@ -61,12 +74,15 @@ describe('test-attempts utilities', () => {
 
   it('builds metrics from response counts', () => {
     const metrics = buildTestAttemptHistoryMetrics(
-      { 'q-1': 0, 'q-2': 1 },
+      {
+        'q-1': { question_type: 'multiple_choice', selected_option: 0 },
+        'q-2': { question_type: 'open_response', response_text: 'hello world' },
+      },
       5.6,
       12.2
     )
 
-    expect(metrics.word_count).toBe(2)
+    expect(metrics.word_count).toBe(3)
     expect(metrics.char_count).toBeGreaterThan(0)
     expect(metrics.paste_word_count).toBe(6)
     expect(metrics.keystroke_count).toBe(12)

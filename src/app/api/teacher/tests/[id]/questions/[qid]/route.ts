@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { validateQuizOptions } from '@/lib/quizzes'
+import { validateTestQuestionUpdate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 
 export const dynamic = 'force-dynamic'
@@ -15,8 +15,7 @@ export async function PATCH(
   try {
     const user = await requireRole('teacher')
     const { id: testId, qid: questionId } = await params
-    const body = await request.json()
-    const { question_text, options } = body
+    const body = (await request.json()) as Record<string, unknown>
 
     const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
     if (!access.ok) {
@@ -43,22 +42,32 @@ export async function PATCH(
       return NextResponse.json({ error: 'Question not found' }, { status: 404 })
     }
 
-    const updates: Record<string, any> = {}
-    if (question_text !== undefined) {
-      if (!question_text.trim()) {
-        return NextResponse.json({ error: 'Question text cannot be empty' }, { status: 400 })
-      }
-      updates.question_text = question_text.trim()
+    const currentQuestion = {
+      question_type: existingQuestion.question_type === 'open_response' ? 'open_response' as const : 'multiple_choice' as const,
+      question_text: String(existingQuestion.question_text || ''),
+      options: Array.isArray(existingQuestion.options) ? existingQuestion.options.map((option: unknown) => String(option)) : [],
+      correct_option:
+        typeof existingQuestion.correct_option === 'number' && Number.isInteger(existingQuestion.correct_option)
+          ? existingQuestion.correct_option
+          : null,
+      points: Number(existingQuestion.points ?? 1),
+      response_max_chars: Number(existingQuestion.response_max_chars ?? 5000),
     }
-    if (options !== undefined) {
-      if (!Array.isArray(options)) {
-        return NextResponse.json({ error: 'Options must be an array' }, { status: 400 })
-      }
-      const validation = validateQuizOptions(options)
-      if (!validation.valid) {
-        return NextResponse.json({ error: validation.error }, { status: 400 })
-      }
-      updates.options = options
+
+    const validation = validateTestQuestionUpdate(body, currentQuestion)
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+
+    const nextQuestion = validation.value
+    const updates: Record<string, any> = {}
+    if (nextQuestion.question_type !== currentQuestion.question_type) updates.question_type = nextQuestion.question_type
+    if (nextQuestion.question_text !== currentQuestion.question_text) updates.question_text = nextQuestion.question_text
+    if (JSON.stringify(nextQuestion.options) !== JSON.stringify(currentQuestion.options)) updates.options = nextQuestion.options
+    if (nextQuestion.correct_option !== currentQuestion.correct_option) updates.correct_option = nextQuestion.correct_option
+    if (nextQuestion.points !== currentQuestion.points) updates.points = nextQuestion.points
+    if (nextQuestion.response_max_chars !== currentQuestion.response_max_chars) {
+      updates.response_max_chars = nextQuestion.response_max_chars
     }
 
     if (Object.keys(updates).length === 0) {

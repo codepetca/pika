@@ -74,6 +74,7 @@ export async function GET(
         status: quiz.status,
         show_results: quiz.show_results,
         position: quiz.position,
+        student_status: studentStatus,
         created_at: quiz.created_at,
         updated_at: quiz.updated_at,
       },

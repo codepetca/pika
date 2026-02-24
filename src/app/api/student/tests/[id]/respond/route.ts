@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessTest } from '@/lib/server/tests'
-import { buildTestAttemptHistoryMetrics, normalizeTestResponses, validateTestResponsesAgainstQuestions } from '@/lib/test-attempts'
+import {
+  buildTestAttemptHistoryMetrics,
+  normalizeTestResponses,
+  validateTestResponsesAgainstQuestions,
+  type TestResponses,
+} from '@/lib/test-attempts'
 import { insertVersionedBaselineHistory } from '@/lib/server/versioned-history'
 
 export const dynamic = 'force-dynamic'
@@ -65,7 +70,7 @@ export async function POST(
 
     const { data: questions, error: questionsError } = await supabase
       .from('test_questions')
-      .select('id, options')
+      .select('id, question_type, options, correct_option, points, response_max_chars')
       .eq('test_id', testId)
 
     if (questionsError || !questions) {
@@ -81,13 +86,44 @@ export async function POST(
     }
 
     const submittedAt = new Date().toISOString()
-    const responsesToInsert = Object.entries(responses).map(([questionId, selectedOption]) => ({
-      test_id: testId,
-      question_id: questionId,
-      student_id: user.id,
-      selected_option: selectedOption as number,
-      submitted_at: submittedAt,
-    }))
+    const responsesToInsert = (questions || []).map((question) => {
+      const response = responses[question.id]
+      if (!response) {
+        throw new Error(`Missing response for question ${question.id}`)
+      }
+
+      const points = Number(question.points ?? 1)
+      const questionType = question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
+      if (questionType === 'multiple_choice') {
+        const selectedOption = response.question_type === 'multiple_choice' ? response.selected_option : -1
+        const isCorrect = selectedOption === question.correct_option
+        return {
+          test_id: testId,
+          question_id: question.id,
+          student_id: user.id,
+          selected_option: selectedOption,
+          response_text: null,
+          score: isCorrect ? points : 0,
+          feedback: null,
+          graded_at: submittedAt,
+          graded_by: null,
+          submitted_at: submittedAt,
+        }
+      }
+
+      return {
+        test_id: testId,
+        question_id: question.id,
+        student_id: user.id,
+        selected_option: null,
+        response_text: response.question_type === 'open_response' ? response.response_text : '',
+        score: null,
+        feedback: null,
+        graded_at: null,
+        graded_by: null,
+        submitted_at: submittedAt,
+      }
+    })
 
     const { error: insertError } = await supabase
       .from('test_responses')
@@ -140,7 +176,7 @@ export async function POST(
 
       if (testAttemptId) {
         try {
-          await insertVersionedBaselineHistory<Record<string, number>>({
+          await insertVersionedBaselineHistory<TestResponses>({
             supabase,
             table: 'test_attempt_history',
             ownerColumn: 'test_attempt_id',
@@ -148,7 +184,7 @@ export async function POST(
             content: nextResponses,
             selectFields: HISTORY_SELECT_FIELDS,
             trigger: 'submit',
-            buildMetrics: (currentResponses: Record<string, number>) =>
+            buildMetrics: (currentResponses: TestResponses) =>
               buildTestAttemptHistoryMetrics(currentResponses),
           })
         } catch (historyError) {

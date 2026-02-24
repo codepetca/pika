@@ -14,6 +14,7 @@ import type {
   QuizFocusSummary,
   QuizQuestion,
   StudentQuizView,
+  TestResponseDraftValue,
 } from '@/types'
 
 interface Props {
@@ -43,7 +44,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
   const [selectedQuiz, setSelectedQuiz] = useState<{
     quiz: StudentQuizView
     questions: QuizQuestion[]
-    studentResponses: Record<string, number>
+    studentResponses: Record<string, number | TestResponseDraftValue>
   } | null>(null)
   const [loadingQuiz, setLoadingQuiz] = useState(false)
   const selectedQuizIdRef = useRef<string | null>(null)
@@ -95,8 +96,10 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
     try {
       const res = await fetch(`${apiBasePath}/${quizId}`)
       const data = await res.json()
+      const listQuiz = quizzes.find((quiz) => quiz.id === quizId)
+      const studentStatus = data.student_status ?? data.quiz?.student_status ?? listQuiz?.student_status ?? 'not_started'
       setSelectedQuiz({
-        quiz: data.quiz,
+        quiz: { ...data.quiz, student_status: studentStatus },
         questions: data.questions || [],
         studentResponses: data.student_responses || {},
       })
@@ -296,6 +299,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
               <StudentQuizResults
                 quizId={selectedQuizId}
                 myResponses={selectedQuiz.studentResponses}
+                assessmentType={assessmentType}
                 apiBasePath={apiBasePath}
               />
             ) : hasResponded ? (
@@ -321,6 +325,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
                 questions={selectedQuiz.questions}
                 initialResponses={selectedQuiz.studentResponses}
                 enableDraftAutosave={isTestsView}
+                assessmentType={assessmentType}
                 apiBasePath={apiBasePath}
                 onSubmitted={handleQuizSubmitted}
               />

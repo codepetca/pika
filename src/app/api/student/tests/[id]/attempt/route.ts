@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessTest } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { buildTestAttemptHistoryMetrics, normalizeTestResponses, validateTestResponsesAgainstQuestions } from '@/lib/test-attempts'
+import {
+  buildTestAttemptHistoryMetrics,
+  normalizeTestResponses,
+  validateTestResponsesAgainstQuestions,
+  type TestResponses,
+} from '@/lib/test-attempts'
 import { insertVersionedBaselineHistory, persistVersionedHistory } from '@/lib/server/versioned-history'
 import type { TestAttemptHistoryEntry } from '@/types'
 
@@ -49,7 +54,7 @@ export async function PATCH(
 
     const { data: questions, error: questionsError } = await supabase
       .from('test_questions')
-      .select('id, options')
+      .select('id, question_type, options, response_max_chars')
       .eq('test_id', testId)
 
     if (questionsError || !questions) {
@@ -128,7 +133,7 @@ export async function PATCH(
       }
 
       try {
-        historyEntry = await insertVersionedBaselineHistory<Record<string, number>>({
+        historyEntry = await insertVersionedBaselineHistory<TestResponses>({
           supabase,
           table: 'test_attempt_history',
           ownerColumn: 'test_attempt_id',
@@ -136,7 +141,7 @@ export async function PATCH(
           content: responses,
           selectFields: HISTORY_SELECT_FIELDS,
           trigger: 'baseline',
-          buildMetrics: (currentResponses: Record<string, number>) =>
+          buildMetrics: (currentResponses: TestResponses) =>
             buildTestAttemptHistoryMetrics(currentResponses, pasteWordCount, keystrokeCount),
         })
       } catch (historyError) {
@@ -162,7 +167,7 @@ export async function PATCH(
     }
 
     try {
-      historyEntry = await persistVersionedHistory<Record<string, number>>({
+      historyEntry = await persistVersionedHistory<TestResponses>({
         supabase,
         table: 'test_attempt_history',
         ownerColumn: 'test_attempt_id',
@@ -172,7 +177,7 @@ export async function PATCH(
         selectFields: HISTORY_SELECT_FIELDS,
         trigger: trigger ?? 'autosave',
         historyMinIntervalMs: HISTORY_MIN_INTERVAL_MS,
-        buildMetrics: (currentResponses: Record<string, number>) =>
+        buildMetrics: (currentResponses: TestResponses) =>
           buildTestAttemptHistoryMetrics(currentResponses, pasteWordCount, keystrokeCount),
       })
     } catch (historyError) {

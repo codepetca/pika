@@ -2857,3 +2857,30 @@
 - `pnpm test tests/api/student/tests-id.test.ts tests/api/student/tests-route.test.ts tests/api/teacher/tests-route.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-history.test.ts tests/api/student/tests-respond.test.ts`
 - `pnpm lint`
 - `pnpm exec tsc --noEmit`
+
+## 2026-02-24 — Test mixed-question flow hardening + status bug fix
+**Context:** During end-to-end validation of the new tests feature, mixed question creation exposed local schema drift and student detail view behavior blocked first-time test attempts.
+
+**Changes:**
+- Reapplied migration set locally (`supabase db reset --local`) and reseeded (`pnpm seed`) to align local schema with updated `038`.
+- Fixed student detail status propagation so tests/quizzes no longer default to "submitted" when `student_status` is missing:
+  - `/src/app/api/student/quizzes/[id]/route.ts`
+  - `/src/app/api/student/tests/[id]/route.ts`
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+- Updated migration guardrail in `038` to align open-response response length with configurable limits:
+  - `/supabase/migrations/038_quiz_tests_and_focus_events.sql`
+  - `test_responses.response_text` check raised to `<= 20000`.
+
+**Verification:**
+- UI smoke (teacher + student) verified mixed test behavior with screenshots:
+  - `/tmp/teacher-test-editor-mixed.png`
+  - `/tmp/student-test-mixed-form.png`
+- Mandatory tab screenshots (stable, non-spinner) captured:
+  - `/tmp/teacher-quizzes-stable.png`
+  - `/tmp/teacher-tests-stable.png`
+  - `/tmp/student-quizzes-stable.png`
+  - `/tmp/student-tests-stable.png`
+- Full checks passed:
+  - `pnpm lint`
+  - `pnpm test`
+  - `pnpm build`

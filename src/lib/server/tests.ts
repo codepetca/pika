@@ -8,6 +8,10 @@ export type TestAccessRecord = {
   title: string
   show_results: boolean
   position: number
+  points_possible: number
+  include_in_final: boolean
+  grading_finalized_at: string | null
+  grading_finalized_by: string | null
   created_by: string
   created_at: string
   updated_at: string

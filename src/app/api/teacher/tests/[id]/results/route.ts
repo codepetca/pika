@@ -37,7 +37,7 @@ export async function GET(
 
     const { data: responses, error: responsesError } = await supabase
       .from('test_responses')
-      .select('*')
+      .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at')
       .eq('test_id', testId)
 
     if (responsesError) {
@@ -51,7 +51,15 @@ export async function GET(
       student_id: string
       name: string | null
       email: string
-      answers: Record<string, number>
+      answers: Record<string, {
+        response_id: string
+        question_type: 'multiple_choice' | 'open_response'
+        selected_option: number | null
+        response_text: string | null
+        score: number | null
+        feedback: string | null
+        graded_at: string | null
+      }>
       focus_summary: QuizFocusSummary | null
     }[] = []
 
@@ -73,10 +81,31 @@ export async function GET(
         ]) || []
       )
 
-      const studentAnswers: Record<string, Record<string, number>> = {}
+      const questionById = new Map(
+        (questions || []).map((question) => [question.id, question])
+      )
+      const studentAnswers: Record<string, Record<string, {
+        response_id: string
+        question_type: 'multiple_choice' | 'open_response'
+        selected_option: number | null
+        response_text: string | null
+        score: number | null
+        feedback: string | null
+        graded_at: string | null
+      }>> = {}
       for (const response of responses || []) {
+        const question = questionById.get(response.question_id)
+        if (!question) continue
         if (!studentAnswers[response.student_id]) studentAnswers[response.student_id] = {}
-        studentAnswers[response.student_id][response.question_id] = response.selected_option
+        studentAnswers[response.student_id][response.question_id] = {
+          response_id: response.id,
+          question_type: question.question_type === 'open_response' ? 'open_response' : 'multiple_choice',
+          selected_option: response.selected_option,
+          response_text: response.response_text,
+          score: response.score,
+          feedback: response.feedback,
+          graded_at: response.graded_at,
+        }
       }
 
       const { data: focusEvents } = await supabase
@@ -113,10 +142,44 @@ export async function GET(
       })
     }
 
-    const aggregated = aggregateResults(
-      (questions || []) as QuizQuestion[],
-      (responses || []) as QuizResponse[]
+    const multipleChoiceQuestions = (questions || []).filter(
+      (question) => question.question_type !== 'open_response'
     )
+    const multipleChoiceResponses = (responses || []).flatMap((response) => {
+      if (typeof response.selected_option !== 'number') return []
+      return [{
+        id: response.id,
+        quiz_id: testId,
+        question_id: response.question_id,
+        student_id: response.student_id,
+        selected_option: response.selected_option,
+        submitted_at: response.submitted_at,
+      } satisfies QuizResponse]
+    })
+
+    const aggregated = aggregateResults(
+      multipleChoiceQuestions as QuizQuestion[],
+      multipleChoiceResponses
+    )
+
+    const openQuestionIds = new Set(
+      (questions || [])
+        .filter((question) => question.question_type === 'open_response')
+        .map((question) => question.id)
+    )
+
+    let gradedOpenResponses = 0
+    let ungradedOpenResponses = 0
+    for (const response of responses || []) {
+      if (!openQuestionIds.has(response.question_id)) continue
+      const hasScore = typeof response.score === 'number'
+      const hasFeedback = typeof response.feedback === 'string' && response.feedback.trim().length > 0
+      if (hasScore && hasFeedback) {
+        gradedOpenResponses += 1
+      } else {
+        ungradedOpenResponses += 1
+      }
+    }
 
     const { count: totalStudents } = await supabase
       .from('classroom_enrollments')
@@ -130,11 +193,17 @@ export async function GET(
         assessment_type: 'test' as const,
         status: test.status,
         show_results: test.show_results,
+        grading_finalized_at: test.grading_finalized_at,
+        grading_finalized_by: test.grading_finalized_by,
       },
       questions: (questions || []).map((q) => ({
         id: q.id,
+        question_type: q.question_type === 'open_response' ? 'open_response' : 'multiple_choice',
         question_text: q.question_text,
         options: q.options,
+        correct_option: q.correct_option,
+        points: q.points,
+        response_max_chars: q.response_max_chars,
         position: q.position,
       })),
       results: aggregated,
@@ -142,6 +211,10 @@ export async function GET(
       stats: {
         total_students: totalStudents || 0,
         responded: responderIds.length,
+        open_questions_count: openQuestionIds.size,
+        graded_open_responses: gradedOpenResponses,
+        ungraded_open_responses: ungradedOpenResponses,
+        grading_finalized: !!test.grading_finalized_at,
       },
     })
   } catch (error: any) {

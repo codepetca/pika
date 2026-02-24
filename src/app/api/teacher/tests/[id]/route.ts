@@ -43,6 +43,10 @@ export async function GET(
         status: test.status,
         show_results: test.show_results,
         position: test.position,
+        points_possible: test.points_possible,
+        include_in_final: test.include_in_final,
+        grading_finalized_at: test.grading_finalized_at,
+        grading_finalized_by: test.grading_finalized_by,
         created_by: test.created_by,
         created_at: test.created_at,
         updated_at: test.updated_at,
@@ -122,6 +126,10 @@ export async function PATCH(
     if (title !== undefined) updates.title = title.trim()
     if (status !== undefined) updates.status = status
     if (show_results !== undefined) updates.show_results = show_results
+    if (status !== undefined && status !== existing.status) {
+      updates.grading_finalized_at = null
+      updates.grading_finalized_by = null
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
