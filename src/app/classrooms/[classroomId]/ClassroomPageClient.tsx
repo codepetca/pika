@@ -693,6 +693,7 @@ function ClassroomPageContent({
 
   const isAssessmentTab = activeTab === 'quizzes' || activeTab === 'tests'
   const assessmentLabel = activeTab === 'tests' ? 'test' : 'quiz'
+  const assessmentApiBasePath = activeTab === 'tests' ? '/api/teacher/tests' : '/api/teacher/quizzes'
 
   const content = (
     <AppShell
@@ -1012,6 +1013,7 @@ function ClassroomPageContent({
             <QuizDetailPanel
               quiz={selectedQuiz}
               classroomId={classroom.id}
+              apiBasePath={assessmentApiBasePath}
               onQuizUpdate={handleQuizUpdate}
             />
           ) : isTeacher && isAssessmentTab ? (

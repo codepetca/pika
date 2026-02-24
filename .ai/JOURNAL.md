@@ -2731,3 +2731,24 @@
 - `pnpm vitest run tests/components/ThreePanelProvider.test.tsx` passed
 - `pnpm e2e:auth` passed
 - Playwright screenshots verified for teacher and student
+
+## 2026-02-24 — Finalize tests-first split (038 unapplied path)
+**Context:** Proceeded with the approved plan to keep Tests distinct from Quizzes, with migration `038` still unapplied in production. Focus was to make runtime behavior safe before migration rollout and keep UI/API routes clearly separated.
+
+**Changes:**
+- Restored quiz APIs to quiz-only behavior (removed assessment-type branching and test-table assumptions) while preserving `assessment_type: 'quiz'` in payloads for client compatibility.
+- Kept Tests as a separate API/domain (`/api/teacher/tests`, `/api/student/tests`) and added graceful migration-missing handling (`PGRST205`) for list/create flows.
+- Updated classroom quiz/test tabs to hit separate endpoints by tab (`quizzes` vs `tests`) without `assessment_type` query param coupling.
+- Threaded `apiBasePath` through shared quiz components (`QuizModal`, `QuizCard`, `QuizDetailPanel`, `QuizQuestionEditor`, `QuizIndividualResponses`, `StudentQuizForm`, `StudentQuizResults`) so Tests can reuse UI safely.
+- Updated `tests/components/TeacherQuizzesTab.test.tsx` expectations to assert endpoint family routing.
+- Minor cleanup: fixed indentation/readability in `src/components/QuizDetailPanel.tsx` results block.
+
+**Validation:**
+- `pnpm exec tsc --noEmit` passed
+- `pnpm lint` passed
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/unit/quizzes.test.ts` passed
+- Prior full-suite verification in this worktree remains green (`104 files / 1108 tests`).
+
+**Notes:**
+- `038_quiz_tests_and_focus_events.sql` now models Tests as first-class tables (`tests`, `test_questions`, `test_responses`, `test_focus_events`) with dedicated RLS.
+- Migration is not auto-applied by agent; human apply remains required.

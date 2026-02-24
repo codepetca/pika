@@ -7,10 +7,16 @@ import type { QuizQuestion } from '@/types'
 interface Props {
   quizId: string
   questions: QuizQuestion[]
+  apiBasePath?: string
   onSubmitted: () => void
 }
 
-export function StudentQuizForm({ quizId, questions, onSubmitted }: Props) {
+export function StudentQuizForm({
+  quizId,
+  questions,
+  apiBasePath = '/api/student/quizzes',
+  onSubmitted,
+}: Props) {
   const [responses, setResponses] = useState<Record<string, number>>({})
   const [showConfirm, setShowConfirm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -27,7 +33,7 @@ export function StudentQuizForm({ quizId, questions, onSubmitted }: Props) {
     setError('')
 
     try {
-      const res = await fetch(`/api/student/quizzes/${quizId}/respond`, {
+      const res = await fetch(`${apiBasePath}/${quizId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ responses }),

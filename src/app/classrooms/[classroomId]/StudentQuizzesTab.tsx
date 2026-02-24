@@ -51,11 +51,13 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
   const awayStartedAtRef = useRef<number | null>(null)
   const focusEnabledRef = useRef(false)
   const routeExitLoggedRef = useRef(false)
+  const isTestsView = assessmentType === 'test'
+  const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
   const focusEnabled = useMemo(() => {
     if (!selectedQuiz) return false
     const hasResponded = Object.keys(selectedQuiz.studentResponses).length > 0
-    return selectedQuiz.quiz.assessment_type === 'test' && !hasResponded
-  }, [selectedQuiz])
+    return isTestsView && !hasResponded
+  }, [isTestsView, selectedQuiz])
 
   useEffect(() => {
     selectedQuizIdRef.current = selectedQuizId
@@ -68,11 +70,8 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
   const loadQuizzes = useCallback(async () => {
     setLoading(true)
     try {
-      const query = new URLSearchParams({
-        classroom_id: classroom.id,
-        assessment_type: assessmentType,
-      })
-      const res = await fetch(`/api/student/quizzes?${query.toString()}`)
+      const query = new URLSearchParams({ classroom_id: classroom.id })
+      const res = await fetch(`${apiBasePath}?${query.toString()}`)
       const data = await res.json()
       setQuizzes(data.quizzes || [])
     } catch (err) {
@@ -80,7 +79,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [assessmentType, classroom.id])
+  }, [apiBasePath, classroom.id])
 
   useEffect(() => {
     loadQuizzes()
@@ -94,7 +93,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
     routeExitLoggedRef.current = false
 
     try {
-      const res = await fetch(`/api/student/quizzes/${quizId}`)
+      const res = await fetch(`${apiBasePath}/${quizId}`)
       const data = await res.json()
       setSelectedQuiz({
         quiz: data.quiz,
@@ -124,7 +123,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
     if (!quizId || !sessionId) return
 
     try {
-      const res = await fetch(`/api/student/quizzes/${quizId}/focus-events`, {
+      const res = await fetch(`${apiBasePath}/${quizId}/focus-events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -144,7 +143,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
     } catch (err) {
       console.error('Error posting quiz focus event:', err)
     }
-  }, [])
+  }, [apiBasePath])
 
   const logRouteExitAttempt = useCallback((source: RouteExitSource) => {
     if (routeExitLoggedRef.current) return
@@ -261,7 +260,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
   // Quiz Detail View
   if (selectedQuizId && selectedQuiz) {
     const hasResponded = Object.keys(selectedQuiz.studentResponses).length > 0
-    const isTest = selectedQuiz.quiz.assessment_type === 'test'
+    const isTest = isTestsView
     const assessmentLabelPlural = isTest ? 'tests' : 'quizzes'
 
     return (
@@ -292,6 +291,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
               <StudentQuizResults
                 quizId={selectedQuizId}
                 myResponses={selectedQuiz.studentResponses}
+                apiBasePath={apiBasePath}
               />
             ) : hasResponded ? (
               <div className="mt-6 p-4 bg-success-bg rounded-lg text-center">
@@ -314,6 +314,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
               <StudentQuizForm
                 quizId={selectedQuizId}
                 questions={selectedQuiz.questions}
+                apiBasePath={apiBasePath}
                 onSubmitted={handleQuizSubmitted}
               />
             )}
@@ -360,7 +361,9 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
                     )}
                   </div>
                   {quiz.status === 'closed' && (
-                    <p className="text-xs text-text-muted mt-1">This quiz is closed</p>
+                    <p className="text-xs text-text-muted mt-1">
+                      This {isTestsView ? 'test' : 'quiz'} is closed
+                    </p>
                   )}
                 </button>
               ))}

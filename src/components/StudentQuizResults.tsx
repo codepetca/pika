@@ -7,9 +7,14 @@ import type { QuizResultsAggregate } from '@/types'
 interface Props {
   quizId: string
   myResponses: Record<string, number>
+  apiBasePath?: string
 }
 
-export function StudentQuizResults({ quizId, myResponses }: Props) {
+export function StudentQuizResults({
+  quizId,
+  myResponses,
+  apiBasePath = '/api/student/quizzes',
+}: Props) {
   const [results, setResults] = useState<QuizResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -17,7 +22,7 @@ export function StudentQuizResults({ quizId, myResponses }: Props) {
   useEffect(() => {
     async function loadResults() {
       try {
-        const res = await fetch(`/api/student/quizzes/${quizId}/results`)
+        const res = await fetch(`${apiBasePath}/${quizId}/results`)
         const data = await res.json()
         if (!res.ok) {
           throw new Error(data.error || 'Failed to load results')
@@ -30,7 +35,7 @@ export function StudentQuizResults({ quizId, myResponses }: Props) {
       }
     }
     loadResults()
-  }, [quizId])
+  }, [apiBasePath, quizId])
 
   if (loading) {
     return (

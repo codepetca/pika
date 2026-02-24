@@ -29,10 +29,16 @@ import type { QuizQuestion, QuizWithStats, QuizResultsAggregate } from '@/types'
 interface Props {
   quiz: QuizWithStats
   classroomId: string
+  apiBasePath?: string
   onQuizUpdate: () => void
 }
 
-export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
+export function QuizDetailPanel({
+  quiz,
+  classroomId,
+  apiBasePath = '/api/teacher/quizzes',
+  onQuizUpdate,
+}: Props) {
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [results, setResults] = useState<QuizResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -68,7 +74,7 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
     }
     setSavingTitle(true)
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}`, {
+      const res = await fetch(`${apiBasePath}/${quiz.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: trimmed }),
@@ -111,12 +117,12 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
   const loadQuizDetails = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}`)
+      const res = await fetch(`${apiBasePath}/${quiz.id}`)
       const data = await res.json()
       setQuestions(data.questions || [])
 
       if (hasResponses) {
-        const resultsRes = await fetch(`/api/teacher/quizzes/${quiz.id}/results`)
+        const resultsRes = await fetch(`${apiBasePath}/${quiz.id}/results`)
         const resultsData = await resultsRes.json()
         setResults(resultsData.results || [])
       } else {
@@ -127,7 +133,7 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [quiz.id, hasResponses])
+  }, [apiBasePath, quiz.id, hasResponses])
 
   useEffect(() => {
     loadQuizDetails()
@@ -148,7 +154,7 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
       setIsReordering(true)
       try {
         const orderedIds = reordered.map((q) => q.id)
-        await fetch(`/api/teacher/quizzes/${quiz.id}/questions/reorder`, {
+        await fetch(`${apiBasePath}/${quiz.id}/questions/reorder`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question_ids: orderedIds }),
@@ -161,12 +167,12 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
         setIsReordering(false)
       }
     },
-    [questions, quiz.id, isReordering, isEditable, loadQuizDetails]
+    [apiBasePath, questions, quiz.id, isReordering, isEditable, loadQuizDetails]
   )
 
   async function handleAddQuestion() {
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}/questions`, {
+      const res = await fetch(`${apiBasePath}/${quiz.id}/questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -314,6 +320,7 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
                   <QuizQuestionEditor
                     key={question.id}
                     quizId={quiz.id}
+                    apiBasePath={apiBasePath}
                     question={question}
                     questionNumber={index + 1}
                     isEditable={isEditable}
@@ -323,7 +330,7 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
               </SortableContext>
             </DndContext>
 
-{isEditable && (
+            {isEditable && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -346,7 +353,7 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
             <QuizResultsView results={results} />
             {hasResponses && (
               <div className="pt-4 border-t border-border">
-                <QuizIndividualResponses quizId={quiz.id} />
+                <QuizIndividualResponses quizId={quiz.id} apiBasePath={apiBasePath} />
               </div>
             )}
           </div>

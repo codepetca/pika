@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { canActivateQuiz } from '@/lib/quizzes'
-import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
+import { assertTeacherOwnsTest } from '@/lib/server/tests'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// GET /api/teacher/quizzes/[id] - Get quiz with questions
+// GET /api/teacher/tests/[id] - Get test with questions
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,38 +17,38 @@ export async function GET(
     const { id } = await params
     const supabase = getServiceRoleClient()
 
-    const access = await assertTeacherOwnsQuiz(user.id, id)
+    const access = await assertTeacherOwnsTest(user.id, id)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const quiz = access.quiz
+    const test = access.test
 
     const { data: questions, error: questionsError } = await supabase
-      .from('quiz_questions')
+      .from('test_questions')
       .select('*')
-      .eq('quiz_id', id)
+      .eq('test_id', id)
       .order('position', { ascending: true })
 
     if (questionsError) {
-      console.error('Error fetching questions:', questionsError)
+      console.error('Error fetching test questions:', questionsError)
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
     return NextResponse.json({
       quiz: {
-        id: quiz.id,
-        classroom_id: quiz.classroom_id,
-        title: quiz.title,
-        assessment_type: 'quiz' as const,
-        status: quiz.status,
-        show_results: quiz.show_results,
-        position: quiz.position,
-        created_by: quiz.created_by,
-        created_at: quiz.created_at,
-        updated_at: quiz.updated_at,
+        id: test.id,
+        classroom_id: test.classroom_id,
+        title: test.title,
+        assessment_type: 'test' as const,
+        status: test.status,
+        show_results: test.show_results,
+        position: test.position,
+        created_by: test.created_by,
+        created_at: test.created_at,
+        updated_at: test.updated_at,
       },
       questions: questions || [],
-      classroom: quiz.classrooms,
+      classroom: test.classrooms,
     })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
@@ -57,12 +57,12 @@ export async function GET(
     if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    console.error('Get quiz error:', error)
+    console.error('Get test error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// PATCH /api/teacher/quizzes/[id] - Update quiz title/status/show_results
+// PATCH /api/teacher/tests/[id] - Update test title/status/show_results
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -73,11 +73,11 @@ export async function PATCH(
     const body = await request.json()
     const { title, status, show_results } = body
 
-    const access = await assertTeacherOwnsQuiz(user.id, id, { checkArchived: true })
+    const access = await assertTeacherOwnsTest(user.id, id, { checkArchived: true })
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const existing = access.quiz
+    const existing = access.test
     const supabase = getServiceRoleClient()
 
     if (status !== undefined) {
@@ -97,9 +97,9 @@ export async function PATCH(
 
     if (status === 'active' && existing.status === 'draft') {
       const { count: questionsCount } = await supabase
-        .from('quiz_questions')
+        .from('test_questions')
         .select('*', { count: 'exact', head: true })
-        .eq('quiz_id', id)
+        .eq('test_id', id)
 
       const activation = canActivateQuiz(existing, questionsCount || 0)
       if (!activation.valid) {
@@ -127,19 +127,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
     }
 
-    const { data: quiz, error } = await supabase
-      .from('quizzes')
+    const { data: test, error } = await supabase
+      .from('tests')
       .update(updates)
       .eq('id', id)
       .select()
       .single()
 
     if (error) {
-      console.error('Error updating quiz:', error)
-      return NextResponse.json({ error: 'Failed to update quiz' }, { status: 500 })
+      console.error('Error updating test:', error)
+      return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
     }
 
-    return NextResponse.json({ quiz: { ...quiz, assessment_type: 'quiz' } })
+    return NextResponse.json({ quiz: { ...test, assessment_type: 'test' } })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -147,12 +147,12 @@ export async function PATCH(
     if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    console.error('Update quiz error:', error)
+    console.error('Update test error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// DELETE /api/teacher/quizzes/[id] - Delete quiz
+// DELETE /api/teacher/tests/[id] - Delete test
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -161,25 +161,25 @@ export async function DELETE(
     const user = await requireRole('teacher')
     const { id } = await params
 
-    const access = await assertTeacherOwnsQuiz(user.id, id, { checkArchived: true })
+    const access = await assertTeacherOwnsTest(user.id, id, { checkArchived: true })
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
     const supabase = getServiceRoleClient()
 
     const { count: responsesCount } = await supabase
-      .from('quiz_responses')
+      .from('test_responses')
       .select('*', { count: 'exact', head: true })
-      .eq('quiz_id', id)
+      .eq('test_id', id)
 
     const { error } = await supabase
-      .from('quizzes')
+      .from('tests')
       .delete()
       .eq('id', id)
 
     if (error) {
-      console.error('Error deleting quiz:', error)
-      return NextResponse.json({ error: 'Failed to delete quiz' }, { status: 500 })
+      console.error('Error deleting test:', error)
+      return NextResponse.json({ error: 'Failed to delete test' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, responses_count: responsesCount || 0 })
@@ -190,7 +190,7 @@ export async function DELETE(
     if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    console.error('Delete quiz error:', error)
+    console.error('Delete test error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

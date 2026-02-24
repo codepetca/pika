@@ -28,15 +28,14 @@ export function TeacherQuizzesTab({ classroom, assessmentType, onSelectQuiz }: P
   const { setOpen: setRightSidebarOpen } = useRightSidebar()
 
   const isReadOnly = !!classroom.archived_at
+  const isTestsView = assessmentType === 'test'
+  const apiBasePath = isTestsView ? '/api/teacher/tests' : '/api/teacher/quizzes'
 
   const loadQuizzes = useCallback(async () => {
     setLoading(true)
     try {
-      const query = new URLSearchParams({
-        classroom_id: classroom.id,
-        assessment_type: assessmentType,
-      })
-      const res = await fetch(`/api/teacher/quizzes?${query.toString()}`)
+      const query = new URLSearchParams({ classroom_id: classroom.id })
+      const res = await fetch(`${apiBasePath}?${query.toString()}`)
       const data = await res.json()
       setQuizzes(data.quizzes || [])
     } catch (err) {
@@ -44,7 +43,7 @@ export function TeacherQuizzesTab({ classroom, assessmentType, onSelectQuiz }: P
     } finally {
       setLoading(false)
     }
-  }, [assessmentType, classroom.id])
+  }, [apiBasePath, classroom.id])
 
   useEffect(() => {
     loadQuizzes()
@@ -90,7 +89,7 @@ export function TeacherQuizzesTab({ classroom, assessmentType, onSelectQuiz }: P
     if (!deleteQuiz) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/teacher/quizzes/${deleteQuiz.quiz.id}`, { method: 'DELETE' })
+      const res = await fetch(`${apiBasePath}/${deleteQuiz.quiz.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to delete quiz')
@@ -111,7 +110,7 @@ export function TeacherQuizzesTab({ classroom, assessmentType, onSelectQuiz }: P
 
   async function handleRequestDelete(quiz: QuizWithStats) {
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}/results`)
+      const res = await fetch(`${apiBasePath}/${quiz.id}/results`)
       const data = await res.json()
       setDeleteQuiz({ quiz, responsesCount: data.stats?.responded || 0 })
     } catch {
@@ -129,7 +128,6 @@ export function TeacherQuizzesTab({ classroom, assessmentType, onSelectQuiz }: P
 
   // Sort by position order
   const sortedQuizzes = [...quizzes].sort((a, b) => a.position - b.position)
-  const isTestsView = assessmentType === 'test'
   const assessmentLabel = isTestsView ? 'test' : 'quiz'
   const assessmentLabelPlural = isTestsView ? 'Tests' : 'Quizzes'
 
@@ -157,6 +155,7 @@ export function TeacherQuizzesTab({ classroom, assessmentType, onSelectQuiz }: P
               <QuizCard
                 key={quiz.id}
                 quiz={quiz}
+                apiBasePath={apiBasePath}
                 isSelected={selectedQuizId === quiz.id}
                 isReadOnly={isReadOnly}
                 onSelect={() => handleCardSelect(quiz)}
@@ -172,6 +171,7 @@ export function TeacherQuizzesTab({ classroom, assessmentType, onSelectQuiz }: P
         isOpen={showModal}
         classroomId={classroom.id}
         assessmentType={assessmentType}
+        apiBasePath={apiBasePath}
         quiz={null}
         onClose={() => setShowModal(false)}
         onSuccess={handleQuizCreated}

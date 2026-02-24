@@ -1,47 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { aggregateResults } from '@/lib/quizzes'
-import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
+import { aggregateResults, summarizeQuizFocusEvents } from '@/lib/quizzes'
+import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// GET /api/teacher/quizzes/[id]/results - Get aggregated results
+// GET /api/teacher/tests/[id]/results - Get aggregated results
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireRole('teacher')
-    const { id: quizId } = await params
+    const { id: testId } = await params
 
-    const access = await assertTeacherOwnsQuiz(user.id, quizId)
+    const access = await assertTeacherOwnsTest(user.id, testId)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const quiz = access.quiz
+    const test = access.test
     const supabase = getServiceRoleClient()
 
     const { data: questions, error: questionsError } = await supabase
-      .from('quiz_questions')
+      .from('test_questions')
       .select('*')
-      .eq('quiz_id', quizId)
+      .eq('test_id', testId)
       .order('position', { ascending: true })
 
     if (questionsError) {
-      console.error('Error fetching questions:', questionsError)
+      console.error('Error fetching test questions:', questionsError)
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
     const { data: responses, error: responsesError } = await supabase
-      .from('quiz_responses')
+      .from('test_responses')
       .select('*')
-      .eq('quiz_id', quizId)
+      .eq('test_id', testId)
 
     if (responsesError) {
-      console.error('Error fetching responses:', responsesError)
+      console.error('Error fetching test responses:', responsesError)
       return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
     }
 
@@ -79,12 +79,31 @@ export async function GET(
         studentAnswers[response.student_id][response.question_id] = response.selected_option
       }
 
+      const { data: focusEvents } = await supabase
+        .from('test_focus_events')
+        .select('student_id, event_type, occurred_at')
+        .eq('test_id', testId)
+        .in('student_id', responderIds)
+        .order('occurred_at', { ascending: true })
+
+      const grouped = new Map<string, Array<{ event_type: any; occurred_at: string }>>()
+      for (const row of focusEvents || []) {
+        const current = grouped.get(row.student_id) || []
+        current.push({ event_type: row.event_type, occurred_at: row.occurred_at })
+        grouped.set(row.student_id, current)
+      }
+
+      const focusSummaryByStudent = new Map<string, QuizFocusSummary>()
+      for (const [studentId, events] of grouped) {
+        focusSummaryByStudent.set(studentId, summarizeQuizFocusEvents(events))
+      }
+
       responders = (users || []).map((u) => ({
         student_id: u.id,
         name: profileMap.get(u.id) || null,
         email: u.email,
         answers: studentAnswers[u.id] || {},
-        focus_summary: null,
+        focus_summary: focusSummaryByStudent.get(u.id) || null,
       }))
 
       responders.sort((a, b) => {
@@ -102,15 +121,15 @@ export async function GET(
     const { count: totalStudents } = await supabase
       .from('classroom_enrollments')
       .select('*', { count: 'exact', head: true })
-      .eq('classroom_id', quiz.classroom_id)
+      .eq('classroom_id', test.classroom_id)
 
     return NextResponse.json({
       quiz: {
-        id: quiz.id,
-        title: quiz.title,
-        assessment_type: 'quiz' as const,
-        status: quiz.status,
-        show_results: quiz.show_results,
+        id: test.id,
+        title: test.title,
+        assessment_type: 'test' as const,
+        status: test.status,
+        show_results: test.show_results,
       },
       questions: (questions || []).map((q) => ({
         id: q.id,
@@ -132,7 +151,7 @@ export async function GET(
     if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    console.error('Get quiz results error:', error)
+    console.error('Get test results error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

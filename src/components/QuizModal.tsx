@@ -8,6 +8,7 @@ interface QuizModalProps {
   isOpen: boolean
   classroomId: string
   assessmentType?: QuizAssessmentType
+  apiBasePath?: string
   quiz?: Quiz | null
   onClose: () => void
   onSuccess: (quiz: Quiz) => void
@@ -17,6 +18,7 @@ export function QuizModal({
   isOpen,
   classroomId,
   assessmentType = 'quiz',
+  apiBasePath = '/api/teacher/quizzes',
   quiz,
   onClose,
   onSuccess,
@@ -62,7 +64,7 @@ export function QuizModal({
 
     try {
       if (isEditMode) {
-        const response = await fetch(`/api/teacher/quizzes/${quiz.id}`, {
+        const response = await fetch(`${apiBasePath}/${quiz.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: title.trim(), show_results: showResults }),
@@ -73,7 +75,7 @@ export function QuizModal({
         }
         onSuccess(data.quiz)
       } else {
-        const response = await fetch('/api/teacher/quizzes', {
+        const response = await fetch(apiBasePath, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

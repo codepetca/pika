@@ -20,6 +20,7 @@ interface Responder {
 
 interface Props {
   quizId: string
+  apiBasePath?: string
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -29,7 +30,7 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
-export function QuizIndividualResponses({ quizId }: Props) {
+export function QuizIndividualResponses({ quizId, apiBasePath = '/api/teacher/quizzes' }: Props) {
   const [responders, setResponders] = useState<Responder[]>([])
   const [questions, setQuestions] = useState<QuestionInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,7 +40,7 @@ export function QuizIndividualResponses({ quizId }: Props) {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`/api/teacher/quizzes/${quizId}/results`)
+        const res = await fetch(`${apiBasePath}/${quizId}/results`)
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Failed to load')
 
@@ -52,7 +53,7 @@ export function QuizIndividualResponses({ quizId }: Props) {
       }
     }
     load()
-  }, [quizId])
+  }, [apiBasePath, quizId])
 
   if (loading) {
     return (

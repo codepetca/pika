@@ -29,9 +29,9 @@ function makeQuiz(overrides: Partial<QuizWithStats> = {}): QuizWithStats {
   } as QuizWithStats
 }
 
-function quizzesFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
+function listFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   return fetchMock.mock.calls.filter(
-    ([url]: [string]) => typeof url === 'string' && url.includes('/api/teacher/quizzes?')
+    ([url]: [string]) => typeof url === 'string' && url.includes('/api/teacher/') && url.includes('?classroom_id=')
   )
 }
 
@@ -65,9 +65,9 @@ describe('TeacherQuizzesTab', () => {
     renderTab()
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
-    expect(quizzesFetchCalls(fetchMock)[0][0]).toContain('assessment_type=quiz')
+    expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/quizzes?classroom_id=')
   })
 
   it('fetches quizzes once when update event fires (not twice)', async () => {
@@ -75,7 +75,7 @@ describe('TeacherQuizzesTab', () => {
     renderTab()
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
 
     // Provide response for the event-triggered reload
@@ -90,12 +90,12 @@ describe('TeacherQuizzesTab', () => {
     })
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(2)
+      expect(listFetchCalls(fetchMock)).toHaveLength(2)
     })
 
     // Wait a tick to ensure no additional fetch sneaks in
     await new Promise((r) => setTimeout(r, 50))
-    expect(quizzesFetchCalls(fetchMock)).toHaveLength(2)
+    expect(listFetchCalls(fetchMock)).toHaveLength(2)
   })
 
   it('does not double-fetch after quiz creation', async () => {
@@ -103,7 +103,7 @@ describe('TeacherQuizzesTab', () => {
     renderTab()
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
 
     // Provide response for the post-creation reload
@@ -115,12 +115,12 @@ describe('TeacherQuizzesTab', () => {
 
     // The event listener should trigger exactly one reload
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(2)
+      expect(listFetchCalls(fetchMock)).toHaveLength(2)
     })
 
     // Confirm no extra fetch
     await new Promise((r) => setTimeout(r, 50))
-    expect(quizzesFetchCalls(fetchMock)).toHaveLength(2)
+    expect(listFetchCalls(fetchMock)).toHaveLength(2)
   })
 
   it('does not double-fetch after quiz deletion', async () => {
@@ -148,18 +148,18 @@ describe('TeacherQuizzesTab', () => {
     // Provide response for the event-triggered reload
     mockQuizzesResponse([])
 
-    const countBefore = quizzesFetchCalls(fetchMock).length
+    const countBefore = listFetchCalls(fetchMock).length
 
     fireEvent.click(screen.getByText('Delete'))
 
     // Wait for delete + reload
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock).length).toBe(countBefore + 1)
+      expect(listFetchCalls(fetchMock).length).toBe(countBefore + 1)
     })
 
     // Confirm no extra fetch
     await new Promise((r) => setTimeout(r, 50))
-    expect(quizzesFetchCalls(fetchMock).length).toBe(countBefore + 1)
+    expect(listFetchCalls(fetchMock).length).toBe(countBefore + 1)
   })
 
   it('ignores update events for other classrooms', async () => {
@@ -167,7 +167,7 @@ describe('TeacherQuizzesTab', () => {
     renderTab()
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
 
     act(() => {
@@ -179,18 +179,18 @@ describe('TeacherQuizzesTab', () => {
     })
 
     await new Promise((r) => setTimeout(r, 50))
-    expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
-  it('renders test mode and fetches with assessment_type=test', async () => {
+  it('renders test mode and fetches from tests API', async () => {
     mockQuizzesResponse([])
     renderTab('test')
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
 
-    expect(quizzesFetchCalls(fetchMock)[0][0]).toContain('assessment_type=test')
+    expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/tests?classroom_id=')
     expect(screen.getByText('New Test')).toBeInTheDocument()
   })
 })

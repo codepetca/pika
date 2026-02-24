@@ -8,7 +8,7 @@ import type { Quiz } from '@/types'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// GET /api/student/quizzes?classroom_id=xxx - List quizzes for student
+// GET /api/student/tests?classroom_id=xxx - List tests for student
 export async function GET(request: NextRequest) {
   try {
     const user = await requireRole('student')
@@ -28,63 +28,67 @@ export async function GET(request: NextRequest) {
 
     async function fetchByStatus(status: 'active' | 'closed') {
       return supabase
-        .from('quizzes')
+        .from('tests')
         .select('*')
         .eq('classroom_id', classroomId)
         .eq('status', status)
         .order('position', { ascending: true })
     }
 
-    const { data: activeQuizzes, error: activeError } = await fetchByStatus('active')
+    const { data: activeTests, error: activeError } = await fetchByStatus('active')
 
     if (activeError) {
-      console.error('Error fetching active quizzes:', activeError)
-      return NextResponse.json({ error: 'Failed to fetch quizzes' }, { status: 500 })
+      if (activeError.code === 'PGRST205') {
+        return NextResponse.json({ quizzes: [], migration_required: true })
+      }
+      console.error('Error fetching active tests:', activeError)
+      return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
     }
 
-    const { data: closedQuizzes, error: closedError } = await fetchByStatus('closed')
+    const { data: closedTests, error: closedError } = await fetchByStatus('closed')
 
     if (closedError) {
-      console.error('Error fetching closed quizzes:', closedError)
-      // Continue without closed quizzes
+      console.error('Error fetching closed tests:', closedError)
+      // Continue without closed tests
     }
 
-    const classroomQuizIds = [
-      ...(activeQuizzes || []).map((q) => q.id),
-      ...(closedQuizzes || []).map((q) => q.id),
+    const classroomTestIds = [
+      ...(activeTests || []).map((t) => t.id),
+      ...(closedTests || []).map((t) => t.id),
     ]
 
-    const respondedQuizIds = new Set<string>()
-    if (classroomQuizIds.length > 0) {
+    const respondedTestIds = new Set<string>()
+    if (classroomTestIds.length > 0) {
       const { data: allResponses } = await supabase
-        .from('quiz_responses')
-        .select('quiz_id')
+        .from('test_responses')
+        .select('test_id')
         .eq('student_id', user.id)
-        .in('quiz_id', classroomQuizIds)
+        .in('test_id', classroomTestIds)
 
       for (const response of allResponses || []) {
-        respondedQuizIds.add(response.quiz_id)
+        respondedTestIds.add(response.test_id)
       }
     }
 
-    const respondedClosedQuizzes = (closedQuizzes || []).filter((quiz) =>
-      respondedQuizIds.has(quiz.id)
+    const respondedClosedTests = (closedTests || []).filter((test) =>
+      respondedTestIds.has(test.id)
     )
 
-    const allQuizzes = [...(activeQuizzes || []), ...respondedClosedQuizzes]
+    const allTests = [...(activeTests || []), ...respondedClosedTests]
 
-    const quizzesWithStatus = allQuizzes.map((quiz: Quiz) => {
-      const hasResponded = respondedQuizIds.has(quiz.id)
-      const studentStatus = getStudentQuizStatus(quiz, hasResponded)
+    const testsWithStatus = allTests.map((test: Quiz) => {
+      const hasResponded = respondedTestIds.has(test.id)
+      const studentStatus = getStudentQuizStatus(test, hasResponded)
 
       return {
-        ...quiz,
-        assessment_type: 'quiz' as const,
+        ...test,
+        assessment_type: 'test' as const,
         student_status: studentStatus,
       }
     })
 
-    return NextResponse.json({ quizzes: quizzesWithStatus })
+    // Keep response key as `quizzes` for current UI component compatibility.
+    return NextResponse.json({ quizzes: testsWithStatus })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -92,7 +96,7 @@ export async function GET(request: NextRequest) {
     if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    console.error('Get student quizzes error:', error)
+    console.error('Get student tests error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

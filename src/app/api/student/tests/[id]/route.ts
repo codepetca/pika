@@ -1,63 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { getStudentQuizStatus } from '@/lib/quizzes'
-import { assertStudentCanAccessQuiz } from '@/lib/server/quizzes'
+import { getStudentQuizStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
+import { assertStudentCanAccessTest } from '@/lib/server/tests'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// GET /api/student/quizzes/[id] - Get quiz with questions
+// GET /api/student/tests/[id] - Get test with questions
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireRole('student')
-    const { id: quizId } = await params
+    const { id: testId } = await params
 
-    const access = await assertStudentCanAccessQuiz(user.id, quizId)
+    const access = await assertStudentCanAccessTest(user.id, testId)
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const quiz = access.quiz
+    const test = access.test
     const supabase = getServiceRoleClient()
 
     const { data: responses } = await supabase
-      .from('quiz_responses')
+      .from('test_responses')
       .select('id')
-      .eq('quiz_id', quizId)
+      .eq('test_id', testId)
       .eq('student_id', user.id)
       .limit(1)
 
     const hasResponded = (responses?.length || 0) > 0
 
-    if (quiz.status === 'draft') {
-      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
+    if (test.status === 'draft') {
+      return NextResponse.json({ error: 'Test not found' }, { status: 404 })
     }
-    if (quiz.status === 'closed' && !hasResponded) {
-      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
+    if (test.status === 'closed' && !hasResponded) {
+      return NextResponse.json({ error: 'Test not found' }, { status: 404 })
     }
 
-    const studentStatus = getStudentQuizStatus(quiz, hasResponded)
+    const studentStatus = getStudentQuizStatus(test, hasResponded)
 
     const { data: questions, error: questionsError } = await supabase
-      .from('quiz_questions')
+      .from('test_questions')
       .select('*')
-      .eq('quiz_id', quizId)
+      .eq('test_id', testId)
       .order('position', { ascending: true })
 
     if (questionsError) {
-      console.error('Error fetching questions:', questionsError)
+      console.error('Error fetching test questions:', questionsError)
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
     let studentResponses: Record<string, number> = {}
     if (hasResponded) {
       const { data: allResponses } = await supabase
-        .from('quiz_responses')
+        .from('test_responses')
         .select('question_id, selected_option')
-        .eq('quiz_id', quizId)
+        .eq('test_id', testId)
         .eq('student_id', user.id)
 
       studentResponses = Object.fromEntries(
@@ -65,22 +65,29 @@ export async function GET(
       )
     }
 
+    const { data: focusEvents } = await supabase
+      .from('test_focus_events')
+      .select('event_type, occurred_at')
+      .eq('test_id', testId)
+      .eq('student_id', user.id)
+      .order('occurred_at', { ascending: true })
+
     return NextResponse.json({
       quiz: {
-        id: quiz.id,
-        classroom_id: quiz.classroom_id,
-        title: quiz.title,
-        assessment_type: 'quiz' as const,
-        status: quiz.status,
-        show_results: quiz.show_results,
-        position: quiz.position,
-        created_at: quiz.created_at,
-        updated_at: quiz.updated_at,
+        id: test.id,
+        classroom_id: test.classroom_id,
+        title: test.title,
+        assessment_type: 'test' as const,
+        status: test.status,
+        show_results: test.show_results,
+        position: test.position,
+        created_at: test.created_at,
+        updated_at: test.updated_at,
       },
       questions: questions || [],
       student_status: studentStatus,
       student_responses: studentResponses,
-      focus_summary: null,
+      focus_summary: summarizeQuizFocusEvents(focusEvents || []),
     })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
@@ -89,7 +96,7 @@ export async function GET(
     if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    console.error('Get student quiz error:', error)
+    console.error('Get student test error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

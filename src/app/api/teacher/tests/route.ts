@@ -6,7 +6,7 @@ import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/l
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// GET /api/teacher/quizzes?classroom_id=xxx - List quizzes for a classroom
+// GET /api/teacher/tests?classroom_id=xxx - List tests for a classroom
 export async function GET(request: NextRequest) {
   try {
     const user = await requireRole('teacher')
@@ -30,16 +30,19 @@ export async function GET(request: NextRequest) {
 
     const supabase = getServiceRoleClient()
 
-    const { data: quizzes, error: quizzesError } = await supabase
-      .from('quizzes')
+    const { data: tests, error: testsError } = await supabase
+      .from('tests')
       .select('*')
       .eq('classroom_id', classroomId)
       .order('position', { ascending: true })
       .order('created_at', { ascending: true })
 
-    if (quizzesError) {
-      console.error('Error fetching quizzes:', quizzesError)
-      return NextResponse.json({ error: 'Failed to fetch quizzes' }, { status: 500 })
+    if (testsError) {
+      if (testsError.code === 'PGRST205') {
+        return NextResponse.json({ quizzes: [], migration_required: true })
+      }
+      console.error('Error fetching tests:', testsError)
+      return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
     }
 
     const { count: totalStudents } = await supabase
@@ -47,48 +50,49 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('classroom_id', classroomId)
 
-    const quizIds = (quizzes || []).map((q) => q.id)
+    const testIds = (tests || []).map((t) => t.id)
 
     const questionCountMap: Record<string, number> = {}
-    if (quizIds.length > 0) {
+    if (testIds.length > 0) {
       const { data: questionRows } = await supabase
-        .from('quiz_questions')
-        .select('quiz_id')
-        .in('quiz_id', quizIds)
+        .from('test_questions')
+        .select('test_id')
+        .in('test_id', testIds)
 
       for (const row of questionRows || []) {
-        questionCountMap[row.quiz_id] = (questionCountMap[row.quiz_id] || 0) + 1
+        questionCountMap[row.test_id] = (questionCountMap[row.test_id] || 0) + 1
       }
     }
 
     const respondentCountMap: Record<string, number> = {}
-    if (quizIds.length > 0) {
+    if (testIds.length > 0) {
       const { data: responseRows } = await supabase
-        .from('quiz_responses')
-        .select('quiz_id, student_id')
-        .in('quiz_id', quizIds)
+        .from('test_responses')
+        .select('test_id, student_id')
+        .in('test_id', testIds)
 
       const seen: Record<string, Set<string>> = {}
       for (const row of responseRows || []) {
-        if (!seen[row.quiz_id]) seen[row.quiz_id] = new Set()
-        seen[row.quiz_id].add(row.student_id)
+        if (!seen[row.test_id]) seen[row.test_id] = new Set()
+        seen[row.test_id].add(row.student_id)
       }
-      for (const [quizId, students] of Object.entries(seen)) {
-        respondentCountMap[quizId] = students.size
+      for (const [testId, students] of Object.entries(seen)) {
+        respondentCountMap[testId] = students.size
       }
     }
 
-    const quizzesWithStats = (quizzes || []).map((quiz) => ({
-      ...quiz,
-      assessment_type: 'quiz' as const,
+    const testsWithStats = (tests || []).map((test) => ({
+      ...test,
+      assessment_type: 'test' as const,
       stats: {
         total_students: totalStudents || 0,
-        responded: respondentCountMap[quiz.id] || 0,
-        questions_count: questionCountMap[quiz.id] || 0,
+        responded: respondentCountMap[test.id] || 0,
+        questions_count: questionCountMap[test.id] || 0,
       },
     }))
 
-    return NextResponse.json({ quizzes: quizzesWithStats })
+    // Keep response key as `quizzes` for current UI component compatibility.
+    return NextResponse.json({ quizzes: testsWithStats })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -96,12 +100,12 @@ export async function GET(request: NextRequest) {
     if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    console.error('Get quizzes error:', error)
+    console.error('Get tests error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// POST /api/teacher/quizzes - Create a new quiz
+// POST /api/teacher/tests - Create a new test
 export async function POST(request: NextRequest) {
   try {
     const user = await requireRole('teacher')
@@ -125,18 +129,18 @@ export async function POST(request: NextRequest) {
 
     const supabase = getServiceRoleClient()
 
-    const { data: lastQuiz } = await supabase
-      .from('quizzes')
+    const { data: lastTest } = await supabase
+      .from('tests')
       .select('position')
       .eq('classroom_id', classroom_id)
       .order('position', { ascending: false })
       .limit(1)
       .maybeSingle()
 
-    const nextPosition = typeof lastQuiz?.position === 'number' ? lastQuiz.position + 1 : 0
+    const nextPosition = typeof lastTest?.position === 'number' ? lastTest.position + 1 : 0
 
-    const { data: quiz, error } = await supabase
-      .from('quizzes')
+    const { data: test, error } = await supabase
+      .from('tests')
       .insert({
         classroom_id,
         title: title.trim(),
@@ -147,11 +151,17 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Error creating quiz:', error)
-      return NextResponse.json({ error: 'Failed to create quiz' }, { status: 500 })
+      if (error.code === 'PGRST205') {
+        return NextResponse.json(
+          { error: 'Tests require migration 038 to be applied' },
+          { status: 400 }
+        )
+      }
+      console.error('Error creating test:', error)
+      return NextResponse.json({ error: 'Failed to create test' }, { status: 500 })
     }
 
-    return NextResponse.json({ quiz: { ...quiz, assessment_type: 'quiz' } }, { status: 201 })
+    return NextResponse.json({ quiz: { ...test, assessment_type: 'test' } }, { status: 201 })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -159,7 +169,7 @@ export async function POST(request: NextRequest) {
     if (error.name === 'AuthorizationError') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
-    console.error('Create quiz error:', error)
+    console.error('Create test error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
