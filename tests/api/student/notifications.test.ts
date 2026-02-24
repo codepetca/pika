@@ -43,10 +43,14 @@ function createTableMock(config: {
   assignment_docs?: { data: any; error: any }
   quizzes?: { data: any; error: any }
   quiz_responses?: { data: any; error: any }
+  tests?: { data: any; error: any }
+  test_responses?: { data: any; error: any }
   announcements?: { data: any; error: any }
   announcement_reads?: { data: any; error: any }
 }) {
   // Default announcements to empty array if not specified
+  const testsConfig = config.tests ?? { data: [], error: null }
+  const testResponsesConfig = config.test_responses ?? { data: [], error: null }
   const announcementsConfig = config.announcements ?? { data: [], error: null }
   const announcementReadsConfig = config.announcement_reads ?? { data: [], error: null }
 
@@ -99,6 +103,23 @@ function createTableMock(config: {
           eq: vi.fn().mockReturnThis(),
           in: vi.fn().mockReturnThis(),
           then: vi.fn((resolve: any) => resolve(config.quiz_responses)),
+        })),
+      }
+    }
+    if (table === 'tests') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          then: vi.fn((resolve: any) => resolve(testsConfig)),
+        })),
+      }
+    }
+    if (table === 'test_responses') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn().mockReturnThis(),
+          then: vi.fn((resolve: any) => resolve(testResponsesConfig)),
         })),
       }
     }
@@ -454,6 +475,26 @@ describe('GET /api/student/notifications', () => {
       expect(response.status).toBe(500)
       expect(data.error).toBe('Failed to check notifications')
     })
+
+    it('should return 500 when tests query fails (non-migration error)', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        quizzes: { data: [], error: null },
+        tests: { data: null, error: { code: 'XX000', message: 'Database error' } },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(500)
+      expect(data.error).toBe('Failed to check notifications')
+    })
   })
 
   describe('active quizzes count', () => {
@@ -540,6 +581,75 @@ describe('GET /api/student/notifications', () => {
 
       expect(response.status).toBe(200)
       expect(data.activeQuizzesCount).toBe(0)
+    })
+  })
+
+  describe('active tests count', () => {
+    it('should count active tests with no student response', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        quizzes: { data: [], error: null },
+        tests: { data: [{ id: 'test-1' }, { id: 'test-2' }], error: null },
+        test_responses: { data: [], error: null },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.activeTestsCount).toBe(2)
+    })
+
+    it('should return 0 for tests when migration table is missing', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        quizzes: { data: [{ id: 'quiz-1' }], error: null },
+        quiz_responses: { data: [], error: null },
+        tests: { data: null, error: { code: 'PGRST205', message: 'table not found' } },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.activeQuizzesCount).toBe(1)
+      expect(data.activeTestsCount).toBe(0)
+    })
+
+    it('should exclude tests the student has responded to', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        quizzes: { data: [], error: null },
+        tests: { data: [{ id: 'test-1' }, { id: 'test-2' }, { id: 'test-3' }], error: null },
+        test_responses: {
+          data: [{ test_id: 'test-2' }],
+          error: null,
+        },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.activeTestsCount).toBe(2)
     })
   })
 })

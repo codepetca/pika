@@ -45,8 +45,35 @@ export async function POST(
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
+    const test = access.test
 
     const supabase = getServiceRoleClient()
+
+    if (test.status !== 'active') {
+      return NextResponse.json(
+        { error: 'Focus telemetry is only available while the test is active' },
+        { status: 400 }
+      )
+    }
+
+    const { data: existingResponses, error: existingResponsesError } = await supabase
+      .from('test_responses')
+      .select('id')
+      .eq('test_id', testId)
+      .eq('student_id', user.id)
+      .limit(1)
+
+    if (existingResponsesError) {
+      console.error('Error checking existing test responses:', existingResponsesError)
+      return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
+    }
+
+    if ((existingResponses?.length || 0) > 0) {
+      return NextResponse.json(
+        { error: 'Focus telemetry is only available before submitting the test' },
+        { status: 400 }
+      )
+    }
 
     const { error: insertError } = await supabase
       .from('test_focus_events')

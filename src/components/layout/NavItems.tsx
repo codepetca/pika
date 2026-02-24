@@ -130,6 +130,10 @@ export function NavItems({
     role === 'student' &&
     !notifications?.loading &&
     (notifications?.activeQuizzesCount ?? 0) > 0
+  const showTestsPulse =
+    role === 'student' &&
+    !notifications?.loading &&
+    (notifications?.activeTestsCount ?? 0) > 0
   const showResourcesPulse =
     role === 'student' &&
     !notifications?.loading &&
@@ -468,7 +472,7 @@ export function NavItems({
           (item.id === 'today' && showTodayPulse) ||
           (item.id === 'assignments' && showAssignmentsPulse) ||
           (item.id === 'quizzes' && showQuizzesPulse) ||
-          (item.id === 'tests' && showQuizzesPulse) ||
+          (item.id === 'tests' && showTestsPulse) ||
           (item.id === 'resources' && showResourcesPulse)
 
         const navLink = (

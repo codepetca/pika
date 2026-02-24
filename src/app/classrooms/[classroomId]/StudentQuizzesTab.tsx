@@ -168,7 +168,11 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
   }
 
   function handleQuizSubmitted() {
-    notifications?.clearActiveQuizzesCount()
+    if (isTestsView) {
+      notifications?.clearActiveTestsCount()
+    } else {
+      notifications?.clearActiveQuizzesCount()
+    }
     // Reload the quiz to get updated status
     if (selectedQuizId) {
       handleSelectQuiz(selectedQuizId)
@@ -261,6 +265,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
   if (selectedQuizId && selectedQuiz) {
     const hasResponded = Object.keys(selectedQuiz.studentResponses).length > 0
     const isTest = isTestsView
+    const assessmentLabel = isTest ? 'test' : 'quiz'
     const assessmentLabelPlural = isTest ? 'tests' : 'quizzes'
 
     return (
@@ -298,11 +303,11 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
                 <p className="text-success font-medium">You have submitted your response.</p>
                 {selectedQuiz.quiz.status !== 'closed' && selectedQuiz.quiz.show_results ? (
                   <p className="text-sm text-text-muted mt-1">
-                    Results will be available after the quiz closes.
+                    Results will be available after the {assessmentLabel} closes.
                   </p>
                 ) : selectedQuiz.quiz.status === 'closed' && !selectedQuiz.quiz.show_results ? (
                   <p className="text-sm text-text-muted mt-1">
-                    Results are not available for this quiz.
+                    Results are not available for this {assessmentLabel}.
                   </p>
                 ) : (
                   <p className="text-sm text-text-muted mt-1">

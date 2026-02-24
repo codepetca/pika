@@ -127,42 +127,86 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Count active quizzes the student hasn't responded to
-    let activeQuizzesCount = 0
+    async function countActiveUnanswered(
+      table: 'quizzes' | 'tests',
+      responsesTable: 'quiz_responses' | 'test_responses',
+      responseIdColumn: 'quiz_id' | 'test_id',
+      opts?: { tolerateMissingTable?: boolean }
+    ): Promise<{ count: number; error: boolean }> {
+      const tolerateMissingTable = opts?.tolerateMissingTable === true
 
-    const { data: activeQuizzes, error: quizzesError } = await supabase
-      .from('quizzes')
-      .select('id')
-      .eq('classroom_id', classroomId)
-      .eq('status', 'active')
+      const { data: activeRows, error: activeError } = await supabase
+        .from(table)
+        .select('id')
+        .eq('classroom_id', classroomId)
+        .eq('status', 'active')
 
-    if (quizzesError) {
-      console.error('Error fetching quizzes:', quizzesError)
+      if (activeError) {
+        if (tolerateMissingTable && activeError.code === 'PGRST205') {
+          return { count: 0, error: false }
+        }
+        console.error(`Error fetching ${table}:`, activeError)
+        return { count: 0, error: true }
+      }
+
+      const activeIds = activeRows?.map((row) => row.id) || []
+      if (activeIds.length === 0) {
+        return { count: 0, error: false }
+      }
+
+      const { data: responses, error: responsesError } = await supabase
+        .from(responsesTable)
+        .select(responseIdColumn)
+        .eq('student_id', user.id)
+        .in(responseIdColumn, activeIds)
+
+      if (responsesError) {
+        if (tolerateMissingTable && responsesError.code === 'PGRST205') {
+          return { count: 0, error: false }
+        }
+        console.error(`Error fetching ${responsesTable}:`, responsesError)
+        return { count: 0, error: true }
+      }
+
+      const respondedIds = new Set<string>()
+      for (const row of responses || []) {
+        const assessmentId =
+          responseIdColumn === 'quiz_id'
+            ? (row as { quiz_id: string }).quiz_id
+            : (row as { test_id: string }).test_id
+        if (assessmentId) {
+          respondedIds.add(assessmentId)
+        }
+      }
+      return {
+        count: activeIds.filter((id) => !respondedIds.has(id)).length,
+        error: false,
+      }
+    }
+
+    const activeQuizzesResult = await countActiveUnanswered(
+      'quizzes',
+      'quiz_responses',
+      'quiz_id'
+    )
+    if (activeQuizzesResult.error) {
       return NextResponse.json(
         { error: 'Failed to check notifications' },
         { status: 500 }
       )
     }
 
-    const activeQuizIds = activeQuizzes?.map((q) => q.id) || []
-
-    if (activeQuizIds.length > 0) {
-      const { data: responses, error: responsesError } = await supabase
-        .from('quiz_responses')
-        .select('quiz_id')
-        .eq('student_id', user.id)
-        .in('quiz_id', activeQuizIds)
-
-      if (responsesError) {
-        console.error('Error fetching quiz responses:', responsesError)
-        return NextResponse.json(
-          { error: 'Failed to check notifications' },
-          { status: 500 }
-        )
-      }
-
-      const respondedQuizIds = new Set(responses?.map((r) => r.quiz_id) || [])
-      activeQuizzesCount = activeQuizIds.filter((id) => !respondedQuizIds.has(id)).length
+    const activeTestsResult = await countActiveUnanswered(
+      'tests',
+      'test_responses',
+      'test_id',
+      { tolerateMissingTable: true }
+    )
+    if (activeTestsResult.error) {
+      return NextResponse.json(
+        { error: 'Failed to check notifications' },
+        { status: 500 }
+      )
     }
 
     // Count unread announcements for this classroom (only published ones)
@@ -206,7 +250,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       hasTodayEntry,
       unviewedAssignmentsCount: unviewedCount,
-      activeQuizzesCount,
+      activeQuizzesCount: activeQuizzesResult.count,
+      activeTestsCount: activeTestsResult.count,
       unreadAnnouncementsCount,
     })
   } catch (error: any) {

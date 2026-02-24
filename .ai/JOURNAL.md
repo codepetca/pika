@@ -2752,3 +2752,38 @@
 **Notes:**
 - `038_quiz_tests_and_focus_events.sql` now models Tests as first-class tables (`tests`, `test_questions`, `test_responses`, `test_focus_events`) with dedicated RLS.
 - Migration is not auto-applied by agent; human apply remains required.
+
+## 2026-02-24 — Fix tests pulse + tighten focus telemetry gating
+**Context:** Follow-up bugfix pass after tests became a separate sidebar tab. Addressed incorrect pulse source for tests, tightened server-side focus-event acceptance window, and aligned student copy in tests mode.
+
+**Changes:**
+- `src/app/api/student/notifications/route.ts`
+  - Added reusable active-unanswered counter for quizzes/tests.
+  - Added `activeTestsCount` to API payload.
+  - Added safe fallback for unapplied test tables (`PGRST205` => test count 0).
+- `src/components/StudentNotificationsProvider.tsx`
+  - Added `activeTestsCount` state and `clearActiveTestsCount()` helper.
+- `src/components/layout/NavItems.tsx`
+  - Tests badge/pulse now keys off `activeTestsCount` (not quiz count).
+- `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - Clear tests pulse on test submission.
+  - Copy in tests mode now references "test" instead of "quiz".
+- `src/app/api/student/tests/[id]/focus-events/route.ts`
+  - Rejects focus-event writes unless test is `active`.
+  - Rejects writes if student already has a submitted response.
+- `supabase/migrations/038_quiz_tests_and_focus_events.sql`
+  - Updated RLS policy for `test_focus_events` insert to require active test and no existing response.
+- Tests:
+  - Expanded notifications API tests for tests counts and missing-table behavior.
+  - Added `tests/api/student/tests-focus-events.test.ts` for active/unsubmitted gating.
+  - Updated `StudentNotificationsProvider` test fixture payload.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (full suite) passed (`105 files / 1116 tests`).
+- `pnpm lint` passed.
+- `pnpm exec tsc --noEmit` passed.
+- Mandatory UI verification completed (teacher + student):
+  - `/tmp/teacher-quizzes-fix-review.png`
+  - `/tmp/teacher-tests-fix-review.png`
+  - `/tmp/student-quizzes-fix-review.png`
+  - `/tmp/student-tests-fix-review.png`

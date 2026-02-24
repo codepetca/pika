@@ -317,5 +317,12 @@ create policy "Students can insert their own test focus events"
       join public.classroom_enrollments on classroom_enrollments.classroom_id = tests.classroom_id
       where tests.id = test_id
         and classroom_enrollments.student_id = auth.uid()
+        and tests.status = 'active'
+    )
+    and not exists (
+      select 1
+      from public.test_responses
+      where test_responses.test_id = test_id
+        and test_responses.student_id = auth.uid()
     )
   );
