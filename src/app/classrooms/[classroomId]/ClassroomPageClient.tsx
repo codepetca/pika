@@ -1174,12 +1174,12 @@ function ClassroomPageContent({
                     <RichTextViewer content={selectedAssignment.instructions} />
                   )
                 ) : (
-                  <p className="text-sm text-text-muted">
+                  <p className="px-4 py-3 text-sm text-text-muted">
                     No instructions provided.
                   </p>
                 )
               ) : (
-                <p className="text-sm text-text-muted">
+                <p className="px-4 py-3 text-sm text-text-muted">
                   Select an assignment to view instructions.
                 </p>
               )}

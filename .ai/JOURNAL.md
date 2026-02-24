@@ -2695,3 +2695,28 @@
 **Validation:**
 - `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed (5 tests)
 - `pnpm lint` passed
+
+---
+## 2026-02-24 [AI - GPT-5 Codex]
+**Goal:** Sync `codex/marketing-demo-assets` with `main`, fix assignments instructions placeholder padding, and regenerate marketing videos.
+**Completed:**
+- Committed pending walkthrough interaction updates (`fix(marketing): use explicit mouse clicks for walkthrough interactions`).
+- Merged `origin/main` into `codex/marketing-demo-assets`.
+- Fixed teacher assignments right-pane placeholder spacing by adding `px-4 py-3` to:
+  - `No instructions provided.`
+  - `Select an assignment to view instructions.`
+- Re-seeded marketing demo data and refreshed marketing auth states.
+- Regenerated raw walkthrough clips and final rendered assets.
+**Status:** completed
+**Artifacts:**
+- Worktree: `/Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets`
+- Fixed file: `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`
+- Teacher screenshot: `/tmp/pika-teacher-assignments-empty-padding.png`
+- Student screenshot: `/tmp/pika-student-assignments-check.png`
+- Video output dir: `/Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets/artifacts/marketing/video`
+**Validation:**
+- `pnpm exec eslint 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'` passed
+- `pnpm seed:marketing` passed
+- `pnpm auth:marketing` passed
+- `pnpm walkthrough:marketing` passed
+- `pnpm video:marketing` passed
