@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { createClassroomSchema } from '@/lib/validations/teacher'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -47,12 +48,7 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
 // POST /api/teacher/classrooms - Create classroom
 export const POST = withErrorHandler('CreateClassroom', async (request: NextRequest) => {
   const user = await requireRole('teacher')
-  const body = await request.json()
-  const { title, classCode, termLabel } = body
-
-  if (!title) {
-    throw new ApiError(400, 'Title is required')
-  }
+  const { title, classCode, termLabel } = createClassroomSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
 

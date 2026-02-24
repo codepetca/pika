@@ -79,7 +79,6 @@ Test password-based flows:
 - `generateVerificationCode()` length/charset
 - `hashPassword`/`verifyPassword` bcrypt behavior
 - `isTeacherEmail` domains and `DEV_TEACHER_EMAILS`
-- Login lockout (5 attempts → 15 minute block)
 - Session cookie options (secure/sameSite/httpOnly)
 - `validatePassword` rules
 
@@ -95,7 +94,7 @@ Test password-based flows:
 - `/api/auth/signup` → stores verification code, respects per-hour limit
 - `/api/auth/verify-signup` → attempts/expiry checks, role selection
 - `/api/auth/create-password` → hashes password, creates session
-- `/api/auth/login` → lockout after 5 failed attempts
+- `/api/auth/login` → validates credentials, returns session cookie
 - `/api/auth/forgot-password` → reset code issuance
 - `/api/auth/reset-password/verify` + `/confirm` → code checks + password update
 - Session cookie behavior (httpOnly, secure in prod, SameSite=Lax)
