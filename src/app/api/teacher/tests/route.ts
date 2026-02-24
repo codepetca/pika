@@ -84,10 +84,15 @@ export async function GET(request: NextRequest) {
         seen[row.test_id].add(row.student_id)
       }
 
-      const { data: responseRows } = await supabase
+      const { data: responseRows, error: responseRowsError } = await supabase
         .from('test_responses')
         .select('test_id, student_id')
         .in('test_id', testIds)
+
+      if (responseRowsError) {
+        console.error('Error fetching test responses:', responseRowsError)
+        return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
+      }
 
       for (const row of responseRows || []) {
         if (!seen[row.test_id]) seen[row.test_id] = new Set()

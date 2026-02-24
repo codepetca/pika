@@ -2839,3 +2839,21 @@
   - `/tmp/teacher-tests-phaseB-final.png`
   - `/tmp/student-quizzes-phaseB-final.png`
   - `/tmp/student-tests-phaseB-final.png`
+
+## 2026-02-24 — Follow-up fix: test response read failures now fail closed
+**Context:** PR #342 review found silent error handling gaps in three test API handlers that could misreport submission state/stats.
+
+**Fixes:**
+- Added explicit `test_responses` query error handling to:
+  - `/src/app/api/student/tests/[id]/route.ts`
+  - `/src/app/api/student/tests/route.ts`
+  - `/src/app/api/teacher/tests/route.ts`
+- Added regression tests:
+  - `/tests/api/student/tests-id.test.ts`
+  - `/tests/api/student/tests-route.test.ts`
+  - `/tests/api/teacher/tests-route.test.ts`
+
+**Validation:**
+- `pnpm test tests/api/student/tests-id.test.ts tests/api/student/tests-route.test.ts tests/api/teacher/tests-route.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-history.test.ts tests/api/student/tests-respond.test.ts`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`

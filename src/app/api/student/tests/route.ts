@@ -76,11 +76,16 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const { data: allResponses } = await supabase
+      const { data: allResponses, error: allResponsesError } = await supabase
         .from('test_responses')
         .select('test_id')
         .eq('student_id', user.id)
         .in('test_id', classroomTestIds)
+
+      if (allResponsesError) {
+        console.error('Error fetching submitted test responses:', allResponsesError)
+        return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
+      }
 
       for (const response of allResponses || []) {
         respondedTestIds.add(response.test_id)

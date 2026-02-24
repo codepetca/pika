@@ -38,12 +38,17 @@ export async function GET(
 
     const draftResponses = normalizeTestResponses(attempt?.responses)
 
-    const { data: responses } = await supabase
+    const { data: responses, error: responsesError } = await supabase
       .from('test_responses')
       .select('id')
       .eq('test_id', testId)
       .eq('student_id', user.id)
       .limit(1)
+
+    if (responsesError) {
+      console.error('Error checking submitted test responses:', responsesError)
+      return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
+    }
 
     const hasSubmitted = Boolean(attempt?.is_submitted) || (responses?.length || 0) > 0
 
@@ -69,11 +74,16 @@ export async function GET(
 
     let studentResponses: Record<string, number> = draftResponses
     if (hasSubmitted) {
-      const { data: allResponses } = await supabase
+      const { data: allResponses, error: allResponsesError } = await supabase
         .from('test_responses')
         .select('question_id, selected_option')
         .eq('test_id', testId)
         .eq('student_id', user.id)
+
+      if (allResponsesError) {
+        console.error('Error fetching submitted test responses:', allResponsesError)
+        return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
+      }
 
       const submittedResponses = Object.fromEntries(
         (allResponses || []).map((response) => [response.question_id, response.selected_option])
