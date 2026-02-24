@@ -69,7 +69,7 @@ tests/                             # Vitest unit + API suites
 
 ### Authentication (Primary)
 - **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates; `/create-password` hashes password (bcrypt), sets session.
-- **Login**: `/api/auth/login` with email/password; lockout after 5 failed attempts for 15 minutes.
+- **Login**: `/api/auth/login` with email/password.
 - **Forgot/Reset**: `/api/auth/forgot-password` issues reset code; `/reset-password/verify` + `/confirm` update password.
 - **Session**: iron-session cookie (`pika_session`), HTTP-only, SameSite=Lax, secure in production.
 
@@ -246,7 +246,7 @@ Existing indexes (migration 038):
 
 ---
 
-## Database Schema (Migrations 001–039)
+## Database Schema (Migrations 001–038)
 
 - `users` — `id`, `email`, `role`, `email_verified_at`, `password_hash`, timestamps
 - `verification_codes` — signup/reset codes with expiry/attempts
@@ -257,7 +257,6 @@ Existing indexes (migration 038):
 - `entries` — `student_id`, `classroom_id`, `date`, `text`, `mood`, `on_time`, timestamps
 - `assignments` — `classroom_id`, `title`, `description`, `due_at`, `created_by`
 - `assignment_docs` — one per (assignment, student); `content`, `is_submitted`, `submitted_at`
-- `login_attempts` — `email` (PK), `count`, `locked_until`, `updated_at` (migration 039)
 
 **RLS Highlights**
 - Auth tables (`verification_codes`) are server-managed only.

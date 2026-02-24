@@ -3,7 +3,6 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { verifyPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
-import { clearExpiredLockout, getLockoutMinutesLeft, incrementLoginAttempts, resetLoginAttempts } from '@/lib/login-lockout'
 
 export const POST = withErrorHandler('Login', async (request: NextRequest) => {
   const body = await request.json()
@@ -14,16 +13,6 @@ export const POST = withErrorHandler('Login', async (request: NextRequest) => {
   }
 
   const normalizedEmail = email.toLowerCase().trim()
-
-  // Remove expired lockouts
-  await clearExpiredLockout(normalizedEmail)
-
-  // Check if account is locked
-  const minutesLeft = await getLockoutMinutesLeft(normalizedEmail)
-  if (minutesLeft !== null) {
-    throw new ApiError(429, `Too many failed attempts. Try again in ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`)
-  }
-
   const supabase = getServiceRoleClient()
 
   // Find user by email
@@ -34,8 +23,6 @@ export const POST = withErrorHandler('Login', async (request: NextRequest) => {
     .single()
 
   if (userError || !user) {
-    // Increment failed attempts
-    await incrementLoginAttempts(normalizedEmail)
     throw new ApiError(401, 'Invalid email or password')
   }
 
@@ -48,13 +35,8 @@ export const POST = withErrorHandler('Login', async (request: NextRequest) => {
   const isValidPassword = await verifyPassword(password, user.password_hash)
 
   if (!isValidPassword) {
-    // Increment failed attempts
-    await incrementLoginAttempts(normalizedEmail)
     throw new ApiError(401, 'Invalid email or password')
   }
-
-  // Reset login attempts on successful login
-  await resetLoginAttempts(normalizedEmail)
 
   // Create session
   await createSession(user.id, user.email, user.role)
