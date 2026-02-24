@@ -11,6 +11,7 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
+import { readCookie, writeCookie } from '@/lib/cookies'
 
 function AuthenticityGauge({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
   const hasScore = score !== null
@@ -51,61 +52,56 @@ function AuthenticityGauge({ score, flags }: { score: number | null; flags: Auth
 }
 
 function ScoreInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  const [hoverScore, setHoverScore] = useState<number | null>(null)
+  const quickScores = Array.from({ length: 11 }, (_, i) => i)
   const n = Number(value)
-  const selected = Number.isInteger(n) && n >= 1 && n <= 10 ? n : null
-  const displayValue = hoverScore !== null ? String(hoverScore) : value
+  const selected = Number.isInteger(n) && n >= 0 && n <= 10 ? n : null
 
   function handleInputChange(next: string) {
-    setHoverScore(null)
     onChange(next)
   }
 
   return (
-    <div className="space-y-1.5">
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <label className="text-sm font-medium text-text-muted">
-          {label}
-        </label>
-        <input
-          type="number"
-          min={0}
-          max={10}
-          value={displayValue}
-          onChange={(e) => handleInputChange(e.target.value)}
-          onFocus={() => setHoverScore(null)}
-          className="h-8 w-12 rounded border border-border bg-surface px-2 py-0.5 text-sm font-medium text-text-default text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          aria-label={`${label} score`}
-        />
-        <span aria-hidden="true" />
-      </div>
-      <div className="grid grid-cols-10 gap-0" onMouseLeave={() => setHoverScore(null)}>
-        {Array.from({ length: 10 }, (_, i) => {
-          const score = i + 1
+    <div className="grid grid-cols-[4.75rem_minmax(0,1fr)_2.25rem] items-center gap-x-1.5">
+      <label
+        className={[
+          'whitespace-nowrap text-[11px] font-medium text-text-muted',
+          label === 'Completion' ? 'pr-2' : 'pr-1',
+        ].join(' ')}
+      >
+        {label}
+      </label>
+      <div className="flex min-w-0 items-center justify-start gap-0">
+        {quickScores.map((score) => {
           const isActive = selected === score
           return (
-            <button
-              key={score}
-              type="button"
-              onMouseEnter={() => setHoverScore(score)}
-              onClick={() => {
-                setHoverScore(null)
-                onChange(String(score))
-              }}
-              className={[
-                'h-6 rounded border text-[10px] font-medium transition-colors',
-                isActive
-                  ? 'border-primary bg-primary text-text-inverse'
-                  : 'border-border bg-surface text-text-muted hover:bg-surface-hover hover:text-text-default',
-              ].join(' ')}
-              aria-label={`Set ${label} score to ${score}`}
-              aria-pressed={isActive}
-            >
-              {''}
-            </button>
+            <Tooltip key={score} content={score} delayDuration={0} side="top">
+              <button
+                type="button"
+                onClick={() => onChange(String(score))}
+                className={[
+                  'inline-flex h-6 w-[clamp(0.5rem,calc(100%/11),1.5rem)] flex-none items-center justify-center rounded border px-0 text-[10px] font-semibold leading-none transition-colors',
+                  isActive
+                    ? 'border-primary bg-primary text-text-inverse'
+                    : 'border-border bg-surface text-text-default hover:bg-surface-hover',
+                ].join(' ')}
+                aria-label={`Set ${label} score to ${score}`}
+                aria-pressed={isActive}
+              >
+                {''}
+              </button>
+            </Tooltip>
           )
         })}
       </div>
+      <input
+        type="number"
+        min={0}
+        max={10}
+        value={value}
+        onChange={(e) => handleInputChange(e.target.value)}
+        className="h-6 w-9 justify-self-end rounded border border-border bg-surface px-1 py-0.5 text-xs font-medium text-text-default text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        aria-label={`${label} score`}
+      />
     </div>
   )
 }
@@ -119,13 +115,20 @@ interface StudentWorkData {
 }
 
 interface TeacherStudentWorkPanelProps {
+  classroomId: string
   assignmentId: string
   studentId: string
 }
 
 type RightTab = 'history' | 'grading'
+const RIGHT_TAB_COOKIE_PREFIX = 'pika_teacher_student_work_tab'
+
+function getRightTabCookieName(classroomId: string) {
+  return `${RIGHT_TAB_COOKIE_PREFIX}:${classroomId}`
+}
 
 export function TeacherStudentWorkPanel({
+  classroomId,
   assignmentId,
   studentId,
 }: TeacherStudentWorkPanelProps) {
@@ -140,9 +143,12 @@ export function TeacherStudentWorkPanel({
   const [previewEntry, setPreviewEntry] = useState<AssignmentDocHistoryEntry | null>(null)
   const [previewContent, setPreviewContent] = useState<TiptapContent | null>(null)
   const [lockedEntryId, setLockedEntryId] = useState<string | null>(null)
+  const rightTabCookieName = getRightTabCookieName(classroomId)
 
   // Grading state
-  const [rightTab, setRightTab] = useState<RightTab>('history')
+  const [rightTab, setRightTab] = useState<RightTab>(() => (
+    readCookie(getRightTabCookieName(classroomId)) === 'grading' ? 'grading' : 'history'
+  ))
   const [scoreCompletion, setScoreCompletion] = useState<string>('')
   const [scoreThinking, setScoreThinking] = useState<string>('')
   const [scoreWorkflow, setScoreWorkflow] = useState<string>('')
@@ -151,6 +157,11 @@ export function TeacherStudentWorkPanel({
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
   const showInitialSpinner = useDelayedBusy(loading && !data)
+
+  function handleRightTabChange(nextTab: RightTab) {
+    setRightTab(nextTab)
+    writeCookie(rightTabCookieName, nextTab)
+  }
 
   function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
     const oldestFirst = [...historyEntries].reverse()
@@ -193,13 +204,11 @@ export function TeacherStudentWorkPanel({
       setScoreThinking(doc.score_thinking?.toString() ?? '')
       setScoreWorkflow(doc.score_workflow?.toString() ?? '')
       setFeedback(doc.feedback ?? '')
-      setRightTab('grading')
     } else {
       setScoreCompletion('')
       setScoreThinking('')
       setScoreWorkflow('')
       setFeedback('')
-      setRightTab('history')
     }
   }
 
@@ -349,7 +358,7 @@ export function TeacherStudentWorkPanel({
       if (reloadRes.ok) {
         setData(reloadData)
         populateGradeForm(reloadData.doc)
-        setRightTab('grading') // Stay on grading tab to show results
+        handleRightTabChange('grading') // Stay on grading tab to show results
         window.dispatchEvent(new CustomEvent(TEACHER_GRADE_UPDATED_EVENT))
       }
     } catch (err: any) {
@@ -428,7 +437,7 @@ export function TeacherStudentWorkPanel({
                   ? 'text-primary border-b-2 border-primary'
                   : 'text-text-muted hover:text-text-default'
               }`}
-              onClick={() => setRightTab('history')}
+              onClick={() => handleRightTabChange('history')}
             >
               History
             </button>
@@ -439,7 +448,7 @@ export function TeacherStudentWorkPanel({
                   ? 'text-primary border-b-2 border-primary'
                   : 'text-text-muted hover:text-text-default'
               }`}
-              onClick={() => setRightTab('grading')}
+              onClick={() => handleRightTabChange('grading')}
             >
               Grading
             </button>
@@ -500,12 +509,6 @@ export function TeacherStudentWorkPanel({
 
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1">
                 <span aria-hidden="true" />
-                <div className="relative justify-self-center">
-                  <span className="inline-flex h-8 w-12 items-center justify-center rounded border border-border bg-surface text-sm font-medium text-text-default">
-                    {totalScore}
-                  </span>
-                  <span className="absolute left-full ml-1 top-1/2 -translate-y-1/2 text-xs text-text-muted">/30</span>
-                </div>
                 <span
                   className={[
                     'inline-flex h-8 w-12 items-center justify-center justify-self-end rounded border text-sm font-medium',
@@ -520,6 +523,12 @@ export function TeacherStudentWorkPanel({
                 >
                   {totalPercent}%
                 </span>
+                <div className="flex items-center justify-self-end gap-1">
+                  <span className="text-xs text-text-muted">30</span>
+                  <span className="inline-flex h-8 w-12 items-center justify-center rounded border border-border bg-surface text-sm font-medium text-text-default">
+                    {totalScore}
+                  </span>
+                </div>
               </div>
 
               <div className="min-h-0 flex-1">

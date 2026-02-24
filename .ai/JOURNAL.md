@@ -2644,4 +2644,54 @@
 - `pnpm walkthrough:marketing` fails fast on localhost without override (expected)
 - `CAPTURE_ALLOW_LOCAL_MARKETING=true CAPTURE_BASE_URL=http://localhost:3017 pnpm walkthrough:marketing` reaches runtime capture path (fails only because local server was not running)
 - `pnpm auth:marketing` and `pnpm capture:marketing` both fail fast on localhost without override (expected)
+## 2026-02-20 [AI - GPT-5 Codex]
+**Goal:** Resolve GH issues #334 and #335 in worktree `codex/334-335-assignment-pane-history`
+**Completed:**
+- Closed issue #334 per reporter confirmation (no code change required).
+- Fixed #335 by preserving teacher-selected right-panel mode (`History`/`Grading`) across student switches in `TeacherStudentWorkPanel`.
+- Added regression tests covering both persistence directions:
+  - keep `Grading` selected when switching students
+  - keep `History` selected when switching students
+- Performed required visual verification screenshots for teacher and student views.
+- Closed issue #335 with implementation and validation summary.
+**Status:** completed
+**Artifacts:**
+- Branch: `codex/334-335-assignment-pane-history`
+- Worktree: `/Users/stew/Repos/.worktrees/pika/codex-334-335-assignment-pane-history`
+- Screenshots: `/tmp/issue335-teacher-view.png`, `/tmp/issue335-student-view.png`
+- Key files: `src/components/TeacherStudentWorkPanel.tsx`, `tests/components/TeacherStudentWorkPanel.test.tsx`
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed
+- `pnpm lint` passed
+
+---
+## 2026-02-20 [AI - GPT-5 Codex] (follow-up)
+**Goal:** Add reload persistence for teacher assignment right-panel mode (`History`/`Grading`)
+**Completed:**
+- Added cookie-backed mode persistence in `TeacherStudentWorkPanel` using key `pika_teacher_student_work_tab`.
+- Restored mode from cookie on mount and persisted mode on tab changes.
+- Persisted auto-grade transition to `Grading` via the same cookie path.
+- Extended tests to cover reload persistence and cookie writes.
+- Re-ran mandatory teacher/student screenshots after UI behavior update.
+**Status:** completed
+**Artifacts:**
+- Screenshots: `/tmp/issue335b-teacher-view.png`, `/tmp/issue335b-student-view.png`
+- Key files: `src/components/TeacherStudentWorkPanel.tsx`, `tests/components/TeacherStudentWorkPanel.test.tsx`
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed
+- `pnpm lint` passed
+
+---
+## 2026-02-20 [AI - GPT-5 Codex] (follow-up 2)
+**Goal:** Scope teacher work-panel mode persistence by classroom
+**Completed:**
+- Updated `TeacherStudentWorkPanel` cookie key to be classroom-scoped (`pika_teacher_student_work_tab:<classroomId>`).
+- Passed `classroomId` prop from classroom page into `TeacherStudentWorkPanel`.
+- Extended regression tests with classroom-scoping coverage.
+- Re-ran mandatory teacher/student UI screenshots after behavior update.
+**Status:** completed
+**Artifacts:**
+- Screenshots: `/tmp/issue335c-teacher-view.png`, `/tmp/issue335c-student-view.png`
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed (5 tests)
 - `pnpm lint` passed
