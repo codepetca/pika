@@ -9,7 +9,9 @@ type CapturePacingMode = 'normal' | 'slow'
 
 type CapturePacingProfile = {
   typingDelayMs: number
+  preActionPauseMs: number
   preClickPauseMs: number
+  postActionPauseMs: number
   mouseMoveBaseMs: number
   mouseMoveMaxMs: number
   mouseMoveStepBase: number
@@ -36,11 +38,13 @@ const CAPTURE_PACING_MODE = (process.env.CAPTURE_PACING_MODE || 'normal').toLowe
 
 const PACING_BY_MODE: Record<CapturePacingMode, CapturePacingProfile> = {
   normal: {
-    typingDelayMs: 62,
-    preClickPauseMs: 220,
-    mouseMoveBaseMs: 350,
-    mouseMoveMaxMs: 900,
-    mouseMoveStepBase: 22,
+    typingDelayMs: 56,
+    preActionPauseMs: 280,
+    preClickPauseMs: 340,
+    postActionPauseMs: 220,
+    mouseMoveBaseMs: 165,
+    mouseMoveMaxMs: 520,
+    mouseMoveStepBase: 9,
     holdMs: 110,
     settleMs: 760,
     shortPauseMs: 820,
@@ -48,11 +52,13 @@ const PACING_BY_MODE: Record<CapturePacingMode, CapturePacingProfile> = {
     longPauseMs: 2600,
   },
   slow: {
-    typingDelayMs: 86,
-    preClickPauseMs: 360,
-    mouseMoveBaseMs: 540,
-    mouseMoveMaxMs: 1300,
-    mouseMoveStepBase: 34,
+    typingDelayMs: 74,
+    preActionPauseMs: 420,
+    preClickPauseMs: 520,
+    postActionPauseMs: 340,
+    mouseMoveBaseMs: 230,
+    mouseMoveMaxMs: 700,
+    mouseMoveStepBase: 12,
     holdMs: 150,
     settleMs: 1100,
     shortPauseMs: 1100,
@@ -124,37 +130,30 @@ async function setCursorOverlayPosition(page: Page, x: number, y: number) {
 
 async function animateCursorTo(page: Page, targetX: number, targetY: number) {
   const start = CURSOR_POSITION.get(page) || { x: 80, y: 80 }
-  const waypoints = [
-    {
-      x: start.x + (targetX - start.x) * 0.45 + randomBetween(-24, 24),
-      y: start.y + (targetY - start.y) * 0.45 + randomBetween(-18, 18),
-    },
-    {
-      x: targetX + randomBetween(-10, 10),
-      y: targetY + randomBetween(-8, 8),
-    },
-    { x: targetX, y: targetY },
-  ]
+  const dx = targetX - start.x
+  const dy = targetY - start.y
+  const distance = Math.hypot(dx, dy)
+  const nx = distance > 0 ? -dy / distance : 0
+  const ny = distance > 0 ? dx / distance : 0
+  const curve = Math.min(14, Math.max(4, distance * 0.045)) * (Math.random() > 0.5 ? 1 : -1)
+  const control = {
+    x: start.x + dx * 0.5 + nx * curve,
+    y: start.y + dy * 0.5 + ny * curve,
+  }
+  const duration = Math.min(PACING.mouseMoveMaxMs, PACING.mouseMoveBaseMs + distance * 0.5)
+  const steps = Math.max(18, Math.round(PACING.mouseMoveStepBase + distance / 14))
 
-  let previous = start
-  for (const waypoint of waypoints) {
-    const distance = Math.hypot(waypoint.x - previous.x, waypoint.y - previous.y)
-    const duration = Math.min(PACING.mouseMoveMaxMs, PACING.mouseMoveBaseMs + distance * 0.95)
-    const steps = Math.max(10, Math.round(PACING.mouseMoveStepBase + distance / 80))
+  for (let step = 1; step <= steps; step += 1) {
+    const t = step / steps
+    const eased = t * t * (3 - 2 * t)
+    const inv = 1 - eased
+    const jitterScale = 1 - eased
+    const x = inv * inv * start.x + 2 * inv * eased * control.x + eased * eased * targetX + randomBetween(-0.45, 0.45) * jitterScale
+    const y = inv * inv * start.y + 2 * inv * eased * control.y + eased * eased * targetY + randomBetween(-0.45, 0.45) * jitterScale
 
-    for (let step = 1; step <= steps; step += 1) {
-      const t = step / steps
-      const eased = t * t * (3 - 2 * t)
-      const jitterScale = (1 - t) * 0.9
-      const x = previous.x + (waypoint.x - previous.x) * eased + randomBetween(-1.4, 1.4) * jitterScale
-      const y = previous.y + (waypoint.y - previous.y) * eased + randomBetween(-1.4, 1.4) * jitterScale
-
-      await page.mouse.move(x, y)
-      await setCursorOverlayPosition(page, x, y)
-      await page.waitForTimeout(Math.max(8, Math.round(duration / steps)))
-    }
-
-    previous = waypoint
+    await page.mouse.move(x, y)
+    await setCursorOverlayPosition(page, x, y)
+    await page.waitForTimeout(Math.max(10, Math.round(duration / steps)))
   }
 
   CURSOR_POSITION.set(page, { x: targetX, y: targetY })
@@ -224,10 +223,12 @@ async function clickFirstIfPresent(page: Page, selectorName: string, action: () 
   }
 }
 
-async function typeSlowly(locator: Locator, text: string) {
-  await locator.click({ timeout: 10_000 })
+async function typeSlowly(page: Page, locator: Locator, text: string) {
+  await humanPause(locator.page(), PACING.preActionPauseMs, 0.1)
+  await clickWithMouse(page, locator, { timeout: 10_000, settleMs: withVariance(PACING.postActionPauseMs, 0.08, 70) })
   await locator.fill('')
   await locator.type(text, { delay: PACING.typingDelayMs })
+  await humanPause(locator.page(), PACING.postActionPauseMs, 0.1)
 }
 
 async function ensureCursorOverlay(page: Page) {
@@ -330,6 +331,7 @@ async function clickWithMouse(
   const x = box.x + box.width / 2
   const y = box.y + box.height / 2
 
+  await humanPause(page, PACING.preActionPauseMs, 0.1)
   await animateCursorTo(page, x, y)
   await humanPause(page, PACING.preClickPauseMs)
   await page.evaluate(
@@ -344,13 +346,96 @@ async function clickWithMouse(
   await humanPause(page, settleMs, 0.1)
 }
 
+async function navigateWithHumanPause(page: Page, url: string) {
+  await humanPause(page, PACING.preActionPauseMs, 0.1)
+  await page.goto(url, { waitUntil: 'domcontentloaded' })
+  await humanPause(page, PACING.postActionPauseMs, 0.12)
+}
+
+async function clickByAccessibleName(page: Page, label: string, options?: { timeout?: number; settleMs?: number }) {
+  const exactName = new RegExp(`^${label}$`, 'i')
+  const looseName = new RegExp(label, 'i')
+  const candidates: Locator[] = [
+    page.getByRole('button', { name: exactName }).first(),
+    page.getByRole('link', { name: exactName }).first(),
+    page.getByRole('button', { name: looseName }).first(),
+    page.getByRole('link', { name: looseName }).first(),
+    page.locator(`[aria-label*="${label}"]`).first(),
+    page.locator(`[title*="${label}"]`).first(),
+    page.getByText(exactName).first(),
+  ]
+
+  for (const candidate of candidates) {
+    if ((await candidate.count()) > 0) {
+      try {
+        await clickWithMouse(page, candidate, { timeout: options?.timeout ?? 8_000, settleMs: options?.settleMs })
+        return
+      } catch {
+        continue
+      }
+    }
+  }
+
+  throw new Error(`Could not click UI control "${label}"`)
+}
+
+async function clickTextInLeftPane(
+  page: Page,
+  text: string | RegExp,
+  options?: { timeout?: number; settleMs?: number }
+) {
+  const matches = typeof text === 'string' ? page.getByText(text) : page.getByText(text)
+  const count = await matches.count()
+  const viewport = page.viewportSize()
+  const leftBoundary = viewport ? viewport.width * 0.5 : 720
+
+  for (let i = 0; i < count; i += 1) {
+    const candidate = matches.nth(i)
+    const box = await candidate.boundingBox()
+    if (!box) continue
+    const centerX = box.x + box.width / 2
+    if (centerX > leftBoundary) continue
+    await clickWithMouse(page, candidate, { timeout: options?.timeout ?? 12_000, settleMs: options?.settleMs })
+    return
+  }
+
+  throw new Error(`Could not click left-pane text target "${String(text)}"`)
+}
+
+async function findVisibleLeftPaneTableRow(page: Page, timeoutMs = 45_000) {
+  const startedAt = Date.now()
+  const viewport = page.viewportSize()
+  const leftBoundary = viewport ? viewport.width * 0.5 : 720
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const rows = page.locator('table tbody tr')
+    const count = await rows.count()
+    for (let i = 0; i < count; i += 1) {
+      const row = rows.nth(i)
+      const box = await row.boundingBox()
+      if (!box) continue
+      const centerX = box.x + box.width / 2
+      if (centerX > leftBoundary) continue
+      if (box.height < 8 || box.width < 80) continue
+      return row
+    }
+    await page.waitForTimeout(180)
+  }
+
+  throw new Error('No visible left-pane table row was found before timeout')
+}
+
+async function waitForTeacherAttendanceList(page: Page) {
+  await findVisibleLeftPaneTableRow(page, 45_000)
+}
+
 async function withRecordedContext(
   storagePath: string | undefined,
   outputFileName: string,
   action: (page: Page, classroomId: string) => Promise<void>,
   classroomId: string
 ) {
-  const browser = await chromium.launch({ headless: true, slowMo: 140 })
+  const browser = await chromium.launch({ headless: true, slowMo: 0 })
   const context = await browser.newContext({
     ...(storagePath ? { storageState: storagePath } : {}),
     viewport: { width: 1440, height: 900 },
@@ -387,7 +472,7 @@ async function withRecordedContext(
 }
 
 async function recordLoginFlow(page: Page) {
-  await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' })
+  await navigateWithHumanPause(page, `${BASE_URL}/login`)
   await ensureCursorOverlay(page)
   await page.waitForSelector('text=Login to Pika', { timeout: 45_000 })
   await humanPause(page, PACING.shortPauseMs)
@@ -395,9 +480,9 @@ async function recordLoginFlow(page: Page) {
   const emailInput = page.getByLabel(/School Email/i)
   const passwordInput = page.getByLabel(/Password/i)
   await emailInput.waitFor({ timeout: 15_000 })
-  await typeSlowly(emailInput, CAPTURE_TEACHER_EMAIL)
+  await typeSlowly(page, emailInput, CAPTURE_TEACHER_EMAIL)
   await humanPause(page, PACING.shortPauseMs * 0.35)
-  await typeSlowly(passwordInput, CAPTURE_PASSWORD)
+  await typeSlowly(page, passwordInput, CAPTURE_PASSWORD)
   await clickWithMouse(page, page.getByRole('button', { name: /^Login$/i }), {
     timeout: 15_000,
     settleMs: withVariance(PACING.mediumPauseMs * 0.7, 0.08),
@@ -409,64 +494,56 @@ async function recordLoginFlow(page: Page) {
 }
 
 async function recordTeacherFlow(page: Page, classroomId: string) {
-  await page.goto(`${BASE_URL}/classrooms`, { waitUntil: 'domcontentloaded' })
+  await navigateWithHumanPause(page, `${BASE_URL}/classrooms`)
   await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
   await humanPause(page, PACING.mediumPauseMs)
 
-  await clickFirstIfPresent(page, 'teacher classroom card click', async () => {
-    await clickWithMouse(page, page.getByText(CLASSROOM_TITLE), { timeout: 15_000, settleMs: 1200 })
-  })
+  await clickTextInLeftPane(page, CLASSROOM_TITLE, { timeout: 15_000, settleMs: 1200 })
 
-  await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=today`, { waitUntil: 'domcontentloaded' })
-  await ensureCursorOverlay(page)
-  await page.waitForSelector('text=Log Summary', { timeout: 45_000 })
-  await humanPause(page, PACING.mediumPauseMs + 300)
+  await page.waitForURL(new RegExp(`/classrooms/${classroomId}`), { timeout: 45_000, waitUntil: 'domcontentloaded' })
+  await clickByAccessibleName(page, 'Attendance', { timeout: 12_000, settleMs: 1100 })
+  await waitForTeacherAttendanceList(page)
+  await humanPause(page, PACING.mediumPauseMs + 450)
 
-  await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=assignments`, { waitUntil: 'domcontentloaded' })
-  await ensureCursorOverlay(page)
+  const attendanceRow = await findVisibleLeftPaneTableRow(page, 20_000)
+  await clickWithMouse(page, attendanceRow, { timeout: 12_000, settleMs: 900 })
+
+  await clickByAccessibleName(page, 'Assignments', { timeout: 12_000, settleMs: 1100 })
+  await page.waitForURL(/tab=assignments/, { timeout: 45_000, waitUntil: 'domcontentloaded' })
   await page.waitForSelector(`text=${ASSIGNMENT_TITLE}`, { timeout: 45_000 })
   await humanPause(page, PACING.mediumPauseMs)
 
-  await clickWithMouse(page, page.getByText(ASSIGNMENT_TITLE), { timeout: 45_000, settleMs: 1300 })
-  await page.waitForSelector('text=First Name', { timeout: 45_000 })
+  await clickTextInLeftPane(page, ASSIGNMENT_TITLE, { timeout: 45_000, settleMs: 1300 })
+  await findVisibleLeftPaneTableRow(page, 45_000)
+  const studentWorkRow = await findVisibleLeftPaneTableRow(page, 20_000)
+  await clickWithMouse(page, studentWorkRow, { timeout: 20_000, settleMs: 1000 })
   await humanPause(page, PACING.mediumPauseMs)
 
-  await clickFirstIfPresent(page, 'select Ava row', async () => {
-    await clickWithMouse(page, page.getByRole('cell', { name: 'Ava', exact: true }), { timeout: 20_000, settleMs: 1000 })
-  })
-
-  await clickFirstIfPresent(page, 'switch to Grading tab', async () => {
-    await clickWithMouse(page, page.getByRole('tab', { name: /Grading/i }), { timeout: 10_000, settleMs: 1200 })
-  })
+  await clickByAccessibleName(page, 'Grading', { timeout: 12_000, settleMs: 1200 })
 
   await page.waitForSelector('text=Completion', { timeout: 45_000 })
   await humanPause(page, PACING.longPauseMs)
 }
 
 async function recordStudentFlow(page: Page, classroomId: string) {
-  await page.goto(`${BASE_URL}/classrooms`, { waitUntil: 'domcontentloaded' })
+  await navigateWithHumanPause(page, `${BASE_URL}/classrooms`)
   await ensureCursorOverlay(page)
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
   await humanPause(page, PACING.mediumPauseMs)
 
-  await clickFirstIfPresent(page, 'student classroom card click', async () => {
-    await clickWithMouse(page, page.getByText(CLASSROOM_TITLE), { timeout: 15_000, settleMs: 1000 })
-  })
+  await clickTextInLeftPane(page, CLASSROOM_TITLE, { timeout: 15_000, settleMs: 1000 })
 
-  await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=today`, { waitUntil: 'domcontentloaded' })
-  await ensureCursorOverlay(page)
+  await page.waitForURL(new RegExp(`/classrooms/${classroomId}`), { timeout: 45_000, waitUntil: 'domcontentloaded' })
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
   await humanPause(page, PACING.mediumPauseMs)
 
-  await page.goto(`${BASE_URL}/classrooms/${classroomId}?tab=assignments`, { waitUntil: 'domcontentloaded' })
-  await ensureCursorOverlay(page)
+  await clickByAccessibleName(page, 'Assignments', { timeout: 12_000, settleMs: 1200 })
+  await page.waitForURL(/tab=assignments/, { timeout: 45_000, waitUntil: 'domcontentloaded' })
   await page.waitForSelector('text=Returned', { timeout: 45_000 })
   await humanPause(page, PACING.mediumPauseMs)
 
-  await clickFirstIfPresent(page, 'student returned work click', async () => {
-    await clickWithMouse(page, page.getByText(ASSIGNMENT_TITLE), { timeout: 30_000, settleMs: 2300 })
-  })
+  await clickTextInLeftPane(page, ASSIGNMENT_TITLE, { timeout: 30_000, settleMs: 2300 })
 }
 
 async function run() {
