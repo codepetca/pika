@@ -2633,3 +2633,254 @@
 **Validation:**
 - `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed (5 tests)
 - `pnpm lint` passed
+## 2026-02-23 [AI - GPT-5 Codex]
+**Goal:** Implement Quizzes tab split (`Quizzes`/`Tests`) plus test focus-away telemetry visibility for teacher/student.
+**Completed:**
+- Added new migration `038_quiz_tests_and_focus_events.sql`:
+  - `quizzes.assessment_type` (`quiz|test`)
+  - `quiz_focus_events` table + indexes + RLS policies
+- Extended quiz domain types/utilities:
+  - `QuizAssessmentType`, `QuizFocusSummary`, focus event summary helpers in `src/lib/quizzes.ts`
+- Updated teacher/student quizzes APIs:
+  - list filtering by `assessment_type`
+  - migration-safe fallbacks when column is not applied yet
+  - teacher create supports `assessment_type` (`New Quiz`/`New Test`)
+- Added student telemetry endpoint:
+  - `POST /api/student/quizzes/[id]/focus-events`
+- Added focus summary exposure:
+  - student quiz detail response includes `focus_summary`
+  - teacher quiz results include per-student focus summary
+- Implemented UI changes:
+  - Teacher and student sub-tabs inside Quizzes tab (`Quizzes`, `Tests`)
+  - URL persistence via `quizType` search param
+  - type-aware teacher CTA text (`New Quiz` / `New Test`)
+  - student focus metrics display (no inline explanatory note)
+  - teacher individual responses panel shows focus metrics where available
+- Updated tests/mocks:
+  - `tests/unit/quizzes.test.ts` coverage for focus summary helpers
+  - `tests/components/TeacherQuizzesTab.test.tsx` for next/navigation + tests-tab URL state
+  - quiz mock factory default `assessment_type: 'quiz'`
+**Status:** completed
+**Artifacts:**
+- Branch: `codex/tests-quizzes-focus`
+- Worktree: `/Users/stew/Repos/.worktrees/pika/codex-tests-quizzes-focus`
+- Key files:
+  - `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`
+  - `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - `src/app/api/teacher/quizzes/route.ts`
+  - `src/app/api/student/quizzes/route.ts`
+  - `src/app/api/student/quizzes/[id]/focus-events/route.ts`
+  - `supabase/migrations/038_quiz_tests_and_focus_events.sql`
+- Screenshots:
+  - `/tmp/teacher-quizzes-final.png`
+  - `/tmp/student-quizzes-final.png`
+  - `/tmp/teacher-tests.png`
+  - `/tmp/student-tests.png`
+**Validation:**
+- `pnpm vitest run tests/unit/quizzes.test.ts tests/components/TeacherQuizzesTab.test.tsx` passed
+- `pnpm lint` passed
+- `pnpm test -- tests/unit/quizzes.test.ts tests/components/TeacherQuizzesTab.test.tsx` (full suite execution) passed: 103 files / 1102 tests
+- Playwright visual checks completed for teacher and student views
+
+## 2026-02-23 — Follow-up: cleaner test route-exit telemetry + TS fix
+**Context:** Refined focus telemetry semantics after review feedback: log `route_exit_attempt` for any navigation away from an active test session, not only explicit back action. Also fixed PR TypeScript failures from stricter quiz typing.
+
+**Changes:**
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added one-time route-exit logging guard (`routeExitLoggedRef`) per active test session.
+  - Added explicit source-tagged route-exit logging for back button (`back_button`).
+  - Added page unload/navigation logging via `pagehide` (`pagehide`).
+  - Added component unmount fallback logging (`component_unmount`) so leaving the quizzes route/tab is captured.
+  - Kept away-time tracking (`away_start`/`away_end`) separate.
+- Updated `src/lib/quizzes.ts` function signatures to accept minimal quiz shape (`Pick<Quiz, ...>`) for status/visibility checks.
+- Updated `src/lib/server/quizzes.ts` `QuizAccessRecord` to include optional `assessment_type` for compatibility with assessment helper usage.
+
+**Validation:**
+- `pnpm exec tsc --noEmit` passed
+- `pnpm lint` passed
+- `pnpm vitest run tests/unit/quizzes.test.ts tests/components/TeacherQuizzesTab.test.tsx` passed
+
+## 2026-02-23 — Follow-up: make Tests a first-class sidebar tab
+**Context:** Reworked classroom navigation so `Tests` is no longer nested within `Quizzes`, and cleaned up sidebar UX.
+
+**Changes:**
+- Added `tests` as a distinct classroom sidebar tab for both teacher and student in `src/components/layout/NavItems.tsx`.
+- Updated quizzes/tests rendering in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`:
+  - `tab=quizzes` renders quiz-only views.
+  - `tab=tests` renders test-only views.
+  - Right inspector empty state now adapts (`Select a quiz...` / `Select a test...`).
+- Updated quiz tab components to be route-driven by parent tab instead of internal toggle:
+  - `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`
+  - `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+- Mapped `tests` to existing quiz layout keys in `src/lib/layout-config.ts`.
+- Updated tests:
+  - `tests/components/TeacherQuizzesTab.test.tsx`
+  - `tests/unit/layout-config.test.ts`
+- Visual polish: changed `Tests` nav icon to `FileText` so it is distinct from `Quizzes` (`CircleHelp`).
+
+**Screenshots:**
+- `/tmp/teacher-quizzes-sidebar-tests-tab-settled.png`
+- `/tmp/teacher-tests-sidebar-tests-tab-settled.png`
+- `/tmp/student-quizzes-sidebar-tests-tab-settled.png`
+- `/tmp/student-tests-sidebar-tests-tab-settled.png`
+
+**Validation:**
+- `pnpm exec tsc --noEmit` passed
+- `pnpm lint` passed
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/unit/layout-config.test.ts` passed
+- `pnpm vitest run tests/components/ThreePanelProvider.test.tsx` passed
+- `pnpm e2e:auth` passed
+- Playwright screenshots verified for teacher and student
+
+## 2026-02-24 — Finalize tests-first split (038 unapplied path)
+**Context:** Proceeded with the approved plan to keep Tests distinct from Quizzes, with migration `038` still unapplied in production. Focus was to make runtime behavior safe before migration rollout and keep UI/API routes clearly separated.
+
+**Changes:**
+- Restored quiz APIs to quiz-only behavior (removed assessment-type branching and test-table assumptions) while preserving `assessment_type: 'quiz'` in payloads for client compatibility.
+- Kept Tests as a separate API/domain (`/api/teacher/tests`, `/api/student/tests`) and added graceful migration-missing handling (`PGRST205`) for list/create flows.
+- Updated classroom quiz/test tabs to hit separate endpoints by tab (`quizzes` vs `tests`) without `assessment_type` query param coupling.
+- Threaded `apiBasePath` through shared quiz components (`QuizModal`, `QuizCard`, `QuizDetailPanel`, `QuizQuestionEditor`, `QuizIndividualResponses`, `StudentQuizForm`, `StudentQuizResults`) so Tests can reuse UI safely.
+- Updated `tests/components/TeacherQuizzesTab.test.tsx` expectations to assert endpoint family routing.
+- Minor cleanup: fixed indentation/readability in `src/components/QuizDetailPanel.tsx` results block.
+
+**Validation:**
+- `pnpm exec tsc --noEmit` passed
+- `pnpm lint` passed
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/unit/quizzes.test.ts` passed
+- Prior full-suite verification in this worktree remains green (`104 files / 1108 tests`).
+
+**Notes:**
+- `038_quiz_tests_and_focus_events.sql` now models Tests as first-class tables (`tests`, `test_questions`, `test_responses`, `test_focus_events`) with dedicated RLS.
+- Migration is not auto-applied by agent; human apply remains required.
+
+## 2026-02-24 — Fix tests pulse + tighten focus telemetry gating
+**Context:** Follow-up bugfix pass after tests became a separate sidebar tab. Addressed incorrect pulse source for tests, tightened server-side focus-event acceptance window, and aligned student copy in tests mode.
+
+**Changes:**
+- `src/app/api/student/notifications/route.ts`
+  - Added reusable active-unanswered counter for quizzes/tests.
+  - Added `activeTestsCount` to API payload.
+  - Added safe fallback for unapplied test tables (`PGRST205` => test count 0).
+- `src/components/StudentNotificationsProvider.tsx`
+  - Added `activeTestsCount` state and `clearActiveTestsCount()` helper.
+- `src/components/layout/NavItems.tsx`
+  - Tests badge/pulse now keys off `activeTestsCount` (not quiz count).
+- `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - Clear tests pulse on test submission.
+  - Copy in tests mode now references "test" instead of "quiz".
+- `src/app/api/student/tests/[id]/focus-events/route.ts`
+  - Rejects focus-event writes unless test is `active`.
+  - Rejects writes if student already has a submitted response.
+- `supabase/migrations/038_quiz_tests_and_focus_events.sql`
+  - Updated RLS policy for `test_focus_events` insert to require active test and no existing response.
+- Tests:
+  - Expanded notifications API tests for tests counts and missing-table behavior.
+  - Added `tests/api/student/tests-focus-events.test.ts` for active/unsubmitted gating.
+  - Updated `StudentNotificationsProvider` test fixture payload.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (full suite) passed (`105 files / 1116 tests`).
+- `pnpm lint` passed.
+- `pnpm exec tsc --noEmit` passed.
+- Mandatory UI verification completed (teacher + student):
+  - `/tmp/teacher-quizzes-fix-review.png`
+  - `/tmp/teacher-tests-fix-review.png`
+  - `/tmp/student-quizzes-fix-review.png`
+  - `/tmp/student-tests-fix-review.png`
+
+## 2026-02-24 — Phase A/B complete: reusable versioned history + test autosave/history
+**Context:** Implemented the test-first flow end-to-end: reuse assignment history persistence mechanics, add draft autosave/history for tests, keep quiz and test UX split in sidebar tabs, and preserve compatibility where existing consumers still read `test_responses`.
+
+**Phase A (modularization) completed:**
+- Added `/src/lib/server/versioned-history.ts` with generic history persistence helpers:
+  - `insertVersionedBaselineHistory(...)`
+  - `persistVersionedHistory(...)`
+- Generalized JSON patch utilities in `/src/lib/json-patch.ts` to support non-Tiptap payload objects.
+- Refactored `/src/app/api/assignment-docs/[id]/route.ts` to use the new shared helper while preserving assignment behavior.
+
+**Phase B (tests feature) completed:**
+- Updated migration `/supabase/migrations/038_quiz_tests_and_focus_events.sql` to add test draft/history model:
+  - `test_attempts`
+  - `test_attempt_history`
+  - indexes, triggers, and RLS; focus-event insert policy aligned with active/unsubmitted test constraints.
+- Added `/src/lib/test-attempts.ts` for test response normalization/validation + history metrics.
+- Added student test draft autosave endpoint:
+  - `/src/app/api/student/tests/[id]/attempt/route.ts`
+- Added test history endpoint (student + teacher read path with enrollment/ownership checks):
+  - `/src/app/api/student/tests/[id]/history/route.ts`
+- Updated test APIs to support attempts while retaining compatibility where needed:
+  - `/src/app/api/student/tests/[id]/route.ts`
+  - `/src/app/api/student/tests/[id]/respond/route.ts`
+  - `/src/app/api/student/tests/[id]/results/route.ts`
+  - `/src/app/api/student/tests/[id]/focus-events/route.ts`
+  - `/src/app/api/student/tests/route.ts`
+  - `/src/app/api/teacher/tests/route.ts`
+  - `/src/app/api/student/notifications/route.ts`
+- Updated student UI for test draft autosave/save-state messaging:
+  - `/src/components/StudentQuizForm.tsx`
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+- Added types in `/src/types/index.ts` for attempts/history.
+
+**Tests added/updated:**
+- New:
+  - `/tests/unit/test-attempts.test.ts`
+  - `/tests/api/student/tests-attempt.test.ts`
+  - `/tests/api/student/tests-history.test.ts`
+  - `/tests/api/student/tests-respond.test.ts`
+- Updated:
+  - `/tests/api/student/tests-focus-events.test.ts`
+  - `/tests/api/student/notifications.test.ts`
+
+**Verification:**
+- `bash scripts/verify-env.sh --full` passed (tests + lint + build).
+- Full suite result: `109 files / 1126 tests` passed.
+- Mandatory UI screenshots (teacher + student) captured after waiting for tab content to load:
+  - `/tmp/teacher-quizzes-phaseB-final.png`
+  - `/tmp/teacher-tests-phaseB-final.png`
+  - `/tmp/student-quizzes-phaseB-final.png`
+  - `/tmp/student-tests-phaseB-final.png`
+
+## 2026-02-24 — Follow-up fix: test response read failures now fail closed
+**Context:** PR #342 review found silent error handling gaps in three test API handlers that could misreport submission state/stats.
+
+**Fixes:**
+- Added explicit `test_responses` query error handling to:
+  - `/src/app/api/student/tests/[id]/route.ts`
+  - `/src/app/api/student/tests/route.ts`
+  - `/src/app/api/teacher/tests/route.ts`
+- Added regression tests:
+  - `/tests/api/student/tests-id.test.ts`
+  - `/tests/api/student/tests-route.test.ts`
+  - `/tests/api/teacher/tests-route.test.ts`
+
+**Validation:**
+- `pnpm test tests/api/student/tests-id.test.ts tests/api/student/tests-route.test.ts tests/api/teacher/tests-route.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-history.test.ts tests/api/student/tests-respond.test.ts`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit`
+
+## 2026-02-24 — Test mixed-question flow hardening + status bug fix
+**Context:** During end-to-end validation of the new tests feature, mixed question creation exposed local schema drift and student detail view behavior blocked first-time test attempts.
+
+**Changes:**
+- Reapplied migration set locally (`supabase db reset --local`) and reseeded (`pnpm seed`) to align local schema with updated `038`.
+- Fixed student detail status propagation so tests/quizzes no longer default to "submitted" when `student_status` is missing:
+  - `/src/app/api/student/quizzes/[id]/route.ts`
+  - `/src/app/api/student/tests/[id]/route.ts`
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+- Updated migration guardrail in `038` to align open-response response length with configurable limits:
+  - `/supabase/migrations/038_quiz_tests_and_focus_events.sql`
+  - `test_responses.response_text` check raised to `<= 20000`.
+
+**Verification:**
+- UI smoke (teacher + student) verified mixed test behavior with screenshots:
+  - `/tmp/teacher-test-editor-mixed.png`
+  - `/tmp/student-test-mixed-form.png`
+- Mandatory tab screenshots (stable, non-spinner) captured:
+  - `/tmp/teacher-quizzes-stable.png`
+  - `/tmp/teacher-tests-stable.png`
+  - `/tmp/student-quizzes-stable.png`
+  - `/tmp/student-tests-stable.png`
+- Full checks passed:
+  - `pnpm lint`
+  - `pnpm test`
+  - `pnpm build`

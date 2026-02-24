@@ -11,6 +11,7 @@ interface QuizCardProps {
   quiz: QuizWithStats
   isSelected: boolean
   isReadOnly: boolean
+  apiBasePath?: string
   onSelect: () => void
   onDelete: () => void
   onQuizUpdate: () => void
@@ -20,11 +21,13 @@ export function QuizCard({
   quiz,
   isSelected,
   isReadOnly,
+  apiBasePath = '/api/teacher/quizzes',
   onSelect,
   onDelete,
   onQuizUpdate,
 }: QuizCardProps) {
   const isDraft = quiz.status === 'draft'
+  const assessmentLabel = quiz.assessment_type === 'test' ? 'test' : 'quiz'
   const [updating, setUpdating] = useState(false)
   const [showActivateConfirm, setShowActivateConfirm] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
@@ -32,7 +35,7 @@ export function QuizCard({
   async function handleStatusChange(newStatus: 'active' | 'closed') {
     setUpdating(true)
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}`, {
+      const res = await fetch(`${apiBasePath}/${quiz.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
@@ -59,7 +62,7 @@ export function QuizCard({
     if (isReadOnly) return
     setUpdating(true)
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}`, {
+      const res = await fetch(`${apiBasePath}/${quiz.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ show_results: !quiz.show_results }),
@@ -195,7 +198,7 @@ export function QuizCard({
             </Tooltip>
 
             {/* Delete */}
-            <Tooltip content="Delete quiz">
+            <Tooltip content={`Delete ${assessmentLabel}`}>
               <Button
                 variant="ghost"
                 size="sm"
@@ -216,7 +219,7 @@ export function QuizCard({
 
       <ConfirmDialog
         isOpen={showActivateConfirm}
-        title="Activate quiz?"
+        title={`Activate ${assessmentLabel}?`}
         description="Once activated, students will be able to respond."
         confirmLabel={updating ? 'Activating...' : 'Activate'}
         cancelLabel="Cancel"
@@ -228,7 +231,7 @@ export function QuizCard({
 
       <ConfirmDialog
         isOpen={showCloseConfirm}
-        title="Close quiz?"
+        title={`Close ${assessmentLabel}?`}
         description="Students will no longer be able to respond. If results are enabled, students who responded will be able to see results after closing."
         confirmLabel={updating ? 'Closing...' : 'Close'}
         cancelLabel="Cancel"

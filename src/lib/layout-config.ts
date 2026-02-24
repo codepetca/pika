@@ -224,7 +224,7 @@ export function getRouteKeyFromTab(
     return 'assignments-teacher-list'
   }
 
-  if (tab === 'quizzes') {
+  if (tab === 'quizzes' || tab === 'tests') {
     return role === 'teacher' ? 'quizzes-teacher' : 'quizzes-student'
   }
 

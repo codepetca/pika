@@ -117,8 +117,8 @@ export function ClassroomPageClient({
   const validTabs = useMemo(
     () =>
       isTeacher
-        ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
-        : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const),
+        ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'tests', 'calendar', 'resources', 'roster', 'settings'] as const)
+        : (['today', 'assignments', 'quizzes', 'tests', 'calendar', 'resources'] as const),
     [isTeacher]
   )
 
@@ -287,6 +287,12 @@ function ClassroomPageContent({
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
     setSelectedQuiz(quiz)
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'quizzes' || activeTab === 'tests') {
+      setSelectedQuiz(null)
+    }
+  }, [activeTab])
 
   const handleQuizUpdate = useCallback(() => {
     window.dispatchEvent(
@@ -491,7 +497,7 @@ function ClassroomPageContent({
       setRightSidebarWidth('75%')
     } else if (isTeacher && activeTab === 'assignments') {
       setRightSidebarWidth('50%')
-    } else if (isTeacher && activeTab === 'quizzes') {
+    } else if (isTeacher && (activeTab === 'quizzes' || activeTab === 'tests')) {
       setRightSidebarWidth('50%')
     } else if (isTeacher && activeTab === 'gradebook') {
       setRightSidebarWidth(420)
@@ -685,6 +691,10 @@ function ClassroomPageContent({
     return () => window.cancelAnimationFrame(rafId)
   }, [activeTab])
 
+  const isAssessmentTab = activeTab === 'quizzes' || activeTab === 'tests'
+  const assessmentLabel = activeTab === 'tests' ? 'test' : 'quiz'
+  const assessmentApiBasePath = activeTab === 'tests' ? '/api/teacher/tests' : '/api/teacher/quizzes'
+
   const content = (
     <AppShell
       user={user}
@@ -768,6 +778,16 @@ function ClassroomPageContent({
                 <TabContentTransition isActive={activeTab === 'quizzes'}>
                   <TeacherQuizzesTab
                     classroom={classroom}
+                    assessmentType="quiz"
+                    onSelectQuiz={handleSelectQuiz}
+                  />
+                </TabContentTransition>
+              )}
+              {mountedTabs.tests && (
+                <TabContentTransition isActive={activeTab === 'tests'}>
+                  <TeacherQuizzesTab
+                    classroom={classroom}
+                    assessmentType="test"
                     onSelectQuiz={handleSelectQuiz}
                   />
                 </TabContentTransition>
@@ -844,7 +864,12 @@ function ClassroomPageContent({
               )}
               {mountedTabs.quizzes && (
                 <TabContentTransition isActive={activeTab === 'quizzes'}>
-                  <StudentQuizzesTab classroom={classroom} />
+                  <StudentQuizzesTab classroom={classroom} assessmentType="quiz" />
+                </TabContentTransition>
+              )}
+              {mountedTabs.tests && (
+                <TabContentTransition isActive={activeTab === 'tests'}>
+                  <StudentQuizzesTab classroom={classroom} assessmentType="test" />
                 </TabContentTransition>
               )}
               {mountedTabs.calendar && (
@@ -899,7 +924,7 @@ function ClassroomPageContent({
               ? selectedGradebookStudent
                 ? `${selectedGradebookStudent.student_first_name || ''} ${selectedGradebookStudent.student_last_name || ''}`.trim() || selectedGradebookStudent.student_email
                 : 'Gradebook'
-              : isTeacher && activeTab === 'quizzes'
+              : isTeacher && isAssessmentTab
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
               ? selectedStudent.assignmentTitle
@@ -984,16 +1009,17 @@ function ClassroomPageContent({
             )
           ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
-          ) : isTeacher && activeTab === 'quizzes' && selectedQuiz ? (
+          ) : isTeacher && isAssessmentTab && selectedQuiz ? (
             <QuizDetailPanel
               quiz={selectedQuiz}
               classroomId={classroom.id}
+              apiBasePath={assessmentApiBasePath}
               onQuizUpdate={handleQuizUpdate}
             />
-          ) : isTeacher && activeTab === 'quizzes' ? (
+          ) : isTeacher && isAssessmentTab ? (
             <div className="p-4">
               <p className="text-sm text-text-muted">
-                Select a quiz to view details.
+                Select a {assessmentLabel} to view details.
               </p>
             </div>
           ) : isTeacher && activeTab === 'gradebook' && selectedGradebookStudent ? (

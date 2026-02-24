@@ -23,7 +23,6 @@ export async function GET(
     const quiz = access.quiz
     const supabase = getServiceRoleClient()
 
-    // Check if student has responded
     const { data: responses } = await supabase
       .from('quiz_responses')
       .select('id')
@@ -33,7 +32,6 @@ export async function GET(
 
     const hasResponded = (responses?.length || 0) > 0
 
-    // Students can only see active quizzes or closed quizzes they responded to
     if (quiz.status === 'draft') {
       return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
     }
@@ -43,7 +41,6 @@ export async function GET(
 
     const studentStatus = getStudentQuizStatus(quiz, hasResponded)
 
-    // Fetch questions
     const { data: questions, error: questionsError } = await supabase
       .from('quiz_questions')
       .select('*')
@@ -55,7 +52,6 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
-    // Get student's responses if they've responded
     let studentResponses: Record<string, number> = {}
     if (hasResponded) {
       const { data: allResponses } = await supabase
@@ -65,7 +61,7 @@ export async function GET(
         .eq('student_id', user.id)
 
       studentResponses = Object.fromEntries(
-        (allResponses || []).map((r) => [r.question_id, r.selected_option])
+        (allResponses || []).map((response) => [response.question_id, response.selected_option])
       )
     }
 
@@ -74,15 +70,18 @@ export async function GET(
         id: quiz.id,
         classroom_id: quiz.classroom_id,
         title: quiz.title,
+        assessment_type: 'quiz' as const,
         status: quiz.status,
         show_results: quiz.show_results,
         position: quiz.position,
+        student_status: studentStatus,
         created_at: quiz.created_at,
         updated_at: quiz.updated_at,
       },
       questions: questions || [],
       student_status: studentStatus,
       student_responses: studentResponses,
+      focus_summary: null,
     })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {

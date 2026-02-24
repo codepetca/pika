@@ -125,6 +125,7 @@ describe('getRouteKeyFromTab', () => {
 
   it('should return correct route key for student tabs', () => {
     expect(getRouteKeyFromTab('today', 'student')).toBe('today')
+    expect(getRouteKeyFromTab('tests', 'student')).toBe('quizzes-student')
   })
 
   it('should return assignments-student for student assignments', () => {
@@ -138,6 +139,11 @@ describe('getRouteKeyFromTab', () => {
 
   it('should return assignments-teacher-viewing for teacher viewing work', () => {
     expect(getRouteKeyFromTab('assignments', 'teacher', true)).toBe('assignments-teacher-viewing')
+  })
+
+  it('should map tests tab to quizzes route keys for both roles', () => {
+    expect(getRouteKeyFromTab('tests', 'teacher')).toBe('quizzes-teacher')
+    expect(getRouteKeyFromTab('tests', 'student')).toBe('quizzes-student')
   })
 
   it('should return default for unknown tabs', () => {

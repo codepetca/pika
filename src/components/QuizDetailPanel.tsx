@@ -22,17 +22,26 @@ import { Spinner } from '@/components/Spinner'
 import { canActivateQuiz, canEditQuizQuestions } from '@/lib/quizzes'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { QuizQuestionEditor } from '@/components/QuizQuestionEditor'
+import { TestQuestionEditor } from '@/components/TestQuestionEditor'
 import { QuizResultsView } from '@/components/QuizResultsView'
 import { QuizIndividualResponses } from '@/components/QuizIndividualResponses'
+import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import type { QuizQuestion, QuizWithStats, QuizResultsAggregate } from '@/types'
 
 interface Props {
   quiz: QuizWithStats
   classroomId: string
+  apiBasePath?: string
   onQuizUpdate: () => void
 }
 
-export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
+export function QuizDetailPanel({
+  quiz,
+  classroomId,
+  apiBasePath = '/api/teacher/quizzes',
+  onQuizUpdate,
+}: Props) {
+  const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [results, setResults] = useState<QuizResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
@@ -68,7 +77,7 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
     }
     setSavingTitle(true)
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}`, {
+      const res = await fetch(`${apiBasePath}/${quiz.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: trimmed }),
@@ -111,12 +120,12 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
   const loadQuizDetails = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}`)
+      const res = await fetch(`${apiBasePath}/${quiz.id}`)
       const data = await res.json()
       setQuestions(data.questions || [])
 
       if (hasResponses) {
-        const resultsRes = await fetch(`/api/teacher/quizzes/${quiz.id}/results`)
+        const resultsRes = await fetch(`${apiBasePath}/${quiz.id}/results`)
         const resultsData = await resultsRes.json()
         setResults(resultsData.results || [])
       } else {
@@ -127,7 +136,7 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [quiz.id, hasResponses])
+  }, [apiBasePath, quiz.id, hasResponses])
 
   useEffect(() => {
     loadQuizDetails()
@@ -148,7 +157,7 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
       setIsReordering(true)
       try {
         const orderedIds = reordered.map((q) => q.id)
-        await fetch(`/api/teacher/quizzes/${quiz.id}/questions/reorder`, {
+        await fetch(`${apiBasePath}/${quiz.id}/questions/reorder`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ question_ids: orderedIds }),
@@ -161,18 +170,36 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
         setIsReordering(false)
       }
     },
-    [questions, quiz.id, isReordering, isEditable, loadQuizDetails]
+    [apiBasePath, questions, quiz.id, isReordering, isEditable, loadQuizDetails]
   )
 
-  async function handleAddQuestion() {
+  async function handleAddQuestion(questionType: 'multiple_choice' | 'open_response' = 'multiple_choice') {
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}/questions`, {
+      const createPayload = isTestsView
+        ? questionType === 'open_response'
+          ? {
+              question_type: 'open_response',
+              question_text: 'New open response question',
+              points: DEFAULT_OPEN_RESPONSE_POINTS,
+              response_max_chars: 5000,
+            }
+          : {
+              question_type: 'multiple_choice',
+              question_text: 'New multiple-choice question',
+              options: ['Option 1', 'Option 2'],
+              correct_option: 0,
+              points: DEFAULT_MULTIPLE_CHOICE_POINTS,
+              response_max_chars: 5000,
+            }
+        : {
+            question_text: 'New question',
+            options: ['Option 1', 'Option 2'],
+          }
+
+      const res = await fetch(`${apiBasePath}/${quiz.id}/questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question_text: 'New question',
-          options: ['Option 1', 'Option 2'],
-        }),
+        body: JSON.stringify(createPayload),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -311,28 +338,64 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
                 strategy={verticalListSortingStrategy}
               >
                 {questions.map((question, index) => (
-                  <QuizQuestionEditor
-                    key={question.id}
-                    quizId={quiz.id}
-                    question={question}
-                    questionNumber={index + 1}
-                    isEditable={isEditable}
-                    onUpdated={handleQuestionUpdated}
-                  />
+                  isTestsView ? (
+                    <TestQuestionEditor
+                      key={question.id}
+                      testId={quiz.id}
+                      apiBasePath={apiBasePath}
+                      question={question}
+                      questionNumber={index + 1}
+                      isEditable={isEditable}
+                      onUpdated={handleQuestionUpdated}
+                    />
+                  ) : (
+                    <QuizQuestionEditor
+                      key={question.id}
+                      quizId={quiz.id}
+                      apiBasePath={apiBasePath}
+                      question={question}
+                      questionNumber={index + 1}
+                      isEditable={isEditable}
+                      onUpdated={handleQuestionUpdated}
+                    />
+                  )
                 ))}
               </SortableContext>
             </DndContext>
 
-{isEditable && (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleAddQuestion}
-                className="w-full gap-1.5"
-              >
-                <Plus className="h-4 w-4" />
-                Add Question
-              </Button>
+            {isEditable && (
+              isTestsView ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleAddQuestion('multiple_choice')}
+                    className="w-full gap-1.5"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add MC Question
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleAddQuestion('open_response')}
+                    className="w-full gap-1.5"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Open Question
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleAddQuestion('multiple_choice')}
+                  className="w-full gap-1.5"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Question
+                </Button>
+              )
             )}
 
             {quiz.status === 'draft' && !activation.valid && (
@@ -340,13 +403,24 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
             )}
           </div>
         ) : viewMode === 'preview' ? (
-          <QuizPreview questions={questions} />
+          <QuizPreview questions={questions} isTestsView={isTestsView} />
         ) : (
           <div className="space-y-6">
-            <QuizResultsView results={results} />
+            {!isTestsView && <QuizResultsView results={results} />}
+            {isTestsView && (
+              <div>
+                <h4 className="text-sm font-semibold text-text-default mb-2">Multiple-choice distribution</h4>
+                <QuizResultsView results={results} />
+              </div>
+            )}
             {hasResponses && (
               <div className="pt-4 border-t border-border">
-                <QuizIndividualResponses quizId={quiz.id} />
+                <QuizIndividualResponses
+                  quizId={quiz.id}
+                  apiBasePath={apiBasePath}
+                  assessmentType={isTestsView ? 'test' : 'quiz'}
+                  onUpdated={loadQuizDetails}
+                />
               </div>
             )}
           </div>
@@ -357,8 +431,8 @@ export function QuizDetailPanel({ quiz, classroomId, onQuizUpdate }: Props) {
 }
 
 /** Read-only preview of the quiz as students see it */
-function QuizPreview({ questions }: { questions: QuizQuestion[] }) {
-  const [selected, setSelected] = useState<Record<string, number>>({})
+function QuizPreview({ questions, isTestsView }: { questions: QuizQuestion[]; isTestsView: boolean }) {
+  const [selected, setSelected] = useState<Record<string, number | string>>({})
 
   if (questions.length === 0) {
     return (
@@ -377,40 +451,60 @@ function QuizPreview({ questions }: { questions: QuizQuestion[] }) {
         <div key={question.id} className="space-y-2">
           <p className="font-medium text-text-default">
             {index + 1}. {question.question_text}
+            {isTestsView && (
+              <span className="ml-1 text-xs font-normal text-text-muted">
+                ({question.points ?? (question.question_type === 'open_response' ? DEFAULT_OPEN_RESPONSE_POINTS : DEFAULT_MULTIPLE_CHOICE_POINTS)} pts)
+              </span>
+            )}
           </p>
-          <div className="space-y-2">
-            {question.options.map((option, optionIndex) => {
-              const isSelected = selected[question.id] === optionIndex
-              return (
-                <label
-                  key={optionIndex}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    isSelected
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:bg-surface-hover'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name={`preview-${question.id}`}
-                    checked={isSelected}
-                    onChange={() => setSelected((prev) => ({ ...prev, [question.id]: optionIndex }))}
-                    className="sr-only"
-                  />
-                  <span
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      isSelected ? 'border-primary' : 'border-border'
+          {question.question_type === 'open_response' ? (
+            <div className="space-y-2">
+              <textarea
+                value={typeof selected[question.id] === 'string' ? (selected[question.id] as string) : ''}
+                onChange={(event) => setSelected((prev) => ({ ...prev, [question.id]: event.target.value }))}
+                maxLength={question.response_max_chars ?? 5000}
+                className="w-full min-h-[120px] rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Student enters response here"
+              />
+              <p className="text-xs text-text-muted">
+                {(typeof selected[question.id] === 'string' ? (selected[question.id] as string).length : 0)}/{question.response_max_chars ?? 5000} characters
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {question.options.map((option, optionIndex) => {
+                const isSelected = selected[question.id] === optionIndex
+                return (
+                  <label
+                    key={optionIndex}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-surface-hover'
                     }`}
                   >
-                    {isSelected && (
-                      <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                    )}
-                  </span>
-                  <span className="text-text-default">{option}</span>
-                </label>
-              )
-            })}
-          </div>
+                    <input
+                      type="radio"
+                      name={`preview-${question.id}`}
+                      checked={isSelected}
+                      onChange={() => setSelected((prev) => ({ ...prev, [question.id]: optionIndex }))}
+                      className="sr-only"
+                    />
+                    <span
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        isSelected ? 'border-primary' : 'border-border'
+                      }`}
+                    >
+                      {isSelected && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-primary" />
+                      )}
+                    </span>
+                    <span className="text-text-default">{option}</span>
+                  </label>
+                )
+              })}
+            </div>
+          )}
         </div>
       ))}
     </div>

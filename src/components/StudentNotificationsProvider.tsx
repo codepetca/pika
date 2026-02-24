@@ -15,12 +15,14 @@ type NotificationState = {
   hasTodayEntry: boolean
   unviewedAssignmentsCount: number
   activeQuizzesCount: number
+  activeTestsCount: number
   unreadAnnouncementsCount: number
   loading: boolean
   refresh: () => Promise<void>
   markTodayComplete: () => void
   decrementUnviewedCount: () => void
   clearActiveQuizzesCount: () => void
+  clearActiveTestsCount: () => void
   markAnnouncementsRead: () => void
 }
 
@@ -36,6 +38,7 @@ export function StudentNotificationsProvider({
   const [hasTodayEntry, setHasTodayEntry] = useState(true) // Assume complete to avoid flash
   const [unviewedAssignmentsCount, setUnviewedAssignmentsCount] = useState(0)
   const [activeQuizzesCount, setActiveQuizzesCount] = useState(0)
+  const [activeTestsCount, setActiveTestsCount] = useState(0)
   const [unreadAnnouncementsCount, setUnreadAnnouncementsCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const lastFetchRef = useRef(0)
@@ -52,6 +55,7 @@ export function StudentNotificationsProvider({
       setHasTodayEntry(data.hasTodayEntry)
       setUnviewedAssignmentsCount(data.unviewedAssignmentsCount)
       setActiveQuizzesCount(data.activeQuizzesCount ?? 0)
+      setActiveTestsCount(data.activeTestsCount ?? 0)
       setUnreadAnnouncementsCount(data.unreadAnnouncementsCount ?? 0)
       lastFetchRef.current = Date.now()
     } catch (error) {
@@ -92,6 +96,10 @@ export function StudentNotificationsProvider({
     setActiveQuizzesCount(0)
   }, [])
 
+  const clearActiveTestsCount = useCallback(() => {
+    setActiveTestsCount(0)
+  }, [])
+
   const markAnnouncementsRead = useCallback(() => {
     setUnreadAnnouncementsCount(0)
   }, [])
@@ -101,15 +109,30 @@ export function StudentNotificationsProvider({
       hasTodayEntry,
       unviewedAssignmentsCount,
       activeQuizzesCount,
+      activeTestsCount,
       unreadAnnouncementsCount,
       loading,
       refresh,
       markTodayComplete,
       decrementUnviewedCount,
       clearActiveQuizzesCount,
+      clearActiveTestsCount,
       markAnnouncementsRead,
     }),
-    [hasTodayEntry, unviewedAssignmentsCount, activeQuizzesCount, unreadAnnouncementsCount, loading, refresh, markTodayComplete, decrementUnviewedCount, clearActiveQuizzesCount, markAnnouncementsRead]
+    [
+      hasTodayEntry,
+      unviewedAssignmentsCount,
+      activeQuizzesCount,
+      activeTestsCount,
+      unreadAnnouncementsCount,
+      loading,
+      refresh,
+      markTodayComplete,
+      decrementUnviewedCount,
+      clearActiveQuizzesCount,
+      clearActiveTestsCount,
+      markAnnouncementsRead,
+    ]
   )
 
   return (

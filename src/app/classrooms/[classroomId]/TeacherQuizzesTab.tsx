@@ -9,14 +9,15 @@ import { useRightSidebar } from '@/components/layout'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizCard } from '@/components/QuizCard'
-import type { Classroom, QuizWithStats } from '@/types'
+import type { Classroom, QuizAssessmentType, QuizWithStats } from '@/types'
 
 interface Props {
   classroom: Classroom
+  assessmentType: QuizAssessmentType
   onSelectQuiz?: (quiz: QuizWithStats | null) => void
 }
 
-export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
+export function TeacherQuizzesTab({ classroom, assessmentType, onSelectQuiz }: Props) {
   const [quizzes, setQuizzes] = useState<QuizWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null)
@@ -27,10 +28,14 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
   const { setOpen: setRightSidebarOpen } = useRightSidebar()
 
   const isReadOnly = !!classroom.archived_at
+  const isTestsView = assessmentType === 'test'
+  const apiBasePath = isTestsView ? '/api/teacher/tests' : '/api/teacher/quizzes'
 
   const loadQuizzes = useCallback(async () => {
+    setLoading(true)
     try {
-      const res = await fetch(`/api/teacher/quizzes?classroom_id=${classroom.id}`)
+      const query = new URLSearchParams({ classroom_id: classroom.id })
+      const res = await fetch(`${apiBasePath}?${query.toString()}`)
       const data = await res.json()
       setQuizzes(data.quizzes || [])
     } catch (err) {
@@ -38,7 +43,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [classroom.id])
+  }, [apiBasePath, classroom.id])
 
   useEffect(() => {
     loadQuizzes()
@@ -84,7 +89,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
     if (!deleteQuiz) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/teacher/quizzes/${deleteQuiz.quiz.id}`, { method: 'DELETE' })
+      const res = await fetch(`${apiBasePath}/${deleteQuiz.quiz.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to delete quiz')
@@ -105,7 +110,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
 
   async function handleRequestDelete(quiz: QuizWithStats) {
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quiz.id}/results`)
+      const res = await fetch(`${apiBasePath}/${quiz.id}/results`)
       const data = await res.json()
       setDeleteQuiz({ quiz, responsesCount: data.stats?.responded || 0 })
     } catch {
@@ -123,6 +128,8 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
 
   // Sort by position order
   const sortedQuizzes = [...quizzes].sort((a, b) => a.position - b.position)
+  const assessmentLabel = isTestsView ? 'test' : 'quiz'
+  const assessmentLabelPlural = isTestsView ? 'Tests' : 'Quizzes'
 
   return (
     <PageLayout>
@@ -131,7 +138,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
           !isReadOnly ? (
             <Button onClick={handleNewQuiz} variant="primary" className="gap-1.5">
               <Plus className="h-4 w-4" />
-              New Quiz
+              {isTestsView ? 'New Test' : 'New Quiz'}
             </Button>
           ) : undefined
         }
@@ -140,7 +147,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
       <PageContent>
         {sortedQuizzes.length === 0 ? (
           <p className="text-text-muted text-center py-8">
-            No quizzes yet. Create one to get started.
+            No {assessmentLabelPlural.toLowerCase()} yet. Create one to get started.
           </p>
         ) : (
           <div className="space-y-3">
@@ -148,6 +155,7 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
               <QuizCard
                 key={quiz.id}
                 quiz={quiz}
+                apiBasePath={apiBasePath}
                 isSelected={selectedQuizId === quiz.id}
                 isReadOnly={isReadOnly}
                 onSelect={() => handleCardSelect(quiz)}
@@ -162,6 +170,8 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
       <QuizModal
         isOpen={showModal}
         classroomId={classroom.id}
+        assessmentType={assessmentType}
+        apiBasePath={apiBasePath}
         quiz={null}
         onClose={() => setShowModal(false)}
         onSuccess={handleQuizCreated}
@@ -169,10 +179,10 @@ export function TeacherQuizzesTab({ classroom, onSelectQuiz }: Props) {
 
       <ConfirmDialog
         isOpen={!!deleteQuiz}
-        title="Delete quiz?"
+        title={`Delete ${assessmentLabel}?`}
         description={
           deleteQuiz && deleteQuiz.responsesCount > 0
-            ? `This quiz has ${deleteQuiz.responsesCount} response${deleteQuiz.responsesCount === 1 ? '' : 's'}. Deleting it will permanently remove all student responses.`
+            ? `This ${assessmentLabel} has ${deleteQuiz.responsesCount} response${deleteQuiz.responsesCount === 1 ? '' : 's'}. Deleting it will permanently remove all student responses.`
             : 'This action cannot be undone.'
         }
         confirmLabel={deleting ? 'Deleting...' : 'Delete'}

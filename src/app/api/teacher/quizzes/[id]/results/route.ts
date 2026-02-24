@@ -3,7 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults } from '@/lib/quizzes'
 import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
-import type { QuizQuestion, QuizResponse } from '@/types'
+import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,7 +24,6 @@ export async function GET(
     const quiz = access.quiz
     const supabase = getServiceRoleClient()
 
-    // Fetch questions
     const { data: questions, error: questionsError } = await supabase
       .from('quiz_questions')
       .select('*')
@@ -36,7 +35,6 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
-    // Fetch all responses
     const { data: responses, error: responsesError } = await supabase
       .from('quiz_responses')
       .select('*')
@@ -47,11 +45,16 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
     }
 
-    // Get unique responder IDs
     const responderIds = [...new Set(responses?.map((r) => r.student_id) || [])]
 
-    // Get responder details (names)
-    let responders: { student_id: string; name: string | null; email: string; answers: Record<string, number> }[] = []
+    let responders: {
+      student_id: string
+      name: string | null
+      email: string
+      answers: Record<string, number>
+      focus_summary: QuizFocusSummary | null
+    }[] = []
+
     if (responderIds.length > 0) {
       const { data: users } = await supabase
         .from('users')
@@ -70,11 +73,10 @@ export async function GET(
         ]) || []
       )
 
-      // Build per-student answer map
       const studentAnswers: Record<string, Record<string, number>> = {}
-      for (const r of responses || []) {
-        if (!studentAnswers[r.student_id]) studentAnswers[r.student_id] = {}
-        studentAnswers[r.student_id][r.question_id] = r.selected_option
+      for (const response of responses || []) {
+        if (!studentAnswers[response.student_id]) studentAnswers[response.student_id] = {}
+        studentAnswers[response.student_id][response.question_id] = response.selected_option
       }
 
       responders = (users || []).map((u) => ({
@@ -82,9 +84,9 @@ export async function GET(
         name: profileMap.get(u.id) || null,
         email: u.email,
         answers: studentAnswers[u.id] || {},
+        focus_summary: null,
       }))
 
-      // Sort by name (with email fallback)
       responders.sort((a, b) => {
         const nameA = a.name || a.email
         const nameB = b.name || b.email
@@ -92,13 +94,11 @@ export async function GET(
       })
     }
 
-    // Aggregate results
     const aggregated = aggregateResults(
       (questions || []) as QuizQuestion[],
       (responses || []) as QuizResponse[]
     )
 
-    // Count total students in classroom
     const { count: totalStudents } = await supabase
       .from('classroom_enrollments')
       .select('*', { count: 'exact', head: true })
@@ -108,6 +108,7 @@ export async function GET(
       quiz: {
         id: quiz.id,
         title: quiz.title,
+        assessment_type: 'quiz' as const,
         status: quiz.status,
         show_results: quiz.show_results,
       },

@@ -3,8 +3,11 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { countCharacters, countWords, isValidTiptapContent } from '@/lib/tiptap-content'
 import { sanitizeDocForStudent } from '@/lib/assignments'
-import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import {
+  insertVersionedBaselineHistory,
+  persistVersionedHistory,
+} from '@/lib/server/versioned-history'
 import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +15,19 @@ export const revalidate = 0
 const HISTORY_MIN_INTERVAL_MS = 10_000
 const HISTORY_SELECT_FIELDS =
   'id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at'
+
+function buildHistoryMetrics(
+  content: TiptapContent,
+  pasteWordCount: number,
+  keystrokeCount: number
+) {
+  return {
+    word_count: countWords(content),
+    char_count: countCharacters(content),
+    paste_word_count: pasteWordCount,
+    keystroke_count: keystrokeCount,
+  }
+}
 
 /**
  * Parse content field from database, handling both JSONB and legacy TEXT columns
@@ -259,26 +275,17 @@ export async function PATCH(
         }
 
         try {
-          const { data: createdHistory, error: historyError } = await supabase
-            .from('assignment_doc_history')
-            .insert({
-              assignment_doc_id: created.id,
-              patch: null,
-              snapshot: content,
-              word_count: countWords(content),
-              char_count: countCharacters(content),
-              paste_word_count,
-              keystroke_count,
-              trigger: 'baseline',
-            })
-            .select(HISTORY_SELECT_FIELDS)
-            .single()
-
-          if (historyError) {
-            throw historyError
-          }
-
-          historyEntry = createdHistory
+          historyEntry = await insertVersionedBaselineHistory<TiptapContent>({
+            supabase,
+            table: 'assignment_doc_history',
+            ownerColumn: 'assignment_doc_id',
+            ownerId: created.id,
+            content,
+            selectFields: HISTORY_SELECT_FIELDS,
+            trigger: 'baseline',
+            buildMetrics: (currentContent: TiptapContent) =>
+              buildHistoryMetrics(currentContent, paste_word_count, keystroke_count),
+          })
         } catch (historyError) {
           console.error('Error saving assignment doc history:', historyError)
         }
@@ -300,7 +307,6 @@ export async function PATCH(
     }
 
     const beforeContent = parseContentField(existingDoc.content)
-    const patch = createJsonPatch(beforeContent, content)
 
     const { data: doc, error } = await supabase
       .from('assignment_docs')
@@ -324,103 +330,22 @@ export async function PATCH(
       doc.content = parseContentField(doc.content)
     }
 
-    if (patch.length > 0) {
-      const { data: lastHistory, error: lastHistoryError } = await supabase
-        .from('assignment_doc_history')
-        .select('id, created_at, snapshot, paste_word_count, keystroke_count')
-        .eq('assignment_doc_id', existingDoc.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (lastHistoryError) {
-        console.error('Error fetching assignment doc history:', lastHistoryError)
-      }
-
-      const now = Date.now()
-      const lastCreatedAt = lastHistory?.created_at
-        ? new Date(lastHistory.created_at).getTime()
-        : null
-      const isRateLimited = lastCreatedAt !== null && now - lastCreatedAt < HISTORY_MIN_INTERVAL_MS
-
-      if (!lastHistory) {
-        try {
-          const { data: createdHistory, error: historyError } = await supabase
-            .from('assignment_doc_history')
-            .insert({
-              assignment_doc_id: existingDoc.id,
-              patch: null,
-              snapshot: content,
-              word_count: countWords(content),
-              char_count: countCharacters(content),
-              paste_word_count,
-              keystroke_count,
-              trigger: 'baseline',
-            })
-            .select(HISTORY_SELECT_FIELDS)
-            .single()
-
-          if (historyError) {
-            throw historyError
-          }
-
-          historyEntry = createdHistory
-        } catch (historyError) {
-          console.error('Error saving assignment doc history:', historyError)
-        }
-      } else if (isRateLimited) {
-        try {
-          const { data: updatedHistory, error: historyError } = await supabase
-            .from('assignment_doc_history')
-            .update({
-              patch: null,
-              snapshot: content,
-              word_count: countWords(content),
-              char_count: countCharacters(content),
-              paste_word_count: (lastHistory.paste_word_count ?? 0) + paste_word_count,
-              keystroke_count: (lastHistory.keystroke_count ?? 0) + keystroke_count,
-              trigger: trigger ?? 'autosave',
-              created_at: new Date().toISOString(),
-            })
-            .eq('id', lastHistory.id)
-            .select(HISTORY_SELECT_FIELDS)
-            .single()
-
-          if (historyError) {
-            throw historyError
-          }
-
-          historyEntry = updatedHistory
-        } catch (historyError) {
-          console.error('Error updating assignment doc history:', historyError)
-        }
-      } else {
-        const storeSnapshot = shouldStoreSnapshot(patch, content)
-        try {
-          const { data: createdHistory, error: historyError } = await supabase
-            .from('assignment_doc_history')
-            .insert({
-              assignment_doc_id: existingDoc.id,
-              patch: storeSnapshot ? null : patch,
-              snapshot: storeSnapshot ? content : null,
-              word_count: countWords(content),
-              char_count: countCharacters(content),
-              paste_word_count,
-              keystroke_count,
-              trigger: trigger ?? 'autosave',
-            })
-            .select(HISTORY_SELECT_FIELDS)
-            .single()
-
-          if (historyError) {
-            throw historyError
-          }
-
-          historyEntry = createdHistory
-        } catch (historyError) {
-          console.error('Error saving assignment doc history:', historyError)
-        }
-      }
+    try {
+      historyEntry = await persistVersionedHistory<TiptapContent>({
+        supabase,
+        table: 'assignment_doc_history',
+        ownerColumn: 'assignment_doc_id',
+        ownerId: existingDoc.id,
+        previousContent: beforeContent,
+        nextContent: content,
+        selectFields: HISTORY_SELECT_FIELDS,
+        trigger: trigger ?? 'autosave',
+        historyMinIntervalMs: HISTORY_MIN_INTERVAL_MS,
+        buildMetrics: (currentContent: TiptapContent) =>
+          buildHistoryMetrics(currentContent, paste_word_count, keystroke_count),
+      })
+    } catch (historyError) {
+      console.error('Error saving assignment doc history:', historyError)
     }
 
     return NextResponse.json({ doc, historyEntry })

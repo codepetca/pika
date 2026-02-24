@@ -5,7 +5,7 @@ import { TeacherQuizzesTab } from '@/app/classrooms/[classroomId]/TeacherQuizzes
 import { TooltipProvider } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
-import type { QuizWithStats } from '@/types'
+import type { QuizAssessmentType, QuizWithStats } from '@/types'
 
 vi.mock('@/components/layout', () => ({
   useRightSidebar: () => ({ setOpen: vi.fn() }),
@@ -29,9 +29,9 @@ function makeQuiz(overrides: Partial<QuizWithStats> = {}): QuizWithStats {
   } as QuizWithStats
 }
 
-function quizzesFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
+function listFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   return fetchMock.mock.calls.filter(
-    ([url]: [string]) => typeof url === 'string' && url.includes('/api/teacher/quizzes?')
+    ([url]: [string]) => typeof url === 'string' && url.includes('/api/teacher/') && url.includes('?classroom_id=')
   )
 }
 
@@ -56,21 +56,26 @@ describe('TeacherQuizzesTab', () => {
     })
   }
 
+  function renderTab(assessmentType: QuizAssessmentType = 'quiz') {
+    render(<TeacherQuizzesTab classroom={classroom} assessmentType={assessmentType} />, { wrapper: Wrapper })
+  }
+
   it('fetches quizzes once on mount', async () => {
     mockQuizzesResponse([])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
+    expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/quizzes?classroom_id=')
   })
 
   it('fetches quizzes once when update event fires (not twice)', async () => {
     mockQuizzesResponse([])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
 
     // Provide response for the event-triggered reload
@@ -85,20 +90,20 @@ describe('TeacherQuizzesTab', () => {
     })
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(2)
+      expect(listFetchCalls(fetchMock)).toHaveLength(2)
     })
 
     // Wait a tick to ensure no additional fetch sneaks in
     await new Promise((r) => setTimeout(r, 50))
-    expect(quizzesFetchCalls(fetchMock)).toHaveLength(2)
+    expect(listFetchCalls(fetchMock)).toHaveLength(2)
   })
 
   it('does not double-fetch after quiz creation', async () => {
     mockQuizzesResponse([])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
 
     // Provide response for the post-creation reload
@@ -110,18 +115,18 @@ describe('TeacherQuizzesTab', () => {
 
     // The event listener should trigger exactly one reload
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(2)
+      expect(listFetchCalls(fetchMock)).toHaveLength(2)
     })
 
     // Confirm no extra fetch
     await new Promise((r) => setTimeout(r, 50))
-    expect(quizzesFetchCalls(fetchMock)).toHaveLength(2)
+    expect(listFetchCalls(fetchMock)).toHaveLength(2)
   })
 
   it('does not double-fetch after quiz deletion', async () => {
     const quiz = makeQuiz({ id: 'quiz-del', title: 'Delete Me' })
     mockQuizzesResponse([quiz])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
       expect(screen.getByText('Delete Me')).toBeInTheDocument()
@@ -143,26 +148,26 @@ describe('TeacherQuizzesTab', () => {
     // Provide response for the event-triggered reload
     mockQuizzesResponse([])
 
-    const countBefore = quizzesFetchCalls(fetchMock).length
+    const countBefore = listFetchCalls(fetchMock).length
 
     fireEvent.click(screen.getByText('Delete'))
 
     // Wait for delete + reload
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock).length).toBe(countBefore + 1)
+      expect(listFetchCalls(fetchMock).length).toBe(countBefore + 1)
     })
 
     // Confirm no extra fetch
     await new Promise((r) => setTimeout(r, 50))
-    expect(quizzesFetchCalls(fetchMock).length).toBe(countBefore + 1)
+    expect(listFetchCalls(fetchMock).length).toBe(countBefore + 1)
   })
 
   it('ignores update events for other classrooms', async () => {
     mockQuizzesResponse([])
-    render(<TeacherQuizzesTab classroom={classroom} />, { wrapper: Wrapper })
+    renderTab()
 
     await waitFor(() => {
-      expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
     })
 
     act(() => {
@@ -174,6 +179,18 @@ describe('TeacherQuizzesTab', () => {
     })
 
     await new Promise((r) => setTimeout(r, 50))
-    expect(quizzesFetchCalls(fetchMock)).toHaveLength(1)
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('renders test mode and fetches from tests API', async () => {
+    mockQuizzesResponse([])
+    renderTab('test')
+
+    await waitFor(() => {
+      expect(listFetchCalls(fetchMock)).toHaveLength(1)
+    })
+
+    expect(listFetchCalls(fetchMock)[0][0]).toContain('/api/teacher/tests?classroom_id=')
+    expect(screen.getByText('New Test')).toBeInTheDocument()
   })
 })

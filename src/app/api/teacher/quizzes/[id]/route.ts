@@ -23,7 +23,6 @@ export async function GET(
     }
     const quiz = access.quiz
 
-    // Fetch questions
     const { data: questions, error: questionsError } = await supabase
       .from('quiz_questions')
       .select('*')
@@ -40,6 +39,7 @@ export async function GET(
         id: quiz.id,
         classroom_id: quiz.classroom_id,
         title: quiz.title,
+        assessment_type: 'quiz' as const,
         status: quiz.status,
         show_results: quiz.show_results,
         position: quiz.position,
@@ -80,7 +80,6 @@ export async function PATCH(
     const existing = access.quiz
     const supabase = getServiceRoleClient()
 
-    // Validate status transition
     if (status !== undefined) {
       const VALID_TRANSITIONS: Record<string, string[]> = {
         draft: ['active'],
@@ -96,7 +95,6 @@ export async function PATCH(
       }
     }
 
-    // If activating quiz, validate it has questions
     if (status === 'active' && existing.status === 'draft') {
       const { count: questionsCount } = await supabase
         .from('quiz_questions')
@@ -109,7 +107,6 @@ export async function PATCH(
       }
     }
 
-    // Validate title if provided
     if (title !== undefined) {
       const trimmed = typeof title === 'string' ? title.trim() : ''
       if (!trimmed) {
@@ -117,12 +114,10 @@ export async function PATCH(
       }
     }
 
-    // Validate show_results if provided
     if (show_results !== undefined && typeof show_results !== 'boolean') {
       return NextResponse.json({ error: 'show_results must be a boolean' }, { status: 400 })
     }
 
-    // Build update object
     const updates: Record<string, any> = {}
     if (title !== undefined) updates.title = title.trim()
     if (status !== undefined) updates.status = status
@@ -144,7 +139,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update quiz' }, { status: 500 })
     }
 
-    return NextResponse.json({ quiz })
+    return NextResponse.json({ quiz: { ...quiz, assessment_type: 'quiz' } })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -172,7 +167,6 @@ export async function DELETE(
     }
     const supabase = getServiceRoleClient()
 
-    // Count responses for confirmation warning
     const { count: responsesCount } = await supabase
       .from('quiz_responses')
       .select('*', { count: 'exact', head: true })

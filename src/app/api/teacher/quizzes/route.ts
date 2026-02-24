@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
 
     const supabase = getServiceRoleClient()
 
-    // Fetch quizzes with questions count
     const { data: quizzes, error: quizzesError } = await supabase
       .from('quizzes')
       .select('*')
@@ -43,7 +42,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch quizzes' }, { status: 500 })
     }
 
-    // Count total students in classroom
     const { count: totalStudents } = await supabase
       .from('classroom_enrollments')
       .select('*', { count: 'exact', head: true })
@@ -51,7 +49,6 @@ export async function GET(request: NextRequest) {
 
     const quizIds = (quizzes || []).map((q) => q.id)
 
-    // Batch: count questions per quiz
     const questionCountMap: Record<string, number> = {}
     if (quizIds.length > 0) {
       const { data: questionRows } = await supabase
@@ -64,7 +61,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Batch: count unique respondents per quiz
     const respondentCountMap: Record<string, number> = {}
     if (quizIds.length > 0) {
       const { data: responseRows } = await supabase
@@ -77,13 +73,14 @@ export async function GET(request: NextRequest) {
         if (!seen[row.quiz_id]) seen[row.quiz_id] = new Set()
         seen[row.quiz_id].add(row.student_id)
       }
-      for (const [qid, students] of Object.entries(seen)) {
-        respondentCountMap[qid] = students.size
+      for (const [quizId, students] of Object.entries(seen)) {
+        respondentCountMap[quizId] = students.size
       }
     }
 
     const quizzesWithStats = (quizzes || []).map((quiz) => ({
       ...quiz,
+      assessment_type: 'quiz' as const,
       stats: {
         total_students: totalStudents || 0,
         responded: respondentCountMap[quiz.id] || 0,
@@ -128,7 +125,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = getServiceRoleClient()
 
-    // Get next position
     const { data: lastQuiz } = await supabase
       .from('quizzes')
       .select('position')
@@ -155,7 +151,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create quiz' }, { status: 500 })
     }
 
-    return NextResponse.json({ quiz }, { status: 201 })
+    return NextResponse.json({ quiz: { ...quiz, assessment_type: 'quiz' } }, { status: 201 })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

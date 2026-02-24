@@ -265,11 +265,23 @@ export interface ClassroomResources {
 
 // Quiz types
 export type QuizStatus = 'draft' | 'active' | 'closed'
+export type QuizAssessmentType = 'quiz' | 'test'
+export type QuizFocusEventType = 'away_start' | 'away_end' | 'route_exit_attempt'
+export type TestQuestionType = 'multiple_choice' | 'open_response'
+
+export interface QuizFocusSummary {
+  away_count: number
+  away_total_seconds: number
+  route_exit_attempts: number
+  last_away_started_at: string | null
+  last_away_ended_at: string | null
+}
 
 export interface Quiz {
   id: string
   classroom_id: string
   title: string
+  assessment_type: QuizAssessmentType
   status: QuizStatus
   show_results: boolean
   position: number
@@ -286,6 +298,9 @@ export interface QuizQuestion {
   question_text: string
   options: string[]
   position: number
+  question_type?: TestQuestionType
+  points?: number
+  response_max_chars?: number
   correct_option?: number | null
   created_at: string
   updated_at: string
@@ -298,6 +313,72 @@ export interface QuizResponse {
   student_id: string
   selected_option: number
   submitted_at: string
+}
+
+export interface TestQuestion {
+  id: string
+  test_id: string
+  question_type: TestQuestionType
+  question_text: string
+  options: string[]
+  correct_option: number | null
+  points: number
+  response_max_chars: number
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export type TestResponseDraftValue =
+  | {
+      question_type: 'multiple_choice'
+      selected_option: number
+    }
+  | {
+      question_type: 'open_response'
+      response_text: string
+    }
+
+export interface TestResponse {
+  id: string
+  test_id: string
+  question_id: string
+  student_id: string
+  selected_option: number | null
+  response_text: string | null
+  score: number | null
+  feedback: string | null
+  graded_at: string | null
+  graded_by: string | null
+  submitted_at: string
+}
+
+export type TestAttemptHistoryTrigger = 'autosave' | 'blur' | 'submit' | 'baseline'
+
+export interface TestAttempt {
+  id: string
+  test_id: string
+  student_id: string
+  responses: Record<string, TestResponseDraftValue>
+  is_submitted: boolean
+  submitted_at: string | null
+  authenticity_score: number | null
+  authenticity_flags: AuthenticityFlag[] | null
+  created_at: string
+  updated_at: string
+}
+
+export interface TestAttemptHistoryEntry {
+  id: string
+  test_attempt_id: string
+  patch: JsonPatchOperation[] | null
+  snapshot: Record<string, TestResponseDraftValue> | null
+  word_count: number
+  char_count: number
+  paste_word_count: number | null
+  keystroke_count: number | null
+  trigger: TestAttemptHistoryTrigger
+  created_at: string
 }
 
 // Extended quiz types for UI
@@ -318,6 +399,7 @@ export type StudentQuizStatus = 'not_started' | 'responded' | 'can_view_results'
 export interface StudentQuizView extends Quiz {
   student_status: StudentQuizStatus
   questions?: QuizQuestion[]
+  focus_summary?: QuizFocusSummary | null
 }
 
 export interface QuizResultsAggregate {

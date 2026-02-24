@@ -26,37 +26,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
-    // Fetch active quizzes
-    const { data: activeQuizzes, error: activeError } = await supabase
-      .from('quizzes')
-      .select('*')
-      .eq('classroom_id', classroomId)
-      .eq('status', 'active')
-      .order('position', { ascending: true })
+    async function fetchByStatus(status: 'active' | 'closed') {
+      return supabase
+        .from('quizzes')
+        .select('*')
+        .eq('classroom_id', classroomId)
+        .eq('status', status)
+        .order('position', { ascending: true })
+    }
+
+    const { data: activeQuizzes, error: activeError } = await fetchByStatus('active')
 
     if (activeError) {
       console.error('Error fetching active quizzes:', activeError)
       return NextResponse.json({ error: 'Failed to fetch quizzes' }, { status: 500 })
     }
 
-    // Also fetch closed quizzes the student has responded to
-    const { data: closedQuizzes, error: closedError } = await supabase
-      .from('quizzes')
-      .select('*')
-      .eq('classroom_id', classroomId)
-      .eq('status', 'closed')
-      .order('position', { ascending: true })
+    const { data: closedQuizzes, error: closedError } = await fetchByStatus('closed')
 
     if (closedError) {
       console.error('Error fetching closed quizzes:', closedError)
       // Continue without closed quizzes
     }
 
-    // Get student's responses scoped to this classroom's quizzes
     const classroomQuizIds = [
       ...(activeQuizzes || []).map((q) => q.id),
       ...(closedQuizzes || []).map((q) => q.id),
     ]
+
     const respondedQuizIds = new Set<string>()
     if (classroomQuizIds.length > 0) {
       const { data: allResponses } = await supabase
@@ -65,17 +62,15 @@ export async function GET(request: NextRequest) {
         .eq('student_id', user.id)
         .in('quiz_id', classroomQuizIds)
 
-      for (const r of allResponses || []) {
-        respondedQuizIds.add(r.quiz_id)
+      for (const response of allResponses || []) {
+        respondedQuizIds.add(response.quiz_id)
       }
     }
 
-    // Filter closed quizzes to only those the student has responded to
-    const respondedClosedQuizzes = (closedQuizzes || []).filter((q) =>
-      respondedQuizIds.has(q.id)
+    const respondedClosedQuizzes = (closedQuizzes || []).filter((quiz) =>
+      respondedQuizIds.has(quiz.id)
     )
 
-    // Combine and add student status
     const allQuizzes = [...(activeQuizzes || []), ...respondedClosedQuizzes]
 
     const quizzesWithStatus = allQuizzes.map((quiz: Quiz) => {
@@ -84,6 +79,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...quiz,
+        assessment_type: 'quiz' as const,
         student_status: studentStatus,
       }
     })
