@@ -68,7 +68,7 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   // Weekend cells are narrow and minimal
   if (isWeekend) {
-    const assignmentTitles = assignments.map(a => a.title).join(', ')
+    const assignmentTitles = assignments.map(a => a.is_draft ? `[Draft] ${a.title}` : a.title).join(', ')
     const announcementCount = announcements.length
 
     return (
@@ -95,7 +95,9 @@ export const LessonDayCell = memo(function LessonDayCell({
                     onAssignmentClick?.(assignments[0])
                   }
                 }}
-                className={`w-full min-w-[12px] rounded bg-primary hover:bg-primary-hover cursor-pointer ${compact ? 'h-4' : 'h-6'}`}
+                className={`w-full min-w-[12px] rounded bg-primary hover:bg-primary-hover cursor-pointer ${compact ? 'h-4' : 'h-6'} ${
+                  assignments.some(a => a.is_draft) ? 'opacity-50' : ''
+                }`}
               />
             </Tooltip>
           </div>
@@ -153,7 +155,7 @@ export const LessonDayCell = memo(function LessonDayCell({
       {assignments.length > 0 && (
         <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
           {assignments.map((assignment) => (
-            <Tooltip key={assignment.id} content={assignment.title}>
+            <Tooltip key={assignment.id} content={assignment.is_draft ? `[Draft] ${assignment.title}` : assignment.title}>
               <button
                 type="button"
                 onClick={(e) => {
@@ -162,7 +164,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                 }}
                 className={`w-full min-w-0 rounded bg-primary text-white font-medium hover:bg-primary-hover text-center truncate ${
                   compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
-                }`}
+                } ${assignment.is_draft ? 'opacity-50' : ''}`}
               >
                 {compact ? assignment.title : `Due: ${assignment.title}`}
               </button>

@@ -11,7 +11,7 @@ import { isEmpty as isEmptyTiptapContent } from '@/lib/tiptap-content'
 import { useClassDays } from '@/hooks/useClassDays'
 import type { Classroom, LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
-import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
+import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 
 /**
  * Returns true if the content change is just Tiptap normalizing stored content
@@ -140,6 +140,18 @@ export function TeacherLessonCalendarTab({
       }
     }
     loadAssignments()
+
+    // Re-fetch when assignments are created, updated, or released
+    const handleAssignmentsUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (!detail?.classroomId || detail.classroomId === classroom.id) {
+        loadAssignments()
+      }
+    }
+    window.addEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
+    return () => {
+      window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, handleAssignmentsUpdated)
+    }
   }, [classroom.id])
 
   // Fetch announcements for the classroom
@@ -440,7 +452,7 @@ export function TeacherLessonCalendarTab({
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}
-          assignments={assignments.filter((a) => !a.is_draft)}
+          assignments={assignments}
           announcements={announcements}
           classDays={classDays}
           viewMode={viewMode}
