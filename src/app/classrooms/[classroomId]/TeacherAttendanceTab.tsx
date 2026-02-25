@@ -76,7 +76,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     const today = getTodayInToronto()
     const previousClassDay = getMostRecentClassDayBefore(classDays, today)
     setSelectedDate(previousClassDay || addDaysToDateString(today, -1))
-    setLoading(false)
+    // Do NOT setLoading(false) here — the logs fetch (Effect 3) handles it
   }, [classDaysLoading, classDays, selectedDate])
 
   // Notify parent of date changes
