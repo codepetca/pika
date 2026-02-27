@@ -26,6 +26,24 @@ This folder contains modular capture/audio scripts used to generate marketing as
 - UI mode flags:
   - `CAPTURE_LEFT_SIDEBAR_EXPANDED=true`
   - `CAPTURE_DARK_MODE=true`
+- Output naming:
+  - By default, capture/render outputs are suffixed by mode:
+    - light mode: `-light`
+    - dark mode: `-dark`
+  - Override suffix with `CAPTURE_OUTPUT_SUFFIX` (example: `CAPTURE_OUTPUT_SUFFIX=staging` -> `-staging`)
+- Voiceover:
+  - `VOICE_PROVIDER=auto|openai|say` (default `openai`)
+  - `auto` prefers OpenAI (`OPENAI_API_KEY`), then falls back to macOS `say`
+  - Env loading:
+    - default: loads `.env` then `.env.local` (so either can provide `OPENAI_API_KEY`)
+    - override file: `ENV_FILE=.env.staging`
+    - skip dotenv loading: `SKIP_MARKETING_DOTENV=true`
+  - OpenAI defaults:
+    - `OPENAI_TTS_MODEL=gpt-4o-mini-tts`
+    - `OPENAI_TTS_VOICE=nova`
+    - `OPENAI_TTS_FORMAT=wav`
+    - Optional: `OPENAI_TTS_INSTRUCTIONS="..."` (style guidance)
+  - macOS fallback voice remains configurable via `VOICE_NAME` (default `Samantha`)
 
 ## Full Build
 Run this against staging (recommended):

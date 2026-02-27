@@ -1,11 +1,13 @@
 import { chromium, BrowserContext, Locator, Page } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
-import { mkdirSync } from 'fs'
+import { mkdirSync, readFileSync } from 'fs'
 import { copyFile, rename } from 'fs/promises'
 import { basename, resolve } from 'path'
 
 type CapturePacingMode = 'normal' | 'slow'
+type CursorVariant = 'auto' | 'light' | 'dark'
+type OutputVariant = 'light' | 'dark'
 
 type CapturePacingProfile = {
   typingDelayMs: number
@@ -35,6 +37,8 @@ const FORCE_LEFT_SIDEBAR_EXPANDED = process.env.CAPTURE_LEFT_SIDEBAR_EXPANDED ==
 const FORCE_DARK_MODE = process.env.CAPTURE_DARK_MODE === 'true'
 const CAPTURE_ALLOW_LOCAL = process.env.CAPTURE_ALLOW_LOCAL_MARKETING === 'true'
 const CAPTURE_PACING_MODE = (process.env.CAPTURE_PACING_MODE || 'normal').toLowerCase() as CapturePacingMode
+const CAPTURE_CURSOR_VARIANT = (process.env.CAPTURE_CURSOR_VARIANT || 'auto').toLowerCase() as CursorVariant
+const CAPTURE_OUTPUT_SUFFIX = process.env.CAPTURE_OUTPUT_SUFFIX
 
 const PACING_BY_MODE: Record<CapturePacingMode, CapturePacingProfile> = {
   normal: {
@@ -72,6 +76,8 @@ const TEACHER_STORAGE = resolve(AUTH_DIR, 'teacher.json')
 const STUDENT_STORAGE = resolve(AUTH_DIR, 'student.json')
 const OUT_DIR = resolve(WORKTREE, 'artifacts', 'marketing', 'video')
 const RAW_DIR = resolve(OUT_DIR, 'raw')
+const CURSOR_LIGHT_SVG_ASSET_PATH = resolve(WORKTREE, 'scripts', 'marketing', 'assets', 'macos-like-pointer.svg')
+const CURSOR_DARK_SVG_ASSET_PATH = resolve(WORKTREE, 'scripts', 'marketing', 'assets', 'macos-like-pointer-on-dark.svg')
 const CURSOR_POSITION = new WeakMap<Page, { x: number; y: number }>()
 
 config({ path: resolve(WORKTREE, ENV_FILE) })
@@ -82,6 +88,40 @@ const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY
 const PACING = PACING_BY_MODE[CAPTURE_PACING_MODE] || PACING_BY_MODE.normal
 
 mkdirSync(RAW_DIR, { recursive: true })
+
+function normalizeOutputSuffix(value: string | undefined) {
+  if (!value) return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  return trimmed.startsWith('-') ? trimmed : `-${trimmed}`
+}
+
+function resolveOutputSuffix() {
+  const explicit = normalizeOutputSuffix(CAPTURE_OUTPUT_SUFFIX)
+  if (explicit) return explicit
+  const variant: OutputVariant = FORCE_DARK_MODE ? 'dark' : 'light'
+  return `-${variant}`
+}
+
+const OUTPUT_SUFFIX = resolveOutputSuffix()
+
+function resolveCursorSvgMarkup() {
+  const effectiveVariant: Exclude<CursorVariant, 'auto'> =
+    CAPTURE_CURSOR_VARIANT === 'auto' ? (FORCE_DARK_MODE ? 'dark' : 'light') : CAPTURE_CURSOR_VARIANT
+  const preferredPath = effectiveVariant === 'dark' ? CURSOR_DARK_SVG_ASSET_PATH : CURSOR_LIGHT_SVG_ASSET_PATH
+  const fallbackPath = effectiveVariant === 'dark' ? CURSOR_LIGHT_SVG_ASSET_PATH : CURSOR_DARK_SVG_ASSET_PATH
+  try {
+    return readFileSync(preferredPath, 'utf8')
+  } catch {
+    try {
+      return readFileSync(fallbackPath, 'utf8')
+    } catch {
+      return ''
+    }
+  }
+}
+
+const CURSOR_SVG_MARKUP = resolveCursorSvgMarkup()
 
 function assertNonLocalCaptureBaseUrl() {
   let parsed: URL
@@ -117,6 +157,8 @@ async function humanPause(page: Page, baseMs: number, varianceFraction = 0.12) {
 }
 
 async function setCursorOverlayPosition(page: Page, x: number, y: number) {
+  const snappedX = Math.round(x)
+  const snappedY = Math.round(y)
   await page.evaluate(
     ([cursorX, cursorY]) => {
       ;(window as typeof window & { __marketingCursorMove?: (x: number, y: number) => void }).__marketingCursorMove?.(
@@ -124,7 +166,7 @@ async function setCursorOverlayPosition(page: Page, x: number, y: number) {
         cursorY
       )
     },
-    [x, y] as const
+    [snappedX, snappedY] as const
   )
 }
 
@@ -232,7 +274,7 @@ async function typeSlowly(page: Page, locator: Locator, text: string) {
 }
 
 async function ensureCursorOverlay(page: Page) {
-  await page.evaluate(() => {
+  await page.evaluate((cursorSvgMarkup: string) => {
     if (document.getElementById('marketing-cursor')) return
     if (!document.body) return
 
@@ -241,32 +283,18 @@ async function ensureCursorOverlay(page: Page) {
     style.innerHTML = `
       #marketing-cursor {
         position: fixed;
-        width: 28px;
-        height: 40px;
+        width: 42px;
+        height: 54px;
         z-index: 2147483647;
         pointer-events: none;
-        transform: translate(-2px, -2px);
+        transform: translate(-1px, -1px);
         transition: transform 120ms ease-out;
-        filter: drop-shadow(0 2px 5px rgba(15, 23, 42, 0.35));
       }
-      #marketing-cursor::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: rgba(37, 99, 235, 0.98);
-        clip-path: polygon(0 0, 0 100%, 32% 74%, 44% 100%, 58% 94%, 46% 70%, 100% 70%);
-      }
-      #marketing-cursor::after {
-        content: '';
-        position: absolute;
-        inset: 2px;
-        background: rgba(255, 255, 255, 1);
-        clip-path: polygon(0 0, 0 100%, 32% 74%, 44% 100%, 58% 94%, 46% 70%, 100% 70%);
-      }
+      #marketing-cursor svg { width: 100%; height: 100%; display: block; }
       .marketing-click-ring {
         position: fixed;
-        width: 44px;
-        height: 44px;
+        width: 56px;
+        height: 56px;
         border-radius: 9999px;
         border: 3px solid rgba(37, 99, 235, 0.92);
         box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.4);
@@ -289,14 +317,23 @@ async function ensureCursorOverlay(page: Page) {
 
     const cursor = document.createElement('div')
     cursor.id = 'marketing-cursor'
+    if (cursorSvgMarkup) {
+      cursor.innerHTML = cursorSvgMarkup
+    } else {
+      cursor.innerHTML = `
+        <svg viewBox="0 0 30 42" aria-hidden="true">
+          <path d="M2 1.5L2 35.5L10.4 27L15.7 40L21.1 37.7L15.8 24.8H28L2 1.5Z" fill="#ffffff" stroke="#0f172a" stroke-width="2" stroke-linejoin="round" />
+        </svg>
+      `
+    }
     cursor.style.left = '80px'
     cursor.style.top = '80px'
     document.body.appendChild(cursor)
 
     const w = window as { [key: string]: unknown }
     w.__marketingCursorMove = (x: number, y: number) => {
-      cursor.style.left = `${x}px`
-      cursor.style.top = `${y}px`
+      cursor.style.left = `${Math.round(x)}px`
+      cursor.style.top = `${Math.round(y)}px`
     }
     w.__marketingCursorClick = (x: number, y: number) => {
       const ring = document.createElement('div')
@@ -306,7 +343,7 @@ async function ensureCursorOverlay(page: Page) {
       document.body?.appendChild(ring)
       setTimeout(() => ring.remove(), 700)
     }
-  })
+  }, CURSOR_SVG_MARKUP)
   if (!CURSOR_POSITION.has(page)) {
     CURSOR_POSITION.set(page, { x: 80, y: 80 })
   }
@@ -355,6 +392,19 @@ async function navigateWithHumanPause(page: Page, url: string) {
 async function clickByAccessibleName(page: Page, label: string, options?: { timeout?: number; settleMs?: number }) {
   const exactName = new RegExp(`^${label}$`, 'i')
   const looseName = new RegExp(label, 'i')
+  const normalized = label.trim().toLowerCase()
+  const structuralCandidates: Locator[] = []
+
+  if (normalized === 'attendance') {
+    structuralCandidates.push(page.locator('a[href*="tab=attendance"]').first(), page.locator('[data-tab="attendance"]').first())
+  }
+  if (normalized === 'assignments') {
+    structuralCandidates.push(page.locator('a[href*="tab=assignments"]').first(), page.locator('[data-tab="assignments"]').first())
+  }
+  if (normalized === 'grading') {
+    structuralCandidates.push(page.locator('button:has-text("Grading")').first(), page.locator('[role="tab"]:has-text("Grading")').first())
+  }
+
   const candidates: Locator[] = [
     page.getByRole('button', { name: exactName }).first(),
     page.getByRole('link', { name: exactName }).first(),
@@ -363,6 +413,7 @@ async function clickByAccessibleName(page: Page, label: string, options?: { time
     page.locator(`[aria-label*="${label}"]`).first(),
     page.locator(`[title*="${label}"]`).first(),
     page.getByText(exactName).first(),
+    ...structuralCandidates,
   ]
 
   for (const candidate of candidates) {
@@ -400,6 +451,20 @@ async function clickTextInLeftPane(
   }
 
   throw new Error(`Could not click left-pane text target "${String(text)}"`)
+}
+
+async function waitForVisibleAny(page: Page, selectors: string[], timeoutMs = 45_000) {
+  const startedAt = Date.now()
+  const pollMs = 180
+  while (Date.now() - startedAt < timeoutMs) {
+    for (const selector of selectors) {
+      const node = page.locator(selector).first()
+      if ((await node.count()) === 0) continue
+      if (await node.isVisible().catch(() => false)) return selector
+    }
+    await page.waitForTimeout(pollMs)
+  }
+  throw new Error(`Timed out waiting for any of: ${selectors.join(', ')}`)
 }
 
 async function findVisibleLeftPaneTableRow(page: Page, timeoutMs = 45_000) {
@@ -487,9 +552,13 @@ async function recordLoginFlow(page: Page) {
     timeout: 15_000,
     settleMs: withVariance(PACING.mediumPauseMs * 0.7, 0.08),
   })
-  await page.waitForURL(/\/classrooms/, { timeout: 45_000, waitUntil: 'domcontentloaded' })
+  try {
+    await page.waitForURL(/\/classrooms/, { timeout: 90_000, waitUntil: 'domcontentloaded' })
+  } catch {
+    await waitForVisibleAny(page, ['text=Classrooms', `text=${CLASSROOM_TITLE}`], 45_000)
+  }
 
-  await page.waitForSelector('text=Classrooms', { timeout: 45_000 })
+  await waitForVisibleAny(page, ['text=Classrooms', `text=${CLASSROOM_TITLE}`], 90_000)
   await humanPause(page, PACING.mediumPauseMs)
 }
 
@@ -502,14 +571,21 @@ async function recordTeacherFlow(page: Page, classroomId: string) {
   await clickTextInLeftPane(page, CLASSROOM_TITLE, { timeout: 15_000, settleMs: 1200 })
 
   await page.waitForURL(new RegExp(`/classrooms/${classroomId}`), { timeout: 45_000, waitUntil: 'domcontentloaded' })
-  await clickByAccessibleName(page, 'Attendance', { timeout: 12_000, settleMs: 1100 })
+  await clickFirstIfPresent(page, 'Attendance', async () => {
+    await clickByAccessibleName(page, 'Attendance', { timeout: 12_000, settleMs: 1100 })
+  })
   await waitForTeacherAttendanceList(page)
   await humanPause(page, PACING.mediumPauseMs + 450)
 
   const attendanceRow = await findVisibleLeftPaneTableRow(page, 20_000)
   await clickWithMouse(page, attendanceRow, { timeout: 12_000, settleMs: 900 })
 
-  await clickByAccessibleName(page, 'Assignments', { timeout: 12_000, settleMs: 1100 })
+  await clickFirstIfPresent(page, 'Assignments', async () => {
+    await clickByAccessibleName(page, 'Assignments', { timeout: 12_000, settleMs: 1100 })
+  })
+  if (!/tab=assignments/.test(page.url())) {
+    await navigateWithHumanPause(page, `${BASE_URL}/classrooms/${classroomId}?tab=assignments`)
+  }
   await page.waitForURL(/tab=assignments/, { timeout: 45_000, waitUntil: 'domcontentloaded' })
   await page.waitForSelector(`text=${ASSIGNMENT_TITLE}`, { timeout: 45_000 })
   await humanPause(page, PACING.mediumPauseMs)
@@ -538,7 +614,12 @@ async function recordStudentFlow(page: Page, classroomId: string) {
   await page.waitForSelector(`text=${CLASSROOM_TITLE}`, { timeout: 45_000 })
   await humanPause(page, PACING.mediumPauseMs)
 
-  await clickByAccessibleName(page, 'Assignments', { timeout: 12_000, settleMs: 1200 })
+  await clickFirstIfPresent(page, 'Assignments', async () => {
+    await clickByAccessibleName(page, 'Assignments', { timeout: 12_000, settleMs: 1200 })
+  })
+  if (!/tab=assignments/.test(page.url())) {
+    await navigateWithHumanPause(page, `${BASE_URL}/classrooms/${classroomId}?tab=assignments`)
+  }
   await page.waitForURL(/tab=assignments/, { timeout: 45_000, waitUntil: 'domcontentloaded' })
   await page.waitForSelector('text=Returned', { timeout: 45_000 })
   await humanPause(page, PACING.mediumPauseMs)
@@ -550,12 +631,13 @@ async function run() {
   assertNonLocalCaptureBaseUrl()
   console.log(`Walkthrough capture base URL: ${BASE_URL}`)
   console.log(`Pacing mode: ${CAPTURE_PACING_MODE}`)
+  console.log(`Output suffix: ${OUTPUT_SUFFIX}`)
 
   const classroomId = await resolveClassroomId()
 
-  await withRecordedContext(undefined, 'login-flow.webm', recordLoginFlow, classroomId)
-  await withRecordedContext(TEACHER_STORAGE, 'teacher-flow.webm', recordTeacherFlow, classroomId)
-  await withRecordedContext(STUDENT_STORAGE, 'student-flow.webm', recordStudentFlow, classroomId)
+  await withRecordedContext(undefined, `login-flow${OUTPUT_SUFFIX}.webm`, recordLoginFlow, classroomId)
+  await withRecordedContext(TEACHER_STORAGE, `teacher-flow${OUTPUT_SUFFIX}.webm`, recordTeacherFlow, classroomId)
+  await withRecordedContext(STUDENT_STORAGE, `student-flow${OUTPUT_SUFFIX}.webm`, recordStudentFlow, classroomId)
 
   console.log(`Walkthrough raw clips ready in ${RAW_DIR}`)
   console.log(`Next: render final outputs with scripts/marketing/render-video.sh`)

@@ -7,20 +7,31 @@ OUT_DIR="$ROOT_DIR/artifacts/marketing/video"
 AUDIO_FILE="$ROOT_DIR/artifacts/marketing/audio/pika-voiceover-60s.aiff"
 SRT_FILE="$ROOT_DIR/artifacts/marketing/captions/pika-voiceover-60s.srt"
 
-TEACHER_RAW="$RAW_DIR/teacher-flow.webm"
-STUDENT_RAW="$RAW_DIR/student-flow.webm"
-LOGIN_RAW="$RAW_DIR/login-flow.webm"
+OUTPUT_SUFFIX="${CAPTURE_OUTPUT_SUFFIX:-}"
+if [[ -z "${OUTPUT_SUFFIX// }" ]]; then
+  if [[ "${CAPTURE_DARK_MODE:-false}" == "true" ]]; then
+    OUTPUT_SUFFIX="-dark"
+  else
+    OUTPUT_SUFFIX="-light"
+  fi
+elif [[ "$OUTPUT_SUFFIX" != -* ]]; then
+  OUTPUT_SUFFIX="-$OUTPUT_SUFFIX"
+fi
 
-TEACHER_NORM="$OUT_DIR/teacher-flow.mp4"
-STUDENT_NORM="$OUT_DIR/student-flow.mp4"
-LOGIN_NORM="$OUT_DIR/login-flow.mp4"
-SILENT_MASTER="$OUT_DIR/pika-walkthrough-60s-silent.mp4"
-NARRATED_MASTER="$OUT_DIR/pika-walkthrough-60s.mp4"
-WEBM_MASTER="$OUT_DIR/pika-walkthrough-60s.webm"
-CAPTIONED_MASTER="$OUT_DIR/pika-walkthrough-60s-captioned.mp4"
-POSTER="$OUT_DIR/pika-walkthrough-poster.png"
-VERTICAL="$OUT_DIR/pika-walkthrough-60s-9x16.mp4"
-SQUARE="$OUT_DIR/pika-walkthrough-60s-1x1.mp4"
+TEACHER_RAW="$RAW_DIR/teacher-flow$OUTPUT_SUFFIX.webm"
+STUDENT_RAW="$RAW_DIR/student-flow$OUTPUT_SUFFIX.webm"
+LOGIN_RAW="$RAW_DIR/login-flow$OUTPUT_SUFFIX.webm"
+
+TEACHER_NORM="$OUT_DIR/teacher-flow$OUTPUT_SUFFIX.mp4"
+STUDENT_NORM="$OUT_DIR/student-flow$OUTPUT_SUFFIX.mp4"
+LOGIN_NORM="$OUT_DIR/login-flow$OUTPUT_SUFFIX.mp4"
+SILENT_MASTER="$OUT_DIR/pika-walkthrough-60s$OUTPUT_SUFFIX-silent.mp4"
+NARRATED_MASTER="$OUT_DIR/pika-walkthrough-60s$OUTPUT_SUFFIX.mp4"
+WEBM_MASTER="$OUT_DIR/pika-walkthrough-60s$OUTPUT_SUFFIX.webm"
+CAPTIONED_MASTER="$OUT_DIR/pika-walkthrough-60s$OUTPUT_SUFFIX-captioned.mp4"
+POSTER="$OUT_DIR/pika-walkthrough$OUTPUT_SUFFIX-poster.png"
+VERTICAL="$OUT_DIR/pika-walkthrough-60s$OUTPUT_SUFFIX-9x16.mp4"
+SQUARE="$OUT_DIR/pika-walkthrough-60s$OUTPUT_SUFFIX-1x1.mp4"
 
 if ! command -v ffmpeg >/dev/null 2>&1; then
   echo "ffmpeg not found on PATH" >&2
@@ -37,6 +48,7 @@ if [[ ! -f "$LOGIN_RAW" || ! -f "$TEACHER_RAW" || ! -f "$STUDENT_RAW" ]]; then
 fi
 
 mkdir -p "$OUT_DIR"
+echo "Rendering variant suffix: $OUTPUT_SUFFIX"
 
 # Normalize clips to a deterministic render format.
 ffmpeg -y -i "$LOGIN_RAW" \
