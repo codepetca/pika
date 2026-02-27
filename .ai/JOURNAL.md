@@ -2486,6 +2486,28 @@
 - `pnpm lint` passed
 
 ---
+## 2026-02-13 [AI - GPT-5 Codex]
+**Goal:** Add modular marketing engine scripts (seed/capture/voiceover) with safer seeding and reliable capture targeting
+**Completed:**
+- Added `seed:marketing`, `capture:marketing`, and `voiceover:marketing` npm scripts
+- Added marketing seed script: `scripts/seed-marketing-demo.ts`
+- Added modular marketing scripts under `scripts/marketing/` with thin root wrappers
+- Added marketing docs under `docs/marketing/` (plan + voiceover script)
+- Hardened seed safety with explicit opt-in guard `ALLOW_MARKETING_SEED=true`
+- Added production safety gate `ALLOW_MARKETING_SEED_PRODUCTION=true` when `NODE_ENV=production`
+- Added strict DB error handling for previously unchecked writes/deletes
+- Fixed mood seed data to satisfy DB check constraint (`😟`)
+- Improved capture classroom targeting by filtering with teacher email and optional `CAPTURE_CLASSROOM_ID`
+**Status:** completed
+**Artifacts:**
+- Branch: codex/marketing-demo-assets
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets
+- Key files: package.json, scripts/seed-marketing-demo.ts, scripts/marketing/capture.ts, scripts/marketing/generate-voiceover.sh, scripts/capture-marketing-shots.ts, scripts/generate-marketing-voiceover.sh, docs/marketing/pika-web-media-plan.md, docs/marketing/voiceover-60s.txt
+**Validation:**
+- `pnpm lint` passed
+- `ALLOW_MARKETING_SEED=true ENV_FILE=/Users/stew/Repos/pika/.env.staging pnpm seed:marketing` passed
+**Blockers:**
+- None
 ## 2026-02-12 [AI - GPT-5 Codex]
 **Goal:** Build PR A foundation for centralized gradebook (weights + percentages) and split PR B for modular TeachAssist sync engine
 **Completed:**
@@ -2582,6 +2604,46 @@
 - `npx playwright test e2e/classroom-loading.spec.ts --project=chromium-desktop -g "same-classroom"` passed
 
 ---
+## 2026-02-15 [AI - GPT-5 Codex]
+**Goal:** Execute full modular marketing pipeline end-to-end and produce publish-ready demo assets
+**Completed:**
+- Added full modular pipeline scripts for auth, walkthrough capture, caption generation, render variants, bundling, and one-command orchestration
+- Added npm script entrypoints for each phase and a single `build:marketing` command
+- Implemented API-based auth-state generation for stable teacher/student capture sessions
+- Generated caption file from voiceover script with duration-aware timing
+- Rendered final video outputs (master, silent, webm, captioned, 9:16, 1:1, poster)
+- Produced publish bundle and runbook/publish docs for reuse
+**Status:** completed
+**Artifacts:**
+- Branch: codex/marketing-demo-assets
+- Worktree: /Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets
+- Key files: scripts/marketing/auth.ts, scripts/marketing/walkthrough.ts, scripts/marketing/generate-captions.ts, scripts/marketing/render-video.sh, scripts/marketing/build-all.sh, scripts/marketing/bundle.ts, docs/marketing/runbook.md, docs/marketing/pika-web-publish-notes.md
+- Outputs: /Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets/artifacts/marketing/
+**Validation:**
+- `pnpm lint` passed
+- `pnpm test` passed
+- `ALLOW_MARKETING_SEED=true CAPTURE_BASE_URL=http://localhost:3017 CAPTURE_LEFT_SIDEBAR_EXPANDED=true CAPTURE_DARK_MODE=true pnpm build:marketing` passed
+**Blockers:**
+- None
+
+---
+## 2026-02-21 [AI - GPT-5 Codex]
+**Goal:** Tighten marketing capture scripts for staging-first operation and smoother human-like walkthrough pacing
+**Completed:**
+- Committed existing cursor overlay visibility/motion improvements in `scripts/marketing/walkthrough.ts` plus temporary cursor debug script `tmp-check-cursor.ts`
+- Enforced staging-first capture guard in `scripts/marketing/auth.ts`, `scripts/marketing/capture.ts`, and `scripts/marketing/walkthrough.ts`
+  - Default behavior now blocks localhost capture unless `CAPTURE_ALLOW_LOCAL_MARKETING=true` is explicitly set
+- Removed quick-login fallback from walkthrough login capture; login flow now always uses typed credentials
+- Added configurable pacing profiles in walkthrough capture (`CAPTURE_PACING_MODE=normal|slow`)
+  - Includes humanized delays, animated cursor travel, pre-click dwell, click hold, and settle timing
+- Updated marketing docs to reflect staging-first behavior and local override usage
+  - `scripts/marketing/README.md`
+  - `docs/marketing/runbook.md`
+**Status:** completed
+**Validation:**
+- `pnpm walkthrough:marketing` fails fast on localhost without override (expected)
+- `CAPTURE_ALLOW_LOCAL_MARKETING=true CAPTURE_BASE_URL=http://localhost:3017 pnpm walkthrough:marketing` reaches runtime capture path (fails only because local server was not running)
+- `pnpm auth:marketing` and `pnpm capture:marketing` both fail fast on localhost without override (expected)
 ## 2026-02-20 [AI - GPT-5 Codex]
 **Goal:** Resolve GH issues #334 and #335 in worktree `codex/334-335-assignment-pane-history`
 **Completed:**
@@ -2633,3 +2695,46 @@
 **Validation:**
 - `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed (5 tests)
 - `pnpm lint` passed
+
+---
+## 2026-02-24 [AI - GPT-5 Codex]
+**Goal:** Sync `codex/marketing-demo-assets` with `main`, fix assignments instructions placeholder padding, and regenerate marketing videos.
+**Completed:**
+- Committed pending walkthrough interaction updates (`fix(marketing): use explicit mouse clicks for walkthrough interactions`).
+- Merged `origin/main` into `codex/marketing-demo-assets`.
+- Fixed teacher assignments right-pane placeholder spacing by adding `px-4 py-3` to:
+  - `No instructions provided.`
+  - `Select an assignment to view instructions.`
+- Re-seeded marketing demo data and refreshed marketing auth states.
+- Regenerated raw walkthrough clips and final rendered assets.
+**Status:** completed
+**Artifacts:**
+- Worktree: `/Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets`
+- Fixed file: `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`
+- Teacher screenshot: `/tmp/pika-teacher-assignments-empty-padding.png`
+- Student screenshot: `/tmp/pika-student-assignments-check.png`
+- Video output dir: `/Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets/artifacts/marketing/video`
+**Validation:**
+- `pnpm exec eslint 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'` passed
+- `pnpm seed:marketing` passed
+- `pnpm auth:marketing` passed
+- `pnpm walkthrough:marketing` passed
+- `pnpm video:marketing` passed
+
+---
+## 2026-02-24 [AI - GPT-5 Codex]
+**Goal:** Replace marketing walkthrough dot-target cursor overlay with a pointer icon.
+**Completed:**
+- Updated cursor overlay styling in `scripts/marketing/walkthrough.ts` from circular target marker to a pointer-shaped cursor icon.
+- Kept click pulse ring effect for click emphasis.
+- Re-seeded marketing demo data locally and regenerated auth state.
+- Re-ran walkthrough capture and final marketing video render.
+**Status:** completed
+**Artifacts:**
+- Updated script: `scripts/marketing/walkthrough.ts`
+- Sample frame: `/tmp/teacher-flow-cursor-sample.png`
+- Output videos: `/Users/stew/Repos/.worktrees/pika/codex-marketing-demo-assets/artifacts/marketing/video`
+**Validation:**
+- `pnpm exec eslint scripts/marketing/walkthrough.ts` passed
+- `pnpm walkthrough:marketing` passed
+- `pnpm video:marketing` passed
