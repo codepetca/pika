@@ -1180,8 +1180,10 @@ function ClassroomPageContent({
               studentId={selectedStudentId}
               classroomId={classroom.id}
             />
-          ) : isTeacher && activeTab === 'attendance' ? (
+          ) : isTeacher && activeTab === 'attendance' && attendanceDate ? (
             <LogSummary classroomId={classroom.id} date={attendanceDate} onStudentClick={handleSummaryStudentClick} />
+          ) : isTeacher && activeTab === 'attendance' ? (
+            null
           ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
             <TeacherStudentWorkPanel
               classroomId={classroom.id}
