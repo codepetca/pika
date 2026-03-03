@@ -153,3 +153,34 @@ Any changes should prioritize:
 - clarity
 - correctness
 - minimal surface area (few commands, explicit behavior)
+
+---
+
+## Landing changes to `main` (No merge commits)
+
+`main` is configured to reject merge commits. Use linear history only.
+
+Preferred:
+- Open a PR and use **Squash and merge**.
+
+If landing from local CLI:
+```bash
+cd "$HOME/Repos/pika"
+git fetch origin
+git checkout main
+git pull --ff-only origin main
+
+# Option A: squash feature branch into one commit
+git merge --squash origin/<feature-branch>
+git commit -m "<summary>"
+git push origin main
+
+# Option B: cherry-pick specific commits (also linear)
+git cherry-pick <sha> [<sha>...]
+git push origin main
+```
+
+Avoid:
+```bash
+git merge --no-ff <branch>   # creates merge commit (rejected on main)
+```

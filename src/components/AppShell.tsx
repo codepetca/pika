@@ -18,6 +18,8 @@ interface AppShellProps {
   currentClassroomId?: string
   currentTab?: string
   onOpenSidebar?: () => void
+  onNavigateHome?: (href: string) => boolean
+  onNavigateClassroom?: (href: string) => boolean
   mainClassName?: string
 }
 
@@ -33,6 +35,8 @@ export function AppShell({
   currentClassroomId,
   currentTab,
   onOpenSidebar,
+  onNavigateHome,
+  onNavigateClassroom,
   mainClassName,
 }: AppShellProps) {
   return (
@@ -44,6 +48,8 @@ export function AppShell({
           currentClassroomId={currentClassroomId}
           currentTab={currentTab}
           onOpenSidebar={onOpenSidebar}
+          onNavigateHome={onNavigateHome}
+          onNavigateClassroom={onNavigateClassroom}
         />
       )}
       <main className={mainClassName || 'max-w-7xl mx-auto px-4 py-3'}>

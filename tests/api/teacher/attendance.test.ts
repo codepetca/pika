@@ -18,6 +18,12 @@ vi.mock('@/lib/auth', () => ({
     }
     throw new Error('Unauthorized')
   }),
+  AuthenticationError: class AuthenticationError extends Error {
+    constructor(message = 'Not authenticated') { super(message); this.name = 'AuthenticationError' }
+  },
+  AuthorizationError: class AuthorizationError extends Error {
+    constructor(message = 'Forbidden') { super(message); this.name = 'AuthorizationError' }
+  },
 }))
 
 vi.mock('@/lib/attendance', () => ({

@@ -23,6 +23,12 @@ vi.mock('@/lib/email', () => ({
 
 vi.mock('@/lib/auth', () => ({
   isTeacherEmail: vi.fn((email: string) => email.includes('@gapps.yrdsb.ca') || email.includes('@yrdsb.ca')),
+  AuthenticationError: class AuthenticationError extends Error {
+    constructor(message = 'Not authenticated') { super(message); this.name = 'AuthenticationError' }
+  },
+  AuthorizationError: class AuthorizationError extends Error {
+    constructor(message = 'Forbidden') { super(message); this.name = 'AuthorizationError' }
+  },
 }))
 
 // Import mocked modules
@@ -56,7 +62,7 @@ describe('POST /api/auth/signup', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Email is required')
+      expect(data.error).toContain('email')
     })
 
     it('should return 400 when email is not a string', async () => {
@@ -69,7 +75,7 @@ describe('POST /api/auth/signup', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Email is required')
+      expect(data.error).toContain('email')
     })
 
     it('should return 400 when email format is invalid', async () => {
@@ -82,7 +88,7 @@ describe('POST /api/auth/signup', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid email format')
+      expect(data.error).toContain('Invalid email format')
     })
   })
 

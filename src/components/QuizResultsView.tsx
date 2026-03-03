@@ -1,6 +1,7 @@
 'use client'
 
 import type { QuizResultsAggregate } from '@/types'
+import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 
 interface Props {
   results: QuizResultsAggregate[] | null
@@ -20,9 +21,12 @@ export function QuizResultsView({ results }: Props) {
       {/* Results by Question */}
       {results.map((result, index) => (
         <div key={result.question_id} className="space-y-2">
-          <p className="text-sm font-medium text-text-default">
-            Q{index + 1}. {result.question_text}
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Q{index + 1}
+            </p>
+            <QuestionMarkdown content={result.question_text} />
+          </div>
           <div className="space-y-1.5">
             {result.options.map((option, optionIndex) => {
               const count = result.counts[optionIndex]

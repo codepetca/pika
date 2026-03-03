@@ -13,6 +13,7 @@ interface ClassroomDropdownProps {
   currentClassroomId?: string
   currentTab?: string
   className?: string
+  onBeforeNavigate?: (href: string) => boolean
 }
 
 /**
@@ -25,6 +26,7 @@ export function ClassroomDropdown({
   currentClassroomId,
   currentTab,
   className = '',
+  onBeforeNavigate,
 }: ClassroomDropdownProps) {
   const router = useRouter()
   const touchedRef = useRef(false)
@@ -39,8 +41,10 @@ export function ClassroomDropdown({
     const nextUrl = currentTab
       ? `/classrooms/${classroomId}?tab=${encodeURIComponent(currentTab)}`
       : `/classrooms/${classroomId}`
+    const allowNavigation = onBeforeNavigate?.(nextUrl)
+    if (allowNavigation === false) return
     router.push(nextUrl)
-  }, [currentTab, router, otherClassrooms])
+  }, [currentTab, onBeforeNavigate, router, otherClassrooms])
 
   const {
     isOpen,

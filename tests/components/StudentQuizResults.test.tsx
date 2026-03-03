@@ -79,8 +79,8 @@ describe('StudentQuizResults', () => {
     render(<StudentQuizResults quizId="quiz-1" myResponses={{}} />)
 
     await waitFor(() => {
-      expect(screen.getByText('1. What is the capital of France?')).toBeInTheDocument()
-      expect(screen.getByText('2. Favorite season?')).toBeInTheDocument()
+      expect(screen.getByText('What is the capital of France?')).toBeInTheDocument()
+      expect(screen.getByText('Favorite season?')).toBeInTheDocument()
     })
 
     // Check options and percentages

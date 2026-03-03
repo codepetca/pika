@@ -12,11 +12,16 @@ vi.mock('@/lib/supabase', () => ({
 
 vi.mock('@/lib/crypto', () => ({
   hashPassword: vi.fn(async (pwd: string) => `hashed_${pwd}`),
-  validatePassword: vi.fn(() => null),
 }))
 
 vi.mock('@/lib/auth', () => ({
   createSession: vi.fn(async () => {}),
+  AuthenticationError: class AuthenticationError extends Error {
+    constructor(message: string) { super(message); this.name = 'AuthenticationError' }
+  },
+  AuthorizationError: class AuthorizationError extends Error {
+    constructor(message: string) { super(message); this.name = 'AuthorizationError' }
+  },
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -24,6 +29,36 @@ const mockSupabaseClient = { from: vi.fn() }
 describe('POST /api/auth/reset-password/confirm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('should return 400 for missing required fields', async () => {
+    const request = new NextRequest('http://localhost:3000/api/auth/reset-password/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'test@example.com' }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toContain('password')
+  })
+
+  it('should return 400 when passwords do not match', async () => {
+    const request = new NextRequest('http://localhost:3000/api/auth/reset-password/confirm', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: 'test@example.com',
+        password: 'NewPassword123',
+        passwordConfirmation: 'DifferentPassword',
+      }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toContain('Passwords do not match')
   })
 
   it('should return 401 when no recent reset code exists', async () => {

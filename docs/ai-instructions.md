@@ -229,6 +229,14 @@ Summary:
 
 See `docs/dev-workflow.md` for create/cleanup steps and `.env.local` symlinks.
 
+### Main Merge Policy (MANDATORY)
+
+- `main` is protected against merge commits.
+- Do not push merge commits to `main`.
+- Use one of these landing strategies:
+  - PR **Squash and merge** (preferred)
+  - Linear local integration (`rebase`, `cherry-pick`, or `merge --squash` + commit)
+
 ---
 
 ## Environment Files (.env.local)

@@ -18,6 +18,7 @@ describe('StudentNotificationsProvider', () => {
         hasTodayEntry: true,
         unviewedAssignmentsCount: 0,
         activeQuizzesCount: 0,
+        activeTestsCount: 0,
         unreadAnnouncementsCount: 0,
       }),
     })

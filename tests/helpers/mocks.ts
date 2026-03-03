@@ -211,6 +211,7 @@ export const createMockQuiz = (overrides: Partial<Quiz> = {}): Quiz => ({
   id: 'quiz-1',
   classroom_id: 'classroom-1',
   title: 'Test Quiz',
+  assessment_type: 'quiz',
   status: 'draft',
   show_results: false,
   position: 0,

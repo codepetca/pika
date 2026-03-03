@@ -14,11 +14,33 @@ vi.mock('@/lib/crypto', () => ({
   verifyCode: vi.fn(async (code: string, hash: string) => code === 'ABC12' && hash === 'hashed_ABC12'),
 }))
 
+vi.mock('@/lib/auth', () => ({
+  AuthenticationError: class AuthenticationError extends Error {
+    constructor(message: string) { super(message); this.name = 'AuthenticationError' }
+  },
+  AuthorizationError: class AuthorizationError extends Error {
+    constructor(message: string) { super(message); this.name = 'AuthorizationError' }
+  },
+}))
+
 const mockSupabaseClient = { from: vi.fn() }
 
 describe('POST /api/auth/reset-password/verify', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('should return 400 for missing required fields', async () => {
+    const request = new NextRequest('http://localhost:3000/api/auth/reset-password/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'test@example.com' }),
+    })
+
+    const response = await POST(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toContain('code')
   })
 
   it('should return 401 when no codes exist', async () => {
