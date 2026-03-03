@@ -14,6 +14,8 @@ import {
   aggregateResults,
   validateQuizOptions,
   canActivateQuiz,
+  emptyQuizFocusSummary,
+  summarizeQuizFocusEvents,
 } from '@/lib/quizzes'
 import { createMockQuiz, createMockQuizQuestion, createMockQuizResponse } from '../helpers/mocks'
 
@@ -148,24 +150,24 @@ describe('quiz utilities', () => {
   // ==========================================================================
 
   describe('canEditQuizQuestions', () => {
-    it('should return true for draft quiz with no responses', () => {
+    it('should return true for draft quizzes', () => {
       const quiz = createMockQuiz({ status: 'draft' })
       expect(canEditQuizQuestions(quiz, false)).toBe(true)
     })
 
-    it('should return false when quiz has responses', () => {
+    it('should return true when quiz has responses', () => {
       const quiz = createMockQuiz({ status: 'draft' })
-      expect(canEditQuizQuestions(quiz, true)).toBe(false)
+      expect(canEditQuizQuestions(quiz, true)).toBe(true)
     })
 
-    it('should return false for active quiz even with no responses', () => {
+    it('should return true for active quizzes', () => {
       const quiz = createMockQuiz({ status: 'active' })
-      expect(canEditQuizQuestions(quiz, false)).toBe(false)
+      expect(canEditQuizQuestions(quiz, false)).toBe(true)
     })
 
-    it('should return false for closed quiz with no responses', () => {
+    it('should return true for closed quizzes', () => {
       const quiz = createMockQuiz({ status: 'closed' })
-      expect(canEditQuizQuestions(quiz, false)).toBe(false)
+      expect(canEditQuizQuestions(quiz, false)).toBe(true)
     })
   })
 
@@ -303,6 +305,42 @@ describe('quiz utilities', () => {
       const result = canActivateQuiz(quiz, 0)
       expect(result.valid).toBe(false)
       expect(result.error).toBe('Quiz must have at least 1 question')
+    })
+  })
+
+  // ==========================================================================
+  // summarizeQuizFocusEvents()
+  // ==========================================================================
+
+  describe('summarizeQuizFocusEvents', () => {
+    it('returns empty summary when there are no events', () => {
+      expect(summarizeQuizFocusEvents([])).toEqual(emptyQuizFocusSummary())
+    })
+
+    it('counts away sessions and computes total away time', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
+        { event_type: 'away_end', occurred_at: '2026-02-01T10:00:30.000Z' },
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:01:00.000Z' },
+        { event_type: 'away_end', occurred_at: '2026-02-01T10:01:45.000Z' },
+      ])
+
+      expect(result.away_count).toBe(2)
+      expect(result.away_total_seconds).toBe(75)
+      expect(result.route_exit_attempts).toBe(0)
+      expect(result.last_away_started_at).toBe('2026-02-01T10:01:00.000Z')
+      expect(result.last_away_ended_at).toBe('2026-02-01T10:01:45.000Z')
+    })
+
+    it('counts route exit attempts independently', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'route_exit_attempt', occurred_at: '2026-02-01T10:01:00.000Z' },
+        { event_type: 'route_exit_attempt', occurred_at: '2026-02-01T10:02:00.000Z' },
+      ])
+
+      expect(result.route_exit_attempts).toBe(2)
+      expect(result.away_count).toBe(0)
+      expect(result.away_total_seconds).toBe(0)
     })
   })
 })

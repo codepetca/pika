@@ -5,18 +5,27 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Plus, Trash2, GripVertical } from 'lucide-react'
 import { Input } from '@/ui'
+import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { MAX_QUIZ_OPTIONS } from '@/lib/quizzes'
 import type { QuizQuestion } from '@/types'
 
 interface Props {
   quizId: string
+  apiBasePath?: string
   question: QuizQuestion
   questionNumber: number
   isEditable: boolean
   onUpdated: () => void
 }
 
-export function QuizQuestionEditor({ quizId, question, questionNumber, isEditable, onUpdated }: Props) {
+export function QuizQuestionEditor({
+  quizId,
+  apiBasePath = '/api/teacher/quizzes',
+  question,
+  questionNumber,
+  isEditable,
+  onUpdated,
+}: Props) {
   const {
     attributes,
     listeners,
@@ -79,7 +88,7 @@ export function QuizQuestionEditor({ quizId, question, questionNumber, isEditabl
     setError('')
 
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quizId}/questions/${question.id}`, {
+      const res = await fetch(`${apiBasePath}/${quizId}/questions/${question.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question_text: currentText.trim(), options: cleanedOptions }),
@@ -100,7 +109,7 @@ export function QuizQuestionEditor({ quizId, question, questionNumber, isEditabl
     setDeleting(true)
     setError('')
     try {
-      const res = await fetch(`/api/teacher/quizzes/${quizId}/questions/${question.id}`, {
+      const res = await fetch(`${apiBasePath}/${quizId}/questions/${question.id}`, {
         method: 'DELETE',
       })
       if (!res.ok) {
@@ -177,13 +186,15 @@ export function QuizQuestionEditor({ quizId, question, questionNumber, isEditabl
               className="text-sm"
               autoFocus
             />
-          ) : (
+          ) : isEditable ? (
             <p
-              className={`text-sm text-text-default ${isEditable ? 'cursor-text hover:bg-surface-2 rounded px-1 -mx-1' : ''}`}
-              onClick={isEditable ? () => setFocusedField('text') : undefined}
+              className="text-sm text-text-default cursor-text hover:bg-surface-2 rounded px-1 -mx-1"
+              onClick={() => setFocusedField('text')}
             >
               {text}
             </p>
+          ) : (
+            <QuestionMarkdown content={text} />
           )}
 
           <div className="mt-2 space-y-1">

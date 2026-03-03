@@ -34,11 +34,18 @@ import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { Spinner } from '@/components/Spinner'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { TEACHER_ASSIGNMENTS_UPDATED_EVENT, TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import {
+  STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
+  STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
+  TEACHER_ASSIGNMENTS_UPDATED_EVENT,
+  TEACHER_QUIZZES_UPDATED_EVENT,
+} from '@/lib/events'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
+import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
 import { TabContentTransition } from '@/ui'
+import { ConfirmDialog } from '@/ui'
 import { prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import type {
@@ -84,6 +91,19 @@ type UpdateSearchParamsFn = (
   options?: UpdateSearchOptions
 ) => void
 
+interface StudentTestExamModeDetail {
+  classroomId?: string
+  active?: boolean
+  testId?: string | null
+}
+
+interface PendingExamNavigation {
+  targetLabel: string
+  source: string
+  nextTab: string | null
+  navigate: () => void
+}
+
 function formatTorontoDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
     timeZone: 'America/Toronto',
@@ -117,8 +137,8 @@ export function ClassroomPageClient({
   const validTabs = useMemo(
     () =>
       isTeacher
-        ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'calendar', 'resources', 'roster', 'settings'] as const)
-        : (['today', 'assignments', 'quizzes', 'calendar', 'resources'] as const),
+        ? (['attendance', 'gradebook', 'assignments', 'quizzes', 'tests', 'calendar', 'resources', 'roster', 'settings'] as const)
+        : (['today', 'assignments', 'quizzes', 'tests', 'calendar', 'resources'] as const),
     [isTeacher]
   )
 
@@ -231,15 +251,144 @@ function ClassroomPageContent({
   const lastTabIntentRef = useRef<Record<string, number>>({})
   const scrollPositionsRef = useRef<Record<string, number>>({})
   const prevActiveTabRef = useRef(activeTab)
+  const [studentTestExamMode, setStudentTestExamMode] = useState<{
+    active: boolean
+    testId: string | null
+  }>({ active: false, testId: null })
+  const [showLeaveTestDialog, setShowLeaveTestDialog] = useState(false)
+  const pendingExamNavigationRef = useRef<PendingExamNavigation | null>(null)
+  const bypassExamGuardRef = useRef(false)
+
+  const logStudentTestRouteExitAttempt = useCallback((
+    source: string,
+    metadata?: Record<string, unknown>,
+    options?: { dedupe?: boolean }
+  ) => {
+    if (isTeacher) return
+    window.dispatchEvent(
+      new CustomEvent(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, {
+        detail: {
+          classroomId: classroom.id,
+          source,
+          metadata: metadata || null,
+          dedupe: options?.dedupe === true,
+        },
+      })
+    )
+  }, [classroom.id, isTeacher])
+
+  const requestExamModeNavigation = useCallback((pending: PendingExamNavigation) => {
+    const examModeActive =
+      !isTeacher &&
+      activeTab === 'tests' &&
+      studentTestExamMode.active &&
+      !bypassExamGuardRef.current
+
+    const leavingTestsRoute = pending.nextTab == null || pending.nextTab !== 'tests'
+    if (!examModeActive || !leavingTestsRoute) {
+      pending.navigate()
+      return true
+    }
+
+    pendingExamNavigationRef.current = pending
+    setShowLeaveTestDialog(true)
+    logStudentTestRouteExitAttempt(pending.source, {
+      blocked: true,
+      target: pending.targetLabel,
+      next_tab: pending.nextTab,
+    })
+    return false
+  }, [activeTab, isTeacher, logStudentTestRouteExitAttempt, studentTestExamMode.active])
 
   const navigateInClassroom = useCallback<UpdateSearchParamsFn>(
     (updater, options) => {
-      updateSearchParams((params) => {
-        updater(params)
-      }, options)
+      const previewParams = new URLSearchParams(searchParams.toString())
+      updater(previewParams)
+      const nextTab = previewParams.get('tab') ?? activeTab
+
+      requestExamModeNavigation({
+        targetLabel: `${nextTab} tab`,
+        source: 'tab_navigation',
+        nextTab,
+        navigate: () => {
+          updateSearchParams((params) => {
+            updater(params)
+          }, options)
+        },
+      })
     },
-    [updateSearchParams]
+    [activeTab, requestExamModeNavigation, searchParams, updateSearchParams]
   )
+
+  useEffect(() => {
+    if (isTeacher) return
+
+    const handleExamModeChange = (event: Event) => {
+      const detail = (event as CustomEvent<StudentTestExamModeDetail>).detail
+      if (detail?.classroomId && detail.classroomId !== classroom.id) return
+      setStudentTestExamMode({
+        active: detail?.active === true,
+        testId: detail?.testId || null,
+      })
+    }
+
+    window.addEventListener(STUDENT_TEST_EXAM_MODE_CHANGE_EVENT, handleExamModeChange)
+    return () => {
+      window.removeEventListener(STUDENT_TEST_EXAM_MODE_CHANGE_EVENT, handleExamModeChange)
+    }
+  }, [classroom.id, isTeacher])
+
+  useEffect(() => {
+    if (studentTestExamMode.active) return
+    setShowLeaveTestDialog(false)
+    pendingExamNavigationRef.current = null
+  }, [studentTestExamMode.active])
+
+  const handleLeaveTestCancel = useCallback(() => {
+    pendingExamNavigationRef.current = null
+    setShowLeaveTestDialog(false)
+  }, [])
+
+  const handleLeaveTestConfirm = useCallback(() => {
+    const pending = pendingExamNavigationRef.current
+    pendingExamNavigationRef.current = null
+    setShowLeaveTestDialog(false)
+    if (!pending) return
+
+    logStudentTestRouteExitAttempt('leave_test_confirmed', {
+      target: pending.targetLabel,
+      next_tab: pending.nextTab,
+      source: pending.source,
+    })
+
+    bypassExamGuardRef.current = true
+    pending.navigate()
+    window.setTimeout(() => {
+      bypassExamGuardRef.current = false
+    }, 0)
+  }, [logStudentTestRouteExitAttempt])
+
+  const handleHomeNavigationAttempt = useCallback((href: string) => {
+    return requestExamModeNavigation({
+      targetLabel: 'home',
+      source: 'home_navigation',
+      nextTab: null,
+      navigate: () => {
+        window.location.assign(href)
+      },
+    })
+  }, [requestExamModeNavigation])
+
+  const handleClassroomNavigationAttempt = useCallback((href: string) => {
+    return requestExamModeNavigation({
+      targetLabel: 'another classroom',
+      source: 'classroom_switch',
+      nextTab: null,
+      navigate: () => {
+        window.location.assign(href)
+      },
+    })
+  }, [requestExamModeNavigation])
 
   useEffect(() => {
     setMountedTabs((previous) => {
@@ -278,15 +427,39 @@ function ClassroomPageContent({
 
   // State for selected quiz (teacher quizzes tab)
   const [selectedQuiz, setSelectedQuiz] = useState<QuizWithStats | null>(null)
+  const [testGradingContext, setTestGradingContext] = useState<{
+    mode: 'authoring' | 'grading'
+    testId: string | null
+    studentId: string | null
+    studentName: string | null
+  }>({
+    mode: 'authoring',
+    testId: null,
+    studentId: null,
+    studentName: null,
+  })
   const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
   const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
   const [gradebookClassSummary, setGradebookClassSummary] = useState<GradebookClassSummary | null>(null)
   const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
   const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
+  const [testsSidebarClickToken, setTestsSidebarClickToken] = useState(0)
 
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
     setSelectedQuiz(quiz)
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'quizzes' || activeTab === 'tests') {
+      setSelectedQuiz(null)
+      setTestGradingContext({
+        mode: 'authoring',
+        testId: null,
+        studentId: null,
+        studentName: null,
+      })
+    }
+  }, [activeTab])
 
   const handleQuizUpdate = useCallback(() => {
     window.dispatchEvent(
@@ -493,6 +666,8 @@ function ClassroomPageContent({
       setRightSidebarWidth('50%')
     } else if (isTeacher && activeTab === 'quizzes') {
       setRightSidebarWidth('50%')
+    } else if (isTeacher && activeTab === 'tests') {
+      setRightSidebarWidth('60%')
     } else if (isTeacher && activeTab === 'gradebook') {
       setRightSidebarWidth(420)
     }
@@ -661,6 +836,9 @@ function ClassroomPageContent({
 
   const handleTabChange = useCallback(
     (tab: string) => {
+      if (tab === 'tests') {
+        setTestsSidebarClickToken((prev) => prev + 1)
+      }
       markClassroomTabSwitchStart(tab)
       navigateInClassroom((params) => {
         params.set('tab', tab)
@@ -685,6 +863,14 @@ function ClassroomPageContent({
     return () => window.cancelAnimationFrame(rafId)
   }, [activeTab])
 
+  const isAssessmentTab = activeTab === 'quizzes' || activeTab === 'tests'
+  const assessmentLabel = activeTab === 'tests' ? 'test' : 'quiz'
+  const assessmentApiBasePath = activeTab === 'tests' ? '/api/teacher/tests' : '/api/teacher/quizzes'
+  const gradingTestId =
+    activeTab === 'tests'
+      ? (testGradingContext.testId || selectedQuiz?.id || null)
+      : null
+
   const content = (
     <AppShell
       user={user}
@@ -706,6 +892,8 @@ function ClassroomPageContent({
       currentClassroomId={classroom.id}
       currentTab={activeTab}
       onOpenSidebar={openLeft}
+      onNavigateHome={handleHomeNavigationAttempt}
+      onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
     >
       <ThreePanelShell>
@@ -768,7 +956,19 @@ function ClassroomPageContent({
                 <TabContentTransition isActive={activeTab === 'quizzes'}>
                   <TeacherQuizzesTab
                     classroom={classroom}
+                    assessmentType="quiz"
                     onSelectQuiz={handleSelectQuiz}
+                  />
+                </TabContentTransition>
+              )}
+              {mountedTabs.tests && (
+                <TabContentTransition isActive={activeTab === 'tests'}>
+                  <TeacherQuizzesTab
+                    classroom={classroom}
+                    assessmentType="test"
+                    onSelectQuiz={handleSelectQuiz}
+                    testsSidebarClickToken={testsSidebarClickToken}
+                    onTestGradingContextChange={setTestGradingContext}
                   />
                 </TabContentTransition>
               )}
@@ -844,7 +1044,12 @@ function ClassroomPageContent({
               )}
               {mountedTabs.quizzes && (
                 <TabContentTransition isActive={activeTab === 'quizzes'}>
-                  <StudentQuizzesTab classroom={classroom} />
+                  <StudentQuizzesTab classroom={classroom} assessmentType="quiz" isActive={activeTab === 'quizzes'} />
+                </TabContentTransition>
+              )}
+              {mountedTabs.tests && (
+                <TabContentTransition isActive={activeTab === 'tests'}>
+                  <StudentQuizzesTab classroom={classroom} assessmentType="test" isActive={activeTab === 'tests'} />
                 </TabContentTransition>
               )}
               {mountedTabs.calendar && (
@@ -899,7 +1104,11 @@ function ClassroomPageContent({
               ? selectedGradebookStudent
                 ? `${selectedGradebookStudent.student_first_name || ''} ${selectedGradebookStudent.student_last_name || ''}`.trim() || selectedGradebookStudent.student_email
                 : 'Gradebook'
-              : isTeacher && activeTab === 'quizzes'
+              : isTeacher &&
+                activeTab === 'tests' &&
+                testGradingContext.mode === 'grading'
+              ? testGradingContext.studentName || 'Test Grading'
+              : isTeacher && isAssessmentTab
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
               ? selectedStudent.assignmentTitle
@@ -984,16 +1193,27 @@ function ClassroomPageContent({
             )
           ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
-          ) : isTeacher && activeTab === 'quizzes' && selectedQuiz ? (
+          ) : isTeacher &&
+            activeTab === 'tests' &&
+            testGradingContext.mode === 'grading' &&
+            gradingTestId ? (
+            <TestStudentGradingPanel
+              testId={gradingTestId}
+              selectedStudentId={testGradingContext.studentId}
+              apiBasePath={assessmentApiBasePath}
+              onUpdated={handleQuizUpdate}
+            />
+          ) : isTeacher && isAssessmentTab && selectedQuiz ? (
             <QuizDetailPanel
               quiz={selectedQuiz}
               classroomId={classroom.id}
+              apiBasePath={assessmentApiBasePath}
               onQuizUpdate={handleQuizUpdate}
             />
-          ) : isTeacher && activeTab === 'quizzes' ? (
+          ) : isTeacher && isAssessmentTab ? (
             <div className="p-4">
               <p className="text-sm text-text-muted">
-                Select a quiz to view details.
+                Select a {assessmentLabel} to view details.
               </p>
             </div>
           ) : isTeacher && activeTab === 'gradebook' && selectedGradebookStudent ? (
@@ -1154,8 +1374,10 @@ function ClassroomPageContent({
               studentId={selectedStudentId}
               classroomId={classroom.id}
             />
-          ) : isTeacher && activeTab === 'attendance' ? (
+          ) : isTeacher && activeTab === 'attendance' && attendanceDate ? (
             <LogSummary classroomId={classroom.id} date={attendanceDate} onStudentClick={handleSummaryStudentClick} />
+          ) : isTeacher && activeTab === 'attendance' ? (
+            null
           ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
             <TeacherStudentWorkPanel
               classroomId={classroom.id}
@@ -1203,6 +1425,16 @@ function ClassroomPageContent({
           )}
         </RightSidebar>
       </ThreePanelShell>
+
+      <ConfirmDialog
+        isOpen={showLeaveTestDialog}
+        title="Leave test mode?"
+        description="You are in exam mode. Leaving the test route will be logged."
+        confirmLabel="Leave test"
+        cancelLabel="Stay in test"
+        onCancel={handleLeaveTestCancel}
+        onConfirm={handleLeaveTestConfirm}
+      />
     </AppShell>
   )
 

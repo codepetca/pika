@@ -1,35 +1,90 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
-import { Button } from '@/ui'
 import { getQuizStatusBadgeClass } from '@/lib/quizzes'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
 import { StudentQuizResults } from '@/components/StudentQuizResults'
-import type { Classroom, StudentQuizView, QuizQuestion } from '@/types'
+import { ConfirmDialog } from '@/ui'
+import {
+  STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
+  STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
+} from '@/lib/events'
+import type {
+  Classroom,
+  QuizAssessmentType,
+  QuizFocusSummary,
+  QuizQuestion,
+  StudentQuizView,
+  TestResponseDraftValue,
+} from '@/types'
 
 interface Props {
   classroom: Classroom
+  assessmentType: QuizAssessmentType
+  isActive?: boolean
 }
 
-export function StudentQuizzesTab({ classroom }: Props) {
+interface RouteExitAttemptDetail {
+  classroomId?: string
+  source?: string
+  metadata?: Record<string, unknown> | null
+  dedupe?: boolean
+}
+
+function formatDuration(totalSeconds: number): string {
+  const safe = Math.max(0, Math.round(totalSeconds))
+  const minutes = Math.floor(safe / 60)
+  const seconds = safe % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+function createFocusSessionId(): string {
+  return `focus_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }: Props) {
   const notifications = useStudentNotifications()
   const [quizzes, setQuizzes] = useState<StudentQuizView[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null)
+  const [focusSummary, setFocusSummary] = useState<QuizFocusSummary | null>(null)
   const [selectedQuiz, setSelectedQuiz] = useState<{
     quiz: StudentQuizView
     questions: QuizQuestion[]
-    studentResponses: Record<string, number>
+    studentResponses: Record<string, number | TestResponseDraftValue>
   } | null>(null)
   const [loadingQuiz, setLoadingQuiz] = useState(false)
+  const [showLeaveTestConfirm, setShowLeaveTestConfirm] = useState(false)
+  const selectedQuizIdRef = useRef<string | null>(null)
+  const focusSessionIdRef = useRef<string | null>(null)
+  const awayStartedAtRef = useRef<number | null>(null)
+  const focusEnabledRef = useRef(false)
+  const lastRouteExitRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
+  const isTestsView = assessmentType === 'test'
+  const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
+  const focusEnabled = useMemo(() => {
+    if (!selectedQuiz) return false
+    const hasSubmitted = selectedQuiz.quiz.student_status !== 'not_started'
+    return isTestsView && isActive && !hasSubmitted
+  }, [isActive, isTestsView, selectedQuiz])
+
+  useEffect(() => {
+    selectedQuizIdRef.current = selectedQuizId
+  }, [selectedQuizId])
+
+  useEffect(() => {
+    focusEnabledRef.current = focusEnabled
+  }, [focusEnabled])
 
   const loadQuizzes = useCallback(async () => {
+    setLoading(true)
     try {
-      const res = await fetch(`/api/student/quizzes?classroom_id=${classroom.id}`)
+      const query = new URLSearchParams({ classroom_id: classroom.id })
+      const res = await fetch(`${apiBasePath}?${query.toString()}`)
       const data = await res.json()
       setQuizzes(data.quizzes || [])
     } catch (err) {
@@ -37,7 +92,7 @@ export function StudentQuizzesTab({ classroom }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [classroom.id])
+  }, [apiBasePath, classroom.id])
 
   useEffect(() => {
     loadQuizzes()
@@ -46,15 +101,21 @@ export function StudentQuizzesTab({ classroom }: Props) {
   async function handleSelectQuiz(quizId: string) {
     setSelectedQuizId(quizId)
     setLoadingQuiz(true)
+    focusSessionIdRef.current = createFocusSessionId()
+    awayStartedAtRef.current = null
+    lastRouteExitRef.current = null
 
     try {
-      const res = await fetch(`/api/student/quizzes/${quizId}`)
+      const res = await fetch(`${apiBasePath}/${quizId}`)
       const data = await res.json()
+      const listQuiz = quizzes.find((quiz) => quiz.id === quizId)
+      const studentStatus = data.student_status ?? data.quiz?.student_status ?? listQuiz?.student_status ?? 'not_started'
       setSelectedQuiz({
-        quiz: data.quiz,
+        quiz: { ...data.quiz, student_status: studentStatus },
         questions: data.questions || [],
         studentResponses: data.student_responses || {},
       })
+      setFocusSummary((data.focus_summary as QuizFocusSummary | null) || null)
     } catch (err) {
       console.error('Error loading quiz:', err)
     } finally {
@@ -62,19 +123,245 @@ export function StudentQuizzesTab({ classroom }: Props) {
     }
   }
 
-  function handleBack() {
+  const postFocusEvent = useCallback(async (
+    eventType: 'away_start' | 'away_end' | 'route_exit_attempt',
+    metadata?: Record<string, unknown>,
+    options?: {
+      quizId?: string | null
+      sessionId?: string | null
+      updateSummary?: boolean
+    }
+  ) => {
+    const quizId = options?.quizId ?? selectedQuizIdRef.current
+    const sessionId = options?.sessionId ?? focusSessionIdRef.current
+
+    if (!quizId || !sessionId) return
+
+    try {
+      const res = await fetch(`${apiBasePath}/${quizId}/focus-events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: eventType,
+          session_id: sessionId,
+          metadata: metadata || null,
+        }),
+        keepalive: true,
+      })
+
+      if (options?.updateSummary === false) return
+
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.focus_summary) {
+        setFocusSummary(data.focus_summary as QuizFocusSummary)
+      }
+    } catch (err) {
+      console.error('Error posting quiz focus event:', err)
+    }
+  }, [apiBasePath])
+
+  const logRouteExitAttempt = useCallback((
+    source: string,
+    metadata?: Record<string, unknown>,
+    options?: {
+      dedupe?: boolean
+      updateSummary?: boolean
+    }
+  ) => {
+    const now = Date.now()
+    if (
+      options?.dedupe &&
+      lastRouteExitRef.current &&
+      lastRouteExitRef.current.source === source &&
+      now - lastRouteExitRef.current.loggedAtMs < 1200
+    ) {
+      return
+    }
+    lastRouteExitRef.current = { source, loggedAtMs: now }
+    void postFocusEvent(
+      'route_exit_attempt',
+      {
+        source,
+        ...(metadata || {}),
+      },
+      { updateSummary: options?.updateSummary }
+    )
+  }, [postFocusEvent])
+
+  const performBackToAssessmentList = useCallback(() => {
     setSelectedQuizId(null)
     setSelectedQuiz(null)
+    setFocusSummary(null)
+    setShowLeaveTestConfirm(false)
+    focusSessionIdRef.current = null
+    awayStartedAtRef.current = null
     loadQuizzes() // Refresh list to get updated status
+  }, [loadQuizzes])
+
+  function handleBack() {
+    if (focusEnabled) {
+      logRouteExitAttempt(
+        'back_button',
+        { blocked: true },
+        { updateSummary: true }
+      )
+      setShowLeaveTestConfirm(true)
+      return
+    }
+    performBackToAssessmentList()
   }
 
   function handleQuizSubmitted() {
-    notifications?.clearActiveQuizzesCount()
+    if (isTestsView) {
+      notifications?.clearActiveTestsCount()
+    } else {
+      notifications?.clearActiveQuizzesCount()
+    }
     // Reload the quiz to get updated status
     if (selectedQuizId) {
       handleSelectQuiz(selectedQuizId)
     }
   }
+
+  function handleConfirmLeaveTest() {
+    logRouteExitAttempt(
+      'leave_test',
+      { trigger: 'detail_back' },
+      { updateSummary: false }
+    )
+    performBackToAssessmentList()
+  }
+
+  useEffect(() => {
+    if (!isTestsView) return
+
+    window.dispatchEvent(
+      new CustomEvent(STUDENT_TEST_EXAM_MODE_CHANGE_EVENT, {
+        detail: {
+          classroomId: classroom.id,
+          active: focusEnabled,
+          testId: focusEnabled ? selectedQuizIdRef.current : null,
+        },
+      })
+    )
+
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent(STUDENT_TEST_EXAM_MODE_CHANGE_EVENT, {
+          detail: {
+            classroomId: classroom.id,
+            active: false,
+            testId: null,
+          },
+        })
+      )
+    }
+  }, [classroom.id, focusEnabled, isTestsView])
+
+  useEffect(() => {
+    if (!isTestsView) return
+
+    const handleRouteExitAttemptEvent = (event: Event) => {
+      if (!focusEnabledRef.current) return
+      const detail = (event as CustomEvent<RouteExitAttemptDetail>).detail
+      if (detail?.classroomId && detail.classroomId !== classroom.id) return
+      logRouteExitAttempt(
+        detail?.source || 'in_app_navigation',
+        detail?.metadata || undefined,
+        { dedupe: detail?.dedupe === true }
+      )
+    }
+
+    window.addEventListener(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, handleRouteExitAttemptEvent)
+    return () => {
+      window.removeEventListener(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, handleRouteExitAttemptEvent)
+    }
+  }, [classroom.id, isTestsView, logRouteExitAttempt])
+
+  useEffect(() => {
+    if (!focusEnabled) return
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      logRouteExitAttempt(
+        'beforeunload',
+        { blocked: true },
+        { dedupe: true, updateSummary: false }
+      )
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    const handlePageHide = () => {
+      logRouteExitAttempt(
+        'pagehide',
+        undefined,
+        { dedupe: true, updateSummary: false }
+      )
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    window.addEventListener('pagehide', handlePageHide)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      window.removeEventListener('pagehide', handlePageHide)
+    }
+  }, [focusEnabled, logRouteExitAttempt])
+
+  useEffect(() => {
+    if (!focusEnabled) return
+
+    const startAway = (source: 'visibility' | 'blur') => {
+      if (awayStartedAtRef.current !== null) return
+      awayStartedAtRef.current = Date.now()
+      void postFocusEvent('away_start', { source })
+    }
+
+    const endAway = (source: 'visibility' | 'focus') => {
+      if (awayStartedAtRef.current === null) return
+      const durationSeconds = Math.max(
+        0,
+        Math.round((Date.now() - awayStartedAtRef.current) / 1000)
+      )
+      awayStartedAtRef.current = null
+      void postFocusEvent('away_end', { source, duration_seconds: durationSeconds })
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        startAway('visibility')
+      } else if (document.visibilityState === 'visible') {
+        endAway('visibility')
+      }
+    }
+
+    const handleBlur = () => startAway('blur')
+    const handleFocus = () => endAway('focus')
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('blur', handleBlur)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('blur', handleBlur)
+      window.removeEventListener('focus', handleFocus)
+      if (awayStartedAtRef.current !== null) {
+        awayStartedAtRef.current = null
+        void postFocusEvent('away_end', { source: 'cleanup' })
+      }
+    }
+  }, [focusEnabled, postFocusEvent])
+
+  useEffect(() => {
+    return () => {
+      if (!focusEnabledRef.current) return
+      logRouteExitAttempt(
+        'component_unmount',
+        undefined,
+        { dedupe: true, updateSummary: false }
+      )
+    }
+  }, [logRouteExitAttempt])
 
   if (loading) {
     return (
@@ -95,7 +382,10 @@ export function StudentQuizzesTab({ classroom }: Props) {
 
   // Quiz Detail View
   if (selectedQuizId && selectedQuiz) {
-    const hasResponded = Object.keys(selectedQuiz.studentResponses).length > 0
+    const hasResponded = selectedQuiz.quiz.student_status !== 'not_started'
+    const isTest = isTestsView
+    const assessmentLabel = isTest ? 'test' : 'quiz'
+    const assessmentLabelPlural = isTest ? 'tests' : 'quizzes'
 
     return (
       <PageLayout>
@@ -107,26 +397,37 @@ export function StudentQuizzesTab({ classroom }: Props) {
               className="flex items-center gap-1 text-sm text-text-muted hover:text-text-default mb-4"
             >
               <ChevronLeft className="h-4 w-4" />
-              Back to quizzes
+              Back to {assessmentLabelPlural}
             </button>
 
             <h2 className="text-xl font-bold text-text-default mb-1">{selectedQuiz.quiz.title}</h2>
+            {isTest && (
+              <p className="mb-4 text-sm text-text-muted">
+                Focus events: {focusSummary?.away_count ?? 0} · Away time:{' '}
+                {formatDuration(focusSummary?.away_total_seconds ?? 0)}
+                {(focusSummary?.route_exit_attempts ?? 0) > 0
+                  ? ` · Exit attempts: ${focusSummary?.route_exit_attempts ?? 0}`
+                  : ''}
+              </p>
+            )}
 
             {hasResponded && selectedQuiz.quiz.show_results && selectedQuiz.quiz.status === 'closed' ? (
               <StudentQuizResults
                 quizId={selectedQuizId}
                 myResponses={selectedQuiz.studentResponses}
+                assessmentType={assessmentType}
+                apiBasePath={apiBasePath}
               />
             ) : hasResponded ? (
               <div className="mt-6 p-4 bg-success-bg rounded-lg text-center">
                 <p className="text-success font-medium">You have submitted your response.</p>
                 {selectedQuiz.quiz.status !== 'closed' && selectedQuiz.quiz.show_results ? (
                   <p className="text-sm text-text-muted mt-1">
-                    Results will be available after the quiz closes.
+                    Results will be available after the {assessmentLabel} closes.
                   </p>
                 ) : selectedQuiz.quiz.status === 'closed' && !selectedQuiz.quiz.show_results ? (
                   <p className="text-sm text-text-muted mt-1">
-                    Results are not available for this quiz.
+                    Results are not available for this {assessmentLabel}.
                   </p>
                 ) : (
                   <p className="text-sm text-text-muted mt-1">
@@ -138,9 +439,23 @@ export function StudentQuizzesTab({ classroom }: Props) {
               <StudentQuizForm
                 quizId={selectedQuizId}
                 questions={selectedQuiz.questions}
+                initialResponses={selectedQuiz.studentResponses}
+                enableDraftAutosave={isTestsView}
+                assessmentType={assessmentType}
+                apiBasePath={apiBasePath}
                 onSubmitted={handleQuizSubmitted}
               />
             )}
+
+            <ConfirmDialog
+              isOpen={showLeaveTestConfirm}
+              title="Leave this test?"
+              description="You are in exam mode. Leaving this test will be logged."
+              confirmLabel="Leave test"
+              cancelLabel="Stay in test"
+              onCancel={() => setShowLeaveTestConfirm(false)}
+              onConfirm={handleConfirmLeaveTest}
+            />
           </div>
         </PageContent>
       </PageLayout>
@@ -152,10 +467,10 @@ export function StudentQuizzesTab({ classroom }: Props) {
     <PageLayout>
       <PageContent>
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-xl font-bold text-text-default mb-4">Quizzes</h2>
-
           {quizzes.length === 0 ? (
-            <p className="text-text-muted text-center py-8">No quizzes available.</p>
+            <p className="text-text-muted text-center py-8">
+              No {assessmentType === 'test' ? 'tests' : 'quizzes'} available.
+            </p>
           ) : (
             <div className="space-y-3">
               {quizzes.map((quiz) => (
@@ -184,7 +499,9 @@ export function StudentQuizzesTab({ classroom }: Props) {
                     )}
                   </div>
                   {quiz.status === 'closed' && (
-                    <p className="text-xs text-text-muted mt-1">This quiz is closed</p>
+                    <p className="text-xs text-text-muted mt-1">
+                      This {isTestsView ? 'test' : 'quiz'} is closed
+                    </p>
                   )}
                 </button>
               ))}

@@ -24,6 +24,8 @@ interface AppHeaderProps {
   currentClassroomId?: string
   currentTab?: string
   onOpenSidebar?: () => void
+  onNavigateHome?: (href: string) => boolean
+  onNavigateClassroom?: (href: string) => boolean
 }
 
 /**
@@ -35,6 +37,8 @@ export function AppHeader({
   currentClassroomId,
   currentTab,
   onOpenSidebar,
+  onNavigateHome,
+  onNavigateClassroom,
 }: AppHeaderProps) {
   const [now, setNow] = useState(() => new Date())
 
@@ -63,7 +67,17 @@ export function AppHeader({
 
         {/* Logo - click to return to classrooms index */}
         <Tooltip content="Home">
-          <Link href="/classrooms" aria-label="Home" className="flex-shrink-0">
+          <Link
+            href="/classrooms"
+            aria-label="Home"
+            className="flex-shrink-0"
+            onClick={(event) => {
+              const allow = onNavigateHome?.('/classrooms')
+              if (allow === false) {
+                event.preventDefault()
+              }
+            }}
+          >
             <PikaLogo className="w-8 h-8" />
           </Link>
         </Tooltip>
@@ -75,6 +89,7 @@ export function AppHeader({
             classrooms={classrooms}
             currentClassroomId={currentClassroomId}
             currentTab={currentTab}
+            onBeforeNavigate={onNavigateClassroom}
           />
         )}
       </div>

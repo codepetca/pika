@@ -31,11 +31,11 @@ describe('QuizResultsView', () => {
     expect(screen.getByText('No responses yet.')).toBeInTheDocument()
   })
 
-  it('renders question text with numbers', () => {
+  it('renders question text', () => {
     render(<QuizResultsView results={sampleResults} />)
 
-    expect(screen.getByText('Q1. What is the capital of France?')).toBeInTheDocument()
-    expect(screen.getByText('Q2. Which planet is closest to the sun?')).toBeInTheDocument()
+    expect(screen.getByText('What is the capital of France?')).toBeInTheDocument()
+    expect(screen.getByText('Which planet is closest to the sun?')).toBeInTheDocument()
   })
 
   it('renders all options for each question', () => {

@@ -2,17 +2,27 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Button, DialogPanel, FormField, Input } from '@/ui'
-import type { Quiz } from '@/types'
+import type { Quiz, QuizAssessmentType } from '@/types'
 
 interface QuizModalProps {
   isOpen: boolean
   classroomId: string
+  assessmentType?: QuizAssessmentType
+  apiBasePath?: string
   quiz?: Quiz | null
   onClose: () => void
   onSuccess: (quiz: Quiz) => void
 }
 
-export function QuizModal({ isOpen, classroomId, quiz, onClose, onSuccess }: QuizModalProps) {
+export function QuizModal({
+  isOpen,
+  classroomId,
+  assessmentType = 'quiz',
+  apiBasePath = '/api/teacher/quizzes',
+  quiz,
+  onClose,
+  onSuccess,
+}: QuizModalProps) {
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState('')
   const [showResults, setShowResults] = useState(false)
@@ -54,7 +64,7 @@ export function QuizModal({ isOpen, classroomId, quiz, onClose, onSuccess }: Qui
 
     try {
       if (isEditMode) {
-        const response = await fetch(`/api/teacher/quizzes/${quiz.id}`, {
+        const response = await fetch(`${apiBasePath}/${quiz.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: title.trim(), show_results: showResults }),
@@ -65,10 +75,14 @@ export function QuizModal({ isOpen, classroomId, quiz, onClose, onSuccess }: Qui
         }
         onSuccess(data.quiz)
       } else {
-        const response = await fetch('/api/teacher/quizzes', {
+        const response = await fetch(apiBasePath, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ classroom_id: classroomId, title: title.trim() }),
+          body: JSON.stringify({
+            classroom_id: classroomId,
+            title: title.trim(),
+            assessment_type: assessmentType,
+          }),
         })
         const data = await response.json()
         if (!response.ok) {
@@ -93,7 +107,13 @@ export function QuizModal({ isOpen, classroomId, quiz, onClose, onSuccess }: Qui
       ariaLabelledBy="quiz-modal-title"
     >
       <h2 id="quiz-modal-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">
-        {isEditMode ? 'Edit Quiz' : 'New Quiz'}
+        {isEditMode
+          ? quiz.assessment_type === 'test'
+            ? 'Edit Test'
+            : 'Edit Quiz'
+          : assessmentType === 'test'
+            ? 'New Test'
+            : 'New Quiz'}
       </h2>
 
       <form onSubmit={handleSubmit} className="space-y-4 flex-1 min-h-0 overflow-y-auto">

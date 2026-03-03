@@ -6,10 +6,11 @@ import {
   CircleHelp,
   ClipboardCheck,
   ClipboardList,
-  Percent,
+  LibraryBig,
+  FileCheck,
   Settings,
   PenSquare,
-  StickyNote,
+  SquarePercent,
   Users,
   ChevronDown,
   type LucideIcon,
@@ -33,6 +34,7 @@ export type ClassroomNavItemId =
   | 'gradebook'
   | 'assignments'
   | 'quizzes'
+  | 'tests'
   | 'calendar'
   | 'resources'
   | 'roster'
@@ -59,9 +61,10 @@ const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
-  { id: 'gradebook', label: 'Gradebook', icon: Percent },
+  { id: 'tests', label: 'Tests', icon: FileCheck },
+  { id: 'gradebook', label: 'Gradebook', icon: SquarePercent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Resources', icon: StickyNote },
+  { id: 'resources', label: 'Resources', icon: LibraryBig },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -70,8 +73,9 @@ const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
+  { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Resources', icon: StickyNote },
+  { id: 'resources', label: 'Resources', icon: LibraryBig },
 ]
 
 // ============================================================================
@@ -84,6 +88,26 @@ function getItems(role: 'student' | 'teacher') {
 
 function tabHref(classroomId: string, tabId: ClassroomNavItemId) {
   return `/classrooms/${classroomId}?tab=${encodeURIComponent(tabId)}`
+}
+
+type NavIconWithDotProps = {
+  Icon: LucideIcon
+  showDot: boolean
+}
+
+function NavIconWithDot({ Icon, showDot }: NavIconWithDotProps) {
+  return (
+    <span className="relative inline-flex h-6 w-6 flex-shrink-0 items-center justify-center">
+      <Icon className="h-6 w-6" aria-hidden="true" />
+      {showDot && (
+        <span
+          aria-hidden="true"
+          data-new-activity-dot="true"
+          className="pointer-events-none absolute left-0 top-0 h-2.5 w-2.5 -translate-x-1/4 -translate-y-1/4 rounded-full bg-primary ring-2 ring-surface"
+        />
+      )}
+    </span>
+  )
 }
 
 // ============================================================================
@@ -126,6 +150,10 @@ export function NavItems({
     role === 'student' &&
     !notifications?.loading &&
     (notifications?.activeQuizzesCount ?? 0) > 0
+  const showTestsPulse =
+    role === 'student' &&
+    !notifications?.loading &&
+    (notifications?.activeTestsCount ?? 0) > 0
   const showResourcesPulse =
     role === 'student' &&
     !notifications?.loading &&
@@ -291,6 +319,9 @@ export function NavItems({
         // Student assignments with nested list (always shown)
         if (role === 'student' && item.id === 'assignments') {
           const canShowNested = isExpanded
+          const assignmentsAriaLabel = showAssignmentsPulse
+            ? `${item.label} (new activity)`
+            : item.label
 
           const studentAssignmentsLink = (
               <a
@@ -304,7 +335,7 @@ export function NavItems({
                 onMouseEnter={() => handleTabIntent('assignments')}
                 onFocus={() => handleTabIntent('assignments')}
                 aria-current={isActive ? 'page' : undefined}
-                aria-label={item.label}
+                aria-label={assignmentsAriaLabel}
                 className={[
                   'group flex items-center rounded-md text-base font-medium transition-colors',
                   layoutClass,
@@ -313,16 +344,7 @@ export function NavItems({
                     : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
                 ].join(' ')}
               >
-                <Icon
-                  className={[
-                    'h-6 w-6 flex-shrink-0',
-                    showAssignmentsPulse &&
-                      'animate-notification-pulse motion-reduce:animate-none',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  aria-hidden="true"
-                />
+                <NavIconWithDot Icon={Icon} showDot={showAssignmentsPulse} />
                 {isExpanded && <span className="truncate">{item.label}</span>}
                 {!isExpanded && <span className="sr-only">{item.label}</span>}
               </a>
@@ -464,7 +486,9 @@ export function NavItems({
           (item.id === 'today' && showTodayPulse) ||
           (item.id === 'assignments' && showAssignmentsPulse) ||
           (item.id === 'quizzes' && showQuizzesPulse) ||
+          (item.id === 'tests' && showTestsPulse) ||
           (item.id === 'resources' && showResourcesPulse)
+        const ariaLabel = shouldPulse ? `${item.label} (new activity)` : item.label
 
         const navLink = (
           <a
@@ -477,7 +501,7 @@ export function NavItems({
             onMouseEnter={() => handleTabIntent(item.id)}
             onFocus={() => handleTabIntent(item.id)}
             aria-current={isActive ? 'page' : undefined}
-            aria-label={item.label}
+            aria-label={ariaLabel}
             className={[
               'group flex items-center rounded-md text-base font-medium transition-colors',
               layoutClass,
@@ -486,15 +510,7 @@ export function NavItems({
                 : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
             ].join(' ')}
           >
-            <Icon
-              className={[
-                'h-6 w-6 flex-shrink-0',
-                shouldPulse && 'animate-notification-pulse motion-reduce:animate-none',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              aria-hidden="true"
-            />
+            <NavIconWithDot Icon={Icon} showDot={shouldPulse} />
             {isExpanded && <span className="truncate">{item.label}</span>}
             {!isExpanded && <span className="sr-only">{item.label}</span>}
           </a>

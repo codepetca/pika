@@ -36,13 +36,6 @@ export async function POST(
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
-    if (access.quiz.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Cannot reorder questions on a quiz that is not in draft status' },
-        { status: 400 }
-      )
-    }
-
     const supabase = getServiceRoleClient()
 
     // Fetch ALL questions for this quiz to ensure complete set
@@ -61,12 +54,17 @@ export async function POST(
       return NextResponse.json({ error: 'question_ids must include all questions in the quiz' }, { status: 400 })
     }
 
-    const updates = uniqueIds.map((id, index) => ({ id, position: index }))
-    const { error: updateError } = await supabase.from('quiz_questions').upsert(updates, { onConflict: 'id' })
+    for (const [position, id] of uniqueIds.entries()) {
+      const { error: updateError } = await supabase
+        .from('quiz_questions')
+        .update({ position })
+        .eq('quiz_id', quizId)
+        .eq('id', id)
 
-    if (updateError) {
-      console.error('Error reordering questions:', updateError)
-      return NextResponse.json({ error: 'Failed to reorder questions' }, { status: 500 })
+      if (updateError) {
+        console.error('Error reordering questions:', updateError)
+        return NextResponse.json({ error: 'Failed to reorder questions' }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ success: true })
