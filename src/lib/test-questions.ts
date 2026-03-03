@@ -135,7 +135,14 @@ export function validateTestQuestionUpdate(
   input: Record<string, unknown>,
   current: TestQuestionDraft
 ): ValidationResult {
-  const nextType = normalizeQuestionType(input.question_type ?? current.question_type)
+  if (input.question_type !== undefined) {
+    const requestedType = normalizeQuestionType(input.question_type)
+    if (requestedType !== current.question_type) {
+      return { valid: false, error: 'Question type cannot be changed after creation' }
+    }
+  }
+
+  const nextType = current.question_type
   const nextText = normalizeQuestionText(input.question_text ?? current.question_text)
   if (!nextText) {
     return { valid: false, error: 'Question text cannot be empty' }

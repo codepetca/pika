@@ -16,9 +16,17 @@ interface QuestionMarkdownProps {
   className?: string
 }
 
-function findNextInlineToken(text: string) {
+type InlineTokenType = 'code' | 'link' | 'bold' | 'italic'
+type InlineToken = {
+  type: InlineTokenType
+  index: number
+  match: RegExpExecArray
+  rank: number
+}
+
+function findNextInlineToken(text: string): InlineToken | null {
   const patterns: Array<{
-    type: 'code' | 'link' | 'bold' | 'italic'
+    type: InlineTokenType
     regex: RegExp
   }> = [
     { type: 'code', regex: /`([^`\n]+?)`/ },
@@ -27,14 +35,7 @@ function findNextInlineToken(text: string) {
     { type: 'italic', regex: /\*([^*\n]+?)\*/ },
   ]
 
-  let best:
-    | {
-        type: 'code' | 'link' | 'bold' | 'italic'
-        index: number
-        match: RegExpExecArray
-        rank: number
-      }
-    | null = null
+  let best: InlineToken | null = null
 
   patterns.forEach(({ type, regex }, rank) => {
     const match = regex.exec(text)
@@ -63,9 +64,9 @@ function parseInline(text: string, keyPrefix: string, depth = 0): ReactNode[] {
       break
     }
 
-    const { index, match, type } = token
-    if (index > 0) {
-      nodes.push(remaining.slice(0, index))
+    const { index: matchIndex, match, type } = token
+    if (matchIndex > 0) {
+      nodes.push(remaining.slice(0, matchIndex))
     }
 
     const fullMatch = match[0]
@@ -118,7 +119,7 @@ function parseInline(text: string, keyPrefix: string, depth = 0): ReactNode[] {
       )
     }
 
-    remaining = remaining.slice(index + fullMatch.length)
+    remaining = remaining.slice(matchIndex + fullMatch.length)
   }
 
   return nodes

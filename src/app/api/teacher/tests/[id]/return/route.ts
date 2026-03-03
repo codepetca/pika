@@ -29,11 +29,13 @@ export async function POST(
       return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })
     }
 
-    const studentIds = [...new Set(
-      body.student_ids
-        .map((value: unknown) => (typeof value === 'string' ? value : ''))
-        .filter(Boolean)
-    )]
+    const studentIds: string[] = Array.from(
+      new Set(
+        body.student_ids
+          .filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0)
+          .map((value: string) => value.trim())
+      )
+    )
 
     if (studentIds.length === 0) {
       return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })

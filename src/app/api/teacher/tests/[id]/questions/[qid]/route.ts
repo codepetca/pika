@@ -54,7 +54,6 @@ export async function PATCH(
 
     const nextQuestion = validation.value
     const updates: Record<string, any> = {}
-    if (nextQuestion.question_type !== currentQuestion.question_type) updates.question_type = nextQuestion.question_type
     if (nextQuestion.question_text !== currentQuestion.question_text) updates.question_text = nextQuestion.question_text
     if (JSON.stringify(nextQuestion.options) !== JSON.stringify(currentQuestion.options)) updates.options = nextQuestion.options
     if (nextQuestion.correct_option !== currentQuestion.correct_option) updates.correct_option = nextQuestion.correct_option

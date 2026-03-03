@@ -23,11 +23,13 @@ export async function POST(
       return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })
     }
 
-    const studentIds = [...new Set(
-      body.student_ids
-        .map((value: unknown) => (typeof value === 'string' ? value : ''))
-        .filter(Boolean)
-    )]
+    const studentIds: string[] = Array.from(
+      new Set(
+        body.student_ids
+          .filter((value: unknown): value is string => typeof value === 'string' && value.trim().length > 0)
+          .map((value: string) => value.trim())
+      )
+    )
 
     if (studentIds.length === 0) {
       return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })
@@ -40,6 +42,7 @@ export async function POST(
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
+    const testTitle = access.test.title
 
     const supabase = getServiceRoleClient()
     const { data: openQuestionRows, error: openQuestionError } = await supabase
@@ -93,6 +96,9 @@ export async function POST(
 
     const tasksByStudent = new Map<string, GradeTask[]>()
     for (const row of responses || []) {
+      const studentId = typeof row.student_id === 'string' ? row.student_id : null
+      if (!studentId) continue
+
       const question = Array.isArray(row.test_questions)
         ? row.test_questions[0]
         : row.test_questions
@@ -103,15 +109,15 @@ export async function POST(
 
       const task: GradeTask = {
         responseId: row.id,
-        studentId: row.student_id,
+        studentId,
         questionText: String(question.question_text || ''),
         responseText,
         maxPoints: Number(question.points ?? 0),
       }
 
-      const current = tasksByStudent.get(row.student_id) || []
+      const current = tasksByStudent.get(studentId) || []
       current.push(task)
-      tasksByStudent.set(row.student_id, current)
+      tasksByStudent.set(studentId, current)
     }
 
     const queue: GradeTask[] = []
@@ -135,7 +141,7 @@ export async function POST(
 
         try {
           const suggestion = await suggestTestOpenResponseGrade({
-            testTitle: access.test.title,
+            testTitle,
             questionText: task.questionText,
             responseText: task.responseText,
             maxPoints: task.maxPoints,
