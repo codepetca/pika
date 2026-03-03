@@ -2633,3 +2633,21 @@
 **Validation:**
 - `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx` passed (5 tests)
 - `pnpm lint` passed
+
+---
+## 2026-03-03 [AI - GPT-5 Codex]
+**Goal:** Swap classroom nav icons: use `LibraryBig` for Resources and `BookA` for Gradebook.
+**Completed:**
+- Updated `src/components/layout/NavItems.tsx` icon imports and mappings.
+- Replaced `StickyNote` with `LibraryBig` for the Resources tab (teacher + student sidebars).
+- Replaced `Percent` with `BookA` for the Gradebook tab (teacher sidebar).
+- Performed mandatory visual verification with Playwright screenshots for both teacher and student classroom views.
+**Status:** completed
+**Artifacts:**
+- Branch: `codex/resources-gradebook-icons`
+- Worktree: `/Users/stew/Repos/.worktrees/pika/codex-resources-gradebook-icons`
+- Screenshots: `/tmp/pika-icons-teacher-classroom.png`, `/tmp/pika-icons-student-classroom.png`
+- Key file: `src/components/layout/NavItems.tsx`
+**Validation:**
+- `pnpm lint` passed
+- `E2E_BASE_URL=http://localhost:3004 pnpm e2e:auth` passed
