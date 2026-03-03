@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Calendar,
+  BookA,
   CircleHelp,
   ClipboardCheck,
   ClipboardList,
-  Percent,
+  LibraryBig,
   Settings,
   PenSquare,
-  StickyNote,
   Users,
   ChevronDown,
   type LucideIcon,
@@ -59,9 +59,9 @@ const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
-  { id: 'gradebook', label: 'Gradebook', icon: Percent },
+  { id: 'gradebook', label: 'Gradebook', icon: BookA },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Resources', icon: StickyNote },
+  { id: 'resources', label: 'Resources', icon: LibraryBig },
   { id: 'roster', label: 'Roster', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -71,7 +71,7 @@ const studentItems: NavItem[] = [
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'resources', label: 'Resources', icon: StickyNote },
+  { id: 'resources', label: 'Resources', icon: LibraryBig },
 ]
 
 // ============================================================================
