@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, ConfirmDialog } from '@/ui'
+import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import {
   DEFAULT_OPEN_RESPONSE_MAX_CHARS,
   normalizeTestResponses,
   type TestResponses,
 } from '@/lib/test-attempts'
+import { applyTextareaIndent } from '@/lib/textarea-indent'
 import type { QuizAssessmentType, QuizQuestion, TestResponseDraftValue } from '@/types'
 
 interface Props {
@@ -60,7 +62,6 @@ export function StudentQuizForm({
     }
     return response.question_type === 'multiple_choice'
   })
-
   useEffect(() => {
     const normalized = normalizeTestResponses(initialResponses)
     setResponses(normalized)
@@ -202,6 +203,36 @@ export function StudentQuizForm({
     })
   }
 
+  function handleOpenResponseTabKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+    questionId: string,
+    maxChars: number
+  ) {
+    if (event.key !== 'Tab') return
+    event.preventDefault()
+
+    const target = event.currentTarget
+    const next = applyTextareaIndent({
+      value: target.value,
+      selectionStart: target.selectionStart,
+      selectionEnd: target.selectionEnd,
+      shiftKey: event.shiftKey,
+    })
+
+    if (!next.changed) return
+
+    const limitedValue = next.value.slice(0, maxChars)
+    const limitedSelectionStart = Math.min(next.selectionStart, limitedValue.length)
+    const limitedSelectionEnd = Math.min(next.selectionEnd, limitedValue.length)
+
+    handleOpenResponseChange(questionId, limitedValue, maxChars)
+
+    requestAnimationFrame(() => {
+      target.selectionStart = limitedSelectionStart
+      target.selectionEnd = limitedSelectionEnd
+    })
+  }
+
   async function handleSubmit() {
     setSubmitting(true)
     setError('')
@@ -244,10 +275,13 @@ export function StudentQuizForm({
 
             return (
               <>
-                <p className="font-medium text-text-default">
-                  {index + 1}. {question.question_text}
-                  {isTestMode && typeof question.points === 'number' ? ` (${question.points} pts)` : ''}
-                </p>
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    Q{index + 1}
+                    {isTestMode && typeof question.points === 'number' ? ` · ${question.points} pts` : ''}
+                  </p>
+                  <QuestionMarkdown content={question.question_text} />
+                </div>
                 {question.question_type === 'open_response' ? (
                   <div className="space-y-2">
                     <textarea
@@ -259,16 +293,21 @@ export function StudentQuizForm({
                           Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)
                         )
                       }
+                      onKeyDown={(event) =>
+                        handleOpenResponseTabKeyDown(
+                          event,
+                          question.id,
+                          Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)
+                        )
+                      }
                       rows={6}
                       maxLength={Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)}
-                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                      className={`w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary ${
+                        question.response_monospace ? 'font-mono leading-6' : ''
+                      }`}
+                      style={question.response_monospace ? { tabSize: 4 } : undefined}
                       placeholder="Write your response..."
                     />
-                    <p className="text-xs text-text-muted text-right">
-                      {openResponseText.length}
-                      {' / '}
-                      {Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)} characters
-                    </p>
                   </div>
                 ) : (
                   <div className="space-y-2">

@@ -10,8 +10,6 @@ export type TestAccessRecord = {
   position: number
   points_possible: number
   include_in_final: boolean
-  grading_finalized_at: string | null
-  grading_finalized_by: string | null
   created_by: string
   created_at: string
   updated_at: string
@@ -25,6 +23,18 @@ export type TestAccessRecord = {
 type AccessResult<T> =
   | { ok: true; test: T }
   | { ok: false; status: number; error: string }
+
+export function isMissingTestAttemptReturnColumnsError(error: {
+  code?: string
+  message?: string
+  details?: string
+  hint?: string
+} | null | undefined): boolean {
+  if (!error) return false
+  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  if (!combined.includes('returned_at') && !combined.includes('returned_by')) return false
+  return error.code === '42703' || error.code === 'PGRST204' || combined.includes('column')
+}
 
 export async function assertTeacherOwnsTest(
   teacherId: string,

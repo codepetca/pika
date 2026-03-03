@@ -12,6 +12,7 @@ export type TestQuestionDraft = {
   correct_option: number | null
   points: number
   response_max_chars: number
+  response_monospace: boolean
 }
 
 type ValidationResult =
@@ -40,6 +41,11 @@ function normalizeQuestionText(input: unknown): string | null {
   if (typeof input !== 'string') return null
   const trimmed = input.trim()
   return trimmed ? trimmed : null
+}
+
+function normalizeResponseMonospace(input: unknown, fallback = false): boolean {
+  if (typeof input === 'boolean') return input
+  return fallback
 }
 
 function normalizeOptions(input: unknown): string[] | null {
@@ -76,6 +82,7 @@ export function validateTestQuestionCreate(input: Record<string, unknown>): Vali
   }
 
   if (questionType === 'open_response') {
+    const responseMonospace = normalizeResponseMonospace(input.response_monospace, false)
     return {
       valid: true,
       value: {
@@ -85,6 +92,7 @@ export function validateTestQuestionCreate(input: Record<string, unknown>): Vali
         correct_option: null,
         points,
         response_max_chars: responseMaxChars,
+        response_monospace: responseMonospace,
       },
     }
   }
@@ -118,6 +126,7 @@ export function validateTestQuestionCreate(input: Record<string, unknown>): Vali
       correct_option: correctOption,
       points,
       response_max_chars: responseMaxChars,
+      response_monospace: false,
     },
   }
 }
@@ -143,6 +152,10 @@ export function validateTestQuestionUpdate(
   }
 
   if (nextType === 'open_response') {
+    const nextMonospace = normalizeResponseMonospace(
+      input.response_monospace,
+      current.response_monospace
+    )
     return {
       valid: true,
       value: {
@@ -152,6 +165,7 @@ export function validateTestQuestionUpdate(
         correct_option: null,
         points: nextPoints,
         response_max_chars: nextMaxChars,
+        response_monospace: nextMonospace,
       },
     }
   }
@@ -194,6 +208,7 @@ export function validateTestQuestionUpdate(
       correct_option: nextCorrectOption,
       points: nextPoints,
       response_max_chars: nextMaxChars,
+      response_monospace: false,
     },
   }
 }
@@ -201,4 +216,3 @@ export function validateTestQuestionUpdate(
 export function isOpenResponseQuestion(question: { question_type?: TestQuestionType | null }): boolean {
   return question.question_type === 'open_response'
 }
-

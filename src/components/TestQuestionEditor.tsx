@@ -5,10 +5,8 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Plus, Trash2 } from 'lucide-react'
 import { Button, Input } from '@/ui'
-import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
+import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import {
-  DEFAULT_OPEN_RESPONSE_POINTS,
-  DEFAULT_MULTIPLE_CHOICE_POINTS,
   defaultPointsForQuestionType,
 } from '@/lib/test-questions'
 import { MAX_QUIZ_OPTIONS } from '@/lib/quizzes'
@@ -29,7 +27,7 @@ type LocalQuestionState = {
   options: string[]
   correct_option: number
   points: string
-  response_max_chars: string
+  response_monospace: boolean
 }
 
 function toLocalState(question: QuizQuestion): LocalQuestionState {
@@ -43,7 +41,7 @@ function toLocalState(question: QuizQuestion): LocalQuestionState {
         ? question.correct_option
         : 0,
     points: String(question.points ?? defaultPointsForQuestionType(questionType)),
-    response_max_chars: String(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS),
+    response_monospace: questionType === 'open_response' && question.response_monospace === true,
   }
 }
 
@@ -53,7 +51,6 @@ function normalizeForComparison(state: LocalQuestionState) {
     question_text: state.question_text.trim(),
     options: state.options.map((option) => option.trim()),
     points: Number(state.points),
-    response_max_chars: Number(state.response_max_chars),
   }
 }
 
@@ -119,25 +116,6 @@ export function TestQuestionEditor({
     })
   }
 
-  function handleQuestionTypeChange(nextType: TestQuestionType) {
-    setState((prev) => ({
-      ...prev,
-      question_type: nextType,
-      points: String(defaultPointsForQuestionType(nextType)),
-      options:
-        nextType === 'open_response'
-          ? []
-          : prev.options.length >= 2
-            ? prev.options
-            : ['Option 1', 'Option 2'],
-      correct_option: 0,
-      response_max_chars:
-        nextType === 'open_response'
-          ? prev.response_max_chars || String(DEFAULT_OPEN_RESPONSE_MAX_CHARS)
-          : prev.response_max_chars || String(DEFAULT_OPEN_RESPONSE_MAX_CHARS),
-    }))
-  }
-
   async function handleSave() {
     if (!isEditable || saving) return
 
@@ -150,12 +128,6 @@ export function TestQuestionEditor({
     const points = Number(state.points)
     if (!Number.isFinite(points) || points <= 0) {
       setError('Points must be greater than 0')
-      return
-    }
-
-    const responseMaxChars = Number(state.response_max_chars)
-    if (!Number.isInteger(responseMaxChars) || responseMaxChars < 1 || responseMaxChars > 20000) {
-      setError('Character limit must be between 1 and 20000')
       return
     }
 
@@ -189,7 +161,7 @@ export function TestQuestionEditor({
               question_type: 'open_response',
               question_text: questionText,
               points,
-              response_max_chars: responseMaxChars,
+              response_monospace: state.response_monospace,
             }
           : {
               question_type: 'multiple_choice',
@@ -197,7 +169,7 @@ export function TestQuestionEditor({
               options: state.options.map((option) => option.trim()),
               correct_option: state.correct_option,
               points,
-              response_max_chars: responseMaxChars,
+              response_monospace: false,
             }
 
       const res = await fetch(`${apiBasePath}/${testId}/questions/${question.id}`, {
@@ -260,32 +232,27 @@ export function TestQuestionEditor({
         <div className="flex-1 space-y-3">
           {isEditable ? (
             <>
-              <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_180px_120px]">
-                <Input
-                  type="text"
+              <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_max-content] md:items-start">
+                <textarea
                   value={state.question_text}
                   onChange={(event) => updateState({ question_text: event.target.value })}
                   placeholder="Question prompt"
                   disabled={saving}
+                  rows={3}
+                  className="w-full min-h-[88px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
                 />
-                <select
-                  value={state.question_type}
-                  onChange={(event) => handleQuestionTypeChange(event.target.value as TestQuestionType)}
-                  disabled={saving}
-                  className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="multiple_choice">Multiple choice</option>
-                  <option value="open_response">Open response</option>
-                </select>
-                <Input
-                  type="number"
-                  min="0.01"
-                  step="0.25"
-                  value={state.points}
-                  onChange={(event) => updateState({ points: event.target.value })}
-                  placeholder="Points"
-                  disabled={saving}
-                />
+                <div className="w-[7ch] space-y-1">
+                  <label className="block text-[11px] leading-none text-text-muted">Points</label>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.25"
+                    value={state.points}
+                    onChange={(event) => updateState({ points: event.target.value })}
+                    disabled={saving}
+                    className="h-9 w-full px-2 text-sm"
+                  />
+                </div>
               </div>
 
               {state.question_type === 'multiple_choice' ? (
@@ -330,26 +297,20 @@ export function TestQuestionEditor({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    max="20000"
-                    step="1"
-                    value={state.response_max_chars}
-                    onChange={(event) => updateState({ response_max_chars: event.target.value })}
-                    placeholder="Character limit"
-                    disabled={saving}
-                  />
-                  <p className="text-xs text-text-muted">
-                    Student answers are plain text for now (code editor can be added later).
-                  </p>
+                  <label className="inline-flex items-center gap-2 text-xs text-text-muted">
+                    <input
+                      type="checkbox"
+                      checked={state.response_monospace}
+                      onChange={(event) => updateState({ response_monospace: event.target.checked })}
+                      disabled={saving}
+                      className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
+                    />
+                    Monospace input
+                  </label>
                 </div>
               )}
 
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-text-muted">
-                  Defaults: MC {DEFAULT_MULTIPLE_CHOICE_POINTS} pt, open {DEFAULT_OPEN_RESPONSE_POINTS} pts.
-                </p>
+              <div className="flex items-center justify-end">
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={!isDirty || saving}>
                     {saving ? 'Saving...' : 'Save'}
@@ -362,9 +323,7 @@ export function TestQuestionEditor({
             </>
           ) : (
             <>
-              <p className="text-sm font-medium text-text-default">
-                {state.question_text}
-              </p>
+              <QuestionMarkdown content={state.question_text} />
               <p className="text-xs text-text-muted">
                 {state.question_type === 'open_response' ? 'Open response' : 'Multiple choice'} · {state.points} pts
               </p>
@@ -376,11 +335,7 @@ export function TestQuestionEditor({
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="text-xs text-text-muted">
-                  Character limit: {state.response_max_chars}
-                </p>
-              )}
+              ) : null}
             </>
           )}
         </div>

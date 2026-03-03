@@ -48,7 +48,6 @@ interface TestStats {
   open_questions_count?: number
   graded_open_responses?: number
   ungraded_open_responses?: number
-  grading_finalized?: boolean
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -81,7 +80,6 @@ export function QuizIndividualResponses({
   const [suggestingResponseId, setSuggestingResponseId] = useState<string | null>(null)
   const [gradingError, setGradingError] = useState('')
   const [gradingMessage, setGradingMessage] = useState('')
-  const [finalizing, setFinalizing] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -202,27 +200,6 @@ export function QuizIndividualResponses({
     }
   }
 
-  async function handleFinalizeGrading() {
-    setFinalizing(true)
-    setGradingError('')
-    setGradingMessage('')
-    try {
-      const res = await fetch(`${apiBasePath}/${quizId}/grading/finalize`, {
-        method: 'POST',
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to finalize grading')
-
-      setGradingMessage('Grading finalized. Students can now view scored open responses.')
-      await load()
-      onUpdated?.()
-    } catch (finalizeError: any) {
-      setGradingError(finalizeError.message || 'Failed to finalize grading')
-    } finally {
-      setFinalizing(false)
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex justify-center py-4">
@@ -251,22 +228,6 @@ export function QuizIndividualResponses({
             {' / '}
             {(stats?.graded_open_responses ?? 0) + (stats?.ungraded_open_responses ?? 0)}
           </p>
-          <div className="flex items-center justify-between gap-2">
-            <span>
-              {stats?.grading_finalized
-                ? 'Grading finalized.'
-                : 'Grading not finalized.'}
-            </span>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              disabled={finalizing}
-              onClick={handleFinalizeGrading}
-            >
-              {finalizing ? 'Finalizing...' : 'Finalize Grading'}
-            </Button>
-          </div>
         </div>
       )}
       {gradingError && (

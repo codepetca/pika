@@ -72,10 +72,14 @@ export function getStudentQuizStatus(
 }
 
 /**
- * Check if quiz questions can be edited (before any responses)
+ * Check if quiz/test questions can be edited.
+ * Policy: teachers can edit question sets at any stage.
  */
-export function canEditQuizQuestions(quiz: Pick<Quiz, 'status'>, hasResponses: boolean): boolean {
-  return quiz.status === 'draft' && !hasResponses
+export function canEditQuizQuestions(
+  _quiz: Pick<Quiz, 'status'>,
+  _hasResponses: boolean
+): boolean {
+  return true
 }
 
 /**

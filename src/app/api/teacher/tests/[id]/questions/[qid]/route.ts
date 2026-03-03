@@ -21,15 +21,7 @@ export async function PATCH(
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const test = access.test
     const supabase = getServiceRoleClient()
-
-    if (test.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Cannot modify questions on a test that is not in draft status' },
-        { status: 400 }
-      )
-    }
 
     const { data: existingQuestion, error: qError } = await supabase
       .from('test_questions')
@@ -52,6 +44,7 @@ export async function PATCH(
           : null,
       points: Number(existingQuestion.points ?? 1),
       response_max_chars: Number(existingQuestion.response_max_chars ?? 5000),
+      response_monospace: existingQuestion.response_monospace === true,
     }
 
     const validation = validateTestQuestionUpdate(body, currentQuestion)
@@ -68,6 +61,9 @@ export async function PATCH(
     if (nextQuestion.points !== currentQuestion.points) updates.points = nextQuestion.points
     if (nextQuestion.response_max_chars !== currentQuestion.response_max_chars) {
       updates.response_max_chars = nextQuestion.response_max_chars
+    }
+    if (nextQuestion.response_monospace !== currentQuestion.response_monospace) {
+      updates.response_monospace = nextQuestion.response_monospace
     }
 
     if (Object.keys(updates).length === 0) {
@@ -112,15 +108,7 @@ export async function DELETE(
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const test = access.test
     const supabase = getServiceRoleClient()
-
-    if (test.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Cannot delete questions from a test that is not in draft status' },
-        { status: 400 }
-      )
-    }
 
     const { data: existingQuestion, error: qError } = await supabase
       .from('test_questions')

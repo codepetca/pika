@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
 import { getStudentQuizStatus } from '@/lib/quizzes'
 import type { Quiz } from '@/types'
 
@@ -58,12 +59,34 @@ export async function GET(request: NextRequest) {
     ]
 
     const respondedTestIds = new Set<string>()
+    const returnedTestIds = new Set<string>()
     if (classroomTestIds.length > 0) {
-      const { data: attempts, error: attemptsError } = await supabase
-        .from('test_attempts')
-        .select('test_id, is_submitted')
-        .eq('student_id', user.id)
-        .in('test_id', classroomTestIds)
+      type AttemptRow = { test_id: string; is_submitted: boolean; returned_at: string | null }
+      let attempts: AttemptRow[] | null = null
+      let attemptsError: { code?: string; message?: string; details?: string; hint?: string } | null = null
+
+      {
+        const latestAttemptsResult = await supabase
+          .from('test_attempts')
+          .select('test_id, is_submitted, returned_at')
+          .eq('student_id', user.id)
+          .in('test_id', classroomTestIds)
+
+        attempts = (latestAttemptsResult.data as AttemptRow[] | null) || null
+        attemptsError = latestAttemptsResult.error
+      }
+
+      if (attemptsError && isMissingTestAttemptReturnColumnsError(attemptsError)) {
+        const legacyAttemptsResult = await supabase
+          .from('test_attempts')
+          .select('test_id, is_submitted')
+          .eq('student_id', user.id)
+          .in('test_id', classroomTestIds)
+
+        attempts = ((legacyAttemptsResult.data as Array<{ test_id: string; is_submitted: boolean }> | null) || [])
+          .map((attempt) => ({ ...attempt, returned_at: null }))
+        attemptsError = legacyAttemptsResult.error
+      }
 
       if (attemptsError && attemptsError.code !== 'PGRST205') {
         console.error('Error fetching submitted test attempts:', attemptsError)
@@ -73,6 +96,9 @@ export async function GET(request: NextRequest) {
       for (const attempt of attempts || []) {
         if (attempt.is_submitted) {
           respondedTestIds.add(attempt.test_id)
+        }
+        if (attempt.returned_at) {
+          returnedTestIds.add(attempt.test_id)
         }
       }
 
@@ -97,10 +123,39 @@ export async function GET(request: NextRequest) {
     )
 
     const allTests = [...(activeTests || []), ...respondedClosedTests]
+    const allTestIds = allTests.map((test) => test.id)
+    const hasOpenByTestId = new Map<string, boolean>()
+
+    if (allTestIds.length > 0) {
+      const { data: questionRows, error: questionError } = await supabase
+        .from('test_questions')
+        .select('test_id, question_type')
+        .in('test_id', allTestIds)
+
+      if (questionError && questionError.code !== 'PGRST205') {
+        console.error('Error fetching test question types:', questionError)
+        return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
+      }
+
+      for (const row of questionRows || []) {
+        if (row.question_type === 'open_response') {
+          hasOpenByTestId.set(row.test_id, true)
+        } else if (!hasOpenByTestId.has(row.test_id)) {
+          hasOpenByTestId.set(row.test_id, false)
+        }
+      }
+    }
 
     const testsWithStatus = allTests.map((test: Quiz) => {
       const hasResponded = respondedTestIds.has(test.id)
-      const studentStatus = getStudentQuizStatus(test, hasResponded)
+      const hasOpen = hasOpenByTestId.get(test.id) === true
+      const isReturned = returnedTestIds.has(test.id)
+      const canViewResults =
+        test.show_results &&
+        test.status === 'closed' &&
+        hasResponded &&
+        (!hasOpen || isReturned)
+      const studentStatus = canViewResults ? 'can_view_results' : getStudentQuizStatus(test, hasResponded)
 
       return {
         ...test,

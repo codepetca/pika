@@ -36,13 +36,6 @@ export async function POST(
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
-    if (access.quiz.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Cannot reorder questions on a quiz that is not in draft status' },
-        { status: 400 }
-      )
-    }
-
     const supabase = getServiceRoleClient()
 
     // Fetch ALL questions for this quiz to ensure complete set

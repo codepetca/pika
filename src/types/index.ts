@@ -301,6 +301,7 @@ export interface QuizQuestion {
   question_type?: TestQuestionType
   points?: number
   response_max_chars?: number
+  response_monospace?: boolean
   correct_option?: number | null
   created_at: string
   updated_at: string
@@ -324,6 +325,7 @@ export interface TestQuestion {
   correct_option: number | null
   points: number
   response_max_chars: number
+  response_monospace: boolean
   position: number
   created_at: string
   updated_at: string
@@ -362,6 +364,8 @@ export interface TestAttempt {
   responses: Record<string, TestResponseDraftValue>
   is_submitted: boolean
   submitted_at: string | null
+  returned_at: string | null
+  returned_by: string | null
   authenticity_score: number | null
   authenticity_flags: AuthenticityFlag[] | null
   created_at: string

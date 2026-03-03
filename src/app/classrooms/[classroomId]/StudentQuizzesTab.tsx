@@ -8,6 +8,11 @@ import { PageContent, PageLayout } from '@/components/PageLayout'
 import { getQuizStatusBadgeClass } from '@/lib/quizzes'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
 import { StudentQuizResults } from '@/components/StudentQuizResults'
+import { ConfirmDialog } from '@/ui'
+import {
+  STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
+  STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
+} from '@/lib/events'
 import type {
   Classroom,
   QuizAssessmentType,
@@ -20,9 +25,15 @@ import type {
 interface Props {
   classroom: Classroom
   assessmentType: QuizAssessmentType
+  isActive?: boolean
 }
 
-type RouteExitSource = 'back_button' | 'pagehide' | 'component_unmount'
+interface RouteExitAttemptDetail {
+  classroomId?: string
+  source?: string
+  metadata?: Record<string, unknown> | null
+  dedupe?: boolean
+}
 
 function formatDuration(totalSeconds: number): string {
   const safe = Math.max(0, Math.round(totalSeconds))
@@ -35,7 +46,7 @@ function createFocusSessionId(): string {
   return `focus_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
+export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }: Props) {
   const notifications = useStudentNotifications()
   const [quizzes, setQuizzes] = useState<StudentQuizView[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,18 +58,19 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
     studentResponses: Record<string, number | TestResponseDraftValue>
   } | null>(null)
   const [loadingQuiz, setLoadingQuiz] = useState(false)
+  const [showLeaveTestConfirm, setShowLeaveTestConfirm] = useState(false)
   const selectedQuizIdRef = useRef<string | null>(null)
   const focusSessionIdRef = useRef<string | null>(null)
   const awayStartedAtRef = useRef<number | null>(null)
   const focusEnabledRef = useRef(false)
-  const routeExitLoggedRef = useRef(false)
+  const lastRouteExitRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
   const isTestsView = assessmentType === 'test'
   const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
   const focusEnabled = useMemo(() => {
     if (!selectedQuiz) return false
     const hasSubmitted = selectedQuiz.quiz.student_status !== 'not_started'
-    return isTestsView && !hasSubmitted
-  }, [isTestsView, selectedQuiz])
+    return isTestsView && isActive && !hasSubmitted
+  }, [isActive, isTestsView, selectedQuiz])
 
   useEffect(() => {
     selectedQuizIdRef.current = selectedQuizId
@@ -91,7 +103,7 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
     setLoadingQuiz(true)
     focusSessionIdRef.current = createFocusSessionId()
     awayStartedAtRef.current = null
-    routeExitLoggedRef.current = false
+    lastRouteExitRef.current = null
 
     try {
       const res = await fetch(`${apiBasePath}/${quizId}`)
@@ -148,26 +160,55 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
     }
   }, [apiBasePath])
 
-  const logRouteExitAttempt = useCallback((source: RouteExitSource) => {
-    if (routeExitLoggedRef.current) return
-    routeExitLoggedRef.current = true
+  const logRouteExitAttempt = useCallback((
+    source: string,
+    metadata?: Record<string, unknown>,
+    options?: {
+      dedupe?: boolean
+      updateSummary?: boolean
+    }
+  ) => {
+    const now = Date.now()
+    if (
+      options?.dedupe &&
+      lastRouteExitRef.current &&
+      lastRouteExitRef.current.source === source &&
+      now - lastRouteExitRef.current.loggedAtMs < 1200
+    ) {
+      return
+    }
+    lastRouteExitRef.current = { source, loggedAtMs: now }
     void postFocusEvent(
       'route_exit_attempt',
-      { source },
-      { updateSummary: false }
+      {
+        source,
+        ...(metadata || {}),
+      },
+      { updateSummary: options?.updateSummary }
     )
   }, [postFocusEvent])
 
-  function handleBack() {
-    if (focusEnabled) {
-      logRouteExitAttempt('back_button')
-    }
+  const performBackToAssessmentList = useCallback(() => {
     setSelectedQuizId(null)
     setSelectedQuiz(null)
     setFocusSummary(null)
+    setShowLeaveTestConfirm(false)
     focusSessionIdRef.current = null
     awayStartedAtRef.current = null
     loadQuizzes() // Refresh list to get updated status
+  }, [loadQuizzes])
+
+  function handleBack() {
+    if (focusEnabled) {
+      logRouteExitAttempt(
+        'back_button',
+        { blocked: true },
+        { updateSummary: true }
+      )
+      setShowLeaveTestConfirm(true)
+      return
+    }
+    performBackToAssessmentList()
   }
 
   function handleQuizSubmitted() {
@@ -182,15 +223,86 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
     }
   }
 
+  function handleConfirmLeaveTest() {
+    logRouteExitAttempt(
+      'leave_test',
+      { trigger: 'detail_back' },
+      { updateSummary: false }
+    )
+    performBackToAssessmentList()
+  }
+
+  useEffect(() => {
+    if (!isTestsView) return
+
+    window.dispatchEvent(
+      new CustomEvent(STUDENT_TEST_EXAM_MODE_CHANGE_EVENT, {
+        detail: {
+          classroomId: classroom.id,
+          active: focusEnabled,
+          testId: focusEnabled ? selectedQuizIdRef.current : null,
+        },
+      })
+    )
+
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent(STUDENT_TEST_EXAM_MODE_CHANGE_EVENT, {
+          detail: {
+            classroomId: classroom.id,
+            active: false,
+            testId: null,
+          },
+        })
+      )
+    }
+  }, [classroom.id, focusEnabled, isTestsView])
+
+  useEffect(() => {
+    if (!isTestsView) return
+
+    const handleRouteExitAttemptEvent = (event: Event) => {
+      if (!focusEnabledRef.current) return
+      const detail = (event as CustomEvent<RouteExitAttemptDetail>).detail
+      if (detail?.classroomId && detail.classroomId !== classroom.id) return
+      logRouteExitAttempt(
+        detail?.source || 'in_app_navigation',
+        detail?.metadata || undefined,
+        { dedupe: detail?.dedupe === true }
+      )
+    }
+
+    window.addEventListener(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, handleRouteExitAttemptEvent)
+    return () => {
+      window.removeEventListener(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, handleRouteExitAttemptEvent)
+    }
+  }, [classroom.id, isTestsView, logRouteExitAttempt])
+
   useEffect(() => {
     if (!focusEnabled) return
 
-    const handlePageHide = () => {
-      logRouteExitAttempt('pagehide')
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      logRouteExitAttempt(
+        'beforeunload',
+        { blocked: true },
+        { dedupe: true, updateSummary: false }
+      )
+      event.preventDefault()
+      event.returnValue = ''
     }
 
+    const handlePageHide = () => {
+      logRouteExitAttempt(
+        'pagehide',
+        undefined,
+        { dedupe: true, updateSummary: false }
+      )
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
     window.addEventListener('pagehide', handlePageHide)
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('pagehide', handlePageHide)
     }
   }, [focusEnabled, logRouteExitAttempt])
@@ -243,7 +355,11 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
   useEffect(() => {
     return () => {
       if (!focusEnabledRef.current) return
-      logRouteExitAttempt('component_unmount')
+      logRouteExitAttempt(
+        'component_unmount',
+        undefined,
+        { dedupe: true, updateSummary: false }
+      )
     }
   }, [logRouteExitAttempt])
 
@@ -330,6 +446,16 @@ export function StudentQuizzesTab({ classroom, assessmentType }: Props) {
                 onSubmitted={handleQuizSubmitted}
               />
             )}
+
+            <ConfirmDialog
+              isOpen={showLeaveTestConfirm}
+              title="Leave this test?"
+              description="You are in exam mode. Leaving this test will be logged."
+              confirmLabel="Leave test"
+              cancelLabel="Stay in test"
+              onCancel={() => setShowLeaveTestConfirm(false)}
+              onConfirm={handleConfirmLeaveTest}
+            />
           </div>
         </PageContent>
       </PageLayout>

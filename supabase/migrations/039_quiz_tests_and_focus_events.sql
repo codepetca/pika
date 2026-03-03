@@ -12,8 +12,6 @@ create table if not exists public.tests (
   position integer not null default 0,
   points_possible numeric(6,2) not null default 100 check (points_possible > 0),
   include_in_final boolean not null default true,
-  grading_finalized_at timestamptz,
-  grading_finalized_by uuid references public.users (id),
   created_by uuid not null references public.users (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -95,6 +93,8 @@ create table if not exists public.test_attempts (
   responses jsonb not null default '{}'::jsonb,
   is_submitted boolean not null default false,
   submitted_at timestamptz,
+  returned_at timestamptz,
+  returned_by uuid references public.users (id),
   authenticity_score integer,
   authenticity_flags jsonb,
   created_at timestamptz not null default now(),
@@ -106,6 +106,8 @@ create index if not exists idx_test_attempts_test_id on public.test_attempts (te
 create index if not exists idx_test_attempts_student_id on public.test_attempts (student_id);
 create index if not exists idx_test_attempts_test_student_submitted
   on public.test_attempts (test_id, student_id, is_submitted);
+create index if not exists idx_test_attempts_test_returned
+  on public.test_attempts (test_id, returned_at);
 
 create or replace function public.update_test_attempts_updated_at()
 returns trigger as $$
@@ -429,6 +431,8 @@ create policy "Students can create test attempts"
     student_id = auth.uid()
     and is_submitted = false
     and submitted_at is null
+    and returned_at is null
+    and returned_by is null
     and exists (
       select 1
       from public.tests
@@ -458,6 +462,8 @@ create policy "Students can update their own open test attempts"
     student_id = auth.uid()
     and is_submitted = false
     and submitted_at is null
+    and returned_at is null
+    and returned_by is null
     and exists (
       select 1
       from public.tests

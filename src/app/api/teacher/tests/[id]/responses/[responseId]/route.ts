@@ -93,18 +93,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update grade' }, { status: 500 })
     }
 
-    const { error: clearFinalizeError } = await supabase
-      .from('tests')
-      .update({
-        grading_finalized_at: null,
-        grading_finalized_by: null,
-      })
-      .eq('id', testId)
-
-    if (clearFinalizeError) {
-      console.error('Error clearing test grading finalization:', clearFinalizeError)
-    }
-
     return NextResponse.json({ response: updatedResponse })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
@@ -117,4 +105,3 @@ export async function PATCH(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-

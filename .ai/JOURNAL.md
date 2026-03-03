@@ -2884,3 +2884,331 @@
   - `pnpm lint`
   - `pnpm test`
   - `pnpm build`
+
+## 2026-02-25 — Tests grading action bar cleanup
+**Context:** Refined the tests grading UX so selected test context is visible in the action bar and removed redundant in-page selection UI.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Added a read-only `Selected test: <title>` label in the Tests action bar when `Grading` mode is active.
+  - Removed the grading-mode "Selected test" dropdown card from page content.
+  - Kept `Authoring/Grading` toggle right-aligned in the action bar.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm build`
+- Teacher screenshot (grading mode): `/tmp/teacher-tests-grading-actionbar.png`
+- Student screenshot (tests tab): `/tmp/student-tests-actionbar.png`
+
+## 2026-02-25 — Reset tests view mode on sidebar click
+**Context:** UX request: clicking the Tests sidebar tab should always return teacher to Authoring mode.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`:
+  - Added `testsSidebarClickToken` state.
+  - Increment token on every `handleTabChange('tests')` invocation (including re-click on active tab).
+  - Passed token to teacher tests tab component.
+- Updated `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Added `testsSidebarClickToken` prop.
+  - Added effect to force `testsMode='authoring'` when token changes.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx`
+- Teacher flow screenshot (after grading -> click Tests sidebar): `/tmp/teacher-tests-reset-authoring.png`
+- Student tests screenshot: `/tmp/student-tests-reset-authoring.png`
+
+## 2026-02-25 — Keep tests mode toggle visible during loading
+**Context:** Teacher reported the Tests mode toggle disappeared. Root cause: `TeacherQuizzesTab` returned an early loading spinner and skipped rendering the action bar.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Removed early `if (loading) return ...` path.
+  - Kept `PageActionBar` always mounted.
+  - Moved loading spinner into `PageContent` conditional so `Authoring/Grading` remains visible while loading.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx`
+- Teacher screenshots:
+  - `/tmp/teacher-tests-toggle-visible.png`
+  - `/tmp/teacher-tests-toggle-after-sidebar-click.png`
+- Student screenshot:
+  - `/tmp/student-tests-toggle-visible.png`
+
+## 2026-02-25 — Tests grading pane data + 70% tests layout
+**Context:** Teacher requested that grading mode right pane always show student test work and that Tests tab use a 70% right pane width in both authoring and grading.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`:
+  - Tests width now set to `70%` (quizzes remain `50%`).
+  - Grading panel now resolves `testId` from grading context first, then selected quiz fallback, so right-pane grading data is driven by grading context.
+- Updated `/src/lib/layout-config.ts`:
+  - Added dedicated route keys: `tests-teacher`, `tests-student`.
+  - Added route config for `tests-teacher` with right sidebar default width `70%`.
+  - Updated `getRouteKeyFromTab()` so `tests` no longer reuses quiz route keys.
+- Updated `/tests/unit/layout-config.test.ts`:
+  - Added explicit `70%` width assertion.
+  - Updated tests-route key expectations to `tests-teacher`/`tests-student`.
+  - Expanded expected route key list.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm test tests/unit/layout-config.test.ts tests/components/TeacherQuizzesTab.test.tsx tests/components/ThreePanelProvider.test.tsx`
+- Visual verification screenshots:
+  - Teacher authoring tests: `/tmp/teacher-tests-authoring-70-v3.png`
+  - Teacher grading tests (student work visible): `/tmp/teacher-tests-grading-70-v3.png`
+  - Student tests view: `/tmp/student-tests-view-70-v3.png`
+- Runtime style check in browser context:
+  - Authoring: `--right-width: 70%`
+  - Grading: `--right-width: 70%`
+
+## 2026-02-25 — Adjust tests pane width to 60%
+**Context:** Follow-up UI refinement requested reducing Tests right sidebar width from 70% to 60% while keeping grading/student-work behavior.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx` to set tests tab width to `60%`.
+- Updated `/src/lib/layout-config.ts` tests teacher default width to `60%`.
+- Updated `/tests/unit/layout-config.test.ts` width assertion from `70%` to `60%`.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm test tests/unit/layout-config.test.ts tests/components/TeacherQuizzesTab.test.tsx tests/components/ThreePanelProvider.test.tsx`
+- Visual screenshots:
+  - `/tmp/teacher-tests-authoring-60.png`
+  - `/tmp/teacher-tests-grading-60.png`
+  - `/tmp/student-tests-view-60.png`
+- Runtime style assertion from browser:
+  - Authoring: `--right-width: 60%`
+  - Grading: `--right-width: 60%`
+
+## 2026-02-27 — Exam mode event-source fix + verification
+**Context:** Continue exam mode implementation for student tests and resolve failing test around leave-test telemetry.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` so `leave_test` route-exit events preserve `metadata.source='leave_test'` semantics by moving button context to `metadata.trigger='detail_back'`.
+
+**Verification:**
+- `pnpm test tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/QuizDetailPanel.test.tsx tests/unit/layout-config.test.ts tests/components/ThreePanelProvider.test.tsx`
+- `pnpm lint`
+- Visual snapshots:
+  - `/tmp/teacher-exam-mode-classrooms.png`
+  - `/tmp/student-exam-mode-classrooms.png`
+  - `/tmp/teacher-exam-mode-tests-loaded.png`
+  - `/tmp/student-exam-mode-tests-loaded.png`
+
+## 2026-02-27 — Allow editing test/quiz questions after responses
+**Context:** Teacher requested removing the lock that prevented question edits once students had responded.
+
+**Changes:**
+- Updated `/src/lib/quizzes.ts`:
+  - `canEditQuizQuestions()` now allows editing regardless of response count/status.
+- Updated `/src/components/QuizDetailPanel.tsx`:
+  - Removed the warning banner: "Questions cannot be edited after students have responded."
+- Removed draft-only API guards from teacher question-management endpoints:
+  - `/src/app/api/teacher/quizzes/[id]/questions/route.ts`
+  - `/src/app/api/teacher/quizzes/[id]/questions/[qid]/route.ts`
+  - `/src/app/api/teacher/quizzes/[id]/questions/reorder/route.ts`
+  - `/src/app/api/teacher/tests/[id]/questions/route.ts`
+  - `/src/app/api/teacher/tests/[id]/questions/[qid]/route.ts`
+  - `/src/app/api/teacher/tests/[id]/questions/reorder/route.ts`
+- Updated tests for new behavior:
+  - `/tests/unit/quizzes.test.ts`
+  - `/tests/components/QuizDetailPanel.test.tsx`
+
+**Verification:**
+- `pnpm test tests/unit/quizzes.test.ts tests/components/QuizDetailPanel.test.tsx`
+- `pnpm test tests/api/teacher/quizzes-questions-reorder.test.ts tests/api/teacher/tests-questions-reorder.test.ts`
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+
+**UI verification screenshots:**
+- Teacher classrooms: `/tmp/teacher-edit-lock-removed-3001.png`
+- Student classrooms: `/tmp/student-edit-lock-removed-3001.png`
+- Teacher tests tab (selected active test with 1 response, editing controls visible): `/tmp/teacher-tests-edit-lock-removed-selected.png`
+- Student tests tab: `/tmp/student-tests-edit-lock-removed-detailed.png`
+
+## 2026-02-27 — Tests grading table compact redesign
+**Context:** Teacher requested grading mode to prioritize per-student table signals, remove redundant right-pane cards, and simplify columns.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx` in test grading mode:
+  - Removed `Open` column.
+  - Renamed `Last Activity` to `Last` and switched to time-only format (`America/Toronto`).
+  - Replaced status text with compact symbol indicators (`○`, `◔`, `●`) including accessible labels/tooltips.
+  - Removed email subtext from the student column.
+  - Added compact `Signals` column: `A mm:ss · X n · F n` (away time, exit attempts, focus events).
+- Updated `/src/components/TestStudentGradingPanel.tsx`:
+  - Removed large top summary card.
+  - Removed per-student info card.
+  - Kept grading controls and question-by-question student work as the primary right-pane content.
+  - Kept finalize-grading action in a compact top row.
+
+**Verification:**
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/StudentQuizzesTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+
+**UI verification screenshots:**
+- Teacher classrooms: `/tmp/teacher-view-final-grading-redesign.png`
+- Student classrooms: `/tmp/student-view-final-grading-redesign.png`
+- Teacher tests grading mode (new table + student work pane): `/tmp/teacher-tests-grading-table-redesign-final.png`
+
+## 2026-02-27 — Test grading signals tooltips clarification
+**Context:** Teacher requested hover explanations for compact grading-table signals (`A`, `X`, `F`) and clarification of grading controls.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Added `Tooltip` wrappers for `A`, `X`, `F` signal badges in grading mode.
+  - Added explicit `aria-label` text for each signal to improve accessibility and testability.
+
+**Verification:**
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+
+**UI verification screenshots:**
+- Teacher tests grading + tooltip visible: `/tmp/teacher-tests-signals-tooltip-v2.png`
+- Student tests view: `/tmp/student-tests-after-signal-tooltips-v2.png`
+
+## 2026-02-27 — Test open-question editor locked type + hidden character limit
+**Context:** Teacher requested that test question type cannot be switched after creation and open-response character limit control is hidden.
+
+**Changes:**
+- Updated `/src/components/TestQuestionEditor.tsx`:
+  - Removed editable question-type dropdown.
+  - Added read-only question type display (`Open response` / `Multiple choice`).
+  - Removed open-response character-limit input from editor.
+  - Removed character-limit display in read-only question view.
+  - Stopped sending `response_max_chars` in update payloads.
+- Updated `/tests/components/QuizDetailPanel.test.tsx`:
+  - Added coverage asserting no type combobox and no `Character limit` input in test authoring.
+
+**Verification:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+
+**UI verification screenshots:**
+- Teacher tests authoring (fixed type label, no char limit): `/tmp/teacher-tests-open-fixed-type.png`
+- Student tests tab: `/tmp/student-tests-tab-fixed-type.png`
+
+## 2026-02-27 — Grading table status tooltip + compact time formatting
+**Context:** Teacher requested tooltip-required status icons, removal of visible status header label, and compact `Last` formatting without am/pm (bold when PM).
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Added `Tooltip` around status icon symbols.
+  - Removed visible `Status` column title (kept header cell compact with `aria-label`).
+  - Updated Toronto time formatter to output `h:mm` without am/pm and return PM metadata.
+  - Styled PM `Last` values as bold/default text; AM remains muted.
+- Updated `/tests/components/TeacherQuizzesTab.test.tsx`:
+  - Added coverage for status tooltip accessibility label.
+  - Added coverage for hidden status title.
+  - Added coverage for `Last` formatting (no am/pm text, PM value bolded).
+
+**Verification:**
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm test tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+
+**UI verification screenshots:**
+- Teacher tests grading with status tooltip and compact last time: `/tmp/teacher-tests-grading-status-tooltip.png`
+- Student tests view: `/tmp/student-tests-after-status-update.png`
+
+## 2026-02-27 — Test grading table split signals into Away/Exits columns
+**Context:** Teacher requested compact grading table with focus data retained in backend only, and separate `Away`/`Exits` columns with brief tooltip explanations.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Replaced `Signals` column with two columns: `Away` and `Exits`.
+  - Added tooltip text to both column headers and values.
+  - Removed focus signal display (`F`) from the table while keeping focus summary data unchanged in row objects.
+- Updated `/tests/components/TeacherQuizzesTab.test.tsx`:
+  - Updated assertions to new `Away`/`Exits` rendering and tooltip labels.
+  - Added assertion that focus signal is no longer shown.
+
+**Verification:**
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+
+**UI verification screenshots:**
+- Teacher tests grading table (`Away`/`Exits`): `/tmp/teacher-tests-grading-away-exits-columns.png`
+- Student tests view: `/tmp/student-tests-after-away-exits-columns.png`
+
+## 2026-03-02 — Test authoring monospace setting moved to teacher + removed open-response char counter
+**Context:** Teacher requested removing the visible `x/5000` indicator and moving monospace control from student test-taking UI to teacher-side question authoring.
+
+**Changes:**
+- Updated `/src/components/TestQuestionEditor.tsx`:
+  - Added per-open-question `Monospace input` checkbox in teacher authoring.
+  - Persists `response_monospace` in save payloads for open-response questions.
+- Updated `/src/components/StudentQuizForm.tsx`:
+  - Removed student-side monospace toggle.
+  - Removed open-response `x/5000` character indicator.
+  - Textarea monospace style now follows question-level `response_monospace`.
+- Updated `/src/components/QuizDetailPanel.tsx`:
+  - Removed open-response preview character counter.
+  - Added preview monospace styling based on question-level `response_monospace`.
+- Updated API/validation/types to carry `response_monospace`:
+  - `/src/lib/test-questions.ts`
+  - `/src/app/api/teacher/tests/[id]/questions/[qid]/route.ts`
+  - `/src/app/api/teacher/tests/[id]/results/route.ts`
+  - `/src/app/api/student/tests/[id]/results/route.ts`
+  - `/src/types/index.ts`
+- Added migration:
+  - `/supabase/migrations/040_add_test_question_response_monospace.sql`
+
+**Verification:**
+- `pnpm vitest tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx tests/api/student/tests-results.test.ts tests/api/student/tests-id.test.ts --run`
+- `pnpm lint`
+
+**UI verification screenshots:**
+- Teacher test authoring (shows `Monospace input`, no `x/5000`): `/tmp/teacher-tests-loaded-final.png`
+- Student unsubmitted test form (no monospace toggle, no `x/5000`): `/tmp/student-tests-form-unsubmitted.png`
+
+## 2026-03-02 — Removed open-response helper copy from test authoring
+**Context:** Teacher requested removing the message "Student answers are plain text for now..." from test question creation.
+
+**Changes:**
+- Updated `/src/components/TestQuestionEditor.tsx`:
+  - Removed the helper paragraph under `Monospace input` for open-response test questions.
+
+**Verification:**
+- `pnpm vitest tests/components/QuizDetailPanel.test.tsx --run`
+- `pnpm lint`
+
+**UI verification screenshot:**
+- Teacher test authoring (helper removed): `/tmp/teacher-tests-no-plain-text-helper.png`
+
+## 2026-03-02 — Removed student tab-indent hint in test-taking form
+**Context:** Teacher requested removing the "Press Tab to indent..." helper label from student test UI.
+
+**Changes:**
+- Updated `/src/components/StudentQuizForm.tsx`:
+  - Removed the open-response helper text shown in test mode.
+
+**Verification:**
+- `pnpm vitest tests/components/StudentQuizzesTab.test.tsx tests/unit/textarea-indent.test.ts --run`
+- `pnpm lint`
+
+**UI verification screenshots:**
+- Teacher tests view: `/tmp/teacher-tests-after-remove-tab-hint.png`
+- Student test form (hint removed): `/tmp/student-tests-after-remove-tab-hint.png`
+
+## 2026-03-03 — Points input made compact with label in test question editor
+**Context:** Teacher requested a smaller points textbox with a small `Points` label above it.
+
+**Changes:**
+- Updated `/src/components/TestQuestionEditor.tsx`:
+  - Narrowed question header grid points column from `120px` to `96px`.
+  - Wrapped points input in a small labeled block.
+  - Added compact label text `Points` above numeric input.
+  - Reduced input visual footprint (`h-9`, tighter horizontal padding).
+
+**Verification:**
+- `pnpm vitest tests/components/QuizDetailPanel.test.tsx --run`
+- `pnpm lint`
+
+**UI verification screenshots:**
+- Teacher test authoring (small points field + label): `/tmp/teacher-tests-points-label-small-loaded.png`
+- Student test view (unchanged behavior): `/tmp/student-tests-after-points-ui-change.png`
+- 2026-03-03: Adjusted test question editor points control sizing so the points input width tracks the compact `Points` label area (`w-[7ch]`, `md:grid-cols-[minmax(0,1fr)_max-content]`, input `w-full`). Verified with focused test/lint and screenshots (`/tmp/teacher-points-label-width.png`, `/tmp/student-tests-view.png`).

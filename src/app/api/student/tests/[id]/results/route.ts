@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, canStudentViewResults } from '@/lib/quizzes'
-import { assertStudentCanAccessTest } from '@/lib/server/tests'
+import { assertStudentCanAccessTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
 import type { QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -24,12 +24,42 @@ export async function GET(
     const test = access.test
     const supabase = getServiceRoleClient()
 
-    const { data: attempt, error: attemptError } = await supabase
-      .from('test_attempts')
-      .select('is_submitted')
-      .eq('test_id', testId)
-      .eq('student_id', user.id)
-      .maybeSingle()
+    type AttemptRow = {
+      is_submitted: boolean
+      returned_at: string | null
+    }
+
+    let attempt: AttemptRow | null = null
+    let attemptError: { code?: string; message?: string; details?: string; hint?: string } | null = null
+
+    {
+      const attemptWithReturnResult = await supabase
+        .from('test_attempts')
+        .select('is_submitted, returned_at')
+        .eq('test_id', testId)
+        .eq('student_id', user.id)
+        .maybeSingle()
+
+      attempt = (attemptWithReturnResult.data as AttemptRow | null) || null
+      attemptError = attemptWithReturnResult.error
+    }
+
+    if (attemptError && isMissingTestAttemptReturnColumnsError(attemptError)) {
+      const legacyAttemptResult = await supabase
+        .from('test_attempts')
+        .select('is_submitted')
+        .eq('test_id', testId)
+        .eq('student_id', user.id)
+        .maybeSingle()
+
+      attempt = (legacyAttemptResult.data
+        ? {
+            ...(legacyAttemptResult.data as { is_submitted: boolean }),
+            returned_at: null,
+          }
+        : null)
+      attemptError = legacyAttemptResult.error
+    }
 
     if (attemptError && attemptError.code !== 'PGRST205') {
       console.error('Error checking test attempt submission:', attemptError)
@@ -54,7 +84,7 @@ export async function GET(
 
     const { data: questions, error: questionsError } = await supabase
       .from('test_questions')
-      .select('id, question_type, question_text, options, correct_option, points, response_max_chars, position')
+      .select('id, question_type, question_text, options, correct_option, points, response_max_chars, response_monospace, position')
       .eq('test_id', testId)
       .order('position', { ascending: true })
 
@@ -66,9 +96,9 @@ export async function GET(
     const hasOpenResponseQuestions = (questions || []).some(
       (question) => question.question_type === 'open_response'
     )
-    if (hasOpenResponseQuestions && !test.grading_finalized_at) {
+    if (hasOpenResponseQuestions && !attempt?.returned_at) {
       return NextResponse.json(
-        { error: 'Results are not available until grading is finalized' },
+        { error: 'Results are not available until this test is returned by your teacher' },
         { status: 403 }
       )
     }
@@ -134,6 +164,7 @@ export async function GET(
         options: question.options,
         points: Number(question.points ?? 0),
         response_max_chars: Number(question.response_max_chars ?? 5000),
+        response_monospace: question.response_monospace === true,
         correct_option: question.correct_option,
         selected_option: response?.selected_option ?? null,
         response_text: response?.response_text ?? null,
@@ -158,7 +189,7 @@ export async function GET(
         id: test.id,
         title: test.title,
         status: test.status,
-        grading_finalized_at: test.grading_finalized_at,
+        returned_at: attempt?.returned_at || null,
       },
       results: aggregated,
       my_responses: myResponses,

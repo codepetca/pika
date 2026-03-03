@@ -19,12 +19,13 @@ import {
 import { Check, Plus, X } from 'lucide-react'
 import { Button, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
-import { canActivateQuiz, canEditQuizQuestions } from '@/lib/quizzes'
+import { canEditQuizQuestions } from '@/lib/quizzes'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { QuizQuestionEditor } from '@/components/QuizQuestionEditor'
 import { TestQuestionEditor } from '@/components/TestQuestionEditor'
 import { QuizResultsView } from '@/components/QuizResultsView'
 import { QuizIndividualResponses } from '@/components/QuizIndividualResponses'
+import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import type { QuizQuestion, QuizWithStats, QuizResultsAggregate } from '@/types'
 
@@ -182,6 +183,7 @@ export function QuizDetailPanel({
               question_text: 'New open response question',
               points: DEFAULT_OPEN_RESPONSE_POINTS,
               response_max_chars: 5000,
+              response_monospace: false,
             }
           : {
               question_type: 'multiple_choice',
@@ -190,6 +192,7 @@ export function QuizDetailPanel({
               correct_option: 0,
               points: DEFAULT_MULTIPLE_CHOICE_POINTS,
               response_max_chars: 5000,
+              response_monospace: false,
             }
         : {
             question_text: 'New question',
@@ -216,8 +219,6 @@ export function QuizDetailPanel({
     loadQuizDetails()
     onQuizUpdate()
   }
-
-  const activation = canActivateQuiz(quiz, questions.length)
 
   if (loading) {
     return (
@@ -322,12 +323,6 @@ export function QuizDetailPanel({
               </h3>
             )}
 
-            {hasResponses && (
-              <div className="p-2 bg-warning-bg text-warning text-sm rounded">
-                Questions cannot be edited after students have responded.
-              </div>
-            )}
-
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -398,9 +393,6 @@ export function QuizDetailPanel({
               )
             )}
 
-            {quiz.status === 'draft' && !activation.valid && (
-              <p className="text-sm text-warning">{activation.error}</p>
-            )}
           </div>
         ) : viewMode === 'preview' ? (
           <QuizPreview questions={questions} isTestsView={isTestsView} />
@@ -413,7 +405,7 @@ export function QuizDetailPanel({
                 <QuizResultsView results={results} />
               </div>
             )}
-            {hasResponses && (
+            {hasResponses && !isTestsView && (
               <div className="pt-4 border-t border-border">
                 <QuizIndividualResponses
                   quizId={quiz.id}
@@ -422,6 +414,11 @@ export function QuizDetailPanel({
                   onUpdated={loadQuizDetails}
                 />
               </div>
+            )}
+            {hasResponses && isTestsView && (
+              <p className="pt-4 text-xs text-text-muted border-t border-border">
+                Use Grading mode to review individual student responses.
+              </p>
             )}
           </div>
         )}
@@ -449,26 +446,29 @@ function QuizPreview({ questions, isTestsView }: { questions: QuizQuestion[]; is
       </p>
       {questions.map((question, index) => (
         <div key={question.id} className="space-y-2">
-          <p className="font-medium text-text-default">
-            {index + 1}. {question.question_text}
-            {isTestsView && (
-              <span className="ml-1 text-xs font-normal text-text-muted">
-                ({question.points ?? (question.question_type === 'open_response' ? DEFAULT_OPEN_RESPONSE_POINTS : DEFAULT_MULTIPLE_CHOICE_POINTS)} pts)
-              </span>
-            )}
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Q{index + 1}
+              {isTestsView && (
+                <span className="ml-1 font-normal normal-case tracking-normal">
+                  ({question.points ?? (question.question_type === 'open_response' ? DEFAULT_OPEN_RESPONSE_POINTS : DEFAULT_MULTIPLE_CHOICE_POINTS)} pts)
+                </span>
+              )}
+            </p>
+            <QuestionMarkdown content={question.question_text} />
+          </div>
           {question.question_type === 'open_response' ? (
             <div className="space-y-2">
               <textarea
                 value={typeof selected[question.id] === 'string' ? (selected[question.id] as string) : ''}
                 onChange={(event) => setSelected((prev) => ({ ...prev, [question.id]: event.target.value }))}
                 maxLength={question.response_max_chars ?? 5000}
-                className="w-full min-h-[120px] rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                className={`w-full min-h-[120px] rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary ${
+                  question.response_monospace ? 'font-mono leading-6' : ''
+                }`}
+                style={question.response_monospace ? { tabSize: 4 } : undefined}
                 placeholder="Student enters response here"
               />
-              <p className="text-xs text-text-muted">
-                {(typeof selected[question.id] === 'string' ? (selected[question.id] as string).length : 0)}/{question.response_max_chars ?? 5000} characters
-              </p>
             </div>
           ) : (
             <div className="space-y-2">

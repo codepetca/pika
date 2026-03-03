@@ -25,15 +25,7 @@ export async function POST(
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const test = access.test
     const supabase = getServiceRoleClient()
-
-    if (test.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Cannot add questions to a test that is not in draft status' },
-        { status: 400 }
-      )
-    }
 
     const { data: lastQuestion } = await supabase
       .from('test_questions')

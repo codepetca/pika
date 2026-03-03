@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import type {
   QuizAssessmentType,
   QuizResultsAggregate,
@@ -145,11 +146,12 @@ export function StudentQuizResults({
             const earned = result.score
             return (
               <div key={result.question_id} className="space-y-2 rounded-lg border border-border bg-surface p-4">
-                <p className="font-medium text-text-default">
-                  {index + 1}. {result.question_text}
-                  {' '}
-                  <span className="text-sm font-normal text-text-muted">({possible} pts)</span>
-                </p>
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    Q{index + 1} · {possible} pts
+                  </p>
+                  <QuestionMarkdown content={result.question_text} />
+                </div>
 
                 {result.question_type === 'multiple_choice' ? (
                   <div className="space-y-1 text-sm">
@@ -193,9 +195,12 @@ export function StudentQuizResults({
 
             return (
               <div key={result.question_id} className="space-y-2">
-                <p className="font-medium text-text-default">
-                  {index + 1}. {result.question_text}
-                </p>
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                    Q{index + 1}
+                  </p>
+                  <QuestionMarkdown content={result.question_text} />
+                </div>
                 <div className="space-y-1.5">
                   {result.options.map((option, optionIndex) => {
                     const count = result.counts[optionIndex]

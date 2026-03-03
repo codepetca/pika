@@ -113,6 +113,10 @@ describe('getRightSidebarCssWidth', () => {
   it('should return percentage for 50%', () => {
     expect(getRightSidebarCssWidth('50%')).toBe('50%')
   })
+
+  it('should return percentage for 60%', () => {
+    expect(getRightSidebarCssWidth('60%')).toBe('60%')
+  })
 })
 
 describe('getRouteKeyFromTab', () => {
@@ -125,7 +129,7 @@ describe('getRouteKeyFromTab', () => {
 
   it('should return correct route key for student tabs', () => {
     expect(getRouteKeyFromTab('today', 'student')).toBe('today')
-    expect(getRouteKeyFromTab('tests', 'student')).toBe('quizzes-student')
+    expect(getRouteKeyFromTab('tests', 'student')).toBe('tests-student')
   })
 
   it('should return assignments-student for student assignments', () => {
@@ -141,9 +145,9 @@ describe('getRouteKeyFromTab', () => {
     expect(getRouteKeyFromTab('assignments', 'teacher', true)).toBe('assignments-teacher-viewing')
   })
 
-  it('should map tests tab to quizzes route keys for both roles', () => {
-    expect(getRouteKeyFromTab('tests', 'teacher')).toBe('quizzes-teacher')
-    expect(getRouteKeyFromTab('tests', 'student')).toBe('quizzes-student')
+  it('should map tests tab to dedicated tests route keys for both roles', () => {
+    expect(getRouteKeyFromTab('tests', 'teacher')).toBe('tests-teacher')
+    expect(getRouteKeyFromTab('tests', 'student')).toBe('tests-student')
   })
 
   it('should return default for unknown tabs', () => {
@@ -164,6 +168,14 @@ describe('ROUTE_CONFIGS', () => {
       'assignments-student',
       'assignments-teacher-list',
       'assignments-teacher-viewing',
+      'quizzes-teacher',
+      'quizzes-student',
+      'tests-teacher',
+      'tests-student',
+      'calendar-teacher',
+      'calendar-student',
+      'resources-teacher',
+      'resources-student',
     ]
 
     expectedKeys.forEach((key) => {
