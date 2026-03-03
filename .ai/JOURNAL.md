@@ -3332,3 +3332,20 @@
 
 **Verification:**
 - `bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh --dry-run`
+
+## 2026-03-03 — Fix Vercel build mismatch after production guard-rails merge
+**Context:** User reported Vercel build failures after the merge that added production PR guard rails. Local `pnpm` builds passed on both `origin/main` (`853d3d2`) and `origin/production` (`dd562f8`), indicating an environment/package-manager mismatch rather than a Next.js compile error.
+
+**Root cause diagnosed:**
+- `pnpm` path is healthy (`pnpm install --frozen-lockfile` + `pnpm build` both pass).
+- `npm ci` fails with peer resolution conflicts (`vitest` / `@vitest/coverage-v8`), which can break Vercel if it installs with npm.
+
+**Changes:**
+- Updated `vercel.json` to pin Vercel to the repo’s intended package manager:
+  - `installCommand`: `pnpm install --frozen-lockfile`
+  - `buildCommand`: `pnpm build`
+
+**Verification:**
+- `CI=1 pnpm install --frozen-lockfile`
+- `CI=1 pnpm build`
+- `npm ci` (expected to fail; confirms why npm-based Vercel installs can break)
