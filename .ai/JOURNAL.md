@@ -3245,3 +3245,17 @@
 
 **Verification:**
 - Manual doc review to confirm the rule appears in startup ritual, authoritative AI instructions, and developer workflow docs.
+
+## 2026-03-03 — Fixed duplicate Gradebook sidebar icon and switched to SquarePercent
+**Context:** Teacher reported duplicate Gradebook icons in the classroom left sidebar and requested Lucide `SquarePercent`.
+
+**Changes:**
+- Updated `/src/components/layout/NavItems.tsx`:
+  - Removed the first duplicate `gradebook` nav item from `teacherItems`.
+  - Replaced Gradebook icon from `BookA` to `SquarePercent` for the remaining item.
+
+**Verification:**
+- `pnpm lint`
+- Visual verification (Playwright screenshots):
+  - Teacher classroom sidebar: `/tmp/teacher-gradebook-sidebar-fix.png`
+  - Student classroom view: `/tmp/student-gradebook-sidebar-fix.png`

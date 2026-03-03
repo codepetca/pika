@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Calendar,
-  BookA,
   CircleHelp,
   ClipboardCheck,
   ClipboardList,
@@ -11,6 +10,7 @@ import {
   FileCheck,
   Settings,
   PenSquare,
+  SquarePercent,
   Users,
   ChevronDown,
   type LucideIcon,
@@ -61,9 +61,8 @@ const teacherItems: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
-  { id: 'gradebook', label: 'Gradebook', icon: BookA },
   { id: 'tests', label: 'Tests', icon: FileCheck },
-  { id: 'gradebook', label: 'Gradebook', icon: BookA },
+  { id: 'gradebook', label: 'Gradebook', icon: SquarePercent },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: LibraryBig },
   { id: 'roster', label: 'Roster', icon: Users },
