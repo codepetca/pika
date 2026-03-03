@@ -3259,3 +3259,30 @@
 - Visual verification (Playwright screenshots):
   - Teacher classroom sidebar: `/tmp/teacher-gradebook-sidebar-fix.png`
   - Student classroom view: `/tmp/student-gradebook-sidebar-fix.png`
+
+## 2026-03-03 — Issue #356: Replaced pulsing sidebar indicators with static notification dots
+**Context:** Sidebar tab activity indicators were using pulse animation and felt visually noisy. Requirement was to switch to a static top-left notification dot while preserving existing notification logic and behavior.
+
+**Changes:**
+- Updated `/src/components/layout/NavItems.tsx`:
+  - Added reusable `NavIconWithDot` wrapper that renders tab icon + static dot.
+  - Replaced `animate-notification-pulse` usage for student activity indicators with static dot rendering.
+  - Added accessible `aria-label` suffix when activity exists: `"(new activity)"`.
+  - Applied dot behavior to both regular student tabs and special student assignments nav branch.
+- Removed obsolete pulse styling:
+  - Deleted `notification-pulse` keyframes and `.animate-notification-pulse` class from `/src/styles/_keyframe-animations.scss`.
+  - Removed `--tt-transition-duration-pulse` from `/src/styles/_variables.scss`.
+- Added `/tests/components/NavItems.test.tsx` covering:
+  - Dot + aria-label behavior when student notifications are present.
+  - No-dot behavior when no notifications are present.
+  - Student assignments special branch dot rendering.
+  - Teacher non-regression (no notification dot rendering).
+  - Assertion that no `animate-notification-pulse` class is rendered.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/NavItems.test.tsx`
+- `pnpm test`
+- Visual verification screenshots:
+  - Teacher expanded/collapsed sidebar: `/tmp/pika-356-teacher-expanded.png`, `/tmp/pika-356-teacher-collapsed.png`
+  - Student expanded/collapsed sidebar: `/tmp/pika-356-student-expanded.png`, `/tmp/pika-356-student-collapsed.png`
+  - Student dot placement (mocked notification payload to force visible indicators): `/tmp/pika-356-student-expanded-dot.png`, `/tmp/pika-356-student-collapsed-dot.png`
