@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pika Production Merge"
+  short_description: "Merge main into production via protected PR flow"
+  default_prompt: "Use $pika-main-to-production-merge to safely merge main into production in the Pika repo."

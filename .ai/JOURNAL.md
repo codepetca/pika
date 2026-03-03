@@ -3319,3 +3319,16 @@
 **Verification:**
 - Dry-run tested script: `bash .../merge_main_into_production.sh --dry-run`
 - Skill validator script could not run due missing local dependency: `python3 -m yaml`/`PyYAML` not installed.
+
+## 2026-03-03 — Added production merge skill to repo
+**Context:** User requested the new production merge skill be available on `main`.
+
+**Changes:**
+- Added repository skill directory:
+  - `.codex/skills/pika-main-to-production-merge/SKILL.md`
+  - `.codex/skills/pika-main-to-production-merge/agents/openai.yaml`
+  - `.codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh`
+- Updated `.codex/prompts/merge-main-into-production.md` to reference the new skill and align with the PR-required `main` -> `production` flow.
+
+**Verification:**
+- `bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh --dry-run`
