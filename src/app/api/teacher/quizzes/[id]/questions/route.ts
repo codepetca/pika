@@ -35,16 +35,7 @@ export async function POST(
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const quiz = access.quiz
     const supabase = getServiceRoleClient()
-
-    // Cannot add questions to non-draft quizzes
-    if (quiz.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Cannot add questions to a quiz that is not in draft status' },
-        { status: 400 }
-      )
-    }
 
     // Get next position
     const { data: lastQuestion } = await supabase

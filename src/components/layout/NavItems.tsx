@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   LibraryBig,
+  FileCheck,
   Settings,
   PenSquare,
   Users,
@@ -33,6 +34,7 @@ export type ClassroomNavItemId =
   | 'gradebook'
   | 'assignments'
   | 'quizzes'
+  | 'tests'
   | 'calendar'
   | 'resources'
   | 'roster'
@@ -60,6 +62,8 @@ const teacherItems: NavItem[] = [
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
   { id: 'gradebook', label: 'Gradebook', icon: BookA },
+  { id: 'tests', label: 'Tests', icon: FileCheck },
+  { id: 'gradebook', label: 'Gradebook', icon: BookA },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: LibraryBig },
   { id: 'roster', label: 'Roster', icon: Users },
@@ -70,6 +74,7 @@ const studentItems: NavItem[] = [
   { id: 'today', label: 'Today', icon: PenSquare },
   { id: 'assignments', label: 'Assignments', icon: ClipboardList },
   { id: 'quizzes', label: 'Quizzes', icon: CircleHelp },
+  { id: 'tests', label: 'Tests', icon: FileCheck },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'resources', label: 'Resources', icon: LibraryBig },
 ]
@@ -126,6 +131,10 @@ export function NavItems({
     role === 'student' &&
     !notifications?.loading &&
     (notifications?.activeQuizzesCount ?? 0) > 0
+  const showTestsPulse =
+    role === 'student' &&
+    !notifications?.loading &&
+    (notifications?.activeTestsCount ?? 0) > 0
   const showResourcesPulse =
     role === 'student' &&
     !notifications?.loading &&
@@ -464,6 +473,7 @@ export function NavItems({
           (item.id === 'today' && showTodayPulse) ||
           (item.id === 'assignments' && showAssignmentsPulse) ||
           (item.id === 'quizzes' && showQuizzesPulse) ||
+          (item.id === 'tests' && showTestsPulse) ||
           (item.id === 'resources' && showResourcesPulse)
 
         const navLink = (

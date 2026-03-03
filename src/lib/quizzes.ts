@@ -4,6 +4,9 @@
 
 import type {
   Quiz,
+  QuizAssessmentType,
+  QuizFocusEventType,
+  QuizFocusSummary,
   QuizQuestion,
   QuizResponse,
   QuizStatus,
@@ -35,34 +38,48 @@ export function getQuizStatusBadgeClass(status: QuizStatus): string {
   return classes[status]
 }
 
+export function getQuizAssessmentType(quiz: { assessment_type?: QuizAssessmentType | null }): QuizAssessmentType {
+  return quiz.assessment_type === 'test' ? 'test' : 'quiz'
+}
+
 /**
  * Check if a student can respond to a quiz
  */
-export function canStudentRespond(quiz: Quiz, hasResponded: boolean): boolean {
+export function canStudentRespond(quiz: Pick<Quiz, 'status'>, hasResponded: boolean): boolean {
   return quiz.status === 'active' && !hasResponded
 }
 
 /**
  * Check if a student can view quiz results
  */
-export function canStudentViewResults(quiz: Quiz, hasResponded: boolean): boolean {
+export function canStudentViewResults(
+  quiz: Pick<Quiz, 'show_results' | 'status'>,
+  hasResponded: boolean
+): boolean {
   return quiz.show_results && quiz.status === 'closed' && hasResponded
 }
 
 /**
  * Get the student's status for a quiz
  */
-export function getStudentQuizStatus(quiz: Quiz, hasResponded: boolean): StudentQuizStatus {
+export function getStudentQuizStatus(
+  quiz: Pick<Quiz, 'show_results' | 'status'>,
+  hasResponded: boolean
+): StudentQuizStatus {
   if (!hasResponded) return 'not_started'
   if (quiz.show_results && quiz.status === 'closed') return 'can_view_results'
   return 'responded'
 }
 
 /**
- * Check if quiz questions can be edited (before any responses)
+ * Check if quiz/test questions can be edited.
+ * Policy: teachers can edit question sets at any stage.
  */
-export function canEditQuizQuestions(quiz: Quiz, hasResponses: boolean): boolean {
-  return quiz.status === 'draft' && !hasResponses
+export function canEditQuizQuestions(
+  _quiz: Pick<Quiz, 'status'>,
+  _hasResponses: boolean
+): boolean {
+  return true
 }
 
 /**
@@ -104,7 +121,7 @@ export function validateQuizOptions(options: string[]): { valid: boolean; error?
  * Check if a quiz can be activated (draft → active)
  */
 export function canActivateQuiz(
-  quiz: Quiz,
+  quiz: Pick<Quiz, 'status'>,
   questionsCount: number
 ): { valid: boolean; error?: string } {
   if (quiz.status !== 'draft') {
@@ -114,4 +131,62 @@ export function canActivateQuiz(
     return { valid: false, error: 'Quiz must have at least 1 question' }
   }
   return { valid: true }
+}
+
+type FocusEventLike = {
+  event_type: QuizFocusEventType
+  occurred_at: string
+}
+
+export function emptyQuizFocusSummary(): QuizFocusSummary {
+  return {
+    away_count: 0,
+    away_total_seconds: 0,
+    route_exit_attempts: 0,
+    last_away_started_at: null,
+    last_away_ended_at: null,
+  }
+}
+
+export function summarizeQuizFocusEvents(events: FocusEventLike[]): QuizFocusSummary {
+  if (!events.length) return emptyQuizFocusSummary()
+
+  const sorted = [...events].sort(
+    (a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()
+  )
+
+  const summary = emptyQuizFocusSummary()
+  let activeAwayStartedAtMs: number | null = null
+
+  for (const event of sorted) {
+    const eventAtMs = new Date(event.occurred_at).getTime()
+    if (Number.isNaN(eventAtMs)) continue
+
+    if (event.event_type === 'route_exit_attempt') {
+      summary.route_exit_attempts += 1
+      continue
+    }
+
+    if (event.event_type === 'away_start') {
+      if (activeAwayStartedAtMs === null) {
+        activeAwayStartedAtMs = eventAtMs
+        summary.away_count += 1
+      }
+      summary.last_away_started_at = event.occurred_at
+      continue
+    }
+
+    if (event.event_type === 'away_end') {
+      if (activeAwayStartedAtMs !== null && eventAtMs >= activeAwayStartedAtMs) {
+        summary.away_total_seconds += Math.max(
+          0,
+          Math.round((eventAtMs - activeAwayStartedAtMs) / 1000)
+        )
+      }
+      activeAwayStartedAtMs = null
+      summary.last_away_ended_at = event.occurred_at
+    }
+  }
+
+  return summary
 }

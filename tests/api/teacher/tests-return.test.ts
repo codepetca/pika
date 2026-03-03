@@ -1,0 +1,140 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NextRequest } from 'next/server'
+import { POST } from '@/app/api/teacher/tests/[id]/return/route'
+
+vi.mock('@/lib/supabase', () => ({
+  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
+}))
+
+vi.mock('@/lib/auth', () => ({
+  requireRole: vi.fn(async () => ({
+    id: 'teacher-1',
+    email: 'teacher@example.com',
+    role: 'teacher',
+  })),
+}))
+
+vi.mock('@/lib/server/tests', () => ({
+  assertTeacherOwnsTest: vi.fn(async () => ({
+    ok: true,
+    test: {
+      id: 'test-1',
+      title: 'Unit Test',
+      classroom_id: 'classroom-1',
+      classrooms: { archived_at: null },
+    },
+  })),
+}))
+
+const mockSupabaseClient = { from: vi.fn() }
+
+describe('POST /api/teacher/tests/[id]/return', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('returns 400 when student_ids is missing', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('student_ids array is required')
+  })
+
+  it('returns only students whose open responses are fully graded', async () => {
+    const updatedStudentIds: string[][] = []
+    const insertedRows: Array<{ test_id: string; student_id: string }> = []
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+        } as any
+        query.eq.mockImplementationOnce(() => query)
+        query.eq.mockImplementationOnce(async () => ({
+          data: [{ id: 'q-open-1' }],
+          error: null,
+        }))
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_responses') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn(async () => ({
+            data: [
+              {
+                student_id: 'student-1',
+                question_id: 'q-open-1',
+                score: 5,
+                feedback: 'Great',
+                submitted_at: '2026-02-24T15:00:00.000Z',
+              },
+              {
+                student_id: 'student-2',
+                question_id: 'q-open-1',
+                score: null,
+                feedback: null,
+                submitted_at: '2026-02-24T15:01:00.000Z',
+              },
+            ],
+            error: null,
+          })),
+        }
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: vi.fn(async (_column: string, ids: string[]) => {
+                updatedStudentIds.push(ids)
+                return { error: null }
+              }),
+            })),
+          })),
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [],
+              error: null,
+            })),
+          })),
+          insert: vi.fn(async (rows: Array<{ test_id: string; student_id: string }>) => {
+            insertedRows.push(...rows)
+            return { error: null }
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-1', 'student-2'] }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.returned_count).toBe(1)
+    expect(data.skipped_count).toBe(1)
+    expect(updatedStudentIds).toEqual([['student-1']])
+    expect(insertedRows).toEqual([
+      expect.objectContaining({
+        test_id: 'test-1',
+        student_id: 'student-1',
+      }),
+    ])
+  })
+})

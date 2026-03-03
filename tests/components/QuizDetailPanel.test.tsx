@@ -109,15 +109,17 @@ describe('QuizDetailPanel', () => {
       expect(screen.getByDisplayValue('My Cool Quiz')).toBeInTheDocument()
     })
 
-    it('shows warning when quiz has responses', async () => {
+    it('allows editing controls when quiz has responses', async () => {
       mockFetchForQuiz(sampleQuestions, sampleResults)
       const quiz = makeQuizWithStats({ stats: { total_students: 25, responded: 5, questions_count: 2 } })
 
       render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        expect(screen.getByText('Questions cannot be edited after students have responded.')).toBeInTheDocument()
+        expect(screen.queryByText('Questions cannot be edited after students have responded.')).not.toBeInTheDocument()
       })
+
+      expect(screen.getByText('Add Question')).toBeInTheDocument()
     })
 
     it('shows Add Question button when editable', async () => {
@@ -131,15 +133,54 @@ describe('QuizDetailPanel', () => {
       })
     })
 
-    it('shows activation warning when no questions', async () => {
+    it('does not show activation warning label when no questions', async () => {
       mockFetchForQuiz([])
       const quiz = makeQuizWithStats()
 
       render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        expect(screen.getByText('Quiz must have at least 1 question')).toBeInTheDocument()
+        expect(screen.queryByText('Quiz must have at least 1 question')).not.toBeInTheDocument()
       })
+    })
+
+    it('in tests authoring, question type is fixed and open-response char limit is hidden', async () => {
+      const testQuestion = createMockQuizQuestion({
+        id: 'test-q1',
+        question_type: 'open_response',
+        question_text: 'Explain your reasoning',
+        options: [],
+        points: 5,
+        response_max_chars: 5000,
+      })
+      mockFetchForQuiz([testQuestion])
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Mixed Format Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Explain your reasoning')).toBeInTheDocument()
+      })
+
+      const promptField = screen.getByPlaceholderText('Question prompt')
+      expect(promptField.tagName).toBe('TEXTAREA')
+
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Character limit')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Monospace input')).toBeInTheDocument()
+      expect(screen.queryByText('Open response')).not.toBeInTheDocument()
+      expect(screen.queryByText('Multiple choice')).not.toBeInTheDocument()
     })
   })
 
@@ -157,8 +198,8 @@ describe('QuizDetailPanel', () => {
       fireEvent.click(screen.getByText('Preview'))
 
       await waitFor(() => {
-        expect(screen.getByText('1. Favorite color?')).toBeInTheDocument()
-        expect(screen.getByText('2. Favorite animal?')).toBeInTheDocument()
+        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
+        expect(screen.getByText('Favorite animal?')).toBeInTheDocument()
       })
 
       expect(screen.getByText('Red')).toBeInTheDocument()
@@ -200,8 +241,8 @@ describe('QuizDetailPanel', () => {
       fireEvent.click(screen.getByText(/Results \(20\)/))
 
       await waitFor(() => {
-        expect(screen.getByText('Q1. Favorite color?')).toBeInTheDocument()
-        expect(screen.getByText('Q2. Favorite animal?')).toBeInTheDocument()
+        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
+        expect(screen.getByText('Favorite animal?')).toBeInTheDocument()
       })
 
       expect(screen.getByText('10 (50%)')).toBeInTheDocument() // Blue
@@ -237,7 +278,7 @@ describe('QuizDetailPanel', () => {
       // The individual responses component fetches its own data
       // Just verify the section exists
       await waitFor(() => {
-        expect(screen.getByText('Q1. Favorite color?')).toBeInTheDocument()
+        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
       })
     })
 

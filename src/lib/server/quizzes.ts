@@ -1,9 +1,10 @@
 import { getServiceRoleClient } from '@/lib/supabase'
-import type { QuizStatus } from '@/types'
+import type { QuizAssessmentType, QuizStatus } from '@/types'
 
 export type QuizAccessRecord = {
   id: string
   classroom_id: string
+  assessment_type?: QuizAssessmentType | null
   status: QuizStatus
   title: string
   show_results: boolean

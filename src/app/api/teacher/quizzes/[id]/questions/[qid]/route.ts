@@ -22,16 +22,7 @@ export async function PATCH(
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const quiz = access.quiz
     const supabase = getServiceRoleClient()
-
-    // Cannot modify questions on non-draft quizzes
-    if (quiz.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Cannot modify questions on a quiz that is not in draft status' },
-        { status: 400 }
-      )
-    }
 
     // Verify question belongs to this quiz
     const { data: existingQuestion, error: qError } = await supabase
@@ -106,16 +97,7 @@ export async function DELETE(
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
-    const quiz = access.quiz
     const supabase = getServiceRoleClient()
-
-    // Cannot delete questions from non-draft quizzes
-    if (quiz.status !== 'draft') {
-      return NextResponse.json(
-        { error: 'Cannot delete questions from a quiz that is not in draft status' },
-        { status: 400 }
-      )
-    }
 
     // Verify question belongs to this quiz
     const { data: existingQuestion, error: qError } = await supabase
