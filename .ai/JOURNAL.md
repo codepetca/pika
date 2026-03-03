@@ -3300,3 +3300,35 @@
 - `npx tsc --noEmit`
 - `pnpm lint`
 - `pnpm run build` (with CI-equivalent env vars)
+
+## 2026-03-03 — Added production merge runbook guidance + merge skill
+**Context:** To prevent repeated friction while merging `main` into `production`, we documented branch-protection-aware flow and created a reusable Codex skill.
+
+**Changes:**
+- Updated `docs/dev-workflow.md` with a dedicated `main -> production` runbook:
+  - Worktree preflight (`worktree prune` + re-add behavior)
+  - Merge commands
+  - PR-based flow (push temporary branch, create PR, merge, fast-forward local production)
+  - Known pitfalls (`GH013`, stale worktree metadata, quoting gotchas)
+- Updated `docs/ai-instructions.md` with `Production Merge Policy (MANDATORY)`.
+- Updated `.ai/START-HERE.md` quick checklist with a production PR-flow reminder.
+- Created Codex skill at `/Users/stew/.codex/skills/pika-main-to-production-merge`:
+  - `SKILL.md` workflow + guardrails
+  - `scripts/merge_main_into_production.sh`
+
+**Verification:**
+- Dry-run tested script: `bash .../merge_main_into_production.sh --dry-run`
+- Skill validator script could not run due missing local dependency: `python3 -m yaml`/`PyYAML` not installed.
+
+## 2026-03-03 — Added production merge skill to repo
+**Context:** User requested the new production merge skill be available on `main`.
+
+**Changes:**
+- Added repository skill directory:
+  - `.codex/skills/pika-main-to-production-merge/SKILL.md`
+  - `.codex/skills/pika-main-to-production-merge/agents/openai.yaml`
+  - `.codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh`
+- Updated `.codex/prompts/merge-main-into-production.md` to reference the new skill and align with the PR-required `main` -> `production` flow.
+
+**Verification:**
+- `bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh --dry-run`

@@ -15,6 +15,7 @@
 [ ] Identify task: GitHub issue, features.json, or ask user
 [ ] Plan before coding: state task, propose approach, wait for approval
 [ ] If landing to main: use squash/linear history (no merge commits)
+[ ] If merging into production: use PR flow (direct push is blocked)
 ```
 
 ---
