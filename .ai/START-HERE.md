@@ -14,6 +14,7 @@
 [ ] Read: docs/ai-instructions.md (then follow its reading order)
 [ ] Identify task: GitHub issue, features.json, or ask user
 [ ] Plan before coding: state task, propose approach, wait for approval
+[ ] If landing to main: use squash/linear history (no merge commits)
 ```
 
 ---
@@ -53,6 +54,14 @@ If you need to run hub-level git commands (add/remove worktrees), set:
 
 If unsure which worktree to use:
 - Ask the user to run `pika ls`.
+
+### Main Branch Merge Rule (MANDATORY)
+
+- `main` rejects merge commits.
+- Do not use `git merge --no-ff` when preparing changes for `main`.
+- Land work using one of:
+  - GitHub PR **Squash and merge**
+  - Linear local flow (rebase/cherry-pick/squash) that produces non-merge commits
 
 ---
 

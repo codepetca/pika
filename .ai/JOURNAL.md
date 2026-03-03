@@ -3230,3 +3230,18 @@
 - Teacher test authoring (small points field + label): `/tmp/teacher-tests-points-label-small-loaded.png`
 - Student test view (unchanged behavior): `/tmp/student-tests-after-points-ui-change.png`
 - 2026-03-03: Adjusted test question editor points control sizing so the points input width tracks the compact `Points` label area (`w-[7ch]`, `md:grid-cols-[minmax(0,1fr)_max-content]`, input `w-full`). Verified with focused test/lint and screenshots (`/tmp/teacher-points-label-width.png`, `/tmp/student-tests-view.png`).
+
+## 2026-03-03 — Documented main-branch linear merge policy for AI sessions
+**Context:** Main branch push was rejected by repository rules when using a merge commit. Need a persistent instruction so future AI sessions do not repeat this.
+
+**Changes:**
+- Updated `/.ai/START-HERE.md`:
+  - Added checklist item for main landing strategy.
+  - Added mandatory note that `main` rejects merge commits and must use squash/linear history.
+- Updated `/docs/ai-instructions.md`:
+  - Added `Main Merge Policy (MANDATORY)` section under Git worktree guidance.
+- Updated `/docs/dev-workflow.md`:
+  - Added `Landing changes to main (No merge commits)` section with preferred PR squash flow and safe local linear alternatives.
+
+**Verification:**
+- Manual doc review to confirm the rule appears in startup ritual, authoritative AI instructions, and developer workflow docs.
