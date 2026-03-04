@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, waitFor } from '@testing-library/react'
+import { render, waitFor, act } from '@testing-library/react'
 import { StudentLessonCalendarTab } from '@/app/classrooms/[classroomId]/StudentLessonCalendarTab'
 import { createMockClassroom } from '../helpers/mocks'
 
@@ -71,8 +71,11 @@ describe('StudentLessonCalendarTab', () => {
     expect(callOrder.some((u) => u.includes('assignments'))).toBe(true)
     expect(callOrder.some((u) => u.includes('announcements'))).toBe(true)
 
-    // Resolve all
-    resolveAll.forEach((r) => r())
+    // Resolve all fetches and flush resulting state updates.
+    await act(async () => {
+      resolveAll.forEach((resolve) => resolve())
+      await Promise.resolve()
+    })
   })
 
   it('fires exactly 3 fetch calls total (not 3 separate useEffects)', async () => {

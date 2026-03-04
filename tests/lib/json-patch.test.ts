@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { applyJsonPatch, tryApplyJsonPatch, createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import type { JsonPatchOperation, TiptapContent } from '@/types'
 
@@ -56,7 +56,13 @@ describe('json-patch utilities', () => {
       { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'Oops' }] },
     ]
 
-    expect(applyJsonPatch(content, invalidPatch)).toEqual(content)
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(applyJsonPatch(content, invalidPatch)).toEqual(content)
+      expect(consoleErrorSpy).toHaveBeenCalledOnce()
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
   })
 
   it('tryApplyJsonPatch returns success true on valid patch', () => {
@@ -92,9 +98,15 @@ describe('json-patch utilities', () => {
       { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'Oops' }] },
     ]
 
-    const result = tryApplyJsonPatch(content, invalidPatch)
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const result = tryApplyJsonPatch(content, invalidPatch)
 
-    expect(result.success).toBe(false)
-    expect(result.content).toEqual(content)
+      expect(result.success).toBe(false)
+      expect(result.content).toEqual(content)
+      expect(consoleErrorSpy).toHaveBeenCalledOnce()
+    } finally {
+      consoleErrorSpy.mockRestore()
+    }
   })
 })

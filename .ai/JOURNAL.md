@@ -3934,3 +3934,39 @@
   - `/tmp/student-prevalidate-before-confirm.png`
   - `/tmp/teacher-tests-prevalidate-before-confirm.png`
   - `/tmp/student-tests-prevalidate-before-confirm-stable.png`
+
+## 2026-03-04 — Issue #352: remove non-fatal warning noise in vitest output
+**Context:** Clean up repeated warning/stderr noise identified in issue #352 (calendar fetch mocks, duplicate tiptap underline registration, act warnings, and intentional json-patch error-path logging).
+
+**Changes:**
+- Updated `/tests/components/calendar-view-persistence.test.tsx`:
+  - Added fetch mock coverage for announcement endpoints to prevent `Unhandled fetch` noise.
+- Updated `/src/components/editor/RichTextEditor.tsx`:
+  - Removed explicit `Underline` extension registration (already included by `StarterKit`).
+- Updated `/src/components/editor/RichTextViewer.tsx`:
+  - Removed explicit `Underline` extension registration (already included by `StarterKit`).
+- Updated `/tests/components/RichTextEditor.test.tsx`:
+  - Added regression test asserting no duplicate extension warning is emitted.
+- Updated `/tests/components/StudentLessonCalendarTab.test.tsx`:
+  - Wrapped async resolution of mocked parallel fetches in `act(...)` to avoid state-update warning noise.
+- Updated `/tests/lib/json-patch.test.ts`:
+  - Scoped `console.error` suppression to intentional invalid-patch tests and asserted logging behavior.
+
+**Verification:**
+- `pnpm exec vitest tests/components/calendar-view-persistence.test.tsx tests/components/RichTextEditor.test.tsx tests/lib/json-patch.test.ts --run`
+- `pnpm exec vitest tests/components/calendar-view-persistence.test.tsx tests/components/RichTextEditor.test.tsx tests/components/AssignmentModal.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/lib/json-patch.test.ts --run`
+- `pnpm test`
+
+## 2026-03-04 — Follow-up: silence remaining test stderr/warn output
+**Context:** After initial issue #352 cleanup, full suite still emitted high-volume expected-path console output and one React ref warning from a test mock.
+
+**Changes:**
+- Updated `/tests/setup.ts`:
+  - Added global suppression for `console.error` and `console.warn` during tests.
+  - Added opt-out via `VITEST_SHOW_CONSOLE=true` for local debugging.
+- Updated `/tests/components/StudentAssignmentsTab.test.tsx`:
+  - Changed `StudentAssignmentEditor` mock to use `forwardRef` to match component contract and remove React ref warning.
+
+**Verification:**
+- `pnpm exec vitest tests/components/StudentAssignmentsTab.test.tsx tests/unit/api-handler.test.ts tests/lib/assignment-doc-history.test.ts --run`
+- `pnpm test`
