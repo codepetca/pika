@@ -266,13 +266,18 @@ export interface ClassroomResources {
 // Quiz types
 export type QuizStatus = 'draft' | 'active' | 'closed'
 export type QuizAssessmentType = 'quiz' | 'test'
-export type QuizFocusEventType = 'away_start' | 'away_end' | 'route_exit_attempt'
+export type QuizFocusEventType =
+  | 'away_start'
+  | 'away_end'
+  | 'route_exit_attempt'
+  | 'window_unmaximize_attempt'
 export type TestQuestionType = 'multiple_choice' | 'open_response'
 
 export interface QuizFocusSummary {
   away_count: number
   away_total_seconds: number
   route_exit_attempts: number
+  window_unmaximize_attempts: number
   last_away_started_at: string | null
   last_away_ended_at: string | null
 }

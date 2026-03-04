@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateTestQuestionUpdate } from '@/lib/test-questions'
+import { validateTestQuestionCreate, validateTestQuestionUpdate } from '@/lib/test-questions'
 
 describe('test-questions validation', () => {
   it('rejects changing question_type for existing questions', () => {
@@ -50,6 +50,61 @@ describe('test-questions validation', () => {
         points: 6,
         response_max_chars: 5000,
         response_monospace: true,
+      },
+    })
+  })
+
+  it('allows empty question text on create when draft option is enabled', () => {
+    const result = validateTestQuestionCreate(
+      {
+        question_type: 'multiple_choice',
+        question_text: '   ',
+        options: ['Option 1', 'Option 2'],
+        correct_option: 0,
+        points: 1,
+      },
+      { allowEmptyQuestionText: true }
+    )
+
+    expect(result).toEqual({
+      valid: true,
+      value: {
+        question_type: 'multiple_choice',
+        question_text: '',
+        options: ['Option 1', 'Option 2'],
+        correct_option: 0,
+        points: 1,
+        response_max_chars: 5000,
+        response_monospace: false,
+      },
+    })
+  })
+
+  it('allows clearing question text on update when draft option is enabled', () => {
+    const result = validateTestQuestionUpdate(
+      { question_text: '   ' },
+      {
+        question_type: 'open_response',
+        question_text: 'Explain event loops.',
+        options: [],
+        correct_option: null,
+        points: 5,
+        response_max_chars: 5000,
+        response_monospace: false,
+      },
+      { allowEmptyQuestionText: true }
+    )
+
+    expect(result).toEqual({
+      valid: true,
+      value: {
+        question_type: 'open_response',
+        question_text: '',
+        options: [],
+        correct_option: null,
+        points: 5,
+        response_max_chars: 5000,
+        response_monospace: false,
       },
     })
   })

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
+import { getQuizExitCount } from '@/lib/quizzes'
 import { Button, Input } from '@/ui'
 import type { QuizFocusSummary } from '@/types'
 
@@ -255,11 +256,8 @@ export function QuizIndividualResponses({
             </button>
             {student.focus_summary && (
               <p className="ml-4 mt-0.5 text-xs text-text-muted">
-                Focus events: {student.focus_summary.away_count} · Away time:{' '}
+                Exits: {getQuizExitCount(student.focus_summary)} · Away time:{' '}
                 {formatDuration(student.focus_summary.away_total_seconds)}
-                {student.focus_summary.route_exit_attempts > 0
-                  ? ` · Exit attempts: ${student.focus_summary.route_exit_attempts}`
-                  : ''}
               </p>
             )}
             {expandedStudent === student.student_id && (

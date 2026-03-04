@@ -159,5 +159,57 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
     expect(data.focus_summary.away_count).toBe(1)
+    expect(data.focus_summary.window_unmaximize_attempts).toBe(0)
+  })
+
+  it('accepts window unmaximize telemetry events', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { id: 'attempt-1', is_submitted: false },
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+      if (table === 'test_focus_events') {
+        return {
+          insert: vi.fn().mockResolvedValue({ error: null }),
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [{ event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-24T12:00:00.000Z' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      buildRequest({
+        event_type: 'window_unmaximize_attempt',
+        session_id: 'session-1',
+        metadata: { source: 'fullscreen_exit' },
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.success).toBe(true)
+    expect(data.focus_summary.window_unmaximize_attempts).toBe(1)
   })
 })
