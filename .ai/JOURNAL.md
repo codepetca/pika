@@ -4035,3 +4035,19 @@
 - Created temporary active test for deterministic exam-mode screenshot:
   - Title: `Split Check 1772644746324`
   - Test ID: `a434d323-a3d1-463b-8fd0-af70ce9750ed`
+
+## 2026-03-04 — Residual-risk follow-up: add tests and clean verification data
+**Context:** User requested fixing residual risks after PR review.
+
+**Changes:**
+- Added automated coverage in `/tests/components/StudentQuizzesTab.test.tsx`:
+  - New test verifies student tests split behavior transitions from `lg:grid-cols-2` (pre-start) to `lg:grid-cols-[30%_70%]` (active exam mode).
+  - New test verifies active exam mode left pane contains `Exam Mode` state and the exit/away indicators.
+- Cleaned up temporary verification tests created during manual UI validation by deleting teacher tests whose titles started with `Exam Mode UI ` and `Split Check `.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Cleanup result:
+  - Deleted `da3d79b5-3ab6-4ba9-b446-f3267b2a7b60` (`Exam Mode UI 1772644538443`)
+  - Deleted `a434d323-a3d1-463b-8fd0-af70ce9750ed` (`Split Check 1772644746324`)

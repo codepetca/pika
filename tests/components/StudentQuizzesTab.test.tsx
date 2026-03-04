@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { StudentQuizzesTab } from '@/app/classrooms/[classroomId]/StudentQuizzesTab'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -68,6 +68,18 @@ describe('StudentQuizzesTab exam mode', () => {
         focus_summary: null,
       }),
     })
+  }
+
+  function getSplitContainer(container: HTMLElement): HTMLDivElement {
+    const splitContainer = Array.from(container.querySelectorAll('div')).find((element) => {
+      const className = element.className
+      return typeof className === 'string' && className.includes('grid-cols-1') && className.includes('gap-4')
+    })
+
+    if (!splitContainer || !(splitContainer instanceof HTMLDivElement)) {
+      throw new Error('Split container not found')
+    }
+    return splitContainer
   }
 
   it('does not show an in-panel exit control for active tests', async () => {
@@ -296,6 +308,123 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(screen.queryByText(/Window status:/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Focus events:/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Browser minimization attempts/i)).not.toBeInTheDocument()
+  })
+
+  it('uses 50/50 split before start and 30/70 exam mode split after start', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: {
+              away_count: 1,
+              away_total_seconds: 7,
+              route_exit_attempts: 1,
+              window_unmaximize_attempts: 1,
+              last_away_started_at: null,
+              last_away_ended_at: null,
+            },
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: {
+              away_count: 1,
+              away_total_seconds: 7,
+              route_exit_attempts: 1,
+              window_unmaximize_attempts: 1,
+              last_away_started_at: null,
+              last_away_ended_at: null,
+            },
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    const { container } = render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    const splitContainerBeforeStart = getSplitContainer(container)
+    expect(splitContainerBeforeStart.className).toContain('lg:grid-cols-2')
+    expect(splitContainerBeforeStart.className).not.toContain('lg:grid-cols-[30%_70%]')
+    expect(screen.getByRole('heading', { name: 'Tests' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Exam Mode' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    })
+
+    const splitContainerAfterStart = getSplitContainer(container)
+    expect(splitContainerAfterStart.className).toContain('lg:grid-cols-[30%_70%]')
+    expect(splitContainerAfterStart.className).not.toContain('lg:grid-cols-2')
+    expect(screen.getByRole('heading', { name: 'Exam Mode' })).toBeInTheDocument()
+
+    const sections = container.querySelectorAll('section')
+    const leftPane = sections.item(0)
+    expect(leftPane).toBeTruthy()
+    expect(within(leftPane).queryByRole('heading', { name: 'Tests' })).not.toBeInTheDocument()
+    expect(within(leftPane).getByLabelText(/Exits /)).toBeInTheDocument()
+    expect(within(leftPane).getByLabelText(/Away time/)).toBeInTheDocument()
   })
 
   it('keeps the test list visible and refreshes statuses after submit', async () => {
