@@ -184,3 +184,61 @@ Avoid:
 ```bash
 git merge --no-ff <branch>   # creates merge commit (rejected on main)
 ```
+
+---
+
+## Merging `main` into `production` (PR-required)
+
+`production` is branch-protected and rejects direct pushes. Always merge through a PR.
+
+### 1) Prepare hub + production worktree
+
+```bash
+export PIKA_WORKTREE="$HOME/Repos/pika"   # hub checkout
+git -C "$PIKA_WORKTREE" fetch origin
+git -C "$PIKA_WORKTREE" worktree prune
+
+if [ ! -d "$HOME/Repos/.worktrees/pika/production" ]; then
+  git -C "$PIKA_WORKTREE" worktree add "$HOME/Repos/.worktrees/pika/production" production
+fi
+```
+
+### 2) Merge latest remote branches in production worktree
+
+```bash
+export PROD_WT="$HOME/Repos/.worktrees/pika/production"
+git -C "$PROD_WT" fetch origin main production
+git -C "$PROD_WT" merge --ff-only origin/production
+git -C "$PROD_WT" merge origin/main
+```
+
+### 3) Open PR to production
+
+```bash
+MERGE_BRANCH="codex/merge-main-into-production-$(date +%Y%m%d)"
+git -C "$PROD_WT" push origin HEAD:"refs/heads/$MERGE_BRANCH"
+
+gh pr create \
+  --repo codepetca/pika \
+  --base production \
+  --head "$MERGE_BRANCH" \
+  --title 'Merge main into production (YYYY-MM-DD)' \
+  --body 'Merge latest main into production.'
+```
+
+### 4) Merge PR and sync local production
+
+```bash
+gh pr merge <pr-number> --repo codepetca/pika --merge
+git -C "$PROD_WT" fetch origin production
+git -C "$PROD_WT" merge --ff-only origin/production
+```
+
+### Known pitfalls (and fixes)
+
+- `production` worktree path missing but listed in metadata:
+  - Run `git -C "$HOME/Repos/pika" worktree prune` then re-add.
+- Push rejected with `GH013`:
+  - Expected; open/merge PR instead of direct push.
+- `gh pr create` body errors due to backticks:
+  - Use single-quoted body text (or escape backticks).

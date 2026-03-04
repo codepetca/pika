@@ -237,6 +237,17 @@ See `docs/dev-workflow.md` for create/cleanup steps and `.env.local` symlinks.
   - PR **Squash and merge** (preferred)
   - Linear local integration (`rebase`, `cherry-pick`, or `merge --squash` + commit)
 
+### Production Merge Policy (MANDATORY)
+
+- `production` requires pull requests; direct pushes are blocked by branch rules.
+- For `main` -> `production`:
+  1. Ensure `production` worktree exists (prune stale entries and re-add if needed).
+  2. Merge `origin/main` into local `production` worktree branch.
+  3. Push that merge commit to a temporary branch.
+  4. Open a PR with `base=production`.
+  5. Merge via GitHub, then fast-forward local `production` to `origin/production`.
+- When running `gh pr create`, prefer single-quoted title/body text (avoid shell-processed backticks).
+
 ---
 
 ## Environment Files (.env.local)

@@ -5,6 +5,10 @@ import type { TestQuestionType } from '@/types'
 export const DEFAULT_MULTIPLE_CHOICE_POINTS = 1
 export const DEFAULT_OPEN_RESPONSE_POINTS = 5
 
+type TestQuestionValidationOptions = {
+  allowEmptyQuestionText?: boolean
+}
+
 export type TestQuestionDraft = {
   question_type: TestQuestionType
   question_text: string
@@ -37,10 +41,11 @@ function normalizeResponseMaxChars(input: unknown, fallback = DEFAULT_OPEN_RESPO
   return parsed
 }
 
-function normalizeQuestionText(input: unknown): string | null {
+function normalizeQuestionText(input: unknown, allowEmpty = false): string | null {
   if (typeof input !== 'string') return null
   const trimmed = input.trim()
-  return trimmed ? trimmed : null
+  if (trimmed) return trimmed
+  return allowEmpty ? '' : null
 }
 
 function normalizeResponseMonospace(input: unknown, fallback = false): boolean {
@@ -64,10 +69,14 @@ export function defaultPointsForQuestionType(questionType: TestQuestionType): nu
     : DEFAULT_MULTIPLE_CHOICE_POINTS
 }
 
-export function validateTestQuestionCreate(input: Record<string, unknown>): ValidationResult {
+export function validateTestQuestionCreate(
+  input: Record<string, unknown>,
+  options: TestQuestionValidationOptions = {}
+): ValidationResult {
+  const allowEmptyQuestionText = options.allowEmptyQuestionText === true
   const questionType = normalizeQuestionType(input.question_type)
-  const questionText = normalizeQuestionText(input.question_text)
-  if (!questionText) {
+  const questionText = normalizeQuestionText(input.question_text, allowEmptyQuestionText)
+  if (questionText === null) {
     return { valid: false, error: 'Question text is required' }
   }
 
@@ -97,14 +106,14 @@ export function validateTestQuestionCreate(input: Record<string, unknown>): Vali
     }
   }
 
-  const options = normalizeOptions(input.options)
-  if (!options) {
+  const normalizedOptions = normalizeOptions(input.options)
+  if (!normalizedOptions) {
     return { valid: false, error: 'Options must be an array of non-empty strings' }
   }
-  if (options.length < 2) {
+  if (normalizedOptions.length < 2) {
     return { valid: false, error: 'At least 2 options are required' }
   }
-  if (options.length > MAX_QUIZ_OPTIONS) {
+  if (normalizedOptions.length > MAX_QUIZ_OPTIONS) {
     return { valid: false, error: `Maximum ${MAX_QUIZ_OPTIONS} options allowed` }
   }
 
@@ -113,7 +122,7 @@ export function validateTestQuestionCreate(input: Record<string, unknown>): Vali
     return { valid: false, error: 'correct_option is required for multiple-choice questions' }
   }
   const correctOption = Number(rawCorrectOption)
-  if (correctOption < 0 || correctOption >= options.length) {
+  if (correctOption < 0 || correctOption >= normalizedOptions.length) {
     return { valid: false, error: 'correct_option is out of range' }
   }
 
@@ -122,7 +131,7 @@ export function validateTestQuestionCreate(input: Record<string, unknown>): Vali
     value: {
       question_type: 'multiple_choice',
       question_text: questionText,
-      options,
+      options: normalizedOptions,
       correct_option: correctOption,
       points,
       response_max_chars: responseMaxChars,
@@ -133,8 +142,10 @@ export function validateTestQuestionCreate(input: Record<string, unknown>): Vali
 
 export function validateTestQuestionUpdate(
   input: Record<string, unknown>,
-  current: TestQuestionDraft
+  current: TestQuestionDraft,
+  options: TestQuestionValidationOptions = {}
 ): ValidationResult {
+  const allowEmptyQuestionText = options.allowEmptyQuestionText === true
   if (input.question_type !== undefined) {
     const requestedType = normalizeQuestionType(input.question_type)
     if (requestedType !== current.question_type) {
@@ -143,8 +154,11 @@ export function validateTestQuestionUpdate(
   }
 
   const nextType = current.question_type
-  const nextText = normalizeQuestionText(input.question_text ?? current.question_text)
-  if (!nextText) {
+  const nextText = normalizeQuestionText(
+    input.question_text ?? current.question_text,
+    allowEmptyQuestionText
+  )
+  if (nextText === null) {
     return { valid: false, error: 'Question text cannot be empty' }
   }
 

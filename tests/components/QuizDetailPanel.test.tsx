@@ -178,9 +178,58 @@ describe('QuizDetailPanel', () => {
 
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Character limit')).not.toBeInTheDocument()
-      expect(screen.getByLabelText('Monospace input')).toBeInTheDocument()
+      expect(screen.getByLabelText('Code')).toBeInTheDocument()
       expect(screen.queryByText('Open response')).not.toBeInTheDocument()
       expect(screen.queryByText('Multiple choice')).not.toBeInTheDocument()
+    })
+
+    it('creates new test questions with empty question_text so placeholder text remains a placeholder', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ questions: [] }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ question: { id: 'new-question-id' } }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ questions: [] }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Draft Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Add MC Question')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Add MC Question'))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          expect.stringContaining('/api/teacher/tests/'),
+          expect.objectContaining({ method: 'POST' })
+        )
+      })
+
+      const postCall = fetchMock.mock.calls.find((call: any[]) => call[1]?.method === 'POST')
+      const postBody = JSON.parse(postCall?.[1]?.body ?? '{}')
+      expect(postBody.question_text).toBe('')
     })
   })
 
@@ -207,6 +256,32 @@ describe('QuizDetailPanel', () => {
       expect(screen.getByText('Cat')).toBeInTheDocument()
       expect(screen.getByText('Dog')).toBeInTheDocument()
       expect(screen.getByText(/Selections are not saved/)).toBeInTheDocument()
+    })
+
+    it('hides the helper label in test preview', async () => {
+      mockFetchForQuiz(sampleQuestions)
+      const testQuiz = makeQuizWithStats({ assessment_type: 'test', title: 'Preview Test' })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Preview')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Preview'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
+      })
+      expect(screen.queryByText(/Selections are not saved/)).not.toBeInTheDocument()
     })
 
     it('shows empty preview when no questions', async () => {

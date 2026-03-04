@@ -180,14 +180,14 @@ export function QuizDetailPanel({
         ? questionType === 'open_response'
           ? {
               question_type: 'open_response',
-              question_text: 'New open response question',
+              question_text: '',
               points: DEFAULT_OPEN_RESPONSE_POINTS,
               response_max_chars: 5000,
               response_monospace: false,
             }
           : {
               question_type: 'multiple_choice',
-              question_text: 'New multiple-choice question',
+              question_text: '',
               options: ['Option 1', 'Option 2'],
               correct_option: 0,
               points: DEFAULT_MULTIPLE_CHOICE_POINTS,
@@ -441,9 +441,11 @@ function QuizPreview({ questions, isTestsView }: { questions: QuizQuestion[]; is
 
   return (
     <div className="space-y-6">
-      <p className="text-xs text-text-muted italic">
-        This is how students will see the quiz. Selections are not saved.
-      </p>
+      {!isTestsView && (
+        <p className="text-xs text-text-muted italic">
+          This is how students will see the quiz. Selections are not saved.
+        </p>
+      )}
       {questions.map((question, index) => (
         <div key={question.id} className="space-y-2">
           <div className="space-y-1">

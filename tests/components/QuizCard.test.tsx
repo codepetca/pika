@@ -193,4 +193,94 @@ describe('QuizCard', () => {
     const [, options] = fetchMock.mock.calls[0]
     expect(JSON.parse(options.body)).toEqual({ show_results: true })
   })
+
+  it('shows activation error from API when activation fails', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Failed to update quiz' }),
+    })
+
+    const onQuizUpdate = vi.fn()
+    const quiz = makeQuizWithStats({ status: 'draft', assessment_type: 'quiz' })
+    render(<QuizCard quiz={quiz} {...defaultProps} onQuizUpdate={onQuizUpdate} />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByLabelText('Activate quiz'))
+    fireEvent.click(screen.getByText('Activate'))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Failed to update quiz')
+    expect(onQuizUpdate).not.toHaveBeenCalled()
+  })
+
+  it('pre-validates tests and blocks activate confirmation when invalid', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        questions: [
+          {
+            question_type: 'multiple_choice',
+            question_text: '',
+            options: ['Option 1', 'Option 2'],
+            correct_option: 0,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          },
+        ],
+      }),
+    })
+
+    const quiz = makeQuizWithStats({ status: 'draft', assessment_type: 'test' })
+    render(
+      <QuizCard
+        quiz={quiz}
+        {...defaultProps}
+        apiBasePath="/api/teacher/tests"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    fireEvent.click(screen.getByLabelText('Activate quiz'))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Q1: Question text is required')
+    expect(screen.queryByText('Activate test?')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/quiz-1')
+  })
+
+  it('pre-validates tests and opens activate confirmation when valid', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        questions: [
+          {
+            question_type: 'multiple_choice',
+            question_text: 'What is 2 + 2?',
+            options: ['3', '4'],
+            correct_option: 1,
+            points: 1,
+            response_max_chars: 5000,
+            response_monospace: false,
+          },
+        ],
+      }),
+    })
+
+    const quiz = makeQuizWithStats({ status: 'draft', assessment_type: 'test' })
+    render(
+      <QuizCard
+        quiz={quiz}
+        {...defaultProps}
+        apiBasePath="/api/teacher/tests"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    fireEvent.click(screen.getByLabelText('Activate quiz'))
+
+    expect(await screen.findByText('Activate test?')).toBeInTheDocument()
+  })
 })
