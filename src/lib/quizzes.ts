@@ -138,11 +138,30 @@ type FocusEventLike = {
   occurred_at: string
 }
 
+type QuizExitSummaryLike = Pick<
+  QuizFocusSummary,
+  'away_count' | 'route_exit_attempts' | 'window_unmaximize_attempts'
+> | null | undefined
+
+export function getQuizExitCount(summary: QuizExitSummaryLike): number {
+  if (!summary) return 0
+
+  const awayCount = Math.max(0, Math.trunc(Number(summary.away_count) || 0))
+  const routeExitAttempts = Math.max(0, Math.trunc(Number(summary.route_exit_attempts) || 0))
+  const windowUnmaximizeAttempts = Math.max(
+    0,
+    Math.trunc(Number(summary.window_unmaximize_attempts) || 0)
+  )
+
+  return awayCount + routeExitAttempts + windowUnmaximizeAttempts
+}
+
 export function emptyQuizFocusSummary(): QuizFocusSummary {
   return {
     away_count: 0,
     away_total_seconds: 0,
     route_exit_attempts: 0,
+    window_unmaximize_attempts: 0,
     last_away_started_at: null,
     last_away_ended_at: null,
   }
@@ -164,6 +183,11 @@ export function summarizeQuizFocusEvents(events: FocusEventLike[]): QuizFocusSum
 
     if (event.event_type === 'route_exit_attempt') {
       summary.route_exit_attempts += 1
+      continue
+    }
+
+    if (event.event_type === 'window_unmaximize_attempt') {
+      summary.window_unmaximize_attempts += 1
       continue
     }
 

@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Plus, Send } from 'lucide-react'
+import { Check, ClockAlert, LogOut, Plus, Send } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
 import { useRightSidebar } from '@/components/layout'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import { getQuizExitCount } from '@/lib/quizzes'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizCard } from '@/components/QuizCard'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
@@ -563,13 +564,26 @@ export function TeacherQuizzesTab({
                         </Tooltip>
                       </th>
                       <th className="px-3 py-2 font-medium">
-                        <Tooltip content="Total time this student was away from the test route.">
-                          <span className="cursor-help">Away</span>
+                        <Tooltip
+                          content={
+                            <div className="space-y-0.5">
+                              <p className="font-medium">Exits = combined count</p>
+                              <p>Away/focus events</p>
+                              <p>In-app exits</p>
+                              <p>Window/full-screen exits</p>
+                            </div>
+                          }
+                        >
+                          <span className="inline-flex cursor-help items-center" aria-label="Exits column">
+                            <LogOut className="h-4 w-4" />
+                          </span>
                         </Tooltip>
                       </th>
                       <th className="px-3 py-2 font-medium">
-                        <Tooltip content="How many times this student attempted in-app route navigation away from tests.">
-                          <span className="cursor-help">Exits</span>
+                        <Tooltip content="Total time this student was away from the test route.">
+                          <span className="inline-flex cursor-help items-center" aria-label="Away column">
+                            <ClockAlert className="h-4 w-4" />
+                          </span>
                         </Tooltip>
                       </th>
                     </tr>
@@ -582,11 +596,15 @@ export function TeacherQuizzesTab({
                           ? '—'
                           : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
                       const statusMeta = STATUS_META[student.status]
+                      const awayCount = student.focus_summary?.away_count ?? 0
                       const awaySeconds = student.focus_summary?.away_total_seconds ?? 0
                       const awayMinutes = Math.floor(awaySeconds / 60)
                       const awayRemainder = awaySeconds % 60
                       const awayLabel = `${awayMinutes}:${String(awayRemainder).padStart(2, '0')}`
                       const routeExitAttempts = student.focus_summary?.route_exit_attempts ?? 0
+                      const windowUnmaximizeAttempts =
+                        student.focus_summary?.window_unmaximize_attempts ?? 0
+                      const exitsCount = getQuizExitCount(student.focus_summary)
                       const formattedLastActivity = formatTorontoTime(student.last_activity_at)
 
                       return (
@@ -643,24 +661,33 @@ export function TeacherQuizzesTab({
                             </Tooltip>
                           </td>
                           <td className="px-3 py-2 text-xs text-text-muted tabular-nums">
-                            <Tooltip content={`Away from test route for ${awayLabel} total.`}>
+                            <Tooltip
+                              content={
+                                <div className="space-y-0.5">
+                                  <p className="font-medium">Exits: {exitsCount}</p>
+                                  <p>Away/focus: {awayCount}</p>
+                                  <p>In-app exits: {routeExitAttempts}</p>
+                                  <p>Window exits: {windowUnmaximizeAttempts}</p>
+                                </div>
+                              }
+                            >
                               <span
                                 className="cursor-help"
-                                aria-label={`Away time ${awayLabel}. Away from test route for ${awayLabel} total.`}
+                                aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
                               >
-                                {awayLabel}
+                                {exitsCount}
                               </span>
                             </Tooltip>
                           </td>
                           <td className="px-3 py-2 text-xs text-text-muted tabular-nums">
                             <Tooltip
-                              content={`In-app route exit attempts: ${routeExitAttempts}.`}
+                              content={`Away from test route for ${awayLabel} total.`}
                             >
                               <span
                                 className="cursor-help"
-                                aria-label={`Exit attempts ${routeExitAttempts}. In-app route exit attempts ${routeExitAttempts}.`}
+                                aria-label={`Away time ${awayLabel}. Away from test route for ${awayLabel} total.`}
                               >
-                                {routeExitAttempts}
+                                {awayLabel}
                               </span>
                             </Tooltip>
                           </td>

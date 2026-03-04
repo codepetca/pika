@@ -47,7 +47,9 @@ export async function PATCH(
       response_monospace: existingQuestion.response_monospace === true,
     }
 
-    const validation = validateTestQuestionUpdate(body, currentQuestion)
+    const validation = validateTestQuestionUpdate(body, currentQuestion, {
+      allowEmptyQuestionText: access.test.status === 'draft',
+    })
     if (!validation.valid) {
       return NextResponse.json({ error: validation.error }, { status: 400 })
     }

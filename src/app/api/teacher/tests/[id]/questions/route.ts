@@ -16,14 +16,16 @@ export async function POST(
     const user = await requireRole('teacher')
     const { id: testId } = await params
     const body = (await request.json()) as Record<string, unknown>
-    const validation = validateTestQuestionCreate(body)
-    if (!validation.valid) {
-      return NextResponse.json({ error: validation.error }, { status: 400 })
-    }
 
     const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
+    }
+    const validation = validateTestQuestionCreate(body, {
+      allowEmptyQuestionText: access.test.status === 'draft',
+    })
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
     }
     const supabase = getServiceRoleClient()
 

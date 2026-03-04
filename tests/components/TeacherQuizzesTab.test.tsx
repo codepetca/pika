@@ -267,7 +267,7 @@ describe('TeacherQuizzesTab', () => {
     })
   })
 
-  it('shows tooltips for status/away/exits and formats last time without am/pm', async () => {
+  it('shows iconized exits/away columns and formats last time without am/pm', async () => {
     const quiz = makeQuiz({ id: 'test-signals', title: 'Signals Test', assessment_type: 'test' })
     fetchMock
       .mockResolvedValueOnce({
@@ -297,6 +297,7 @@ describe('TeacherQuizzesTab', () => {
                 away_total_seconds: 13,
                 away_count: 4,
                 route_exit_attempts: 2,
+                window_unmaximize_attempts: 3,
               },
             },
           ],
@@ -309,24 +310,24 @@ describe('TeacherQuizzesTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     const awaySignal = await screen.findByText('0:13')
-    const exitSignal = await screen.findByText('2')
+    const exitSignal = await screen.findByText('9')
     const statusIcon = await screen.findByLabelText('Submitted')
     const lastTimeCell = await screen.findByText('6:07')
 
     expect(screen.queryByText('Status')).not.toBeInTheDocument()
-    expect(screen.getByText('Away')).toBeInTheDocument()
-    expect(screen.getByText('Exits')).toBeInTheDocument()
+    expect(screen.getByLabelText('Exits column')).toBeInTheDocument()
+    expect(screen.getByLabelText('Away column')).toBeInTheDocument()
     expect(statusIcon).toBeInTheDocument()
     expect(lastTimeCell).toHaveClass('font-semibold')
     expect(screen.queryByText(/am|pm/i)).not.toBeInTheDocument()
 
+    expect(exitSignal).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining('Away/focus 4, in-app exits 2, window/full-screen exits 3')
+    )
     expect(awaySignal).toHaveAttribute(
       'aria-label',
       expect.stringContaining('Away from test route')
-    )
-    expect(exitSignal).toHaveAttribute(
-      'aria-label',
-      expect.stringContaining('In-app route exit attempts')
     )
     expect(screen.queryByLabelText(/Focus events/i)).not.toBeInTheDocument()
     expect(statusIcon).toHaveAttribute('aria-label', 'Submitted')

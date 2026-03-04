@@ -6,6 +6,8 @@ import { useThreePanel } from './ThreePanelProvider'
 export interface ThreePanelShellProps {
   children: ReactNode
   className?: string
+  /** Optional override for left sidebar width in pixels */
+  leftWidthOverride?: number
 }
 
 /**
@@ -15,7 +17,7 @@ export interface ThreePanelShellProps {
  * Desktop: [left-sidebar] [main-content] [right-sidebar]
  * Mobile: Full-width main content with overlay drawers
  */
-export function ThreePanelShell({ children, className }: ThreePanelShellProps) {
+export function ThreePanelShell({ children, className, leftWidthOverride }: ThreePanelShellProps) {
   const { widths, config, rightSidebar } = useThreePanel()
 
   // Calculate grid template columns
@@ -40,7 +42,7 @@ export function ThreePanelShell({ children, className }: ThreePanelShellProps) {
         .join(' ')}
       style={
         {
-          '--left-width': `${widths.left}px`,
+          '--left-width': `${leftWidthOverride ?? widths.left}px`,
           '--right-width': rightWidth,
         } as React.CSSProperties
       }

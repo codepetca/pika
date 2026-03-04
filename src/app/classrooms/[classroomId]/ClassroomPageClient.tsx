@@ -45,7 +45,6 @@ import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
 import { TabContentTransition } from '@/ui'
-import { ConfirmDialog } from '@/ui'
 import { prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import type {
@@ -240,7 +239,7 @@ function ClassroomPageContent({
   searchParams: URLSearchParams
   updateSearchParams: UpdateSearchParamsFn
 }) {
-  const { openLeft, openRight } = useMobileDrawer()
+  const { openLeft, openRight, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const isTeacher = user.role === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
@@ -255,9 +254,7 @@ function ClassroomPageContent({
     active: boolean
     testId: string | null
   }>({ active: false, testId: null })
-  const [showLeaveTestDialog, setShowLeaveTestDialog] = useState(false)
-  const pendingExamNavigationRef = useRef<PendingExamNavigation | null>(null)
-  const bypassExamGuardRef = useRef(false)
+  const hideLeftRailForExamMode = !isTeacher && activeTab === 'tests' && studentTestExamMode.active
 
   const logStudentTestRouteExitAttempt = useCallback((
     source: string,
@@ -281,8 +278,7 @@ function ClassroomPageContent({
     const examModeActive =
       !isTeacher &&
       activeTab === 'tests' &&
-      studentTestExamMode.active &&
-      !bypassExamGuardRef.current
+      studentTestExamMode.active
 
     const leavingTestsRoute = pending.nextTab == null || pending.nextTab !== 'tests'
     if (!examModeActive || !leavingTestsRoute) {
@@ -290,8 +286,6 @@ function ClassroomPageContent({
       return true
     }
 
-    pendingExamNavigationRef.current = pending
-    setShowLeaveTestDialog(true)
     logStudentTestRouteExitAttempt(pending.source, {
       blocked: true,
       target: pending.targetLabel,
@@ -339,34 +333,9 @@ function ClassroomPageContent({
   }, [classroom.id, isTeacher])
 
   useEffect(() => {
-    if (studentTestExamMode.active) return
-    setShowLeaveTestDialog(false)
-    pendingExamNavigationRef.current = null
-  }, [studentTestExamMode.active])
-
-  const handleLeaveTestCancel = useCallback(() => {
-    pendingExamNavigationRef.current = null
-    setShowLeaveTestDialog(false)
-  }, [])
-
-  const handleLeaveTestConfirm = useCallback(() => {
-    const pending = pendingExamNavigationRef.current
-    pendingExamNavigationRef.current = null
-    setShowLeaveTestDialog(false)
-    if (!pending) return
-
-    logStudentTestRouteExitAttempt('leave_test_confirmed', {
-      target: pending.targetLabel,
-      next_tab: pending.nextTab,
-      source: pending.source,
-    })
-
-    bypassExamGuardRef.current = true
-    pending.navigate()
-    window.setTimeout(() => {
-      bypassExamGuardRef.current = false
-    }, 0)
-  }, [logStudentTestRouteExitAttempt])
+    if (!hideLeftRailForExamMode) return
+    closeMobileDrawer()
+  }, [closeMobileDrawer, hideLeftRailForExamMode])
 
   const handleHomeNavigationAttempt = useCallback((href: string) => {
     return requestExamModeNavigation({
@@ -891,24 +860,28 @@ function ClassroomPageContent({
       }
       currentClassroomId={classroom.id}
       currentTab={activeTab}
-      onOpenSidebar={openLeft}
+      onOpenSidebar={hideLeftRailForExamMode ? undefined : openLeft}
       onNavigateHome={handleHomeNavigationAttempt}
       onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
     >
-      <ThreePanelShell>
-        <LeftSidebar>
-          <NavItems
-            classroomId={classroom.id}
-            role={user.role}
-            activeTab={activeTab}
-            isReadOnly={isArchived}
-            assignmentId={assignmentIdParam}
-            onTabChange={handleTabChange}
-            onTabIntent={prefetchTabData}
-            updateSearchParams={navigateInClassroom}
-          />
-        </LeftSidebar>
+      <ThreePanelShell leftWidthOverride={hideLeftRailForExamMode ? 0 : undefined}>
+        {hideLeftRailForExamMode ? (
+          <div aria-hidden="true" className="hidden lg:block" />
+        ) : (
+          <LeftSidebar>
+            <NavItems
+              classroomId={classroom.id}
+              role={user.role}
+              activeTab={activeTab}
+              isReadOnly={isArchived}
+              assignmentId={assignmentIdParam}
+              onTabChange={handleTabChange}
+              onTabIntent={prefetchTabData}
+              updateSearchParams={navigateInClassroom}
+            />
+          </LeftSidebar>
+        )}
 
         <MainContent>
           {isArchived && (
@@ -1426,15 +1399,6 @@ function ClassroomPageContent({
         </RightSidebar>
       </ThreePanelShell>
 
-      <ConfirmDialog
-        isOpen={showLeaveTestDialog}
-        title="Leave test mode?"
-        description="You are in exam mode. Leaving the test route will be logged."
-        confirmLabel="Leave test"
-        cancelLabel="Stay in test"
-        onCancel={handleLeaveTestCancel}
-        onConfirm={handleLeaveTestConfirm}
-      />
     </AppShell>
   )
 
