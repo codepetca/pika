@@ -3956,3 +3956,17 @@
 - `pnpm exec vitest tests/components/calendar-view-persistence.test.tsx tests/components/RichTextEditor.test.tsx tests/lib/json-patch.test.ts --run`
 - `pnpm exec vitest tests/components/calendar-view-persistence.test.tsx tests/components/RichTextEditor.test.tsx tests/components/AssignmentModal.test.tsx tests/components/StudentLessonCalendarTab.test.tsx tests/lib/json-patch.test.ts --run`
 - `pnpm test`
+
+## 2026-03-04 — Follow-up: silence remaining test stderr/warn output
+**Context:** After initial issue #352 cleanup, full suite still emitted high-volume expected-path console output and one React ref warning from a test mock.
+
+**Changes:**
+- Updated `/tests/setup.ts`:
+  - Added global suppression for `console.error` and `console.warn` during tests.
+  - Added opt-out via `VITEST_SHOW_CONSOLE=true` for local debugging.
+- Updated `/tests/components/StudentAssignmentsTab.test.tsx`:
+  - Changed `StudentAssignmentEditor` mock to use `forwardRef` to match component contract and remove React ref warning.
+
+**Verification:**
+- `pnpm exec vitest tests/components/StudentAssignmentsTab.test.tsx tests/unit/api-handler.test.ts tests/lib/assignment-doc-history.test.ts --run`
+- `pnpm test`

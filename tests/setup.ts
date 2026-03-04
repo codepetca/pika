@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom'
 
+// Keep test output signal high by default. Set VITEST_SHOW_CONSOLE=true to see logs.
+if (process.env.VITEST_SHOW_CONSOLE !== 'true') {
+  console.error = (() => {}) as typeof console.error
+  console.warn = (() => {}) as typeof console.warn
+}
+
 // Mock window.matchMedia for responsive hooks used by tiptap UI components
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
