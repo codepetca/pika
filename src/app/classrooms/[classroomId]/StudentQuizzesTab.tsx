@@ -610,6 +610,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       hasSelectedQuiz &&
       selectedQuiz.quiz.student_status === 'not_started' &&
       startedTestId !== selectedQuiz.quiz.id
+    const showCurrentTestInfoPanel = hasSelectedQuiz && focusEnabled
     const awayDurationLabel = formatDuration(focusSummary?.away_total_seconds ?? 0)
     const exitsCount = getQuizExitCount(focusSummary)
     const awayCount = focusSummary?.away_count ?? 0
@@ -628,10 +629,64 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
 
         <PageContent>
           <div className="mx-auto w-full max-w-none">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div
+              className={`grid grid-cols-1 gap-4 ${
+                showCurrentTestInfoPanel ? 'lg:grid-cols-[30%_70%]' : 'lg:grid-cols-2'
+              }`}
+            >
               <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
-                <h2 className="mb-3 text-lg font-semibold text-text-default">Tests</h2>
-                {renderAssessmentList(true)}
+                {showCurrentTestInfoPanel ? (
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold text-text-default">Exam Mode</h2>
+
+                    <div className="rounded-lg border border-border bg-surface-2 px-3 py-2">
+                      <p className="text-sm font-medium text-text-default">{selectedQuiz?.quiz.title}</p>
+                    </div>
+
+                    {showNotMaximizedWarning && (
+                      <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-xs text-warning">
+                        Window must be maximized in exam mode.
+                      </div>
+                    )}
+
+                    {focusEnabled && !isFullscreen && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="w-full justify-center gap-1.5 border border-warning bg-warning-bg text-warning shadow-sm ring-1 ring-warning/50 hover:bg-warning-bg/80"
+                        onClick={() => {
+                          void requestExamFullscreen('left_panel_maximize', { logFailures: true })
+                        }}
+                      >
+                        <span>Maximize Window</span>
+                        <Maximize2 className="h-4 w-4" />
+                      </Button>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2 text-sm text-text-muted">
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                        aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>{exitsCount}</span>
+                      </span>
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                        aria-label={`Away time ${awayDurationLabel}.`}
+                      >
+                        <ClockAlert className="h-4 w-4" />
+                        <span>{awayDurationLabel}</span>
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h2 className="mb-3 text-lg font-semibold text-text-default">Tests</h2>
+                    {renderAssessmentList(true)}
+                  </>
+                )}
               </section>
 
               <section
@@ -645,27 +700,6 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                   </div>
                 ) : hasSelectedQuiz ? (
                   <div className="space-y-4">
-                    {showNotMaximizedWarning && (
-                      <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-xs text-warning">
-                        Window must be maximized in exam mode.
-                      </div>
-                    )}
-
-                    {focusEnabled && !isFullscreen && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        className="w-full justify-center gap-1.5 border border-warning bg-warning-bg text-warning shadow-sm ring-1 ring-warning/50 hover:bg-warning-bg/80 sm:w-auto"
-                        onClick={() => {
-                          void requestExamFullscreen('side_panel_maximize', { logFailures: true })
-                        }}
-                      >
-                        <span>Maximize Window</span>
-                        <Maximize2 className="h-4 w-4" />
-                      </Button>
-                    )}
-
                     <h2 className="text-xl font-bold text-text-default">{selectedQuiz.quiz.title}</h2>
 
                     {requiresStart ? (
@@ -709,22 +743,24 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                       />
                     )}
 
-                    <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2 text-sm text-text-muted">
-                      <span
-                        className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
-                        aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>{exitsCount}</span>
-                      </span>
-                      <span
-                        className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
-                        aria-label={`Away time ${awayDurationLabel}.`}
-                      >
-                        <ClockAlert className="h-4 w-4" />
-                        <span>{awayDurationLabel}</span>
-                      </span>
-                    </div>
+                    {!showCurrentTestInfoPanel && (
+                      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2 text-sm text-text-muted">
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                          aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>{exitsCount}</span>
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                          aria-label={`Away time ${awayDurationLabel}.`}
+                        >
+                          <ClockAlert className="h-4 w-4" />
+                          <span>{awayDurationLabel}</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex h-full min-h-[240px] items-center justify-center rounded-lg border border-dashed border-border bg-surface-2 px-4 text-center">

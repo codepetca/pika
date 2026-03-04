@@ -3970,3 +3970,68 @@
 **Verification:**
 - `pnpm exec vitest tests/components/StudentAssignmentsTab.test.tsx tests/unit/api-handler.test.ts tests/lib/assignment-doc-history.test.ts --run`
 - `pnpm test`
+## 2026-03-04 — Student test pane widened to 70% on desktop
+**Context:** User requested the student test UI to give the test window 70% of screen width.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - In tests view desktop layout, changed grid columns from `lg:grid-cols-2` to `lg:grid-cols-[30%_70%]` so the right-side test pane occupies 70%.
+
+**Verification:**
+- Visual verification (student tests tab): `/tmp/student-tests-view.png`
+- Visual verification (teacher tests tab): `/tmp/teacher-tests-view.png`
+- `pnpm e2e:auth`
+
+## 2026-03-04 — Student active test mode shows current-test panel (not test list)
+**Context:** User requested that while a student is actively writing a test, the left pane should show current test information (including maximize warning/action) rather than the list of available tests.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added `showCurrentTestInfoPanel` condition for active exam mode (`focusEnabled`).
+  - Left pane now switches from the tests list to a `Current Test` panel during active test-taking.
+  - Moved maximize warning + `Maximize Window` action into the left pane in active exam mode.
+  - Removed duplicate maximize warning/action from the right test pane.
+
+**Verification:**
+- `pnpm lint`
+- Student active test screenshot (left pane shows current test info + warning/action): `/tmp/student-tests-writing-left-panel-warning.png`
+- Teacher tests screenshot (layout unchanged): `/tmp/teacher-tests-view-left-panel-check.png`
+
+## 2026-03-04 — Exam mode panel copy update + indicators moved to left pane
+**Context:** User requested left-panel wording and telemetry updates during active student test-taking.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Renamed left active-test heading from `Current Test` to `Exam Mode`.
+  - Removed subtitle text `Exam mode is active.`
+  - Moved exam indicators (exit count and away duration chips) into the left exam panel.
+  - Kept indicators out of the right pane while exam mode panel is active to avoid duplication.
+
+**Verification:**
+- `pnpm lint`
+- Student active exam screenshot (updated copy + left-pane indicators): `/tmp/student-tests-exam-mode-left-pane-v2.png`
+- Teacher tests screenshot (unchanged teacher behavior): `/tmp/teacher-tests-view-exam-mode-v2.png`
+
+**Note:**
+- Created one temporary active test via teacher API to produce a deterministic startable student scenario for visual verification:
+  - Title: `Exam Mode UI 1772644538443`
+  - Test ID: `da3d79b5-3ab6-4ba9-b446-f3267b2a7b60`
+
+## 2026-03-04 — Student tests split now conditional (50/50 → 30/70 in exam mode)
+**Context:** User requested that student tests tab use 50/50 by default, and switch to 30/70 only after the student starts the test.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Grid now uses `lg:grid-cols-2` in normal tests tab state.
+  - Grid switches to `lg:grid-cols-[30%_70%]` only when `showCurrentTestInfoPanel` (active exam mode) is true.
+
+**Verification:**
+- `pnpm lint`
+- Student tests tab pre-start (50/50): `/tmp/student-tests-split-prestart-50-50.png`
+- Student active exam mode (30/70): `/tmp/student-tests-split-started-30-70.png`
+- Teacher tests tab (unchanged): `/tmp/teacher-tests-split-check.png`
+
+**Note:**
+- Created temporary active test for deterministic exam-mode screenshot:
+  - Title: `Split Check 1772644746324`
+  - Test ID: `a434d323-a3d1-463b-8fd0-af70ce9750ed`
