@@ -305,7 +305,7 @@ export function TestQuestionEditor({
                       disabled={saving}
                       className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
                     />
-                    Monospace input
+                    Code
                   </label>
                 </div>
               )}

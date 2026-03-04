@@ -32,6 +32,8 @@ export function StudentQuizForm({
   apiBasePath = '/api/student/quizzes',
   onSubmitted,
 }: Props) {
+  const OPEN_RESPONSE_TAB_INDENT = '    '
+  const OPEN_RESPONSE_TAB_SIZE = 4
   const AUTOSAVE_DEBOUNCE_MS = 5000
   const AUTOSAVE_MIN_INTERVAL_MS = 15000
   const isTestMode =
@@ -222,6 +224,7 @@ export function StudentQuizForm({
       selectionStart: target.selectionStart,
       selectionEnd: target.selectionEnd,
       shiftKey: event.shiftKey,
+      indent: OPEN_RESPONSE_TAB_INDENT,
     })
 
     if (!next.changed) return
@@ -311,7 +314,7 @@ export function StudentQuizForm({
                       className={`w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary ${
                         question.response_monospace ? 'font-mono leading-6' : ''
                       }`}
-                      style={question.response_monospace ? { tabSize: 4 } : undefined}
+                      style={{ tabSize: OPEN_RESPONSE_TAB_SIZE }}
                       placeholder="Write your response..."
                     />
                   </div>

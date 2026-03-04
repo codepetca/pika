@@ -83,9 +83,9 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent.click(screen.getByText('Midterm Test'))
     expect(screen.queryByText('Start this test?')).not.toBeInTheDocument()
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
 
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
@@ -125,9 +125,9 @@ describe('StudentQuizzesTab exam mode', () => {
 
     fireEvent.click(screen.getByText('Midterm Test'))
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
@@ -179,9 +179,9 @@ describe('StudentQuizzesTab exam mode', () => {
 
     fireEvent.click(screen.getByText('Midterm Test'))
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
@@ -278,9 +278,9 @@ describe('StudentQuizzesTab exam mode', () => {
 
     fireEvent.click(screen.getByText('Midterm Test'))
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
@@ -398,9 +398,9 @@ describe('StudentQuizzesTab exam mode', () => {
 
     fireEvent.click(screen.getByText('Midterm Test'))
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })
@@ -419,7 +419,7 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Submit' })[1])
 
     await waitFor(() => {
-      expect(screen.getByText('You have submitted your response.')).toBeInTheDocument()
+      expect(screen.getByText('Response Submitted')).toBeInTheDocument()
     })
 
     expect(screen.getByText('Final Test')).toBeInTheDocument()
@@ -535,9 +535,9 @@ describe('StudentQuizzesTab exam mode', () => {
 
     fireEvent.click(screen.getByText('Midterm Test'))
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
     })

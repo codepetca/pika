@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Trash2, Eye, EyeOff, Play, Square } from 'lucide-react'
 import { getQuizStatusLabel, getQuizStatusBadgeClass, canActivateQuiz } from '@/lib/quizzes'
+import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import type { QuizWithStats } from '@/types'
@@ -29,11 +30,18 @@ export function QuizCard({
   const isDraft = quiz.status === 'draft'
   const assessmentLabel = quiz.assessment_type === 'test' ? 'test' : 'quiz'
   const [updating, setUpdating] = useState(false)
+  const [checkingActivation, setCheckingActivation] = useState(false)
   const [showActivateConfirm, setShowActivateConfirm] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const [actionError, setActionError] = useState('')
+
+  useEffect(() => {
+    setActionError('')
+  }, [quiz.id, quiz.status, quiz.show_results, quiz.updated_at])
 
   async function handleStatusChange(newStatus: 'active' | 'closed') {
     setUpdating(true)
+    setActionError('')
     try {
       const res = await fetch(`${apiBasePath}/${quiz.id}`, {
         method: 'PATCH',
@@ -48,7 +56,8 @@ export function QuizCard({
       window.dispatchEvent(
         new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: quiz.classroom_id } })
       )
-    } catch (err) {
+    } catch (err: any) {
+      setActionError(err?.message || `Failed to update ${assessmentLabel}`)
       console.error('Error updating quiz status:', err)
     } finally {
       setUpdating(false)
@@ -57,10 +66,52 @@ export function QuizCard({
     }
   }
 
+  async function handleRequestActivate(event: React.MouseEvent) {
+    event.stopPropagation()
+    if (isReadOnly || updating || checkingActivation || !activation.valid) return
+
+    setActionError('')
+    if (quiz.assessment_type !== 'test') {
+      setShowActivateConfirm(true)
+      return
+    }
+
+    setCheckingActivation(true)
+    try {
+      const res = await fetch(`${apiBasePath}/${quiz.id}`)
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to validate test')
+      }
+
+      const questions = Array.isArray(data.questions) ? data.questions : []
+      if (questions.length < 1) {
+        setActionError('Quiz must have at least 1 question')
+        return
+      }
+
+      for (let index = 0; index < questions.length; index += 1) {
+        const validation = validateTestQuestionCreate(questions[index] as Record<string, unknown>)
+        if (!validation.valid) {
+          setActionError(`Q${index + 1}: ${validation.error}`)
+          return
+        }
+      }
+
+      setShowActivateConfirm(true)
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to validate test')
+      console.error('Error validating test activation:', err)
+    } finally {
+      setCheckingActivation(false)
+    }
+  }
+
   async function handleToggleShowResults(e: React.MouseEvent) {
     e.stopPropagation()
     if (isReadOnly) return
     setUpdating(true)
+    setActionError('')
     try {
       const res = await fetch(`${apiBasePath}/${quiz.id}`, {
         method: 'PATCH',
@@ -75,7 +126,8 @@ export function QuizCard({
       window.dispatchEvent(
         new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: quiz.classroom_id } })
       )
-    } catch (err) {
+    } catch (err: any) {
+      setActionError(err?.message || `Failed to update ${assessmentLabel}`)
       console.error('Error toggling show results:', err)
     } finally {
       setUpdating(false)
@@ -122,6 +174,11 @@ export function QuizCard({
             <p className="text-xs text-text-muted mt-0.5">
               {quiz.stats.responded}/{quiz.stats.total_students} responded
             </p>
+            {actionError && (
+              <p className="mt-1 text-xs text-danger" role="alert">
+                {actionError}
+              </p>
+            )}
           </button>
 
           {/* Right: Action buttons */}
@@ -134,11 +191,8 @@ export function QuizCard({
                   size="sm"
                   className="p-1.5 text-success"
                   aria-label="Activate quiz"
-                  disabled={isReadOnly || !activation.valid || updating}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowActivateConfirm(true)
-                  }}
+                  disabled={isReadOnly || !activation.valid || updating || checkingActivation}
+                  onClick={handleRequestActivate}
                 >
                   <Play className="h-4 w-4" aria-hidden="true" />
                 </Button>

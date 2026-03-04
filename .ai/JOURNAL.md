@@ -3734,3 +3734,203 @@
 - Visual verification screenshots:
   - `/tmp/student-tests-start-button-pane.png`
   - `/tmp/teacher-tests-start-button-change-check.png`
+
+## 2026-03-04 — Student test detail cleanup (submitted message + indicator placement)
+**Context:** User requested removing the “Your response has been recorded.” line and moving Exits/Away indicators to the bottom of the student test detail card.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Removed fallback submitted subtext: `Your response has been recorded.`
+  - Moved Exits/Away indicator row from top of selected-test panel to bottom with top divider.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-tests-indicators-bottom.png`
+  - `/tmp/teacher-tests-indicators-bottom-check.png`
+
+## 2026-03-04 — Pre-start test UI simplified
+**Context:** User requested removing the pre-start helper card/label in student test detail and renaming start CTA.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Removed pre-start container/label (`This test has not started yet.`).
+  - Kept only the CTA button in-place and renamed it to `Start the Test`.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Updated start button assertions/clicks to `Start the Test`.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-tests-start-button-no-card.png`
+  - `/tmp/teacher-tests-start-button-no-card-check.png`
+
+## 2026-03-04 — Submitted status copy update
+**Context:** User requested replacing "You have submitted your response." with "Response Submitted".
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` submitted-state heading copy to `Response Submitted`.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx` assertions accordingly.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-tests-response-submitted-copy.png`
+  - `/tmp/teacher-tests-response-submitted-copy-check.png`
+
+## 2026-03-04 — MC question default text updated
+**Context:** User requested changing the newly-created test MC question text from `New multiple-choice question` to `Multiple choice question`.
+
+**Changes:**
+- Updated `/src/components/QuizDetailPanel.tsx` default create payload for test multiple-choice questions:
+  - `question_text: 'Multiple choice question'`
+
+**Verification:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/teacher-tests-mc-placeholder-update.png`
+  - `/tmp/student-tests-mc-placeholder-update-check.png`
+
+## 2026-03-04 — True placeholder drafts for test questions + activation guardrails
+**Context:** User requested replacing seeded default question text with true placeholders when creating teacher test questions, while keeping test activation safe.
+
+**Changes:**
+- Updated `/src/components/QuizDetailPanel.tsx` test question create payloads:
+  - MC and open-response now create with `question_text: ''`.
+- Extended `/src/lib/test-questions.ts` validators with draft-aware options:
+  - `validateTestQuestionCreate(..., { allowEmptyQuestionText: true })`
+  - `validateTestQuestionUpdate(..., { allowEmptyQuestionText: true })`
+  - Empty text is allowed only when explicitly enabled; active/default validation remains strict.
+- Updated teacher test question routes to enforce draft-only empty text:
+  - `/src/app/api/teacher/tests/[id]/questions/route.ts` (POST)
+  - `/src/app/api/teacher/tests/[id]/questions/[qid]/route.ts` (PATCH)
+- Added activation-time completeness validation in `/src/app/api/teacher/tests/[id]/route.ts`:
+  - On `draft -> active`, fetches ordered questions and validates each one.
+  - Activation fails with `Question N: <reason>` if any question is incomplete.
+
+**Tests added/updated:**
+- Updated: `/tests/unit/test-questions.test.ts`
+  - Added coverage for draft-empty create and update behaviors.
+- Updated: `/tests/api/teacher/tests-questions-id.test.ts`
+  - Added active-vs-draft patch behavior for empty `question_text`.
+- Added: `/tests/api/teacher/tests-questions-route.test.ts`
+  - Added active-vs-draft create behavior for empty `question_text`.
+- Added: `/tests/api/teacher/tests-id-route.test.ts`
+  - Added activation blocking for incomplete questions and successful activation for complete questions.
+- Updated: `/tests/components/QuizDetailPanel.test.tsx`
+  - Added assertion that test question POST payload uses empty `question_text`.
+
+**Verification:**
+- `pnpm vitest run tests/unit/test-questions.test.ts tests/api/teacher/tests-questions-route.test.ts tests/api/teacher/tests-questions-id.test.ts tests/api/teacher/tests-id-route.test.ts tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- UI screenshots:
+  - `/tmp/teacher-view-offline-placeholder.png`
+  - `/tmp/student-view-offline-placeholder.png`
+
+## 2026-03-04 — Surface activation failures to teachers in test/quiz cards
+**Context:** User reported that activating an invalid test (e.g., missing question text) returned no visible feedback in the UI.
+
+**Changes:**
+- Updated `/src/components/QuizCard.tsx`:
+  - Added `actionError` state for card-level API errors.
+  - On failed status updates (activate/close/reopen) and failed show/hide results toggle, now shows the backend error text inline on the card (`role="alert"`, `text-danger`).
+  - Clears stale card error when quiz identity/status visibility updates and when starting a new action.
+
+**Tests:**
+- Updated `/tests/components/QuizCard.test.tsx`:
+  - Added case verifying failed activation renders backend message (`Question 1: Question text is required`) and does not call `onQuizUpdate`.
+
+**Verification:**
+- `pnpm vitest run tests/components/QuizCard.test.tsx tests/components/QuizDetailPanel.test.tsx tests/api/teacher/tests-id-route.test.ts`
+- `pnpm lint`
+- UI screenshots (teacher + student):
+  - `/tmp/teacher-tests-tab-activation-feedback-stable.png`
+  - `/tmp/student-tests-tab-activation-feedback-stable.png`
+
+## 2026-03-04 — Open-response tab indent set to 4 spaces + monospace label rename
+**Context:** User requested two UX tweaks in tests:
+1) open-response typing indentation should be 4 spaces, and
+2) teacher authoring label `Monospace input` should read `Code`.
+
+**Changes:**
+- Updated `/src/components/StudentQuizForm.tsx`:
+  - Open-response tab insert now explicitly uses 4-space indent (`indent: '    '`) when handling `Tab`/`Shift+Tab`.
+  - Open-response textarea now always renders with `tabSize: 4` for consistent tab width while responding.
+- Updated `/src/components/TestQuestionEditor.tsx`:
+  - Renamed open-response option label from `Monospace input` to `Code`.
+- Updated `/tests/components/QuizDetailPanel.test.tsx`:
+  - Updated label assertion to `Code`.
+
+**Verification:**
+- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx tests/unit/textarea-indent.test.ts`
+- `pnpm lint`
+- Visual verification screenshots:
+  - Teacher classroom list: `/tmp/teacher-view-tab-indent-code-label.png`
+  - Student classroom list: `/tmp/student-view-tab-indent-code-label.png`
+  - Teacher tests authoring (shows `Code` label): `/tmp/teacher-tests-code-label-visible.png`
+  - Student tests responding view (open response visible): `/tmp/student-tests-open-response-view.png`
+
+## 2026-03-04 — Removed test preview helper label
+**Context:** User requested removing the helper text in test preview (`This is how students...`).
+
+**Changes:**
+- Updated `/src/components/QuizDetailPanel.tsx`:
+  - In `QuizPreview`, the helper line (`This is how students will see the quiz. Selections are not saved.`) now renders only for quizzes, not tests.
+- Updated `/tests/components/QuizDetailPanel.test.tsx`:
+  - Added test coverage that confirms helper text is hidden in test preview.
+
+**Verification:**
+- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - Teacher test preview (helper text removed): `/tmp/teacher-test-preview-no-helper-label.png`
+  - Student tests view: `/tmp/student-tests-preview-label-removal-stable.png`
+
+## 2026-03-04 — Invalid test activation message uses Q-number format
+**Context:** User requested invalid test warnings to match in-test question labels (e.g., `Q1`) instead of `Question 1`.
+
+**Changes:**
+- Updated activation validation error format in `/src/app/api/teacher/tests/[id]/route.ts`:
+  - From: `Question {n}: ...`
+  - To: `Q{n}: ...`
+- Updated affected tests:
+  - `/tests/api/teacher/tests-id-route.test.ts`
+  - `/tests/components/QuizCard.test.tsx`
+
+**Verification:**
+- `pnpm vitest run tests/api/teacher/tests-id-route.test.ts tests/components/QuizCard.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/teacher-q1-warning-format.png`
+  - `/tmp/student-q1-warning-format.png`
+
+## 2026-03-04 — Pre-validate test activation before showing confirm dialog
+**Context:** User requested that clicking Activate should not open the confirmation dialog for invalid tests.
+
+**Changes:**
+- Updated `/src/components/QuizCard.tsx`:
+  - Added test-specific pre-validation on Activate click.
+  - For tests, clicking Activate now fetches `/api/teacher/tests/[id]`, validates each question client-side with `validateTestQuestionCreate`, and:
+    - shows inline error (`Q{n}: ...`) when invalid,
+    - only opens confirmation dialog when valid.
+  - Non-test quizzes keep existing confirm-dialog behavior.
+  - Added `checkingActivation` state to prevent repeated clicks during pre-check.
+
+**Tests:**
+- Updated `/tests/components/QuizCard.test.tsx`:
+  - Added case: invalid test blocks activate confirmation and shows inline `Q1: ...`.
+  - Added case: valid test opens activate confirmation after pre-check.
+  - Kept API-failure-on-activation-path coverage for non-test quizzes.
+
+**Verification:**
+- `pnpm vitest run tests/components/QuizCard.test.tsx tests/api/teacher/tests-id-route.test.ts`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/teacher-prevalidate-before-confirm.png`
+  - `/tmp/student-prevalidate-before-confirm.png`
+  - `/tmp/teacher-tests-prevalidate-before-confirm.png`
+  - `/tmp/student-tests-prevalidate-before-confirm-stable.png`

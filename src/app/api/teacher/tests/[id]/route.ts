@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { canActivateQuiz } from '@/lib/quizzes'
+import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 
 export const dynamic = 'force-dynamic'
@@ -98,14 +99,34 @@ export async function PATCH(
     }
 
     if (status === 'active' && existing.status === 'draft') {
-      const { count: questionsCount } = await supabase
+      const { data: questions, error: questionsError } = await supabase
         .from('test_questions')
-        .select('*', { count: 'exact', head: true })
+        .select(
+          'id, position, question_type, question_text, options, correct_option, points, response_max_chars, response_monospace'
+        )
         .eq('test_id', id)
+        .order('position', { ascending: true })
 
-      const activation = canActivateQuiz(existing, questionsCount || 0)
+      if (questionsError) {
+        console.error('Error fetching test questions for activation:', questionsError)
+        return NextResponse.json({ error: 'Failed to validate test questions' }, { status: 500 })
+      }
+
+      const questionList = questions || []
+      const activation = canActivateQuiz(existing, questionList.length)
       if (!activation.valid) {
         return NextResponse.json({ error: activation.error }, { status: 400 })
+      }
+
+      for (let index = 0; index < questionList.length; index += 1) {
+        const question = questionList[index]
+        const result = validateTestQuestionCreate(question as Record<string, unknown>)
+        if (!result.valid) {
+          return NextResponse.json(
+            { error: `Q${index + 1}: ${result.error}` },
+            { status: 400 }
+          )
+        }
       }
     }
 
