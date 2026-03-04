@@ -12,6 +12,7 @@ const ALLOWED_EVENT_TYPES: QuizFocusEventType[] = [
   'away_start',
   'away_end',
   'route_exit_attempt',
+  'window_unmaximize_attempt',
 ]
 
 // POST /api/student/tests/[id]/focus-events - log focus telemetry for tests
@@ -29,7 +30,10 @@ export async function POST(
 
     if (!eventType || !ALLOWED_EVENT_TYPES.includes(eventType)) {
       return NextResponse.json(
-        { error: 'event_type must be one of away_start, away_end, route_exit_attempt' },
+        {
+          error:
+            'event_type must be one of away_start, away_end, route_exit_attempt, window_unmaximize_attempt',
+        },
         { status: 400 }
       )
     }

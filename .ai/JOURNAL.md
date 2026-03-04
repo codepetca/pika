@@ -3349,3 +3349,388 @@
 - `CI=1 pnpm install --frozen-lockfile`
 - `CI=1 pnpm build`
 - `npm ci` (expected to fail; confirms why npm-based Vercel installs can break)
+## 2026-03-03 — Exam mode full-screen enforcement + window unmaximize telemetry
+**Context:** Added stronger exam-mode guardrails for student tests by entering full-screen on test start and tracking attempts to leave a maximized/full-screen window separately from existing route-exit and away-time metrics.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added full-screen request flow when a student opens an active/not-started test.
+  - Added exam-mode full-screen watcher (`fullscreenchange`) and resize-based unmaximize detection.
+  - Added telemetry posting for `window_unmaximize_attempt` (separate from `route_exit_attempt`).
+  - Added in-test UI signal for window state (`Full screen active` / `Not full screen`) and a `Re-enter full screen` action when applicable.
+  - Extended focus summary line to show `Window attempts` when present.
+- Updated telemetry model:
+  - `/src/types/index.ts`: `QuizFocusEventType` now includes `window_unmaximize_attempt`; `QuizFocusSummary` now includes `window_unmaximize_attempts`.
+  - `/src/lib/quizzes.ts`: summary aggregator now counts `window_unmaximize_attempts`.
+  - `/src/app/api/student/tests/[id]/focus-events/route.ts`: allows the new event type.
+- Updated teacher visibility of the new signal:
+  - `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`: added `Window` column in grading table.
+  - `/src/components/QuizIndividualResponses.tsx`: added `Window attempts` line in responder summary.
+- Added migration:
+  - `/supabase/migrations/041_test_focus_events_window_unmaximize_attempt.sql`
+  - Expands `test_focus_events.event_type` check constraint to include `window_unmaximize_attempt`.
+- Added/updated tests:
+  - `/tests/unit/quizzes.test.ts`
+  - `/tests/api/student/tests-focus-events.test.ts`
+  - `/tests/components/StudentQuizzesTab.test.tsx`
+  - `/tests/components/TeacherQuizzesTab.test.tsx`
+
+**Verification:**
+- `pnpm vitest run tests/unit/quizzes.test.ts tests/api/student/tests-focus-events.test.ts tests/components/StudentQuizzesTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- `pnpm test`
+- Visual verification (teacher + student, plus exam-mode view):
+  - `/tmp/teacher-view.png`
+  - `/tmp/student-view.png`
+  - `/tmp/teacher-tests-tab-loaded.png`
+  - `/tmp/teacher-tests-grading-window-column.png`
+  - `/tmp/student-tests-tab.png`
+  - `/tmp/student-exam-detail-active.png`
+
+## 2026-03-03 — Follow-up validation: offline-mode issue + exam-mode runtime checks
+**Context:** User requested an offline-mode planning issue and additional exam-mode testing/advice.
+
+**Changes:**
+- Opened GitHub issue: `#361` — Offline mode for student work + exam telemetry queue/replay
+  - https://github.com/codepetca/pika/issues/361
+- Added resize-path telemetry test:
+  - `/tests/components/StudentQuizzesTab.test.tsx`
+  - New case verifies `window_unmaximize_attempt` is logged with `metadata.source = window_resize` when exam-mode window dimensions indicate unmaximize.
+
+**Validation:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx tests/api/student/tests-focus-events.test.ts tests/components/TeacherQuizzesTab.test.tsx tests/unit/quizzes.test.ts`
+- Live runtime API check:
+  - `route_exit_attempt` successfully records and appears in teacher results (`focus_summary.route_exit_attempts`).
+- Live runtime client-network check (Playwright script):
+  - Full-screen exit emits `window_unmaximize_attempt` payload (`source: fullscreen_exit`).
+- Important finding:
+  - Posting `window_unmaximize_attempt` to DB currently fails until migration `041_test_focus_events_window_unmaximize_attempt.sql` is applied (check-constraint violation observed).
+
+## 2026-03-03 — Exam mode UX tightening: block sidebar tab switching + always show minimization count
+**Context:** User requested stricter exam-mode navigation behavior and explicit student visibility of browser minimization attempts.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`:
+  - In active student exam mode, sidebar/tab navigation attempts (`source: tab_navigation`) are now hard-blocked (no leave dialog, no navigation).
+  - Existing guarded flows for other leave paths (home/classroom switch) remain unchanged.
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Student test header now always shows `Browser minimization attempts: <count>` (including zero), instead of only rendering a window-attempt segment when count > 0.
+
+**Validation:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/student/tests-focus-events.test.ts tests/unit/quizzes.test.ts`
+- `pnpm lint`
+- `pnpm test`
+- Visual verification screenshots (teacher + student):
+  - `/tmp/teacher-view-after-block.png`
+  - `/tmp/student-view-after-block.png`
+  - `/tmp/student-exam-after-sidebar-click.png`
+- Playwright navigation check during active student test:
+  - URL before sidebar click: `...?tab=tests`
+  - URL after sidebar click attempt: `...?tab=tests` (blocked as intended)
+
+## 2026-03-03 — Exam telemetry consolidation: single Exits metric + iconized Exits/Away columns
+**Context:** User requested a single combined telemetry count (`Exits`) across focus/window/route signals, plus iconized telemetry headers in teacher and student exam views. User also requested stricter exam-mode behavior where in-app nav attempts are disallowed instead of allowing leave via sidebar/home/classroom taps.
+
+**Changes:**
+- Updated exam-mode navigation guard in `/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`:
+  - Removed leave-confirm bypass flow for in-app navigation attempts while student test exam mode is active.
+  - Route/tab/home/classroom navigation attempts are now blocked and logged as route-exit attempts.
+- Added shared exits aggregation utility in `/src/lib/quizzes.ts`:
+  - `getQuizExitCount(summary)` returns `away_count + route_exit_attempts + window_unmaximize_attempts`.
+- Updated teacher grading telemetry table in `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Column order now aligns to `Last, Exits, Away`.
+  - Replaced text headers for Exits/Away with icons (`LogOut`, `ClockAlert`) + tooltips/ARIA.
+  - Removed separate `Window` column and now display combined `Exits` count with tooltip breakdown.
+- Updated student test detail telemetry in `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Replaced verbose focus summary line with icon chips showing only `Exits` and `Away`.
+  - Exits chip uses combined count; Away chip uses away duration.
+- Updated responder summary line in `/src/components/QuizIndividualResponses.tsx`:
+  - Uses combined `Exits` count + `Away time` for consistency.
+- Updated tests:
+  - `/tests/unit/quizzes.test.ts` (new `getQuizExitCount` unit coverage)
+  - `/tests/components/TeacherQuizzesTab.test.tsx` (iconized column expectations + combined exits count)
+  - `/tests/components/StudentQuizzesTab.test.tsx` (new combined exits/away indicator rendering case)
+
+**Verification:**
+- `pnpm vitest run tests/unit/quizzes.test.ts tests/components/TeacherQuizzesTab.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Required UI screenshots:
+  - `/tmp/teacher-view-exits-icons.png`
+  - `/tmp/student-view-exits-icons.png`
+  - `/tmp/teacher-tests-exits-icons.png` (teacher grading view, iconized `Exits/Away` columns)
+  - `/tmp/student-test-detail-exits-icons.png` (student test detail, iconized `Exits/Away` chips)
+
+## 2026-03-03 — Follow-up UX tweak: simplified Exits tooltip copy
+**Context:** User reported the new `Exits` tooltip felt cluttered.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Simplified `Exits` header tooltip language.
+  - Changed tooltip content to multiline lines for faster scanning.
+  - Kept existing telemetry math and table values unchanged.
+
+**Verification:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/teacher-view-exits-tooltip-final.png`
+  - `/tmp/student-view-exits-tooltip-final.png`
+  - `/tmp/teacher-exits-tooltip-hover.png` (hover state confirms multiline tooltip)
+
+## 2026-03-03 — Student test start confirmation + floating maximize control
+**Context:** User requested that students confirm before starting tests, remove fullscreen status text, and show a maximize button in the top-right when not fullscreen.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added start gate for not-started tests via `ConfirmDialog` (`Start this test?`).
+  - Test cards in student tests list now open confirmation first instead of entering immediately.
+  - On confirm, app requests fullscreen and then opens the test detail.
+  - Removed `Window status: Full screen active / Not full screen` text.
+  - Added floating top-right `Maximize` button (visible only when exam mode is active and fullscreen is not active) to re-enter fullscreen.
+- Updated tests in `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Existing exam-mode tests now include the new `Start this test?` confirmation flow.
+  - Added assertions for `Maximize` button visibility and removal of window-status text in detail view.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- `pnpm test` (full suite; 124 files / 1175 tests passing)
+- Visual verification screenshots:
+  - `/tmp/teacher-view-start-confirm.png`
+  - `/tmp/student-view-start-confirm.png`
+  - `/tmp/student-test-start-confirm-dialog.png` (start confirmation dialog shown)
+  - `/tmp/student-test-maximize-button.png` (floating top-right maximize button shown)
+
+## 2026-03-03 — Make not-maximized test state visually explicit (red CTA)
+**Context:** User requested a very clear indicator when a test is not maximized.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Floating exam-mode maximize button now uses `variant="danger"`.
+  - Added stronger warning ring styling.
+  - Updated button label to `Not Maximized - Maximize`.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Relaxed maximize button assertion to `/Maximize/i` to match updated label.
+
+**Verification:**
+- `bash scripts/verify-env.sh` (full suite via script; 124 files / 1175 tests passing)
+- Visual verification screenshots:
+  - `/tmp/teacher-view-red-maximize.png`
+  - `/tmp/student-view-red-maximize.png`
+  - `/tmp/student-test-start-confirm-dialog-red.png`
+  - `/tmp/student-test-maximize-button-red.png`
+
+## 2026-03-03 — Exam mode warning shell + right-side control pane (student tests)
+**Context:** User requested a much clearer not-maximized exam state and asked to move test controls/status into a right pane (~30% width).
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` test detail layout:
+  - Added a two-pane structure for test detail (`~70% content / ~30% right panel` on desktop).
+  - Moved `Back to tests`, `Exits`, `Away`, and maximize CTA into the right panel.
+  - Added a not-maximized warning shell in exam mode:
+    - Full-viewport amber outline + light amber tint overlay.
+    - Amber warning card in the side panel (`Window is not maximized. Re-maximize now.`).
+    - Existing red maximize CTA retained in the panel.
+- Kept quiz (non-test) detail layout unchanged.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/teacher-view-sidepanel.png`
+  - `/tmp/student-view-sidepanel.png`
+  - `/tmp/student-test-sidepanel-warning.png`
+
+## 2026-03-03 — Student tests pane width: full available area with 30% right panel
+**Context:** User requested the new test-detail split pane use maximum available width while keeping the right pane at 30%.
+
+**Changes:**
+- Updated `/src/lib/layout-config.ts`:
+  - Changed `tests-student` main content max width from `reading` to `full`.
+- Kept `StudentQuizzesTab` test detail split grid at `70% / 30%`.
+
+**Verification:**
+- `pnpm vitest run tests/unit/layout-config.test.ts`
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- Visual verification screenshot:
+  - `/tmp/student-test-sidepanel-warning-fullwidth.png`
+
+## 2026-03-03 — Hide left rail during active student test exam mode
+**Context:** User requested hiding the left sidebar/rail altogether while exam mode is active.
+
+**Changes:**
+- Updated `/src/components/layout/ThreePanelShell.tsx`:
+  - Added optional `leftWidthOverride` prop to temporarily force left grid column width.
+- Updated `/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`:
+  - Detects active student test exam mode and sets `hideLeftRailForExamMode`.
+  - Passes `leftWidthOverride={0}` to `ThreePanelShell` during active exam mode.
+  - Replaces left sidebar with a grid placeholder during exam mode so main content remains in the center column.
+  - Disables mobile nav opener during active exam mode and closes any open mobile drawer.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx tests/components/ThreePanelProvider.test.tsx`
+- `pnpm lint`
+- Visual verification screenshot:
+  - `/tmp/student-test-exam-left-rail-hidden-active.png`
+
+## 2026-03-03 — Flip student test split pane to left controls / right test (25/75)
+**Context:** User requested swapping pane sides so controls are on the left and test content on the right, with a 25% / 75% split.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Swapped panel/test render order in test detail layout.
+  - Changed desktop grid from `70/30` to `25/75`.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- Visual verification screenshot:
+  - `/tmp/student-test-pane-flip-25-75.png`
+
+## 2026-03-03 — Amber exam warning border: include top edge
+**Context:** User reported the not-maximized amber border was not visible on the top edge.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Raised fullscreen warning overlay stacking from `z-30` to `z-[60]` so it renders above sticky header and shows all four edges.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- Visual verification screenshots:
+  - `/tmp/student-test-amber-border-top-fixed.png`
+  - `/tmp/teacher-view-border-fix-check.png`
+  - `/tmp/student-view-border-fix-check.png`
+
+## 2026-03-03 — Student exam panel copy updates (Exit/Maximize wording)
+**Context:** User requested specific wording updates in the student exam-side panel.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Replaced `Back to tests` with `Exit Test` button.
+  - Replaced warning text with `Window must be maximized in exam mode.`
+  - Updated maximize CTA label to `Maximize Window` and placed maximize icon after text.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx` assertions:
+  - Replaced expected `Back to tests` text with `Exit Test`.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-test-exit-maximize-copy.png`
+  - `/tmp/teacher-view-exit-maximize-copy.png`
+  - `/tmp/student-view-exit-maximize-copy.png`
+
+## 2026-03-03 — Maximize Window button color changed (non-red)
+**Context:** User requested the `Maximize Window` button be a different color than red.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Changed maximize CTA from `variant="danger"` to warning-styled `variant="secondary"` with amber token classes.
+  - Keeps copy as `Maximize Window` with icon on right.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-test-maximize-amber.png`
+  - `/tmp/teacher-view-maximize-amber.png`
+  - `/tmp/student-view-maximize-amber.png`
+
+## 2026-03-03 — Removed in-panel Exit Test button
+**Context:** User requested removing the `Exit Test` button entirely from student exam mode panel.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Removed `Exit Test` button from test-mode side panel.
+  - Removed now-unused leave-test confirmation dialog/state/handlers tied to that button.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Replaced leave-confirm button-flow test with assertion that no in-panel exit control/dialog is rendered.
+  - Updated detail-loaded waits to use question text instead of `Exit Test`.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-test-no-exit-button.png`
+  - `/tmp/teacher-view-no-exit-button.png`
+  - `/tmp/student-view-no-exit-button.png`
+
+## 2026-03-03 — Start test confirm dialog copy update
+**Context:** User requested updated confirm wording when starting a test.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` start-confirm dialog description to:
+  - `Exam mode will start and test window must remain maximized.`
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-start-dialog-copy-update.png`
+  - `/tmp/teacher-view-start-copy-update.png`
+  - `/tmp/student-view-start-copy-update.png`
+
+## 2026-03-03 — Lock test interaction while non-maximized in exam mode
+**Context:** User requested preventing students from changing/answering questions when exam mode is active but window is not maximized.
+
+**Changes:**
+- Updated `/src/components/StudentQuizForm.tsx`:
+  - Added `isInteractionLocked?: boolean` prop.
+  - Disabled multiple-choice radios and open-response textarea when locked.
+  - Guarded change handlers (`handleOptionSelect`, `handleOpenResponseChange`, tab-indent handler) when locked.
+  - Disabled submit button while locked.
+  - Added non-interactive styling to options while locked.
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Passes `isInteractionLocked={showNotMaximizedWarning}` to `StudentQuizForm` in test detail.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Added assertions that radios and submit are disabled in non-maximized active test state.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-test-nonmax-locked.png`
+  - `/tmp/teacher-view-nonmax-lock.png`
+  - `/tmp/student-view-nonmax-lock.png`
+
+## 2026-03-03 — Student tests tab keeps list visible after submit (split-pane)
+**Context:** Student test flow hid the test list after opening/submitting a test. Requirement: tests tab should always show the test list with statuses, and selecting a test should load details in the adjacent pane.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Refactored test-mode rendering to persistent two-pane layout (`lg:grid-cols-2`):
+    - Left pane: always-visible tests list with status badges (`New`, `Submitted`, `View Results`).
+    - Right pane: selected test detail/results/form (or placeholder when none selected).
+  - Kept exam-mode safeguards in detail pane (Exits/Away indicators, maximize warning/button, amber border overlay when non-maximized).
+  - Updated submit refresh flow: `handleQuizSubmitted()` now refreshes both list (`loadQuizzes`) and current detail (`handleSelectQuiz`) so statuses update immediately after submit.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Added regression test: `keeps the test list visible and refreshes statuses after submit`.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-tests-split-after-submit.png`
+  - `/tmp/teacher-tests-tab.png`
+
+## 2026-03-03 — Start test from right pane (no auto-start on list click)
+**Context:** User requested that selecting an unstarted student test should not immediately launch exam mode/confirm. Instead, selecting a test should load details in the right pane with a `Start` button.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added `startedTestId` state to distinguish **selected** vs **started** test sessions.
+  - Updated `focusEnabled` gating so exam-mode focus tracking only activates after explicit start confirmation.
+  - Test list click now always selects test/detail; it no longer opens start confirm directly.
+  - Added right-pane pre-start panel for unstarted selected tests:
+    - Message: `This test has not started yet.`
+    - CTA button: `Start` (opens existing confirm dialog).
+  - Updated start confirm handler to begin session without unnecessary re-fetch when already selected.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Adjusted tests to follow new flow: select test -> click right-pane `Start` -> confirm.
+  - Added assertion that confirm dialog does not appear immediately on list click.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Visual verification screenshots:
+  - `/tmp/student-tests-start-button-pane.png`
+  - `/tmp/teacher-tests-start-button-change-check.png`

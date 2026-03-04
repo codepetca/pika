@@ -16,6 +16,7 @@ interface Props {
   questions: QuizQuestion[]
   initialResponses?: Record<string, number | TestResponseDraftValue> | TestResponses
   enableDraftAutosave?: boolean
+  isInteractionLocked?: boolean
   assessmentType?: QuizAssessmentType
   apiBasePath?: string
   onSubmitted: () => void
@@ -26,6 +27,7 @@ export function StudentQuizForm({
   questions,
   initialResponses,
   enableDraftAutosave = false,
+  isInteractionLocked = false,
   assessmentType,
   apiBasePath = '/api/student/quizzes',
   onSubmitted,
@@ -157,6 +159,7 @@ export function StudentQuizForm({
   }
 
   function handleOptionSelect(questionId: string, optionIndex: number) {
+    if (isInteractionLocked) return
     setResponses((prev) => {
       const next = normalizeTestResponses({
         ...prev,
@@ -180,6 +183,7 @@ export function StudentQuizForm({
   }
 
   function handleOpenResponseChange(questionId: string, value: string, maxChars: number) {
+    if (isInteractionLocked) return
     const limited = value.slice(0, maxChars)
     setResponses((prev) => {
       const next = normalizeTestResponses({
@@ -208,6 +212,7 @@ export function StudentQuizForm({
     questionId: string,
     maxChars: number
   ) {
+    if (isInteractionLocked) return
     if (event.key !== 'Tab') return
     event.preventDefault()
 
@@ -286,6 +291,7 @@ export function StudentQuizForm({
                   <div className="space-y-2">
                     <textarea
                       value={openResponseText}
+                      disabled={isInteractionLocked}
                       onChange={(event) =>
                         handleOpenResponseChange(
                           question.id,
@@ -317,16 +323,17 @@ export function StudentQuizForm({
                       return (
                         <label
                           key={optionIndex}
-                          className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                             isSelected
                               ? 'border-primary bg-primary/5'
                               : 'border-border hover:bg-surface-hover'
-                          }`}
+                          } ${isInteractionLocked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
                         >
                           <input
                             type="radio"
                             name={`question-${question.id}`}
                             checked={isSelected}
+                            disabled={isInteractionLocked}
                             onChange={() => handleOptionSelect(question.id, optionIndex)}
                             className="sr-only"
                           />
@@ -368,7 +375,7 @@ export function StudentQuizForm({
       <div className="pt-4">
         <Button
           onClick={() => setShowConfirm(true)}
-          disabled={!allAnswered || submitting}
+          disabled={isInteractionLocked || !allAnswered || submitting}
           className="w-full"
         >
           Submit

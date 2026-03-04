@@ -15,6 +15,7 @@ import {
   validateQuizOptions,
   canActivateQuiz,
   emptyQuizFocusSummary,
+  getQuizExitCount,
   summarizeQuizFocusEvents,
 } from '@/lib/quizzes'
 import { createMockQuiz, createMockQuizQuestion, createMockQuizResponse } from '../helpers/mocks'
@@ -309,6 +310,27 @@ describe('quiz utilities', () => {
   })
 
   // ==========================================================================
+  // getQuizExitCount()
+  // ==========================================================================
+
+  describe('getQuizExitCount', () => {
+    it('returns 0 when summary is missing', () => {
+      expect(getQuizExitCount(null)).toBe(0)
+      expect(getQuizExitCount(undefined)).toBe(0)
+    })
+
+    it('returns combined exits from away, route exit, and window attempts', () => {
+      expect(
+        getQuizExitCount({
+          away_count: 4,
+          route_exit_attempts: 2,
+          window_unmaximize_attempts: 3,
+        })
+      ).toBe(9)
+    })
+  })
+
+  // ==========================================================================
   // summarizeQuizFocusEvents()
   // ==========================================================================
 
@@ -328,6 +350,7 @@ describe('quiz utilities', () => {
       expect(result.away_count).toBe(2)
       expect(result.away_total_seconds).toBe(75)
       expect(result.route_exit_attempts).toBe(0)
+      expect(result.window_unmaximize_attempts).toBe(0)
       expect(result.last_away_started_at).toBe('2026-02-01T10:01:00.000Z')
       expect(result.last_away_ended_at).toBe('2026-02-01T10:01:45.000Z')
     })
@@ -339,6 +362,19 @@ describe('quiz utilities', () => {
       ])
 
       expect(result.route_exit_attempts).toBe(2)
+      expect(result.window_unmaximize_attempts).toBe(0)
+      expect(result.away_count).toBe(0)
+      expect(result.away_total_seconds).toBe(0)
+    })
+
+    it('counts window unmaximize attempts independently', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:01:00.000Z' },
+        { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:02:00.000Z' },
+      ])
+
+      expect(result.window_unmaximize_attempts).toBe(2)
+      expect(result.route_exit_attempts).toBe(0)
       expect(result.away_count).toBe(0)
       expect(result.away_total_seconds).toBe(0)
     })
