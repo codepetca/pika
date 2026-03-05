@@ -72,6 +72,9 @@ describe('Calendar view mode persistence', () => {
       if (url.includes('/assignments')) {
         return mockFetchResponse({ assignments: [] })
       }
+      if (url.includes('/announcements')) {
+        return mockFetchResponse({ announcements: [] })
+      }
       throw new Error(`Unhandled fetch: ${url}`)
     }))
   })

@@ -272,6 +272,15 @@ export type QuizFocusEventType =
   | 'route_exit_attempt'
   | 'window_unmaximize_attempt'
 export type TestQuestionType = 'multiple_choice' | 'open_response'
+export type TestDocumentSource = 'link' | 'upload' | 'text'
+
+export interface TestDocument {
+  id: string
+  title: string
+  source: TestDocumentSource
+  url?: string
+  content?: string
+}
 
 export interface QuizFocusSummary {
   away_count: number
@@ -289,6 +298,7 @@ export interface Quiz {
   assessment_type: QuizAssessmentType
   status: QuizStatus
   show_results: boolean
+  documents?: TestDocument[]
   position: number
   points_possible?: number
   include_in_final?: boolean

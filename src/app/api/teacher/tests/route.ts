@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { normalizeTestDocuments } from '@/lib/test-documents'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
     const testsWithStats = (tests || []).map((test) => ({
       ...test,
       assessment_type: 'test' as const,
+      documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
       stats: {
         total_students: totalStudents || 0,
         responded: respondentCountMap[test.id] || 0,
@@ -183,7 +185,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create test' }, { status: 500 })
     }
 
-    return NextResponse.json({ quiz: { ...test, assessment_type: 'test' } }, { status: 201 })
+    return NextResponse.json(
+      {
+        quiz: {
+          ...test,
+          documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
+          assessment_type: 'test',
+        },
+      },
+      { status: 201 }
+    )
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

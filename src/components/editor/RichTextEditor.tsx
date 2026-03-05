@@ -16,7 +16,6 @@ import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
 import { Selection } from '@tiptap/extensions'
 import { Placeholder } from '@tiptap/extension-placeholder'
-import { Underline } from '@tiptap/extension-underline'
 import { Markdown } from '@tiptap/markdown'
 import { Image } from '@tiptap/extension-image'
 
@@ -329,7 +328,6 @@ export function RichTextEditor({
     Superscript,
     Subscript,
     Selection,
-    Underline,
     Placeholder.configure({
       placeholder,
       includeChildren: true,  // Check child nodes for content (fixes placeholder showing after paste)

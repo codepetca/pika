@@ -23,11 +23,13 @@ import { canEditQuizQuestions } from '@/lib/quizzes'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { QuizQuestionEditor } from '@/components/QuizQuestionEditor'
 import { TestQuestionEditor } from '@/components/TestQuestionEditor'
+import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 import { QuizResultsView } from '@/components/QuizResultsView'
 import { QuizIndividualResponses } from '@/components/QuizIndividualResponses'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
-import type { QuizQuestion, QuizWithStats, QuizResultsAggregate } from '@/types'
+import { normalizeTestDocuments } from '@/lib/test-documents'
+import type { QuizQuestion, QuizWithStats, QuizResultsAggregate, TestDocument } from '@/types'
 
 interface Props {
   quiz: QuizWithStats
@@ -44,9 +46,10 @@ export function QuizDetailPanel({
 }: Props) {
   const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
+  const [documents, setDocuments] = useState<TestDocument[]>([])
   const [results, setResults] = useState<QuizResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'questions' | 'preview' | 'results'>('questions')
+  const [viewMode, setViewMode] = useState<'questions' | 'documents' | 'preview' | 'results'>('questions')
   const [error, setError] = useState('')
 
   // Inline title editing
@@ -124,6 +127,7 @@ export function QuizDetailPanel({
       const res = await fetch(`${apiBasePath}/${quiz.id}`)
       const data = await res.json()
       setQuestions(data.questions || [])
+      setDocuments(normalizeTestDocuments(data.quiz?.documents))
 
       if (hasResponses) {
         const resultsRes = await fetch(`${apiBasePath}/${quiz.id}/results`)
@@ -243,6 +247,19 @@ export function QuizDetailPanel({
         >
           Questions ({questions.length})
         </button>
+        {isTestsView && (
+          <button
+            type="button"
+            onClick={() => setViewMode('documents')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              viewMode === 'documents'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-default'
+            }`}
+          >
+            Documents ({documents.length})
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setViewMode('preview')}
@@ -393,6 +410,17 @@ export function QuizDetailPanel({
               )
             )}
 
+          </div>
+        ) : viewMode === 'documents' && isTestsView ? (
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold text-text-default">Documents</h3>
+            <TestDocumentsEditor
+              testId={quiz.id}
+              documents={documents}
+              apiBasePath={apiBasePath}
+              isEditable={isEditable}
+              onUpdated={loadQuizDetails}
+            />
           </div>
         ) : viewMode === 'preview' ? (
           <QuizPreview questions={questions} isTestsView={isTestsView} />

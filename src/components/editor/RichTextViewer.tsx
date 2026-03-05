@@ -12,7 +12,6 @@ import { TextAlign } from '@tiptap/extension-text-align'
 import { Typography } from '@tiptap/extension-typography'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
-import { Underline } from '@tiptap/extension-underline'
 import { Image } from '@tiptap/extension-image'
 
 // --- Tiptap Node Styles ---
@@ -67,7 +66,6 @@ export function RichTextViewer({ content, showPlainText = false }: RichTextViewe
       Typography,
       Superscript,
       Subscript,
-      Underline,
       Image.configure({
         HTMLAttributes: {
           class: 'max-w-full h-auto rounded',
