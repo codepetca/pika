@@ -4,6 +4,27 @@ import { RichTextEditor } from '@/components/editor'
 import type { TiptapContent } from '@/types'
 
 describe('RichTextEditor', () => {
+  it('does not emit duplicate extension warnings', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+
+    try {
+      render(<RichTextEditor content={content} onChange={onChange} />)
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Bold')).toBeInTheDocument()
+      })
+
+      const hasDuplicateExtensionWarning = warnSpy.mock.calls.some((call) =>
+        call.some((arg) => String(arg).includes('Duplicate extension names'))
+      )
+      expect(hasDuplicateExtensionWarning).toBe(false)
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
   it('should render the editor with content', async () => {
     const onChange = vi.fn()
     const content: TiptapContent = {

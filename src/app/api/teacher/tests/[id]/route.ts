@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { canActivateQuiz } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -43,6 +44,7 @@ export async function GET(
         assessment_type: 'test' as const,
         status: test.status,
         show_results: test.show_results,
+        documents: normalizeTestDocuments(test.documents),
         position: test.position,
         points_possible: test.points_possible,
         include_in_final: test.include_in_final,
@@ -74,7 +76,7 @@ export async function PATCH(
     const user = await requireRole('teacher')
     const { id } = await params
     const body = await request.json()
-    const { title, status, show_results } = body
+    const { title, status, show_results, documents } = body
 
     const access = await assertTeacherOwnsTest(user.id, id, { checkArchived: true })
     if (!access.ok) {
@@ -145,6 +147,13 @@ export async function PATCH(
     if (title !== undefined) updates.title = title.trim()
     if (status !== undefined) updates.status = status
     if (show_results !== undefined) updates.show_results = show_results
+    if (documents !== undefined) {
+      const validated = validateTestDocumentsPayload(documents)
+      if (!validated.valid) {
+        return NextResponse.json({ error: validated.error }, { status: 400 })
+      }
+      updates.documents = validated.documents
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
@@ -158,11 +167,26 @@ export async function PATCH(
       .single()
 
     if (error) {
+      if (
+        (error.code === '42703' || error.code === 'PGRST204') &&
+        `${error.message || ''} ${error.details || ''}`.toLowerCase().includes('documents')
+      ) {
+        return NextResponse.json(
+          { error: 'Test documents require migration 042 to be applied' },
+          { status: 400 }
+        )
+      }
       console.error('Error updating test:', error)
       return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
     }
 
-    return NextResponse.json({ quiz: { ...test, assessment_type: 'test' } })
+    return NextResponse.json({
+      quiz: {
+        ...test,
+        documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
+        assessment_type: 'test',
+      },
+    })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

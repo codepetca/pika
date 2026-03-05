@@ -91,6 +91,81 @@ describe('QuizDetailPanel', () => {
         expect(screen.getByText('Results (20)')).toBeInTheDocument()
       })
     })
+
+    it('shows Documents tab for tests', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [
+              { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
+            ],
+          },
+          questions: sampleQuestions,
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Docs Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Documents (1)')).toBeInTheDocument()
+      })
+    })
+
+    it('renders Documents tab before Preview in tests', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [
+              { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
+            ],
+          },
+          questions: sampleQuestions,
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Docs Tab Order Test',
+      })
+
+      const { container } = render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Documents (1)')).toBeInTheDocument()
+      })
+
+      const tabStrip = container.querySelector('.flex.border-b.border-border.shrink-0')
+      expect(tabStrip).toBeTruthy()
+      const tabLabels = Array.from(tabStrip!.querySelectorAll('button')).map((button) =>
+        button.textContent?.trim() || ''
+      )
+      expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Preview', 'Results (0)'])
+    })
   })
 
   describe('Questions tab', () => {
@@ -230,6 +305,168 @@ describe('QuizDetailPanel', () => {
       const postCall = fetchMock.mock.calls.find((call: any[]) => call[1]?.method === 'POST')
       const postBody = JSON.parse(postCall?.[1]?.body ?? '{}')
       expect(postBody.question_text).toBe('')
+    })
+
+    it('adds a link document and sends documents payload to tests PATCH endpoint', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: { documents: [] },
+            questions: sampleQuestions,
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [
+                { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
+              ],
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [
+                { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
+              ],
+            },
+            questions: sampleQuestions,
+          }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Doc Save Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Documents (0)')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Documents (0)'))
+
+      fireEvent.change(screen.getByPlaceholderText('Title (e.g., Java API)'), {
+        target: { value: 'Java API' },
+      })
+      fireEvent.change(screen.getByPlaceholderText('https://...'), {
+        target: { value: 'https://docs.oracle.com' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Add link document' }))
+
+      await waitFor(() => {
+        const patchCall = fetchMock.mock.calls.find((call: any[]) => call[1]?.method === 'PATCH')
+        expect(patchCall).toBeTruthy()
+        const body = JSON.parse(patchCall![1].body)
+        expect(body.documents).toEqual([
+          {
+            id: expect.any(String),
+            title: 'Java API',
+            url: 'https://docs.oracle.com',
+            source: 'link',
+          },
+        ])
+      })
+    })
+
+    it('adds a text document and sends text content in documents payload', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: { documents: [] },
+            questions: sampleQuestions,
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [
+                {
+                  id: 'doc-text-1',
+                  title: 'Allowed formulas',
+                  source: 'text',
+                  content: 'distance = rate * time',
+                },
+              ],
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [
+                {
+                  id: 'doc-text-1',
+                  title: 'Allowed formulas',
+                  source: 'text',
+                  content: 'distance = rate * time',
+                },
+              ],
+            },
+            questions: sampleQuestions,
+          }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Doc Text Save Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Documents (0)')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Documents (0)'))
+
+      fireEvent.change(screen.getByPlaceholderText('Title (e.g., Allowed formulas)'), {
+        target: { value: 'Allowed formulas' },
+      })
+      fireEvent.change(screen.getByPlaceholderText('Paste text students can reference during the test...'), {
+        target: { value: 'distance = rate * time' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Add text document' }))
+
+      await waitFor(() => {
+        const patchCall = fetchMock.mock.calls.find((call: any[]) => call[1]?.method === 'PATCH')
+        expect(patchCall).toBeTruthy()
+        const body = JSON.parse(patchCall![1].body)
+        expect(body.documents).toEqual([
+          {
+            id: expect.any(String),
+            title: 'Allowed formulas',
+            source: 'text',
+            content: 'distance = rate * time',
+          },
+        ])
+      })
     })
   })
 

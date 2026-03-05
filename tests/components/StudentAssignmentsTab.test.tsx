@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { forwardRef } from 'react'
 import { StudentAssignmentsTab } from '@/app/classrooms/[classroomId]/StudentAssignmentsTab'
 import type { Classroom, AssignmentWithStatus } from '@/types'
 
@@ -21,7 +22,9 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/StudentAssignmentEditor', () => ({
-  StudentAssignmentEditor: () => <div data-testid="student-editor">Editor</div>,
+  StudentAssignmentEditor: forwardRef((_props, _ref) => (
+    <div data-testid="student-editor">Editor</div>
+  )),
 }))
 
 vi.mock('@/components/editor', () => ({
