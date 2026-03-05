@@ -4051,3 +4051,597 @@
 - Cleanup result:
   - Deleted `da3d79b5-3ab6-4ba9-b446-f3267b2a7b60` (`Exam Mode UI 1772644538443`)
   - Deleted `a434d323-a3d1-463b-8fd0-af70ce9750ed` (`Split Check 1772644746324`)
+
+## 2026-03-04 — Exam mode docs panel toggles split (30/70 <-> 50/50)
+**Context:** User requested that in active student test exam mode, opening an allowed doc should switch layout from 30/70 to 50/50 (docs on left), and clicking back should restore 30/70.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added `activeDoc` panel state for exam mode.
+  - Extracted allowed doc links from question markdown/URLs in test questions.
+  - Added `Allowed Docs` buttons in the left exam info panel.
+  - Added docs viewer panel with back control (`Back to test info`) and `Open in new tab` action.
+  - Grid behavior now:
+    - default tests state: `lg:grid-cols-2` (50/50)
+    - active exam info state: `lg:grid-cols-[30%_70%]`
+    - active doc-open state: `lg:grid-cols-2` (50/50)
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Added test covering transition: exam mode `30/70` -> doc-open `50/50` -> back to `30/70`.
+
+**Verification:**
+- `pnpm test -- tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-view.png`
+- Student screenshot: `/tmp/pika-student-view.png`
+
+## 2026-03-04 — Docs panel copy updated to "Documents"
+**Context:** User requested simplified copy in student test exam mode docs area: use "Documents" and show teacher-titled doc entries.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Renamed left-panel section heading from `Allowed Docs` to `Documents`.
+  - Updated empty state copy to `No documents provided for this test.`
+
+**Verification:**
+- `pnpm test -- tests/components/StudentQuizzesTab.test.tsx`
+- Teacher screenshot: `/tmp/pika-teacher-view-2.png`
+- Student screenshot: `/tmp/pika-student-view-2.png`
+
+## 2026-03-04 — Teacher test documents editor (links + uploads) wired end-to-end
+**Context:** User requested an easy teacher workflow for managing allowed test documents, including link entry and file uploads, surfaced as a dedicated editor.
+
+**Changes:**
+- Added teacher-managed test document domain model and validation:
+  - `/src/types/index.ts`
+  - `/src/lib/test-documents.ts` (normalization, payload validation, file type/size limits)
+- Added migration for persistent documents + storage bucket/policies:
+  - `/supabase/migrations/042_test_documents.sql`
+- Updated teacher test APIs to read/write `documents` and return normalized payloads:
+  - `/src/app/api/teacher/tests/route.ts`
+  - `/src/app/api/teacher/tests/[id]/route.ts`
+  - `/src/app/api/teacher/tests/[id]/documents/upload/route.ts`
+- Updated student test APIs to include normalized `documents` in responses:
+  - `/src/app/api/student/tests/route.ts`
+  - `/src/app/api/student/tests/[id]/route.ts`
+- Added new teacher UI editor and integrated into test detail tabs:
+  - `/src/components/TestDocumentsEditor.tsx`
+  - `/src/components/QuizDetailPanel.tsx` (`Documents` tab)
+- Student exam-mode docs section now uses teacher-managed documents first (fallback to question link extraction):
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+
+**Testing:**
+- `bash scripts/verify-env.sh` (full suite pass in this worktree; 128/128 test files)
+- New/updated tests:
+  - `/tests/components/QuizDetailPanel.test.tsx`
+  - `/tests/api/teacher/tests-id-route.test.ts`
+  - `/tests/api/teacher/tests-documents-upload.test.ts`
+  - `/tests/unit/test-documents.test.ts`
+  - `/tests/components/StudentQuizzesTab.test.tsx`
+
+**Visual verification:**
+- Teacher documents editor view: `/tmp/pika-teacher-documents-editor.png`
+- Student tests view: `/tmp/pika-student-tests-view.png`
+- Student active exam-mode left panel with `Documents` section: `/tmp/pika-student-exam-doc-panel.png`
+
+**Migration note:**
+- Runtime save/upload currently returns migration gate until migration 042 is applied:
+  - `Test documents require migration 042 to be applied`
+
+## 2026-03-04 — Added pasted-text documents in test Documents editor
+**Context:** User requested an additional document option for teachers: paste/copy text directly into a textbox (not only links/uploads).
+
+**Changes:**
+- Extended test document model to support inline text docs:
+  - `/src/types/index.ts` (`TestDocumentSource` now includes `text`, `TestDocument` includes optional `content`)
+  - `/src/lib/test-documents.ts` now normalizes/validates both URL docs and text docs
+- Updated teacher editor UI:
+  - `/src/components/TestDocumentsEditor.tsx`
+  - Added new **Add Text** section (title + textarea + character counter)
+  - Added explicit accessibility labels for add actions (`Add link document`, `Add text document`)
+  - Existing docs list now renders text docs with inline editable textarea
+- Updated student exam-mode doc viewer:
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - Text docs now open in-panel as formatted text content (no new-tab action)
+  - Link/upload docs continue to open via iframe + optional new-tab button
+- Updated migration column comment for document schema shape:
+  - `/supabase/migrations/042_test_documents.sql`
+
+**Testing:**
+- `pnpm vitest run tests/unit/test-documents.test.ts tests/api/teacher/tests-id-route.test.ts tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+
+**Visual verification:**
+- Teacher Documents tab (shows new Add Text panel): `/tmp/pika-teacher-documents-editor-text.png`
+- Student exam mode view sanity check: `/tmp/pika-student-exam-doc-panel-text.png`
+
+## 2026-03-04 — Keep student docs embedded in exam mode (no new-tab path)
+**Context:** User flagged risk of students opening docs in a new tab/window and triggering exam-route exits/minimize indicators.
+
+**Changes:**
+- Updated student test docs viewer in `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Removed student-facing `Open in new tab` action.
+  - Added iframe sandbox (`allow-same-origin allow-scripts allow-forms`) for embedded link/upload docs.
+  - Added in-panel note: `Documentation stays in this panel during exam mode.`
+- Added assertion coverage in `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Confirms doc-open state no longer shows an `Open in new tab` button.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Student embedded-doc screenshot: `/tmp/pika-student-doc-embedded-no-tab.png`
+- Teacher view screenshot: `/tmp/pika-teacher-no-new-tab-view.png`
+
+## 2026-03-05 — Test builder tab order: Documents before Preview
+**Context:** User requested moving the Documents tab before Preview in teacher test builder.
+
+**Changes:**
+- Updated tab render order in `/src/components/QuizDetailPanel.tsx`:
+  - Tests now render tabs as: `Questions -> Documents -> Preview -> Results`
+  - Quizzes remain: `Questions -> Preview -> Results`
+- Added regression coverage in `/tests/components/QuizDetailPanel.test.tsx`:
+  - Asserts exact tab-strip order for tests.
+
+**Verification:**
+- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- Teacher screenshot (tab order visible): `/tmp/pika-teacher-tab-order.png`
+- Student screenshot (sanity): `/tmp/pika-student-tab-order-check.png`
+
+## 2026-03-05 — Removed exam docs helper note in student panel
+**Context:** User requested removing the label `Documentation stays in this panel during exam mode.` from student exam-mode docs view.
+
+**Changes:**
+- Removed helper note from `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`.
+- Updated assertion in `/tests/components/StudentQuizzesTab.test.tsx`.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-note-removed.png`
+- Student screenshot: `/tmp/pika-student-doc-note-removed.png`
+
+## 2026-03-05 — Exam-mode header redesign + sidebar cleanup
+**Context:** User requested exam-mode UI changes:
+- Remove `Exam Mode` label in left panel
+- Move exam status into main top header as: `Test name · Thu Mar 5 · Exits X · Away m:ss · h:mm AM/PM`
+- Remove test title and indicator chips from exam left sidebar
+
+**Changes:**
+- Header pipeline:
+  - `/src/components/AppHeader.tsx`
+    - Added optional `examModeHeader` prop and renders condensed exam header line when present
+    - Uses Toronto time formatting: date `EEE MMM d`, local time `h:mm a`
+  - `/src/components/AppShell.tsx`
+    - Pass-through support for `examModeHeader`
+  - `/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`
+    - Extended student exam-mode state to carry `testTitle`, `exitsCount`, `awayTotalSeconds`
+    - Listens to extended exam-mode event detail and forwards payload to `AppShell`
+- Student exam panel:
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+    - Removed left-panel `Exam Mode` heading
+    - Removed left-panel test title block
+    - Removed left-panel exits/away indicator chips
+    - Extended `STUDENT_TEST_EXAM_MODE_CHANGE_EVENT` detail payload with title/exits/away seconds
+- Tests:
+  - `/tests/components/StudentQuizzesTab.test.tsx`
+    - Updated expectations to reflect removed sidebar heading/indicator chips
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Teacher screenshot: `/tmp/pika-teacher-exam-header-change.png`
+- Student exam-mode screenshot: `/tmp/pika-student-exam-header-change.png`
+
+## 2026-03-05 — Exam header spacing: icon indicators + right-aligned combined date/time
+**Context:** User requested exam header layout as `TestTitle <spacing> indicators (icons) <spacing> date/time`, with date and time kept together and right-justified in the title bar.
+
+**Changes:**
+- Updated `/src/components/AppHeader.tsx` exam-mode center row:
+  - Uses icon indicators (`LogOut` for exits, `ClockAlert` for away time)
+  - Keeps condensed date/time as one token (`EEE MMM d h:mm a`)
+  - Right-aligns date/time within the exam-mode header row using `ml-auto`
+- Maintained non-exam header behavior unchanged.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-header-layout-v2.png`
+- Student screenshot: `/tmp/pika-student-header-layout-v2.png`
+
+## 2026-03-05 — Follow-up: hard right-align exam date/time in title bar
+**Context:** Final spacing request required date and time to remain together and be right-justified in the title bar.
+
+**Changes:**
+- Updated `/src/components/AppHeader.tsx` exam-mode layout:
+  - Center section now renders only `testTitle + icon indicators`
+  - Right section now renders combined `EEE MMM d h:mm a` immediately before the user avatar/menu
+  - Preserves requested order: `TestTitle <spacing> indicators <spacing> date/time`
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-header-layout-v3.png`
+- Student exam screenshot: `/tmp/pika-student-exam-header-layout-v4.png`
+
+## 2026-03-05 — Exam header micro-adjustment: timestamp flush to profile icon
+**Context:** User requested date/time to sit all the way right next to the profile icon in exam mode.
+
+**Changes:**
+- Updated `/src/components/AppHeader.tsx` right-section spacing from `gap-1` to `gap-0` so timestamp and profile avatar are adjacent.
+
+**Verification:**
+- Student exam screenshot: `/tmp/pika-student-exam-header-layout-v6.png`
+
+## 2026-03-05 — Student exam docs pane switched to dropdown + inline viewer
+**Context:** User requested removing the left-pane `Documents` heading and divider, and showing docs via a dropdown with selected content rendered directly below in the same pane.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Replaced button-list docs UI with `Select` dropdown (`Allowed documents`)
+  - Removed `Documents` title and divider line (`border-t ...`)
+  - Removed back-button doc mode (`Back to test info`) and kept docs inline in the same left pane
+  - Kept exam split at `30/70` while docs are viewed
+  - Auto-selects the first available document when docs are present
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Updated expectations from heading/buttons to dropdown-based doc selection
+  - Replaced old 50/50-toggle test with coverage for inline dropdown behavior
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-doc-dropdown-v1.png`
+- Student exam screenshot (with seeded sample docs): `/tmp/pika-student-doc-dropdown-v2.png`
+- Restored seeded sample docs back to empty after screenshot capture.
+
+## 2026-03-05 — Exam header time format tweak
+**Context:** User requested removing AM/PM and adding a bit of spacing after the time before the profile icon.
+
+**Changes:**
+- Updated `/src/components/AppHeader.tsx` exam-mode timestamp:
+  - Format changed from `EEE MMM d h:mm a` to `EEE MMM d h:mm`
+  - Added `mr-2` to timestamp span for padding before avatar/profile icon
+
+**Verification:**
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-time-padding-v1.png`
+- Student exam screenshot: `/tmp/pika-student-time-padding-v1.png`
+
+## 2026-03-05 — Docs panel UX revert: menu list -> doc view with `< Back` + 50/50 split
+**Context:** User requested replacing dropdown flow with sidebar menu behavior:
+- Left panel starts with selectable document list
+- Selecting a doc opens that doc in left panel
+- Layout switches from `30/70` to `50/50` while doc is open
+- Top control in doc view is `< Back` returning to main left panel menu
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Restored doc-open state (`activeDoc`) to drive `50/50` layout when a doc is selected
+  - Left exam menu now renders doc list buttons (no dropdown)
+  - Doc viewer mode now shows `< Back` (exact text) at top
+  - Returning via `< Back` resets to `30/70` menu layout
+  - Preserved no-new-tab behavior (embedded iframe/text only)
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Restored split-toggle test coverage (`30/70` -> `50/50` -> `30/70`)
+  - Replaced dropdown assertions with document-button and back-button assertions
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-doc-sidebar-flow-v1.png`
+- Student menu state screenshot (`30/70`): `/tmp/pika-student-doc-sidebar-menu-v2.png`
+- Student doc-open state screenshot (`50/50` + `< Back`): `/tmp/pika-student-doc-sidebar-open-v2.png`
+- Temporary sample docs were seeded for screenshoting and then restored to empty.
+
+## 2026-03-05 — Smooth split transition between docs menu and doc view
+**Context:** User requested a smoother visual transition when switching from docs menu (`30/70`) to doc-open (`50/50`) layout.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` split container classes to animate grid column changes on large screens:
+  - Added `lg:transition-[grid-template-columns] lg:duration-300 lg:ease-in-out`
+  - Added `motion-reduce:transition-none` for reduced-motion accessibility
+
+**Verification:**
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-time-padding-v1.png`
+- Student screenshot: `/tmp/pika-student-transition-v1.png`
+
+## 2026-03-05 — Doc-open view now full-bleed in left panel
+**Context:** User requested document content to fill the entire left panel when a doc is selected.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` doc-open rendering:
+  - Left section switches to `p-0 overflow-hidden` in doc mode
+  - Doc wrapper uses `h-full min-h-[65vh]` and removes inner card chrome
+  - Embedded docs (`iframe`) now fill left pane width/height directly
+  - Text docs use full-height scroll area
+  - `< Back` remains as an overlay control at top-left
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-doc-fullpanel-v1.png`
+- Student menu state: `/tmp/pika-student-doc-fullpanel-menu-v1.png`
+- Student doc-open state: `/tmp/pika-student-doc-fullpanel-open-v1.png`
+- Temporary seeded docs cleaned up via teacher API after screenshots.
+
+## 2026-03-05 — Titlebar date/time spacing + AM/PM restored
+**Context:** User requested a bit more space between date and time in exam header, and to restore AM/PM.
+
+**Changes:**
+- Updated `/src/components/AppHeader.tsx` exam timestamp rendering:
+  - Split date and time into separate inline spans
+  - Added `ml-2` before time to increase spacing
+  - Restored time format to `h:mm a` (AM/PM)
+
+**Verification:**
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-header-date-gap-v1.png`
+- Student exam screenshot: `/tmp/pika-student-header-date-gap-v1.png`
+
+## 2026-03-05 — Reduced jarring menu->doc transition in left exam sidebar
+**Context:** User reported transition still felt too abrupt when switching from doc menu to doc content.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` left exam pane to use animated layered content:
+  - Menu layer now fades/slides out (`opacity + translate`) when opening a doc
+  - Doc layer fades/slides in with matching timing
+  - Reverse animation on `< Back`
+  - Added pointer-event and tab-index guards for hidden layer controls
+- Kept existing split animation (`30/70` <-> `50/50`) and full-bleed doc content behavior.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-transition-smooth-v1.png`
+- Student menu state: `/tmp/pika-student-transition-smooth-menu-v1.png`
+- Student transition frame: `/tmp/pika-student-transition-smooth-mid-v1.png`
+- Student doc-open state: `/tmp/pika-student-transition-smooth-open-v1.png`
+- Temporary seeded docs cleaned up after verification.
+
+## 2026-03-05 — Preload external docs at exam start for faster doc switching
+**Context:** User requested preloading docs when exam begins so doc switches are faster and docs are locally available during exam mode.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added iframe prewarm behavior for all non-text docs during active exam mode
+  - Doc viewer now keeps a stacked set of doc iframes mounted and toggles visibility by selected doc id (instead of mounting a fresh iframe on each click)
+  - Added `loading="eager"` on preloaded iframes
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Added assertion that link-doc iframe exists before opening doc panel (preload coverage)
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-preload-v1.png`
+- Student menu screenshot: `/tmp/pika-student-preload-menu-v1.png`
+- Student transition frame: `/tmp/pika-student-preload-mid-v1.png`
+- Student open-doc screenshot: `/tmp/pika-student-preload-open-v1.png`
+- Temporary seeded docs were cleaned up after verification.
+
+## 2026-03-05 — Reduced pane padding + independent pane heights in exam layout
+**Context:** User requested less padding around exam panes/container and the ability for panes to use vertical space independently instead of appearing locked to same height.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Reduced outer spacing: `PageContent` from default `mt-2` to `mt-1`
+  - Reduced split gap from `gap-4` to `gap-2`
+  - Reduced pane paddings (`p-4 sm:p-5` -> `p-3 sm:p-4`)
+  - Added `lg:items-start` and `lg:self-start` so left/right panes do not force equal visual height
+  - Increased left exam-pane min height to use more vertical viewport space: `min-h-[calc(100dvh-8.5rem)]`
+  - Added `data-testid="student-test-split-container"` for stable split-layout test targeting
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - `getSplitContainer` now uses `data-testid` instead of fragile classname matching
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-pane-padding-v1.png`
+- Student menu screenshot: `/tmp/pika-student-pane-padding-menu-v1.png`
+- Student doc-open screenshot: `/tmp/pika-student-pane-padding-open-v1.png`
+- Temporary seeded docs cleaned up after verification.
+
+## 2026-03-05 — Force both exam panes to full vertical height
+**Context:** User requested both left/right panes occupy full vertical space because left pane could extend lower than short right content.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` exam split layout:
+  - Set split container min height: `lg:min-h-[calc(100dvh-7.5rem)]`
+  - Removed `lg:items-start` so grid items stretch by default
+  - Set both pane sections to `lg:h-full`
+  - Removed left-pane per-state min-height override and rely on shared split min-height
+- Retained tighter pane/container spacing from prior pass.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-fullheight-v1.png`
+- Student menu screenshot: `/tmp/pika-student-fullheight-menu-v2.png`
+- Student doc-open screenshot: `/tmp/pika-student-fullheight-open-v2.png`
+- Temporary seeded docs cleaned up after verification.
+
+## 2026-03-05 — Added dedicated documentation top bar for back navigation
+**Context:** User requested back control in a header bar because floating overlay obscured important doc content.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` doc-open layer:
+  - Replaced floating back button with fixed top bar (`h-10`) inside left pane
+  - Top bar now shows `< Back` and current doc title
+  - Moved content below the top bar (`flex-1`, `min-h-0`) so docs are not covered
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-doc-topbar-v1.png`
+- Student menu screenshot: `/tmp/pika-student-doc-topbar-menu-v1.png`
+- Student doc-open screenshot: `/tmp/pika-student-doc-topbar-open-v1.png`
+- Temporary seeded docs cleaned up after verification.
+
+## 2026-03-05 — Global centered maximize control in non-maximized exam mode
+**Context:** User reported students in doc view could not easily access maximize action when not maximized.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added fixed centered overlay action card with `Maximize Window` button when `showNotMaximizedWarning` is true
+  - Overlay is global to exam mode and remains visible in both docs menu and doc-open states
+  - Removed old left-pane-only maximize button to avoid hidden/duplicated controls
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-maximize-center-v1.png`
+- Student menu (forced non-fullscreen): `/tmp/pika-student-maximize-center-menu-v1.png`
+- Student doc-open (forced non-fullscreen): `/tmp/pika-student-maximize-center-doc-v1.png`
+- Temporary seeded docs cleaned up after verification.
+
+## 2026-03-05 — Compact away-time units in exam header indicator
+**Context:** User requested exam-mode away time to use compact units (`S/M/H`) instead of clock format (`m:ss`).
+
+**Changes:**
+- Updated `/src/components/AppHeader.tsx` `formatDuration` for exam-mode away indicator:
+  - `< 60s` => `XS` (e.g., `0S`, `12S`)
+  - `< 3600s` => `XM` (e.g., `1M`, `2M`)
+  - `>= 3600s` => `XH` (e.g., `1H`)
+- Switched from rounding to floor-based conversion to avoid early unit rollovers.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-away-format-check.png`
+- Student screenshot: `/tmp/pika-student-away-format-check.png`
+- Student exam-mode screenshot (header indicator): `/tmp/pika-student-away-header-target.png`
+
+## 2026-03-05 — Obscure exam content when not maximized
+**Context:** User requested that exam content be hidden (or near-hidden) whenever exam mode is running in a non-maximized window.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added a fixed obscuring layer below the header when `showNotMaximizedWarning` is true.
+  - Layer uses `bg-page/90` + slight blur to heavily obscure exam body while preserving the centered `Maximize Window` control.
+  - Added `data-testid="exam-content-obscurer"` for regression coverage.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Asserted the obscuring layer renders in non-maximized exam state.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-minimized-obscure-v2.png`
+- Student screenshot: `/tmp/pika-student-minimized-obscure-v2.png`
+- Student exam non-maximized screenshot: `/tmp/pika-student-minimized-obscure-exam-v4.png`
+
+## 2026-03-05 — Added centered non-maximized warning text above maximize action
+**Context:** User requested the centered overlay to include the message `Window must be maximized in exam mode.` above the `Maximize Window` button.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added centered warning text above the maximize button in the global non-maximized overlay card.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Added assertion that the warning text is present in non-maximized exam mode (supports multiple matches due to left-pane + centered warning).
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-maxmsg-v1.png`
+- Student screenshot: `/tmp/pika-student-maxmsg-v1.png`
+- Student exam non-maximized screenshot: `/tmp/pika-student-maxmsg-exam-v1.png`
+
+## 2026-03-05 — Separated exam title and indicators in header layout
+**Context:** User requested clearer spacing so exam indicators sit visually between exam title and date/time in the title bar.
+
+**Changes:**
+- Updated `/src/components/AppHeader.tsx` exam-mode center section:
+  - Switched to a two-column layout (`title | indicators`) using grid.
+  - Increased separation (`gap-6`) between exam title and indicator group.
+  - Kept date/time in the right section before the profile icon so indicators read as the middle block.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-titlebar-gap-v1.png`
+- Student screenshot: `/tmp/pika-student-titlebar-gap-v1.png`
+- Student exam-mode screenshot: `/tmp/pika-student-titlebar-gap-exam-active-v1.png`
+
+## 2026-03-05 — Hard lock interactions while exam window is not maximized
+**Context:** User reported that exam UI was still interactive in non-maximized mode and requested app interaction to be disabled.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Added full-viewport interaction blocker (`data-testid="exam-interaction-blocker"`, `fixed inset-0 z-[64]`) during `showNotMaximizedWarning`.
+  - Keeps centered `Maximize Window` card clickable at higher z-index (`z-[65]`).
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Added assertion that the interaction blocker appears in non-maximized exam mode.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Playwright runtime check: textarea click blocked while non-maximized (`Interaction blocked: true`)
+- Teacher screenshot: `/tmp/pika-teacher-interaction-lock-v1.png`
+- Student screenshot: `/tmp/pika-student-interaction-lock-v1.png`
+- Student exam non-maximized screenshot: `/tmp/pika-student-interaction-lock-exam-v1.png`
+
+## 2026-03-05 — Centered documentation title in doc pane header
+**Context:** User requested the documentation content header title to be centered while keeping `< Back` left-justified.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` doc header bar:
+  - Switched header layout to a 3-column grid (`back | centered title | invisible balancing slot`).
+  - Kept `< Back` left-justified.
+  - Centered doc title text in the middle column.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-doc-title-center-v1.png`
+- Student screenshot: `/tmp/pika-student-doc-title-center-v1.png`
+- Student doc-open screenshot: `/tmp/pika-student-doc-title-center-open-v1.png`
+
+## 2026-03-05 — Hide doc-pane scrollbars until hover/focus
+**Context:** User requested hidden scrollbars by default for documentation pane, with scrollbars revealed only when the pane is hovered.
+
+**Changes:**
+- Updated `/src/app/globals.scss`:
+  - Added utility class `.scrollbar-hover` that hides scrollbars by default and reveals thin scrollbars on `:hover`/`:focus-within`.
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Applied `scrollbar-hover` to text document scroll container.
+  - For iframe documents, wrapped in `group overflow-hidden` and made the active iframe slightly wider by default (`w-[calc(100%+12px)]`) so the scrollbar gutter is clipped; restored to `w-full` on hover/focus.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-scrollbar-hover-v2.png`
+- Student screenshot: `/tmp/pika-student-scrollbar-hover-v2.png`
+- Student doc-open no-hover: `/tmp/pika-student-doc-scrollbar-nohover-v2.png`
+- Student doc-open hover: `/tmp/pika-student-doc-scrollbar-hover-v2.png`
+
+## 2026-03-05 — Made docs-pane back button more prominent
+**Context:** User requested a more prominent back action in documentation content view.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` doc header:
+  - Styled back action as a high-contrast pill button (`bg-info-bg`, `text-primary`, border, icon + label).
+  - Added `aria-label="Back to documents list"`.
+  - Kept centered title alignment via matching invisible placeholder on the right.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Adjusted assertions for the new accessible button name (`Back to documents list`).
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-back-prominent-v1.png`
+- Student screenshot: `/tmp/pika-student-back-prominent-v1.png`
+- Student doc-open screenshot: `/tmp/pika-student-back-prominent-open-v1.png`
+
+## 2026-03-05 — Removed border from docs-pane back button
+**Context:** User requested removing the border from the now-prominent back button in documentation content view.
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Removed border classes from the docs-pane back button.
+  - Preserved prominent styling with fill color and icon+label.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/pika-teacher-back-noborder-v1.png`
+- Student screenshot: `/tmp/pika-student-back-noborder-v1.png`
+- Student doc-open screenshot: `/tmp/pika-student-back-noborder-open-v1.png`

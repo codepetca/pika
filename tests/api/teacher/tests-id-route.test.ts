@@ -152,4 +152,163 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     expect(response.status).toBe(200)
     expect(data.quiz.status).toBe('active')
   })
+
+  it('updates test documents when payload is valid', async () => {
+    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'test-1',
+              classroom_id: 'classroom-1',
+              title: 'Unit Test',
+              status: 'draft',
+              show_results: false,
+              documents: payload.documents || [],
+            },
+            error: null,
+          }),
+        })),
+      })),
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        return {
+          update: updateSpy,
+        }
+      }
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const documents = [
+      {
+        id: 'doc-1',
+        title: 'Java API',
+        url: 'https://docs.oracle.com/en/java/',
+        source: 'link',
+      },
+    ]
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
+        method: 'PATCH',
+        body: JSON.stringify({ documents }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documents,
+      })
+    )
+    expect(data.quiz.documents).toEqual(documents)
+  })
+
+  it('returns 400 for invalid test documents payload', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        return {
+          update: vi.fn(),
+        }
+      }
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          documents: [{ id: 'doc-1', title: 'Broken', url: 'javascript:alert(1)', source: 'link' }],
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toContain('valid id/title')
+  })
+
+  it('updates text documents when payload is valid', async () => {
+    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'test-1',
+              classroom_id: 'classroom-1',
+              title: 'Unit Test',
+              status: 'draft',
+              show_results: false,
+              documents: payload.documents || [],
+            },
+            error: null,
+          }),
+        })),
+      })),
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        return {
+          update: updateSpy,
+        }
+      }
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const documents = [
+      {
+        id: 'doc-text',
+        title: 'Allowed formulas',
+        source: 'text',
+        content: 'distance = rate * time',
+      },
+    ]
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1', {
+        method: 'PATCH',
+        body: JSON.stringify({ documents }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documents,
+      })
+    )
+    expect(data.quiz.documents).toEqual(documents)
+  })
 })

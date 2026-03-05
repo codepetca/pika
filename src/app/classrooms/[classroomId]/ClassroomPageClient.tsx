@@ -94,6 +94,9 @@ interface StudentTestExamModeDetail {
   classroomId?: string
   active?: boolean
   testId?: string | null
+  testTitle?: string | null
+  exitsCount?: number
+  awayTotalSeconds?: number
 }
 
 interface PendingExamNavigation {
@@ -253,7 +256,16 @@ function ClassroomPageContent({
   const [studentTestExamMode, setStudentTestExamMode] = useState<{
     active: boolean
     testId: string | null
-  }>({ active: false, testId: null })
+    testTitle: string | null
+    exitsCount: number
+    awayTotalSeconds: number
+  }>({
+    active: false,
+    testId: null,
+    testTitle: null,
+    exitsCount: 0,
+    awayTotalSeconds: 0,
+  })
   const hideLeftRailForExamMode = !isTeacher && activeTab === 'tests' && studentTestExamMode.active
 
   const logStudentTestRouteExitAttempt = useCallback((
@@ -323,6 +335,10 @@ function ClassroomPageContent({
       setStudentTestExamMode({
         active: detail?.active === true,
         testId: detail?.testId || null,
+        testTitle: detail?.active === true ? (detail?.testTitle || null) : null,
+        exitsCount: detail?.active === true ? Math.max(0, Number(detail?.exitsCount || 0)) : 0,
+        awayTotalSeconds:
+          detail?.active === true ? Math.max(0, Number(detail?.awayTotalSeconds || 0)) : 0,
       })
     }
 
@@ -835,6 +851,29 @@ function ClassroomPageContent({
   const isAssessmentTab = activeTab === 'quizzes' || activeTab === 'tests'
   const assessmentLabel = activeTab === 'tests' ? 'test' : 'quiz'
   const assessmentApiBasePath = activeTab === 'tests' ? '/api/teacher/tests' : '/api/teacher/quizzes'
+  const examHeaderData = useMemo(() => {
+    if (
+      isTeacher ||
+      activeTab !== 'tests' ||
+      !studentTestExamMode.active ||
+      !studentTestExamMode.testTitle
+    ) {
+      return null
+    }
+
+    return {
+      testTitle: studentTestExamMode.testTitle,
+      exitsCount: studentTestExamMode.exitsCount,
+      awayTotalSeconds: studentTestExamMode.awayTotalSeconds,
+    }
+  }, [
+    activeTab,
+    isTeacher,
+    studentTestExamMode.active,
+    studentTestExamMode.awayTotalSeconds,
+    studentTestExamMode.exitsCount,
+    studentTestExamMode.testTitle,
+  ])
   const gradingTestId =
     activeTab === 'tests'
       ? (testGradingContext.testId || selectedQuiz?.id || null)
@@ -864,6 +903,7 @@ function ClassroomPageContent({
       onNavigateHome={handleHomeNavigationAttempt}
       onNavigateClassroom={handleClassroomNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
+      examModeHeader={examHeaderData}
     >
       <ThreePanelShell leftWidthOverride={hideLeftRailForExamMode ? 0 : undefined}>
         {hideLeftRailForExamMode ? (

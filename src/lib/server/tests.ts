@@ -7,6 +7,7 @@ export type TestAccessRecord = {
   status: QuizStatus
   title: string
   show_results: boolean
+  documents?: unknown
   position: number
   points_possible: number
   include_in_final: boolean

@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { getStudentQuizStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertStudentCanAccessTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
 import { normalizeTestResponses, type TestResponses } from '@/lib/test-attempts'
+import { normalizeTestDocuments } from '@/lib/test-documents'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -160,6 +161,7 @@ export async function GET(
         assessment_type: 'test' as const,
         status: test.status,
         show_results: test.show_results,
+        documents: normalizeTestDocuments(test.documents),
         position: test.position,
         student_status: studentStatus,
         returned_at: attempt?.returned_at || null,

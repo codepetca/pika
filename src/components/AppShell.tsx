@@ -21,6 +21,11 @@ interface AppShellProps {
   onNavigateHome?: (href: string) => boolean
   onNavigateClassroom?: (href: string) => boolean
   mainClassName?: string
+  examModeHeader?: {
+    testTitle: string
+    exitsCount: number
+    awayTotalSeconds: number
+  } | null
 }
 
 /**
@@ -38,6 +43,7 @@ export function AppShell({
   onNavigateHome,
   onNavigateClassroom,
   mainClassName,
+  examModeHeader,
 }: AppShellProps) {
   return (
     <div className="min-h-screen bg-page">
@@ -50,6 +56,7 @@ export function AppShell({
           onOpenSidebar={onOpenSidebar}
           onNavigateHome={onNavigateHome}
           onNavigateClassroom={onNavigateClassroom}
+          examModeHeader={examModeHeader}
         />
       )}
       <main className={mainClassName || 'max-w-7xl mx-auto px-4 py-3'}>
