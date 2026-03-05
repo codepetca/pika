@@ -4164,6 +4164,20 @@
   - Added in-panel note: `Documentation stays in this panel during exam mode.`
 - Added assertion coverage in `/tests/components/StudentQuizzesTab.test.tsx`:
   - Confirms doc-open state no longer shows an `Open in new tab` button.
+## 2026-03-05 — Student test exam mode left header aligned to 50/50 style
+**Context:** Requested UI parity for the 30/70 exam-mode left pane header with the 50/50 header style, with exam-mode-specific behavior (`Documents` title, no back button, attached documents listed below).
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Replaced exam-mode left heading `Exam Mode` with `Documents` using the same heading style as the 50/50 panel header.
+  - Added attached-document extraction for exam mode from:
+    - structured fields when present (`documents`, `attachments`, `attached_documents`, `resources`, `files`)
+    - markdown links and raw URLs in question text
+  - Rendered document links in the left pane (or `No attached documents.` fallback).
+  - Kept exam-mode maximize warning/button and focus metrics below the documents list.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Updated split behavior assertion to expect `Documents` in 30/70 mode.
+  - Added assertion that attached document links render in the 30/70 left pane.
 
 **Verification:**
 - `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
@@ -4645,3 +4659,76 @@
 - Teacher screenshot: `/tmp/pika-teacher-back-noborder-v1.png`
 - Student screenshot: `/tmp/pika-student-back-noborder-v1.png`
 - Student doc-open screenshot: `/tmp/pika-student-back-noborder-open-v1.png`
+- Playwright screenshots (manual visual verification):
+  - Teacher `/classrooms`: `/tmp/teacher-view-exam-header-fix.png`
+  - Student `/classrooms`: `/tmp/student-view-exam-header-fix.png`
+  - Student exam mode (30/70 with `Documents` + link): `/tmp/student-exam-mode-documents-header.png`
+
+**Note:**
+- Created one temporary active test to produce deterministic exam-mode screenshot, then removed it:
+  - Created: `b92a03cb-540e-4f5d-9673-d35ffb8b9d73` (`Exam Header Fix 1772734699`)
+  - Deleted via teacher API after verification.
+
+## 2026-03-05 — Merge-from-main reconciliation for exam-mode left header request
+**Context:** After syncing `codex/exam-mode-left-header` with latest `origin/main` (commit `d5c23b9`), the branch picked up the new test documents panel architecture. Needed to preserve the user-requested behavior in 30/70 exam mode.
+
+**Changes:**
+- Resolved merge conflicts in:
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - `/tests/components/StudentQuizzesTab.test.tsx`
+- Kept latest main behavior for test documents (teacher-managed docs, list/doc-panel toggle behavior).
+- Applied requested exam-mode left header behavior in 30/70 list state:
+  - Heading is `Documents` (matching 50/50 heading style)
+  - No back button in list state
+  - Exit/away telemetry badges remain visible below the documents section
+- Updated/realigned tests to reflect merged behavior and requested header state.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx` (9/9 passing)
+- `pnpm lint`
+- Playwright screenshots:
+  - Teacher `/classrooms`: `/tmp/teacher-view-exam-header-continue2.png`
+  - Student `/classrooms`: `/tmp/student-view-exam-header-continue2.png`
+  - Student tests list view: `/tmp/student-tests-loaded-continue.png`
+  - Student exam mode 30/70 list state with `Documents` header: `/tmp/student-exam-mode-documents-list-continue2.png`
+
+**Note:**
+- Created temporary active test for deterministic exam-mode verification and deleted it afterward:
+  - Created: `85ab4788-79ce-481d-8cf3-85e2fcfda3f1` (`Exam Header Verify 1772736597`)
+  - Deleted after screenshot capture.
+
+## 2026-03-05 — Test results visibility switched to teacher-return gating
+**Context:** User reported confusion with the test `Visibility` control and requested a simpler policy: students should see test results only after teacher return in grading flow.
+
+**Changes:**
+- Updated test result/status logic to use teacher return state (`returned_at`) instead of `show_results`:
+  - `/src/lib/quizzes.ts`
+    - Added `canStudentViewTestResults()` and `getStudentTestStatus()`.
+  - `/src/app/api/student/tests/route.ts`
+    - Student list status for tests now derives from `status + responded + returned_at`.
+  - `/src/app/api/student/tests/[id]/route.ts`
+    - Detail `student_status` now uses return-based test status.
+  - `/src/app/api/student/tests/[id]/results/route.ts`
+    - Results now require returned test work (403 until returned).
+- Removed confusing teacher visibility control for tests:
+  - `/src/components/QuizCard.tsx`
+    - Eye toggle remains for quizzes only; hidden for tests.
+- Updated student test messaging:
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+    - Test results rendering now keys off `student_status === 'can_view_results'`.
+    - Submitted messaging now explains teacher close/return flow.
+- Updated tests:
+  - `/tests/unit/quizzes.test.ts`
+  - `/tests/api/student/tests-results.test.ts`
+  - `/tests/components/QuizCard.test.tsx`
+
+**Verification:**
+- `pnpm vitest run tests/unit/quizzes.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/components/QuizCard.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Playwright screenshots:
+  - Teacher `/classrooms`: `/tmp/teacher-view-tests-returned-policy.png`
+  - Student `/classrooms`: `/tmp/student-view-tests-returned-policy.png`
+  - Teacher tests tab loaded: `/tmp/teacher-tests-tab-returned-policy-loaded.png`
+  - Student tests tab loaded: `/tmp/student-tests-tab-returned-policy-loaded.png`
+  - Teacher tests tab selected state: `/tmp/teacher-tests-selected-debug-wait8s.png`
+  - Student tests tab selected state: `/tmp/student-tests-tab-selected-returned-policy.png`

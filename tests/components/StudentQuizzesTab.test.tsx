@@ -203,7 +203,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
   })
 
-  it('hides left-panel exits and away indicators in active test detail', async () => {
+  it('shows left-panel exits and away indicators in active test detail', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -309,8 +309,8 @@ describe('StudentQuizzesTab exam mode', () => {
       expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
     })
 
-    expect(screen.queryByLabelText(/Exits 9\./)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Away time 0:13.')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Exits 9\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Away time 0:13.')).toBeInTheDocument()
     expect(screen.getAllByText('Window must be maximized in exam mode.').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /Maximize/i })).toBeInTheDocument()
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
@@ -365,7 +365,7 @@ describe('StudentQuizzesTab exam mode', () => {
               {
                 id: 'q1',
                 quiz_id: 'test-1',
-                question_text: '2 + 2 = ?',
+                question_text: 'Use [Formula Sheet](https://example.com/formula.pdf). 2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
                 points: 1,
@@ -429,20 +429,22 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
-      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(screen.getByText(/2 \+ 2 = \?/)).toBeInTheDocument()
     })
 
     const splitContainerAfterStart = getSplitContainer(container)
     expect(splitContainerAfterStart.className).toContain('lg:grid-cols-[30%_70%]')
     expect(splitContainerAfterStart.className).not.toContain('lg:grid-cols-2')
-    expect(screen.getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Documents' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Exam Mode' })).not.toBeInTheDocument()
 
     const sections = container.querySelectorAll('section')
     const leftPane = sections.item(0)
     expect(leftPane).toBeTruthy()
     expect(within(leftPane).queryByRole('heading', { name: 'Tests' })).not.toBeInTheDocument()
-    expect(within(leftPane).queryByLabelText(/Exits /)).not.toBeInTheDocument()
-    expect(within(leftPane).queryByLabelText(/Away time/)).not.toBeInTheDocument()
+    expect(within(leftPane).getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
+    expect(within(leftPane).getByLabelText(/Exits /)).toBeInTheDocument()
+    expect(within(leftPane).getByLabelText(/Away time/)).toBeInTheDocument()
   })
 
   it('switches to 50/50 split when opening a doc and restores 30/70 on back', async () => {

@@ -9,7 +9,9 @@ import {
   getQuizStatusBadgeClass,
   canStudentRespond,
   canStudentViewResults,
+  canStudentViewTestResults,
   getStudentQuizStatus,
+  getStudentTestStatus,
   canEditQuizQuestions,
   aggregateResults,
   validateQuizOptions,
@@ -121,6 +123,32 @@ describe('quiz utilities', () => {
   })
 
   // ==========================================================================
+  // canStudentViewTestResults()
+  // ==========================================================================
+
+  describe('canStudentViewTestResults', () => {
+    it('should return true when test is closed, responded, and returned', () => {
+      const test = createMockQuiz({ status: 'closed' })
+      expect(canStudentViewTestResults(test, true, '2026-03-05T10:00:00.000Z')).toBe(true)
+    })
+
+    it('should return false when test is not closed', () => {
+      const test = createMockQuiz({ status: 'active' })
+      expect(canStudentViewTestResults(test, true, '2026-03-05T10:00:00.000Z')).toBe(false)
+    })
+
+    it('should return false when student has not responded', () => {
+      const test = createMockQuiz({ status: 'closed' })
+      expect(canStudentViewTestResults(test, false, '2026-03-05T10:00:00.000Z')).toBe(false)
+    })
+
+    it('should return false when test is not returned', () => {
+      const test = createMockQuiz({ status: 'closed' })
+      expect(canStudentViewTestResults(test, true, null)).toBe(false)
+    })
+  })
+
+  // ==========================================================================
   // getStudentQuizStatus()
   // ==========================================================================
 
@@ -143,6 +171,27 @@ describe('quiz utilities', () => {
     it('should return "responded" when student has responded but results are disabled', () => {
       const quiz = createMockQuiz({ status: 'closed', show_results: false })
       expect(getStudentQuizStatus(quiz, true)).toBe('responded')
+    })
+  })
+
+  // ==========================================================================
+  // getStudentTestStatus()
+  // ==========================================================================
+
+  describe('getStudentTestStatus', () => {
+    it('should return "not_started" when student has not responded', () => {
+      const test = createMockQuiz({ status: 'active' })
+      expect(getStudentTestStatus(test, false, null)).toBe('not_started')
+    })
+
+    it('should return "responded" when test is responded but not returned', () => {
+      const test = createMockQuiz({ status: 'closed' })
+      expect(getStudentTestStatus(test, true, null)).toBe('responded')
+    })
+
+    it('should return "can_view_results" when test is closed and returned', () => {
+      const test = createMockQuiz({ status: 'closed' })
+      expect(getStudentTestStatus(test, true, '2026-03-05T10:00:00.000Z')).toBe('can_view_results')
     })
   })
 

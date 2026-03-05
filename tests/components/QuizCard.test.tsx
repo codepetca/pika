@@ -115,6 +115,21 @@ describe('QuizCard', () => {
     expect(screen.getByLabelText('Show results to students')).toBeInTheDocument()
   })
 
+  it('does not render results visibility toggle for tests', () => {
+    const test = makeQuizWithStats({ assessment_type: 'test', show_results: true })
+    render(
+      <QuizCard
+        quiz={test}
+        {...defaultProps}
+        apiBasePath="/api/teacher/tests"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    expect(screen.queryByLabelText('Hide results from students')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Show results to students')).not.toBeInTheDocument()
+  })
+
   it('calls onDelete when delete button is clicked', () => {
     const onDelete = vi.fn()
     const quiz = makeQuizWithStats({ title: 'My Quiz' })

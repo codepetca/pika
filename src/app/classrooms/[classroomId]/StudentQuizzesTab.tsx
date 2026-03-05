@@ -755,6 +755,8 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                       }`}
                     >
                       <div className="space-y-4">
+                        <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
+
                         {showNotMaximizedWarning && (
                           <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-xs text-warning">
                             Window must be maximized in exam mode.
@@ -780,6 +782,23 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                         ) : (
                           <p className="text-sm text-text-muted">No documents provided for this test.</p>
                         )}
+
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
+                          <span
+                            className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                            aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
+                          >
+                            <LogOut className="h-4 w-4" />
+                            <span>{exitsCount}</span>
+                          </span>
+                          <span
+                            className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                            aria-label={`Away time ${awayDurationLabel}.`}
+                          >
+                            <ClockAlert className="h-4 w-4" />
+                            <span>{awayDurationLabel}</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -878,7 +897,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                       >
                         Start the Test
                       </Button>
-                    ) : hasResponded && selectedQuiz.quiz.show_results && selectedQuiz.quiz.status === 'closed' ? (
+                    ) : hasResponded && selectedQuiz.quiz.student_status === 'can_view_results' ? (
                       <StudentQuizResults
                         quizId={selectedQuizId!}
                         myResponses={selectedQuiz.studentResponses}
@@ -888,15 +907,15 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                     ) : hasResponded ? (
                       <div className="p-4 bg-success-bg rounded-lg text-center">
                         <p className="text-success font-medium">Response Submitted</p>
-                        {selectedQuiz.quiz.status !== 'closed' && selectedQuiz.quiz.show_results ? (
+                        {selectedQuiz.quiz.status !== 'closed' ? (
                           <p className="text-sm text-text-muted mt-1">
-                            Results will be available after the test closes.
+                            Results will be available after this test is closed and returned by your teacher.
                           </p>
-                        ) : selectedQuiz.quiz.status === 'closed' && !selectedQuiz.quiz.show_results ? (
+                        ) : (
                           <p className="text-sm text-text-muted mt-1">
-                            Results are not available for this test.
+                            Results will be available after your teacher returns this test.
                           </p>
-                        ) : null}
+                        )}
                       </div>
                     ) : (
                       <StudentQuizForm
