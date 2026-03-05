@@ -5,3 +5,37 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer utilities {
+  .scrollbar-hover {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-hover::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  .scrollbar-hover:hover,
+  .scrollbar-hover:focus-within {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-hover:hover::-webkit-scrollbar,
+  .scrollbar-hover:focus-within::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-hover:hover::-webkit-scrollbar-thumb,
+  .scrollbar-hover:focus-within::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: var(--color-border-strong);
+  }
+
+  .scrollbar-hover:hover::-webkit-scrollbar-track,
+  .scrollbar-hover:focus-within::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Menu } from 'lucide-react'
+import { ClockAlert, LogOut, Menu } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { ClassroomDropdown } from './ClassroomDropdown'
@@ -26,6 +26,18 @@ interface AppHeaderProps {
   onOpenSidebar?: () => void
   onNavigateHome?: (href: string) => boolean
   onNavigateClassroom?: (href: string) => boolean
+  examModeHeader?: {
+    testTitle: string
+    exitsCount: number
+    awayTotalSeconds: number
+  } | null
+}
+
+function formatDuration(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds))
+  if (safe < 60) return `${safe}S`
+  if (safe < 3600) return `${Math.floor(safe / 60)}M`
+  return `${Math.floor(safe / 3600)}H`
 }
 
 /**
@@ -39,6 +51,7 @@ export function AppHeader({
   onOpenSidebar,
   onNavigateHome,
   onNavigateClassroom,
+  examModeHeader,
 }: AppHeaderProps) {
   const [now, setNow] = useState(() => new Date())
 
@@ -48,7 +61,7 @@ export function AppHeader({
   }, [])
 
   return (
-    <header className="sticky top-0 z-50 h-12 bg-surface border-b border-border grid grid-cols-[1fr_auto_1fr] items-center px-4">
+    <header className="sticky top-0 z-50 h-12 bg-surface border-b border-border grid grid-cols-[1fr_minmax(0,1fr)_1fr] items-center px-4">
       {/* Left section */}
       <div className="flex items-center gap-3">
         {/* Mobile sidebar trigger (classroom pages) */}
@@ -94,20 +107,44 @@ export function AppHeader({
         )}
       </div>
 
-      {/* Center section - Date */}
-      <div>
-        {/* Mobile: Short format (Tue Dec 16) */}
-        <div className="lg:hidden text-lg sm:text-xl font-bold text-text-default tabular-nums">
-          {formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}
-        </div>
-        {/* Desktop: Long format (Monday January 12, 2026) */}
-        <div className="hidden lg:block text-xl font-bold text-text-default">
-          {formatInTimeZone(now, 'America/Toronto', 'EEEE MMMM d, yyyy')}
-        </div>
+      {/* Center section - Date / contextual status */}
+      <div className="min-w-0 px-2">
+        {examModeHeader ? (
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-6 text-sm text-text-default">
+            <span className="truncate font-semibold">{examModeHeader.testTitle}</span>
+            <div className="inline-flex items-center gap-3 whitespace-nowrap text-text-muted tabular-nums">
+              <span className="inline-flex items-center gap-1">
+                <LogOut className="h-3.5 w-3.5" />
+                <span>{examModeHeader.exitsCount}</span>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <ClockAlert className="h-3.5 w-3.5" />
+                <span>{formatDuration(examModeHeader.awayTotalSeconds)}</span>
+              </span>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Mobile: Short format (Tue Dec 16) */}
+            <div className="lg:hidden text-lg sm:text-xl font-bold text-text-default tabular-nums">
+              {formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}
+            </div>
+            {/* Desktop: Long format (Monday January 12, 2026) */}
+            <div className="hidden lg:block text-xl font-bold text-text-default">
+              {formatInTimeZone(now, 'America/Toronto', 'EEEE MMMM d, yyyy')}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Right section */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-0">
+        {examModeHeader && (
+          <span className="mr-2 whitespace-nowrap text-sm font-semibold tabular-nums text-text-default">
+            <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
+            <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
+          </span>
+        )}
         <UserMenu user={user} />
       </div>
     </header>

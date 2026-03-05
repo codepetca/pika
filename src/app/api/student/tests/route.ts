@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
 import { getStudentQuizStatus } from '@/lib/quizzes'
+import { normalizeTestDocuments } from '@/lib/test-documents'
 import type { Quiz } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -160,6 +161,7 @@ export async function GET(request: NextRequest) {
       return {
         ...test,
         assessment_type: 'test' as const,
+        documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
         student_status: studentStatus,
       }
     })
