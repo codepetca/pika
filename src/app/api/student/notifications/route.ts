@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { getTodayInToronto } from '@/lib/timezone'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest) {
 
       const { data: responses, error: responsesError } = await supabase
         .from(responsesTable)
-        .select(responseIdColumn)
+        .select(table === 'tests' ? `${responseIdColumn}, selected_option, response_text` : responseIdColumn)
         .eq('student_id', user.id)
         .in(responseIdColumn, activeIds)
 
@@ -170,6 +171,9 @@ export async function GET(request: NextRequest) {
 
       const respondedIds = new Set<string>()
       for (const row of responses || []) {
+        if (table === 'tests' && !hasMeaningfulTestResponse(row)) {
+          continue
+        }
         const assessmentId =
           responseIdColumn === 'quiz_id'
             ? (row as { quiz_id: string }).quiz_id

@@ -227,6 +227,7 @@ describe('QuizDetailPanel', () => {
         options: [],
         points: 5,
         response_max_chars: 5000,
+        answer_key: null,
       })
       mockFetchForQuiz([testQuestion])
       const testQuiz = makeQuizWithStats({
@@ -254,8 +255,129 @@ describe('QuizDetailPanel', () => {
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Character limit')).not.toBeInTheDocument()
       expect(screen.getByLabelText('Code')).toBeInTheDocument()
+      expect(screen.getByText('Points')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+      const promptFieldGridCheck = screen.getByDisplayValue('Explain your reasoning')
+      const gridContainer = promptFieldGridCheck.closest('div')?.parentElement
+      expect(gridContainer?.className).toContain('md:grid-cols-[16px_24px_minmax(0,1fr)_112px]')
+      expect(screen.getByRole('button', { name: 'Add Answer Key' })).toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Enter an optional answer key for AI-assisted grading...')).not.toBeInTheDocument()
       expect(screen.queryByText('Open response')).not.toBeInTheDocument()
       expect(screen.queryByText('Multiple choice')).not.toBeInTheDocument()
+    })
+
+    it('keeps answer key collapsed by default and expands on click', async () => {
+      const testQuestion = createMockQuizQuestion({
+        id: 'test-q-open',
+        question_type: 'open_response',
+        question_text: 'Explain photosynthesis.',
+        options: [],
+        points: 5,
+        response_max_chars: 5000,
+        answer_key: null,
+      })
+      mockFetchForQuiz([testQuestion])
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Open Response Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Add Answer Key' })).toBeInTheDocument()
+      })
+      expect(screen.queryByPlaceholderText('Enter an optional answer key for AI-assisted grading...')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Add Answer Key' }))
+      expect(screen.getByPlaceholderText('Enter an optional answer key for AI-assisted grading...')).toBeInTheDocument()
+    })
+
+    it('sends answer_key when saving an open-response question', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            questions: [
+              createMockQuizQuestion({
+                id: 'test-q-save',
+                question_type: 'open_response',
+                question_text: 'Explain inertia.',
+                options: [],
+                points: 5,
+                response_max_chars: 5000,
+                answer_key: null,
+              }),
+            ],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ question: { id: 'test-q-save' } }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            questions: [
+              createMockQuizQuestion({
+                id: 'test-q-save',
+                question_type: 'open_response',
+                question_text: 'Explain inertia.',
+                options: [],
+                points: 5,
+                response_max_chars: 5000,
+                answer_key: 'Objects resist changes in motion.',
+              }),
+            ],
+          }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Save Answer Key Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Explain inertia.')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Add Answer Key' }))
+      fireEvent.change(
+        screen.getByPlaceholderText('Enter an optional answer key for AI-assisted grading...'),
+        { target: { value: 'Objects resist changes in motion.' } }
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          expect.stringContaining('/api/teacher/tests/'),
+          expect.objectContaining({ method: 'PATCH' })
+        )
+      })
+
+      const patchCall = fetchMock.mock.calls.find((call: any[]) => call[1]?.method === 'PATCH')
+      const patchBody = JSON.parse(patchCall?.[1]?.body ?? '{}')
+      expect(patchBody.answer_key).toBe('Objects resist changes in motion.')
     })
 
     it('creates new test questions with empty question_text so placeholder text remains a placeholder', async () => {

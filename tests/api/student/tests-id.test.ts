@@ -56,10 +56,10 @@ describe('GET /api/student/tests/[id]', () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({
+            then: vi.fn((resolve: any) => resolve({
               data: null,
               error: { message: 'Database error' },
-            }),
+            })),
           })),
         }
       }
@@ -97,17 +97,18 @@ describe('GET /api/student/tests/[id]', () => {
           return {
             select: vi.fn(() => ({
               eq: vi.fn().mockReturnThis(),
-              limit: vi.fn().mockResolvedValue({
-                data: [{ id: 'response-1' }],
-                error: null,
-              }),
+              then: vi.fn((resolve: any) =>
+                resolve({
+                  data: [{ selected_option: 0, response_text: null }],
+                  error: null,
+                })
+              ),
             })),
           }
         }
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
-            mockResolvedValue: vi.fn(),
             then: vi.fn((resolve: any) =>
               resolve({ data: null, error: { message: 'Database error' } })
             ),
@@ -136,6 +137,7 @@ describe('GET /api/student/tests/[id]', () => {
   })
 
   it('falls back when test_attempts return columns are missing', async () => {
+    let questionSelectColumns = ''
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_attempts') {
         return {
@@ -162,21 +164,13 @@ describe('GET /api/student/tests/[id]', () => {
         }
       }
       if (table === 'test_responses') {
-        let isLimitQuery = false
         return {
-          select: vi.fn(() => ({
+          select: vi.fn((columns: string) => ({
             eq: vi.fn().mockReturnThis(),
-            limit: vi.fn(() => {
-              isLimitQuery = true
-              return Promise.resolve({
-                data: [{ id: 'response-1' }],
-                error: null,
-              })
-            }),
             then: vi.fn((resolve: any) =>
               resolve(
-                isLimitQuery
-                  ? { data: [{ id: 'response-1' }], error: null }
+                columns.includes('question_id')
+                  ? { data: [], error: null }
                   : { data: [], error: null }
               )
             ),
@@ -185,24 +179,29 @@ describe('GET /api/student/tests/[id]', () => {
       }
       if (table === 'test_questions') {
         return {
-          select: vi.fn(() => ({
+          select: vi.fn((columns: string) => {
+            questionSelectColumns = columns
+            return ({
             eq: vi.fn().mockReturnThis(),
             order: vi.fn().mockResolvedValue({
               data: [
                 {
                   id: 'question-1',
+                  test_id: 'test-1',
                   question_type: 'multiple_choice',
+                  question_text: 'Q1',
                   options: ['A', 'B'],
-                  correct_option: 0,
                   points: 1,
                   response_max_chars: 5000,
+                  response_monospace: false,
                   position: 0,
-                  question_text: 'Q1',
+                  created_at: '2026-01-01T00:00:00.000Z',
+                  updated_at: '2026-01-01T00:00:00.000Z',
                 },
               ],
               error: null,
             }),
-          })),
+          })}),
         }
       }
       if (table === 'test_focus_events') {
@@ -225,6 +224,10 @@ describe('GET /api/student/tests/[id]', () => {
     expect(response.status).toBe(200)
     expect(data.quiz.id).toBe('test-1')
     expect(data.quiz.returned_at).toBeNull()
+    expect(questionSelectColumns).not.toContain('correct_option')
+    expect(questionSelectColumns).not.toContain('answer_key')
+    expect(data.questions[0].correct_option).toBeUndefined()
+    expect(data.questions[0].answer_key).toBeUndefined()
   })
 
   it('returns student_status=responded when closed test is submitted but not returned', async () => {
@@ -256,20 +259,11 @@ describe('GET /api/student/tests/[id]', () => {
         }
       }
       if (table === 'test_responses') {
-        let isLimitQuery = false
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
-            limit: vi.fn(() => {
-              isLimitQuery = true
-              return Promise.resolve({ data: [], error: null })
-            }),
             then: vi.fn((resolve: any) =>
-              resolve(
-                isLimitQuery
-                  ? { data: [], error: null }
-                  : { data: [], error: null }
-              )
+              resolve({ data: [], error: null })
             ),
           })),
         }
@@ -337,20 +331,11 @@ describe('GET /api/student/tests/[id]', () => {
         }
       }
       if (table === 'test_responses') {
-        let isLimitQuery = false
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
-            limit: vi.fn(() => {
-              isLimitQuery = true
-              return Promise.resolve({ data: [], error: null })
-            }),
             then: vi.fn((resolve: any) =>
-              resolve(
-                isLimitQuery
-                  ? { data: [], error: null }
-                  : { data: [], error: null }
-              )
+              resolve({ data: [], error: null })
             ),
           })),
         }
@@ -383,5 +368,59 @@ describe('GET /api/student/tests/[id]', () => {
     expect(response.status).toBe(200)
     expect(data.student_status).toBe('can_view_results')
     expect(data.quiz.student_status).toBe('can_view_results')
+  })
+
+  it('does not expose closed test when only placeholder graded rows exist', async () => {
+    const serverTests = await import('@/lib/server/tests')
+    vi.mocked(serverTests.assertStudentCanAccessTest).mockResolvedValueOnce({
+      ok: true,
+      test: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Unit Test',
+        status: 'closed',
+        show_results: false,
+        position: 0,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+    } as any)
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: null,
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) =>
+              resolve({
+                data: [{ selected_option: null, response_text: '   ' }],
+                error: null,
+              })
+            ),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(404)
+    expect(data.error).toBe('Test not found')
   })
 })

@@ -85,8 +85,6 @@ export function TeacherQuizzesTab({
   const [loading, setLoading] = useState(true)
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
-  const [deleteQuiz, setDeleteQuiz] = useState<{ quiz: QuizWithStats; responsesCount: number } | null>(null)
-  const [deleting, setDeleting] = useState(false)
   const [pendingCreatedQuizId, setPendingCreatedQuizId] = useState<string | null>(null)
 
   const [testsMode, setTestsMode] = useState<'authoring' | 'grading'>('authoring')
@@ -369,40 +367,6 @@ export function TeacherQuizzesTab({
     )
   }
 
-  async function handleDeleteConfirm() {
-    if (!deleteQuiz) return
-    setDeleting(true)
-    try {
-      const res = await fetch(`${apiBasePath}/${deleteQuiz.quiz.id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to delete quiz')
-      }
-      if (selectedQuizId === deleteQuiz.quiz.id) {
-        setSelectedQuizId(null)
-      }
-      window.dispatchEvent(
-        new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
-      )
-    } catch (err) {
-      console.error('Error deleting quiz:', err)
-    } finally {
-      setDeleting(false)
-      setDeleteQuiz(null)
-    }
-  }
-
-  async function handleRequestDelete(quiz: QuizWithStats) {
-    try {
-      const res = await fetch(`${apiBasePath}/${quiz.id}/results`)
-      const data = await res.json()
-      setDeleteQuiz({ quiz, responsesCount: data.stats?.responded || 0 })
-    } catch {
-      setDeleteQuiz({ quiz, responsesCount: quiz.stats.responded })
-    }
-  }
-
-  const assessmentLabel = isTestsView ? 'test' : 'quiz'
   const assessmentLabelPlural = isTestsView ? 'Tests' : 'Quizzes'
   const selectedTest = sortedQuizzes.find((quiz) => quiz.id === selectedQuizId) || null
   const selectedTestTitle = selectedTest?.title || 'No test selected'
@@ -718,7 +682,6 @@ export function TeacherQuizzesTab({
                 isSelected={selectedQuizId === quiz.id}
                 isReadOnly={isReadOnly}
                 onSelect={() => handleCardSelect(quiz)}
-                onDelete={() => handleRequestDelete(quiz)}
                 onQuizUpdate={loadQuizzes}
               />
             ))}
@@ -734,23 +697,6 @@ export function TeacherQuizzesTab({
         quiz={null}
         onClose={() => setShowModal(false)}
         onSuccess={handleQuizCreated}
-      />
-
-      <ConfirmDialog
-        isOpen={!!deleteQuiz}
-        title={`Delete ${assessmentLabel}?`}
-        description={
-          deleteQuiz && deleteQuiz.responsesCount > 0
-            ? `This ${assessmentLabel} has ${deleteQuiz.responsesCount} response${deleteQuiz.responsesCount === 1 ? '' : 's'}. Deleting it will permanently remove all student responses.`
-            : 'This action cannot be undone.'
-        }
-        confirmLabel={deleting ? 'Deleting...' : 'Delete'}
-        cancelLabel="Cancel"
-        confirmVariant="danger"
-        isConfirmDisabled={deleting}
-        isCancelDisabled={deleting}
-        onCancel={() => setDeleteQuiz(null)}
-        onConfirm={handleDeleteConfirm}
       />
 
       <ConfirmDialog

@@ -8,6 +8,7 @@ import {
   validateTestResponsesAgainstQuestions,
   type TestResponses,
 } from '@/lib/test-attempts'
+import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { insertVersionedBaselineHistory } from '@/lib/server/versioned-history'
 
 export const dynamic = 'force-dynamic'
@@ -59,12 +60,11 @@ export async function POST(
 
     const { data: existingResponses } = await supabase
       .from('test_responses')
-      .select('id')
+      .select('selected_option, response_text')
       .eq('test_id', testId)
       .eq('student_id', user.id)
-      .limit(1)
 
-    if ((existingResponses?.length || 0) > 0) {
+    if (hasAnyMeaningfulTestResponse(existingResponses)) {
       return NextResponse.json({ error: 'You have already responded to this test' }, { status: 400 })
     }
 
@@ -127,12 +127,9 @@ export async function POST(
 
     const { error: insertError } = await supabase
       .from('test_responses')
-      .insert(responsesToInsert)
+      .upsert(responsesToInsert, { onConflict: 'question_id,student_id' })
 
     if (insertError) {
-      if (insertError.code === '23505') {
-        return NextResponse.json({ error: 'You have already responded to this test' }, { status: 400 })
-      }
       console.error('Error inserting test responses:', insertError)
       return NextResponse.json({ error: 'Failed to submit responses' }, { status: 500 })
     }

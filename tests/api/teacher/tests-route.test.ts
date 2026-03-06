@@ -98,4 +98,79 @@ describe('GET /api/teacher/tests', () => {
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to fetch tests')
   })
+
+  it('does not count placeholder graded rows as respondents', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) =>
+              resolve({
+                data: [{ id: 'test-1', classroom_id: 'classroom-1', title: 'T1', position: 0 }],
+                error: null,
+              })
+            ),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ count: 10, error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({ data: [{ test_id: 'test-1' }], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  test_id: 'test-1',
+                  student_id: 'student-1',
+                  selected_option: null,
+                  response_text: '   ',
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1')
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.quizzes).toHaveLength(1)
+    expect(data.quizzes[0].stats.responded).toBe(0)
+  })
 })

@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, summarizeQuizFocusEvents } from '@/lib/quizzes'
-import { assertTeacherOwnsTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import {
+  assertTeacherOwnsTest,
+  isMissingTestAttemptReturnColumnsError,
+  isMissingTestResponseAiColumnsError,
+} from '@/lib/server/tests'
+import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -35,10 +40,63 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
-    const { data: responses, error: responsesError } = await supabase
-      .from('test_responses')
-      .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at')
-      .eq('test_id', testId)
+    let responses:
+      | Array<{
+          id: string
+          test_id: string
+          question_id: string
+          student_id: string
+          selected_option: number | null
+          response_text: string | null
+          score: number | null
+          feedback: string | null
+          graded_at: string | null
+          graded_by: string | null
+          ai_grading_basis: string | null
+          ai_reference_answers: unknown
+          ai_model: string | null
+          submitted_at: string
+        }>
+      | null = null
+    let responsesError: { code?: string; message?: string; details?: string; hint?: string } | null = null
+
+    {
+      const responsesWithAiResult = await supabase
+        .from('test_responses')
+        .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, ai_grading_basis, ai_reference_answers, ai_model, submitted_at')
+        .eq('test_id', testId)
+
+      responses = (responsesWithAiResult.data as typeof responses) || null
+      responsesError = responsesWithAiResult.error
+    }
+
+    if (responsesError && isMissingTestResponseAiColumnsError(responsesError)) {
+      const legacyResponsesResult = await supabase
+        .from('test_responses')
+        .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at')
+        .eq('test_id', testId)
+
+      responses =
+        ((legacyResponsesResult.data as Array<{
+          id: string
+          test_id: string
+          question_id: string
+          student_id: string
+          selected_option: number | null
+          response_text: string | null
+          score: number | null
+          feedback: string | null
+          graded_at: string | null
+          graded_by: string | null
+          submitted_at: string
+        }> | null) || []).map((response) => ({
+          ...response,
+          ai_grading_basis: null,
+          ai_reference_answers: null,
+          ai_model: null,
+        }))
+      responsesError = legacyResponsesResult.error
+    }
 
     if (responsesError) {
       console.error('Error fetching test responses:', responsesError)
@@ -70,9 +128,13 @@ export async function GET(
       score: number | null
       feedback: string | null
       graded_at: string | null
+      ai_grading_basis: 'teacher_key' | 'generated_reference' | null
+      ai_reference_answers: string[] | null
+      ai_model: string | null
     }>> = {}
     const pointsEarnedByStudent = new Map<string, number>()
     const submittedAtByStudent = new Map<string, string>()
+    const hasMeaningfulAnswersByStudent = new Map<string, boolean>()
     const openGradedCounts = new Map<string, number>()
     const openUngradedCounts = new Map<string, number>()
 
@@ -88,6 +150,16 @@ export async function GET(
         score: response.score,
         feedback: response.feedback,
         graded_at: response.graded_at,
+        ai_grading_basis:
+          response.ai_grading_basis === 'teacher_key' || response.ai_grading_basis === 'generated_reference'
+            ? response.ai_grading_basis
+            : null,
+        ai_reference_answers: Array.isArray(response.ai_reference_answers)
+          ? response.ai_reference_answers
+              .map((value) => (typeof value === 'string' ? value : ''))
+              .filter((value) => value.length > 0)
+          : null,
+        ai_model: typeof response.ai_model === 'string' ? response.ai_model : null,
       }
       if (typeof response.score === 'number') {
         pointsEarnedByStudent.set(
@@ -95,9 +167,13 @@ export async function GET(
           (pointsEarnedByStudent.get(response.student_id) || 0) + response.score
         )
       }
-      const previousSubmittedAt = submittedAtByStudent.get(response.student_id)
-      if (!previousSubmittedAt || new Date(response.submitted_at).getTime() > new Date(previousSubmittedAt).getTime()) {
-        submittedAtByStudent.set(response.student_id, response.submitted_at)
+      const hasMeaningfulAnswer = hasMeaningfulTestResponse(response)
+      if (hasMeaningfulAnswer) {
+        hasMeaningfulAnswersByStudent.set(response.student_id, true)
+        const previousSubmittedAt = submittedAtByStudent.get(response.student_id)
+        if (!previousSubmittedAt || new Date(response.submitted_at).getTime() > new Date(previousSubmittedAt).getTime()) {
+          submittedAtByStudent.set(response.student_id, response.submitted_at)
+        }
       }
 
       if (question.question_type === 'open_response') {
@@ -230,7 +306,7 @@ export async function GET(
     const students = classroomStudentIds.map((studentId) => {
       const userInfo = userById.get(studentId)
       const attempt = attemptByStudent.get(studentId)
-      const hasAnswers = !!studentAnswers[studentId] && Object.keys(studentAnswers[studentId]).length > 0
+      const hasAnswers = hasMeaningfulAnswersByStudent.get(studentId) === true
       const isSubmitted = !!attempt?.is_submitted || hasAnswers
       const isReturned = !!attempt?.returned_at
       const status: 'not_started' | 'in_progress' | 'submitted' | 'returned' = isReturned
@@ -335,6 +411,9 @@ export async function GET(
         question_text: q.question_text,
         options: q.options,
         correct_option: q.correct_option,
+        answer_key: q.question_type === 'open_response' && typeof q.answer_key === 'string'
+          ? q.answer_key
+          : null,
         points: q.points,
         response_max_chars: q.response_max_chars,
         response_monospace: q.response_monospace === true,

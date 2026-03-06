@@ -64,11 +64,12 @@ describe('POST /api/student/tests/[id]/respond', () => {
         }
       }
       if (table === 'test_responses') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+          then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
+        }
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-          })),
+          select: vi.fn(() => query),
         }
       }
       if (table === 'test_questions') {
@@ -95,7 +96,7 @@ describe('POST /api/student/tests/[id]/respond', () => {
   })
 
   it('submits responses and updates an existing test attempt', async () => {
-    const responsesInsert = vi.fn().mockResolvedValue({ error: null })
+    const responsesUpsert = vi.fn().mockResolvedValue({ error: null })
     const attemptsUpdate = vi.fn(() => ({
       eq: vi.fn().mockResolvedValue({ error: null }),
     }))
@@ -122,12 +123,13 @@ describe('POST /api/student/tests/[id]/respond', () => {
         }
       }
       if (table === 'test_responses') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+          then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
+        }
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-          })),
-          insert: responsesInsert,
+          select: vi.fn(() => query),
+          upsert: responsesUpsert,
         }
       }
       if (table === 'test_questions') {
@@ -159,8 +161,81 @@ describe('POST /api/student/tests/[id]/respond', () => {
 
     expect(response.status).toBe(201)
     expect(data.success).toBe(true)
-    expect(responsesInsert).toHaveBeenCalledOnce()
+    expect(responsesUpsert).toHaveBeenCalledOnce()
+    expect(responsesUpsert).toHaveBeenCalledWith(expect.any(Array), {
+      onConflict: 'question_id,student_id',
+    })
     expect(attemptsUpdate).toHaveBeenCalledOnce()
     expect(historyInsert).toHaveBeenCalledOnce()
+  })
+
+  it('allows submit when only placeholder graded rows exist', async () => {
+    const responsesUpsert = vi.fn().mockResolvedValue({ error: null })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { id: 'attempt-1', is_submitted: false, responses: {} },
+              error: null,
+            }),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          })),
+        }
+      }
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) =>
+              resolve({
+                data: [{ selected_option: null, response_text: '   ' }],
+                error: null,
+              })
+            ),
+          })),
+          upsert: responsesUpsert,
+        }
+      }
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ id: 'q-1', question_type: 'open_response', options: [], points: 3, response_max_chars: 5000 }],
+              error: null,
+            }),
+          })),
+        }
+      }
+      if (table === 'test_attempt_history') {
+        return {
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'history-1', trigger: 'submit' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      buildRequest({
+        responses: { 'q-1': { question_type: 'open_response', response_text: 'My real answer' } },
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(data.success).toBe(true)
+    expect(responsesUpsert).toHaveBeenCalledOnce()
   })
 })

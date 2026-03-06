@@ -149,7 +149,7 @@ describe('PATCH /api/student/tests/[id]/attempt', () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
           })),
         }
       }

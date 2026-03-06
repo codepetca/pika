@@ -647,7 +647,31 @@ describe('GET /api/student/notifications', () => {
         quizzes: { data: [], error: null },
         tests: { data: [{ id: 'test-1' }, { id: 'test-2' }, { id: 'test-3' }], error: null },
         test_responses: {
-          data: [{ test_id: 'test-2' }],
+          data: [{ test_id: 'test-2', selected_option: 0, response_text: null }],
+          error: null,
+        },
+      })
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/student/notifications?classroom_id=classroom-1'
+      )
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.activeTestsCount).toBe(2)
+    })
+
+    it('should ignore placeholder graded test rows when counting unanswered tests', async () => {
+      ;(mockSupabaseClient.from as any) = createTableMock({
+        class_days: { data: { is_class_day: true }, error: null },
+        entries: { data: { id: 'entry-1' }, error: null },
+        assignments: { data: [], error: null },
+        quizzes: { data: [], error: null },
+        tests: { data: [{ id: 'test-1' }, { id: 'test-2' }], error: null },
+        test_responses: {
+          data: [{ test_id: 'test-1', selected_option: null, response_text: '   ' }],
           error: null,
         },
       })

@@ -15,6 +15,7 @@ import { createClient } from '@supabase/supabase-js'
 import { generateClassDays, generateClassDaysFromRange, getSemesterDates, getSemesterForDate } from '../src/lib/calendar'
 import { hashPassword } from '../src/lib/crypto'
 import { getTodayInToronto } from '../src/lib/timezone'
+import { seedSampleTests } from './seed-tests'
 import { config } from 'dotenv'
 import { addDays, format, parse, subDays } from 'date-fns'
 import { resolve } from 'path'
@@ -522,6 +523,16 @@ async function clearAndSeed() {
 
   ensureOk(await supabase.from('assignment_docs').insert(assignmentDocs), 'Insert assignment_docs')
   console.log(`✓ Created ${assignmentDocs.length} assignment docs (student work)\n`)
+
+  await seedSampleTests({
+    supabase,
+    classroomId: createdClassroom.id,
+    teacherId: createdTeacher.id,
+    students: students.map((student) => ({
+      id: student.id,
+      email: student.email,
+    })),
+  })
 
   // Summary
   console.log('✅ Seed completed successfully!\n')

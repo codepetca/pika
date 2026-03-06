@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, canStudentViewTestResults } from '@/lib/quizzes'
 import { assertStudentCanAccessTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import type { QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -68,12 +69,11 @@ export async function GET(
 
     const { data: studentResponses } = await supabase
       .from('test_responses')
-      .select('id')
+      .select('selected_option, response_text')
       .eq('test_id', testId)
       .eq('student_id', user.id)
-      .limit(1)
 
-    const hasResponded = Boolean(attempt?.is_submitted) || (studentResponses?.length || 0) > 0
+    const hasResponded = Boolean(attempt?.is_submitted) || hasAnyMeaningfulTestResponse(studentResponses)
 
     if (!canStudentViewTestResults(test, hasResponded, attempt?.returned_at)) {
       return NextResponse.json(

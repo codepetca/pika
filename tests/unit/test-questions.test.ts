@@ -10,6 +10,7 @@ describe('test-questions validation', () => {
         question_text: 'What is 2 + 2?',
         options: ['3', '4'],
         correct_option: 1,
+        answer_key: null,
         points: 1,
         response_max_chars: 5000,
         response_monospace: false,
@@ -34,6 +35,7 @@ describe('test-questions validation', () => {
         question_text: 'Explain event loops.',
         options: [],
         correct_option: null,
+        answer_key: null,
         points: 5,
         response_max_chars: 5000,
         response_monospace: false,
@@ -47,6 +49,7 @@ describe('test-questions validation', () => {
         question_text: 'Explain event loops briefly.',
         options: [],
         correct_option: null,
+        answer_key: null,
         points: 6,
         response_max_chars: 5000,
         response_monospace: true,
@@ -73,6 +76,7 @@ describe('test-questions validation', () => {
         question_text: '',
         options: ['Option 1', 'Option 2'],
         correct_option: 0,
+        answer_key: null,
         points: 1,
         response_max_chars: 5000,
         response_monospace: false,
@@ -88,6 +92,7 @@ describe('test-questions validation', () => {
         question_text: 'Explain event loops.',
         options: [],
         correct_option: null,
+        answer_key: null,
         points: 5,
         response_max_chars: 5000,
         response_monospace: false,
@@ -102,7 +107,56 @@ describe('test-questions validation', () => {
         question_text: '',
         options: [],
         correct_option: null,
+        answer_key: null,
         points: 5,
+        response_max_chars: 5000,
+        response_monospace: false,
+      },
+    })
+  })
+
+  it('accepts answer_key for open-response questions', () => {
+    const result = validateTestQuestionCreate({
+      question_type: 'open_response',
+      question_text: 'Explain event loops.',
+      points: 5,
+      answer_key: 'Mentions call stack and task queue.',
+    })
+
+    expect(result).toEqual({
+      valid: true,
+      value: {
+        question_type: 'open_response',
+        question_text: 'Explain event loops.',
+        options: [],
+        correct_option: null,
+        answer_key: 'Mentions call stack and task queue.',
+        points: 5,
+        response_max_chars: 5000,
+        response_monospace: false,
+      },
+    })
+  })
+
+  it('clears answer_key for multiple-choice questions', () => {
+    const result = validateTestQuestionCreate({
+      question_type: 'multiple_choice',
+      question_text: 'What is 2 + 2?',
+      options: ['3', '4'],
+      correct_option: 1,
+      points: 1,
+      answer_key: null,
+    })
+
+    expect(result).toEqual({
+      valid: true,
+      value: {
+        question_type: 'multiple_choice',
+        question_text: 'What is 2 + 2?',
+        options: ['3', '4'],
+        correct_option: 1,
+        answer_key: null,
+        points: 1,
         response_max_chars: 5000,
         response_monospace: false,
       },

@@ -42,6 +42,10 @@ export async function PATCH(
         typeof existingQuestion.correct_option === 'number' && Number.isInteger(existingQuestion.correct_option)
           ? existingQuestion.correct_option
           : null,
+      answer_key:
+        typeof existingQuestion.answer_key === 'string' && existingQuestion.answer_key.trim().length > 0
+          ? existingQuestion.answer_key.trim()
+          : null,
       points: Number(existingQuestion.points ?? 1),
       response_max_chars: Number(existingQuestion.response_max_chars ?? 5000),
       response_monospace: existingQuestion.response_monospace === true,
@@ -59,6 +63,7 @@ export async function PATCH(
     if (nextQuestion.question_text !== currentQuestion.question_text) updates.question_text = nextQuestion.question_text
     if (JSON.stringify(nextQuestion.options) !== JSON.stringify(currentQuestion.options)) updates.options = nextQuestion.options
     if (nextQuestion.correct_option !== currentQuestion.correct_option) updates.correct_option = nextQuestion.correct_option
+    if (nextQuestion.answer_key !== currentQuestion.answer_key) updates.answer_key = nextQuestion.answer_key
     if (nextQuestion.points !== currentQuestion.points) updates.points = nextQuestion.points
     if (nextQuestion.response_max_chars !== currentQuestion.response_max_chars) {
       updates.response_max_chars = nextQuestion.response_max_chars

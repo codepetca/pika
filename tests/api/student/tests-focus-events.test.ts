@@ -127,7 +127,7 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
           })),
         }
       }
@@ -179,7 +179,7 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
           })),
         }
       }

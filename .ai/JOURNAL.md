@@ -2914,6 +2914,87 @@
 
 **Verification:**
 - `pnpm lint`
+
+## 2026-03-06 (ui copy): Answer key collapse labels simplified
+
+- Updated open-response answer-key collapsed labels in `TestQuestionEditor`:
+  - `Add Answer Key (Optional)` -> `Add Answer Key`
+  - `Answer Key Added (Click to Edit)` -> `Answer Key Added`
+- Kept expanded label unchanged: `Hide Answer Key`.
+- Updated `QuizDetailPanel` component tests to match new label text.
+- Fixed `Code` setting accessibility in `TestQuestionEditor` by wiring a proper `<label htmlFor>` to the checkbox (`getByLabelText('Code')` now works).
+- Updated one stale grid class assertion in `QuizDetailPanel` test to match current 4-column card layout class.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx`
+- Teacher screenshot: `/tmp/teacher-view-answer-key-label.png`
+- Student screenshot: `/tmp/student-view-answer-key-label.png`
+
+## 2026-03-06 (ui): Assessment list controls + delete moved to right panel header
+
+- Updated assessment cards (`QuizCard`) so status badges render in the subtitle line after response progress (`x/y responded`) instead of beside the title.
+- Made test status action controls larger and more prominent in card right rail:
+  - Draft/Closed -> primary `Open` button with play icon.
+  - Active -> danger `Stop` button with square icon.
+- Removed card-level delete action from `QuizCard`.
+- Moved assessment deletion to right sidebar header (`ClassroomPageClient`) as a top-right `Delete` action when an assessment is selected in authoring mode.
+- Added right-panel delete confirm flow in `ClassroomPageClient` with response-aware warning text and API delete dispatch/refresh.
+- Simplified `TeacherQuizzesTab` by removing in-tab delete state/confirm handling now owned by right-panel header action.
+- Updated component tests for `QuizCard` and `TeacherQuizzesTab` to match new delete location and card controls.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/teacher-view-assessment-ui.png`
+- Student screenshot: `/tmp/student-view-assessment-ui.png`
+- Targeted teacher tests screenshot: `/tmp/teacher-tests-right-panel-delete.png`
+
+## 2026-03-06 (ui tweak): Icon-only assessment state controls
+
+- Updated `QuizCard` assessment state buttons to icon-only controls (removed text labels from activate/reopen and stop buttons).
+- Changed play/activate controls to the `success` (green) button variant for stronger state affordance.
+- Kept stop control as red danger icon button.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/teacher-tests-icon-only-buttons.png`
+
+## 2026-03-06 (ui tweak): Move test delete into detail tabs row
+
+- Added an inline `Delete` action to the `QuizDetailPanel` tabs row (same line as `Questions / Documents / Preview / Results`) for test detail view.
+- Kept delete confirmation/delete execution in `ClassroomPageClient`; `QuizDetailPanel` now calls `onRequestDelete` callback.
+- Removed test-mode delete from right-sidebar header actions to avoid duplicate delete controls.
+- Left quiz delete in header unchanged.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot (targeted): `/tmp/teacher-tests-delete-inline-tabs.png`
+- Teacher screenshot (role): `/tmp/teacher-view-delete-inline-tabs.png`
+- Student screenshot (role): `/tmp/student-view-delete-inline-tabs.png`
+
+## 2026-03-06 (ui tweak): Stronger inline test delete button label
+
+- Updated the inline tabs-row delete action in `QuizDetailPanel` from a subtle text button to a prominent danger button.
+- Renamed label from `Delete` to `Delete Test`.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot (targeted): `/tmp/teacher-tests-delete-test-prominent.png`
+
+## 2026-03-06 (ui copy): Test state button tooltips use test wording
+
+- Updated `QuizCard` status-action tooltip copy to use assessment-specific terms:
+  - `Open test` / `Stop test` for tests.
+  - Quiz wording retained for quizzes.
+- This addresses test cards showing quiz wording in play/stop tooltips.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizCard.test.tsx`
+- `pnpm lint`
+- Tooltip screenshot (teacher, targeted): `/tmp/teacher-tests-tooltip-open-test-fixed.png`
 - `pnpm build`
 - Teacher screenshot (grading mode): `/tmp/teacher-tests-grading-actionbar.png`
 - Student screenshot (tests tab): `/tmp/student-tests-actionbar.png`
@@ -4785,3 +4866,213 @@
   - Teacher active-return confirm modal: `/tmp/teacher-return-flow-3100.png`
   - Teacher test cards showing `Open`: `/tmp/teacher-open-pill.png`
   - Student tests tab sanity: `/tmp/student-open-pill-sanity.png`
+## 2026-03-05 — Open-response answer keys, AI grading audit trail, and 3-column test question cards
+**Context:** User requested implementation of the approved plan to (1) support optional open-response answer keys for AI grading, (2) persist AI grading basis/reference metadata, and (3) redesign test question authoring cards into a 3-column layout with a collapsed answer section.
+
+**Changes:**
+- Added migration `/supabase/migrations/042_add_test_answer_key_and_ai_audit.sql`:
+  - `test_questions.answer_key` (nullable)
+  - `test_responses.ai_grading_basis`, `test_responses.ai_reference_answers`, `test_responses.ai_model`
+  - Added DB constraints for allowed basis values and JSON array shape for references.
+- Extended test question validation + types:
+  - `answer_key` now supported for `open_response` and cleared for `multiple_choice`.
+  - Updated shared test response types to include AI audit metadata.
+- Implemented AI grading flow updates:
+  - `src/lib/ai-test-grading.ts` now grades against teacher answer key when present.
+  - If no answer key, it first generates 1-3 reference answers, then grades using those.
+  - Returns score, feedback, model, grading basis, and generated references.
+- Updated teacher test grading APIs:
+  - Auto-grade route persists `ai_grading_basis`, `ai_reference_answers`, and `ai_model` per graded response.
+  - AI-suggest route passes answer key context and returns enriched suggestion metadata.
+  - Manual response grading PATCH accepts/validates AI metadata and persists it when provided.
+  - Teacher results route now includes answer key on open-response questions and AI context metadata per answer.
+- Student safety hardening:
+  - Replaced student detail `select('*')` question queries with explicit field lists on:
+    - `/api/student/tests/[id]`
+    - `/api/student/quizzes/[id]`
+  - Excludes `correct_option` and `answer_key` from student detail payloads.
+- Teacher test question UI redesign (`src/components/TestQuestionEditor.tsx`):
+  - 3-column card layout:
+    - Left: drag handle + `Q#`
+    - Middle: prompt + response content
+    - Right: `Points`, `Code` (open-response), `Save`, `Delete`
+  - Open-response-only answer section is collapsed by default and expands on click.
+  - Closed state shows indicator text when answer key exists.
+- Updated relevant wiring (`QuizDetailPanel`, grading panel) to pass/store/display new fields.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm vitest run` (full suite): 130 files, 1200 tests passed.
+- Added/updated targeted tests:
+  - `tests/unit/ai-test-grading.test.ts`
+  - `tests/api/student/quizzes-id.test.ts`
+  - `tests/api/teacher/tests-ai-suggest.test.ts`
+  - `tests/api/teacher/tests-responses-grade.test.ts`
+  - updates to existing test question, auto-grade, student detail, and component tests.
+- Visual verification screenshots:
+  - Teacher tests authoring view (new 3-column card + collapsed answer section): `/tmp/teacher-test-authoring-answer-key.png`
+  - Student classrooms view check: `/tmp/student-classrooms-answer-key.png`
+
+**Note:**
+- Temporary screenshot setup tests titled `Codex Layout QA ...` were removed after verification.
+- Migration `042_add_test_answer_key_and_ai_audit.sql` still needs to be applied by a human before runtime usage of new DB columns.
+
+## 2026-03-06 (follow-up): Auto-grade reference reuse per question
+
+- Addressed PR review finding about inconsistent fallback grading references during bulk auto-grade.
+- Updated `src/lib/ai-test-grading.ts`:
+  - Added `generateTestOpenResponseReferences(...)` to generate fallback references once.
+  - Extended `suggestTestOpenResponseGrade(...)` to accept optional `referenceAnswers` and reuse them instead of regenerating.
+- Updated `src/app/api/teacher/tests/[id]/auto-grade/route.ts`:
+  - Pre-generates fallback references once per open-response question (only when no teacher answer key).
+  - Reuses shared references for all student responses for that question in the same run.
+  - If shared reference generation fails for a question, affected tasks are skipped with per-student error entries.
+- Added/updated tests:
+  - `tests/api/teacher/tests-auto-grade.test.ts` now asserts one-time reference generation + reuse in suggestion calls.
+  - `tests/unit/ai-test-grading.test.ts` now covers provided-reference reuse path (single model call).
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts`
+- `pnpm lint`
+
+## 2026-03-06 (follow-up): Persistent reference cache by question version
+
+- Implemented persistent open-response reference caching to reuse AI-generated reference answers across auto-grade runs.
+- Added migration:
+  - `supabase/migrations/043_add_test_question_reference_cache.sql`
+  - New `test_questions` columns:
+    - `ai_reference_cache_key text`
+    - `ai_reference_cache_answers jsonb`
+    - `ai_reference_cache_model text`
+    - `ai_reference_cache_generated_at timestamptz`
+  - Added constraints for JSON array shape and open-response-only usage.
+- Updated grading helper (`src/lib/ai-test-grading.ts`):
+  - `getTestOpenResponseGradingModel()`
+  - `buildTestOpenResponseReferenceCacheKey(...)`
+  - `normalizeTestOpenResponseReferenceAnswers(...)`
+- Updated test auto-grade route (`src/app/api/teacher/tests/[id]/auto-grade/route.ts`):
+  - Reads cached references from `test_questions`.
+  - Computes version key from `(question_text, points, model)`.
+  - Reuses cached references when key+model match.
+  - Generates and persists new references only on cache miss.
+  - Continues grading even if cache persistence fails (logs error).
+- Added/updated tests:
+  - `tests/api/teacher/tests-auto-grade.test.ts`:
+    - cache miss path generates + persists cache
+    - cache hit path reuses cached references and skips generation
+  - `tests/unit/ai-test-grading.test.ts`:
+    - cache key stability
+    - cached reference normalization
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts`
+- `pnpm lint`
+
+## 2026-03-06 (follow-up): Test grading UX consolidation + no-response manual grading
+
+- Updated teacher test grading UX in right sidebar:
+  - Removed per-question `AI Suggest` action from selected-student grading panel.
+  - Removed per-question `Save Grade` buttons.
+  - Added single header-level `Save` action (right-aligned beside student test title).
+- Open-response grading fields now render even when student response is missing:
+  - Teachers can enter score + feedback for unanswered open-response questions.
+  - This supports manual 0 + feedback workflows before return.
+- Added bulk-save API for selected student test grading:
+  - `PATCH /api/teacher/tests/[id]/students/[studentId]/grades`
+  - Validates teacher ownership, enrollment, question membership/type, and point bounds.
+  - Upserts grade rows for open-response questions and creates missing response rows with empty `response_text` when needed.
+- Added compatibility fallback for teacher results route when AI audit columns are missing (migration not yet applied):
+  - `GET /api/teacher/tests/[id]/results` now retries without AI columns if missing and maps AI fields to null.
+  - Added shared helper `isMissingTestResponseAiColumnsError`.
+
+**Tests added/updated:**
+- `tests/api/teacher/tests-students-grades.test.ts`
+- `tests/api/teacher/tests-results.test.ts` (AI-column fallback case)
+
+**Verification:**
+- `pnpm vitest run tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-students-grades.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/unit/ai-test-grading.test.ts`
+- `pnpm lint`
+- Visual verification screenshots:
+  - Teacher grading view with header `Save` + no-response grading fields visible:
+    - `/tmp/teacher-test-grading-no-response-with-question.png`
+  - Teacher classrooms view:
+    - `/tmp/teacher-view-tests-save.png`
+  - Student classrooms view:
+    - `/tmp/student-view-tests-save.png`
+- Added fallback in bulk student grade save route when AI audit columns are unavailable:
+  - Retry upsert without `ai_grading_basis` / `ai_reference_answers` / `ai_model` fields.
+  - Added API test coverage for this fallback path.
+
+## 2026-03-06 (sync): Rebased branch onto main and resequenced migrations
+
+- Rebasing `codex/test-answer-key-grading-ui` onto `origin/main` required one conflict resolution in `src/types/index.ts`.
+  - Kept both upstream test-document types and branch AI grading basis type.
+- Resequenced branch-added migrations to avoid collisions with `origin/main`:
+  - `042_add_test_answer_key_and_ai_audit.sql` -> `044_add_test_answer_key_and_ai_audit.sql`
+  - `043_add_test_question_reference_cache.sql` -> `045_add_test_question_reference_cache.sql`
+- Verified no duplicate migration prefixes remain.
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-students-grades.test.ts tests/api/teacher/tests-results.test.ts`
+
+## 2026-03-06 (follow-up): Code-question AI grading rubric and communication penalties
+
+- Updated AI open-response grading to treat code-marked questions (`response_monospace`) with a code-specific rubric.
+- Prompt behavior for coding questions now:
+  - prioritizes logic and algorithmic correctness over minor syntax/runtime issues,
+  - awards high partial credit for clear, logically sound solutions with small implementation mistakes,
+  - explicitly penalizes poor communication/readability (indentation, naming, structure),
+  - infers language from context when possible and grades language-agnostically if ambiguous.
+- Wired `response_monospace` through both auto-grade and single-response AI suggest routes.
+- Included coding mode in reference cache key versioning to avoid reusing non-code references for code questions.
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-ai-suggest.test.ts`
+- `pnpm lint`
+
+## 2026-03-06 (follow-up): Seed sample tests for AI grading demos
+
+- Added shared seed helper: `scripts/seed-tests.ts`.
+- Wired both seed entrypoints to create sample test data:
+  - `scripts/seed.ts` (`pnpm seed`)
+  - `scripts/clear-and-seed.ts` (`pnpm seed:fresh`)
+- Seed now creates:
+  - `Seed Test - AI Grading Demo` (closed) with mixed MC + open + coding questions.
+    - Includes open-response with `answer_key` and without `answer_key`.
+    - Includes coding open-response (`response_monospace=true`).
+    - Includes pre-populated responses/attempts for student1 + student2 so teacher auto-grade can be run immediately.
+  - `Seed Test - Unattempted Demo` (active) with MC + open + coding questions and no student responses.
+- Added explicit migration guard: if test tables/columns are missing, seed throws a clear message requiring test migrations `039-045`.
+
+**Verification:**
+- `pnpm lint`
+
+## 2026-03-06 (cleanup): Consolidated unapplied migrations 044 + 045
+
+- Since migrations were not applied in any environment yet, consolidated:
+  - folded `045_add_test_question_reference_cache.sql` SQL into `044_add_test_answer_key_and_ai_audit.sql`
+  - removed `045_add_test_question_reference_cache.sql`
+- Updated seed migration guard messages to point to `039-044`.
+
+**Verification:**
+- `pnpm lint`
+
+## 2026-03-06 (follow-up): Fix PR findings for placeholder submissions + cache context
+
+- Fixed test response submission/status regressions caused by manual grading placeholder rows:
+  - Added `src/lib/test-responses.ts` with `hasMeaningfulTestResponse` helpers.
+  - Updated student test list/detail/results, test attempt autosave gate, focus-events gate, teacher test list/results, and notifications to treat only meaningful rows (`selected_option` or non-empty `response_text`) as real responses.
+  - Updated student submit route to:
+    - block only when meaningful responses already exist,
+    - use `upsert(..., { onConflict: 'question_id,student_id' })` so placeholder rows cannot block later real submits.
+- Fixed AI reference cache context mismatch:
+  - `buildTestOpenResponseReferenceCacheKey` now includes `testTitle`.
+  - Auto-grade cache key generation/validation now passes `testTitle`.
+- Added/updated API + unit tests to cover:
+  - placeholder rows not counting as responded,
+  - submit still working when placeholder rows exist,
+  - cache key invalidation when test title changes.
+
+**Verification:**
+- `pnpm vitest run tests/api/teacher/tests-students-grades.test.ts tests/api/student/tests-results.test.ts tests/api/teacher/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-focus-events.test.ts tests/api/student/notifications.test.ts tests/api/student/tests-respond.test.ts tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-attempt.test.ts`
+- `pnpm lint`
