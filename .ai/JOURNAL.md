@@ -4747,3 +4747,18 @@
 **Verification:**
 - `pnpm vitest run tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts`
 - Both suites passing.
+
+## 2026-03-06 — Added end-to-end API integration coverage for test return visibility
+**Context:** Review gap identified: no integration test proving teacher return action immediately unlocks student `can_view_results` and results endpoint access.
+
+**Changes:**
+- Added `/tests/api/integration/test-return-visibility-flow.test.ts`.
+- New integration scenario verifies full sequence with shared mock state:
+  1) student sees `responded` and gets 403 on results before return
+  2) teacher calls test return endpoint
+  3) student list/detail switch to `can_view_results`
+  4) student results endpoint returns 200 with returned metadata/score
+
+**Verification:**
+- `pnpm vitest run tests/api/integration/test-return-visibility-flow.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/teacher/tests-return.test.ts`
+- all passing.
