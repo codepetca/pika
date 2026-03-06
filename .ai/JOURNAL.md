@@ -5056,3 +5056,23 @@
 
 **Verification:**
 - `pnpm lint`
+
+## 2026-03-06 (follow-up): Fix PR findings for placeholder submissions + cache context
+
+- Fixed test response submission/status regressions caused by manual grading placeholder rows:
+  - Added `src/lib/test-responses.ts` with `hasMeaningfulTestResponse` helpers.
+  - Updated student test list/detail/results, test attempt autosave gate, focus-events gate, teacher test list/results, and notifications to treat only meaningful rows (`selected_option` or non-empty `response_text`) as real responses.
+  - Updated student submit route to:
+    - block only when meaningful responses already exist,
+    - use `upsert(..., { onConflict: 'question_id,student_id' })` so placeholder rows cannot block later real submits.
+- Fixed AI reference cache context mismatch:
+  - `buildTestOpenResponseReferenceCacheKey` now includes `testTitle`.
+  - Auto-grade cache key generation/validation now passes `testTitle`.
+- Added/updated API + unit tests to cover:
+  - placeholder rows not counting as responded,
+  - submit still working when placeholder rows exist,
+  - cache key invalidation when test title changes.
+
+**Verification:**
+- `pnpm vitest run tests/api/teacher/tests-students-grades.test.ts tests/api/student/tests-results.test.ts tests/api/teacher/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-focus-events.test.ts tests/api/student/notifications.test.ts tests/api/student/tests-respond.test.ts tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-attempt.test.ts`
+- `pnpm lint`

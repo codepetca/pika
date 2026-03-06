@@ -197,4 +197,125 @@ describe('GET /api/teacher/tests/[id]/results', () => {
     expect(data.students[0].returned_by).toBeNull()
     expect(data.students[0].status).toBe('submitted')
   })
+
+  it('does not mark students submitted when only placeholder open-response rows exist', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'question-open-1',
+                  test_id: 'test-1',
+                  question_type: 'open_response',
+                  question_text: 'Explain your reasoning.',
+                  options: [],
+                  correct_option: null,
+                  points: 2,
+                  response_max_chars: 5000,
+                  position: 0,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'response-1',
+                  test_id: 'test-1',
+                  question_id: 'question-open-1',
+                  student_id: 'student-1',
+                  selected_option: null,
+                  response_text: '   ',
+                  score: 0,
+                  feedback: 'No response submitted.',
+                  graded_at: '2026-03-06T10:00:00.000Z',
+                  graded_by: 'teacher-1',
+                  ai_grading_basis: null,
+                  ai_reference_answers: null,
+                  ai_model: null,
+                  submitted_at: '2026-03-06T10:00:00.000Z',
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ student_id: 'student-1' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'users') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [{ id: 'student-1', email: 'student1@example.com' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'student_profiles') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [{ user_id: 'student-1', first_name: 'Student', last_name: 'One' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_focus_events') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/results'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.students).toHaveLength(1)
+    expect(data.students[0].status).toBe('not_started')
+    expect(data.stats.responded).toBe(0)
+  })
 })

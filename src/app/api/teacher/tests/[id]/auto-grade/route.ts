@@ -206,6 +206,7 @@ export async function POST(
       if (context.answerKey) continue
 
       const expectedCacheKey = buildTestOpenResponseReferenceCacheKey({
+        testTitle,
         questionText: context.questionText,
         maxPoints: context.maxPoints,
         model: gradingModel,
@@ -233,6 +234,7 @@ export async function POST(
       Array.from(questionsNeedingReferences.entries()).map(async ([questionId, question]) => {
         try {
           const expectedCacheKey = buildTestOpenResponseReferenceCacheKey({
+            testTitle,
             questionText: question.questionText,
             maxPoints: question.maxPoints,
             model: gradingModel,

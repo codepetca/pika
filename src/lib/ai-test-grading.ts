@@ -126,12 +126,14 @@ export function normalizeTestOpenResponseReferenceAnswers(raw: unknown): string[
 }
 
 export function buildTestOpenResponseReferenceCacheKey(input: {
+  testTitle: string
   questionText: string
   maxPoints: number
   model: string
   isCodingQuestion?: boolean
 }): string {
   const payload = JSON.stringify({
+    test_title: input.testTitle.trim(),
     question_text: input.questionText.trim(),
     max_points: Math.max(0, input.maxPoints),
     model: input.model.trim(),

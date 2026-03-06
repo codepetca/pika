@@ -150,16 +150,19 @@ describe('suggestTestOpenResponseGrade', () => {
 describe('open-response reference cache helpers', () => {
   it('builds stable cache keys for equivalent question versions', () => {
     const left = buildTestOpenResponseReferenceCacheKey({
+      testTitle: 'Unit 1 Test',
       questionText: 'Explain osmosis.',
       maxPoints: 5,
       model: 'gpt-5-nano',
     })
     const right = buildTestOpenResponseReferenceCacheKey({
+      testTitle: 'Unit 1 Test',
       questionText: 'Explain osmosis.',
       maxPoints: 5,
       model: 'gpt-5-nano',
     })
     const changed = buildTestOpenResponseReferenceCacheKey({
+      testTitle: 'Unit 1 Test',
       questionText: 'Explain osmosis in detail.',
       maxPoints: 5,
       model: 'gpt-5-nano',
@@ -171,12 +174,14 @@ describe('open-response reference cache helpers', () => {
 
   it('includes coding flag in cache key versioning', () => {
     const nonCoding = buildTestOpenResponseReferenceCacheKey({
+      testTitle: 'Coding Test',
       questionText: 'Write a function to find duplicates.',
       maxPoints: 10,
       model: 'gpt-5-nano',
       isCodingQuestion: false,
     })
     const coding = buildTestOpenResponseReferenceCacheKey({
+      testTitle: 'Coding Test',
       questionText: 'Write a function to find duplicates.',
       maxPoints: 10,
       model: 'gpt-5-nano',
@@ -184,6 +189,23 @@ describe('open-response reference cache helpers', () => {
     })
 
     expect(coding).not.toBe(nonCoding)
+  })
+
+  it('includes test title in cache key versioning', () => {
+    const first = buildTestOpenResponseReferenceCacheKey({
+      testTitle: 'Biology Test',
+      questionText: 'Explain osmosis.',
+      maxPoints: 5,
+      model: 'gpt-5-nano',
+    })
+    const second = buildTestOpenResponseReferenceCacheKey({
+      testTitle: 'Chemistry Test',
+      questionText: 'Explain osmosis.',
+      maxPoints: 5,
+      model: 'gpt-5-nano',
+    })
+
+    expect(first).not.toBe(second)
   })
 
   it('normalizes cached reference answers and drops empty items', () => {

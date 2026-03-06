@@ -7,6 +7,7 @@ import {
   isMissingTestAttemptReturnColumnsError,
   isMissingTestResponseAiColumnsError,
 } from '@/lib/server/tests'
+import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -133,6 +134,7 @@ export async function GET(
     }>> = {}
     const pointsEarnedByStudent = new Map<string, number>()
     const submittedAtByStudent = new Map<string, string>()
+    const hasMeaningfulAnswersByStudent = new Map<string, boolean>()
     const openGradedCounts = new Map<string, number>()
     const openUngradedCounts = new Map<string, number>()
 
@@ -165,9 +167,13 @@ export async function GET(
           (pointsEarnedByStudent.get(response.student_id) || 0) + response.score
         )
       }
-      const previousSubmittedAt = submittedAtByStudent.get(response.student_id)
-      if (!previousSubmittedAt || new Date(response.submitted_at).getTime() > new Date(previousSubmittedAt).getTime()) {
-        submittedAtByStudent.set(response.student_id, response.submitted_at)
+      const hasMeaningfulAnswer = hasMeaningfulTestResponse(response)
+      if (hasMeaningfulAnswer) {
+        hasMeaningfulAnswersByStudent.set(response.student_id, true)
+        const previousSubmittedAt = submittedAtByStudent.get(response.student_id)
+        if (!previousSubmittedAt || new Date(response.submitted_at).getTime() > new Date(previousSubmittedAt).getTime()) {
+          submittedAtByStudent.set(response.student_id, response.submitted_at)
+        }
       }
 
       if (question.question_type === 'open_response') {
@@ -300,7 +306,7 @@ export async function GET(
     const students = classroomStudentIds.map((studentId) => {
       const userInfo = userById.get(studentId)
       const attempt = attemptByStudent.get(studentId)
-      const hasAnswers = !!studentAnswers[studentId] && Object.keys(studentAnswers[studentId]).length > 0
+      const hasAnswers = hasMeaningfulAnswersByStudent.get(studentId) === true
       const isSubmitted = !!attempt?.is_submitted || hasAnswers
       const isReturned = !!attempt?.returned_at
       const status: 'not_started' | 'in_progress' | 'submitted' | 'returned' = isReturned

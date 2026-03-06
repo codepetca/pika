@@ -8,6 +8,7 @@ import {
   validateTestResponsesAgainstQuestions,
   type TestResponses,
 } from '@/lib/test-attempts'
+import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { insertVersionedBaselineHistory, persistVersionedHistory } from '@/lib/server/versioned-history'
 import type { TestAttemptHistoryEntry } from '@/types'
 
@@ -95,17 +96,16 @@ export async function PATCH(
 
     const { data: existingSubmittedResponses, error: existingResponsesError } = await supabase
       .from('test_responses')
-      .select('id')
+      .select('selected_option, response_text')
       .eq('test_id', testId)
       .eq('student_id', user.id)
-      .limit(1)
 
     if (existingResponsesError) {
       console.error('Error checking existing submitted test responses:', existingResponsesError)
       return NextResponse.json({ error: 'Failed to save responses' }, { status: 500 })
     }
 
-    if ((existingSubmittedResponses?.length || 0) > 0) {
+    if (hasAnyMeaningfulTestResponse(existingSubmittedResponses)) {
       return NextResponse.json(
         { error: 'Cannot edit a submitted test' },
         { status: 403 }

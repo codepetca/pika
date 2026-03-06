@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { normalizeTestDocuments } from '@/lib/test-documents'
+import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
 
       const { data: responseRows, error: responseRowsError } = await supabase
         .from('test_responses')
-        .select('test_id, student_id')
+        .select('test_id, student_id, selected_option, response_text')
         .in('test_id', testIds)
 
       if (responseRowsError) {
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest) {
       }
 
       for (const row of responseRows || []) {
+        if (!hasMeaningfulTestResponse(row)) continue
         if (!seen[row.test_id]) seen[row.test_id] = new Set()
         seen[row.test_id].add(row.student_id)
       }

@@ -5,6 +5,7 @@ import { getStudentTestStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertStudentCanAccessTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
 import { normalizeTestResponses, type TestResponses } from '@/lib/test-attempts'
 import { normalizeTestDocuments } from '@/lib/test-documents'
+import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -72,17 +73,16 @@ export async function GET(
 
     const { data: responses, error: responsesError } = await supabase
       .from('test_responses')
-      .select('id')
+      .select('selected_option, response_text')
       .eq('test_id', testId)
       .eq('student_id', user.id)
-      .limit(1)
 
     if (responsesError) {
       console.error('Error checking submitted test responses:', responsesError)
       return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
     }
 
-    const hasSubmitted = Boolean(attempt?.is_submitted) || (responses?.length || 0) > 0
+    const hasSubmitted = Boolean(attempt?.is_submitted) || hasAnyMeaningfulTestResponse(responses)
 
     if (test.status === 'draft') {
       return NextResponse.json({ error: 'Test not found' }, { status: 404 })

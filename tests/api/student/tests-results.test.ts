@@ -77,7 +77,6 @@ describe('GET /api/student/tests/[id]/results', () => {
         return {
           select: vi.fn((columns: string) => ({
             eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({ data: [{ id: 'response-1' }], error: null }),
             then: vi.fn((resolve: any) => {
               if (columns.includes('submitted_at')) {
                 resolve({
@@ -100,16 +99,29 @@ describe('GET /api/student/tests/[id]/results', () => {
                 return
               }
 
+              if (columns.includes('question_id')) {
+                resolve({
+                  data: [
+                    {
+                      id: 'response-1',
+                      question_id: 'question-1',
+                      selected_option: 0,
+                      response_text: null,
+                      score: 1,
+                      feedback: null,
+                      graded_at: null,
+                    },
+                  ],
+                  error: null,
+                })
+                return
+              }
+
               resolve({
                 data: [
                   {
-                    id: 'response-1',
-                    question_id: 'question-1',
                     selected_option: 0,
                     response_text: null,
-                    score: 1,
-                    feedback: null,
-                    graded_at: null,
                   },
                 ],
                 error: null,
@@ -173,7 +185,6 @@ describe('GET /api/student/tests/[id]/results', () => {
         return {
           select: vi.fn((columns: string) => ({
             eq: vi.fn().mockReturnThis(),
-            limit: vi.fn().mockResolvedValue({ data: [{ id: 'response-1' }], error: null }),
             then: vi.fn((resolve: any) => {
               if (columns.includes('submitted_at')) {
                 resolve({
@@ -196,16 +207,29 @@ describe('GET /api/student/tests/[id]/results', () => {
                 return
               }
 
+              if (columns.includes('question_id')) {
+                resolve({
+                  data: [
+                    {
+                      id: 'response-1',
+                      question_id: 'question-1',
+                      selected_option: 0,
+                      response_text: null,
+                      score: 1,
+                      feedback: null,
+                      graded_at: null,
+                    },
+                  ],
+                  error: null,
+                })
+                return
+              }
+
               resolve({
                 data: [
                   {
-                    id: 'response-1',
-                    question_id: 'question-1',
                     selected_option: 0,
                     response_text: null,
-                    score: 1,
-                    feedback: null,
-                    graded_at: null,
                   },
                 ],
                 error: null,
