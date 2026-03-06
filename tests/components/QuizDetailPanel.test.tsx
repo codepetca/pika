@@ -260,8 +260,8 @@ describe('QuizDetailPanel', () => {
       expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
       const promptFieldGridCheck = screen.getByDisplayValue('Explain your reasoning')
       const gridContainer = promptFieldGridCheck.closest('div')?.parentElement
-      expect(gridContainer?.className).toContain('md:grid-cols-[56px_minmax(0,1fr)_180px]')
-      expect(screen.getByRole('button', { name: 'Add Answer Key (Optional)' })).toBeInTheDocument()
+      expect(gridContainer?.className).toContain('md:grid-cols-[16px_24px_minmax(0,1fr)_112px]')
+      expect(screen.getByRole('button', { name: 'Add Answer Key' })).toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Enter an optional answer key for AI-assisted grading...')).not.toBeInTheDocument()
       expect(screen.queryByText('Open response')).not.toBeInTheDocument()
       expect(screen.queryByText('Multiple choice')).not.toBeInTheDocument()
@@ -294,11 +294,11 @@ describe('QuizDetailPanel', () => {
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Answer Key (Optional)' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Add Answer Key' })).toBeInTheDocument()
       })
       expect(screen.queryByPlaceholderText('Enter an optional answer key for AI-assisted grading...')).not.toBeInTheDocument()
 
-      fireEvent.click(screen.getByRole('button', { name: 'Add Answer Key (Optional)' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Add Answer Key' }))
       expect(screen.getByPlaceholderText('Enter an optional answer key for AI-assisted grading...')).toBeInTheDocument()
     })
 
@@ -361,7 +361,7 @@ describe('QuizDetailPanel', () => {
         expect(screen.getByDisplayValue('Explain inertia.')).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Add Answer Key (Optional)' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Add Answer Key' }))
       fireEvent.change(
         screen.getByPlaceholderText('Enter an optional answer key for AI-assisted grading...'),
         { target: { value: 'Objects resist changes in motion.' } }

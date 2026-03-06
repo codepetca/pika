@@ -165,45 +165,6 @@ describe('TeacherQuizzesTab', () => {
     expect(listFetchCalls(fetchMock)).toHaveLength(2)
   })
 
-  it('does not double-fetch after quiz deletion', async () => {
-    const quiz = makeQuiz({ id: 'quiz-del', title: 'Delete Me' })
-    mockQuizzesResponse([quiz])
-    renderTab()
-
-    await waitFor(() => {
-      expect(screen.getByText('Delete Me')).toBeInTheDocument()
-    })
-
-    // Click delete on the quiz card — triggers handleRequestDelete which fetches results
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ stats: { responded: 0 } }),
-    })
-    fireEvent.click(screen.getByLabelText('Delete Delete Me'))
-
-    await waitFor(() => {
-      expect(screen.getByText('Delete quiz?')).toBeInTheDocument()
-    })
-
-    // Provide response for the DELETE call
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) })
-    // Provide response for the event-triggered reload
-    mockQuizzesResponse([])
-
-    const countBefore = listFetchCalls(fetchMock).length
-
-    fireEvent.click(screen.getByText('Delete'))
-
-    // Wait for delete + reload
-    await waitFor(() => {
-      expect(listFetchCalls(fetchMock).length).toBe(countBefore + 1)
-    })
-
-    // Confirm no extra fetch
-    await new Promise((r) => setTimeout(r, 50))
-    expect(listFetchCalls(fetchMock).length).toBe(countBefore + 1)
-  })
-
   it('ignores update events for other classrooms', async () => {
     mockQuizzesResponse([])
     renderTab()

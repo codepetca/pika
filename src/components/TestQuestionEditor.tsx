@@ -87,6 +87,7 @@ export function TestQuestionEditor({
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const [isAnswerSectionOpen, setIsAnswerSectionOpen] = useState(false)
+  const codeToggleId = `question-${question.id}-code-toggle`
 
   useEffect(() => {
     setState(toLocalState(question))
@@ -225,8 +226,8 @@ export function TestQuestionEditor({
       style={sortableStyle}
       className={`border border-border rounded-lg p-3 bg-surface ${isDragging ? 'shadow-xl scale-[1.02] z-50 border-primary opacity-90' : ''}`}
     >
-      <div className="grid gap-3 md:grid-cols-[56px_minmax(0,1fr)_180px]">
-        <div className="flex items-center gap-2 md:flex-col md:items-center md:justify-start md:gap-3 md:pt-1">
+      <div className="grid gap-2 md:grid-cols-[16px_24px_minmax(0,1fr)_112px] md:gap-x-0">
+        <div className="flex items-center justify-start md:self-center">
           {isEditable ? (
             <button
               type="button"
@@ -240,10 +241,13 @@ export function TestQuestionEditor({
           ) : (
             <GripVertical className="h-4 w-4 text-text-muted" aria-hidden="true" />
           )}
+        </div>
+
+        <div className="flex items-start justify-start pt-1">
           <span className="text-sm font-medium text-text-muted">Q{questionNumber}</span>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 md:ml-2">
           {isEditable ? (
             <>
               <textarea
@@ -298,7 +302,7 @@ export function TestQuestionEditor({
                       className="gap-1.5"
                     >
                       <Plus className="h-4 w-4" />
-                      Add option
+                      Option
                     </Button>
                   )}
                 </div>
@@ -312,8 +316,8 @@ export function TestQuestionEditor({
                     {isAnswerSectionOpen
                       ? 'Hide Answer Key'
                       : state.answer_key.trim()
-                      ? 'Answer Key Added (Click to Edit)'
-                      : 'Add Answer Key (Optional)'}
+                      ? 'Answer Key Added'
+                      : 'Add Answer Key'}
                   </button>
                   {isAnswerSectionOpen ? (
                     <textarea
@@ -348,38 +352,44 @@ export function TestQuestionEditor({
         </div>
 
         {isEditable ? (
-          <div className="space-y-3 rounded-md border border-border bg-surface-2 p-3 md:self-start">
-            <div className="space-y-1">
-              <label className="block text-[11px] leading-none text-text-muted">Points</label>
+          <div className="w-full min-w-0 space-y-2 rounded-md border border-border bg-surface-2 p-2.5 md:self-start">
+            <div className="grid min-w-0 grid-cols-[1fr_52px] items-center gap-2">
+              <label className="text-[11px] font-medium uppercase tracking-wide leading-none text-text-muted">
+                Points
+              </label>
               <Input
-                type="number"
-                min="0.01"
-                step="0.25"
+                type="text"
+                inputMode="decimal"
                 value={state.points}
                 onChange={(event) => updateState({ points: event.target.value })}
                 disabled={saving}
-                className="h-9 w-full px-2 text-sm"
+                className="h-8 min-w-0 w-full px-2 text-sm"
               />
             </div>
 
             {state.question_type === 'open_response' ? (
-              <label className="inline-flex items-center gap-2 text-xs text-text-muted">
-                <input
-                  type="checkbox"
-                  checked={state.response_monospace}
-                  onChange={(event) => updateState({ response_monospace: event.target.checked })}
-                  disabled={saving}
-                  className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
-                />
-                Code
-              </label>
+              <div className="grid min-w-0 grid-cols-[1fr_52px] items-center gap-2">
+                <label htmlFor={codeToggleId} className="text-[11px] font-medium uppercase tracking-wide leading-none text-text-muted">
+                  Code
+                </label>
+                <div className="flex h-8 items-center justify-start">
+                  <input
+                    id={codeToggleId}
+                    type="checkbox"
+                    checked={state.response_monospace}
+                    onChange={(event) => updateState({ response_monospace: event.target.checked })}
+                    disabled={saving}
+                    className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
+                  />
+                </div>
+              </div>
             ) : null}
 
             <div className="space-y-2 pt-1">
-              <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={!isDirty || saving} className="w-full">
+              <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={!isDirty || saving} className="w-full min-w-0 px-2">
                 {saving ? 'Saving...' : 'Save'}
               </Button>
-              <Button type="button" variant="danger" size="sm" onClick={handleDelete} disabled={deleting || saving} className="w-full">
+              <Button type="button" variant="danger" size="sm" onClick={handleDelete} disabled={deleting || saving} className="w-full min-w-0 px-2">
                 {deleting ? 'Deleting...' : 'Delete'}
               </Button>
             </div>

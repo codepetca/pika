@@ -2914,6 +2914,87 @@
 
 **Verification:**
 - `pnpm lint`
+
+## 2026-03-06 (ui copy): Answer key collapse labels simplified
+
+- Updated open-response answer-key collapsed labels in `TestQuestionEditor`:
+  - `Add Answer Key (Optional)` -> `Add Answer Key`
+  - `Answer Key Added (Click to Edit)` -> `Answer Key Added`
+- Kept expanded label unchanged: `Hide Answer Key`.
+- Updated `QuizDetailPanel` component tests to match new label text.
+- Fixed `Code` setting accessibility in `TestQuestionEditor` by wiring a proper `<label htmlFor>` to the checkbox (`getByLabelText('Code')` now works).
+- Updated one stale grid class assertion in `QuizDetailPanel` test to match current 4-column card layout class.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx`
+- Teacher screenshot: `/tmp/teacher-view-answer-key-label.png`
+- Student screenshot: `/tmp/student-view-answer-key-label.png`
+
+## 2026-03-06 (ui): Assessment list controls + delete moved to right panel header
+
+- Updated assessment cards (`QuizCard`) so status badges render in the subtitle line after response progress (`x/y responded`) instead of beside the title.
+- Made test status action controls larger and more prominent in card right rail:
+  - Draft/Closed -> primary `Open` button with play icon.
+  - Active -> danger `Stop` button with square icon.
+- Removed card-level delete action from `QuizCard`.
+- Moved assessment deletion to right sidebar header (`ClassroomPageClient`) as a top-right `Delete` action when an assessment is selected in authoring mode.
+- Added right-panel delete confirm flow in `ClassroomPageClient` with response-aware warning text and API delete dispatch/refresh.
+- Simplified `TeacherQuizzesTab` by removing in-tab delete state/confirm handling now owned by right-panel header action.
+- Updated component tests for `QuizCard` and `TeacherQuizzesTab` to match new delete location and card controls.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/teacher-view-assessment-ui.png`
+- Student screenshot: `/tmp/student-view-assessment-ui.png`
+- Targeted teacher tests screenshot: `/tmp/teacher-tests-right-panel-delete.png`
+
+## 2026-03-06 (ui tweak): Icon-only assessment state controls
+
+- Updated `QuizCard` assessment state buttons to icon-only controls (removed text labels from activate/reopen and stop buttons).
+- Changed play/activate controls to the `success` (green) button variant for stronger state affordance.
+- Kept stop control as red danger icon button.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/teacher-tests-icon-only-buttons.png`
+
+## 2026-03-06 (ui tweak): Move test delete into detail tabs row
+
+- Added an inline `Delete` action to the `QuizDetailPanel` tabs row (same line as `Questions / Documents / Preview / Results`) for test detail view.
+- Kept delete confirmation/delete execution in `ClassroomPageClient`; `QuizDetailPanel` now calls `onRequestDelete` callback.
+- Removed test-mode delete from right-sidebar header actions to avoid duplicate delete controls.
+- Left quiz delete in header unchanged.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot (targeted): `/tmp/teacher-tests-delete-inline-tabs.png`
+- Teacher screenshot (role): `/tmp/teacher-view-delete-inline-tabs.png`
+- Student screenshot (role): `/tmp/student-view-delete-inline-tabs.png`
+
+## 2026-03-06 (ui tweak): Stronger inline test delete button label
+
+- Updated the inline tabs-row delete action in `QuizDetailPanel` from a subtle text button to a prominent danger button.
+- Renamed label from `Delete` to `Delete Test`.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot (targeted): `/tmp/teacher-tests-delete-test-prominent.png`
+
+## 2026-03-06 (ui copy): Test state button tooltips use test wording
+
+- Updated `QuizCard` status-action tooltip copy to use assessment-specific terms:
+  - `Open test` / `Stop test` for tests.
+  - Quiz wording retained for quizzes.
+- This addresses test cards showing quiz wording in play/stop tooltips.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizCard.test.tsx`
+- `pnpm lint`
+- Tooltip screenshot (teacher, targeted): `/tmp/teacher-tests-tooltip-open-test-fixed.png`
 - `pnpm build`
 - Teacher screenshot (grading mode): `/tmp/teacher-tests-grading-actionbar.png`
 - Student screenshot (tests tab): `/tmp/student-tests-actionbar.png`

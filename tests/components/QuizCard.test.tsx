@@ -29,7 +29,6 @@ describe('QuizCard', () => {
     isSelected: false,
     isReadOnly: false,
     onSelect: vi.fn(),
-    onDelete: vi.fn(),
     onQuizUpdate: vi.fn(),
   }
 
@@ -144,21 +143,11 @@ describe('QuizCard', () => {
     expect(screen.queryByLabelText('Show results to students')).not.toBeInTheDocument()
   })
 
-  it('calls onDelete when delete button is clicked', () => {
-    const onDelete = vi.fn()
-    const quiz = makeQuizWithStats({ title: 'My Quiz' })
-    render(<QuizCard quiz={quiz} {...defaultProps} onDelete={onDelete} />, { wrapper: Wrapper })
-
-    fireEvent.click(screen.getByLabelText('Delete My Quiz'))
-    expect(onDelete).toHaveBeenCalledTimes(1)
-  })
-
   it('disables action buttons when isReadOnly', () => {
     const quiz = makeQuizWithStats({ status: 'active' })
     render(<QuizCard quiz={quiz} {...defaultProps} isReadOnly={true} />, { wrapper: Wrapper })
 
     expect(screen.getByLabelText('Close quiz')).toBeDisabled()
-    expect(screen.getByLabelText('Delete Test Quiz')).toBeDisabled()
   })
 
   it('applies selected styles when isSelected', () => {

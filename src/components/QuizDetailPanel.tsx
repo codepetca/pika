@@ -36,6 +36,7 @@ interface Props {
   classroomId: string
   apiBasePath?: string
   onQuizUpdate: () => void
+  onRequestDelete?: () => void
 }
 
 export function QuizDetailPanel({
@@ -43,6 +44,7 @@ export function QuizDetailPanel({
   classroomId,
   apiBasePath = '/api/teacher/quizzes',
   onQuizUpdate,
+  onRequestDelete,
 }: Props) {
   const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
@@ -236,53 +238,66 @@ export function QuizDetailPanel({
   return (
     <div className="flex flex-col h-full">
       {/* Tabs */}
-      <div className="flex border-b border-border shrink-0">
-        <button
-          type="button"
-          onClick={() => setViewMode('questions')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            viewMode === 'questions'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-muted hover:text-text-default'
-          }`}
-        >
-          Questions ({questions.length})
-        </button>
-        {isTestsView && (
+      <div className="flex items-center justify-between border-b border-border shrink-0">
+        <div className="flex">
           <button
             type="button"
-            onClick={() => setViewMode('documents')}
+            onClick={() => setViewMode('questions')}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              viewMode === 'documents'
+              viewMode === 'questions'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-text-muted hover:text-text-default'
             }`}
           >
-            Documents ({documents.length})
+            Questions ({questions.length})
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => setViewMode('preview')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            viewMode === 'preview'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-muted hover:text-text-default'
-          }`}
-        >
-          Preview
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode('results')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            viewMode === 'results'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-muted hover:text-text-default'
-          }`}
-        >
-          Results ({quiz.stats.responded})
-        </button>
+          {isTestsView && (
+            <button
+              type="button"
+              onClick={() => setViewMode('documents')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                viewMode === 'documents'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-text-muted hover:text-text-default'
+              }`}
+            >
+              Documents ({documents.length})
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setViewMode('preview')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              viewMode === 'preview'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-default'
+            }`}
+          >
+            Preview
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('results')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              viewMode === 'results'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-default'
+            }`}
+          >
+            Results ({quiz.stats.responded})
+          </button>
+        </div>
+        {isTestsView && onRequestDelete ? (
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            onClick={onRequestDelete}
+            className="mr-3 h-8 px-3 font-semibold"
+          >
+            Delete Test
+          </Button>
+        ) : null}
       </div>
 
       {/* Content */}

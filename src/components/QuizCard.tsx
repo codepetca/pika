@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Trash2, Eye, EyeOff, Play, Square } from 'lucide-react'
+import { Eye, EyeOff, Play, Square } from 'lucide-react'
 import {
   getAssessmentStatusLabel,
   getQuizStatusBadgeClass,
@@ -18,7 +18,6 @@ interface QuizCardProps {
   isReadOnly: boolean
   apiBasePath?: string
   onSelect: () => void
-  onDelete: () => void
   onQuizUpdate: () => void
 }
 
@@ -28,7 +27,6 @@ export function QuizCard({
   isReadOnly,
   apiBasePath = '/api/teacher/quizzes',
   onSelect,
-  onDelete,
   onQuizUpdate,
 }: QuizCardProps) {
   const isDraft = quiz.status === 'draft'
@@ -157,28 +155,26 @@ export function QuizCard({
         ].join(' ')}
       >
         <div className="grid grid-cols-[1fr_auto] items-center gap-3">
-          {/* Left: Title, status badge, response stats */}
+          {/* Left: Title, response stats, status badge */}
           <button
             type="button"
             onClick={onSelect}
             className="min-w-0 text-left"
           >
-            <div className="flex items-center gap-2">
-              <h3 className={[
-                'font-medium truncate',
-                isDraft ? 'text-text-muted' : 'text-text-default',
-              ].join(' ')}>
-                {quiz.title}
-              </h3>
+            <h3 className={[
+              'font-medium truncate',
+              isDraft ? 'text-text-muted' : 'text-text-default',
+            ].join(' ')}>
+              {quiz.title}
+            </h3>
+            <div className="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
+              <span>{quiz.stats.responded}/{quiz.stats.total_students} responded</span>
               <span
                 className={`inline-flex items-center shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getQuizStatusBadgeClass(quiz.status)}`}
               >
                 {getAssessmentStatusLabel(quiz.status, quiz.assessment_type)}
               </span>
             </div>
-            <p className="text-xs text-text-muted mt-0.5">
-              {quiz.stats.responded}/{quiz.stats.total_students} responded
-            </p>
             {actionError && (
               <p className="mt-1 text-xs text-danger" role="alert">
                 {actionError}
@@ -190,11 +186,11 @@ export function QuizCard({
           <div className="flex items-center gap-1">
             {/* Status action */}
             {quiz.status === 'draft' && (
-              <Tooltip content={activation.valid ? 'Activate' : activation.error}>
+              <Tooltip content={activation.valid ? `Open ${assessmentLabel}` : activation.error}>
                 <Button
-                  variant="ghost"
+                  variant="success"
                   size="sm"
-                  className="p-1.5 text-success"
+                  className="h-9 w-9 p-0"
                   aria-label="Activate quiz"
                   disabled={isReadOnly || !activation.valid || updating || checkingActivation}
                   onClick={handleRequestActivate}
@@ -204,11 +200,11 @@ export function QuizCard({
               </Tooltip>
             )}
             {quiz.status === 'active' && (
-              <Tooltip content="Close quiz">
+              <Tooltip content={`Stop ${assessmentLabel}`}>
                 <Button
-                  variant="ghost"
+                  variant="danger"
                   size="sm"
-                  className="p-1.5"
+                  className="h-9 w-9 p-0"
                   aria-label="Close quiz"
                   disabled={isReadOnly || updating}
                   onClick={(e) => {
@@ -221,11 +217,11 @@ export function QuizCard({
               </Tooltip>
             )}
             {quiz.status === 'closed' && (
-              <Tooltip content="Reopen quiz">
+              <Tooltip content={`Open ${assessmentLabel}`}>
                 <Button
-                  variant="ghost"
+                  variant="success"
                   size="sm"
-                  className="p-1.5 text-success"
+                  className="h-9 w-9 p-0"
                   aria-label="Reopen quiz"
                   disabled={isReadOnly || updating}
                   onClick={(e) => {
@@ -256,23 +252,6 @@ export function QuizCard({
                 </Button>
               </Tooltip>
             )}
-
-            {/* Delete */}
-            <Tooltip content={`Delete ${assessmentLabel}`}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="p-1.5 text-danger hover:bg-danger-bg"
-                aria-label={`Delete ${quiz.title}`}
-                disabled={isReadOnly}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete()
-                }}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </Tooltip>
           </div>
         </div>
       </div>
