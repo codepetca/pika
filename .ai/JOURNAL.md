@@ -4918,3 +4918,6 @@
     - `/tmp/teacher-view-tests-save.png`
   - Student classrooms view:
     - `/tmp/student-view-tests-save.png`
+- Added fallback in bulk student grade save route when AI audit columns are unavailable:
+  - Retry upsert without `ai_grading_basis` / `ai_reference_answers` / `ai_model` fields.
+  - Added API test coverage for this fallback path.

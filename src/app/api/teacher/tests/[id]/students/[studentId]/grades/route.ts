@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { assertTeacherOwnsTest, isMissingTestResponseAiColumnsError } from '@/lib/server/tests'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -208,9 +208,35 @@ export async function PATCH(
       }
     })
 
-    const { error: upsertError } = await supabase
-      .from('test_responses')
-      .upsert(upsertRows, { onConflict: 'question_id,student_id' })
+    let upsertError: { code?: string; message?: string; details?: string; hint?: string } | null = null
+    {
+      const upsertWithAiResult = await supabase
+        .from('test_responses')
+        .upsert(upsertRows, { onConflict: 'question_id,student_id' })
+
+      upsertError = upsertWithAiResult.error
+    }
+
+    if (upsertError && isMissingTestResponseAiColumnsError(upsertError)) {
+      const legacyUpsertRows = upsertRows.map((row) => ({
+        test_id: row.test_id,
+        question_id: row.question_id,
+        student_id: row.student_id,
+        selected_option: row.selected_option,
+        response_text: row.response_text,
+        score: row.score,
+        feedback: row.feedback,
+        graded_at: row.graded_at,
+        graded_by: row.graded_by,
+        submitted_at: row.submitted_at,
+      }))
+
+      const legacyUpsertResult = await supabase
+        .from('test_responses')
+        .upsert(legacyUpsertRows, { onConflict: 'question_id,student_id' })
+
+      upsertError = legacyUpsertResult.error
+    }
 
     if (upsertError) {
       console.error('Error upserting student grade set:', upsertError)
