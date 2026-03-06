@@ -5076,3 +5076,15 @@
 **Verification:**
 - `pnpm vitest run tests/api/teacher/tests-students-grades.test.ts tests/api/student/tests-results.test.ts tests/api/teacher/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-focus-events.test.ts tests/api/student/notifications.test.ts tests/api/student/tests-respond.test.ts tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-attempt.test.ts`
 - `pnpm lint`
+
+## 2026-03-06 (hotfix): Fix student notifications TypeScript build failure
+
+- Fixed `src/app/api/student/notifications/route.ts` type-check failure introduced by dynamic Supabase `select(...)` on a union table path.
+- Replaced dynamic response query with explicit branches:
+  - quizzes: `quiz_responses.select('quiz_id')`
+  - tests: `test_responses.select('test_id, selected_option, response_text')`
+- Preserved meaningful-response filtering for test placeholders via `hasMeaningfulTestResponse`.
+
+**Verification:**
+- `pnpm vitest run tests/api/student/notifications.test.ts`
+- `pnpm build`
