@@ -4948,3 +4948,20 @@
 **Verification:**
 - `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-ai-suggest.test.ts`
 - `pnpm lint`
+
+## 2026-03-06 (follow-up): Seed sample tests for AI grading demos
+
+- Added shared seed helper: `scripts/seed-tests.ts`.
+- Wired both seed entrypoints to create sample test data:
+  - `scripts/seed.ts` (`pnpm seed`)
+  - `scripts/clear-and-seed.ts` (`pnpm seed:fresh`)
+- Seed now creates:
+  - `Seed Test - AI Grading Demo` (closed) with mixed MC + open + coding questions.
+    - Includes open-response with `answer_key` and without `answer_key`.
+    - Includes coding open-response (`response_monospace=true`).
+    - Includes pre-populated responses/attempts for student1 + student2 so teacher auto-grade can be run immediately.
+  - `Seed Test - Unattempted Demo` (active) with MC + open + coding questions and no student responses.
+- Added explicit migration guard: if test tables/columns are missing, seed throws a clear message requiring test migrations `039-045`.
+
+**Verification:**
+- `pnpm lint`

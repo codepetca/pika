@@ -16,6 +16,7 @@ import { createClient } from '@supabase/supabase-js'
 import { generateClassDays, generateClassDaysFromRange, getSemesterDates, getSemesterForDate } from '../src/lib/calendar'
 import { hashPassword } from '../src/lib/crypto'
 import { getTodayInToronto } from '../src/lib/timezone'
+import { seedSampleTests } from './seed-tests'
 import { config } from 'dotenv'
 import { addDays, format, parse, subDays } from 'date-fns'
 import { resolve } from 'path'
@@ -939,6 +940,16 @@ async function seed() {
       }
     }
   }
+
+  await seedSampleTests({
+    supabase,
+    classroomId: createdClassroom.id,
+    teacherId: createdTeacher.id,
+    students: students.map((student) => ({
+      id: student.id,
+      email: student.email,
+    })),
+  })
 
   // Summary
   console.log('✅ Seed completed successfully!\n')
