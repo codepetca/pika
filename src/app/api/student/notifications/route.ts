@@ -130,8 +130,6 @@ export async function GET(request: NextRequest) {
 
     async function countActiveUnanswered(
       table: 'quizzes' | 'tests',
-      responsesTable: 'quiz_responses' | 'test_responses',
-      responseIdColumn: 'quiz_id' | 'test_id',
       opts?: { tolerateMissingTable?: boolean }
     ): Promise<{ count: number; error: boolean }> {
       const tolerateMissingTable = opts?.tolerateMissingTable === true
@@ -155,29 +153,50 @@ export async function GET(request: NextRequest) {
         return { count: 0, error: false }
       }
 
-      const { data: responses, error: responsesError } = await supabase
-        .from(responsesTable)
-        .select(table === 'tests' ? `${responseIdColumn}, selected_option, response_text` : responseIdColumn)
-        .eq('student_id', user.id)
-        .in(responseIdColumn, activeIds)
+      let responses:
+        | Array<{ quiz_id: string }>
+        | Array<{ test_id: string; selected_option: unknown; response_text: unknown }>
+        | null = null
+      let responsesError: { code?: string; message?: string; details?: string; hint?: string } | null = null
+
+      if (table === 'tests') {
+        const testResponsesResult = await supabase
+          .from('test_responses')
+          .select('test_id, selected_option, response_text')
+          .eq('student_id', user.id)
+          .in('test_id', activeIds)
+
+        responses = (testResponsesResult.data as typeof responses) || null
+        responsesError = testResponsesResult.error
+      } else {
+        const quizResponsesResult = await supabase
+          .from('quiz_responses')
+          .select('quiz_id')
+          .eq('student_id', user.id)
+          .in('quiz_id', activeIds)
+
+        responses = (quizResponsesResult.data as typeof responses) || null
+        responsesError = quizResponsesResult.error
+      }
 
       if (responsesError) {
         if (tolerateMissingTable && responsesError.code === 'PGRST205') {
           return { count: 0, error: false }
         }
-        console.error(`Error fetching ${responsesTable}:`, responsesError)
+        console.error(`Error fetching ${table} responses:`, responsesError)
         return { count: 0, error: true }
       }
 
       const respondedIds = new Set<string>()
       for (const row of responses || []) {
-        if (table === 'tests' && !hasMeaningfulTestResponse(row)) {
-          continue
+        let assessmentId: string | null = null
+        if (table === 'tests') {
+          if (!hasMeaningfulTestResponse(row)) continue
+          assessmentId = (row as { test_id: string }).test_id
+        } else {
+          assessmentId = (row as { quiz_id: string }).quiz_id
         }
-        const assessmentId =
-          responseIdColumn === 'quiz_id'
-            ? (row as { quiz_id: string }).quiz_id
-            : (row as { test_id: string }).test_id
+
         if (assessmentId) {
           respondedIds.add(assessmentId)
         }
@@ -210,8 +229,6 @@ export async function GET(request: NextRequest) {
 
     const activeQuizzesResult = await countActiveUnanswered(
       'quizzes',
-      'quiz_responses',
-      'quiz_id'
     )
     if (activeQuizzesResult.error) {
       return NextResponse.json(
@@ -222,8 +239,6 @@ export async function GET(request: NextRequest) {
 
     const activeTestsResult = await countActiveUnanswered(
       'tests',
-      'test_responses',
-      'test_id',
       { tolerateMissingTable: true }
     )
     if (activeTestsResult.error) {
