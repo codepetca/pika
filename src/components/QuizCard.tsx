@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { Trash2, Eye, EyeOff, Play, Square } from 'lucide-react'
-import { getQuizStatusLabel, getQuizStatusBadgeClass, canActivateQuiz } from '@/lib/quizzes'
+import {
+  getAssessmentStatusLabel,
+  getQuizStatusBadgeClass,
+  canActivateQuiz,
+} from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
@@ -28,6 +32,7 @@ export function QuizCard({
   onQuizUpdate,
 }: QuizCardProps) {
   const isDraft = quiz.status === 'draft'
+  const isTest = quiz.assessment_type === 'test'
   const assessmentLabel = quiz.assessment_type === 'test' ? 'test' : 'quiz'
   const [updating, setUpdating] = useState(false)
   const [checkingActivation, setCheckingActivation] = useState(false)
@@ -168,7 +173,7 @@ export function QuizCard({
               <span
                 className={`inline-flex items-center shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getQuizStatusBadgeClass(quiz.status)}`}
               >
-                {getQuizStatusLabel(quiz.status)}
+                {getAssessmentStatusLabel(quiz.status, quiz.assessment_type)}
               </span>
             </div>
             <p className="text-xs text-text-muted mt-0.5">
@@ -233,23 +238,24 @@ export function QuizCard({
               </Tooltip>
             )}
 
-            {/* Show/hide results */}
-            <Tooltip content={quiz.show_results ? 'Results visible to students' : 'Results hidden from students'}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`p-1.5 ${quiz.show_results ? 'text-primary' : ''}`}
-                aria-label={quiz.show_results ? 'Hide results from students' : 'Show results to students'}
-                disabled={isReadOnly || updating}
-                onClick={handleToggleShowResults}
-              >
-                {quiz.show_results ? (
-                  <Eye className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <EyeOff className="h-4 w-4" aria-hidden="true" />
-                )}
-              </Button>
-            </Tooltip>
+            {!isTest && (
+              <Tooltip content={quiz.show_results ? 'Results visible to students' : 'Results hidden from students'}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`p-1.5 ${quiz.show_results ? 'text-primary' : ''}`}
+                  aria-label={quiz.show_results ? 'Hide results from students' : 'Show results to students'}
+                  disabled={isReadOnly || updating}
+                  onClick={handleToggleShowResults}
+                >
+                  {quiz.show_results ? (
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </Button>
+              </Tooltip>
+            )}
 
             {/* Delete */}
             <Tooltip content={`Delete ${assessmentLabel}`}>

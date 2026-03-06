@@ -64,6 +64,20 @@ describe('QuizCard', () => {
     expect(screen.getByText('Active')).toBeInTheDocument()
   })
 
+  it('shows Open badge for active tests', () => {
+    const test = makeQuizWithStats({ status: 'active', assessment_type: 'test' })
+    render(
+      <QuizCard
+        quiz={test}
+        {...defaultProps}
+        apiBasePath="/api/teacher/tests"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    expect(screen.getByText('Open')).toBeInTheDocument()
+  })
+
   it('shows Closed badge for closed quizzes', () => {
     const quiz = makeQuizWithStats({ status: 'closed' })
     render(<QuizCard quiz={quiz} {...defaultProps} />, { wrapper: Wrapper })
@@ -113,6 +127,21 @@ describe('QuizCard', () => {
     render(<QuizCard quiz={quiz} {...defaultProps} />, { wrapper: Wrapper })
 
     expect(screen.getByLabelText('Show results to students')).toBeInTheDocument()
+  })
+
+  it('does not render results visibility toggle for tests', () => {
+    const test = makeQuizWithStats({ assessment_type: 'test', show_results: true })
+    render(
+      <QuizCard
+        quiz={test}
+        {...defaultProps}
+        apiBasePath="/api/teacher/tests"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    expect(screen.queryByLabelText('Hide results from students')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Show results to students')).not.toBeInTheDocument()
   })
 
   it('calls onDelete when delete button is clicked', () => {

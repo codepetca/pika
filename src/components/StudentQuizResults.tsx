@@ -50,6 +50,7 @@ interface Props {
   myResponses: Record<string, number | TestResponseDraftValue>
   assessmentType?: QuizAssessmentType
   apiBasePath?: string
+  showSubmissionBanner?: boolean
 }
 
 export function StudentQuizResults({
@@ -57,6 +58,7 @@ export function StudentQuizResults({
   myResponses,
   assessmentType,
   apiBasePath = '/api/student/quizzes',
+  showSubmissionBanner = true,
 }: Props) {
   const [payload, setPayload] = useState<ResultsPayload | null>(null)
   const [loading, setLoading] = useState(true)
@@ -120,11 +122,15 @@ export function StudentQuizResults({
 
   return (
     <div className="mt-6 space-y-6">
-      <div className="p-4 bg-success-bg rounded-lg">
-        <p className="text-success font-medium">Your response has been submitted.</p>
-      </div>
+      {showSubmissionBanner && (
+        <div className="p-4 bg-success-bg rounded-lg">
+          <p className="text-success font-medium">Your response has been submitted.</p>
+        </div>
+      )}
 
-      <h3 className="font-semibold text-text-default">Results</h3>
+      {!isTestsView && (
+        <h3 className="font-semibold text-text-default">Results</h3>
+      )}
 
       {isTestsView && summary && (
         <div className="rounded-lg border border-border bg-surface p-4">

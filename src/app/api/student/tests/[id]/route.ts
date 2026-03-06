@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { getStudentQuizStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
+import { getStudentTestStatus, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertStudentCanAccessTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
 import { normalizeTestResponses, type TestResponses } from '@/lib/test-attempts'
 import { normalizeTestDocuments } from '@/lib/test-documents'
@@ -102,15 +102,7 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
-    const hasOpenResponseQuestions = (questions || []).some(
-      (question) => question.question_type === 'open_response'
-    )
-    const canViewResults =
-      test.show_results &&
-      test.status === 'closed' &&
-      hasSubmitted &&
-      (!hasOpenResponseQuestions || Boolean(attempt?.returned_at))
-    const studentStatus = canViewResults ? 'can_view_results' : getStudentQuizStatus(test, hasSubmitted)
+    const studentStatus = getStudentTestStatus(test, hasSubmitted, attempt?.returned_at)
 
     let studentResponses: TestResponses = draftResponses
     if (hasSubmitted) {

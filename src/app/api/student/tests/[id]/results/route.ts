@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { aggregateResults, canStudentViewResults } from '@/lib/quizzes'
+import { aggregateResults, canStudentViewTestResults } from '@/lib/quizzes'
 import { assertStudentCanAccessTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
 import type { QuizQuestion, QuizResponse } from '@/types'
 
@@ -75,9 +75,9 @@ export async function GET(
 
     const hasResponded = Boolean(attempt?.is_submitted) || (studentResponses?.length || 0) > 0
 
-    if (!canStudentViewResults(test, hasResponded)) {
+    if (!canStudentViewTestResults(test, hasResponded, attempt?.returned_at)) {
       return NextResponse.json(
-        { error: 'Results are not available for this test' },
+        { error: 'Results are available after your teacher returns this test' },
         { status: 403 }
       )
     }
@@ -91,16 +91,6 @@ export async function GET(
     if (questionsError) {
       console.error('Error fetching test questions:', questionsError)
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
-    }
-
-    const hasOpenResponseQuestions = (questions || []).some(
-      (question) => question.question_type === 'open_response'
-    )
-    if (hasOpenResponseQuestions && !attempt?.returned_at) {
-      return NextResponse.json(
-        { error: 'Results are not available until this test is returned by your teacher' },
-        { status: 403 }
-      )
     }
 
     const { data: responses, error: responsesError } = await supabase

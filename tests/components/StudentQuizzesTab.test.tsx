@@ -203,7 +203,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
   })
 
-  it('hides left-panel exits and away indicators in active test detail', async () => {
+  it('shows left-panel exits and away indicators in active test detail', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -309,8 +309,8 @@ describe('StudentQuizzesTab exam mode', () => {
       expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
     })
 
-    expect(screen.queryByLabelText(/Exits 9\./)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Away time 0:13.')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Exits 9\./)).toBeInTheDocument()
+    expect(screen.getByLabelText('Away time 0:13.')).toBeInTheDocument()
     expect(screen.getAllByText('Window must be maximized in exam mode.').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /Maximize/i })).toBeInTheDocument()
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
@@ -365,7 +365,7 @@ describe('StudentQuizzesTab exam mode', () => {
               {
                 id: 'q1',
                 quiz_id: 'test-1',
-                question_text: '2 + 2 = ?',
+                question_text: 'Use [Formula Sheet](https://example.com/formula.pdf). 2 + 2 = ?',
                 options: ['3', '4'],
                 question_type: 'multiple_choice',
                 points: 1,
@@ -413,7 +413,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
 
     const splitContainerBeforeStart = getSplitContainer(container)
-    expect(splitContainerBeforeStart.className).toContain('lg:grid-cols-2')
+    expect(splitContainerBeforeStart.className).toContain('lg:grid-cols-[50%_50%]')
     expect(splitContainerBeforeStart.className).not.toContain('lg:grid-cols-[30%_70%]')
     expect(screen.getByRole('heading', { name: 'Tests' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Exam Mode' })).not.toBeInTheDocument()
@@ -429,20 +429,22 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
-      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(screen.getByText(/2 \+ 2 = \?/)).toBeInTheDocument()
     })
 
     const splitContainerAfterStart = getSplitContainer(container)
     expect(splitContainerAfterStart.className).toContain('lg:grid-cols-[30%_70%]')
-    expect(splitContainerAfterStart.className).not.toContain('lg:grid-cols-2')
-    expect(screen.getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
+    expect(splitContainerAfterStart.className).not.toContain('lg:grid-cols-[50%_50%]')
+    expect(screen.getByRole('heading', { name: 'Documents' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Exam Mode' })).not.toBeInTheDocument()
 
     const sections = container.querySelectorAll('section')
     const leftPane = sections.item(0)
     expect(leftPane).toBeTruthy()
     expect(within(leftPane).queryByRole('heading', { name: 'Tests' })).not.toBeInTheDocument()
-    expect(within(leftPane).queryByLabelText(/Exits /)).not.toBeInTheDocument()
-    expect(within(leftPane).queryByLabelText(/Away time/)).not.toBeInTheDocument()
+    expect(within(leftPane).getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
+    expect(within(leftPane).getByLabelText(/Exits /)).toBeInTheDocument()
+    expect(within(leftPane).getByLabelText(/Away time/)).toBeInTheDocument()
   })
 
   it('switches to 50/50 split when opening a doc and restores 30/70 on back', async () => {
@@ -554,7 +556,7 @@ describe('StudentQuizzesTab exam mode', () => {
 
     const splitContainerExamMode = getSplitContainer(container)
     expect(splitContainerExamMode.className).toContain('lg:grid-cols-[30%_70%]')
-    expect(splitContainerExamMode.className).not.toContain('lg:grid-cols-2')
+    expect(splitContainerExamMode.className).not.toContain('lg:grid-cols-[50%_50%]')
 
     fireEvent.click(screen.getByRole('button', { name: 'Node.js API' }))
 
@@ -563,7 +565,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
     expect(screen.queryByRole('button', { name: 'Open in new tab' })).not.toBeInTheDocument()
     const splitContainerDocOpen = getSplitContainer(container)
-    expect(splitContainerDocOpen.className).toContain('lg:grid-cols-2')
+    expect(splitContainerDocOpen.className).toContain('lg:grid-cols-[50%_50%]')
     expect(splitContainerDocOpen.className).not.toContain('lg:grid-cols-[30%_70%]')
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
@@ -573,6 +575,177 @@ describe('StudentQuizzesTab exam mode', () => {
     })
     const splitContainerBack = getSplitContainer(container)
     expect(splitContainerBack.className).toContain('lg:grid-cols-[30%_70%]')
+  })
+
+  it('uses 30/70 split when student is viewing returned test results', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'closed',
+              show_results: false,
+              position: 0,
+              student_status: 'can_view_results',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'closed',
+              show_results: false,
+              position: 0,
+              student_status: 'can_view_results',
+            },
+            student_status: 'can_view_results',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {
+              q1: {
+                question_type: 'multiple_choice',
+                selected_option: 1,
+              },
+            },
+            focus_summary: null,
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1/results')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              status: 'closed',
+              returned_at: '2026-03-06T10:00:00.000Z',
+            },
+            results: [],
+            question_results: [
+              {
+                question_id: 'q1',
+                question_type: 'multiple_choice',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                points: 1,
+                response_max_chars: 5000,
+                correct_option: 1,
+                selected_option: 1,
+                response_text: null,
+                score: 1,
+                feedback: 'Correct',
+                graded_at: '2026-03-06T10:00:00.000Z',
+                is_correct: true,
+              },
+            ],
+            summary: {
+              earned_points: 1,
+              possible_points: 1,
+              percent: 100,
+            },
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    const { container } = render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Score')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('heading', { name: 'Midterm Test Results' })).toBeInTheDocument()
+    expect(screen.queryByText('Your response has been submitted.')).not.toBeInTheDocument()
+    expect(screen.getByText('Returned')).toBeInTheDocument()
+    expect(screen.queryByText('View Results')).not.toBeInTheDocument()
+
+    const splitContainer = getSplitContainer(container)
+    expect(splitContainer.className).toContain('lg:grid-cols-[30%_70%]')
+    expect(splitContainer.className).not.toContain('lg:grid-cols-[50%_50%]')
+  })
+
+  it('shows Closed, Submitted, and Returned status pills for tests', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        quizzes: [
+          {
+            id: 'test-closed',
+            title: 'Closed Test',
+            assessment_type: 'test',
+            status: 'closed',
+            show_results: false,
+            position: 0,
+            student_status: 'responded',
+          },
+          {
+            id: 'test-submitted',
+            title: 'Submitted Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 1,
+            student_status: 'responded',
+          },
+          {
+            id: 'test-returned',
+            title: 'Returned Test',
+            assessment_type: 'test',
+            status: 'closed',
+            show_results: false,
+            position: 2,
+            student_status: 'can_view_results',
+          },
+        ],
+      }),
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Closed Test')).toBeInTheDocument()
+      expect(screen.getByText('Submitted Test')).toBeInTheDocument()
+      expect(screen.getByText('Returned Test')).toBeInTheDocument()
+    })
+
+    const closedCard = screen.getByRole('button', { name: /Closed Test/i })
+    const submittedCard = screen.getByRole('button', { name: /Submitted Test/i })
+    const returnedCard = screen.getByRole('button', { name: /Returned Test/i })
+
+    expect(within(closedCard).getByText('Closed')).toBeInTheDocument()
+    expect(within(submittedCard).getByText('Submitted')).toBeInTheDocument()
+    expect(within(returnedCard).getByText('Returned')).toBeInTheDocument()
+    expect(screen.queryByText('View Results')).not.toBeInTheDocument()
   })
 
   it('renders text documents inline in the left doc panel', async () => {

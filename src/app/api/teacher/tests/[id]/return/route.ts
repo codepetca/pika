@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { assertTeacherOwnsTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -12,6 +12,13 @@ function hasGradedOpenResponse(score: unknown, feedback: unknown): boolean {
     Number.isFinite(score) &&
     typeof feedback === 'string' &&
     feedback.trim().length > 0
+  )
+}
+
+function migrationRequiredResponse() {
+  return NextResponse.json(
+    { error: 'Returning tests requires migration 043 to be applied' },
+    { status: 400 }
   )
 }
 
@@ -44,12 +51,34 @@ export async function POST(
       return NextResponse.json({ error: 'Cannot return more than 100 students at once' }, { status: 400 })
     }
 
+    const closeTest = body?.close_test === true
+
     const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     const supabase = getServiceRoleClient()
+
+    if (access.test.status === 'active' && !closeTest) {
+      return NextResponse.json(
+        { error: 'Test is still active. Confirm close and return to close it first.' },
+        { status: 409 }
+      )
+    }
+
+    if (access.test.status === 'active' && closeTest) {
+      const { error: closeError } = await supabase
+        .from('tests')
+        .update({ status: 'closed' })
+        .eq('id', testId)
+        .eq('status', 'active')
+
+      if (closeError) {
+        console.error('Error closing test during return:', closeError)
+        return NextResponse.json({ error: 'Failed to close test before return' }, { status: 500 })
+      }
+    }
 
     const { data: openQuestionRows, error: openQuestionError } = await supabase
       .from('test_questions')
@@ -132,6 +161,9 @@ export async function POST(
         .in('student_id', eligibleStudentIds)
 
       if (updateError && updateError.code !== 'PGRST205') {
+        if (isMissingTestAttemptReturnColumnsError(updateError)) {
+          return migrationRequiredResponse()
+        }
         console.error('Error updating existing attempts during return:', updateError)
         return NextResponse.json({ error: 'Failed to return test work' }, { status: 500 })
       }
@@ -166,6 +198,9 @@ export async function POST(
           .insert(missingAttemptRows)
 
         if (insertMissingError) {
+          if (isMissingTestAttemptReturnColumnsError(insertMissingError)) {
+            return migrationRequiredResponse()
+          }
           console.error('Error creating missing attempts during return:', insertMissingError)
           return NextResponse.json({ error: 'Failed to return test work' }, { status: 500 })
         }
@@ -175,6 +210,7 @@ export async function POST(
     return NextResponse.json({
       returned_count: eligibleStudentIds.length,
       skipped_count: studentIds.length - eligibleStudentIds.length,
+      test_closed: access.test.status === 'active' && closeTest,
     })
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {

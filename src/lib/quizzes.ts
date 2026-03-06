@@ -26,6 +26,14 @@ export function getQuizStatusLabel(status: QuizStatus): string {
   return labels[status]
 }
 
+export function getAssessmentStatusLabel(
+  status: QuizStatus,
+  assessmentType: QuizAssessmentType
+): string {
+  if (assessmentType === 'test' && status === 'active') return 'Open'
+  return getQuizStatusLabel(status)
+}
+
 /**
  * Get badge CSS classes for quiz status
  */
@@ -60,6 +68,18 @@ export function canStudentViewResults(
 }
 
 /**
+ * Check if a student can view test results.
+ * Tests are released when work has been explicitly returned by the teacher.
+ */
+export function canStudentViewTestResults(
+  test: Pick<Quiz, 'status'>,
+  hasResponded: boolean,
+  returnedAt: string | null | undefined | boolean
+): boolean {
+  return test.status === 'closed' && hasResponded && Boolean(returnedAt)
+}
+
+/**
  * Get the student's status for a quiz
  */
 export function getStudentQuizStatus(
@@ -68,6 +88,20 @@ export function getStudentQuizStatus(
 ): StudentQuizStatus {
   if (!hasResponded) return 'not_started'
   if (quiz.show_results && quiz.status === 'closed') return 'can_view_results'
+  return 'responded'
+}
+
+/**
+ * Get the student's status for a test.
+ * Tests become viewable once the teacher returns the submitted work.
+ */
+export function getStudentTestStatus(
+  test: Pick<Quiz, 'status'>,
+  hasResponded: boolean,
+  returnedAt: string | null | undefined | boolean
+): StudentQuizStatus {
+  if (!hasResponded) return 'not_started'
+  if (canStudentViewTestResults(test, hasResponded, returnedAt)) return 'can_view_results'
   return 'responded'
 }
 
