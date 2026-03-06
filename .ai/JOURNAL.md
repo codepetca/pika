@@ -5254,3 +5254,18 @@
 - `pnpm lint`
 
 **Note:** Migration `043_assignment_return_atomic_rpc.sql` must be applied manually by a human.
+
+## 2026-03-06 — Rebased issue #348 branch and resequenced migration filename
+**Context:** Synced `codex/348-draft-grade-status` with latest `origin/main` and resolved migration numbering collision.
+
+**Changes:**
+- Rebased branch onto `origin/main` (clean rebase, no conflicts).
+- Renamed migration to avoid collision with new main migration:
+  - `supabase/migrations/043_assignment_return_atomic_rpc.sql`
+  - -> `supabase/migrations/044_assignment_return_atomic_rpc.sql`
+
+**Verification:**
+- `pnpm test tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-grade.test.ts`
+- `pnpm lint`
+
+**Note:** Human still needs to apply migration `044_assignment_return_atomic_rpc.sql`.
