@@ -136,6 +136,26 @@ function setupSupabaseMock() {
           ),
           error: null,
         })),
+        update: vi.fn((updates: Record<string, unknown>) => {
+          const updateFilters: Record<string, string> = {}
+          const updateChain: any = {
+            eq: vi.fn((column: string, value: string) => {
+              updateFilters[column] = value
+
+              if (updateFilters.id && updateFilters.status) {
+                for (const test of state.tests) {
+                  if (test.id === updateFilters.id && test.status === updateFilters.status) {
+                    Object.assign(test, updates)
+                  }
+                }
+                return Promise.resolve({ error: null })
+              }
+
+              return updateChain
+            }),
+          }
+          return updateChain
+        }),
       }
       return builder
     }
@@ -275,6 +295,7 @@ describe('Test Return Visibility Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     currentUser = { id: 'student-1', role: 'student' }
+    state.tests[0].status = 'closed'
     state.testAttempts[0].returned_at = null
     state.testAttempts[0].returned_by = null
     setupSupabaseMock()
@@ -342,5 +363,58 @@ describe('Test Return Visibility Integration', () => {
     expect(resultsAfter.status).toBe(200)
     expect(resultsAfterData.quiz.returned_at).not.toBeNull()
     expect(resultsAfterData.summary.earned_points).toBe(4)
+  })
+
+  it('closes active tests before return when close_test is confirmed and then unlocks student results', async () => {
+    state.tests[0].status = 'active'
+
+    currentUser = { id: 'teacher-1', role: 'teacher' }
+    const returnWithoutClose = await returnTeacherTest(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+        method: 'POST',
+        body: JSON.stringify({ student_ids: ['student-1'] }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const returnWithoutCloseData = await returnWithoutClose.json()
+    expect(returnWithoutClose.status).toBe(409)
+    expect(returnWithoutCloseData.error).toContain('still active')
+    expect(state.tests[0].status).toBe('active')
+    expect(state.testAttempts[0].returned_at).toBeNull()
+
+    const returnWithClose = await returnTeacherTest(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+        method: 'POST',
+        body: JSON.stringify({ student_ids: ['student-1'], close_test: true }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const returnWithCloseData = await returnWithClose.json()
+    expect(returnWithClose.status).toBe(200)
+    expect(returnWithCloseData.test_closed).toBe(true)
+    expect(state.tests[0].status).toBe('closed')
+    expect(state.testAttempts[0].returned_at).not.toBeNull()
+
+    currentUser = { id: 'student-1', role: 'student' }
+    const listAfter = await getStudentTests(
+      new NextRequest('http://localhost:3000/api/student/tests?classroom_id=classroom-1')
+    )
+    const listAfterData = await listAfter.json()
+    expect(listAfter.status).toBe(200)
+    expect(listAfterData.quizzes[0].student_status).toBe('can_view_results')
+
+    const detailAfter = await getStudentTestDetail(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const detailAfterData = await detailAfter.json()
+    expect(detailAfter.status).toBe(200)
+    expect(detailAfterData.student_status).toBe('can_view_results')
+
+    const resultsAfter = await getStudentTestResults(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1/results'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    expect(resultsAfter.status).toBe(200)
   })
 })

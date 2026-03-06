@@ -331,6 +331,7 @@ describe('TeacherQuizzesTab', () => {
     )
     expect(screen.queryByLabelText(/Focus events/i)).not.toBeInTheDocument()
     expect(statusIcon).toHaveAttribute('aria-label', 'Submitted')
+    expect(statusIcon.querySelector('.lucide-check')).not.toBeNull()
   })
 
   it('prompts to close active test before return and sends close_test=true', async () => {
@@ -429,5 +430,8 @@ describe('TeacherQuizzesTab', () => {
         close_test: true,
       })
     })
+
+    const returnedStatusIcon = await screen.findByLabelText('Returned')
+    expect(returnedStatusIcon.querySelector('.lucide-send')).not.toBeNull()
   })
 })

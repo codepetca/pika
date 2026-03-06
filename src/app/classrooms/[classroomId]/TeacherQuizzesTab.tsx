@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, ClockAlert, LogOut, Plus, Send } from 'lucide-react'
+import { Check, Circle, ClockAlert, LogOut, Plus, Send } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
@@ -66,12 +66,12 @@ function formatPoints(value: number): string {
 
 const STATUS_META: Record<
   TestGradingStudentRow['status'],
-  { label: string; symbol: string; className: string }
+  { label: string; icon: typeof Circle; className: string }
 > = {
-  not_started: { label: 'Not started', symbol: '○', className: 'text-text-muted' },
-  in_progress: { label: 'In progress', symbol: '◔', className: 'text-warning' },
-  submitted: { label: 'Submitted', symbol: '●', className: 'text-success' },
-  returned: { label: 'Returned', symbol: '✓', className: 'text-primary' },
+  not_started: { label: 'Not started', icon: Circle, className: 'text-gray-400' },
+  in_progress: { label: 'In progress', icon: Circle, className: 'text-yellow-500' },
+  submitted: { label: 'Submitted', icon: Check, className: 'text-green-500' },
+  returned: { label: 'Returned', icon: Send, className: 'text-blue-500' },
 }
 
 export function TeacherQuizzesTab({
@@ -604,6 +604,7 @@ export function TeacherQuizzesTab({
                           ? '—'
                           : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
                       const statusMeta = STATUS_META[student.status]
+                      const StatusIcon = statusMeta.icon
                       const awayCount = student.focus_summary?.away_count ?? 0
                       const awaySeconds = student.focus_summary?.away_total_seconds ?? 0
                       const awayMinutes = Math.floor(awaySeconds / 60)
@@ -646,7 +647,7 @@ export function TeacherQuizzesTab({
                                 className={`inline-flex min-w-5 cursor-help items-center justify-center text-sm font-semibold ${statusMeta.className}`}
                                 aria-label={statusMeta.label}
                               >
-                                {statusMeta.symbol}
+                                <StatusIcon className="h-4 w-4" />
                               </span>
                             </Tooltip>
                           </td>
