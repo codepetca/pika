@@ -4732,3 +4732,18 @@
   - Student tests tab loaded: `/tmp/student-tests-tab-returned-policy-loaded.png`
   - Teacher tests tab selected state: `/tmp/teacher-tests-selected-debug-wait8s.png`
   - Student tests tab selected state: `/tmp/student-tests-tab-selected-returned-policy.png`
+
+## 2026-03-06 — Added return-gated student_status regression coverage
+**Context:** Follow-up review found missing direct assertions for `student_status` transitions in student tests list/detail APIs after return-gated policy change.
+
+**Changes:**
+- Updated `/tests/api/student/tests-route.test.ts`:
+  - Added explicit coverage for closed responded tests where:
+    - `returned_at` present -> `student_status=can_view_results`
+    - `returned_at` null -> `student_status=responded`
+- Updated `/tests/api/student/tests-id.test.ts`:
+  - Added detail-route coverage for closed submitted tests with and without `returned_at`.
+
+**Verification:**
+- `pnpm vitest run tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts`
+- Both suites passing.

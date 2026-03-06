@@ -173,4 +173,105 @@ describe('GET /api/student/tests', () => {
     expect(data.quizzes).toHaveLength(1)
     expect(data.quizzes[0].id).toBe('test-1')
   })
+
+  it('computes test student_status from returned state for closed responded tests', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        let statusFilter: string | null = null
+        const builder: any = {
+          select: vi.fn(() => builder),
+          eq: vi.fn((column: string, value: string) => {
+            if (column === 'status') statusFilter = value
+            return builder
+          }),
+          order: vi.fn(() => builder),
+          then: vi.fn((resolve: any) => {
+            if (statusFilter === 'active') {
+              resolve({ data: [], error: null })
+              return
+            }
+            resolve({
+              data: [
+                {
+                  id: 'test-closed-returned',
+                  classroom_id: 'classroom-1',
+                  title: 'Returned Test',
+                  status: 'closed',
+                  show_results: false,
+                  position: 0,
+                  points_possible: 10,
+                  include_in_final: true,
+                  created_by: 'teacher-1',
+                  created_at: '2026-02-01T00:00:00.000Z',
+                  updated_at: '2026-02-01T00:00:00.000Z',
+                },
+                {
+                  id: 'test-closed-responded',
+                  classroom_id: 'classroom-1',
+                  title: 'Pending Return Test',
+                  status: 'closed',
+                  show_results: false,
+                  position: 1,
+                  points_possible: 10,
+                  include_in_final: true,
+                  created_by: 'teacher-1',
+                  created_at: '2026-02-01T00:00:00.000Z',
+                  updated_at: '2026-02-01T00:00:00.000Z',
+                },
+              ],
+              error: null,
+            })
+          }),
+        }
+        return builder
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  test_id: 'test-closed-returned',
+                  is_submitted: true,
+                  returned_at: '2026-03-05T12:00:00.000Z',
+                },
+                {
+                  test_id: 'test-closed-responded',
+                  is_submitted: true,
+                  returned_at: null,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests?classroom_id=classroom-1')
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.quizzes).toHaveLength(2)
+    const byId = Object.fromEntries(
+      (data.quizzes as Array<{ id: string; student_status: string }>).map((quiz) => [quiz.id, quiz.student_status])
+    )
+    expect(byId['test-closed-returned']).toBe('can_view_results')
+    expect(byId['test-closed-responded']).toBe('responded')
+  })
 })
