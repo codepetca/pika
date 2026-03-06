@@ -28,6 +28,7 @@ type LocalQuestionState = {
   correct_option: number
   points: string
   response_monospace: boolean
+  answer_key: string
 }
 
 function toLocalState(question: QuizQuestion): LocalQuestionState {
@@ -42,6 +43,10 @@ function toLocalState(question: QuizQuestion): LocalQuestionState {
         : 0,
     points: String(question.points ?? defaultPointsForQuestionType(questionType)),
     response_monospace: questionType === 'open_response' && question.response_monospace === true,
+    answer_key:
+      questionType === 'open_response' && typeof question.answer_key === 'string'
+        ? question.answer_key
+        : '',
   }
 }
 
@@ -51,6 +56,7 @@ function normalizeForComparison(state: LocalQuestionState) {
     question_text: state.question_text.trim(),
     options: state.options.map((option) => option.trim()),
     points: Number(state.points),
+    answer_key: state.answer_key.trim(),
   }
 }
 
@@ -80,10 +86,12 @@ export function TestQuestionEditor({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  const [isAnswerSectionOpen, setIsAnswerSectionOpen] = useState(false)
 
   useEffect(() => {
     setState(toLocalState(question))
     setError('')
+    setIsAnswerSectionOpen(false)
   }, [question])
 
   const isDirty = useMemo(() => {
@@ -162,6 +170,7 @@ export function TestQuestionEditor({
               question_text: questionText,
               points,
               response_monospace: state.response_monospace,
+              answer_key: state.answer_key.trim() ? state.answer_key.trim() : null,
             }
           : {
               question_type: 'multiple_choice',
@@ -170,6 +179,7 @@ export function TestQuestionEditor({
               correct_option: state.correct_option,
               points,
               response_monospace: false,
+              answer_key: null,
             }
 
       const res = await fetch(`${apiBasePath}/${testId}/questions/${question.id}`, {
@@ -215,45 +225,35 @@ export function TestQuestionEditor({
       style={sortableStyle}
       className={`border border-border rounded-lg p-3 bg-surface ${isDragging ? 'shadow-xl scale-[1.02] z-50 border-primary opacity-90' : ''}`}
     >
-      <div className="flex items-start gap-2">
-        {isEditable && (
-          <button
-            type="button"
-            className="p-0 touch-none text-text-muted hover:text-text-default cursor-grab active:cursor-grabbing mt-0.5"
-            {...attributes}
-            {...listeners}
-            aria-label="Drag to reorder"
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
-        )}
-        <span className="text-sm font-medium text-text-muted mt-2">Q{questionNumber}.</span>
+      <div className="grid gap-3 md:grid-cols-[56px_minmax(0,1fr)_180px]">
+        <div className="flex items-center gap-2 md:flex-col md:items-center md:justify-start md:gap-3 md:pt-1">
+          {isEditable ? (
+            <button
+              type="button"
+              className="p-0 touch-none text-text-muted hover:text-text-default cursor-grab active:cursor-grabbing"
+              {...attributes}
+              {...listeners}
+              aria-label="Drag to reorder"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          ) : (
+            <GripVertical className="h-4 w-4 text-text-muted" aria-hidden="true" />
+          )}
+          <span className="text-sm font-medium text-text-muted">Q{questionNumber}</span>
+        </div>
 
-        <div className="flex-1 space-y-3">
+        <div className="space-y-3">
           {isEditable ? (
             <>
-              <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_max-content] md:items-start">
-                <textarea
-                  value={state.question_text}
-                  onChange={(event) => updateState({ question_text: event.target.value })}
-                  placeholder="Question prompt"
-                  disabled={saving}
-                  rows={3}
-                  className="w-full min-h-[88px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
-                />
-                <div className="w-[7ch] space-y-1">
-                  <label className="block text-[11px] leading-none text-text-muted">Points</label>
-                  <Input
-                    type="number"
-                    min="0.01"
-                    step="0.25"
-                    value={state.points}
-                    onChange={(event) => updateState({ points: event.target.value })}
-                    disabled={saving}
-                    className="h-9 w-full px-2 text-sm"
-                  />
-                </div>
-              </div>
+              <textarea
+                value={state.question_text}
+                onChange={(event) => updateState({ question_text: event.target.value })}
+                placeholder="Question prompt"
+                disabled={saving}
+                rows={3}
+                className="w-full min-h-[88px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+              />
 
               {state.question_type === 'multiple_choice' ? (
                 <div className="space-y-2">
@@ -289,37 +289,44 @@ export function TestQuestionEditor({
                     </div>
                   ))}
                   {state.options.length < MAX_QUIZ_OPTIONS && (
-                    <Button type="button" variant="secondary" size="sm" onClick={addOption} disabled={saving} className="gap-1.5">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={addOption}
+                      disabled={saving}
+                      className="gap-1.5"
+                    >
                       <Plus className="h-4 w-4" />
                       Add option
                     </Button>
                   )}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <label className="inline-flex items-center gap-2 text-xs text-text-muted">
-                    <input
-                      type="checkbox"
-                      checked={state.response_monospace}
-                      onChange={(event) => updateState({ response_monospace: event.target.checked })}
+                <div className="space-y-2 rounded-md border border-border bg-surface-2 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAnswerSectionOpen((prev) => !prev)}
+                    className="w-full text-left text-xs font-semibold uppercase tracking-wide text-text-muted hover:text-text-default"
+                  >
+                    {isAnswerSectionOpen
+                      ? 'Hide Answer Key'
+                      : state.answer_key.trim()
+                      ? 'Answer Key Added (Click to Edit)'
+                      : 'Add Answer Key (Optional)'}
+                  </button>
+                  {isAnswerSectionOpen ? (
+                    <textarea
+                      value={state.answer_key}
+                      onChange={(event) => updateState({ answer_key: event.target.value })}
+                      placeholder="Enter an optional answer key for AI-assisted grading..."
                       disabled={saving}
-                      className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
+                      rows={4}
+                      className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
                     />
-                    Code
-                  </label>
+                  ) : null}
                 </div>
               )}
-
-              <div className="flex items-center justify-end">
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={!isDirty || saving}>
-                    {saving ? 'Saving...' : 'Save'}
-                  </Button>
-                  <Button type="button" variant="danger" size="sm" onClick={handleDelete} disabled={deleting || saving}>
-                    {deleting ? 'Deleting...' : 'Delete'}
-                  </Button>
-                </div>
-              </div>
             </>
           ) : (
             <>
@@ -339,6 +346,47 @@ export function TestQuestionEditor({
             </>
           )}
         </div>
+
+        {isEditable ? (
+          <div className="space-y-3 rounded-md border border-border bg-surface-2 p-3 md:self-start">
+            <div className="space-y-1">
+              <label className="block text-[11px] leading-none text-text-muted">Points</label>
+              <Input
+                type="number"
+                min="0.01"
+                step="0.25"
+                value={state.points}
+                onChange={(event) => updateState({ points: event.target.value })}
+                disabled={saving}
+                className="h-9 w-full px-2 text-sm"
+              />
+            </div>
+
+            {state.question_type === 'open_response' ? (
+              <label className="inline-flex items-center gap-2 text-xs text-text-muted">
+                <input
+                  type="checkbox"
+                  checked={state.response_monospace}
+                  onChange={(event) => updateState({ response_monospace: event.target.checked })}
+                  disabled={saving}
+                  className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
+                />
+                Code
+              </label>
+            ) : null}
+
+            <div className="space-y-2 pt-1">
+              <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={!isDirty || saving} className="w-full">
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+              <Button type="button" variant="danger" size="sm" onClick={handleDelete} disabled={deleting || saving} className="w-full">
+                {deleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div />
+        )}
       </div>
 
       {error && <p className="text-sm text-danger pl-7 mt-2">{error}</p>}

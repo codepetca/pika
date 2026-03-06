@@ -186,6 +186,7 @@ export function QuizDetailPanel({
               question_type: 'open_response',
               question_text: '',
               points: DEFAULT_OPEN_RESPONSE_POINTS,
+              answer_key: null,
               response_max_chars: 5000,
               response_monospace: false,
             }

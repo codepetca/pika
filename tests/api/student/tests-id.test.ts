@@ -136,6 +136,7 @@ describe('GET /api/student/tests/[id]', () => {
   })
 
   it('falls back when test_attempts return columns are missing', async () => {
+    let questionSelectColumns = ''
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_attempts') {
         return {
@@ -185,24 +186,29 @@ describe('GET /api/student/tests/[id]', () => {
       }
       if (table === 'test_questions') {
         return {
-          select: vi.fn(() => ({
+          select: vi.fn((columns: string) => {
+            questionSelectColumns = columns
+            return ({
             eq: vi.fn().mockReturnThis(),
             order: vi.fn().mockResolvedValue({
               data: [
                 {
                   id: 'question-1',
+                  test_id: 'test-1',
                   question_type: 'multiple_choice',
+                  question_text: 'Q1',
                   options: ['A', 'B'],
-                  correct_option: 0,
                   points: 1,
                   response_max_chars: 5000,
+                  response_monospace: false,
                   position: 0,
-                  question_text: 'Q1',
+                  created_at: '2026-01-01T00:00:00.000Z',
+                  updated_at: '2026-01-01T00:00:00.000Z',
                 },
               ],
               error: null,
             }),
-          })),
+          })}),
         }
       }
       if (table === 'test_focus_events') {
@@ -225,6 +231,10 @@ describe('GET /api/student/tests/[id]', () => {
     expect(response.status).toBe(200)
     expect(data.quiz.id).toBe('test-1')
     expect(data.quiz.returned_at).toBeNull()
+    expect(questionSelectColumns).not.toContain('correct_option')
+    expect(questionSelectColumns).not.toContain('answer_key')
+    expect(data.questions[0].correct_option).toBeUndefined()
+    expect(data.questions[0].answer_key).toBeUndefined()
   })
 
   it('returns student_status=responded when closed test is submitted but not returned', async () => {

@@ -33,7 +33,8 @@ export async function POST(
           id,
           question_type,
           question_text,
-          points
+          points,
+          answer_key
         )
       `)
       .eq('id', responseId)
@@ -64,6 +65,7 @@ export async function POST(
       questionText: String(question.question_text || ''),
       responseText,
       maxPoints: Number(question.points ?? 0),
+      answerKey: typeof question.answer_key === 'string' ? question.answer_key : null,
     })
 
     return NextResponse.json({
@@ -81,4 +83,3 @@ export async function POST(
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }
 }
-

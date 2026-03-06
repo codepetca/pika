@@ -12,6 +12,7 @@ interface TestQuestionInfo {
   question_type: 'multiple_choice' | 'open_response'
   options: string[]
   points: number
+  answer_key?: string | null
 }
 
 type TestAnswerDetail = {
@@ -22,6 +23,9 @@ type TestAnswerDetail = {
   score: number | null
   feedback: string | null
   graded_at: string | null
+  ai_grading_basis: 'teacher_key' | 'generated_reference' | null
+  ai_reference_answers: string[] | null
+  ai_model: string | null
 }
 
 interface TestStudentRow {
@@ -52,6 +56,9 @@ interface TestResultsPayload {
 interface GradeDraft {
   score: string
   feedback: string
+  ai_grading_basis: 'teacher_key' | 'generated_reference' | null
+  ai_reference_answers: string[] | null
+  ai_model: string | null
 }
 
 interface Props {
@@ -99,6 +106,11 @@ export function TestStudentGradingPanel({
           nextDrafts[answer.response_id] = {
             score: answer.score != null ? String(answer.score) : '',
             feedback: answer.feedback || '',
+            ai_grading_basis: answer.ai_grading_basis ?? null,
+            ai_reference_answers: Array.isArray(answer.ai_reference_answers)
+              ? answer.ai_reference_answers
+              : null,
+            ai_model: answer.ai_model ?? null,
           }
         }
       }
@@ -125,6 +137,9 @@ export function TestStudentGradingPanel({
       [responseId]: {
         score: prev[responseId]?.score ?? '',
         feedback: prev[responseId]?.feedback ?? '',
+        ai_grading_basis: prev[responseId]?.ai_grading_basis ?? null,
+        ai_reference_answers: prev[responseId]?.ai_reference_answers ?? null,
+        ai_model: prev[responseId]?.ai_model ?? null,
         ...updates,
       },
     }))
@@ -144,6 +159,15 @@ export function TestStudentGradingPanel({
       updateDraft(responseId, {
         score: data.suggestion?.score != null ? String(data.suggestion.score) : '',
         feedback: data.suggestion?.feedback || '',
+        ai_grading_basis:
+          data.suggestion?.grading_basis === 'teacher_key' ||
+          data.suggestion?.grading_basis === 'generated_reference'
+            ? data.suggestion.grading_basis
+            : null,
+        ai_reference_answers: Array.isArray(data.suggestion?.reference_answers)
+          ? data.suggestion.reference_answers
+          : null,
+        ai_model: typeof data.suggestion?.model === 'string' ? data.suggestion.model : null,
       })
       setGradingMessage('AI suggestion loaded. Review before saving.')
     } catch (suggestError: any) {
@@ -177,6 +201,12 @@ export function TestStudentGradingPanel({
         body: JSON.stringify({
           score,
           feedback: draft.feedback.trim(),
+          ai_grading_basis: draft.ai_grading_basis,
+          ai_reference_answers:
+            draft.ai_grading_basis === 'generated_reference'
+              ? (draft.ai_reference_answers ?? [])
+              : null,
+          ai_model: draft.ai_model,
         }),
       })
       const data = await res.json()
@@ -260,6 +290,36 @@ export function TestStudentGradingPanel({
                   <p className="text-xs text-text-muted">No response submitted.</p>
                 ) : (
                   <>
+                    {answer.ai_grading_basis === 'teacher_key' ? (
+                      <div className="rounded-md border border-border bg-surface-2 px-2 py-1">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                          AI Context: Teacher answer key
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-xs text-text-default">
+                          {question.answer_key || 'Answer key was used.'}
+                        </p>
+                        {answer.ai_model ? (
+                          <p className="mt-1 text-[11px] text-text-muted">Model: {answer.ai_model}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {answer.ai_grading_basis === 'generated_reference' ? (
+                      <div className="rounded-md border border-border bg-surface-2 px-2 py-1">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                          AI Context: Generated reference answers
+                        </p>
+                        <div className="mt-1 space-y-1">
+                          {(answer.ai_reference_answers || []).map((reference, index) => (
+                            <p key={`${answer.response_id}-reference-${index}`} className="text-xs text-text-default">
+                              {index + 1}. {reference}
+                            </p>
+                          ))}
+                        </div>
+                        {answer.ai_model ? (
+                          <p className="mt-1 text-[11px] text-text-muted">Model: {answer.ai_model}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className="grid gap-2 md:grid-cols-[120px_minmax(0,1fr)]">
                       <Input
                         type="number"

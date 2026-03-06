@@ -93,7 +93,7 @@ export async function GET(
 
     const { data: questions, error: questionsError } = await supabase
       .from('test_questions')
-      .select('*')
+      .select('id, test_id, question_type, question_text, options, points, response_max_chars, response_monospace, position, created_at, updated_at')
       .eq('test_id', testId)
       .order('position', { ascending: true })
 

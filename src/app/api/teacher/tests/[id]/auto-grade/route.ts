@@ -74,7 +74,8 @@ export async function POST(
         response_text,
         test_questions!inner (
           question_text,
-          points
+          points,
+          answer_key
         )
       `)
       .eq('test_id', testId)
@@ -91,6 +92,7 @@ export async function POST(
       studentId: string
       questionText: string
       responseText: string
+      answerKey: string | null
       maxPoints: number
     }
 
@@ -112,6 +114,7 @@ export async function POST(
         studentId,
         questionText: String(question.question_text || ''),
         responseText,
+        answerKey: typeof question.answer_key === 'string' ? question.answer_key : null,
         maxPoints: Number(question.points ?? 0),
       }
 
@@ -145,6 +148,7 @@ export async function POST(
             questionText: task.questionText,
             responseText: task.responseText,
             maxPoints: task.maxPoints,
+            answerKey: task.answerKey,
           })
 
           const { error: updateError } = await supabase
@@ -154,6 +158,12 @@ export async function POST(
               feedback: suggestion.feedback,
               graded_at: new Date().toISOString(),
               graded_by: user.id,
+              ai_grading_basis: suggestion.grading_basis,
+              ai_reference_answers:
+                suggestion.grading_basis === 'generated_reference'
+                  ? suggestion.reference_answers
+                  : null,
+              ai_model: suggestion.model,
             })
             .eq('id', task.responseId)
             .eq('test_id', testId)

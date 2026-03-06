@@ -37,7 +37,7 @@ export async function GET(
 
     const { data: responses, error: responsesError } = await supabase
       .from('test_responses')
-      .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at')
+      .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, ai_grading_basis, ai_reference_answers, ai_model, submitted_at')
       .eq('test_id', testId)
 
     if (responsesError) {
@@ -70,6 +70,9 @@ export async function GET(
       score: number | null
       feedback: string | null
       graded_at: string | null
+      ai_grading_basis: 'teacher_key' | 'generated_reference' | null
+      ai_reference_answers: string[] | null
+      ai_model: string | null
     }>> = {}
     const pointsEarnedByStudent = new Map<string, number>()
     const submittedAtByStudent = new Map<string, string>()
@@ -88,6 +91,16 @@ export async function GET(
         score: response.score,
         feedback: response.feedback,
         graded_at: response.graded_at,
+        ai_grading_basis:
+          response.ai_grading_basis === 'teacher_key' || response.ai_grading_basis === 'generated_reference'
+            ? response.ai_grading_basis
+            : null,
+        ai_reference_answers: Array.isArray(response.ai_reference_answers)
+          ? response.ai_reference_answers
+              .map((value) => (typeof value === 'string' ? value : ''))
+              .filter((value) => value.length > 0)
+          : null,
+        ai_model: typeof response.ai_model === 'string' ? response.ai_model : null,
       }
       if (typeof response.score === 'number') {
         pointsEarnedByStudent.set(
@@ -335,6 +348,9 @@ export async function GET(
         question_text: q.question_text,
         options: q.options,
         correct_option: q.correct_option,
+        answer_key: q.question_type === 'open_response' && typeof q.answer_key === 'string'
+          ? q.answer_key
+          : null,
         points: q.points,
         response_max_chars: q.response_max_chars,
         response_monospace: q.response_monospace === true,

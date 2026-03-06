@@ -51,11 +51,14 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
   })
 
   it('auto-grades eligible open responses and skips non-eligible students', async () => {
-    const updatedRows: Array<{ score: number; feedback: string; graded_by: string }> = []
+    const updatedRows: Array<Record<string, unknown>> = []
 
     suggestTestOpenResponseGrade.mockResolvedValue({
       score: 4.5,
       feedback: 'Good explanation',
+      grading_basis: 'generated_reference',
+      reference_answers: ['Reference answer'],
+      model: 'gpt-5-nano',
     })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
@@ -81,24 +84,26 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
         query.in.mockImplementationOnce(() => query)
         query.in.mockImplementationOnce(async () => ({
           data: [
-            {
-              id: 'response-1',
-              student_id: 'student-1',
-              response_text: 'Arrays are ordered.',
-              test_questions: {
-                question_text: 'Explain arrays vs objects.',
-                points: 5,
+              {
+                id: 'response-1',
+                student_id: 'student-1',
+                response_text: 'Arrays are ordered.',
+                test_questions: {
+                  question_text: 'Explain arrays vs objects.',
+                  points: 5,
+                  answer_key: null,
+                },
               },
-            },
-            {
-              id: 'response-2',
-              student_id: 'student-2',
-              response_text: '   ',
-              test_questions: {
-                question_text: 'Explain arrays vs objects.',
-                points: 5,
+              {
+                id: 'response-2',
+                student_id: 'student-2',
+                response_text: '   ',
+                test_questions: {
+                  question_text: 'Explain arrays vs objects.',
+                  points: 5,
+                  answer_key: null,
+                },
               },
-            },
           ],
           error: null,
         }))
@@ -136,6 +141,9 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
         score: 4.5,
         feedback: 'Good explanation',
         graded_by: 'teacher-1',
+        ai_grading_basis: 'generated_reference',
+        ai_reference_answers: ['Reference answer'],
+        ai_model: 'gpt-5-nano',
       }),
     ])
   })

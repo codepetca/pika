@@ -4785,3 +4785,53 @@
   - Teacher active-return confirm modal: `/tmp/teacher-return-flow-3100.png`
   - Teacher test cards showing `Open`: `/tmp/teacher-open-pill.png`
   - Student tests tab sanity: `/tmp/student-open-pill-sanity.png`
+## 2026-03-05 — Open-response answer keys, AI grading audit trail, and 3-column test question cards
+**Context:** User requested implementation of the approved plan to (1) support optional open-response answer keys for AI grading, (2) persist AI grading basis/reference metadata, and (3) redesign test question authoring cards into a 3-column layout with a collapsed answer section.
+
+**Changes:**
+- Added migration `/supabase/migrations/042_add_test_answer_key_and_ai_audit.sql`:
+  - `test_questions.answer_key` (nullable)
+  - `test_responses.ai_grading_basis`, `test_responses.ai_reference_answers`, `test_responses.ai_model`
+  - Added DB constraints for allowed basis values and JSON array shape for references.
+- Extended test question validation + types:
+  - `answer_key` now supported for `open_response` and cleared for `multiple_choice`.
+  - Updated shared test response types to include AI audit metadata.
+- Implemented AI grading flow updates:
+  - `src/lib/ai-test-grading.ts` now grades against teacher answer key when present.
+  - If no answer key, it first generates 1-3 reference answers, then grades using those.
+  - Returns score, feedback, model, grading basis, and generated references.
+- Updated teacher test grading APIs:
+  - Auto-grade route persists `ai_grading_basis`, `ai_reference_answers`, and `ai_model` per graded response.
+  - AI-suggest route passes answer key context and returns enriched suggestion metadata.
+  - Manual response grading PATCH accepts/validates AI metadata and persists it when provided.
+  - Teacher results route now includes answer key on open-response questions and AI context metadata per answer.
+- Student safety hardening:
+  - Replaced student detail `select('*')` question queries with explicit field lists on:
+    - `/api/student/tests/[id]`
+    - `/api/student/quizzes/[id]`
+  - Excludes `correct_option` and `answer_key` from student detail payloads.
+- Teacher test question UI redesign (`src/components/TestQuestionEditor.tsx`):
+  - 3-column card layout:
+    - Left: drag handle + `Q#`
+    - Middle: prompt + response content
+    - Right: `Points`, `Code` (open-response), `Save`, `Delete`
+  - Open-response-only answer section is collapsed by default and expands on click.
+  - Closed state shows indicator text when answer key exists.
+- Updated relevant wiring (`QuizDetailPanel`, grading panel) to pass/store/display new fields.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm vitest run` (full suite): 130 files, 1200 tests passed.
+- Added/updated targeted tests:
+  - `tests/unit/ai-test-grading.test.ts`
+  - `tests/api/student/quizzes-id.test.ts`
+  - `tests/api/teacher/tests-ai-suggest.test.ts`
+  - `tests/api/teacher/tests-responses-grade.test.ts`
+  - updates to existing test question, auto-grade, student detail, and component tests.
+- Visual verification screenshots:
+  - Teacher tests authoring view (new 3-column card + collapsed answer section): `/tmp/teacher-test-authoring-answer-key.png`
+  - Student classrooms view check: `/tmp/student-classrooms-answer-key.png`
+
+**Note:**
+- Temporary screenshot setup tests titled `Codex Layout QA ...` were removed after verification.
+- Migration `042_add_test_answer_key_and_ai_audit.sql` still needs to be applied by a human before runtime usage of new DB columns.
