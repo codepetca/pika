@@ -4933,3 +4933,18 @@
 
 **Verification:**
 - `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-students-grades.test.ts tests/api/teacher/tests-results.test.ts`
+
+## 2026-03-06 (follow-up): Code-question AI grading rubric and communication penalties
+
+- Updated AI open-response grading to treat code-marked questions (`response_monospace`) with a code-specific rubric.
+- Prompt behavior for coding questions now:
+  - prioritizes logic and algorithmic correctness over minor syntax/runtime issues,
+  - awards high partial credit for clear, logically sound solutions with small implementation mistakes,
+  - explicitly penalizes poor communication/readability (indentation, naming, structure),
+  - infers language from context when possible and grades language-agnostically if ambiguous.
+- Wired `response_monospace` through both auto-grade and single-response AI suggest routes.
+- Included coding mode in reference cache key versioning to avoid reusing non-code references for code questions.
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-ai-suggest.test.ts`
+- `pnpm lint`

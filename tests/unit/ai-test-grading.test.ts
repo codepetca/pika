@@ -108,6 +108,43 @@ describe('suggestTestOpenResponseGrade', () => {
       'Mentions semipermeable membrane and concentration gradient.',
     ])
   })
+
+  it('uses coding-specific grading rubric when response is marked monospace', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          output_text:
+            '{"reference_answers":["Uses an array and iterates once with O(n) complexity."]}',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          output_text:
+            '{"score": 9, "feedback": "Strong logic and readable structure. Add edge-case handling for full marks."}',
+        }),
+      })
+
+    await suggestTestOpenResponseGrade({
+      testTitle: 'Coding Test',
+      questionText: 'Write a function to find duplicates.',
+      responseText: 'function findDups(items) { ... }',
+      maxPoints: 10,
+      responseMonospace: true,
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const gradingRequest = fetchMock.mock.calls[1]?.[1]
+    const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
+    const systemPrompt = gradingBody.input?.[0]?.content?.[0]?.text as string
+
+    expect(systemPrompt).toContain('This is a coding response.')
+    expect(systemPrompt).toContain('award high partial credit')
+    expect(systemPrompt).toContain('Penalize poor communication/readability')
+    expect(systemPrompt).toContain('missing indentation')
+  })
 })
 
 describe('open-response reference cache helpers', () => {
@@ -130,6 +167,23 @@ describe('open-response reference cache helpers', () => {
 
     expect(left).toBe(right)
     expect(changed).not.toBe(left)
+  })
+
+  it('includes coding flag in cache key versioning', () => {
+    const nonCoding = buildTestOpenResponseReferenceCacheKey({
+      questionText: 'Write a function to find duplicates.',
+      maxPoints: 10,
+      model: 'gpt-5-nano',
+      isCodingQuestion: false,
+    })
+    const coding = buildTestOpenResponseReferenceCacheKey({
+      questionText: 'Write a function to find duplicates.',
+      maxPoints: 10,
+      model: 'gpt-5-nano',
+      isCodingQuestion: true,
+    })
+
+    expect(coding).not.toBe(nonCoding)
   })
 
   it('normalizes cached reference answers and drops empty items', () => {

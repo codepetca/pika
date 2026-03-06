@@ -65,6 +65,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
                 question_type: 'open_response',
                 question_text: 'Explain osmosis.',
                 points: 5,
+                response_monospace: true,
                 answer_key:
                   'Water moves across a semi-permeable membrane from low solute to high solute concentration.',
               },
@@ -87,6 +88,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
     expect(suggestTestOpenResponseGrade).toHaveBeenCalledWith(
       expect.objectContaining({
         answerKey: expect.stringContaining('semi-permeable membrane'),
+        responseMonospace: true,
       })
     )
     expect(data.suggestion).toEqual(

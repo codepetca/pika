@@ -129,11 +129,13 @@ export function buildTestOpenResponseReferenceCacheKey(input: {
   questionText: string
   maxPoints: number
   model: string
+  isCodingQuestion?: boolean
 }): string {
   const payload = JSON.stringify({
     question_text: input.questionText.trim(),
     max_points: Math.max(0, input.maxPoints),
     model: input.model.trim(),
+    is_coding_question: input.isCodingQuestion === true,
   })
 
   return createHash('sha256').update(payload).digest('hex')
@@ -145,7 +147,14 @@ async function generateReferenceAnswers(opts: {
   testTitle: string
   questionText: string
   maxPoints: number
+  isCodingQuestion: boolean
 }): Promise<string[]> {
+  const codingGuidance = opts.isCodingQuestion
+    ? `
+- Treat this as a coding question. Provide reference answers as clear code-oriented solution outlines, including algorithm steps and expected structure.
+- If the language is not explicitly stated, infer likely language from the question/response context; if uncertain, keep references language-agnostic and focus on logic.`
+    : ''
+
   const parsed = await callOpenAIForJson({
     apiKey: opts.apiKey,
     model: opts.model,
@@ -156,7 +165,7 @@ Return ONLY valid JSON:
 Rules:
 - Provide 1-${MAX_REFERENCE_ANSWERS} concise, high-quality reference answers.
 - Each answer should describe acceptable content, not just keywords.
-- Do not include markdown code fences.`,
+- Do not include markdown code fences.${codingGuidance}`,
     userPrompt: `Test: ${opts.testTitle}
 Question:
 ${opts.questionText}
@@ -185,6 +194,7 @@ export async function generateTestOpenResponseReferences(input: {
   testTitle: string
   questionText: string
   maxPoints: number
+  responseMonospace?: boolean
 }): Promise<TestOpenResponseReferences> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
@@ -199,6 +209,7 @@ export async function generateTestOpenResponseReferences(input: {
     testTitle: input.testTitle,
     questionText: input.questionText,
     maxPoints,
+    isCodingQuestion: input.responseMonospace === true,
   })
 
   return {
@@ -214,6 +225,7 @@ export async function suggestTestOpenResponseGrade(input: {
   maxPoints: number
   answerKey?: string | null
   referenceAnswers?: string[] | null
+  responseMonospace?: boolean
 }): Promise<TestOpenResponseSuggestion> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
@@ -222,6 +234,7 @@ export async function suggestTestOpenResponseGrade(input: {
 
   const model = getTestOpenResponseGradingModel()
   const maxPoints = Math.max(0, input.maxPoints)
+  const isCodingQuestion = input.responseMonospace === true
   const answerKey = normalizeAnswerKey(input.answerKey)
   const providedReferenceAnswers = !answerKey && input.referenceAnswers != null
     ? normalizeReferenceAnswers(input.referenceAnswers)
@@ -236,8 +249,18 @@ export async function suggestTestOpenResponseGrade(input: {
           testTitle: input.testTitle,
           questionText: input.questionText,
           maxPoints,
+          isCodingQuestion,
         }))
       : []
+
+  const codingRubric = isCodingQuestion
+    ? `
+- This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
+- If the approach is logically sound and clearly communicated but has minor implementation issues, award high partial credit (typically 80-95% of max points).
+- Penalize poor communication/readability: missing indentation, unclear variable or method names, and hard-to-follow structure should reduce marks.
+- If language is unspecified, infer likely language from prompt/context/response. If still ambiguous, evaluate logic language-agnostically and do not penalize language choice alone.
+- Avoid nitpicking minor stylistic preferences when clarity and logic are strong.`
+    : ''
 
   const systemPrompt = `You grade open-response test answers.
 Return ONLY valid JSON with this shape:
@@ -247,7 +270,7 @@ Rules:
 - score must be between 0 and ${maxPoints}
 - use at most 2 decimal places
 - feedback should be 2-4 sentences with one strength and one concrete improvement
-- grade for correctness and completeness, not just writing style`
+- grade for correctness and completeness, not just writing style${codingRubric}`
 
   const gradingContext =
     gradingBasis === 'teacher_key'

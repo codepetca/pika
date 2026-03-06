@@ -122,6 +122,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
                 test_questions: {
                   question_text: 'Explain arrays vs objects.',
                   points: 5,
+                  response_monospace: true,
                   answer_key: null,
                   ai_reference_cache_key: null,
                   ai_reference_cache_answers: null,
@@ -136,6 +137,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
                 test_questions: {
                   question_text: 'Explain arrays vs objects.',
                   points: 5,
+                  response_monospace: true,
                   answer_key: null,
                   ai_reference_cache_key: null,
                   ai_reference_cache_answers: null,
@@ -179,6 +181,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
     expect(suggestTestOpenResponseGrade).toHaveBeenCalledWith(
       expect.objectContaining({
         referenceAnswers: ['Reference answer'],
+        responseMonospace: true,
       })
     )
     expect(updatedRows).toEqual([
@@ -245,6 +248,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
               test_questions: {
                 question_text: 'Explain arrays vs objects.',
                 points: 5,
+                response_monospace: false,
                 answer_key: null,
                 ai_reference_cache_key: 'gpt-5-nano|5|Explain arrays vs objects.',
                 ai_reference_cache_answers: cachedReferences,

@@ -34,6 +34,7 @@ export async function POST(
           question_type,
           question_text,
           points,
+          response_monospace,
           answer_key
         )
       `)
@@ -66,6 +67,7 @@ export async function POST(
       responseText,
       maxPoints: Number(question.points ?? 0),
       answerKey: typeof question.answer_key === 'string' ? question.answer_key : null,
+      responseMonospace: question.response_monospace === true,
     })
 
     return NextResponse.json({

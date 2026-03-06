@@ -91,6 +91,7 @@ export async function POST(
         test_questions!inner (
           question_text,
           points,
+          response_monospace,
           answer_key,
           ai_reference_cache_key,
           ai_reference_cache_answers,
@@ -114,12 +115,14 @@ export async function POST(
       responseText: string
       answerKey: string | null
       maxPoints: number
+      responseMonospace: boolean
     }
 
     type OpenQuestionContext = {
       questionText: string
       maxPoints: number
       answerKey: string | null
+      responseMonospace: boolean
       cacheKey: string | null
       cacheAnswers: string[] | null
       cacheModel: string | null
@@ -143,6 +146,7 @@ export async function POST(
           questionText: String(question.question_text || ''),
           maxPoints: Number(question.points ?? 0),
           answerKey: typeof question.answer_key === 'string' ? question.answer_key : null,
+          responseMonospace: question.response_monospace === true,
           cacheKey: typeof question.ai_reference_cache_key === 'string' ? question.ai_reference_cache_key : null,
           cacheAnswers: parseCachedReferenceAnswers(question.ai_reference_cache_answers),
           cacheModel: typeof question.ai_reference_cache_model === 'string' ? question.ai_reference_cache_model : null,
@@ -163,6 +167,7 @@ export async function POST(
         responseText,
         answerKey: context.answerKey,
         maxPoints: context.maxPoints,
+        responseMonospace: context.responseMonospace,
       }
 
       const current = tasksByStudent.get(studentId) || []
@@ -192,7 +197,11 @@ export async function POST(
       model: string
     }> = []
 
-    const questionsNeedingReferences = new Map<string, { questionText: string; maxPoints: number }>()
+    const questionsNeedingReferences = new Map<string, {
+      questionText: string
+      maxPoints: number
+      responseMonospace: boolean
+    }>()
     for (const [questionId, context] of questionContextById.entries()) {
       if (context.answerKey) continue
 
@@ -200,6 +209,7 @@ export async function POST(
         questionText: context.questionText,
         maxPoints: context.maxPoints,
         model: gradingModel,
+        isCodingQuestion: context.responseMonospace,
       })
       const cacheIsValid =
         context.cacheKey === expectedCacheKey &&
@@ -213,6 +223,7 @@ export async function POST(
         questionsNeedingReferences.set(questionId, {
           questionText: context.questionText,
           maxPoints: context.maxPoints,
+          responseMonospace: context.responseMonospace,
         })
       }
     }
@@ -225,11 +236,13 @@ export async function POST(
             questionText: question.questionText,
             maxPoints: question.maxPoints,
             model: gradingModel,
+            isCodingQuestion: question.responseMonospace,
           })
           const referenceSet = await generateTestOpenResponseReferences({
             testTitle,
             questionText: question.questionText,
             maxPoints: question.maxPoints,
+            responseMonospace: question.responseMonospace,
           })
           generatedReferencesByQuestionId.set(questionId, referenceSet.reference_answers)
           cacheWrites.push({
@@ -314,6 +327,7 @@ export async function POST(
             maxPoints: task.maxPoints,
             answerKey: task.answerKey,
             referenceAnswers: sharedReferences,
+            responseMonospace: task.responseMonospace,
           })
 
           const { error: updateError } = await supabase
