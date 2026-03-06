@@ -43,10 +43,12 @@ export async function POST(
 
     const now = new Date().toISOString()
 
-    // Only return docs that have been graded (graded_at is set)
+    // Return eligible docs:
+    // - already graded (graded_at set), or
+    // - draft-saved with complete rubric scores (auto-finalize on return)
     const { data: docs, error: fetchError } = await supabase
       .from('assignment_docs')
-      .select('id, student_id, graded_at, returned_at')
+      .select('id, student_id, graded_at, returned_at, score_completion, score_thinking, score_workflow')
       .eq('assignment_id', id)
       .in('student_id', student_ids)
 
@@ -55,20 +57,47 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to fetch student docs' }, { status: 500 })
     }
 
-    const eligibleIds = (docs || [])
+    const gradedIds = (docs || [])
       .filter((d) => d.graded_at !== null)
       .map((d) => d.id)
 
-    const skippedCount = student_ids.length - eligibleIds.length
+    const draftScoredIds = (docs || [])
+      .filter((d) => (
+        d.graded_at === null &&
+        d.score_completion !== null &&
+        d.score_thinking !== null &&
+        d.score_workflow !== null
+      ))
+      .map((d) => d.id)
 
-    if (eligibleIds.length > 0) {
+    const eligibleCount = gradedIds.length + draftScoredIds.length
+    const skippedCount = student_ids.length - eligibleCount
+
+    if (draftScoredIds.length > 0) {
+      const { error: finalizeAndReturnError } = await supabase
+        .from('assignment_docs')
+        .update({
+          graded_at: now,
+          graded_by: 'teacher',
+          returned_at: now,
+          is_submitted: false,
+        })
+        .in('id', draftScoredIds)
+
+      if (finalizeAndReturnError) {
+        console.error('Error finalizing and returning draft docs:', finalizeAndReturnError)
+        return NextResponse.json({ error: 'Failed to return docs' }, { status: 500 })
+      }
+    }
+
+    if (gradedIds.length > 0) {
       const { error: updateError } = await supabase
         .from('assignment_docs')
         .update({
           returned_at: now,
           is_submitted: false,
         })
-        .in('id', eligibleIds)
+        .in('id', gradedIds)
 
       if (updateError) {
         console.error('Error returning docs:', updateError)
@@ -77,7 +106,7 @@ export async function POST(
     }
 
     return NextResponse.json({
-      returned_count: eligibleIds.length,
+      returned_count: eligibleCount,
       skipped_count: skippedCount,
     })
   } catch (error: any) {

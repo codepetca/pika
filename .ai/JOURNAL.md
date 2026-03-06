@@ -5201,3 +5201,34 @@
 - Auto-grade compatibility addendum: when `test_attempts` is unavailable (`PGRST205`), submitted-student eligibility now falls back to `test_responses.submitted_at` so grading still works in legacy schemas.
 - Consistency safeguard: when close finalization fails, both close paths now attempt rollback to `active` (`tests/[id]` and `tests/[id]/return` close_test flow) to avoid partial close state.
 - Added rollback tests in `tests-id-route.test.ts` and `tests-return.test.ts`.
+
+## 2026-03-05 — Issue #348 draft grading + auto-finalize on return
+**Context:** Added a true draft grading workflow so teachers can save comments/scores without marking work graded, and ensured return-to-student finalizes draft-scored work automatically.
+
+**Changes:**
+- Updated `/src/app/api/teacher/assignments/[id]/grade/route.ts`:
+  - Added optional `save_mode` (`draft` | `graded`) validation.
+  - `save_mode=draft` now persists rubric scores/feedback while clearing `graded_at` and `graded_by`.
+  - Existing callers without `save_mode` keep prior behavior (treated as graded).
+- Updated `/src/app/api/teacher/assignments/[id]/return/route.ts`:
+  - Return eligibility now includes draft-scored docs with all rubric scores.
+  - Draft-scored docs are auto-finalized (`graded_at`/`graded_by`) when returned.
+- Updated `/src/components/TeacherStudentWorkPanel.tsx`:
+  - Added grading save-mode dropdown (`Draft`, `Graded`) beside Save button.
+  - Save payload now includes `save_mode`.
+  - Grade form now rehydrates scores/feedback for draft-saved docs (previously only graded docs prefilled).
+- Updated `/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`:
+  - Status icon for `graded` changed to circled check (`CheckCircle2`).
+  - Submitted/draft states continue to use uncircled check.
+  - Return confirmation eligibility text/count now includes draft-scored docs.
+- Added/updated tests:
+  - `/tests/api/teacher/assignments-id-grade.test.ts`
+  - `/tests/api/teacher/assignments-id-return.test.ts` (new)
+  - `/tests/components/TeacherStudentWorkPanel.test.tsx`
+
+**Verification:**
+- `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm test`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/issue348-teacher-classrooms.png`
+- Student screenshot: `/tmp/issue348-student-classrooms.png`
