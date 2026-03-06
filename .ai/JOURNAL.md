@@ -4853,3 +4853,36 @@
 **Verification:**
 - `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts`
 - `pnpm lint`
+
+## 2026-03-06 (follow-up): Persistent reference cache by question version
+
+- Implemented persistent open-response reference caching to reuse AI-generated reference answers across auto-grade runs.
+- Added migration:
+  - `supabase/migrations/043_add_test_question_reference_cache.sql`
+  - New `test_questions` columns:
+    - `ai_reference_cache_key text`
+    - `ai_reference_cache_answers jsonb`
+    - `ai_reference_cache_model text`
+    - `ai_reference_cache_generated_at timestamptz`
+  - Added constraints for JSON array shape and open-response-only usage.
+- Updated grading helper (`src/lib/ai-test-grading.ts`):
+  - `getTestOpenResponseGradingModel()`
+  - `buildTestOpenResponseReferenceCacheKey(...)`
+  - `normalizeTestOpenResponseReferenceAnswers(...)`
+- Updated test auto-grade route (`src/app/api/teacher/tests/[id]/auto-grade/route.ts`):
+  - Reads cached references from `test_questions`.
+  - Computes version key from `(question_text, points, model)`.
+  - Reuses cached references when key+model match.
+  - Generates and persists new references only on cache miss.
+  - Continues grading even if cache persistence fails (logs error).
+- Added/updated tests:
+  - `tests/api/teacher/tests-auto-grade.test.ts`:
+    - cache miss path generates + persists cache
+    - cache hit path reuses cached references and skips generation
+  - `tests/unit/ai-test-grading.test.ts`:
+    - cache key stability
+    - cached reference normalization
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts`
+- `pnpm lint`

@@ -3,7 +3,10 @@ import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import {
+  buildTestOpenResponseReferenceCacheKey,
   generateTestOpenResponseReferences,
+  getTestOpenResponseGradingModel,
+  normalizeTestOpenResponseReferenceAnswers,
   suggestTestOpenResponseGrade,
 } from '@/lib/ai-test-grading'
 
@@ -11,6 +14,15 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const CONCURRENCY_LIMIT = 5
+
+function parseCachedReferenceAnswers(raw: unknown): string[] | null {
+  if (raw == null) return null
+  try {
+    return normalizeTestOpenResponseReferenceAnswers(raw)
+  } catch {
+    return null
+  }
+}
 
 // POST /api/teacher/tests/[id]/auto-grade - AI grade open responses for selected students
 export async function POST(
@@ -79,7 +91,10 @@ export async function POST(
         test_questions!inner (
           question_text,
           points,
-          answer_key
+          answer_key,
+          ai_reference_cache_key,
+          ai_reference_cache_answers,
+          ai_reference_cache_model
         )
       `)
       .eq('test_id', testId)
@@ -101,7 +116,17 @@ export async function POST(
       maxPoints: number
     }
 
+    type OpenQuestionContext = {
+      questionText: string
+      maxPoints: number
+      answerKey: string | null
+      cacheKey: string | null
+      cacheAnswers: string[] | null
+      cacheModel: string | null
+    }
+
     const tasksByStudent = new Map<string, GradeTask[]>()
+    const questionContextById = new Map<string, OpenQuestionContext>()
     for (const row of responses || []) {
       const studentId = typeof row.student_id === 'string' ? row.student_id : null
       const questionId = typeof row.question_id === 'string' ? row.question_id : null
@@ -113,17 +138,31 @@ export async function POST(
         : row.test_questions
       if (!question) continue
 
+      if (!questionContextById.has(questionId)) {
+        questionContextById.set(questionId, {
+          questionText: String(question.question_text || ''),
+          maxPoints: Number(question.points ?? 0),
+          answerKey: typeof question.answer_key === 'string' ? question.answer_key : null,
+          cacheKey: typeof question.ai_reference_cache_key === 'string' ? question.ai_reference_cache_key : null,
+          cacheAnswers: parseCachedReferenceAnswers(question.ai_reference_cache_answers),
+          cacheModel: typeof question.ai_reference_cache_model === 'string' ? question.ai_reference_cache_model : null,
+        })
+      }
+
       const responseText = typeof row.response_text === 'string' ? row.response_text.trim() : ''
       if (!responseText) continue
+
+      const context = questionContextById.get(questionId)
+      if (!context) continue
 
       const task: GradeTask = {
         responseId: row.id,
         questionId,
         studentId,
-        questionText: String(question.question_text || ''),
+        questionText: context.questionText,
         responseText,
-        answerKey: typeof question.answer_key === 'string' ? question.answer_key : null,
-        maxPoints: Number(question.points ?? 0),
+        answerKey: context.answerKey,
+        maxPoints: context.maxPoints,
       }
 
       const current = tasksByStudent.get(studentId) || []
@@ -145,14 +184,35 @@ export async function POST(
     const failedStudentIds = new Set<string>()
     const errors: string[] = []
     const generatedReferencesByQuestionId = new Map<string, string[]>()
+    const gradingModel = getTestOpenResponseGradingModel()
+    const cacheWrites: Array<{
+      questionId: string
+      cacheKey: string
+      cacheAnswers: string[]
+      model: string
+    }> = []
 
     const questionsNeedingReferences = new Map<string, { questionText: string; maxPoints: number }>()
-    for (const task of queue) {
-      if (task.answerKey) continue
-      if (!questionsNeedingReferences.has(task.questionId)) {
-        questionsNeedingReferences.set(task.questionId, {
-          questionText: task.questionText,
-          maxPoints: task.maxPoints,
+    for (const [questionId, context] of questionContextById.entries()) {
+      if (context.answerKey) continue
+
+      const expectedCacheKey = buildTestOpenResponseReferenceCacheKey({
+        questionText: context.questionText,
+        maxPoints: context.maxPoints,
+        model: gradingModel,
+      })
+      const cacheIsValid =
+        context.cacheKey === expectedCacheKey &&
+        context.cacheModel === gradingModel &&
+        Array.isArray(context.cacheAnswers) &&
+        context.cacheAnswers.length > 0
+
+      if (cacheIsValid) {
+        generatedReferencesByQuestionId.set(questionId, context.cacheAnswers as string[])
+      } else {
+        questionsNeedingReferences.set(questionId, {
+          questionText: context.questionText,
+          maxPoints: context.maxPoints,
         })
       }
     }
@@ -161,12 +221,23 @@ export async function POST(
     await Promise.all(
       Array.from(questionsNeedingReferences.entries()).map(async ([questionId, question]) => {
         try {
+          const expectedCacheKey = buildTestOpenResponseReferenceCacheKey({
+            questionText: question.questionText,
+            maxPoints: question.maxPoints,
+            model: gradingModel,
+          })
           const referenceSet = await generateTestOpenResponseReferences({
             testTitle,
             questionText: question.questionText,
             maxPoints: question.maxPoints,
           })
           generatedReferencesByQuestionId.set(questionId, referenceSet.reference_answers)
+          cacheWrites.push({
+            questionId,
+            cacheKey: expectedCacheKey,
+            cacheAnswers: referenceSet.reference_answers,
+            model: referenceSet.model,
+          })
         } catch (error: any) {
           referenceGenerationErrorsByQuestionId.set(
             questionId,
@@ -197,6 +268,30 @@ export async function POST(
 
       queue.length = 0
       queue.push(...runnableTasks)
+    }
+
+    if (cacheWrites.length > 0) {
+      await Promise.all(
+        cacheWrites.map(async (entry) => {
+          const { error: cacheUpdateError } = await supabase
+            .from('test_questions')
+            .update({
+              ai_reference_cache_key: entry.cacheKey,
+              ai_reference_cache_answers: entry.cacheAnswers,
+              ai_reference_cache_model: entry.model,
+              ai_reference_cache_generated_at: new Date().toISOString(),
+            })
+            .eq('id', entry.questionId)
+            .eq('test_id', testId)
+
+          if (cacheUpdateError) {
+            console.error('Failed to persist AI reference cache for test question:', {
+              questionId: entry.questionId,
+              error: cacheUpdateError,
+            })
+          }
+        })
+      )
     }
 
     async function runWorker() {

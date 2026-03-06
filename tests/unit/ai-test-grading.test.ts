@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { suggestTestOpenResponseGrade } from '@/lib/ai-test-grading'
+import {
+  buildTestOpenResponseReferenceCacheKey,
+  normalizeTestOpenResponseReferenceAnswers,
+  suggestTestOpenResponseGrade,
+} from '@/lib/ai-test-grading'
 
 describe('suggestTestOpenResponseGrade', () => {
   const originalApiKey = process.env.OPENAI_API_KEY
@@ -103,5 +107,39 @@ describe('suggestTestOpenResponseGrade', () => {
       'Defines osmosis accurately.',
       'Mentions semipermeable membrane and concentration gradient.',
     ])
+  })
+})
+
+describe('open-response reference cache helpers', () => {
+  it('builds stable cache keys for equivalent question versions', () => {
+    const left = buildTestOpenResponseReferenceCacheKey({
+      questionText: 'Explain osmosis.',
+      maxPoints: 5,
+      model: 'gpt-5-nano',
+    })
+    const right = buildTestOpenResponseReferenceCacheKey({
+      questionText: 'Explain osmosis.',
+      maxPoints: 5,
+      model: 'gpt-5-nano',
+    })
+    const changed = buildTestOpenResponseReferenceCacheKey({
+      questionText: 'Explain osmosis in detail.',
+      maxPoints: 5,
+      model: 'gpt-5-nano',
+    })
+
+    expect(left).toBe(right)
+    expect(changed).not.toBe(left)
+  })
+
+  it('normalizes cached reference answers and drops empty items', () => {
+    const normalized = normalizeTestOpenResponseReferenceAnswers([
+      '  First answer  ',
+      '',
+      'Second answer',
+      '   ',
+    ])
+
+    expect(normalized).toEqual(['First answer', 'Second answer'])
   })
 })

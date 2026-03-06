@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { TestAiGradingBasis } from '@/types'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
@@ -8,6 +9,10 @@ function getOpenAIKey(): string | null {
   if (!key) return null
   const trimmed = key.trim()
   return trimmed || null
+}
+
+export function getTestOpenResponseGradingModel(): string {
+  return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
 }
 
 function extractOutputText(payload: any): string | null {
@@ -116,6 +121,24 @@ function normalizeReferenceAnswers(raw: unknown): string[] {
   return deduped
 }
 
+export function normalizeTestOpenResponseReferenceAnswers(raw: unknown): string[] {
+  return normalizeReferenceAnswers(raw)
+}
+
+export function buildTestOpenResponseReferenceCacheKey(input: {
+  questionText: string
+  maxPoints: number
+  model: string
+}): string {
+  const payload = JSON.stringify({
+    question_text: input.questionText.trim(),
+    max_points: Math.max(0, input.maxPoints),
+    model: input.model.trim(),
+  })
+
+  return createHash('sha256').update(payload).digest('hex')
+}
+
 async function generateReferenceAnswers(opts: {
   apiKey: string
   model: string
@@ -168,7 +191,7 @@ export async function generateTestOpenResponseReferences(input: {
     throw new Error('OPENAI_API_KEY is not configured')
   }
 
-  const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const model = getTestOpenResponseGradingModel()
   const maxPoints = Math.max(0, input.maxPoints)
   const referenceAnswers = await generateReferenceAnswers({
     apiKey,
@@ -197,7 +220,7 @@ export async function suggestTestOpenResponseGrade(input: {
     throw new Error('OPENAI_API_KEY is not configured')
   }
 
-  const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const model = getTestOpenResponseGradingModel()
   const maxPoints = Math.max(0, input.maxPoints)
   const answerKey = normalizeAnswerKey(input.answerKey)
   const providedReferenceAnswers = !answerKey && input.referenceAnswers != null
