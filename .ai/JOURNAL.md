@@ -4921,3 +4921,15 @@
 - Added fallback in bulk student grade save route when AI audit columns are unavailable:
   - Retry upsert without `ai_grading_basis` / `ai_reference_answers` / `ai_model` fields.
   - Added API test coverage for this fallback path.
+
+## 2026-03-06 (sync): Rebased branch onto main and resequenced migrations
+
+- Rebasing `codex/test-answer-key-grading-ui` onto `origin/main` required one conflict resolution in `src/types/index.ts`.
+  - Kept both upstream test-document types and branch AI grading basis type.
+- Resequenced branch-added migrations to avoid collisions with `origin/main`:
+  - `042_add_test_answer_key_and_ai_audit.sql` -> `044_add_test_answer_key_and_ai_audit.sql`
+  - `043_add_test_question_reference_cache.sql` -> `045_add_test_question_reference_cache.sql`
+- Verified no duplicate migration prefixes remain.
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-students-grades.test.ts tests/api/teacher/tests-results.test.ts`
