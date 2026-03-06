@@ -27,7 +27,9 @@ vi.mock('@/lib/server/tests', () => ({
 }))
 
 const suggestTestOpenResponseGrade = vi.fn()
+const generateTestOpenResponseReferences = vi.fn()
 vi.mock('@/lib/ai-test-grading', () => ({
+  generateTestOpenResponseReferences: (...args: any[]) => generateTestOpenResponseReferences(...args),
   suggestTestOpenResponseGrade: (...args: any[]) => suggestTestOpenResponseGrade(...args),
 }))
 
@@ -53,6 +55,10 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
   it('auto-grades eligible open responses and skips non-eligible students', async () => {
     const updatedRows: Array<Record<string, unknown>> = []
 
+    generateTestOpenResponseReferences.mockResolvedValue({
+      reference_answers: ['Reference answer'],
+      model: 'gpt-5-nano',
+    })
     suggestTestOpenResponseGrade.mockResolvedValue({
       score: 4.5,
       feedback: 'Good explanation',
@@ -86,6 +92,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
           data: [
               {
                 id: 'response-1',
+                question_id: 'q-open-1',
                 student_id: 'student-1',
                 response_text: 'Arrays are ordered.',
                 test_questions: {
@@ -96,6 +103,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
               },
               {
                 id: 'response-2',
+                question_id: 'q-open-1',
                 student_id: 'student-2',
                 response_text: '   ',
                 test_questions: {
@@ -135,7 +143,13 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
     expect(data.skipped_students).toBe(1)
     expect(data.eligible_students).toBe(1)
     expect(data.graded_responses).toBe(1)
+    expect(generateTestOpenResponseReferences).toHaveBeenCalledTimes(1)
     expect(suggestTestOpenResponseGrade).toHaveBeenCalledTimes(1)
+    expect(suggestTestOpenResponseGrade).toHaveBeenCalledWith(
+      expect.objectContaining({
+        referenceAnswers: ['Reference answer'],
+      })
+    )
     expect(updatedRows).toEqual([
       expect.objectContaining({
         score: 4.5,

@@ -75,4 +75,33 @@ describe('suggestTestOpenResponseGrade', () => {
     ])
     expect(suggestion.score).toBe(3.5)
   })
+
+  it('reuses provided reference answers without generating new ones', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score": 4, "feedback": "Accurate core idea with good specificity. Add one edge case."}',
+      }),
+    })
+
+    const suggestion = await suggestTestOpenResponseGrade({
+      testTitle: 'Unit 1 Test',
+      questionText: 'Explain osmosis.',
+      responseText: 'Water moves through a semipermeable membrane.',
+      maxPoints: 5,
+      referenceAnswers: [
+        'Defines osmosis accurately.',
+        'Mentions semipermeable membrane and concentration gradient.',
+      ],
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(suggestion.grading_basis).toBe('generated_reference')
+    expect(suggestion.reference_answers).toEqual([
+      'Defines osmosis accurately.',
+      'Mentions semipermeable membrane and concentration gradient.',
+    ])
+  })
 })

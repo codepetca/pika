@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
-import { suggestTestOpenResponseGrade } from '@/lib/ai-test-grading'
+import {
+  generateTestOpenResponseReferences,
+  suggestTestOpenResponseGrade,
+} from '@/lib/ai-test-grading'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -70,6 +73,7 @@ export async function POST(
       .from('test_responses')
       .select(`
         id,
+        question_id,
         student_id,
         response_text,
         test_questions!inner (
@@ -89,6 +93,7 @@ export async function POST(
 
     type GradeTask = {
       responseId: string
+      questionId: string
       studentId: string
       questionText: string
       responseText: string
@@ -99,7 +104,9 @@ export async function POST(
     const tasksByStudent = new Map<string, GradeTask[]>()
     for (const row of responses || []) {
       const studentId = typeof row.student_id === 'string' ? row.student_id : null
+      const questionId = typeof row.question_id === 'string' ? row.question_id : null
       if (!studentId) continue
+      if (!questionId) continue
 
       const question = Array.isArray(row.test_questions)
         ? row.test_questions[0]
@@ -111,6 +118,7 @@ export async function POST(
 
       const task: GradeTask = {
         responseId: row.id,
+        questionId,
         studentId,
         questionText: String(question.question_text || ''),
         responseText,
@@ -136,6 +144,60 @@ export async function POST(
     const gradedStudentIds = new Set<string>()
     const failedStudentIds = new Set<string>()
     const errors: string[] = []
+    const generatedReferencesByQuestionId = new Map<string, string[]>()
+
+    const questionsNeedingReferences = new Map<string, { questionText: string; maxPoints: number }>()
+    for (const task of queue) {
+      if (task.answerKey) continue
+      if (!questionsNeedingReferences.has(task.questionId)) {
+        questionsNeedingReferences.set(task.questionId, {
+          questionText: task.questionText,
+          maxPoints: task.maxPoints,
+        })
+      }
+    }
+
+    const referenceGenerationErrorsByQuestionId = new Map<string, string>()
+    await Promise.all(
+      Array.from(questionsNeedingReferences.entries()).map(async ([questionId, question]) => {
+        try {
+          const referenceSet = await generateTestOpenResponseReferences({
+            testTitle,
+            questionText: question.questionText,
+            maxPoints: question.maxPoints,
+          })
+          generatedReferencesByQuestionId.set(questionId, referenceSet.reference_answers)
+        } catch (error: any) {
+          referenceGenerationErrorsByQuestionId.set(
+            questionId,
+            error?.message || 'Failed to generate reference answers'
+          )
+        }
+      })
+    )
+
+    if (referenceGenerationErrorsByQuestionId.size > 0) {
+      const blockedTaskStudents = new Set<string>()
+      const runnableTasks: GradeTask[] = []
+
+      for (const task of queue) {
+        if (task.answerKey || !referenceGenerationErrorsByQuestionId.has(task.questionId)) {
+          runnableTasks.push(task)
+          continue
+        }
+
+        blockedTaskStudents.add(task.studentId)
+        const reason = referenceGenerationErrorsByQuestionId.get(task.questionId) || 'Reference generation failed'
+        errors.push(`${task.studentId}: ${reason}`)
+      }
+
+      for (const studentId of blockedTaskStudents) {
+        failedStudentIds.add(studentId)
+      }
+
+      queue.length = 0
+      queue.push(...runnableTasks)
+    }
 
     async function runWorker() {
       while (queue.length > 0) {
@@ -143,12 +205,20 @@ export async function POST(
         if (!task) return
 
         try {
+          const sharedReferences = task.answerKey
+            ? undefined
+            : generatedReferencesByQuestionId.get(task.questionId)
+          if (!task.answerKey && (!sharedReferences || sharedReferences.length === 0)) {
+            throw new Error('Missing shared reference answers for open-response question')
+          }
+
           const suggestion = await suggestTestOpenResponseGrade({
             testTitle,
             questionText: task.questionText,
             responseText: task.responseText,
             maxPoints: task.maxPoints,
             answerKey: task.answerKey,
+            referenceAnswers: sharedReferences,
           })
 
           const { error: updateError } = await supabase

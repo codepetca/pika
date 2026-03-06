@@ -4835,3 +4835,21 @@
 **Note:**
 - Temporary screenshot setup tests titled `Codex Layout QA ...` were removed after verification.
 - Migration `042_add_test_answer_key_and_ai_audit.sql` still needs to be applied by a human before runtime usage of new DB columns.
+
+## 2026-03-06 (follow-up): Auto-grade reference reuse per question
+
+- Addressed PR review finding about inconsistent fallback grading references during bulk auto-grade.
+- Updated `src/lib/ai-test-grading.ts`:
+  - Added `generateTestOpenResponseReferences(...)` to generate fallback references once.
+  - Extended `suggestTestOpenResponseGrade(...)` to accept optional `referenceAnswers` and reuse them instead of regenerating.
+- Updated `src/app/api/teacher/tests/[id]/auto-grade/route.ts`:
+  - Pre-generates fallback references once per open-response question (only when no teacher answer key).
+  - Reuses shared references for all student responses for that question in the same run.
+  - If shared reference generation fails for a question, affected tasks are skipped with per-student error entries.
+- Added/updated tests:
+  - `tests/api/teacher/tests-auto-grade.test.ts` now asserts one-time reference generation + reuse in suggestion calls.
+  - `tests/unit/ai-test-grading.test.ts` now covers provided-reference reuse path (single model call).
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts`
+- `pnpm lint`

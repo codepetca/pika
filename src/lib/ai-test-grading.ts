@@ -153,12 +153,44 @@ export interface TestOpenResponseSuggestion {
   reference_answers: string[]
 }
 
+export interface TestOpenResponseReferences {
+  reference_answers: string[]
+  model: string
+}
+
+export async function generateTestOpenResponseReferences(input: {
+  testTitle: string
+  questionText: string
+  maxPoints: number
+}): Promise<TestOpenResponseReferences> {
+  const apiKey = getOpenAIKey()
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is not configured')
+  }
+
+  const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const maxPoints = Math.max(0, input.maxPoints)
+  const referenceAnswers = await generateReferenceAnswers({
+    apiKey,
+    model,
+    testTitle: input.testTitle,
+    questionText: input.questionText,
+    maxPoints,
+  })
+
+  return {
+    reference_answers: referenceAnswers,
+    model,
+  }
+}
+
 export async function suggestTestOpenResponseGrade(input: {
   testTitle: string
   questionText: string
   responseText: string
   maxPoints: number
   answerKey?: string | null
+  referenceAnswers?: string[] | null
 }): Promise<TestOpenResponseSuggestion> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
@@ -168,17 +200,20 @@ export async function suggestTestOpenResponseGrade(input: {
   const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
   const maxPoints = Math.max(0, input.maxPoints)
   const answerKey = normalizeAnswerKey(input.answerKey)
+  const providedReferenceAnswers = !answerKey && input.referenceAnswers != null
+    ? normalizeReferenceAnswers(input.referenceAnswers)
+    : null
 
   const gradingBasis: TestAiGradingBasis = answerKey ? 'teacher_key' : 'generated_reference'
   const referenceAnswers =
     gradingBasis === 'generated_reference'
-      ? await generateReferenceAnswers({
+      ? (providedReferenceAnswers ?? await generateReferenceAnswers({
           apiKey,
           model,
           testTitle: input.testTitle,
           questionText: input.questionText,
           maxPoints,
-        })
+        }))
       : []
 
   const systemPrompt = `You grade open-response test answers.
