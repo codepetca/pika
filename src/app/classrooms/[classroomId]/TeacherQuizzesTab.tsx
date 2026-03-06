@@ -309,7 +309,7 @@ export function TeacherQuizzesTab({
     }
   }
 
-  async function handleBatchReturn() {
+  async function handleBatchReturn(options?: { closeTest?: boolean }) {
     if (!selectedQuizId || batchSelectedCount === 0) return
 
     setIsBatchReturning(true)
@@ -319,7 +319,10 @@ export function TeacherQuizzesTab({
       const res = await fetch(`${apiBasePath}/${selectedQuizId}/return`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
+        body: JSON.stringify({
+          student_ids: Array.from(batchSelectedIds),
+          close_test: options?.closeTest === true,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Return failed')
@@ -332,6 +335,9 @@ export function TeacherQuizzesTab({
 
       clearBatchSelection()
       setShowReturnConfirm(false)
+      if (data.test_closed) {
+        await loadQuizzes()
+      }
       await loadGradingRows()
     } catch (err: any) {
       setGradingError(err.message || 'Return failed')
@@ -398,7 +404,9 @@ export function TeacherQuizzesTab({
 
   const assessmentLabel = isTestsView ? 'test' : 'quiz'
   const assessmentLabelPlural = isTestsView ? 'Tests' : 'Quizzes'
-  const selectedTestTitle = sortedQuizzes.find((quiz) => quiz.id === selectedQuizId)?.title || 'No test selected'
+  const selectedTest = sortedQuizzes.find((quiz) => quiz.id === selectedQuizId) || null
+  const selectedTestTitle = selectedTest?.title || 'No test selected'
+  const returnWillCloseActiveTest = isTestsView && testsMode === 'grading' && selectedTest?.status === 'active'
 
   return (
     <PageLayout>
@@ -746,15 +754,31 @@ export function TeacherQuizzesTab({
 
       <ConfirmDialog
         isOpen={showReturnConfirm}
-        title={`Return test work to ${batchSelectedCount} selected student(s)?`}
-        description="Only students with fully graded open-response questions will be returned."
-        confirmLabel={isBatchReturning ? 'Returning...' : 'Return Test'}
+        title={
+          returnWillCloseActiveTest
+            ? `Close test and return work to ${batchSelectedCount} selected student(s)?`
+            : `Return test work to ${batchSelectedCount} selected student(s)?`
+        }
+        description={
+          returnWillCloseActiveTest
+            ? 'This test is still open. Confirming will close it for all students before returning selected work.'
+            : 'Only students with fully graded open-response questions will be returned.'
+        }
+        confirmLabel={
+          isBatchReturning
+            ? returnWillCloseActiveTest
+              ? 'Closing and Returning...'
+              : 'Returning...'
+            : returnWillCloseActiveTest
+              ? 'Close and Return'
+              : 'Return Test'
+        }
         cancelLabel="Cancel"
         isConfirmDisabled={isBatchReturning}
         isCancelDisabled={isBatchReturning}
         onCancel={() => setShowReturnConfirm(false)}
         onConfirm={() => {
-          void handleBatchReturn()
+          void handleBatchReturn({ closeTest: returnWillCloseActiveTest })
         }}
       />
     </PageLayout>

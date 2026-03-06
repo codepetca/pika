@@ -4762,3 +4762,26 @@
 **Verification:**
 - `pnpm vitest run tests/api/integration/test-return-visibility-flow.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/teacher/tests-return.test.ts`
 - all passing.
+
+## 2026-03-06 — Return flow now closes active tests + test status pill uses Open
+**Context:** Teacher could return while a test remained active, which blocked student result visibility under close+return gating. Also requested wording update from Active -> Open for test status pill.
+
+**Changes:**
+- Teacher return API (`/api/teacher/tests/[id]/return`):
+  - Enforces explicit close confirmation for active tests (`409` unless `close_test=true`).
+  - Closes active test before returning selected students when confirmed.
+  - Adds migration-aware error handling for missing `test_attempts.returned_at/returned_by`.
+- Added migration `043_backfill_test_attempt_return_columns.sql` to ensure return metadata columns/index exist.
+- Teacher grading UI:
+  - Return confirmation dialog now switches to "Close and Return" copy when selected test is active.
+  - Sends `close_test=true` in that path and refreshes list after auto-close.
+- Test status pill wording:
+  - Active **tests** now display `Open`; quizzes continue to display `Active`.
+
+**Verification:**
+- `pnpm exec vitest run tests/api/teacher/tests-return.test.ts tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm exec vitest run tests/unit/quizzes.test.ts tests/components/QuizCard.test.tsx`
+- Visual screenshots:
+  - Teacher active-return confirm modal: `/tmp/teacher-return-flow-3100.png`
+  - Teacher test cards showing `Open`: `/tmp/teacher-open-pill.png`
+  - Student tests tab sanity: `/tmp/student-open-pill-sanity.png`

@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   getQuizStatusLabel,
+  getAssessmentStatusLabel,
   getQuizStatusBadgeClass,
   canStudentRespond,
   canStudentViewResults,
@@ -38,6 +39,16 @@ describe('quiz utilities', () => {
 
     it('should return "Closed" for closed status', () => {
       expect(getQuizStatusLabel('closed')).toBe('Closed')
+    })
+  })
+
+  describe('getAssessmentStatusLabel', () => {
+    it('should return "Open" for active tests', () => {
+      expect(getAssessmentStatusLabel('active', 'test')).toBe('Open')
+    })
+
+    it('should keep "Active" for active quizzes', () => {
+      expect(getAssessmentStatusLabel('active', 'quiz')).toBe('Active')
     })
   })
 

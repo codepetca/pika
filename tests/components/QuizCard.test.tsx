@@ -64,6 +64,20 @@ describe('QuizCard', () => {
     expect(screen.getByText('Active')).toBeInTheDocument()
   })
 
+  it('shows Open badge for active tests', () => {
+    const test = makeQuizWithStats({ status: 'active', assessment_type: 'test' })
+    render(
+      <QuizCard
+        quiz={test}
+        {...defaultProps}
+        apiBasePath="/api/teacher/tests"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    expect(screen.getByText('Open')).toBeInTheDocument()
+  })
+
   it('shows Closed badge for closed quizzes', () => {
     const quiz = makeQuizWithStats({ status: 'closed' })
     render(<QuizCard quiz={quiz} {...defaultProps} />, { wrapper: Wrapper })

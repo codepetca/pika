@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/return/route'
+import { assertTeacherOwnsTest } from '@/lib/server/tests'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -20,10 +21,16 @@ vi.mock('@/lib/server/tests', () => ({
     test: {
       id: 'test-1',
       title: 'Unit Test',
+      status: 'closed',
       classroom_id: 'classroom-1',
       classrooms: { archived_at: null },
     },
   })),
+  isMissingTestAttemptReturnColumnsError: vi.fn((error: { code?: string; message?: string } | null) => {
+    if (!error) return false
+    const message = `${error.message || ''}`.toLowerCase()
+    return (error.code === 'PGRST204' || error.code === '42703') && message.includes('returned_at')
+  }),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -136,5 +143,199 @@ describe('POST /api/teacher/tests/[id]/return', () => {
         student_id: 'student-1',
       }),
     ])
+  })
+
+  it('returns 409 for active tests when close_test is not provided', async () => {
+    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
+      ok: true,
+      test: {
+        id: 'test-1',
+        title: 'Unit Test',
+        status: 'active',
+        classroom_id: 'classroom-1',
+        classrooms: { archived_at: null },
+      } as any,
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-1'] }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(409)
+    expect(data.error).toBe('Test is still active. Confirm close and return to close it first.')
+  })
+
+  it('closes active tests when close_test is provided', async () => {
+    const closeUpdates: Array<{ status: string }> = []
+
+    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
+      ok: true,
+      test: {
+        id: 'test-1',
+        title: 'Unit Test',
+        status: 'active',
+        classroom_id: 'classroom-1',
+        classrooms: { archived_at: null },
+      } as any,
+    })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        return {
+          update: vi.fn((payload: { status: string }) => {
+            closeUpdates.push(payload)
+            return {
+              eq: vi.fn(() => ({
+                eq: vi.fn(async () => ({ error: null })),
+              })),
+            }
+          }),
+        }
+      }
+
+      if (table === 'test_questions') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+        } as any
+        query.eq.mockImplementationOnce(() => query)
+        query.eq.mockImplementationOnce(async () => ({
+          data: [],
+          error: null,
+        }))
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_responses') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn(async () => ({
+            data: [
+              {
+                student_id: 'student-1',
+                question_id: 'q-1',
+                score: null,
+                feedback: null,
+                submitted_at: '2026-02-24T15:00:00.000Z',
+              },
+            ],
+            error: null,
+          })),
+        }
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: vi.fn(async () => ({ error: null })),
+            })),
+          })),
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [],
+              error: null,
+            })),
+          })),
+          insert: vi.fn(async () => ({ error: null })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-1'], close_test: true }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.test_closed).toBe(true)
+    expect(closeUpdates).toEqual([{ status: 'closed' }])
+  })
+
+  it('returns migration error when returned_at column is missing', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+        } as any
+        query.eq.mockImplementationOnce(() => query)
+        query.eq.mockImplementationOnce(async () => ({
+          data: [],
+          error: null,
+        }))
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_responses') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn(async () => ({
+            data: [
+              {
+                student_id: 'student-1',
+                question_id: 'q-1',
+                score: null,
+                feedback: null,
+                submitted_at: '2026-02-24T15:00:00.000Z',
+              },
+            ],
+            error: null,
+          })),
+        }
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: vi.fn(async () => ({
+                error: {
+                  code: 'PGRST204',
+                  message:
+                    "Could not find the 'returned_at' column of 'test_attempts' in the schema cache",
+                },
+              })),
+            })),
+          })),
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [],
+              error: null,
+            })),
+          })),
+          insert: vi.fn(async () => ({ error: null })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-1'] }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Returning tests requires migration 043 to be applied')
   })
 })

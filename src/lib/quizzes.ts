@@ -26,6 +26,14 @@ export function getQuizStatusLabel(status: QuizStatus): string {
   return labels[status]
 }
 
+export function getAssessmentStatusLabel(
+  status: QuizStatus,
+  assessmentType: QuizAssessmentType
+): string {
+  if (assessmentType === 'test' && status === 'active') return 'Open'
+  return getQuizStatusLabel(status)
+}
+
 /**
  * Get badge CSS classes for quiz status
  */

@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { Trash2, Eye, EyeOff, Play, Square } from 'lucide-react'
-import { getQuizStatusLabel, getQuizStatusBadgeClass, canActivateQuiz } from '@/lib/quizzes'
+import {
+  getAssessmentStatusLabel,
+  getQuizStatusBadgeClass,
+  canActivateQuiz,
+} from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
@@ -169,7 +173,7 @@ export function QuizCard({
               <span
                 className={`inline-flex items-center shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getQuizStatusBadgeClass(quiz.status)}`}
               >
-                {getQuizStatusLabel(quiz.status)}
+                {getAssessmentStatusLabel(quiz.status, quiz.assessment_type)}
               </span>
             </div>
             <p className="text-xs text-text-muted mt-0.5">
