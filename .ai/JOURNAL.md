@@ -5232,3 +5232,25 @@
 - `pnpm lint`
 - Teacher screenshot: `/tmp/issue348-teacher-classrooms.png`
 - Student screenshot: `/tmp/issue348-student-classrooms.png`
+
+## 2026-03-06 — PR #374 review fixes (atomic return + grader attribution)
+**Context:** Addressed code review findings on issue #348 PR regarding partial commits in assignment return flow and missing grader attribution.
+
+**Changes:**
+- Updated `/src/app/api/teacher/assignments/[id]/return/route.ts`:
+  - Replaced two-step update logic with a single atomic RPC call (`return_assignment_docs_atomic`).
+  - Preserved grader attribution by passing `p_teacher_id` (`user.id`) to the RPC for draft auto-finalization.
+- Added migration `/supabase/migrations/043_assignment_return_atomic_rpc.sql`:
+  - Creates `public.return_assignment_docs_atomic(...)` PL/pgSQL function.
+  - Performs eligibility detection + finalize/return in one transactional update statement.
+  - Returns `{ returned_count, skipped_count }`.
+- Updated `/tests/api/teacher/assignments-id-return.test.ts`:
+  - Switched to RPC-based assertions.
+  - Added failure-path test for RPC errors.
+
+**Verification:**
+- `pnpm test tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-grade.test.ts`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+
+**Note:** Migration `043_assignment_return_atomic_rpc.sql` must be applied manually by a human.

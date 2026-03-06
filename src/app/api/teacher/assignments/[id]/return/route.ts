@@ -42,71 +42,24 @@ export async function POST(
     }
 
     const now = new Date().toISOString()
+    const { data: rpcData, error: rpcError } = await supabase.rpc('return_assignment_docs_atomic', {
+      p_assignment_id: id,
+      p_student_ids: student_ids,
+      p_teacher_id: user.id,
+      p_now: now,
+    })
 
-    // Return eligible docs:
-    // - already graded (graded_at set), or
-    // - draft-saved with complete rubric scores (auto-finalize on return)
-    const { data: docs, error: fetchError } = await supabase
-      .from('assignment_docs')
-      .select('id, student_id, graded_at, returned_at, score_completion, score_thinking, score_workflow')
-      .eq('assignment_id', id)
-      .in('student_id', student_ids)
-
-    if (fetchError) {
-      console.error('Error fetching docs for return:', fetchError)
-      return NextResponse.json({ error: 'Failed to fetch student docs' }, { status: 500 })
+    if (rpcError) {
+      console.error('Error returning assignment docs:', rpcError)
+      return NextResponse.json({ error: 'Failed to return docs' }, { status: 500 })
     }
 
-    const gradedIds = (docs || [])
-      .filter((d) => d.graded_at !== null)
-      .map((d) => d.id)
-
-    const draftScoredIds = (docs || [])
-      .filter((d) => (
-        d.graded_at === null &&
-        d.score_completion !== null &&
-        d.score_thinking !== null &&
-        d.score_workflow !== null
-      ))
-      .map((d) => d.id)
-
-    const eligibleCount = gradedIds.length + draftScoredIds.length
-    const skippedCount = student_ids.length - eligibleCount
-
-    if (draftScoredIds.length > 0) {
-      const { error: finalizeAndReturnError } = await supabase
-        .from('assignment_docs')
-        .update({
-          graded_at: now,
-          graded_by: 'teacher',
-          returned_at: now,
-          is_submitted: false,
-        })
-        .in('id', draftScoredIds)
-
-      if (finalizeAndReturnError) {
-        console.error('Error finalizing and returning draft docs:', finalizeAndReturnError)
-        return NextResponse.json({ error: 'Failed to return docs' }, { status: 500 })
-      }
-    }
-
-    if (gradedIds.length > 0) {
-      const { error: updateError } = await supabase
-        .from('assignment_docs')
-        .update({
-          returned_at: now,
-          is_submitted: false,
-        })
-        .in('id', gradedIds)
-
-      if (updateError) {
-        console.error('Error returning docs:', updateError)
-        return NextResponse.json({ error: 'Failed to return docs' }, { status: 500 })
-      }
-    }
+    const resultRow = Array.isArray(rpcData) ? rpcData[0] : rpcData
+    const returnedCount = Number(resultRow?.returned_count ?? 0)
+    const skippedCount = Number(resultRow?.skipped_count ?? Math.max(student_ids.length - returnedCount, 0))
 
     return NextResponse.json({
-      returned_count: eligibleCount,
+      returned_count: returnedCount,
       skipped_count: skippedCount,
     })
   } catch (error: any) {
