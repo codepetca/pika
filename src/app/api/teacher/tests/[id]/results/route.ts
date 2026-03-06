@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, summarizeQuizFocusEvents } from '@/lib/quizzes'
-import { assertTeacherOwnsTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import {
+  assertTeacherOwnsTest,
+  isMissingTestAttemptReturnColumnsError,
+  isMissingTestResponseAiColumnsError,
+} from '@/lib/server/tests'
 import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -35,10 +39,63 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
-    const { data: responses, error: responsesError } = await supabase
-      .from('test_responses')
-      .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, ai_grading_basis, ai_reference_answers, ai_model, submitted_at')
-      .eq('test_id', testId)
+    let responses:
+      | Array<{
+          id: string
+          test_id: string
+          question_id: string
+          student_id: string
+          selected_option: number | null
+          response_text: string | null
+          score: number | null
+          feedback: string | null
+          graded_at: string | null
+          graded_by: string | null
+          ai_grading_basis: string | null
+          ai_reference_answers: unknown
+          ai_model: string | null
+          submitted_at: string
+        }>
+      | null = null
+    let responsesError: { code?: string; message?: string; details?: string; hint?: string } | null = null
+
+    {
+      const responsesWithAiResult = await supabase
+        .from('test_responses')
+        .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, ai_grading_basis, ai_reference_answers, ai_model, submitted_at')
+        .eq('test_id', testId)
+
+      responses = (responsesWithAiResult.data as typeof responses) || null
+      responsesError = responsesWithAiResult.error
+    }
+
+    if (responsesError && isMissingTestResponseAiColumnsError(responsesError)) {
+      const legacyResponsesResult = await supabase
+        .from('test_responses')
+        .select('id, test_id, question_id, student_id, selected_option, response_text, score, feedback, graded_at, graded_by, submitted_at')
+        .eq('test_id', testId)
+
+      responses =
+        ((legacyResponsesResult.data as Array<{
+          id: string
+          test_id: string
+          question_id: string
+          student_id: string
+          selected_option: number | null
+          response_text: string | null
+          score: number | null
+          feedback: string | null
+          graded_at: string | null
+          graded_by: string | null
+          submitted_at: string
+        }> | null) || []).map((response) => ({
+          ...response,
+          ai_grading_basis: null,
+          ai_reference_answers: null,
+          ai_model: null,
+        }))
+      responsesError = legacyResponsesResult.error
+    }
 
     if (responsesError) {
       console.error('Error fetching test responses:', responsesError)

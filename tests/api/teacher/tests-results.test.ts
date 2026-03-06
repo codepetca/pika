@@ -77,25 +77,35 @@ describe('GET /api/teacher/tests/[id]/results', () => {
 
       if (table === 'test_responses') {
         return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: 'response-1',
-                  test_id: 'test-1',
-                  question_id: 'question-1',
-                  student_id: 'student-1',
-                  selected_option: 0,
-                  response_text: null,
-                  score: 1,
-                  feedback: null,
-                  graded_at: null,
-                  graded_by: null,
-                  submitted_at: '2026-01-01T00:00:00.000Z',
-                },
-              ],
-              error: null,
-            }),
+          select: vi.fn((columns: string) => ({
+            eq: vi.fn().mockResolvedValue(
+              columns.includes('ai_grading_basis')
+                ? {
+                    data: null,
+                    error: {
+                      code: 'PGRST204',
+                      message: "Could not find column 'ai_grading_basis'",
+                    },
+                  }
+                : {
+                    data: [
+                      {
+                        id: 'response-1',
+                        test_id: 'test-1',
+                        question_id: 'question-1',
+                        student_id: 'student-1',
+                        selected_option: 0,
+                        response_text: null,
+                        score: 1,
+                        feedback: null,
+                        graded_at: null,
+                        graded_by: null,
+                        submitted_at: '2026-01-01T00:00:00.000Z',
+                      },
+                    ],
+                    error: null,
+                  }
+            ),
           })),
         }
       }

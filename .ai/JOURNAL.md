@@ -4886,3 +4886,35 @@
 **Verification:**
 - `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts`
 - `pnpm lint`
+
+## 2026-03-06 (follow-up): Test grading UX consolidation + no-response manual grading
+
+- Updated teacher test grading UX in right sidebar:
+  - Removed per-question `AI Suggest` action from selected-student grading panel.
+  - Removed per-question `Save Grade` buttons.
+  - Added single header-level `Save` action (right-aligned beside student test title).
+- Open-response grading fields now render even when student response is missing:
+  - Teachers can enter score + feedback for unanswered open-response questions.
+  - This supports manual 0 + feedback workflows before return.
+- Added bulk-save API for selected student test grading:
+  - `PATCH /api/teacher/tests/[id]/students/[studentId]/grades`
+  - Validates teacher ownership, enrollment, question membership/type, and point bounds.
+  - Upserts grade rows for open-response questions and creates missing response rows with empty `response_text` when needed.
+- Added compatibility fallback for teacher results route when AI audit columns are missing (migration not yet applied):
+  - `GET /api/teacher/tests/[id]/results` now retries without AI columns if missing and maps AI fields to null.
+  - Added shared helper `isMissingTestResponseAiColumnsError`.
+
+**Tests added/updated:**
+- `tests/api/teacher/tests-students-grades.test.ts`
+- `tests/api/teacher/tests-results.test.ts` (AI-column fallback case)
+
+**Verification:**
+- `pnpm vitest run tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-students-grades.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/unit/ai-test-grading.test.ts`
+- `pnpm lint`
+- Visual verification screenshots:
+  - Teacher grading view with header `Save` + no-response grading fields visible:
+    - `/tmp/teacher-test-grading-no-response-with-question.png`
+  - Teacher classrooms view:
+    - `/tmp/teacher-view-tests-save.png`
+  - Student classrooms view:
+    - `/tmp/student-view-tests-save.png`

@@ -423,6 +423,14 @@ function ClassroomPageContent({
     studentId: null,
     studentName: null,
   })
+  const [testGradingSaveHandler, setTestGradingSaveHandler] = useState<(() => Promise<void>) | null>(null)
+  const [testGradingSaveState, setTestGradingSaveState] = useState<{
+    canSave: boolean
+    isSaving: boolean
+  }>({
+    canSave: false,
+    isSaving: false,
+  })
   const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
   const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
   const [gradebookClassSummary, setGradebookClassSummary] = useState<GradebookClassSummary | null>(null)
@@ -443,6 +451,8 @@ function ClassroomPageContent({
         studentId: null,
         studentName: null,
       })
+      setTestGradingSaveHandler(null)
+      setTestGradingSaveState({ canSave: false, isSaving: false })
     }
   }, [activeTab])
 
@@ -1120,7 +1130,9 @@ function ClassroomPageContent({
               : isTeacher &&
                 activeTab === 'tests' &&
                 testGradingContext.mode === 'grading'
-              ? testGradingContext.studentName || 'Test Grading'
+              ? testGradingContext.studentName
+                ? `${testGradingContext.studentName} Test`
+                : 'Test Grading'
               : isTeacher && isAssessmentTab
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
@@ -1163,6 +1175,21 @@ function ClassroomPageContent({
                 className="px-2 py-1 text-xs rounded bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50"
               >
                 {calendarSidebarState.bulkSaving ? 'Saving...' : 'Save'}
+              </button>
+            ) : isTeacher &&
+              activeTab === 'tests' &&
+              testGradingContext.mode === 'grading' &&
+              testGradingContext.studentId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!testGradingSaveHandler) return
+                  void testGradingSaveHandler()
+                }}
+                disabled={!testGradingSaveState.canSave || testGradingSaveState.isSaving}
+                className="px-2 py-1 text-xs rounded bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50"
+              >
+                {testGradingSaveState.isSaving ? 'Saving...' : 'Save'}
               </button>
             ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
               <>
@@ -1215,6 +1242,8 @@ function ClassroomPageContent({
               selectedStudentId={testGradingContext.studentId}
               apiBasePath={assessmentApiBasePath}
               onUpdated={handleQuizUpdate}
+              onRegisterSaveHandler={setTestGradingSaveHandler}
+              onSaveStateChange={setTestGradingSaveState}
             />
           ) : isTeacher && isAssessmentTab && selectedQuiz ? (
             <QuizDetailPanel
