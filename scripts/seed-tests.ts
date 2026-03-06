@@ -52,7 +52,7 @@ export async function seedSampleTests(input: SeedSampleTestsInput) {
   if (cleanupError) {
     if (isMissingTestsSchemaError(cleanupError)) {
       throw new Error(
-        'Test seed requires test migrations (039-045). Apply migrations, then run seed again.'
+        'Test seed requires test migrations (039-044). Apply migrations, then run seed again.'
       )
     }
     throw new Error(`Delete existing tests failed: ${formatSupabaseError(cleanupError)}`)
@@ -89,7 +89,7 @@ export async function seedSampleTests(input: SeedSampleTestsInput) {
   if (createTestsError || !createdTests || createdTests.length < 2) {
     if (isMissingTestsSchemaError(createTestsError)) {
       throw new Error(
-        'Test seed requires test migrations (039-045). Apply migrations, then run seed again.'
+        'Test seed requires test migrations (039-044). Apply migrations, then run seed again.'
       )
     }
     throw new Error(`Create sample tests failed: ${formatSupabaseError(createTestsError)}`)

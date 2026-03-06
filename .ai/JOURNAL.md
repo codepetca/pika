@@ -4965,3 +4965,13 @@
 
 **Verification:**
 - `pnpm lint`
+
+## 2026-03-06 (cleanup): Consolidated unapplied migrations 044 + 045
+
+- Since migrations were not applied in any environment yet, consolidated:
+  - folded `045_add_test_question_reference_cache.sql` SQL into `044_add_test_answer_key_and_ai_audit.sql`
+  - removed `045_add_test_question_reference_cache.sql`
+- Updated seed migration guard messages to point to `039-044`.
+
+**Verification:**
+- `pnpm lint`
