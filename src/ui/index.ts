@@ -18,6 +18,7 @@ export { Card, type CardProps } from './Card'
 export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip'
 export { RefreshingIndicator } from './RefreshingIndicator'
 export { TabContentTransition } from './TabContentTransition'
+export { SplitButton, type SplitButtonProps, type SplitButtonOption } from './SplitButton'
 
 // Utilities
 export { cn } from './utils'

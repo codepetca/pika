@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import type { Assignment, ClassDay, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
-import { Button, ConfirmDialog, DialogPanel } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, SplitButton } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -21,6 +21,7 @@ import {
 const EMPTY_INSTRUCTIONS: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
+type CreateSubmitAction = 'post' | 'schedule' | 'draft'
 
 interface AssignmentModalProps {
   isOpen: boolean
@@ -46,6 +47,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const [showRevertToDraftConfirm, setShowRevertToDraftConfirm] = useState(false)
   const [releasing, setReleasing] = useState(false)
   const [showSchedulePicker, setShowSchedulePicker] = useState(false)
+  const [showCreateScheduleModal, setShowCreateScheduleModal] = useState(false)
+  const [createPrimaryAction, setCreatePrimaryAction] = useState<CreateSubmitAction>('post')
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
 
@@ -70,6 +73,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     setShowPostNowConfirm(false)
     setShowRevertToDraftConfirm(false)
     setShowSchedulePicker(false)
+    setShowCreateScheduleModal(false)
+    setCreatePrimaryAction('post')
     setReleasing(false)
     setError('')
 
@@ -403,6 +408,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (isCreateMode && currentAssignment) {
+      await triggerCreatePrimaryAction()
+      return
+    }
+
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -415,6 +425,38 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     setSaving(true)
     await saveChanges({ title, instructions, dueAt }, { closeAfter: true })
     setSaving(false)
+  }
+
+  async function saveDraftAndClose() {
+    if (saving || releasing) return
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+    }
+    if (throttledSaveTimeoutRef.current) {
+      clearTimeout(throttledSaveTimeoutRef.current)
+      throttledSaveTimeoutRef.current = null
+    }
+    pendingValuesRef.current = null
+    setSaving(true)
+    await saveChanges({ title, instructions, dueAt }, { closeAfter: true })
+    setSaving(false)
+  }
+
+  async function triggerCreatePrimaryAction(action: CreateSubmitAction = createPrimaryAction) {
+    if (!currentAssignment || creating || saving || releasing) return
+
+    if (action === 'post') {
+      setShowPostNowConfirm(true)
+      return
+    }
+
+    if (action === 'schedule') {
+      setShowCreateScheduleModal(true)
+      return
+    }
+
+    await saveDraftAndClose()
   }
 
   async function handleClose() {
@@ -476,7 +518,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
   }
 
-  async function scheduleAssignmentRelease() {
+  async function scheduleAssignmentRelease(options?: { closeAfter?: boolean }) {
     if (releasing) return
     const assignmentToSchedule = currentAssignment
     if (!assignmentToSchedule || !scheduleDate) return
@@ -510,8 +552,15 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
       const updated = data.assignment as Assignment
       setCurrentAssignment(updated)
-      onSuccess(updated)
+      if (!isCreateMode) {
+        onSuccess(updated)
+      }
       setShowSchedulePicker(false)
+      setShowCreateScheduleModal(false)
+      setCreatePrimaryAction('schedule')
+      if (options?.closeAfter) {
+        onClose()
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to schedule assignment')
     } finally {
@@ -550,7 +599,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
   }
 
-  function openSchedulePicker() {
+  function syncScheduleInputsFromAssignment() {
     if (currentAssignment?.released_at && !isVisibleAtNow(currentAssignment.released_at)) {
       const parsed = parseScheduleIsoToParts(currentAssignment.released_at)
       setScheduleDate(parsed.date)
@@ -559,6 +608,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setScheduleDate(getTodayInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
     }
+  }
+
+  function openSchedulePicker() {
+    syncScheduleInputsFromAssignment()
     setShowSchedulePicker((prev) => !prev)
   }
 
@@ -593,6 +646,26 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         : isScheduled
           ? 'Edit Scheduled Assignment'
           : 'Edit Assignment'
+  const createPrimaryLabel =
+    createPrimaryAction === 'post'
+      ? releasing
+        ? 'Posting...'
+        : 'Post'
+      : createPrimaryAction === 'schedule'
+        ? releasing
+          ? 'Scheduling...'
+          : 'Schedule'
+        : saving
+          ? 'Saving...'
+          : 'Draft'
+
+  function handleCreateActionSelection(action: CreateSubmitAction) {
+    setCreatePrimaryAction(action)
+    if (action === 'schedule') {
+      syncScheduleInputsFromAssignment()
+      setShowCreateScheduleModal(true)
+    }
+  }
 
   return (
     <>
@@ -621,7 +694,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {currentAssignment && !creating && (
+          {currentAssignment && !creating && !isCreateMode && (
             <div className="mb-4 rounded-md border border-border bg-surface-2 p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="space-y-1">
@@ -711,8 +784,78 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
             error={error}
             titleInputRef={titleInputRef}
             onBlur={flushAutosave}
+            footerContent={
+              isCreateMode && currentAssignment
+                ? (
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-h-[1.25rem] text-xs text-text-muted">
+                        {isScheduled && currentAssignment.released_at
+                          ? `Release: ${formatReleaseDate(currentAssignment.released_at)} (Toronto)`
+                          : ''}
+                      </div>
+                      <SplitButton
+                        label={createPrimaryLabel}
+                        onPrimaryClick={() => {
+                          void triggerCreatePrimaryAction()
+                        }}
+                        variant={createPrimaryAction === 'post' ? 'success' : 'primary'}
+                        size="sm"
+                        disabled={creating || releasing || saving || !currentAssignment}
+                        toggleAriaLabel="Choose assignment action"
+                        options={[
+                          {
+                            id: 'post',
+                            label: 'Post',
+                            onSelect: () => handleCreateActionSelection('post'),
+                          },
+                          {
+                            id: 'schedule',
+                            label: 'Schedule',
+                            onSelect: () => handleCreateActionSelection('schedule'),
+                          },
+                          {
+                            id: 'draft',
+                            label: 'Draft',
+                            onSelect: () => handleCreateActionSelection('draft'),
+                          },
+                        ]}
+                      />
+                    </div>
+                  )
+                : undefined
+            }
           />
         </div>
+      </DialogPanel>
+
+      <DialogPanel
+        isOpen={showCreateScheduleModal}
+        onClose={() => {
+          if (releasing) return
+          setShowCreateScheduleModal(false)
+        }}
+        maxWidth="max-w-sm"
+        className="p-4"
+        ariaLabelledBy="assignment-create-schedule-title"
+      >
+        <h3 id="assignment-create-schedule-title" className="text-sm font-semibold text-text-default mb-2">
+          Schedule Release
+        </h3>
+        <ScheduleDateTimePicker
+          date={scheduleDate}
+          time={scheduleTime}
+          minDate={getTodayInSchedulingTimezone()}
+          isFutureValid={isScheduleValid}
+          onDateChange={setScheduleDate}
+          onTimeChange={setScheduleTime}
+          onCancel={() => setShowCreateScheduleModal(false)}
+          onConfirm={() => {
+            void scheduleAssignmentRelease()
+          }}
+          confirmLabel={releasing ? 'Scheduling...' : 'Schedule'}
+          title="Release Time (Toronto)"
+          className="border-0 bg-transparent p-0 shadow-none"
+        />
       </DialogPanel>
 
       <ConfirmDialog

@@ -326,9 +326,11 @@ describe('AssignmentModal', () => {
         expect(screen.getByText('Edit Draft')).toBeInTheDocument()
       })
 
-      // Change the title and save
+      // Change the title and choose "Draft" action
       fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated Title' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -342,6 +344,60 @@ describe('AssignmentModal', () => {
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled()
         expect(onClose).toHaveBeenCalled()
+      })
+    })
+
+    it('opens schedule modal from split action and schedules release', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' }
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ assignment: newAssignment }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            assignment: { ...newAssignment, is_draft: false, released_at: '2099-03-01T14:00:00.000Z' },
+          }),
+        })
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Edit Draft')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
+
+      expect(screen.getByText('Schedule Release')).toBeInTheDocument()
+
+      const scheduleDialog = screen.getByRole('dialog', { name: 'Schedule Release' })
+      const scheduleScope = within(scheduleDialog)
+      fireEvent.change(scheduleScope.getByLabelText('Date (Toronto)'), { target: { value: '2099-03-01' } })
+      fireEvent.change(scheduleScope.getByLabelText('Time (Toronto)'), { target: { value: '09:00' } })
+      fireEvent.click(scheduleScope.getByRole('button', { name: 'Schedule' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+      })
+
+      const [url, options] = fetchMock.mock.calls[1]
+      expect(url).toBe('/api/teacher/assignments/new-draft-1/release')
+      expect(options.method).toBe('POST')
+      const payload = JSON.parse(options.body)
+      expect(payload.release_at).toBeDefined()
+
+      await waitFor(() => {
+        expect(screen.getByText(/Release:/)).toBeInTheDocument()
       })
     })
   })
