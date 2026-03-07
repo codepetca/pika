@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { countCharacters, countWords, isEmpty } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 
@@ -36,11 +37,18 @@ export async function POST(
     // Get assignment and verify enrollment
     const { data: assignment, error: assignmentError } = await supabase
       .from('assignments')
-      .select('classroom_id')
+      .select('classroom_id, is_draft, released_at')
       .eq('id', assignmentId)
       .single()
 
     if (assignmentError || !assignment) {
+      return NextResponse.json(
+        { error: 'Assignment not found' },
+        { status: 404 }
+      )
+    }
+
+    if (!isAssignmentVisibleToStudents(assignment)) {
       return NextResponse.json(
         { error: 'Assignment not found' },
         { status: 404 }

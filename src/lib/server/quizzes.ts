@@ -1,4 +1,5 @@
 import { getServiceRoleClient } from '@/lib/supabase'
+import { isVisibleAtNow } from '@/lib/scheduling'
 import type { QuizAssessmentType, QuizStatus } from '@/types'
 
 export type QuizAccessRecord = {
@@ -6,6 +7,7 @@ export type QuizAccessRecord = {
   classroom_id: string
   assessment_type?: QuizAssessmentType | null
   status: QuizStatus
+  opens_at: string | null
   title: string
   show_results: boolean
   position: number
@@ -22,6 +24,26 @@ export type QuizAccessRecord = {
 type AccessResult<T> =
   | { ok: true; quiz: T }
   | { ok: false; status: number; error: string }
+
+type QuizVisibilityRecord = {
+  status: QuizStatus
+  opens_at: string | null
+}
+
+export function isQuizVisibleToStudents(
+  quiz: QuizVisibilityRecord,
+  now: Date = new Date()
+): boolean {
+  if (quiz.status !== 'active') return false
+  return isVisibleAtNow(quiz.opens_at, now)
+}
+
+export function hasQuizOpened(
+  quiz: QuizVisibilityRecord,
+  now: Date = new Date()
+): boolean {
+  return quiz.status === 'active' && isVisibleAtNow(quiz.opens_at, now)
+}
 
 export async function assertTeacherOwnsQuiz(
   teacherId: string,

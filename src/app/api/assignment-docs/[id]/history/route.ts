@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -22,6 +23,8 @@ export async function GET(
       .select(`
         id,
         classroom_id,
+        is_draft,
+        released_at,
         classrooms!inner (
           id,
           teacher_id
@@ -41,6 +44,8 @@ export async function GET(
 
     const assignmentData = assignment as {
       classroom_id: string
+      is_draft: boolean
+      released_at: string | null
       classrooms: { teacher_id: string } | { teacher_id: string }[]
     }
 
@@ -63,6 +68,13 @@ export async function GET(
       }
       studentId = requestedStudentId
     } else {
+      if (!isAssignmentVisibleToStudents(assignmentData)) {
+        return NextResponse.json(
+          { error: 'Assignment not found' },
+          { status: 404 }
+        )
+      }
+
       const access = await assertStudentCanAccessClassroom(user.id, assignmentData.classroom_id)
       if (!access.ok) {
         return NextResponse.json(

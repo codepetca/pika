@@ -298,6 +298,7 @@ export interface Quiz {
   title: string
   assessment_type: QuizAssessmentType
   status: QuizStatus
+  opens_at: string | null
   show_results: boolean
   documents?: TestDocument[]
   position: number

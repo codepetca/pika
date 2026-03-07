@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, PenSquare, Trash2 } from 'lucide-react'
 import { formatDueDate } from '@/lib/assignments'
+import { isVisibleAtNow } from '@/lib/scheduling'
 import { Button, Tooltip } from '@/ui'
 import type { Assignment, AssignmentStats } from '@/types'
 
@@ -43,6 +44,10 @@ export function SortableAssignmentCard({
   }
 
   const isDraft = assignment.is_draft
+  const isScheduled =
+    !assignment.is_draft &&
+    !!assignment.released_at &&
+    !isVisibleAtNow(assignment.released_at)
 
   return (
     <div
@@ -52,11 +57,15 @@ export function SortableAssignmentCard({
         'w-full text-left p-3 border rounded-lg',
         isDraft
           ? 'border-border-strong bg-surface-2'
+          : isScheduled
+            ? 'border-warning bg-warning-bg'
           : 'border-border bg-surface',
         isDragging
           ? 'shadow-xl scale-[1.02] z-50 border-primary opacity-90'
           : isDraft
             ? 'transition hover:border-border-strong hover:bg-surface-hover'
+            : isScheduled
+              ? 'transition hover:border-warning hover:bg-warning-bg'
             : 'transition hover:border-primary hover:bg-info-bg',
       ].join(' ')}
     >
@@ -95,6 +104,17 @@ export function SortableAssignmentCard({
           <p className="text-xs text-text-muted">
             Due: {formatDueDate(assignment.due_at)}
           </p>
+          {isScheduled && assignment.released_at && (
+            <p className="text-xs text-warning">
+              Releases {new Date(assignment.released_at).toLocaleString('en-US', {
+                timeZone: 'America/Toronto',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </p>
+          )}
         </button>
 
         {/* Middle: Status */}
@@ -102,6 +122,10 @@ export function SortableAssignmentCard({
           {isDraft ? (
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-2 text-text-muted">
               Draft
+            </span>
+          ) : isScheduled ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-warning-bg text-warning">
+              Scheduled
             </span>
           ) : (
             <span className="text-sm text-text-muted">

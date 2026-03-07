@@ -4,6 +4,8 @@ import { requireRole } from '@/lib/auth'
 import { getTodayInToronto } from '@/lib/timezone'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
+import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
+import { isQuizVisibleToStudents } from '@/lib/server/quizzes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -83,10 +85,9 @@ export async function GET(request: NextRequest) {
     // Get all assignments for this classroom
     const { data: assignments, error: assignmentsError } = await supabase
       .from('assignments')
-      .select('id')
+      .select('id,released_at')
       .eq('classroom_id', classroomId)
       .eq('is_draft', false)
-      .not('released_at', 'is', null)
 
     if (assignmentsError) {
       console.error('Error fetching assignments:', assignmentsError)
@@ -98,7 +99,11 @@ export async function GET(request: NextRequest) {
 
     // Count unviewed assignments
     let unviewedCount = 0
-    const assignmentIds = assignments?.map((a) => a.id) || []
+    const assignmentIds = (assignments || [])
+      .filter((a: { is_draft?: boolean; released_at?: string | null }) =>
+        isAssignmentVisibleToStudents({ is_draft: false, released_at: a.released_at ?? null })
+      )
+      .map((a: { id: string }) => a.id)
 
     if (assignmentIds.length > 0) {
       // Get this student's docs for these assignments
@@ -134,21 +139,49 @@ export async function GET(request: NextRequest) {
     ): Promise<{ count: number; error: boolean }> {
       const tolerateMissingTable = opts?.tolerateMissingTable === true
 
-      const { data: activeRows, error: activeError } = await supabase
-        .from(table)
-        .select('id')
-        .eq('classroom_id', classroomId)
-        .eq('status', 'active')
+      let activeIds: string[] = []
 
-      if (activeError) {
-        if (tolerateMissingTable && activeError.code === 'PGRST205') {
-          return { count: 0, error: false }
+      if (table === 'quizzes') {
+        const { data: activeRows, error: activeError } = await supabase
+          .from('quizzes')
+          .select('id,opens_at')
+          .eq('classroom_id', classroomId)
+          .eq('status', 'active')
+
+        if (activeError) {
+          if (tolerateMissingTable && activeError.code === 'PGRST205') {
+            return { count: 0, error: false }
+          }
+          console.error(`Error fetching ${table}:`, activeError)
+          return { count: 0, error: true }
         }
-        console.error(`Error fetching ${table}:`, activeError)
-        return { count: 0, error: true }
+
+        activeIds = (activeRows || [])
+          .filter((row) =>
+            isQuizVisibleToStudents({
+              status: 'active',
+              opens_at: row.opens_at ?? null,
+            })
+          )
+          .map((row) => row.id)
+      } else {
+        const { data: activeRows, error: activeError } = await supabase
+          .from('tests')
+          .select('id')
+          .eq('classroom_id', classroomId)
+          .eq('status', 'active')
+
+        if (activeError) {
+          if (tolerateMissingTable && activeError.code === 'PGRST205') {
+            return { count: 0, error: false }
+          }
+          console.error(`Error fetching ${table}:`, activeError)
+          return { count: 0, error: true }
+        }
+
+        activeIds = (activeRows || []).map((row) => row.id)
       }
 
-      const activeIds = activeRows?.map((row) => row.id) || []
       if (activeIds.length === 0) {
         return { count: 0, error: false }
       }

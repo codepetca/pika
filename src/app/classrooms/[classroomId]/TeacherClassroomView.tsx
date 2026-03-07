@@ -46,6 +46,7 @@ import {
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
+import { isVisibleAtNow } from '@/lib/scheduling'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
 import {
   DataTable,
@@ -136,6 +137,10 @@ function formatTorontoDateShort(iso: string) {
     month: 'short',
     day: 'numeric',
   })
+}
+
+function isScheduledAssignment(assignment: Assignment): boolean {
+  return !assignment.is_draft && !!assignment.released_at && !isVisibleAtNow(assignment.released_at)
 }
 
 function getRowClassName(isSelected: boolean): string {
@@ -359,8 +364,8 @@ export function TeacherClassroomView({
       setSelection({ mode: 'summary' })
       return
     }
-    // Draft assignments should open edit modal instead of detail view
-    if (assignment.is_draft) {
+    // Draft/scheduled assignments open the editor for release controls.
+    if (assignment.is_draft || isScheduledAssignment(assignment)) {
       setEditAssignment(assignment)
       setSelection({ mode: 'summary' })
     } else {
@@ -384,8 +389,8 @@ export function TeacherClassroomView({
         setSelection({ mode: 'summary' })
         return
       }
-      // Draft assignments should open edit modal instead of detail view
-      if (assignment.is_draft) {
+      // Draft/scheduled assignments open the editor for release controls.
+      if (assignment.is_draft || isScheduledAssignment(assignment)) {
         setEditAssignment(assignment)
         setSelection({ mode: 'summary' })
       } else {
@@ -879,8 +884,8 @@ export function TeacherClassroomView({
                       isReadOnly={isReadOnly}
                       isDragDisabled={isReordering}
                       onSelect={() => {
-                        // Draft assignments open edit modal instead of detail view
-                        if (assignment.is_draft) {
+                        // Draft/scheduled assignments open edit modal instead of detail view
+                        if (assignment.is_draft || isScheduledAssignment(assignment)) {
                           setEditAssignment(assignment)
                         } else {
                           setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })
