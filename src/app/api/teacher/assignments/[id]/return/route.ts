@@ -42,42 +42,24 @@ export async function POST(
     }
 
     const now = new Date().toISOString()
+    const { data: rpcData, error: rpcError } = await supabase.rpc('return_assignment_docs_atomic', {
+      p_assignment_id: id,
+      p_student_ids: student_ids,
+      p_teacher_id: user.id,
+      p_now: now,
+    })
 
-    // Only return docs that have been graded (graded_at is set)
-    const { data: docs, error: fetchError } = await supabase
-      .from('assignment_docs')
-      .select('id, student_id, graded_at, returned_at')
-      .eq('assignment_id', id)
-      .in('student_id', student_ids)
-
-    if (fetchError) {
-      console.error('Error fetching docs for return:', fetchError)
-      return NextResponse.json({ error: 'Failed to fetch student docs' }, { status: 500 })
+    if (rpcError) {
+      console.error('Error returning assignment docs:', rpcError)
+      return NextResponse.json({ error: 'Failed to return docs' }, { status: 500 })
     }
 
-    const eligibleIds = (docs || [])
-      .filter((d) => d.graded_at !== null)
-      .map((d) => d.id)
-
-    const skippedCount = student_ids.length - eligibleIds.length
-
-    if (eligibleIds.length > 0) {
-      const { error: updateError } = await supabase
-        .from('assignment_docs')
-        .update({
-          returned_at: now,
-          is_submitted: false,
-        })
-        .in('id', eligibleIds)
-
-      if (updateError) {
-        console.error('Error returning docs:', updateError)
-        return NextResponse.json({ error: 'Failed to return docs' }, { status: 500 })
-      }
-    }
+    const resultRow = Array.isArray(rpcData) ? rpcData[0] : rpcData
+    const returnedCount = Number(resultRow?.returned_count ?? 0)
+    const skippedCount = Number(resultRow?.skipped_count ?? Math.max(student_ids.length - returnedCount, 0))
 
     return NextResponse.json({
-      returned_count: eligibleIds.length,
+      returned_count: returnedCount,
       skipped_count: skippedCount,
     })
   } catch (error: any) {

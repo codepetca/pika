@@ -138,4 +138,106 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
     const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
     expect(response.status).toBe(400)
   })
+
+  it('saves as draft when save_mode is draft (clears graded fields)', async () => {
+    let capturedUpsertPayload: Record<string, unknown> | null = null
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assignment-1',
+                  classroom_id: 'classroom-1',
+                  classrooms: { teacher_id: 'teacher-1' },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'enroll-1' }, error: null }),
+              })),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return {
+          upsert: vi.fn((payload: Record<string, unknown>) => {
+            capturedUpsertPayload = payload
+            return {
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'doc-1',
+                    assignment_id: 'assignment-1',
+                    student_id: 'student-1',
+                    score_completion: 6,
+                    score_thinking: 7,
+                    score_workflow: 8,
+                    feedback: 'Draft feedback',
+                    graded_at: null,
+                    graded_by: null,
+                  },
+                  error: null,
+                }),
+              })),
+            }
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_id: 'student-1',
+        score_completion: 6,
+        score_thinking: 7,
+        score_workflow: 8,
+        feedback: 'Draft feedback',
+        save_mode: 'draft',
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(capturedUpsertPayload?.graded_at).toBeNull()
+    expect(capturedUpsertPayload?.graded_by).toBeNull()
+    expect(body.doc.graded_at).toBeNull()
+  })
+
+  it('returns 400 for invalid save_mode', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_id: 'student-1',
+        score_completion: 6,
+        score_thinking: 7,
+        score_workflow: 8,
+        feedback: 'Feedback',
+        save_mode: 'invalid',
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    expect(response.status).toBe(400)
+  })
 })

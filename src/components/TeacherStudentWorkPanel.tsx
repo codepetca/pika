@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { Button, RefreshingIndicator, Tooltip } from '@/ui'
+import { Button, RefreshingIndicator, Select, Tooltip } from '@/ui'
 import { RichTextViewer } from '@/components/editor'
 import { HistoryList } from '@/components/HistoryList'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
@@ -121,6 +121,7 @@ interface TeacherStudentWorkPanelProps {
 }
 
 type RightTab = 'history' | 'grading'
+type GradeSaveMode = 'draft' | 'graded'
 const RIGHT_TAB_COOKIE_PREFIX = 'pika_teacher_student_work_tab'
 
 function getRightTabCookieName(classroomId: string) {
@@ -153,6 +154,7 @@ export function TeacherStudentWorkPanel({
   const [scoreThinking, setScoreThinking] = useState<string>('')
   const [scoreWorkflow, setScoreWorkflow] = useState<string>('')
   const [feedback, setFeedback] = useState<string>('')
+  const [saveMode, setSaveMode] = useState<GradeSaveMode>('draft')
   const [gradeSaving, setGradeSaving] = useState(false)
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
@@ -199,16 +201,18 @@ export function TeacherStudentWorkPanel({
   }
 
   function populateGradeForm(doc: AssignmentDoc | null) {
-    if (doc?.graded_at) {
+    if (doc) {
       setScoreCompletion(doc.score_completion?.toString() ?? '')
       setScoreThinking(doc.score_thinking?.toString() ?? '')
       setScoreWorkflow(doc.score_workflow?.toString() ?? '')
       setFeedback(doc.feedback ?? '')
+      setSaveMode(doc.graded_at ? 'graded' : 'draft')
     } else {
       setScoreCompletion('')
       setScoreThinking('')
       setScoreWorkflow('')
       setFeedback('')
+      setSaveMode('draft')
     }
   }
 
@@ -266,6 +270,7 @@ export function TeacherStudentWorkPanel({
 
   async function handleSaveGrade() {
     if (!data) return
+    const selectedSaveMode = saveMode
     const sc = Number(scoreCompletion)
     const st = Number(scoreThinking)
     const sw = Number(scoreWorkflow)
@@ -303,7 +308,12 @@ export function TeacherStudentWorkPanel({
       score_thinking: st,
       score_workflow: sw,
       feedback,
-      graded_at: previousDoc?.graded_at || new Date().toISOString(),
+      graded_at: selectedSaveMode === 'graded'
+        ? (previousDoc?.graded_at || new Date().toISOString())
+        : null,
+      graded_by: selectedSaveMode === 'graded'
+        ? (previousDoc?.graded_by || 'teacher')
+        : null,
       updated_at: new Date().toISOString(),
     }
     setData((prev) => (prev ? { ...prev, doc: optimisticDoc } : prev))
@@ -317,6 +327,7 @@ export function TeacherStudentWorkPanel({
           score_thinking: st,
           score_workflow: sw,
           feedback,
+          save_mode: selectedSaveMode,
         }),
       })
       const result = await res.json()
@@ -544,6 +555,16 @@ export function TeacherStudentWorkPanel({
                 <Button size="sm" variant="secondary" className="flex-1" onClick={handleAutoGrade} disabled={autoGrading}>
                   {autoGrading ? 'Grading...' : 'AI grade'}
                 </Button>
+                <Select
+                  className="h-8 w-[7.5rem] px-2 py-1 text-xs"
+                  aria-label="Save mode"
+                  value={saveMode}
+                  onChange={(event) => setSaveMode(event.target.value as GradeSaveMode)}
+                  options={[
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'graded', label: 'Graded' },
+                  ]}
+                />
                 <Button size="sm" className="flex-1" onClick={handleSaveGrade} disabled={gradeSaving}>
                   {gradeSaving ? 'Saving...' : 'Save'}
                 </Button>

@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable'
 import {
   Check,
+  CheckCircle2,
   Circle,
   Clock,
   Pencil,
@@ -168,8 +169,10 @@ function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: b
       break
     case 'submitted_on_time':
     case 'submitted_late':
-    case 'graded':
       icon = <Check className={cls} />
+      break
+    case 'graded':
+      icon = <CheckCircle2 className={cls} />
       break
     case 'returned':
       icon = <Send className={cls} />
@@ -540,7 +543,14 @@ export function TeacherClassroomView({
     if (!selectedAssignmentData) return 0
     let graded = 0
     for (const student of selectedAssignmentData.students) {
-      if (batchSelectedIds.has(student.student_id) && student.doc?.graded_at) {
+      const doc = student.doc
+      const hasDraftScores = !!(
+        doc &&
+        doc.score_completion != null &&
+        doc.score_thinking != null &&
+        doc.score_workflow != null
+      )
+      if (batchSelectedIds.has(student.student_id) && (doc?.graded_at || hasDraftScores)) {
         graded += 1
       }
     }
@@ -1046,7 +1056,7 @@ export function TeacherClassroomView({
       <ConfirmDialog
         isOpen={showReturnConfirm}
         title={`Return work to ${batchSelectedCount} selected student(s)?`}
-        description={`Eligible to return now: ${batchSelectedGradedCount} graded${batchSelectedUngradedCount > 0 ? ` • ${batchSelectedUngradedCount} ungraded will be skipped` : ''}`}
+        description={`Eligible to return now: ${batchSelectedGradedCount} ready (graded or draft-scored)${batchSelectedUngradedCount > 0 ? ` • ${batchSelectedUngradedCount} incomplete will be skipped` : ''}`}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
         isConfirmDisabled={isReturning}

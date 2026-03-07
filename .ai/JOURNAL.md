@@ -5201,3 +5201,85 @@
 - Auto-grade compatibility addendum: when `test_attempts` is unavailable (`PGRST205`), submitted-student eligibility now falls back to `test_responses.submitted_at` so grading still works in legacy schemas.
 - Consistency safeguard: when close finalization fails, both close paths now attempt rollback to `active` (`tests/[id]` and `tests/[id]/return` close_test flow) to avoid partial close state.
 - Added rollback tests in `tests-id-route.test.ts` and `tests-return.test.ts`.
+
+## 2026-03-05 — Issue #348 draft grading + auto-finalize on return
+**Context:** Added a true draft grading workflow so teachers can save comments/scores without marking work graded, and ensured return-to-student finalizes draft-scored work automatically.
+
+**Changes:**
+- Updated `/src/app/api/teacher/assignments/[id]/grade/route.ts`:
+  - Added optional `save_mode` (`draft` | `graded`) validation.
+  - `save_mode=draft` now persists rubric scores/feedback while clearing `graded_at` and `graded_by`.
+  - Existing callers without `save_mode` keep prior behavior (treated as graded).
+- Updated `/src/app/api/teacher/assignments/[id]/return/route.ts`:
+  - Return eligibility now includes draft-scored docs with all rubric scores.
+  - Draft-scored docs are auto-finalized (`graded_at`/`graded_by`) when returned.
+- Updated `/src/components/TeacherStudentWorkPanel.tsx`:
+  - Added grading save-mode dropdown (`Draft`, `Graded`) beside Save button.
+  - Save payload now includes `save_mode`.
+  - Grade form now rehydrates scores/feedback for draft-saved docs (previously only graded docs prefilled).
+- Updated `/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`:
+  - Status icon for `graded` changed to circled check (`CheckCircle2`).
+  - Submitted/draft states continue to use uncircled check.
+  - Return confirmation eligibility text/count now includes draft-scored docs.
+- Added/updated tests:
+  - `/tests/api/teacher/assignments-id-grade.test.ts`
+  - `/tests/api/teacher/assignments-id-return.test.ts` (new)
+  - `/tests/components/TeacherStudentWorkPanel.test.tsx`
+
+**Verification:**
+- `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm test`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/issue348-teacher-classrooms.png`
+- Student screenshot: `/tmp/issue348-student-classrooms.png`
+
+## 2026-03-06 — PR #374 review fixes (atomic return + grader attribution)
+**Context:** Addressed code review findings on issue #348 PR regarding partial commits in assignment return flow and missing grader attribution.
+
+**Changes:**
+- Updated `/src/app/api/teacher/assignments/[id]/return/route.ts`:
+  - Replaced two-step update logic with a single atomic RPC call (`return_assignment_docs_atomic`).
+  - Preserved grader attribution by passing `p_teacher_id` (`user.id`) to the RPC for draft auto-finalization.
+- Added migration `/supabase/migrations/043_assignment_return_atomic_rpc.sql`:
+  - Creates `public.return_assignment_docs_atomic(...)` PL/pgSQL function.
+  - Performs eligibility detection + finalize/return in one transactional update statement.
+  - Returns `{ returned_count, skipped_count }`.
+- Updated `/tests/api/teacher/assignments-id-return.test.ts`:
+  - Switched to RPC-based assertions.
+  - Added failure-path test for RPC errors.
+
+**Verification:**
+- `pnpm test tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-grade.test.ts`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+
+**Note:** Migration `043_assignment_return_atomic_rpc.sql` must be applied manually by a human.
+
+## 2026-03-06 — Rebased issue #348 branch and resequenced migration filename
+**Context:** Synced `codex/348-draft-grade-status` with latest `origin/main` and resolved migration numbering collision.
+
+**Changes:**
+- Rebased branch onto `origin/main` (clean rebase, no conflicts).
+- Renamed migration to avoid collision with new main migration:
+  - `supabase/migrations/043_assignment_return_atomic_rpc.sql`
+  - -> `supabase/migrations/044_assignment_return_atomic_rpc.sql`
+
+**Verification:**
+- `pnpm test tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-grade.test.ts`
+- `pnpm lint`
+
+**Note:** Human still needs to apply migration `044_assignment_return_atomic_rpc.sql`.
+
+## 2026-03-07 — Rebased #348 branch again and resequenced migration to 046
+**Context:** Synced branch with latest `origin/main` and resolved new migration-number collision after upstream added migration 045.
+
+**Changes:**
+- Rebased `codex/348-draft-grade-status` onto `origin/main`.
+- Renamed migration:
+  - `supabase/migrations/044_assignment_return_atomic_rpc.sql`
+  - -> `supabase/migrations/046_assignment_return_atomic_rpc.sql`
+
+**Verification:**
+- Confirmed no duplicate migration prefixes in `supabase/migrations/`.
+
+**Note:** Human must apply migration `046_assignment_return_atomic_rpc.sql` manually.

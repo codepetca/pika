@@ -18,6 +18,15 @@ vi.mock('@/components/HistoryList', () => ({
 
 vi.mock('@/ui', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  Select: ({ options, ...props }: any) => (
+    <select {...props}>
+      {options.map((option: { value: string; label: string }) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  ),
   Tooltip: ({ children }: any) => <>{children}</>,
   RefreshingIndicator: ({ label = 'Refreshing...' }: { label?: string }) => <div>{label}</div>,
 }))
@@ -63,8 +72,11 @@ function makeStudentWork(studentId: string, opts: { graded: boolean }) {
   }
 }
 
-function mockFetchByStudent(studentMap: Record<string, { graded: boolean }>) {
-  ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+function mockFetchByStudent(
+  studentMap: Record<string, { graded: boolean }>,
+  options?: { onGradeSave?: (body: Record<string, unknown>) => void }
+) {
+  ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
 
     if (url.includes('/api/teacher/assignments/') && url.includes('/students/')) {
@@ -81,6 +93,26 @@ function mockFetchByStudent(studentMap: Record<string, { graded: boolean }>) {
       return Promise.resolve({
         ok: true,
         json: async () => makeStudentWork(studentId, config),
+      })
+    }
+
+    if (url.includes('/api/teacher/assignments/') && url.includes('/grade') && init?.method === 'POST') {
+      const body = JSON.parse(String(init.body || '{}')) as Record<string, unknown>
+      options?.onGradeSave?.(body)
+      const isGraded = body.save_mode === 'graded'
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          doc: {
+            ...makeStudentWork('student-1', { graded: isGraded }).doc,
+            score_completion: Number(body.score_completion ?? 0),
+            score_thinking: Number(body.score_thinking ?? 0),
+            score_workflow: Number(body.score_workflow ?? 0),
+            feedback: String(body.feedback ?? ''),
+            graded_at: isGraded ? '2026-02-20T13:00:00Z' : null,
+            graded_by: isGraded ? 'teacher' : null,
+          },
+        }),
       })
     }
 
@@ -204,5 +236,54 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
 
     expect(await screen.findByText('No saves yet')).toBeInTheDocument()
     expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
+  })
+
+  it('saves as draft by default', async () => {
+    const savedBodies: Array<Record<string, unknown>> = []
+    mockFetchByStudent(
+      {
+        'student-1': { graded: false },
+      },
+      {
+        onGradeSave: (body) => savedBodies.push(body),
+      }
+    )
+
+    const user = userEvent.setup()
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
+
+    await user.click(await screen.findByRole('button', { name: 'Grading' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(savedBodies).toHaveLength(1)
+    })
+    expect(savedBodies[0].save_mode).toBe('draft')
+    expect(screen.queryByText(/^Graded /)).not.toBeInTheDocument()
+  })
+
+  it('saves as graded when selected from save mode dropdown', async () => {
+    const savedBodies: Array<Record<string, unknown>> = []
+    mockFetchByStudent(
+      {
+        'student-1': { graded: false },
+      },
+      {
+        onGradeSave: (body) => savedBodies.push(body),
+      }
+    )
+
+    const user = userEvent.setup()
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
+
+    await user.click(await screen.findByRole('button', { name: 'Grading' }))
+    await user.selectOptions(screen.getByLabelText('Save mode'), 'graded')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(savedBodies).toHaveLength(1)
+    })
+    expect(savedBodies[0].save_mode).toBe('graded')
+    expect(await screen.findByText(/^Graded /)).toBeInTheDocument()
   })
 })
