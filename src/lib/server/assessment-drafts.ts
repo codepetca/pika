@@ -425,7 +425,7 @@ export async function syncQuizQuestionsFromDraft(
     return { ok: false, status: 500, error: 'Failed to load quiz questions for sync' }
   }
 
-  const existingIds = new Set((existingRows || []).map((row: { id: string }) => row.id))
+  const existingIds = new Set<string>((existingRows || []).map((row: { id: string }) => row.id))
   const nextIds = new Set(content.questions.map((question) => question.id))
 
   for (const [position, question] of content.questions.entries()) {
@@ -492,7 +492,7 @@ export async function syncTestQuestionsFromDraft(
     return { ok: false, status: 500, error: 'Failed to load test questions for sync' }
   }
 
-  const existingIds = new Set((existingRows || []).map((row: { id: string }) => row.id))
+  const existingIds = new Set<string>((existingRows || []).map((row: { id: string }) => row.id))
   const nextIds = new Set(content.questions.map((question) => question.id))
 
   for (const [position, question] of content.questions.entries()) {

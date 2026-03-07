@@ -42,6 +42,7 @@ interface Props {
   classroomId: string
   apiBasePath?: string
   onQuizUpdate: () => void
+  onRequestDelete?: () => void
 }
 
 export function QuizDetailPanel({
@@ -49,6 +50,7 @@ export function QuizDetailPanel({
   classroomId,
   apiBasePath = '/api/teacher/quizzes',
   onQuizUpdate,
+  onRequestDelete,
 }: Props) {
   void classroomId
   const AUTOSAVE_DEBOUNCE_MS = 3000
@@ -626,6 +628,17 @@ export function QuizDetailPanel({
         >
           Results ({quiz.stats.responded})
         </button>
+        {isTestsView && onRequestDelete ? (
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            onClick={onRequestDelete}
+            className="ml-auto mr-3 h-8 self-center px-3 font-semibold"
+          >
+            Delete Test
+          </Button>
+        ) : null}
       </div>
 
       {/* Content */}
