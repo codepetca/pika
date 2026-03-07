@@ -35,18 +35,40 @@ describe('QuizDetailPanel', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
 
-  function mockFetchForQuiz(questions: QuizQuestion[], results?: QuizResultsAggregate[]) {
+  function mockFetchForQuiz(
+    questions: QuizQuestion[],
+    results?: QuizResultsAggregate[],
+    draftOverrides?: {
+      title?: string
+      show_results?: boolean
+      version?: number
+    }
+  ) {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-    // First call: GET quiz details (questions)
+    const draftContent: Record<string, unknown> = { questions }
+    if (typeof draftOverrides?.title === 'string') {
+      draftContent.title = draftOverrides.title
+    }
+    if (typeof draftOverrides?.show_results === 'boolean') {
+      draftContent.show_results = draftOverrides.show_results
+    }
+
+    // First call: GET assessment draft
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ questions }),
+      json: async () => ({
+        draft: {
+          version: draftOverrides?.version ?? 1,
+          content: draftContent,
+        },
+      }),
     })
-    // Second call (if results provided): GET quiz results
+    // Second call (if results provided): GET assessment results
     if (results) {
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -97,6 +119,19 @@ describe('QuizDetailPanel', () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Docs Test',
+              show_results: true,
+              questions: sampleQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
           quiz: {
             documents: [
               { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
@@ -128,6 +163,19 @@ describe('QuizDetailPanel', () => {
 
     it('renders Documents tab before Preview in tests', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Docs Tab Order Test',
+              show_results: true,
+              questions: sampleQuestions,
+            },
+          },
+        }),
+      })
       fetchMock.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -385,15 +433,20 @@ describe('QuizDetailPanel', () => {
       fetchMock
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ questions: [] }),
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Draft Test',
+                show_results: true,
+                questions: [],
+              },
+            },
+          }),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: async () => ({ question: { id: 'new-question-id' } }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ questions: [] }),
+          json: async () => ({}),
         })
 
       const testQuiz = makeQuizWithStats({
@@ -418,15 +471,14 @@ describe('QuizDetailPanel', () => {
       fireEvent.click(screen.getByText('Add MC Question'))
 
       await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith(
-          expect.stringContaining('/api/teacher/tests/'),
-          expect.objectContaining({ method: 'POST' })
-        )
+        expect(screen.getByText('Questions (1)')).toBeInTheDocument()
       })
 
-      const postCall = fetchMock.mock.calls.find((call: any[]) => call[1]?.method === 'POST')
-      const postBody = JSON.parse(postCall?.[1]?.body ?? '{}')
-      expect(postBody.question_text).toBe('')
+      const promptField = screen.getByPlaceholderText('Question prompt') as HTMLTextAreaElement
+      expect(promptField.value).toBe('')
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+
+      expect(fetchMock.mock.calls.some((call: any[]) => call[1]?.method === 'POST')).toBe(false)
     })
 
     it('adds a link document and sends documents payload to tests PATCH endpoint', async () => {
@@ -435,8 +487,20 @@ describe('QuizDetailPanel', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Doc Save Test',
+                show_results: true,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
             quiz: { documents: [] },
-            questions: sampleQuestions,
           }),
         })
         .mockResolvedValueOnce({
@@ -452,12 +516,24 @@ describe('QuizDetailPanel', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
+            draft: {
+              version: 2,
+              content: {
+                title: 'Doc Save Test',
+                show_results: true,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
             quiz: {
               documents: [
                 { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
               ],
             },
-            questions: sampleQuestions,
           }),
         })
 
@@ -511,8 +587,20 @@ describe('QuizDetailPanel', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Doc Text Save Test',
+                show_results: true,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
             quiz: { documents: [] },
-            questions: sampleQuestions,
           }),
         })
         .mockResolvedValueOnce({
@@ -533,6 +621,19 @@ describe('QuizDetailPanel', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
+            draft: {
+              version: 2,
+              content: {
+                title: 'Doc Text Save Test',
+                show_results: true,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
             quiz: {
               documents: [
                 {
@@ -543,7 +644,6 @@ describe('QuizDetailPanel', () => {
                 },
               ],
             },
-            questions: sampleQuestions,
           }),
         })
 
@@ -685,10 +785,19 @@ describe('QuizDetailPanel', () => {
 
     it('shows individual responses section for teacher', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-      // Quiz details
+      // Quiz draft
       fetchMock.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ questions: sampleQuestions }),
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Untitled Quiz',
+              show_results: true,
+              questions: sampleQuestions,
+            },
+          },
+        }),
       })
       // Results
       fetchMock.mockResolvedValueOnce({
@@ -760,7 +869,11 @@ describe('QuizDetailPanel', () => {
           (call: any[]) => call[1]?.method === 'PATCH'
         )
         expect(patchCall).toBeTruthy()
-        expect(JSON.parse(patchCall![1].body)).toEqual({ title: 'New Title' })
+        expect(String(patchCall?.[0])).toContain('/draft')
+        const patchBody = JSON.parse(patchCall?.[1]?.body ?? '{}')
+        expect(patchBody.version).toBe(1)
+        const payload = JSON.stringify(patchBody.content ?? patchBody.patch ?? {})
+        expect(payload).toContain('New Title')
       })
     })
 

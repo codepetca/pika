@@ -4,6 +4,11 @@ import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
+import {
+  isMissingAssessmentDraftsError,
+  validateTestDraftContent,
+  type TestDraftContent,
+} from '@/lib/server/assessment-drafts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -106,14 +111,41 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const draftByTestId: Record<string, TestDraftContent> = {}
+    if (testIds.length > 0) {
+      try {
+        const { data: draftRows, error: draftError } = await supabase
+          .from('assessment_drafts')
+          .select('assessment_id, content')
+          .eq('assessment_type', 'test')
+          .in('assessment_id', testIds)
+
+        if (draftError && !isMissingAssessmentDraftsError(draftError)) {
+          console.error('Error fetching test draft overlays:', draftError)
+        }
+
+        for (const row of draftRows || []) {
+          const parsed = validateTestDraftContent(row.content, {
+            allowEmptyQuestionText: true,
+          })
+          if (!parsed.valid) continue
+          draftByTestId[row.assessment_id] = parsed.value
+        }
+      } catch {
+        // Older test mocks may not implement this table query yet.
+      }
+    }
+
     const testsWithStats = (tests || []).map((test) => ({
       ...test,
+      title: draftByTestId[test.id]?.title ?? test.title,
+      show_results: draftByTestId[test.id]?.show_results ?? test.show_results,
       assessment_type: 'test' as const,
       documents: normalizeTestDocuments((test as { documents?: unknown }).documents),
       stats: {
         total_students: totalStudents || 0,
         responded: respondentCountMap[test.id] || 0,
-        questions_count: questionCountMap[test.id] || 0,
+        questions_count: (draftByTestId[test.id]?.questions.length ?? questionCountMap[test.id]) || 0,
       },
     }))
 

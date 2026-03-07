@@ -5,6 +5,15 @@ import { canActivateQuiz } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { normalizeTestDocuments, validateTestDocumentsPayload } from '@/lib/test-documents'
+import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
+import {
+  getAssessmentDraftByType,
+  isMissingAssessmentDraftsError,
+  syncTestQuestionsFromDraft,
+  updateAssessmentDraft,
+  validateTestDraftContent,
+  type TestDraftContent,
+} from '@/lib/server/assessment-drafts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -36,14 +45,52 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
     }
 
+    let title = test.title
+    let showResults = test.show_results
+    let responseQuestions = questions || []
+
+    const { draft, error: draftError } = await getAssessmentDraftByType<TestDraftContent>(
+      supabase,
+      'test',
+      id
+    )
+
+    if (draftError && !isMissingAssessmentDraftsError(draftError)) {
+      console.error('Error fetching test draft overlay:', draftError)
+    }
+
+    if (draft) {
+      const validated = validateTestDraftContent(draft.content, {
+        allowEmptyQuestionText: true,
+      })
+      if (validated.valid) {
+        title = validated.value.title
+        showResults = validated.value.show_results
+        responseQuestions = validated.value.questions.map((question, index) => ({
+          id: question.id,
+          test_id: id,
+          question_type: question.question_type,
+          question_text: question.question_text,
+          options: question.options,
+          correct_option: question.correct_option,
+          points: question.points,
+          response_max_chars: question.response_max_chars,
+          response_monospace: question.response_monospace,
+          position: index,
+          created_at: test.created_at,
+          updated_at: test.updated_at,
+        }))
+      }
+    }
+
     return NextResponse.json({
       quiz: {
         id: test.id,
         classroom_id: test.classroom_id,
-        title: test.title,
+        title,
         assessment_type: 'test' as const,
         status: test.status,
-        show_results: test.show_results,
+        show_results: showResults,
         documents: normalizeTestDocuments(test.documents),
         position: test.position,
         points_possible: test.points_possible,
@@ -52,7 +99,7 @@ export async function GET(
         created_at: test.created_at,
         updated_at: test.updated_at,
       },
-      questions: questions || [],
+      questions: responseQuestions,
       classroom: test.classrooms,
     })
   } catch (error: any) {
@@ -101,6 +148,42 @@ export async function PATCH(
     }
 
     if (status === 'active' && existing.status === 'draft') {
+      const { draft, error: draftError } = await getAssessmentDraftByType<TestDraftContent>(
+        supabase,
+        'test',
+        id
+      )
+
+      if (draftError && !isMissingAssessmentDraftsError(draftError)) {
+        console.error('Error loading test draft for activation:', draftError)
+        return NextResponse.json({ error: 'Failed to load draft for activation' }, { status: 500 })
+      }
+
+      if (draft) {
+        const validatedDraft = validateTestDraftContent(draft.content)
+        if (!validatedDraft.valid) {
+          return NextResponse.json({ error: validatedDraft.error }, { status: 400 })
+        }
+
+        const syncResult = await syncTestQuestionsFromDraft(supabase, id, validatedDraft.value)
+        if (!syncResult.ok) {
+          return NextResponse.json({ error: syncResult.error }, { status: syncResult.status })
+        }
+
+        const { error: metaError } = await supabase
+          .from('tests')
+          .update({
+            title: validatedDraft.value.title,
+            show_results: validatedDraft.value.show_results,
+          })
+          .eq('id', id)
+
+        if (metaError) {
+          console.error('Error syncing test metadata from draft during activation:', metaError)
+          return NextResponse.json({ error: 'Failed to sync test draft metadata' }, { status: 500 })
+        }
+      }
+
       const { data: questions, error: questionsError } = await supabase
         .from('test_questions')
         .select(
@@ -143,6 +226,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'show_results must be a boolean' }, { status: 400 })
     }
 
+    const shouldFinalizeOnClose = status === 'closed' && existing.status === 'active'
+
     const updates: Record<string, any> = {}
     if (title !== undefined) updates.title = title.trim()
     if (status !== undefined) updates.status = status
@@ -178,6 +263,63 @@ export async function PATCH(
       }
       console.error('Error updating test:', error)
       return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
+    }
+
+    if (shouldFinalizeOnClose) {
+      const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, id)
+      if (!finalizeResult.ok) {
+        const { error: reopenError } = await supabase
+          .from('tests')
+          .update({ status: 'active' })
+          .eq('id', id)
+          .eq('status', 'closed')
+
+        if (reopenError) {
+          console.error('Error reopening test after close finalization failure:', reopenError)
+        }
+
+        return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
+      }
+    }
+
+    if (title !== undefined || show_results !== undefined) {
+      const { draft, error: draftError } = await getAssessmentDraftByType<TestDraftContent>(
+        supabase,
+        'test',
+        id
+      )
+
+      if (draftError && !isMissingAssessmentDraftsError(draftError)) {
+        console.error('Error loading test draft for metadata sync:', draftError)
+      }
+
+      if (draft) {
+        const validatedDraft = validateTestDraftContent(draft.content, {
+          allowEmptyQuestionText: true,
+        })
+        if (validatedDraft.valid) {
+          const nextContent = {
+            ...validatedDraft.value,
+            title: title !== undefined ? (updates.title as string) : validatedDraft.value.title,
+            show_results:
+              show_results !== undefined
+                ? (updates.show_results as boolean)
+                : validatedDraft.value.show_results,
+          }
+
+          const { error: draftUpdateError } = await updateAssessmentDraft(
+            supabase,
+            draft.id,
+            draft.version + 1,
+            user.id,
+            nextContent
+          )
+
+          if (draftUpdateError) {
+            console.error('Error syncing test draft metadata after patch:', draftUpdateError)
+          }
+        }
+      }
     }
 
     return NextResponse.json({

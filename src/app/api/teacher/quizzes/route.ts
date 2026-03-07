@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import {
+  isMissingAssessmentDraftsError,
+  validateQuizDraftContent,
+  type QuizDraftContent,
+} from '@/lib/server/assessment-drafts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -78,13 +83,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const draftByQuizId: Record<string, QuizDraftContent> = {}
+    if (quizIds.length > 0) {
+      try {
+        const { data: draftRows, error: draftError } = await supabase
+          .from('assessment_drafts')
+          .select('assessment_id, content')
+          .eq('assessment_type', 'quiz')
+          .in('assessment_id', quizIds)
+
+        if (draftError && !isMissingAssessmentDraftsError(draftError)) {
+          console.error('Error fetching quiz draft overlays:', draftError)
+        }
+
+        for (const row of draftRows || []) {
+          const parsed = validateQuizDraftContent(row.content)
+          if (!parsed.valid) continue
+          draftByQuizId[row.assessment_id] = parsed.value
+        }
+      } catch {
+        // Older test mocks may not implement this table query yet.
+      }
+    }
+
     const quizzesWithStats = (quizzes || []).map((quiz) => ({
       ...quiz,
+      title: draftByQuizId[quiz.id]?.title ?? quiz.title,
+      show_results: draftByQuizId[quiz.id]?.show_results ?? quiz.show_results,
       assessment_type: 'quiz' as const,
       stats: {
         total_students: totalStudents || 0,
         responded: respondentCountMap[quiz.id] || 0,
-        questions_count: questionCountMap[quiz.id] || 0,
+        questions_count: (draftByQuizId[quiz.id]?.questions.length ?? questionCountMap[quiz.id]) || 0,
       },
     }))
 

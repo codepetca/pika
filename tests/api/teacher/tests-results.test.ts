@@ -77,35 +77,25 @@ describe('GET /api/teacher/tests/[id]/results', () => {
 
       if (table === 'test_responses') {
         return {
-          select: vi.fn((columns: string) => ({
-            eq: vi.fn().mockResolvedValue(
-              columns.includes('ai_grading_basis')
-                ? {
-                    data: null,
-                    error: {
-                      code: 'PGRST204',
-                      message: "Could not find column 'ai_grading_basis'",
-                    },
-                  }
-                : {
-                    data: [
-                      {
-                        id: 'response-1',
-                        test_id: 'test-1',
-                        question_id: 'question-1',
-                        student_id: 'student-1',
-                        selected_option: 0,
-                        response_text: null,
-                        score: 1,
-                        feedback: null,
-                        graded_at: null,
-                        graded_by: null,
-                        submitted_at: '2026-01-01T00:00:00.000Z',
-                      },
-                    ],
-                    error: null,
-                  }
-            ),
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'response-1',
+                  test_id: 'test-1',
+                  question_id: 'question-1',
+                  student_id: 'student-1',
+                  selected_option: 0,
+                  response_text: null,
+                  score: 1,
+                  feedback: null,
+                  graded_at: null,
+                  graded_by: null,
+                  submitted_at: '2026-01-01T00:00:00.000Z',
+                },
+              ],
+              error: null,
+            }),
           })),
         }
       }
@@ -198,7 +188,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
     expect(data.students[0].status).toBe('submitted')
   })
 
-  it('does not mark students submitted when only placeholder open-response rows exist', async () => {
+  it('includes in-progress draft answers from test_attempts for teacher monitoring', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         return {
@@ -210,10 +200,10 @@ describe('GET /api/teacher/tests/[id]/results', () => {
                   id: 'question-open-1',
                   test_id: 'test-1',
                   question_type: 'open_response',
-                  question_text: 'Explain your reasoning.',
+                  question_text: 'Explain your process',
                   options: [],
                   correct_option: null,
-                  points: 2,
+                  points: 5,
                   response_max_chars: 5000,
                   position: 0,
                 },
@@ -228,24 +218,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: 'response-1',
-                  test_id: 'test-1',
-                  question_id: 'question-open-1',
-                  student_id: 'student-1',
-                  selected_option: null,
-                  response_text: '   ',
-                  score: 0,
-                  feedback: 'No response submitted.',
-                  graded_at: '2026-03-06T10:00:00.000Z',
-                  graded_by: 'teacher-1',
-                  ai_grading_basis: null,
-                  ai_reference_answers: null,
-                  ai_model: null,
-                  submitted_at: '2026-03-06T10:00:00.000Z',
-                },
-              ],
+              data: [],
               error: null,
             }),
           })),
@@ -267,7 +240,25 @@ describe('GET /api/teacher/tests/[id]/results', () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn().mockReturnThis(),
-            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  student_id: 'student-1',
+                  is_submitted: false,
+                  submitted_at: null,
+                  returned_at: null,
+                  returned_by: null,
+                  updated_at: '2026-01-02T12:00:00.000Z',
+                  responses: {
+                    'question-open-1': {
+                      question_type: 'open_response',
+                      response_text: 'Draft answer in progress',
+                    },
+                  },
+                },
+              ],
+              error: null,
+            }),
           })),
         }
       }
@@ -315,7 +306,17 @@ describe('GET /api/teacher/tests/[id]/results', () => {
 
     expect(response.status).toBe(200)
     expect(data.students).toHaveLength(1)
-    expect(data.students[0].status).toBe('not_started')
-    expect(data.stats.responded).toBe(0)
+    expect(data.students[0].status).toBe('in_progress')
+    expect(data.students[0].answers['question-open-1']).toEqual({
+      response_id: null,
+      question_type: 'open_response',
+      selected_option: null,
+      response_text: 'Draft answer in progress',
+      score: null,
+      feedback: null,
+      graded_at: null,
+      is_draft: true,
+    })
+    expect(data.responders).toEqual([])
   })
 })

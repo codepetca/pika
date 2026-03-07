@@ -13,12 +13,11 @@ import { MAX_QUIZ_OPTIONS } from '@/lib/quizzes'
 import type { QuizQuestion, TestQuestionType } from '@/types'
 
 interface Props {
-  testId: string
-  apiBasePath?: string
   question: QuizQuestion
   questionNumber: number
   isEditable: boolean
-  onUpdated: () => void
+  onChange: (question: QuizQuestion) => void
+  onDelete: (questionId: string) => void
 }
 
 type LocalQuestionState = {
@@ -28,7 +27,6 @@ type LocalQuestionState = {
   correct_option: number
   points: string
   response_monospace: boolean
-  answer_key: string
 }
 
 function toLocalState(question: QuizQuestion): LocalQuestionState {
@@ -43,10 +41,6 @@ function toLocalState(question: QuizQuestion): LocalQuestionState {
         : 0,
     points: String(question.points ?? defaultPointsForQuestionType(questionType)),
     response_monospace: questionType === 'open_response' && question.response_monospace === true,
-    answer_key:
-      questionType === 'open_response' && typeof question.answer_key === 'string'
-        ? question.answer_key
-        : '',
   }
 }
 
@@ -56,17 +50,15 @@ function normalizeForComparison(state: LocalQuestionState) {
     question_text: state.question_text.trim(),
     options: state.options.map((option) => option.trim()),
     points: Number(state.points),
-    answer_key: state.answer_key.trim(),
   }
 }
 
 export function TestQuestionEditor({
-  testId,
-  apiBasePath = '/api/teacher/tests',
   question,
   questionNumber,
   isEditable,
-  onUpdated,
+  onChange,
+  onDelete,
 }: Props) {
   const {
     attributes,
@@ -83,16 +75,11 @@ export function TestQuestionEditor({
   }
 
   const [state, setState] = useState<LocalQuestionState>(() => toLocalState(question))
-  const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
-  const [isAnswerSectionOpen, setIsAnswerSectionOpen] = useState(false)
-  const codeToggleId = `question-${question.id}-code-toggle`
 
   useEffect(() => {
     setState(toLocalState(question))
     setError('')
-    setIsAnswerSectionOpen(false)
   }, [question])
 
   const isDirty = useMemo(() => {
@@ -125,8 +112,8 @@ export function TestQuestionEditor({
     })
   }
 
-  async function handleSave() {
-    if (!isEditable || saving) return
+  function handleSave() {
+    if (!isEditable) return
 
     const questionText = state.question_text.trim()
     if (!questionText) {
@@ -158,66 +145,30 @@ export function TestQuestionEditor({
         setError('Select a correct option')
         return
       }
-    }
 
-    setSaving(true)
-    setError('')
-
-    try {
-      const payload =
-        state.question_type === 'open_response'
-          ? {
-              question_type: 'open_response',
-              question_text: questionText,
-              points,
-              response_monospace: state.response_monospace,
-              answer_key: state.answer_key.trim() ? state.answer_key.trim() : null,
-            }
-          : {
-              question_type: 'multiple_choice',
-              question_text: questionText,
-              options: state.options.map((option) => option.trim()),
-              correct_option: state.correct_option,
-              points,
-              response_monospace: false,
-              answer_key: null,
-            }
-
-      const res = await fetch(`${apiBasePath}/${testId}/questions/${question.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      setError('')
+      onChange({
+        ...question,
+        question_type: 'multiple_choice',
+        question_text: questionText,
+        options,
+        correct_option: state.correct_option,
+        points,
+        response_monospace: false,
       })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to update question')
-      }
-      onUpdated()
-    } catch (saveError: any) {
-      setError(saveError.message || 'Failed to update question')
-    } finally {
-      setSaving(false)
+      return
     }
-  }
 
-  async function handleDelete() {
-    if (!isEditable || deleting) return
-    setDeleting(true)
     setError('')
-    try {
-      const res = await fetch(`${apiBasePath}/${testId}/questions/${question.id}`, {
-        method: 'DELETE',
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to delete question')
-      }
-      onUpdated()
-    } catch (deleteError: any) {
-      setError(deleteError.message || 'Failed to delete question')
-    } finally {
-      setDeleting(false)
-    }
+    onChange({
+      ...question,
+      question_type: 'open_response',
+      question_text: questionText,
+      options: [],
+      correct_option: null,
+      points,
+      response_monospace: state.response_monospace,
+    })
   }
 
   return (
@@ -226,38 +177,45 @@ export function TestQuestionEditor({
       style={sortableStyle}
       className={`border border-border rounded-lg p-3 bg-surface ${isDragging ? 'shadow-xl scale-[1.02] z-50 border-primary opacity-90' : ''}`}
     >
-      <div className="grid gap-2 md:grid-cols-[16px_24px_minmax(0,1fr)_112px] md:gap-x-0">
-        <div className="flex items-center justify-start md:self-center">
-          {isEditable ? (
-            <button
-              type="button"
-              className="p-0 touch-none text-text-muted hover:text-text-default cursor-grab active:cursor-grabbing"
-              {...attributes}
-              {...listeners}
-              aria-label="Drag to reorder"
-            >
-              <GripVertical className="h-4 w-4" />
-            </button>
-          ) : (
-            <GripVertical className="h-4 w-4 text-text-muted" aria-hidden="true" />
-          )}
-        </div>
+      <div className="flex items-start gap-2">
+        {isEditable && (
+          <button
+            type="button"
+            className="p-0 touch-none text-text-muted hover:text-text-default cursor-grab active:cursor-grabbing mt-0.5"
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        )}
+        <span className="text-sm font-medium text-text-muted mt-2">Q{questionNumber}.</span>
 
-        <div className="flex items-start justify-start pt-1">
-          <span className="text-sm font-medium text-text-muted">Q{questionNumber}</span>
-        </div>
-
-        <div className="space-y-3 md:ml-2">
+        <div className="flex-1 space-y-3">
           {isEditable ? (
             <>
-              <textarea
-                value={state.question_text}
-                onChange={(event) => updateState({ question_text: event.target.value })}
-                placeholder="Question prompt"
-                disabled={saving}
-                rows={3}
-                className="w-full min-h-[88px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
-              />
+              <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_max-content] md:items-start">
+                <textarea
+                  value={state.question_text}
+                  onChange={(event) => updateState({ question_text: event.target.value })}
+                  onBlur={handleSave}
+                  placeholder="Question prompt"
+                  rows={3}
+                  className="w-full min-h-[88px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <div className="w-[7ch] space-y-1">
+                  <label className="block text-[11px] leading-none text-text-muted">Points</label>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.25"
+                    value={state.points}
+                    onChange={(event) => updateState({ points: event.target.value })}
+                    onBlur={handleSave}
+                    className="h-9 w-full px-2 text-sm"
+                  />
+                </div>
+              </div>
 
               {state.question_type === 'multiple_choice' ? (
                 <div className="space-y-2">
@@ -267,15 +225,18 @@ export function TestQuestionEditor({
                         type="radio"
                         name={`correct-option-${question.id}`}
                         checked={state.correct_option === index}
-                        onChange={() => updateState({ correct_option: index })}
+                        onChange={() => {
+                          updateState({ correct_option: index })
+                          setTimeout(handleSave, 0)
+                        }}
                         className="h-4 w-4"
                       />
                       <Input
                         type="text"
                         value={option}
                         onChange={(event) => updateOption(index, event.target.value)}
+                        onBlur={handleSave}
                         placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                        disabled={saving}
                         className="flex-1"
                       />
                       {state.options.length > 2 && (
@@ -283,8 +244,10 @@ export function TestQuestionEditor({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeOption(index)}
-                          disabled={saving}
+                          onClick={() => {
+                            removeOption(index)
+                            setTimeout(handleSave, 0)
+                          }}
                           className="p-1 text-text-muted hover:text-danger"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -293,113 +256,69 @@ export function TestQuestionEditor({
                     </div>
                   ))}
                   {state.options.length < MAX_QUIZ_OPTIONS && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={addOption}
-                      disabled={saving}
-                      className="gap-1.5"
-                    >
+                    <Button type="button" variant="secondary" size="sm" onClick={addOption} className="gap-1.5">
                       <Plus className="h-4 w-4" />
-                      Option
+                      Add option
                     </Button>
                   )}
                 </div>
               ) : (
-                <div className="space-y-2 rounded-md border border-border bg-surface-2 px-3 py-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsAnswerSectionOpen((prev) => !prev)}
-                    className="w-full text-left text-xs font-semibold uppercase tracking-wide text-text-muted hover:text-text-default"
-                  >
-                    {isAnswerSectionOpen
-                      ? 'Hide Answer Key'
-                      : state.answer_key.trim()
-                      ? 'Answer Key Added'
-                      : 'Add Answer Key'}
-                  </button>
-                  {isAnswerSectionOpen ? (
-                    <textarea
-                      value={state.answer_key}
-                      onChange={(event) => updateState({ answer_key: event.target.value })}
-                      placeholder="Enter an optional answer key for AI-assisted grading..."
-                      disabled={saving}
-                      rows={4}
-                      className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+                <div className="space-y-2">
+                  <label className="inline-flex items-center gap-2 text-xs text-text-muted">
+                    <input
+                      type="checkbox"
+                      checked={state.response_monospace}
+                      onChange={(event) => {
+                        updateState({ response_monospace: event.target.checked })
+                        setTimeout(handleSave, 0)
+                      }}
+                      className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
                     />
-                  ) : null}
+                    Code
+                  </label>
                 </div>
               )}
+
+              <div className="flex items-center justify-end">
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={!isDirty}>
+                    Save
+                  </Button>
+                  <Button type="button" variant="danger" size="sm" onClick={() => onDelete(question.id)}>
+                    Delete
+                  </Button>
+                </div>
+              </div>
+
+              {error && <p className="text-sm text-danger">{error}</p>}
             </>
           ) : (
-            <>
-              <QuestionMarkdown content={state.question_text} />
-              <p className="text-xs text-text-muted">
-                {state.question_type === 'open_response' ? 'Open response' : 'Multiple choice'} · {state.points} pts
-              </p>
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <QuestionMarkdown content={state.question_text} />
+                <p className="text-xs text-text-muted">
+                  {state.question_type === 'open_response' ? 'Open response' : 'Multiple choice'}
+                  {' · '}
+                  {Number(state.points)} pts
+                </p>
+              </div>
               {state.question_type === 'multiple_choice' ? (
                 <ul className="space-y-1">
                   {state.options.map((option, index) => (
-                    <li key={index} className="text-sm text-text-muted">
-                      {String.fromCharCode(65 + index)}. {option}
+                    <li key={index} className="text-sm text-text-default">
+                      <span className="text-text-muted">{String.fromCharCode(65 + index)}.</span> {option}
                     </li>
                   ))}
                 </ul>
-              ) : null}
-            </>
+              ) : (
+                <p className={`text-sm text-text-muted ${state.response_monospace ? 'font-mono' : ''}`}>
+                  Student free-response field
+                </p>
+              )}
+            </div>
           )}
         </div>
-
-        {isEditable ? (
-          <div className="w-full min-w-0 space-y-2 rounded-md border border-border bg-surface-2 p-2.5 md:self-start">
-            <div className="grid min-w-0 grid-cols-[1fr_52px] items-center gap-2">
-              <label className="text-[11px] font-medium uppercase tracking-wide leading-none text-text-muted">
-                Points
-              </label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={state.points}
-                onChange={(event) => updateState({ points: event.target.value })}
-                disabled={saving}
-                className="h-8 min-w-0 w-full px-2 text-sm"
-              />
-            </div>
-
-            {state.question_type === 'open_response' ? (
-              <div className="grid min-w-0 grid-cols-[1fr_52px] items-center gap-2">
-                <label htmlFor={codeToggleId} className="text-[11px] font-medium uppercase tracking-wide leading-none text-text-muted">
-                  Code
-                </label>
-                <div className="flex h-8 items-center justify-start">
-                  <input
-                    id={codeToggleId}
-                    type="checkbox"
-                    checked={state.response_monospace}
-                    onChange={(event) => updateState({ response_monospace: event.target.checked })}
-                    disabled={saving}
-                    className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            <div className="space-y-2 pt-1">
-              <Button type="button" variant="primary" size="sm" onClick={handleSave} disabled={!isDirty || saving} className="w-full min-w-0 px-2">
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-              <Button type="button" variant="danger" size="sm" onClick={handleDelete} disabled={deleting || saving} className="w-full min-w-0 px-2">
-                {deleting ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div />
-        )}
       </div>
-
-      {error && <p className="text-sm text-danger pl-7 mt-2">{error}</p>}
     </div>
   )
 }
