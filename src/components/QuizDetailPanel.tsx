@@ -119,6 +119,10 @@ export function QuizDetailPanel({
           response_max_chars:
             typeof question.response_max_chars === 'number' ? question.response_max_chars : 5000,
           response_monospace: question.response_monospace === true,
+          answer_key:
+            typeof question.answer_key === 'string' && question.answer_key.trim().length > 0
+              ? question.answer_key.trim()
+              : null,
           position: index,
           created_at: String(question.created_at || new Date().toISOString()),
           updated_at: String(question.updated_at || new Date().toISOString()),
@@ -478,6 +482,7 @@ export function QuizDetailPanel({
             question_text: '',
             options: [],
             correct_option: null,
+            answer_key: null,
             points: DEFAULT_OPEN_RESPONSE_POINTS,
             response_max_chars: 5000,
             response_monospace: false,
@@ -492,6 +497,7 @@ export function QuizDetailPanel({
             question_text: '',
             options: ['Option 1', 'Option 2'],
             correct_option: 0,
+            answer_key: null,
             points: DEFAULT_MULTIPLE_CHOICE_POINTS,
             response_max_chars: 5000,
             response_monospace: false,
@@ -519,7 +525,7 @@ export function QuizDetailPanel({
     })
   }
 
-  function handleQuestionChange(updatedQuestion: QuizQuestion) {
+  function handleQuestionChange(updatedQuestion: QuizQuestion, options?: { force?: boolean }) {
     const nextQuestions = normalizeQuestionPositions(
       questions.map((question) =>
         question.id === updatedQuestion.id ? { ...updatedQuestion } : question
@@ -527,11 +533,18 @@ export function QuizDetailPanel({
     )
     setQuestions(nextQuestions)
 
-    scheduleAutosave({
+    const nextDraft = {
       title: editTitle,
       show_results: quiz.show_results,
       questions: nextQuestions,
-    })
+    }
+
+    if (options?.force) {
+      scheduleSave(nextDraft, { force: true })
+      return
+    }
+
+    scheduleAutosave(nextDraft)
   }
 
   function handleQuestionDelete(questionId: string) {

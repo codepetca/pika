@@ -73,6 +73,7 @@ export async function GET(
           question_text: question.question_text,
           options: question.options,
           correct_option: question.correct_option,
+          answer_key: question.answer_key,
           points: question.points,
           response_max_chars: question.response_max_chars,
           response_monospace: question.response_monospace,

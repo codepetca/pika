@@ -423,9 +423,20 @@ describe('QuizDetailPanel', () => {
         )
       })
 
-      const patchCall = fetchMock.mock.calls.find((call: any[]) => call[1]?.method === 'PATCH')
+      const patchCall = [...fetchMock.mock.calls]
+        .reverse()
+        .find(
+          (call: any[]) =>
+            call[1]?.method === 'PATCH' &&
+            typeof call[0] === 'string' &&
+            call[0].includes('/draft')
+        )
       const patchBody = JSON.parse(patchCall?.[1]?.body ?? '{}')
-      expect(patchBody.answer_key).toBe('Objects resist changes in motion.')
+      const answerKeyFromContent = patchBody?.content?.questions?.[0]?.answer_key
+      const answerKeyFromPatch = Array.isArray(patchBody?.patch)
+        ? patchBody.patch.find((op: any) => String(op?.path || '').includes('answer_key'))?.value
+        : undefined
+      expect(answerKeyFromContent ?? answerKeyFromPatch).toBe('Objects resist changes in motion.')
     })
 
     it('creates new test questions with empty question_text so placeholder text remains a placeholder', async () => {

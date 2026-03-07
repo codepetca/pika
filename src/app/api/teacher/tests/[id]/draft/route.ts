@@ -56,7 +56,7 @@ async function ensureTestDraft(
   const { data: questions, error: questionsError } = await supabase
     .from('test_questions')
     .select(
-      'id, question_type, question_text, options, correct_option, points, response_max_chars, response_monospace'
+      'id, question_type, question_text, options, correct_option, answer_key, points, response_max_chars, response_monospace'
     )
     .eq('test_id', test.id)
     .order('position', { ascending: true })
