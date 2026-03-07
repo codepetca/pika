@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus, sanitizeDocForStudent } from '@/lib/assignments'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -31,7 +32,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch all released assignments for the classroom (exclude drafts)
+    // Fetch all student-visible assignments for the classroom:
+    // - not drafts
+    // - released_at is null (legacy) or already reached
     const { data: assignments, error } = await supabase
       .from('assignments')
       .select('*')
@@ -58,7 +61,9 @@ export async function GET(request: NextRequest) {
     const docMap = new Map(docs?.map(d => [d.assignment_id, d]) || [])
 
     // Add status to each assignment
-    const assignmentsWithStatus = (assignments || []).map(assignment => {
+    const assignmentsWithStatus = (assignments || [])
+      .filter((assignment) => isAssignmentVisibleToStudents(assignment))
+      .map(assignment => {
       const doc = docMap.get(assignment.id)
       const status = calculateAssignmentStatus(assignment, doc)
 
@@ -67,7 +72,7 @@ export async function GET(request: NextRequest) {
         status,
         doc: doc ? sanitizeDocForStudent(doc) : null
       }
-    })
+      })
 
     return NextResponse.json({ assignments: assignmentsWithStatus })
   } catch (error: any) {

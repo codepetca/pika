@@ -22,12 +22,14 @@ vi.mock('@/lib/server/quizzes', () => ({
       classroom_id: 'classroom-1',
       title: 'Quiz 1',
       status: 'active',
+      opens_at: null,
       show_results: false,
       position: 0,
       created_at: '2026-01-01T00:00:00.000Z',
       updated_at: '2026-01-01T00:00:00.000Z',
     },
   })),
+  isQuizVisibleToStudents: vi.fn(() => true),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }

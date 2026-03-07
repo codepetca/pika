@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { assertStudentCanAccessQuiz } from '@/lib/server/quizzes'
+import { assertStudentCanAccessQuiz, isQuizVisibleToStudents } from '@/lib/server/quizzes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -31,6 +31,10 @@ export async function POST(
 
     // Quiz must be active
     if (quiz.status !== 'active') {
+      return NextResponse.json({ error: 'Quiz is not active' }, { status: 400 })
+    }
+
+    if (!isQuizVisibleToStudents(quiz)) {
       return NextResponse.json({ error: 'Quiz is not active' }, { status: 400 })
     }
 

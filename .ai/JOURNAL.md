@@ -5283,3 +5283,61 @@
 - Confirmed no duplicate migration prefixes in `supabase/migrations/`.
 
 **Note:** Human must apply migration `046_assignment_return_atomic_rpc.sql` manually.
+## 2026-03-01 [AI - GPT-5 Codex]
+**Goal:** Implement GH issue #292 unified scheduled release/open for assignments and quizzes, plus announcement scheduler shared refactor.
+**Completed:**
+- Added migration `039_quiz_scheduled_open_and_assignment_release_indexes.sql`:
+  - added `quizzes.opens_at timestamptz`
+  - backfilled existing active/closed quizzes
+  - added quiz/student visibility index and assignment release visibility index
+- Added shared scheduling layer:
+  - `src/lib/scheduling.ts` (Toronto date/time conversion, parse, future validation, visibility checks)
+  - `src/components/ScheduleDateTimePicker.tsx` (shared schedule picker UI, Toronto labels)
+  - unit tests: `tests/unit/scheduling.test.ts`
+- Added assignment visibility helper:
+  - `src/lib/server/assignments.ts`
+- Refactored/extended assignment APIs:
+  - `POST /api/teacher/assignments/[id]/release` now supports optional `release_at`
+  - `PATCH /api/teacher/assignments/[id]` now supports controlled draft/scheduled/live transitions (`is_draft`, `released_at`)
+  - enforced no revert/reschedule after live
+- Enforced scheduled assignment visibility on student side:
+  - `src/app/api/student/assignments/route.ts`
+  - all `src/app/api/assignment-docs/[id]/*` student endpoints now return 404 for unreleased assignments
+  - notifications now exclude scheduled-future assignments
+- Implemented quiz scheduling/open semantics:
+  - extended quiz types with `opens_at`
+  - added quiz visibility helpers in `src/lib/server/quizzes.ts`
+  - `PATCH /api/teacher/quizzes/[id]` supports `opens_at`, scheduled active→draft revert before open, blocks revert/reschedule after open
+  - student quiz list/detail/respond enforce `opens_at <= now`
+  - notifications exclude scheduled-future quizzes
+- Teacher UI scheduling implementation:
+  - `AssignmentModal` now supports: Post now, Schedule, Reschedule, Revert to draft (before go-live), Toronto schedule picker
+  - `SortableAssignmentCard` now renders Draft/Scheduled/Live state distinctions
+  - `TeacherClassroomView` treats scheduled (future release) assignments like draft for edit/reschedule flow
+  - `QuizCard` now supports: Open now, Schedule open, Reschedule, Cancel schedule→draft (before open), Scheduled badge/opening-at text
+- Announcement scheduler refactor:
+  - `TeacherAnnouncementsSection` now uses shared scheduling util + shared picker while preserving existing payload behavior (`scheduled_for`)
+- Added/updated tests:
+  - new: `tests/unit/server-quizzes.test.ts`
+  - new: `tests/api/teacher/quizzes-id.test.ts`
+  - new: `tests/api/student/quizzes-respond.test.ts`
+  - updated: `tests/components/AssignmentModal.test.tsx`
+  - updated: `tests/components/QuizCard.test.tsx`
+  - updated: `tests/api/teacher/assignments-draft.test.ts`
+  - updated mocks for assignment/quiz defaults in `tests/helpers/mocks.ts`
+- Validation runs:
+  - `pnpm lint` passed
+  - focused vitest suites for touched APIs/components/utilities passed
+  - announcement API regression tests passed
+- Required UI visual verification performed (teacher + student):
+  - `/tmp/issue292-teacher-classrooms.png`
+  - `/tmp/issue292-student-classrooms.png`
+  - `/tmp/issue292-teacher-assignments.png`
+  - `/tmp/issue292-student-assignments.png`
+  - `/tmp/issue292-teacher-quizzes.png`
+  - `/tmp/issue292-student-quizzes.png`
+  - `/tmp/issue292-teacher-assignment-modal.png`
+  - `/tmp/issue292-teacher-quiz-schedule.png`
+**Notes/Blockers:**
+- Local DB used for visual verification has not applied migration `039`; runtime logs show `column quizzes.opens_at does not exist` in student quiz/notifications endpoints until migration is applied.
+**Status:** in progress (implementation complete; waiting for migration apply in env + final review/PR steps)

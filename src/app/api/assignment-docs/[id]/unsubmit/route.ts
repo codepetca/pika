@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -34,11 +35,18 @@ export async function POST(
     // Get assignment and verify enrollment
     const { data: assignment, error: assignmentError } = await supabase
       .from('assignments')
-      .select('classroom_id')
+      .select('classroom_id, is_draft, released_at')
       .eq('id', assignmentId)
       .single()
 
     if (assignmentError || !assignment) {
+      return NextResponse.json(
+        { error: 'Assignment not found' },
+        { status: 404 }
+      )
+    }
+
+    if (!isAssignmentVisibleToStudents(assignment)) {
       return NextResponse.json(
         { error: 'Assignment not found' },
         { status: 404 }

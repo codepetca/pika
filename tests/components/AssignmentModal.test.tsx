@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
@@ -16,6 +16,8 @@ describe('AssignmentModal', () => {
     },
     due_at: toTorontoEndOfDayIso('2025-01-15'),
     position: 0,
+    released_at: null,
+    track_authenticity: true,
     created_by: 'teacher-1',
     created_at: '2025-01-01T00:00:00.000Z',
     updated_at: '2025-01-01T00:00:00.000Z',
@@ -72,6 +74,63 @@ describe('AssignmentModal', () => {
       )
 
       expect(screen.getByText('Saved')).toBeInTheDocument()
+    })
+
+    it('shows release controls for draft assignments', () => {
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={baseAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      expect(screen.getByText('Draft (not visible to students)')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Post now' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Schedule' })).toBeInTheDocument()
+    })
+
+    it('schedules release for draft assignments', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          assignment: { ...baseAssignment, is_draft: false, released_at: '2099-03-01T14:00:00.000Z' },
+        }),
+      })
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={baseAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
+
+      const pickerTitle = screen.getByText('Release Time (Toronto)')
+      const picker = pickerTitle.closest('div')?.parentElement
+      expect(picker).toBeTruthy()
+      const pickerScope = within(picker!)
+
+      fireEvent.change(pickerScope.getByLabelText('Date (Toronto)'), { target: { value: '2099-03-01' } })
+      fireEvent.change(pickerScope.getByLabelText('Time (Toronto)'), { target: { value: '09:00' } })
+      fireEvent.click(pickerScope.getByRole('button', { name: 'Schedule' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+      })
+
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toBe('/api/teacher/assignments/assignment-1/release')
+      expect(options.method).toBe('POST')
+      const payload = JSON.parse(options.body)
+      expect(payload.release_at).toBeDefined()
     })
 
     it('manual save sends only changed fields and closes modal', async () => {
