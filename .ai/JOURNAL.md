@@ -5088,3 +5088,116 @@
 **Verification:**
 - `pnpm vitest run tests/api/student/notifications.test.ts`
 - `pnpm build`
+## 2026-03-06 — Teacher assessment draft autosave stabilization (JSON Patch flow)
+**Context:** Continued implementation of teacher-created test/quiz draft autosave using JSON Patch, then stabilized failing component tests and route integrations.
+
+**Changes:**
+- Hardened [`src/components/QuizDetailPanel.tsx`](/Users/stew/Repos/pika/src/components/QuizDetailPanel.tsx):
+  - `applyServerDraft` now tolerates partial/missing `draft.content` payloads and falls back to current quiz title/show-results.
+  - Save success path now handles responses that omit `draft` without crashing (`Cannot read properties of undefined (reading 'content')`).
+  - Title save on Enter/blur now forces immediate draft save (no debounce), while ongoing question edits remain debounced/throttled autosave.
+  - Memoized normalization helpers and fixed hook dependency issues.
+- Updated [`tests/components/QuizDetailPanel.test.tsx`](/Users/stew/Repos/pika/tests/components/QuizDetailPanel.test.tsx):
+  - Switched mocks from legacy `{questions}` detail response to draft contract `{draft: {version, content}}`.
+  - Updated title-save assertion to verify `PATCH .../draft` payload semantics.
+  - Reworked add-question assertion for local-first draft behavior (empty prompt retained, no legacy `POST` create-question call).
+
+**Verification:**
+- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx`
+- `pnpm vitest run tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-questions-route.test.ts tests/api/teacher/tests-questions-id.test.ts tests/api/teacher/tests-questions-reorder.test.ts tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/quizzes-questions-reorder.test.ts`
+- `pnpm lint`
+
+**UI visual verification (required):**
+- Teacher screenshot: `/tmp/teacher-view-autosave-draft.png`
+- Student screenshot: `/tmp/student-view-autosave-draft.png`
+- Refreshed auth state before capture: `pnpm e2e:auth`
+
+## 2026-03-06 — Rebase to origin/main + migration resequence
+**Context:** User requested rebase and migration filename update after draft-autosave implementation.
+
+**Rebase workflow:**
+- Stashed working tree (including untracked): `pre-rebase-main-20260306-120506`
+- Rebased local `main` onto `origin/main`
+- Restored stash; resolved conflicts in:
+  - `src/app/api/teacher/tests/[id]/route.ts`
+  - `src/app/api/teacher/tests/route.ts`
+  - `src/components/QuizDetailPanel.tsx`
+- Kept upstream test-documents behavior while preserving assessment-draft autosave/overlay logic.
+
+**Migration resequencing:**
+- `origin/main` already contains `042_test_documents.sql` and `043_backfill_test_attempt_return_columns.sql`.
+- Renamed new draft migration from `042_assessment_drafts.sql` to `044_assessment_drafts.sql` to remove duplicate numeric prefix.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx`
+- `pnpm vitest run tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-questions-route.test.ts tests/api/teacher/tests-questions-id.test.ts tests/api/teacher/tests-questions-reorder.test.ts tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/quizzes-questions-reorder.test.ts`
+
+**UI verification notes:**
+- Captured screenshots during this pass:
+  - `/tmp/teacher-view-rebase-migration.png`
+  - `/tmp/student-view-rebase-migration.png`
+- At capture time both rendered non-functional states (404/spinner), indicating local auth/session flow instability in dev environment during this rebase pass; requires follow-up if additional UI iteration is requested.
+
+## 2026-03-06 — Auto-submit draft test attempts on close
+**Context:** Requested behavior update so any student draft becomes a submission when a test closes (including close+return flow), while keeping offline support deferred.
+
+**Changes:**
+- Added [`src/lib/server/finalize-test-attempts.ts`](/Users/stew/Repos/pika/src/lib/server/finalize-test-attempts.ts) with `finalizeUnsubmittedTestAttemptsOnClose()` to:
+  - load unsubmitted `test_attempts`
+  - convert saved draft answers into `test_responses` (MC auto-scored, open responses ungraded)
+  - mark attempts as submitted with `submitted_at`
+- Wired close finalization into:
+  - [`src/app/api/teacher/tests/[id]/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/route.ts) for `active -> closed`
+  - [`src/app/api/teacher/tests/[id]/return/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/return/route.ts) before return eligibility checks
+- Added helper tests:
+  - [`tests/lib/finalize-test-attempts.test.ts`](/Users/stew/Repos/pika/tests/lib/finalize-test-attempts.test.ts)
+- Updated affected route tests to mock/assert finalization behavior:
+  - [`tests/api/teacher/tests-id-route.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-id-route.test.ts)
+  - [`tests/api/teacher/tests-return.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-return.test.ts)
+
+**Verification:**
+- `pnpm vitest run tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-return.test.ts tests/api/student/tests-route.test.ts tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+
+## 2026-03-06 — Return empty finalized submissions
+**Context:** Follow-up behavior request: students who started but submitted no answers should still be returnable after close finalization.
+
+**Changes:**
+- Updated [`src/app/api/teacher/tests/[id]/return/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/return/route.ts):
+  - reads submitted attempt state from `test_attempts`
+  - treats `is_submitted=true` attempts as return-eligible even if they have zero `test_responses`
+  - continues to require grading only for existing open-response rows (unanswered open questions no longer block return)
+- Added regression test in [`tests/api/teacher/tests-return.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-return.test.ts):
+  - `returns submitted students with empty finalized responses`
+
+**Verification:**
+- `pnpm vitest run tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-results.test.ts tests/lib/finalize-test-attempts.test.ts`
+- `pnpm lint`
+
+## 2026-03-06 — Unanswered open-response handling + close finalization ordering
+**Context:** Follow-up correction after review: unanswered open responses should stay unanswered, and if auto-graded they should receive `0` with default feedback (`Unanswered`). Also needed to avoid pre-close finalization ordering risk.
+
+**Changes:**
+- Updated [`src/lib/server/finalize-test-attempts.ts`](/Users/stew/Repos/pika/src/lib/server/finalize-test-attempts.ts):
+  - blank/whitespace open-response drafts are no longer inserted into `test_responses` during close finalization
+- Updated [`src/app/api/teacher/tests/[id]/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/route.ts):
+  - close-time finalization now runs **after** successful `tests.status='closed'` update
+- Enhanced [`src/app/api/teacher/tests/[id]/auto-grade/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/auto-grade/route.ts):
+  - loads submitted attempts for selected students
+  - auto-assigns `score=0`, `feedback='Unanswered'` for blank open responses
+  - inserts missing unanswered open-response rows (for submitted students) with zero + `Unanswered`
+  - preserves AI grading for non-empty answers; returns updated graded/eligible counts
+
+**Tests:**
+- Added blank-open skip test in [`tests/lib/finalize-test-attempts.test.ts`](/Users/stew/Repos/pika/tests/lib/finalize-test-attempts.test.ts)
+- Updated auto-grade expectations in [`tests/api/teacher/tests-auto-grade.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-auto-grade.test.ts)
+- Added close-order assertion in [`tests/api/teacher/tests-id-route.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-id-route.test.ts)
+
+**Verification:**
+- `pnpm vitest run tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-results.test.ts`
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx tests/api/student/tests-route.test.ts`
+- `pnpm lint`
+- Auto-grade compatibility addendum: when `test_attempts` is unavailable (`PGRST205`), submitted-student eligibility now falls back to `test_responses.submitted_at` so grading still works in legacy schemas.
+- Consistency safeguard: when close finalization fails, both close paths now attempt rollback to `active` (`tests/[id]` and `tests/[id]/return` close_test flow) to avoid partial close state.
+- Added rollback tests in `tests-id-route.test.ts` and `tests-return.test.ts`.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -67,6 +68,7 @@ export async function POST(
       )
     }
 
+    let closedInRequest = false
     if (access.test.status === 'active' && closeTest) {
       const { error: closeError } = await supabase
         .from('tests')
@@ -78,6 +80,25 @@ export async function POST(
         console.error('Error closing test during return:', closeError)
         return NextResponse.json({ error: 'Failed to close test before return' }, { status: 500 })
       }
+
+      closedInRequest = true
+    }
+
+    const finalizeResult = await finalizeUnsubmittedTestAttemptsOnClose(supabase, testId)
+    if (!finalizeResult.ok) {
+      if (closedInRequest) {
+        const { error: reopenError } = await supabase
+          .from('tests')
+          .update({ status: 'active' })
+          .eq('id', testId)
+          .eq('status', 'closed')
+
+        if (reopenError) {
+          console.error('Error reopening test after close+return finalization failure:', reopenError)
+        }
+      }
+
+      return NextResponse.json({ error: finalizeResult.error }, { status: finalizeResult.status })
     }
 
     const { data: openQuestionRows, error: openQuestionError } = await supabase
@@ -92,6 +113,23 @@ export async function POST(
     }
 
     const openQuestionIds = (openQuestionRows || []).map((row) => row.id)
+
+    const { data: submittedAttemptRows, error: submittedAttemptError } = await supabase
+      .from('test_attempts')
+      .select('student_id, is_submitted, submitted_at')
+      .eq('test_id', testId)
+      .in('student_id', studentIds)
+
+    if (submittedAttemptError && submittedAttemptError.code !== 'PGRST205') {
+      console.error('Error loading test attempts for return:', submittedAttemptError)
+      return NextResponse.json({ error: 'Failed to load test attempts' }, { status: 500 })
+    }
+
+    const submittedByStudent = new Map<string, string | null>()
+    for (const row of submittedAttemptRows || []) {
+      if (!row.is_submitted) continue
+      submittedByStudent.set(row.student_id, row.submitted_at || null)
+    }
 
     const { data: responseRows, error: responsesError } = await supabase
       .from('test_responses')
@@ -128,7 +166,13 @@ export async function POST(
     const eligibleStudentIds: string[] = []
     for (const studentId of studentIds) {
       const studentResponses = responsesByStudent.get(studentId) || []
-      if (studentResponses.length === 0) continue
+      const hasSubmittedAttempt = submittedByStudent.has(studentId)
+      const hasSubmittedWork = hasSubmittedAttempt || studentResponses.length > 0
+      if (!hasSubmittedWork) continue
+
+      if (hasSubmittedAttempt && !latestSubmittedAtByStudent.has(studentId)) {
+        latestSubmittedAtByStudent.set(studentId, submittedByStudent.get(studentId) || '')
+      }
 
       if (openQuestionIds.length === 0) {
         eligibleStudentIds.push(studentId)
@@ -136,8 +180,6 @@ export async function POST(
       }
 
       const openResponses = openResponsesByStudent.get(studentId) || []
-      if (openResponses.length < openQuestionIds.length) continue
-
       const allOpenGraded = openResponses.every((row) =>
         hasGradedOpenResponse(row.score, row.feedback)
       )
