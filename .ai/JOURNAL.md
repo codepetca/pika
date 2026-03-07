@@ -5341,3 +5341,20 @@
 **Notes/Blockers:**
 - Local DB used for visual verification has not applied migration `039`; runtime logs show `column quizzes.opens_at does not exist` in student quiz/notifications endpoints until migration is applied.
 **Status:** in progress (implementation complete; waiting for migration apply in env + final review/PR steps)
+
+## 2026-03-07 — Increase header date/time size
+**Context:** User requested the global header date/time be larger.
+
+**Changes:**
+- Updated `/src/components/AppHeader.tsx`:
+  - changed header date/time text class from `text-sm` to `text-base`
+
+**Verification:**
+- Ran auth refresh for this worktree against `http://localhost:3001`:
+  - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Captured and visually checked required role screenshots:
+  - teacher: `/tmp/teacher-view-header-datetime-larger.png`
+  - student: `/tmp/student-view-header-datetime-larger.png`
+
+**Notes:**
+- `bash scripts/verify-env.sh` fails on this baseline due unrelated `zod` module resolution in existing tests; not changed by this task.

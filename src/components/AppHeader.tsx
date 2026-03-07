@@ -128,7 +128,7 @@ export function AppHeader({
 
       {/* Right section */}
       <div className="flex items-center justify-end gap-0">
-        <span className="mr-2 whitespace-nowrap text-sm font-semibold tabular-nums text-text-default">
+        <span className="mr-2 whitespace-nowrap text-base font-semibold tabular-nums text-text-default">
           <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
           <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
         </span>
