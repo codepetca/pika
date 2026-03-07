@@ -139,29 +139,49 @@ export async function GET(request: NextRequest) {
     ): Promise<{ count: number; error: boolean }> {
       const tolerateMissingTable = opts?.tolerateMissingTable === true
 
-      const { data: activeRows, error: activeError } = await supabase
-        .from(table)
-        .select(table === 'quizzes' ? 'id,opens_at' : 'id')
-        .eq('classroom_id', classroomId)
-        .eq('status', 'active')
+      let activeIds: string[] = []
 
-      if (activeError) {
-        if (tolerateMissingTable && activeError.code === 'PGRST205') {
-          return { count: 0, error: false }
+      if (table === 'quizzes') {
+        const { data: activeRows, error: activeError } = await supabase
+          .from('quizzes')
+          .select('id,opens_at')
+          .eq('classroom_id', classroomId)
+          .eq('status', 'active')
+
+        if (activeError) {
+          if (tolerateMissingTable && activeError.code === 'PGRST205') {
+            return { count: 0, error: false }
+          }
+          console.error(`Error fetching ${table}:`, activeError)
+          return { count: 0, error: true }
         }
-        console.error(`Error fetching ${table}:`, activeError)
-        return { count: 0, error: true }
+
+        activeIds = (activeRows || [])
+          .filter((row) =>
+            isQuizVisibleToStudents({
+              status: 'active',
+              opens_at: row.opens_at ?? null,
+            })
+          )
+          .map((row) => row.id)
+      } else {
+        const { data: activeRows, error: activeError } = await supabase
+          .from('tests')
+          .select('id')
+          .eq('classroom_id', classroomId)
+          .eq('status', 'active')
+
+        if (activeError) {
+          if (tolerateMissingTable && activeError.code === 'PGRST205') {
+            return { count: 0, error: false }
+          }
+          console.error(`Error fetching ${table}:`, activeError)
+          return { count: 0, error: true }
+        }
+
+        activeIds = (activeRows || []).map((row) => row.id)
       }
 
-      const activeIds = (activeRows || [])
-        .filter((row: { id: string; opens_at?: string | null }) => {
-          if (table !== 'quizzes') return true
-          return isQuizVisibleToStudents({
-            status: 'active',
-            opens_at: row.opens_at ?? null,
-          })
-        })
-        .map((row: { id: string }) => row.id)
       if (activeIds.length === 0) {
         return { count: 0, error: false }
       }
