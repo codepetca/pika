@@ -5269,3 +5269,17 @@
 - `pnpm lint`
 
 **Note:** Human still needs to apply migration `044_assignment_return_atomic_rpc.sql`.
+
+## 2026-03-07 — Rebased #348 branch again and resequenced migration to 046
+**Context:** Synced branch with latest `origin/main` and resolved new migration-number collision after upstream added migration 045.
+
+**Changes:**
+- Rebased `codex/348-draft-grade-status` onto `origin/main`.
+- Renamed migration:
+  - `supabase/migrations/044_assignment_return_atomic_rpc.sql`
+  - -> `supabase/migrations/046_assignment_return_atomic_rpc.sql`
+
+**Verification:**
+- Confirmed no duplicate migration prefixes in `supabase/migrations/`.
+
+**Note:** Human must apply migration `046_assignment_return_atomic_rpc.sql` manually.
