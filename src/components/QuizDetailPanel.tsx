@@ -78,6 +78,7 @@ export function QuizDetailPanel({
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
   const lastSavedDraftRef = useRef('')
+  const saveStatusRef = useRef<'saved' | 'saving' | 'unsaved'>('saved')
   const pendingDraftRef = useRef<{
     title: string
     show_results: boolean
@@ -406,14 +407,18 @@ export function QuizDetailPanel({
   )
 
   useEffect(() => {
+    saveStatusRef.current = saveStatus
+  }, [saveStatus])
+
+  useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
       if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
-      if (pendingDraftRef.current && saveStatus === 'unsaved') {
+      if (pendingDraftRef.current && saveStatusRef.current === 'unsaved') {
         void saveDraft(pendingDraftRef.current, { forceFull: true })
       }
     }
-  }, [saveDraft, saveStatus])
+  }, [saveDraft])
 
   async function handleTitleSave() {
     const trimmed = editTitle.trim()

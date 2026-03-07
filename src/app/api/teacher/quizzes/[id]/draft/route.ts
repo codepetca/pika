@@ -35,7 +35,7 @@ async function ensureQuizDraft(
     return {
       ok: false,
       status: 400,
-      error: 'Assessment drafts require migration 044 to be applied',
+      error: 'Assessment drafts require migration 045 to be applied',
     }
   }
 
