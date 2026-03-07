@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { canActivateQuiz } from '@/lib/quizzes'
-import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
+import { assertTeacherOwnsQuiz, hasQuizOpened } from '@/lib/server/quizzes'
 import {
   getAssessmentDraftByType,
   isMissingAssessmentDraftsError,
@@ -80,6 +80,7 @@ export async function GET(
         title,
         assessment_type: 'quiz' as const,
         status: quiz.status,
+        opens_at: quiz.opens_at,
         show_results: showResults,
         position: quiz.position,
         created_by: quiz.created_by,
@@ -110,7 +111,12 @@ export async function PATCH(
     const user = await requireRole('teacher')
     const { id } = await params
     const body = await request.json()
-    const { title, status, show_results } = body
+    const { title, status, show_results, opens_at } = body as {
+      title?: string
+      status?: 'draft' | 'active' | 'closed'
+      show_results?: boolean
+      opens_at?: string | null
+    }
 
     const access = await assertTeacherOwnsQuiz(user.id, id, { checkArchived: true })
     if (!access.ok) {
@@ -119,21 +125,64 @@ export async function PATCH(
     const existing = access.quiz
     const supabase = getServiceRoleClient()
 
-    if (status !== undefined) {
-      const VALID_TRANSITIONS: Record<string, string[]> = {
-        draft: ['active'],
-        active: ['closed'],
-        closed: ['active'],
-      }
-      const allowed = VALID_TRANSITIONS[existing.status] || []
-      if (!allowed.includes(status)) {
-        return NextResponse.json(
-          { error: `Cannot transition from ${existing.status} to ${status}` },
-          { status: 400 }
-        )
+    let parsedOpensAt: string | null | undefined
+    if (opens_at !== undefined) {
+      if (opens_at === null) {
+        parsedOpensAt = null
+      } else {
+        const parsed = new Date(opens_at)
+        if (isNaN(parsed.getTime())) {
+          return NextResponse.json({ error: 'Invalid open date' }, { status: 400 })
+        }
+        parsedOpensAt = parsed.toISOString()
       }
     }
 
+    const now = new Date()
+    const quizHasOpened = hasQuizOpened(existing, now)
+
+    // Validate status transition
+    if (status !== undefined) {
+      if (existing.status === 'active' && status === 'draft') {
+        if (quizHasOpened) {
+          return NextResponse.json(
+            { error: 'Cannot revert a quiz that has already opened to draft' },
+            { status: 400 }
+          )
+        }
+      } else {
+        const VALID_TRANSITIONS: Record<string, string[]> = {
+          draft: ['active'],
+          active: ['closed'],
+          closed: ['active'],
+        }
+        const allowed = VALID_TRANSITIONS[existing.status] || []
+        if (!allowed.includes(status)) {
+          return NextResponse.json(
+            { error: `Cannot transition from ${existing.status} to ${status}` },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
+    const targetStatus = status ?? existing.status
+
+    if (targetStatus !== 'active' && opens_at !== undefined && parsedOpensAt !== null) {
+      return NextResponse.json(
+        { error: 'opens_at can only be set for active quizzes' },
+        { status: 400 }
+      )
+    }
+
+    if (quizHasOpened && opens_at !== undefined) {
+      return NextResponse.json(
+        { error: 'Cannot reschedule a quiz that has already opened' },
+        { status: 400 }
+      )
+    }
+
+    // If activating quiz, validate it has questions
     if (status === 'active' && existing.status === 'draft') {
       const { draft, error: draftError } = await getAssessmentDraftByType<QuizDraftContent>(
         supabase,
@@ -197,6 +246,22 @@ export async function PATCH(
     if (title !== undefined) updates.title = title.trim()
     if (status !== undefined) updates.status = status
     if (show_results !== undefined) updates.show_results = show_results
+    if (opens_at !== undefined) {
+      updates.opens_at = parsedOpensAt
+    }
+
+    if (status === 'active') {
+      // Draft/closed -> active defaults to opening now unless explicitly scheduled.
+      if (opens_at === undefined) {
+        updates.opens_at = new Date().toISOString()
+      } else if (parsedOpensAt === null) {
+        updates.opens_at = new Date().toISOString()
+      }
+    }
+
+    if (status === 'draft') {
+      updates.opens_at = null
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No updates provided' }, { status: 400 })

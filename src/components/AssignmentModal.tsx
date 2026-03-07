@@ -3,11 +3,20 @@
 import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import type { Assignment, ClassDay, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
-import { ConfirmDialog, DialogPanel } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
 import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
+import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
+import {
+  combineScheduleDateTimeToIso,
+  DEFAULT_SCHEDULE_TIME,
+  getTodayInSchedulingTimezone,
+  isScheduleIsoInFuture,
+  isVisibleAtNow,
+  parseScheduleIsoToParts,
+} from '@/lib/scheduling'
 
 const EMPTY_INSTRUCTIONS: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 3000
@@ -33,8 +42,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const [instructions, setInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [showReleaseConfirm, setShowReleaseConfirm] = useState(false)
+  const [showPostNowConfirm, setShowPostNowConfirm] = useState(false)
+  const [showRevertToDraftConfirm, setShowRevertToDraftConfirm] = useState(false)
   const [releasing, setReleasing] = useState(false)
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false)
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
 
   const defaultDueAt = addDaysToDateString(getTodayInToronto(), 1)
   const { dueAt, error, updateDueDate, setDueAt, setError } = useAssignmentDateValidation(defaultDueAt)
@@ -54,7 +67,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
     // Reset state when modal opens
     isInitializedRef.current = false
-    setShowReleaseConfirm(false)
+    setShowPostNowConfirm(false)
+    setShowRevertToDraftConfirm(false)
+    setShowSchedulePicker(false)
     setReleasing(false)
     setError('')
 
@@ -68,6 +83,14 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setTitle(nextTitle)
       setInstructions(nextInstructions)
       setDueAt(nextDueAt)
+      if (assignment.released_at && !isVisibleAtNow(assignment.released_at)) {
+        const scheduled = parseScheduleIsoToParts(assignment.released_at)
+        setScheduleDate(scheduled.date)
+        setScheduleTime(scheduled.time)
+      } else {
+        setScheduleDate(getTodayInSchedulingTimezone())
+        setScheduleTime(DEFAULT_SCHEDULE_TIME)
+      }
       lastSavedValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt }
       setSaveStatus('saved')
     } else {
@@ -76,6 +99,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setTitle('')
       setInstructions(EMPTY_INSTRUCTIONS)
       setDueAt(defaultDueAt)
+      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleTime(DEFAULT_SCHEDULE_TIME)
       lastSavedValuesRef.current = null
       setSaveStatus('saving')
       setCreating(true)
@@ -235,6 +260,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         }
 
         savedAssignment = data.assignment
+        setCurrentAssignment(savedAssignment)
         lastSavedValuesRef.current = { ...values }
       }
 
@@ -413,7 +439,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
   }
 
-  async function handleRelease() {
+  async function postAssignmentNow() {
+    if (releasing) return
     const assignmentToRelease = currentAssignment
     if (!assignmentToRelease) return
 
@@ -421,30 +448,140 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     setReleasing(true)
 
     try {
-      // Save any pending changes before releasing
       await flushPendingChanges()
 
-      // Now release the assignment
-      const response = await fetch(`/api/teacher/assignments/${assignmentToRelease.id}/release`, {
-        method: 'POST',
-      })
+      const response = assignmentToRelease.is_draft
+        ? await fetch(`/api/teacher/assignments/${assignmentToRelease.id}/release`, {
+            method: 'POST',
+          })
+        : await fetch(`/api/teacher/assignments/${assignmentToRelease.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ released_at: null }),
+          })
       const data = await response.json()
       if (!response.ok) {
         throw new Error(data.error || 'Failed to post assignment')
       }
 
-      onSuccess(data.assignment)
+      const updated = data.assignment as Assignment
+      setCurrentAssignment(updated)
+      onSuccess(updated)
       onClose()
     } catch (err: any) {
       setError(err.message || 'Failed to post assignment')
     } finally {
       setReleasing(false)
-      setShowReleaseConfirm(false)
+      setShowPostNowConfirm(false)
     }
+  }
+
+  async function scheduleAssignmentRelease() {
+    if (releasing) return
+    const assignmentToSchedule = currentAssignment
+    if (!assignmentToSchedule || !scheduleDate) return
+
+    const releaseIso = combineScheduleDateTimeToIso(scheduleDate, scheduleTime)
+    if (!isScheduleIsoInFuture(releaseIso)) {
+      setError('Release time must be in the future')
+      return
+    }
+
+    setError('')
+    setReleasing(true)
+    try {
+      await flushPendingChanges()
+
+      const response = assignmentToSchedule.is_draft
+        ? await fetch(`/api/teacher/assignments/${assignmentToSchedule.id}/release`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ release_at: releaseIso }),
+          })
+        : await fetch(`/api/teacher/assignments/${assignmentToSchedule.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ released_at: releaseIso }),
+          })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to schedule assignment')
+      }
+
+      const updated = data.assignment as Assignment
+      setCurrentAssignment(updated)
+      onSuccess(updated)
+      setShowSchedulePicker(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to schedule assignment')
+    } finally {
+      setReleasing(false)
+    }
+  }
+
+  async function revertAssignmentToDraft() {
+    if (releasing) return
+    const assignmentToUpdate = currentAssignment
+    if (!assignmentToUpdate || assignmentToUpdate.is_draft) return
+
+    setError('')
+    setReleasing(true)
+    try {
+      await flushPendingChanges()
+      const response = await fetch(`/api/teacher/assignments/${assignmentToUpdate.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_draft: true, released_at: null }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to revert assignment to draft')
+      }
+
+      const updated = data.assignment as Assignment
+      setCurrentAssignment(updated)
+      onSuccess(updated)
+      setShowSchedulePicker(false)
+      setShowRevertToDraftConfirm(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to revert assignment to draft')
+    } finally {
+      setReleasing(false)
+    }
+  }
+
+  function openSchedulePicker() {
+    if (currentAssignment?.released_at && !isVisibleAtNow(currentAssignment.released_at)) {
+      const parsed = parseScheduleIsoToParts(currentAssignment.released_at)
+      setScheduleDate(parsed.date)
+      setScheduleTime(parsed.time)
+    } else {
+      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleTime(DEFAULT_SCHEDULE_TIME)
+    }
+    setShowSchedulePicker((prev) => !prev)
   }
 
   // Determine if this is a draft (new or existing draft)
   const isDraft = !currentAssignment || currentAssignment.is_draft
+  const isScheduled =
+    !!currentAssignment &&
+    !currentAssignment.is_draft &&
+    !!currentAssignment.released_at &&
+    !isVisibleAtNow(currentAssignment.released_at)
+  const isLive = !!currentAssignment && !currentAssignment.is_draft && !isScheduled
+  const scheduleIso = scheduleDate ? combineScheduleDateTimeToIso(scheduleDate, scheduleTime) : ''
+  const isScheduleValid = scheduleIso ? isScheduleIsoInFuture(scheduleIso) : false
+
+  function formatReleaseDate(iso: string): string {
+    return new Date(iso).toLocaleString('en-US', {
+      timeZone: 'America/Toronto',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  }
 
   // Modal title
   const modalTitle = creating
@@ -453,7 +590,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       ? 'New Assignment'
       : currentAssignment.is_draft
         ? 'Edit Draft'
-        : 'Edit Assignment'
+        : isScheduled
+          ? 'Edit Scheduled Assignment'
+          : 'Edit Assignment'
 
   return (
     <>
@@ -482,6 +621,80 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
+          {currentAssignment && !creating && (
+            <div className="mb-4 rounded-md border border-border bg-surface-2 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                    Release
+                  </p>
+                  {isDraft ? (
+                    <p className="text-sm text-text-default">Draft (not visible to students)</p>
+                  ) : isScheduled ? (
+                    <p className="text-sm text-text-default">
+                      Scheduled for {formatReleaseDate(currentAssignment.released_at!)} (America/Toronto)
+                    </p>
+                  ) : (
+                    <p className="text-sm text-text-default">
+                      Live for students{currentAssignment.released_at ? ` since ${formatReleaseDate(currentAssignment.released_at)}` : ''}
+                    </p>
+                  )}
+                </div>
+
+                {!isLive && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="success"
+                      onClick={() => setShowPostNowConfirm(true)}
+                      disabled={releasing || saving}
+                    >
+                      {releasing ? 'Posting...' : 'Post now'}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={openSchedulePicker}
+                      disabled={releasing || saving}
+                    >
+                      {isScheduled ? 'Reschedule' : 'Schedule'}
+                    </Button>
+                    {isScheduled && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setShowRevertToDraftConfirm(true)}
+                        disabled={releasing || saving}
+                      >
+                        Revert to draft
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {showSchedulePicker && (
+                <div className="mt-3">
+                  <ScheduleDateTimePicker
+                    date={scheduleDate}
+                    time={scheduleTime}
+                    minDate={getTodayInSchedulingTimezone()}
+                    isFutureValid={isScheduleValid}
+                    onDateChange={setScheduleDate}
+                    onTimeChange={setScheduleTime}
+                    onCancel={() => setShowSchedulePicker(false)}
+                    onConfirm={scheduleAssignmentRelease}
+                    confirmLabel={releasing ? 'Saving...' : isScheduled ? 'Save schedule' : 'Schedule'}
+                    title="Release Time (Toronto)"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           <AssignmentForm
             title={title}
             instructions={instructions}
@@ -498,32 +711,32 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
             error={error}
             titleInputRef={titleInputRef}
             onBlur={flushAutosave}
-            extraAction={isDraft && !creating ? {
-              label: releasing ? 'Posting...' : (
-                <span className="inline-flex items-center gap-1.5">
-                  Post
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                  </svg>
-                </span>
-              ),
-              onClick: () => setShowReleaseConfirm(true),
-              variant: 'success',
-            } : undefined}
           />
         </div>
       </DialogPanel>
 
       <ConfirmDialog
-        isOpen={showReleaseConfirm}
+        isOpen={showPostNowConfirm}
         title="Post assignment to students?"
-        description="Once posted, students will be able to see this assignment. This cannot be undone."
+        description="Students will be able to access this assignment immediately. Once live, it cannot be reverted to draft."
         confirmLabel={releasing ? 'Posting...' : 'Post'}
         cancelLabel="Cancel"
         isConfirmDisabled={releasing}
         isCancelDisabled={releasing}
-        onCancel={() => setShowReleaseConfirm(false)}
-        onConfirm={handleRelease}
+        onCancel={() => setShowPostNowConfirm(false)}
+        onConfirm={postAssignmentNow}
+      />
+
+      <ConfirmDialog
+        isOpen={showRevertToDraftConfirm}
+        title="Revert to draft?"
+        description="Students will no longer be able to see this assignment until you post or schedule it again."
+        confirmLabel={releasing ? 'Reverting...' : 'Revert'}
+        cancelLabel="Cancel"
+        isConfirmDisabled={releasing}
+        isCancelDisabled={releasing}
+        onCancel={() => setShowRevertToDraftConfirm(false)}
+        onConfirm={revertAssignmentToDraft}
       />
     </>
   )

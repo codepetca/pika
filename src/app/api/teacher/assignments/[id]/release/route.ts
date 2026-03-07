@@ -13,6 +13,8 @@ export async function POST(
   try {
     const user = await requireRole('teacher')
     const { id } = await params
+    const body = await request.json().catch(() => ({}))
+    const releaseAt = body?.release_at as string | undefined
     const supabase = getServiceRoleClient()
 
     // Fetch assignment and verify ownership
@@ -57,12 +59,30 @@ export async function POST(
       )
     }
 
+    let releasedAtIso = new Date().toISOString()
+    if (releaseAt !== undefined) {
+      const parsed = new Date(releaseAt)
+      if (isNaN(parsed.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid release date' },
+          { status: 400 }
+        )
+      }
+      if (parsed <= new Date()) {
+        return NextResponse.json(
+          { error: 'Release date must be in the future' },
+          { status: 400 }
+        )
+      }
+      releasedAtIso = parsed.toISOString()
+    }
+
     // Release the assignment
     const { data: assignment, error } = await supabase
       .from('assignments')
       .update({
         is_draft: false,
-        released_at: new Date().toISOString()
+        released_at: releasedAtIso
       })
       .eq('id', id)
       .select()

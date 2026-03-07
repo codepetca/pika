@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { getStudentQuizStatus } from '@/lib/quizzes'
-import { assertStudentCanAccessQuiz } from '@/lib/server/quizzes'
+import { assertStudentCanAccessQuiz, isQuizVisibleToStudents } from '@/lib/server/quizzes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -33,6 +33,9 @@ export async function GET(
     const hasResponded = (responses?.length || 0) > 0
 
     if (quiz.status === 'draft') {
+      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
+    }
+    if (quiz.status === 'active' && !isQuizVisibleToStudents(quiz)) {
       return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
     }
     if (quiz.status === 'closed' && !hasResponded) {
@@ -72,6 +75,7 @@ export async function GET(
         title: quiz.title,
         assessment_type: 'quiz' as const,
         status: quiz.status,
+        opens_at: quiz.opens_at,
         show_results: quiz.show_results,
         position: quiz.position,
         student_status: studentStatus,

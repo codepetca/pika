@@ -4,8 +4,16 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { Trash2, Plus, Clock, ChevronDown, Calendar } from 'lucide-react'
 import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
+import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import type { Announcement, Classroom } from '@/types'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import {
+  combineScheduleDateTimeToIso,
+  DEFAULT_SCHEDULE_TIME,
+  getTodayInSchedulingTimezone,
+  isScheduleIsoInFuture,
+  parseScheduleIsoToParts,
+} from '@/lib/scheduling'
 
 interface Props {
   classroom: Classroom
@@ -19,35 +27,27 @@ function isScheduled(announcement: Announcement): boolean {
 
 // Helper to get today's date in YYYY-MM-DD format
 function getTodayDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  return getTodayInSchedulingTimezone()
 }
 
 // Helper to combine date and optional time into Date object
 function combineDateTimeToDate(date: string, time?: string): Date {
-  if (time) {
-    return new Date(`${date}T${time}`)
-  }
-  // Default to 7:00 AM if no time specified
-  return new Date(`${date}T07:00`)
+  return new Date(combineScheduleDateTimeToIso(date, time))
 }
 
 // Helper to combine date and optional time into ISO string
 function combineDateTime(date: string, time?: string): string {
-  return combineDateTimeToDate(date, time).toISOString()
+  return combineScheduleDateTimeToIso(date, time)
 }
 
 // Helper to check if date/time is in the future
 function isScheduleInFuture(date: string, time?: string): boolean {
-  const scheduledDate = combineDateTimeToDate(date, time)
-  return scheduledDate > new Date()
+  return isScheduleIsoInFuture(combineDateTime(date, time))
 }
 
 // Helper to parse ISO datetime into date and time parts
 function parseDateTime(isoString: string): { date: string; time: string } {
-  const d = new Date(isoString)
-  const date = d.toISOString().slice(0, 10)
-  const time = d.toTimeString().slice(0, 5)
-  return { date, time }
+  return parseScheduleIsoToParts(isoString)
 }
 
 export function TeacherAnnouncementsSection({ classroom }: Props) {
@@ -152,8 +152,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
     setOriginalContent(announcement.content)
     // Convert ISO to local datetime-local format if scheduled
     if (announcement.scheduled_for) {
-      const date = new Date(announcement.scheduled_for)
-      setEditScheduleDateTime(date.toISOString().slice(0, 16))
+      setEditScheduleDateTime(announcement.scheduled_for)
       setOriginalScheduledFor(announcement.scheduled_for)
     } else {
       setEditScheduleDateTime('')
@@ -408,7 +407,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     setPendingScheduleDate(getTodayDate())
-                    setPendingScheduleTime('07:00')
+                    setPendingScheduleTime(DEFAULT_SCHEDULE_TIME)
                     setShowScheduleDropdown(!showScheduleDropdown)
                   }}
                   disabled={saving || !newContent.trim()}
@@ -420,50 +419,22 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
 
               {/* Schedule dropdown */}
               {showScheduleDropdown && (
-                <div className="absolute right-0 top-full mt-1 bg-surface rounded-lg shadow-lg border border-border p-3 z-10 min-w-[220px]">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Calendar className="h-4 w-4 text-text-muted" />
-                    <span className="text-sm font-medium text-text-default">Schedule</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1">Date</label>
-                      <input
-                        type="date"
-                        value={pendingScheduleDate}
-                        onChange={(e) => setPendingScheduleDate(e.target.value)}
-                        min={getTodayDate()}
-                        className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1">Time</label>
-                      <input
-                        type="time"
-                        value={pendingScheduleTime}
-                        onChange={(e) => setPendingScheduleTime(e.target.value)}
-                        className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  {pendingScheduleDate && !isScheduleInFuture(pendingScheduleDate, pendingScheduleTime) && (
-                    <p className="text-xs text-red-500 mt-2">Schedule must be in the future</p>
-                  )}
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => {
-                      if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
-                        setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
-                        setShowScheduleDropdown(false)
-                      }
-                    }}
-                    disabled={!pendingScheduleDate || !isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
-                    className="w-full mt-2"
-                  >
-                    Done
-                  </Button>
-                </div>
+                <ScheduleDateTimePicker
+                  className="absolute right-0 top-full mt-1 z-10 min-w-[220px]"
+                  date={pendingScheduleDate}
+                  time={pendingScheduleTime}
+                  minDate={getTodayDate()}
+                  isFutureValid={!pendingScheduleDate ? false : isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
+                  onDateChange={setPendingScheduleDate}
+                  onTimeChange={setPendingScheduleTime}
+                  onCancel={() => setShowScheduleDropdown(false)}
+                  onConfirm={() => {
+                    if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
+                      setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
+                      setShowScheduleDropdown(false)
+                    }
+                  }}
+                />
               )}
             </div>
           </div>
@@ -579,7 +550,7 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
                               setPendingEditScheduleDate(getTodayDate())
-                              setPendingEditScheduleTime('07:00')
+                              setPendingEditScheduleTime(DEFAULT_SCHEDULE_TIME)
                               setShowEditScheduleDropdown(!showEditScheduleDropdown)
                             }}
                             disabled={saving || !editContent.trim()}
@@ -591,50 +562,22 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
 
                         {/* Schedule dropdown */}
                         {showEditScheduleDropdown && (
-                          <div className="absolute right-0 top-full mt-1 bg-surface rounded-lg shadow-lg border border-border p-3 z-10 min-w-[220px]">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Calendar className="h-4 w-4 text-text-muted" />
-                              <span className="text-sm font-medium text-text-default">Schedule</span>
-                            </div>
-                            <div className="space-y-3">
-                              <div>
-                                <label className="block text-xs text-text-muted mb-1">Date</label>
-                                <input
-                                  type="date"
-                                  value={pendingEditScheduleDate}
-                                  onChange={(e) => setPendingEditScheduleDate(e.target.value)}
-                                  min={getTodayDate()}
-                                  className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs text-text-muted mb-1">Time</label>
-                                <input
-                                  type="time"
-                                  value={pendingEditScheduleTime}
-                                  onChange={(e) => setPendingEditScheduleTime(e.target.value)}
-                                  className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                              </div>
-                            </div>
-                            {pendingEditScheduleDate && !isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime) && (
-                              <p className="text-xs text-red-500 mt-2">Schedule must be in the future</p>
-                            )}
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => {
-                                if (pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)) {
-                                  setEditScheduleDateTime(combineDateTime(pendingEditScheduleDate, pendingEditScheduleTime))
-                                  setShowEditScheduleDropdown(false)
-                                }
-                              }}
-                              disabled={!pendingEditScheduleDate || !isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)}
-                              className="w-full mt-2"
-                            >
-                              Done
-                            </Button>
-                          </div>
+                          <ScheduleDateTimePicker
+                            className="absolute right-0 top-full mt-1 z-10 min-w-[220px]"
+                            date={pendingEditScheduleDate}
+                            time={pendingEditScheduleTime}
+                            minDate={getTodayDate()}
+                            isFutureValid={!pendingEditScheduleDate ? false : isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)}
+                            onDateChange={setPendingEditScheduleDate}
+                            onTimeChange={setPendingEditScheduleTime}
+                            onCancel={() => setShowEditScheduleDropdown(false)}
+                            onConfirm={() => {
+                              if (pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)) {
+                                setEditScheduleDateTime(combineDateTime(pendingEditScheduleDate, pendingEditScheduleTime))
+                                setShowEditScheduleDropdown(false)
+                              }
+                            }}
+                          />
                         )}
                       </div>
                     </div>

@@ -186,7 +186,13 @@ export async function PATCH(
     const user = await requireRole('teacher')
     const { id } = await params
     const body = await request.json()
-    const { title, rich_instructions, due_at } = body
+    const { title, rich_instructions, due_at, is_draft, released_at } = body as {
+      title?: string
+      rich_instructions?: TiptapContent
+      due_at?: string
+      is_draft?: boolean
+      released_at?: string | null
+    }
 
     const supabase = getServiceRoleClient()
 
@@ -224,6 +230,13 @@ export async function PATCH(
       )
     }
 
+    if (is_draft !== undefined && typeof is_draft !== 'boolean') {
+      return NextResponse.json(
+        { error: 'is_draft must be a boolean' },
+        { status: 400 }
+      )
+    }
+
     // Build update object
     const updates: Record<string, any> = {}
     if (title !== undefined) updates.title = title.trim()
@@ -233,6 +246,60 @@ export async function PATCH(
       updates.description = extractPlainText(instructions)  // Keep plain text in sync
     }
     if (due_at !== undefined) updates.due_at = due_at
+
+    const now = new Date()
+    const existingReleaseDate = existing.released_at ? new Date(existing.released_at) : null
+    const existingIsLive = !existing.is_draft && (!existingReleaseDate || existingReleaseDate <= now)
+    const existingIsScheduled = !existing.is_draft && !!existingReleaseDate && existingReleaseDate > now
+
+    let parsedReleasedAt: string | null | undefined
+    if (released_at !== undefined) {
+      if (released_at === null) {
+        parsedReleasedAt = now.toISOString()
+      } else {
+        const parsed = new Date(released_at)
+        if (isNaN(parsed.getTime())) {
+          return NextResponse.json(
+            { error: 'Invalid release date' },
+            { status: 400 }
+          )
+        }
+        parsedReleasedAt = parsed > now ? parsed.toISOString() : now.toISOString()
+      }
+    }
+
+    if (is_draft === true && existingIsLive) {
+      return NextResponse.json(
+        { error: 'Cannot revert an already released assignment to draft' },
+        { status: 400 }
+      )
+    }
+
+    if (released_at !== undefined && existingIsLive) {
+      return NextResponse.json(
+        { error: 'Cannot reschedule an already released assignment' },
+        { status: 400 }
+      )
+    }
+
+    if (is_draft === true) {
+      updates.is_draft = true
+      updates.released_at = null
+    } else if (is_draft === false) {
+      updates.is_draft = false
+      if (parsedReleasedAt !== undefined) {
+        updates.released_at = parsedReleasedAt
+      } else if (existing.is_draft) {
+        updates.released_at = now.toISOString()
+      }
+    } else if (released_at !== undefined) {
+      if (existing.is_draft) {
+        updates.is_draft = false
+        updates.released_at = parsedReleasedAt ?? now.toISOString()
+      } else if (existingIsScheduled) {
+        updates.released_at = parsedReleasedAt ?? now.toISOString()
+      }
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(

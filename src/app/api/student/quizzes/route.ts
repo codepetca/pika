@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { getStudentQuizStatus } from '@/lib/quizzes'
+import { isQuizVisibleToStudents } from '@/lib/server/quizzes'
 import type { Quiz } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -42,6 +43,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch quizzes' }, { status: 500 })
     }
 
+    const visibleActiveQuizzes = (activeQuizzes || []).filter((quiz) =>
+      isQuizVisibleToStudents(quiz)
+    )
+
     const { data: closedQuizzes, error: closedError } = await fetchByStatus('closed')
 
     if (closedError) {
@@ -50,7 +55,7 @@ export async function GET(request: NextRequest) {
     }
 
     const classroomQuizIds = [
-      ...(activeQuizzes || []).map((q) => q.id),
+      ...visibleActiveQuizzes.map((q) => q.id),
       ...(closedQuizzes || []).map((q) => q.id),
     ]
 
@@ -71,7 +76,7 @@ export async function GET(request: NextRequest) {
       respondedQuizIds.has(quiz.id)
     )
 
-    const allQuizzes = [...(activeQuizzes || []), ...respondedClosedQuizzes]
+    const allQuizzes = [...visibleActiveQuizzes, ...respondedClosedQuizzes]
 
     const quizzesWithStatus = allQuizzes.map((quiz: Quiz) => {
       const hasResponded = respondedQuizIds.has(quiz.id)
