@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
+import { X } from 'lucide-react'
 import type { Assignment, ClassDay, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
-import { Button, ConfirmDialog, DialogPanel, SplitButton } from '@/ui'
+import { ConfirmDialog, DialogPanel, SplitButton } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -29,7 +30,7 @@ interface AssignmentModalProps {
   assignment?: Assignment | null // null/undefined for create mode
   classDays?: ClassDay[]
   onClose: () => void
-  onSuccess: (assignment: Assignment) => void
+  onSuccess: (assignment: Assignment, options?: { closeModal?: boolean }) => void
 }
 
 export function AssignmentModal({ isOpen, classroomId, assignment, classDays, onClose, onSuccess }: AssignmentModalProps) {
@@ -46,9 +47,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const [showPostNowConfirm, setShowPostNowConfirm] = useState(false)
   const [showRevertToDraftConfirm, setShowRevertToDraftConfirm] = useState(false)
   const [releasing, setReleasing] = useState(false)
-  const [showSchedulePicker, setShowSchedulePicker] = useState(false)
   const [showCreateScheduleModal, setShowCreateScheduleModal] = useState(false)
-  const [createPrimaryAction, setCreatePrimaryAction] = useState<CreateSubmitAction>('post')
+  const [primaryAction, setPrimaryAction] = useState<CreateSubmitAction>('post')
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
 
@@ -72,9 +72,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     isInitializedRef.current = false
     setShowPostNowConfirm(false)
     setShowRevertToDraftConfirm(false)
-    setShowSchedulePicker(false)
     setShowCreateScheduleModal(false)
-    setCreatePrimaryAction('post')
+    setPrimaryAction('post')
     setReleasing(false)
     setError('')
 
@@ -92,9 +91,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         const scheduled = parseScheduleIsoToParts(assignment.released_at)
         setScheduleDate(scheduled.date)
         setScheduleTime(scheduled.time)
+        setPrimaryAction('schedule')
       } else {
         setScheduleDate(getTodayInSchedulingTimezone())
         setScheduleTime(DEFAULT_SCHEDULE_TIME)
+        setPrimaryAction('post')
       }
       lastSavedValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt }
       setSaveStatus('saved')
@@ -106,6 +107,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setDueAt(defaultDueAt)
       setScheduleDate(getTodayInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
+      setPrimaryAction('post')
       lastSavedValuesRef.current = null
       setSaveStatus('saving')
       setCreating(true)
@@ -409,7 +411,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isCreateMode && currentAssignment) {
-      await triggerCreatePrimaryAction()
+      await triggerPrimaryAction()
       return
     }
 
@@ -443,7 +445,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     setSaving(false)
   }
 
-  async function triggerCreatePrimaryAction(action: CreateSubmitAction = createPrimaryAction) {
+  async function triggerPrimaryAction(action: CreateSubmitAction = primaryAction) {
     if (!currentAssignment || creating || saving || releasing) return
 
     if (action === 'post') {
@@ -452,7 +454,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
 
     if (action === 'schedule') {
-      setShowCreateScheduleModal(true)
+      await openScheduleModalWithSave()
+      return
+    }
+
+    if (!currentAssignment.is_draft) {
+      setShowRevertToDraftConfirm(true)
       return
     }
 
@@ -481,7 +488,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
   }
 
-  async function postAssignmentNow() {
+  async function postAssignmentNow(options?: { closeAfter?: boolean }) {
     if (releasing) return
     const assignmentToRelease = currentAssignment
     if (!assignmentToRelease) return
@@ -508,8 +515,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
       const updated = data.assignment as Assignment
       setCurrentAssignment(updated)
-      onSuccess(updated)
-      onClose()
+      if (!isCreateMode || (options?.closeAfter ?? true)) {
+        onSuccess(updated)
+      }
+      if (options?.closeAfter ?? true) {
+        onClose()
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to post assignment')
     } finally {
@@ -555,9 +566,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       if (!isCreateMode) {
         onSuccess(updated)
       }
-      setShowSchedulePicker(false)
       setShowCreateScheduleModal(false)
-      setCreatePrimaryAction('schedule')
+      setPrimaryAction('schedule')
       if (options?.closeAfter) {
         onClose()
       }
@@ -590,10 +600,44 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       const updated = data.assignment as Assignment
       setCurrentAssignment(updated)
       onSuccess(updated)
-      setShowSchedulePicker(false)
+      setPrimaryAction('post')
       setShowRevertToDraftConfirm(false)
     } catch (err: any) {
       setError(err.message || 'Failed to revert assignment to draft')
+    } finally {
+      setReleasing(false)
+    }
+  }
+
+  async function clearScheduledRelease() {
+    if (releasing) return
+    const assignmentToUpdate = currentAssignment
+    if (!assignmentToUpdate || !isScheduled) return
+
+    setError('')
+    setReleasing(true)
+    try {
+      await flushPendingChanges()
+      const response = await fetch(`/api/teacher/assignments/${assignmentToUpdate.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_draft: true, released_at: null }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to clear scheduled release')
+      }
+
+      const updated = data.assignment as Assignment
+      setCurrentAssignment(updated)
+      if (!isCreateMode) {
+        onSuccess(updated, { closeModal: false })
+      }
+      // Keep modal open after clearing so the user can immediately choose next action.
+      setPrimaryAction('schedule')
+      setShowCreateScheduleModal(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to clear scheduled release')
     } finally {
       setReleasing(false)
     }
@@ -610,9 +654,15 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
   }
 
-  function openSchedulePicker() {
-    syncScheduleInputsFromAssignment()
-    setShowSchedulePicker((prev) => !prev)
+  async function openScheduleModalWithSave() {
+    if (!currentAssignment || saving || releasing || creating) return
+    try {
+      await flushPendingChanges()
+      syncScheduleInputsFromAssignment()
+      setShowCreateScheduleModal(true)
+    } catch (err: any) {
+      setError(err.message || 'Failed to save changes')
+    }
   }
 
   // Determine if this is a draft (new or existing draft)
@@ -629,11 +679,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   function formatReleaseDate(iso: string): string {
     return new Date(iso).toLocaleString('en-US', {
       timeZone: 'America/Toronto',
+      weekday: 'short',
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-    })
+    }).replace(/^([A-Za-z]{3}),\s/, '$1 ')
   }
 
   // Modal title
@@ -646,24 +697,44 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         : isScheduled
           ? 'Edit Scheduled Assignment'
           : 'Edit Assignment'
-  const createPrimaryLabel =
-    createPrimaryAction === 'post'
+  const effectivePrimaryAction = isScheduled ? 'schedule' : primaryAction
+  const primaryLabel =
+    effectivePrimaryAction === 'post'
       ? releasing
         ? 'Posting...'
         : 'Post'
-      : createPrimaryAction === 'schedule'
+      : effectivePrimaryAction === 'schedule'
         ? releasing
           ? 'Scheduling...'
           : 'Schedule'
         : saving
           ? 'Saving...'
           : 'Draft'
+  const splitOptions = isScheduled
+    ? []
+    : [
+        {
+          id: 'post',
+          label: 'Post',
+          onSelect: () => handleActionSelection('post'),
+        },
+        {
+          id: 'schedule',
+          label: 'Schedule',
+          onSelect: () => handleActionSelection('schedule'),
+        },
+        {
+          id: 'draft',
+          label: 'Draft',
+          onSelect: () => handleActionSelection('draft'),
+          disabled: isLive,
+        },
+      ].filter((option) => option.id !== effectivePrimaryAction)
 
-  function handleCreateActionSelection(action: CreateSubmitAction) {
-    setCreatePrimaryAction(action)
+  function handleActionSelection(action: CreateSubmitAction) {
+    setPrimaryAction(action)
     if (action === 'schedule') {
-      syncScheduleInputsFromAssignment()
-      setShowCreateScheduleModal(true)
+      void openScheduleModalWithSave()
     }
   }
 
@@ -694,80 +765,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
-          {currentAssignment && !creating && !isCreateMode && (
-            <div className="mb-4 rounded-md border border-border bg-surface-2 p-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                    Release
-                  </p>
-                  {isDraft ? (
-                    <p className="text-sm text-text-default">Draft (not visible to students)</p>
-                  ) : isScheduled ? (
-                    <p className="text-sm text-text-default">
-                      Scheduled for {formatReleaseDate(currentAssignment.released_at!)} (America/Toronto)
-                    </p>
-                  ) : (
-                    <p className="text-sm text-text-default">
-                      Live for students{currentAssignment.released_at ? ` since ${formatReleaseDate(currentAssignment.released_at)}` : ''}
-                    </p>
-                  )}
-                </div>
-
-                {!isLive && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="success"
-                      onClick={() => setShowPostNowConfirm(true)}
-                      disabled={releasing || saving}
-                    >
-                      {releasing ? 'Posting...' : 'Post now'}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={openSchedulePicker}
-                      disabled={releasing || saving}
-                    >
-                      {isScheduled ? 'Reschedule' : 'Schedule'}
-                    </Button>
-                    {isScheduled && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setShowRevertToDraftConfirm(true)}
-                        disabled={releasing || saving}
-                      >
-                        Revert to draft
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {showSchedulePicker && (
-                <div className="mt-3">
-                  <ScheduleDateTimePicker
-                    date={scheduleDate}
-                    time={scheduleTime}
-                    minDate={getTodayInSchedulingTimezone()}
-                    isFutureValid={isScheduleValid}
-                    onDateChange={setScheduleDate}
-                    onTimeChange={setScheduleTime}
-                    onCancel={() => setShowSchedulePicker(false)}
-                    onConfirm={scheduleAssignmentRelease}
-                    confirmLabel={releasing ? 'Saving...' : isScheduled ? 'Save schedule' : 'Schedule'}
-                    title="Release Time (Toronto)"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
           <AssignmentForm
             title={title}
             instructions={instructions}
@@ -785,40 +782,48 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
             titleInputRef={titleInputRef}
             onBlur={flushAutosave}
             footerContent={
-              isCreateMode && currentAssignment
+              currentAssignment
                 ? (
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-h-[1.25rem] text-xs text-text-muted">
-                        {isScheduled && currentAssignment.released_at
-                          ? `Release: ${formatReleaseDate(currentAssignment.released_at)} (Toronto)`
-                          : ''}
-                      </div>
+                    <div className="flex items-center justify-end gap-2">
+                      {isScheduled && currentAssignment.released_at && (
+                        <div className="inline-flex items-stretch rounded-md border border-warning bg-warning-bg text-warning">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void openScheduleModalWithSave()
+                            }}
+                            disabled={creating || releasing || saving}
+                            className="px-2.5 py-1.5 text-xs font-medium hover:bg-warning-bg disabled:cursor-not-allowed"
+                          >
+                            {`Scheduled for ${formatReleaseDate(currentAssignment.released_at)}`}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Clear scheduled release"
+                            onClick={() => {
+                              void clearScheduledRelease()
+                            }}
+                            disabled={creating || releasing || saving}
+                            className="border-l border-warning px-2 hover:bg-warning-bg disabled:cursor-not-allowed"
+                          >
+                            <X className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
+                      )}
                       <SplitButton
-                        label={createPrimaryLabel}
+                        label={primaryLabel}
                         onPrimaryClick={() => {
-                          void triggerCreatePrimaryAction()
+                          void triggerPrimaryAction()
                         }}
-                        variant={createPrimaryAction === 'post' ? 'success' : 'primary'}
-                        size="sm"
+                        variant={effectivePrimaryAction === 'post' ? 'success' : 'primary'}
+                        size="md"
                         disabled={creating || releasing || saving || !currentAssignment}
+                        className="shadow-sm"
                         toggleAriaLabel="Choose assignment action"
-                        options={[
-                          {
-                            id: 'post',
-                            label: 'Post',
-                            onSelect: () => handleCreateActionSelection('post'),
-                          },
-                          {
-                            id: 'schedule',
-                            label: 'Schedule',
-                            onSelect: () => handleCreateActionSelection('schedule'),
-                          },
-                          {
-                            id: 'draft',
-                            label: 'Draft',
-                            onSelect: () => handleCreateActionSelection('draft'),
-                          },
-                        ]}
+                        primaryButtonProps={{
+                          className: 'w-[9rem] justify-center font-semibold',
+                        }}
+                        options={splitOptions}
                       />
                     </div>
                   )
@@ -850,10 +855,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           onTimeChange={setScheduleTime}
           onCancel={() => setShowCreateScheduleModal(false)}
           onConfirm={() => {
-            void scheduleAssignmentRelease()
+            void scheduleAssignmentRelease({ closeAfter: isScheduled })
           }}
-          confirmLabel={releasing ? 'Scheduling...' : 'Schedule'}
-          title="Release Time (Toronto)"
+          confirmLabel={releasing ? 'Scheduling...' : isScheduled ? 'Save schedule' : 'Schedule'}
+          dateLabel="Date"
+          timeLabel="Time"
+          showHeader={false}
+          showTimezoneLabel={false}
           className="border-0 bg-transparent p-0 shadow-none"
         />
       </DialogPanel>

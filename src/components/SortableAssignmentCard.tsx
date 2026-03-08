@@ -21,6 +21,19 @@ interface SortableAssignmentCardProps {
   onDelete: () => void
 }
 
+function formatScheduledRelease(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', {
+    timeZone: 'America/Toronto',
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+    .replace(/^([A-Za-z]{3}),\s/, '$1 ')
+    .replace(/\s([AP]M)$/, '$1')
+}
+
 export function SortableAssignmentCard({
   assignment,
   isReadOnly,
@@ -48,6 +61,10 @@ export function SortableAssignmentCard({
     !assignment.is_draft &&
     !!assignment.released_at &&
     !isVisibleAtNow(assignment.released_at)
+  const scheduledOpenLabel =
+    isScheduled && assignment.released_at
+      ? formatScheduledRelease(assignment.released_at)
+      : ''
 
   return (
     <div
@@ -55,17 +72,13 @@ export function SortableAssignmentCard({
       style={style}
       className={[
         'w-full text-left p-3 border rounded-lg',
-        isDraft
+        isDraft || isScheduled
           ? 'border-border-strong bg-surface-2'
-          : isScheduled
-            ? 'border-warning bg-warning-bg'
           : 'border-border bg-surface',
         isDragging
           ? 'shadow-xl scale-[1.02] z-50 border-primary opacity-90'
-          : isDraft
+          : isDraft || isScheduled
             ? 'transition hover:border-border-strong hover:bg-surface-hover'
-            : isScheduled
-              ? 'transition hover:border-warning hover:bg-warning-bg'
             : 'transition hover:border-primary hover:bg-info-bg',
       ].join(' ')}
     >
@@ -97,23 +110,15 @@ export function SortableAssignmentCard({
         >
           <h3 className={[
             'font-medium truncate',
-            isDraft ? 'text-text-muted' : 'text-text-default'
+            isDraft || isScheduled ? 'text-text-muted' : 'text-text-default'
           ].join(' ')}>
             {assignment.title}
           </h3>
           <p className="text-xs text-text-muted">
             Due: {formatDueDate(assignment.due_at)}
           </p>
-          {isScheduled && assignment.released_at && (
-            <p className="text-xs text-warning">
-              Releases {new Date(assignment.released_at).toLocaleString('en-US', {
-                timeZone: 'America/Toronto',
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-              })}
-            </p>
+          {isScheduled && (
+            <p className="text-xs text-warning">{scheduledOpenLabel}</p>
           )}
         </button>
 

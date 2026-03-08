@@ -1079,11 +1079,14 @@ export function TeacherClassroomView({
           setEditAssignment(null)
           setIsCreateModalOpen(false)
         }}
-        onSuccess={(assignment) => {
+        onSuccess={(assignment, options) => {
           if (editAssignment) {
             handleEditSuccess(assignment)
           } else {
             handleCreateSuccess(assignment)
+          }
+          if (options?.closeModal === false) {
+            return
           }
           setEditAssignment(null)
           setIsCreateModalOpen(false)

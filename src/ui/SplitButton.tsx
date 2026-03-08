@@ -42,6 +42,7 @@ export function SplitButton({
   toggleAriaLabel = 'More actions',
   primaryButtonProps,
 }: SplitButtonProps) {
+  const { className: primaryClassName, ...restPrimaryButtonProps } = primaryButtonProps ?? {}
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const menuId = useId()
@@ -78,8 +79,8 @@ export function SplitButton({
         size={size}
         onClick={onPrimaryClick}
         disabled={disabled}
-        className="rounded-r-none"
-        {...primaryButtonProps}
+        className={cn('rounded-r-none', primaryClassName)}
+        {...restPrimaryButtonProps}
       >
         {label}
       </Button>
@@ -93,7 +94,7 @@ export function SplitButton({
         aria-label={toggleAriaLabel}
         onClick={() => setIsOpen((prev) => !prev)}
         disabled={disabled || options.length === 0}
-        className="rounded-l-none border-l border-black/15 px-2"
+        className="rounded-l-none border-l border-black/15 px-3"
       >
         <ChevronDown className="h-4 w-4" aria-hidden="true" />
       </Button>
