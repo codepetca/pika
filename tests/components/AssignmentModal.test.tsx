@@ -76,7 +76,7 @@ describe('AssignmentModal', () => {
       expect(screen.getByText('Saved')).toBeInTheDocument()
     })
 
-    it('shows release controls for draft assignments', () => {
+    it('shows split button controls for draft assignments', () => {
       render(
         <AssignmentModal
           isOpen={true}
@@ -87,9 +87,12 @@ describe('AssignmentModal', () => {
         />
       )
 
-      expect(screen.getByText('Draft (not visible to students)')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Post now' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Schedule' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Post' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Choose assignment action' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      expect(screen.queryByRole('menuitem', { name: 'Post' })).not.toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Schedule' })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Draft' })).toBeInTheDocument()
     })
 
     it('schedules release for draft assignments', async () => {
@@ -111,16 +114,19 @@ describe('AssignmentModal', () => {
         />
       )
 
-      fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
 
-      const pickerTitle = screen.getByText('Release Time (Toronto)')
-      const picker = pickerTitle.closest('div')?.parentElement
-      expect(picker).toBeTruthy()
-      const pickerScope = within(picker!)
+      await waitFor(() => {
+        expect(screen.getByText('Schedule Release')).toBeInTheDocument()
+      })
 
-      fireEvent.change(pickerScope.getByLabelText('Date (Toronto)'), { target: { value: '2099-03-01' } })
-      fireEvent.change(pickerScope.getByLabelText('Time (Toronto)'), { target: { value: '09:00' } })
-      fireEvent.click(pickerScope.getByRole('button', { name: 'Schedule' }))
+      const scheduleDialog = screen.getByRole('dialog', { name: 'Schedule Release' })
+      const scheduleScope = within(scheduleDialog)
+
+      fireEvent.change(scheduleScope.getByLabelText('Date'), { target: { value: '2099-03-01' } })
+      fireEvent.change(scheduleScope.getByLabelText('Time'), { target: { value: '09:00' } })
+      fireEvent.click(scheduleScope.getByRole('button', { name: 'Schedule' }))
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -154,7 +160,9 @@ describe('AssignmentModal', () => {
       )
 
       fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated title' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -175,7 +183,7 @@ describe('AssignmentModal', () => {
       })
     })
 
-    it('disables submit when title is empty', () => {
+    it('uses Post as the default primary action for draft edits', () => {
       render(
         <AssignmentModal
           isOpen={true}
@@ -186,23 +194,174 @@ describe('AssignmentModal', () => {
         />
       )
 
-      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: '' } })
-      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Post' })).toBeInTheDocument()
     })
 
-    it('shows Done button when no changes have been made', () => {
+    it('opens mini schedule modal when scheduled assignment primary is clicked', async () => {
+      const scheduledAssignment: Assignment = {
+        ...baseAssignment,
+        is_draft: false,
+        released_at: '2099-03-01T14:00:00.000Z',
+      }
+      const onSuccess = vi.fn()
+
       render(
         <AssignmentModal
           isOpen={true}
           classroomId="classroom-1"
-          assignment={baseAssignment}
+          assignment={scheduledAssignment}
+          onClose={vi.fn()}
+          onSuccess={onSuccess}
+        />
+      )
+
+      expect(screen.getByRole('button', { name: 'Schedule' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Scheduled for/ })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Choose assignment action' })).toBeDisabled()
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      expect(screen.queryByRole('menuitem', { name: 'Post' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: 'Schedule' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: 'Draft' })).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Schedule Release')).toBeInTheDocument()
+      })
+      expect(screen.queryByRole('button', { name: 'Clear schedule' })).not.toBeInTheDocument()
+      expect(onSuccess).not.toHaveBeenCalled()
+    })
+
+    it('closes both modals when save schedule is confirmed', async () => {
+      const scheduledAssignment: Assignment = {
+        ...baseAssignment,
+        is_draft: false,
+        released_at: '2099-03-01T14:00:00.000Z',
+      }
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ assignment: { ...scheduledAssignment, released_at: '2099-03-02T15:00:00.000Z' } }),
+      })
+      const onSuccess = vi.fn()
+      const onClose = vi.fn()
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={scheduledAssignment}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
+      await waitFor(() => {
+        expect(screen.getByText('Schedule Release')).toBeInTheDocument()
+      })
+
+      const scheduleDialog = screen.getByRole('dialog', { name: 'Schedule Release' })
+      const scheduleScope = within(scheduleDialog)
+      fireEvent.change(scheduleScope.getByLabelText('Date'), { target: { value: '2099-03-02' } })
+      fireEvent.change(scheduleScope.getByLabelText('Time'), { target: { value: '10:00' } })
+      fireEvent.click(scheduleScope.getByRole('button', { name: 'Save schedule' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+      })
+
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toBe('/api/teacher/assignments/assignment-1')
+      expect(options.method).toBe('PATCH')
+      expect(JSON.parse(options.body).released_at).toBeDefined()
+
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalled()
+        expect(onClose).toHaveBeenCalled()
+      })
+    })
+
+    it('clears scheduled release from attached scheduled chip cancel button', async () => {
+      const scheduledAssignment: Assignment = {
+        ...baseAssignment,
+        is_draft: false,
+        released_at: '2099-03-01T14:00:00.000Z',
+      }
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ assignment: { ...scheduledAssignment, is_draft: true, released_at: null } }),
+      })
+      const onSuccess = vi.fn()
+      const onClose = vi.fn()
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={scheduledAssignment}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Clear scheduled release' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+      })
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toBe('/api/teacher/assignments/assignment-1')
+      expect(options.method).toBe('PATCH')
+      expect(JSON.parse(options.body)).toEqual({ is_draft: true, released_at: null })
+      await waitFor(() => {
+        expect(onSuccess).toHaveBeenCalledWith(
+          expect.objectContaining({ is_draft: true, released_at: null }),
+          { closeModal: false }
+        )
+      })
+      expect(onClose).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: 'Schedule' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      expect(screen.getByRole('menuitem', { name: 'Post' })).toBeInTheDocument()
+      expect(screen.getByRole('menuitem', { name: 'Draft' })).toBeInTheDocument()
+      expect(screen.queryByRole('menuitem', { name: 'Schedule' })).not.toBeInTheDocument()
+    })
+
+    it('saves pending form edits before opening schedule modal from release info', async () => {
+      const scheduledAssignment: Assignment = {
+        ...baseAssignment,
+        is_draft: false,
+        released_at: '2099-03-01T14:00:00.000Z',
+      }
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ assignment: { ...scheduledAssignment, title: 'Updated title' } }),
+      })
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={scheduledAssignment}
           onClose={vi.fn()}
           onSuccess={vi.fn()}
         />
       )
 
-      expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated title' } })
+      fireEvent.click(screen.getByRole('button', { name: /Scheduled for/ }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+      })
+
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toBe('/api/teacher/assignments/assignment-1')
+      expect(options.method).toBe('PATCH')
+      expect(screen.getByText('Schedule Release')).toBeInTheDocument()
     })
   })
 
@@ -326,9 +485,11 @@ describe('AssignmentModal', () => {
         expect(screen.getByText('Edit Draft')).toBeInTheDocument()
       })
 
-      // Change the title and save
+      // Change the title and choose "Draft" action
       fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated Title' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledTimes(2)
@@ -341,6 +502,129 @@ describe('AssignmentModal', () => {
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled()
+        expect(onClose).toHaveBeenCalled()
+      })
+    })
+
+    it('opens schedule modal from split action and schedules release', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' }
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ assignment: newAssignment }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            assignment: { ...newAssignment, is_draft: false, released_at: '2099-03-01T14:00:00.000Z' },
+          }),
+        })
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Edit Draft')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Schedule Release')).toBeInTheDocument()
+      })
+
+      const scheduleDialog = screen.getByRole('dialog', { name: 'Schedule Release' })
+      const scheduleScope = within(scheduleDialog)
+      fireEvent.change(scheduleScope.getByLabelText('Date'), { target: { value: '2099-03-01' } })
+      fireEvent.change(scheduleScope.getByLabelText('Time'), { target: { value: '09:00' } })
+      fireEvent.click(scheduleScope.getByRole('button', { name: 'Schedule' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+      })
+
+      const [url, options] = fetchMock.mock.calls[1]
+      expect(url).toBe('/api/teacher/assignments/new-draft-1/release')
+      expect(options.method).toBe('POST')
+      const payload = JSON.parse(options.body)
+      expect(payload.release_at).toBeDefined()
+
+      await waitFor(() => {
+        expect(screen.getByText(/Scheduled for/)).toBeInTheDocument()
+      })
+    })
+
+    it('closes create modal when save schedule is confirmed', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' }
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ assignment: newAssignment }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            assignment: { ...newAssignment, is_draft: false, released_at: '2099-03-01T14:00:00.000Z' },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            assignment: { ...newAssignment, is_draft: false, released_at: '2099-03-01T15:00:00.000Z' },
+          }),
+        })
+
+      const onClose = vi.fn()
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          onClose={onClose}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Edit Draft')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
+      await waitFor(() => {
+        expect(screen.getByText('Schedule Release')).toBeInTheDocument()
+      })
+      let scheduleDialog = screen.getByRole('dialog', { name: 'Schedule Release' })
+      let scheduleScope = within(scheduleDialog)
+      fireEvent.change(scheduleScope.getByLabelText('Date'), { target: { value: '2099-03-01' } })
+      fireEvent.change(scheduleScope.getByLabelText('Time'), { target: { value: '09:00' } })
+      fireEvent.click(scheduleScope.getByRole('button', { name: 'Schedule' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+      })
+      expect(onClose).not.toHaveBeenCalled()
+
+      const editScheduledDialog = screen.getByRole('dialog', { name: 'Edit Scheduled Assignment' })
+      fireEvent.click(within(editScheduledDialog).getByRole('button', { name: 'Schedule' }))
+      scheduleDialog = await screen.findByRole('dialog', { name: 'Schedule Release' })
+      scheduleScope = within(scheduleDialog)
+      fireEvent.change(scheduleScope.getByLabelText('Time'), { target: { value: '10:00' } })
+      fireEvent.click(scheduleScope.getByRole('button', { name: 'Save schedule' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(3)
+      })
+      await waitFor(() => {
         expect(onClose).toHaveBeenCalled()
       })
     })

@@ -15,6 +15,10 @@ interface ScheduleDateTimePickerProps {
   onCancel?: () => void
   confirmLabel?: string
   title?: string
+  dateLabel?: string
+  timeLabel?: string
+  showHeader?: boolean
+  showTimezoneLabel?: boolean
   className?: string
 }
 
@@ -29,6 +33,10 @@ export function ScheduleDateTimePicker({
   onCancel,
   confirmLabel = 'Done',
   title = 'Schedule',
+  dateLabel = 'Date (Toronto)',
+  timeLabel = 'Time (Toronto)',
+  showHeader = true,
+  showTimezoneLabel = true,
   className = '',
 }: ScheduleDateTimePickerProps) {
   const dateInputId = useId()
@@ -36,14 +44,16 @@ export function ScheduleDateTimePicker({
 
   return (
     <div className={`bg-surface rounded-lg shadow-lg border border-border p-3 ${className}`.trim()}>
-      <div className="flex items-center gap-2 mb-3">
-        <Calendar className="h-4 w-4 text-text-muted" />
-        <span className="text-sm font-medium text-text-default">{title}</span>
-      </div>
+      {showHeader && (
+        <div className="flex items-center gap-2 mb-3">
+          <Calendar className="h-4 w-4 text-text-muted" />
+          <span className="text-sm font-medium text-text-default">{title}</span>
+        </div>
+      )}
 
       <div className="space-y-3">
         <div>
-          <label htmlFor={dateInputId} className="block text-xs text-text-muted mb-1">Date (Toronto)</label>
+          <label htmlFor={dateInputId} className="block text-xs text-text-muted mb-1">{dateLabel}</label>
           <input
             id={dateInputId}
             type="date"
@@ -55,7 +65,7 @@ export function ScheduleDateTimePicker({
         </div>
 
         <div>
-          <label htmlFor={timeInputId} className="block text-xs text-text-muted mb-1">Time (Toronto)</label>
+          <label htmlFor={timeInputId} className="block text-xs text-text-muted mb-1">{timeLabel}</label>
           <input
             id={timeInputId}
             type="time"
@@ -66,7 +76,9 @@ export function ScheduleDateTimePicker({
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-text-muted">Timezone: America/Toronto</p>
+      {showTimezoneLabel && (
+        <p className="mt-2 text-xs text-text-muted">Timezone: America/Toronto</p>
+      )}
 
       {date && !isFutureValid && (
         <p className="text-xs text-danger mt-2">Schedule must be in the future</p>

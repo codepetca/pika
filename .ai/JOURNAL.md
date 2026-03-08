@@ -5358,3 +5358,93 @@
 
 **Notes:**
 - `bash scripts/verify-env.sh` fails on this baseline due unrelated `zod` module resolution in existing tests; not changed by this task.
+## 2026-03-07 [AI - GPT-5 Codex]
+**Goal:** Refine assignment scheduled-release chip copy/actions in `AssignmentModal`.
+**Completed:**
+- Confirmed `AssignmentModal` scheduled chip uses `Scheduled for ...` copy with weekday/month/day/time format.
+- Confirmed chip styling matches scheduled amber tokens (`border-warning bg-warning-bg text-warning`).
+- Confirmed attached cancel icon button (`aria-label="Clear scheduled release"`) clears the schedule via draft revert patch flow.
+- Updated `tests/components/AssignmentModal.test.tsx` to assert `Scheduled for` UI copy and the attached chip cancel-button clear behavior.
+- Ran focused tests:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+- Ran required visual checks (teacher + student):
+  - `/tmp/teacher-assignment-scheduled-chip-v2.png`
+  - `/tmp/student-assignments-view-v2.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Update assignment list scheduled presentation in teacher cards.
+**Completed:**
+- Updated `SortableAssignmentCard` scheduled rendering so the status badge now shows full text: `Scheduled for <weekday month day, time>` in Toronto time.
+- Removed the separate `Releases ...` subtitle under due date for scheduled assignments.
+- Kept draft/live card behavior unchanged.
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx` (pass)
+  - visual verification screenshots:
+    - `/tmp/teacher-assignments-scheduled-badge-v4.png`
+    - `/tmp/student-assignments-scheduled-badge-v4.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Move scheduled badge under due date in assignment list and adjust copy format.
+**Completed:**
+- Updated `src/components/SortableAssignmentCard.tsx`:
+  - scheduled label format now `Scheduled Mon Mar 2, 9:00 AM`
+  - scheduled badge now renders directly below `Due: ...` in left content area
+  - removed scheduled badge rendering from middle status column for scheduled cards
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx` passed
+  - visual checks:
+    - `/tmp/teacher-assignments-scheduled-badge-v6.png` (shows scheduled badge below Due with new format)
+    - `/tmp/student-assignments-scheduled-badge-v6.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Remove mini modal schedule-clear action in assignment scheduling flow.
+**Completed:**
+- Removed `Clear schedule` button from the `Schedule Release` mini modal in `src/components/AssignmentModal.tsx`.
+- Kept clearing capability via the main modal scheduled chip cancel control (`Clear scheduled release`) as requested.
+- Updated component test to assert the mini modal no longer renders `Clear schedule`.
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+  - visual verification:
+    - `/tmp/teacher-mini-schedule-no-clear-v3.png`
+    - `/tmp/student-assignments-no-clear-v3.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Tighten scheduled split-button behavior after clear schedule.
+**Completed:**
+- Updated `AssignmentModal` split options so when an assignment is scheduled, dropdown options are empty (no `Post` option shown).
+- Updated `clearScheduledRelease()` behavior to keep modal open and set primary action to `Schedule` after clearing schedule, enabling immediate follow-up action via repopulated dropdown.
+- Updated component tests to verify:
+  - scheduled state dropdown is disabled/no options (including no `Post`)
+  - clearing schedule keeps modal open and repopulates dropdown with `Post`/`Draft` while `Schedule` remains primary.
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+  - visual verification screenshots:
+    - `/tmp/teacher-clear-schedule-repopulate-v2.png`
+    - `/tmp/student-clear-schedule-repopulate-v2.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Adjust scheduled assignment card layout/style to match requested design.
+**Completed:**
+- In `src/components/SortableAssignmentCard.tsx`:
+  - moved `Scheduled` badge back to the middle status column
+  - subtitle under `Due:` now shows only open time label (e.g. `Fri Mar 6, 10:00AM`) without `Scheduled` prefix
+  - updated scheduled card container/title styling to match draft cards, keeping only the badge and open-time label in amber theme
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+  - visual verification screenshots:
+    - `/tmp/teacher-assignment-card-style-v2.png`
+    - `/tmp/student-assignment-card-style-v2.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Ensure clear-schedule (`X`) keeps assignment modal open and repopulates split-button options.
+**Completed:**
+- Extended `AssignmentModal` success callback contract to support non-closing updates: `onSuccess(assignment, { closeModal?: boolean })`.
+- `clearScheduledRelease()` now emits `onSuccess(updated, { closeModal: false })` so parent data updates without closing the modal.
+- Updated `TeacherClassroomView` `AssignmentModal` callback to honor `closeModal: false` while keeping modal open.
+- Preserved split-button behavior after clear: primary remains `Schedule`, dropdown repopulates with `Post` + `Draft`.
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+  - `npx tsc --noEmit` (pass)
+  - visual verification:
+    - `/tmp/teacher-clear-x-keep-open-v3.png`
+    - `/tmp/student-clear-x-keep-open-v3.png`
