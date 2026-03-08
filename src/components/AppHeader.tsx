@@ -107,7 +107,7 @@ export function AppHeader({
         )}
       </div>
 
-      {/* Center section - Date / contextual status */}
+      {/* Center section - contextual status (exam mode only) */}
       <div className="min-w-0 px-2">
         {examModeHeader ? (
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-6 text-sm text-text-default">
@@ -123,28 +123,15 @@ export function AppHeader({
               </span>
             </div>
           </div>
-        ) : (
-          <>
-            {/* Mobile: Short format (Tue Dec 16) */}
-            <div className="lg:hidden text-lg sm:text-xl font-bold text-text-default tabular-nums">
-              {formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}
-            </div>
-            {/* Desktop: Long format (Monday January 12, 2026) */}
-            <div className="hidden lg:block text-xl font-bold text-text-default">
-              {formatInTimeZone(now, 'America/Toronto', 'EEEE MMMM d, yyyy')}
-            </div>
-          </>
-        )}
+        ) : null}
       </div>
 
       {/* Right section */}
       <div className="flex items-center justify-end gap-0">
-        {examModeHeader && (
-          <span className="mr-2 whitespace-nowrap text-sm font-semibold tabular-nums text-text-default">
-            <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
-            <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
-          </span>
-        )}
+        <span className="mr-2 whitespace-nowrap text-base font-semibold tabular-nums text-text-default">
+          <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
+          <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
+        </span>
         <UserMenu user={user} />
       </div>
     </header>

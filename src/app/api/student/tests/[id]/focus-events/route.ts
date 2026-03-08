@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertStudentCanAccessTest } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import type { QuizFocusEventType } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -81,17 +82,16 @@ export async function POST(
 
     const { data: existingResponses, error: existingResponsesError } = await supabase
       .from('test_responses')
-      .select('id')
+      .select('selected_option, response_text')
       .eq('test_id', testId)
       .eq('student_id', user.id)
-      .limit(1)
 
     if (existingResponsesError) {
       console.error('Error checking existing test responses:', existingResponsesError)
       return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
     }
 
-    if ((existingResponses?.length || 0) > 0) {
+    if (hasAnyMeaningfulTestResponse(existingResponses)) {
       return NextResponse.json(
         { error: 'Focus telemetry is only available before submitting the test' },
         { status: 400 }

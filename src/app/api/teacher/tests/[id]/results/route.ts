@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertTeacherOwnsTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import { normalizeTestResponses } from '@/lib/test-attempts'
 import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -63,13 +64,14 @@ export async function GET(
     )
 
     const studentAnswers: Record<string, Record<string, {
-      response_id: string
+      response_id: string | null
       question_type: 'multiple_choice' | 'open_response'
       selected_option: number | null
       response_text: string | null
       score: number | null
       feedback: string | null
       graded_at: string | null
+      is_draft: boolean
     }>> = {}
     const pointsEarnedByStudent = new Map<string, number>()
     const submittedAtByStudent = new Map<string, string>()
@@ -88,6 +90,7 @@ export async function GET(
         score: response.score,
         feedback: response.feedback,
         graded_at: response.graded_at,
+        is_draft: false,
       }
       if (typeof response.score === 'number') {
         pointsEarnedByStudent.set(
@@ -119,6 +122,7 @@ export async function GET(
         returned_at: string | null
         returned_by: string | null
         updated_at: string
+        responses: unknown
       }
     >()
     if (classroomStudentIds.length > 0) {
@@ -130,6 +134,7 @@ export async function GET(
             returned_at: string | null
             returned_by: string | null
             updated_at: string
+            responses: unknown
           }>
         | null = null
       let attemptsError: { code?: string; message?: string; details?: string; hint?: string } | null = null
@@ -137,7 +142,7 @@ export async function GET(
       {
         const attemptsWithReturnResult = await supabase
           .from('test_attempts')
-          .select('student_id, is_submitted, submitted_at, returned_at, returned_by, updated_at')
+          .select('student_id, is_submitted, submitted_at, returned_at, returned_by, updated_at, responses')
           .eq('test_id', testId)
           .in('student_id', classroomStudentIds)
 
@@ -148,7 +153,7 @@ export async function GET(
       if (attemptsError && isMissingTestAttemptReturnColumnsError(attemptsError)) {
         const legacyAttemptsResult = await supabase
           .from('test_attempts')
-          .select('student_id, is_submitted, submitted_at, updated_at')
+          .select('student_id, is_submitted, submitted_at, updated_at, responses')
           .eq('test_id', testId)
           .in('student_id', classroomStudentIds)
 
@@ -158,6 +163,7 @@ export async function GET(
             is_submitted: boolean
             submitted_at: string | null
             updated_at: string
+            responses: unknown
           }> | null) || []).map((attempt) => ({
             ...attempt,
             returned_at: null,
@@ -178,6 +184,7 @@ export async function GET(
           returned_at: attempt.returned_at,
           returned_by: attempt.returned_by,
           updated_at: attempt.updated_at,
+          responses: attempt.responses,
         })
       }
     }
@@ -230,8 +237,9 @@ export async function GET(
     const students = classroomStudentIds.map((studentId) => {
       const userInfo = userById.get(studentId)
       const attempt = attemptByStudent.get(studentId)
-      const hasAnswers = !!studentAnswers[studentId] && Object.keys(studentAnswers[studentId]).length > 0
-      const isSubmitted = !!attempt?.is_submitted || hasAnswers
+      const submittedAnswers = studentAnswers[studentId] || {}
+      const hasSubmittedAnswers = Object.keys(submittedAnswers).length > 0
+      const isSubmitted = !!attempt?.is_submitted || hasSubmittedAnswers
       const isReturned = !!attempt?.returned_at
       const status: 'not_started' | 'in_progress' | 'submitted' | 'returned' = isReturned
         ? 'returned'
@@ -240,6 +248,54 @@ export async function GET(
         : attempt
         ? 'in_progress'
         : 'not_started'
+
+      // If the student has not submitted, expose draft attempt answers for monitoring.
+      let answersForStudent = submittedAnswers
+      if (!isSubmitted && attempt) {
+        const normalizedDraft = normalizeTestResponses(attempt.responses)
+        const draftAnswers: Record<string, {
+          response_id: string | null
+          question_type: 'multiple_choice' | 'open_response'
+          selected_option: number | null
+          response_text: string | null
+          score: number | null
+          feedback: string | null
+          graded_at: string | null
+          is_draft: boolean
+        }> = {}
+
+        for (const question of questions || []) {
+          const response = normalizedDraft[question.id]
+          if (!response) continue
+          if (response.question_type === 'multiple_choice') {
+            draftAnswers[question.id] = {
+              response_id: null,
+              question_type: 'multiple_choice',
+              selected_option: response.selected_option,
+              response_text: null,
+              score: null,
+              feedback: null,
+              graded_at: null,
+              is_draft: true,
+            }
+            continue
+          }
+
+          draftAnswers[question.id] = {
+            response_id: null,
+            question_type: 'open_response',
+            selected_option: null,
+            response_text: response.response_text,
+            score: null,
+            feedback: null,
+            graded_at: null,
+            is_draft: true,
+          }
+        }
+
+        answersForStudent = draftAnswers
+      }
+
       const submittedAt = attempt?.submitted_at || submittedAtByStudent.get(studentId) || null
       const lastActivityAt = attempt?.updated_at || submittedAt || null
       const pointsEarned = pointsEarnedByStudent.get(studentId) || 0
@@ -261,7 +317,7 @@ export async function GET(
         percent,
         graded_open_responses: openGradedCounts.get(studentId) || 0,
         ungraded_open_responses: openUngradedCounts.get(studentId) || 0,
-        answers: studentAnswers[studentId] || {},
+        answers: answersForStudent,
         focus_summary: focusSummaryByStudent.get(studentId) || null,
       }
     })

@@ -51,7 +51,11 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
   })
 
   it('auto-grades eligible open responses and skips non-eligible students', async () => {
-    const updatedRows: Array<{ score: number; feedback: string; graded_by: string }> = []
+    const aiUpdates: Array<{ score: number; feedback: string; graded_by: string }> = []
+    const unansweredUpdates: Array<{
+      payload: { score: number; feedback: string; graded_by: string }
+      ids: string[]
+    }> = []
 
     suggestTestOpenResponseGrade.mockResolvedValue({
       score: 4.5,
@@ -65,7 +69,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
         } as any
         query.eq.mockImplementationOnce(() => query)
         query.eq.mockImplementationOnce(async () => ({
-          data: [{ id: 'q-open-1' }],
+          data: [{ id: 'q-open-1', question_text: 'Explain arrays vs objects.', points: 5 }],
           error: null,
         }))
         return {
@@ -84,33 +88,54 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
             {
               id: 'response-1',
               student_id: 'student-1',
+              question_id: 'q-open-1',
               response_text: 'Arrays are ordered.',
-              test_questions: {
-                question_text: 'Explain arrays vs objects.',
-                points: 5,
-              },
             },
             {
               id: 'response-2',
               student_id: 'student-2',
+              question_id: 'q-open-1',
               response_text: '   ',
-              test_questions: {
-                question_text: 'Explain arrays vs objects.',
-                points: 5,
-              },
             },
           ],
           error: null,
         }))
+
         return {
           select: vi.fn(() => query),
           update: vi.fn((payload: { score: number; feedback: string; graded_by: string }) => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockImplementation(async () => {
-                updatedRows.push(payload)
-                return { error: null }
-              }),
-            })),
+            eq: vi.fn((column: string) => {
+              if (column === 'test_id') {
+                return {
+                  in: vi.fn(async (_idColumn: string, ids: string[]) => {
+                    unansweredUpdates.push({ payload, ids })
+                    return { error: null }
+                  }),
+                }
+              }
+
+              return {
+                eq: vi.fn().mockImplementation(async () => {
+                  aiUpdates.push(payload)
+                  return { error: null }
+                }),
+              }
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [
+                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
+                { student_id: 'student-2', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
+              ],
+              error: null,
+            }),
           })),
         }
       }
@@ -126,16 +151,26 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.graded_students).toBe(1)
-    expect(data.skipped_students).toBe(1)
-    expect(data.eligible_students).toBe(1)
-    expect(data.graded_responses).toBe(1)
+    expect(data.graded_students).toBe(2)
+    expect(data.skipped_students).toBe(0)
+    expect(data.eligible_students).toBe(2)
+    expect(data.graded_responses).toBe(2)
     expect(suggestTestOpenResponseGrade).toHaveBeenCalledTimes(1)
-    expect(updatedRows).toEqual([
+    expect(aiUpdates).toEqual([
       expect.objectContaining({
         score: 4.5,
         feedback: 'Good explanation',
         graded_by: 'teacher-1',
+      }),
+    ])
+    expect(unansweredUpdates).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          score: 0,
+          feedback: 'Unanswered',
+          graded_by: 'teacher-1',
+        }),
+        ids: ['response-2'],
       }),
     ])
   })

@@ -3,8 +3,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
-import { getStudentQuizStatus } from '@/lib/quizzes'
+import { getStudentTestStatus } from '@/lib/quizzes'
 import { normalizeTestDocuments } from '@/lib/test-documents'
+import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import type { Quiz } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
 
       const { data: allResponses, error: allResponsesError } = await supabase
         .from('test_responses')
-        .select('test_id')
+        .select('test_id, selected_option, response_text')
         .eq('student_id', user.id)
         .in('test_id', classroomTestIds)
 
@@ -115,6 +116,7 @@ export async function GET(request: NextRequest) {
       }
 
       for (const response of allResponses || []) {
+        if (!hasMeaningfulTestResponse(response)) continue
         respondedTestIds.add(response.test_id)
       }
     }
@@ -124,39 +126,11 @@ export async function GET(request: NextRequest) {
     )
 
     const allTests = [...(activeTests || []), ...respondedClosedTests]
-    const allTestIds = allTests.map((test) => test.id)
-    const hasOpenByTestId = new Map<string, boolean>()
-
-    if (allTestIds.length > 0) {
-      const { data: questionRows, error: questionError } = await supabase
-        .from('test_questions')
-        .select('test_id, question_type')
-        .in('test_id', allTestIds)
-
-      if (questionError && questionError.code !== 'PGRST205') {
-        console.error('Error fetching test question types:', questionError)
-        return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
-      }
-
-      for (const row of questionRows || []) {
-        if (row.question_type === 'open_response') {
-          hasOpenByTestId.set(row.test_id, true)
-        } else if (!hasOpenByTestId.has(row.test_id)) {
-          hasOpenByTestId.set(row.test_id, false)
-        }
-      }
-    }
 
     const testsWithStatus = allTests.map((test: Quiz) => {
       const hasResponded = respondedTestIds.has(test.id)
-      const hasOpen = hasOpenByTestId.get(test.id) === true
       const isReturned = returnedTestIds.has(test.id)
-      const canViewResults =
-        test.show_results &&
-        test.status === 'closed' &&
-        hasResponded &&
-        (!hasOpen || isReturned)
-      const studentStatus = canViewResults ? 'can_view_results' : getStudentQuizStatus(test, hasResponded)
+      const studentStatus = getStudentTestStatus(test, hasResponded, isReturned)
 
       return {
         ...test,

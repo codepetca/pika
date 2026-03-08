@@ -44,7 +44,7 @@ import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
-import { TabContentTransition } from '@/ui'
+import { ConfirmDialog, TabContentTransition } from '@/ui'
 import { prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import type {
@@ -412,6 +412,11 @@ function ClassroomPageContent({
 
   // State for selected quiz (teacher quizzes tab)
   const [selectedQuiz, setSelectedQuiz] = useState<QuizWithStats | null>(null)
+  const [pendingAssessmentDelete, setPendingAssessmentDelete] = useState<{
+    quiz: QuizWithStats
+    responsesCount: number
+  } | null>(null)
+  const [isDeletingAssessment, setIsDeletingAssessment] = useState(false)
   const [testGradingContext, setTestGradingContext] = useState<{
     mode: 'authoring' | 'grading'
     testId: string | null
@@ -422,6 +427,14 @@ function ClassroomPageContent({
     testId: null,
     studentId: null,
     studentName: null,
+  })
+  const [testGradingSaveHandler, setTestGradingSaveHandler] = useState<(() => Promise<void>) | null>(null)
+  const [testGradingSaveState, setTestGradingSaveState] = useState<{
+    canSave: boolean
+    isSaving: boolean
+  }>({
+    canSave: false,
+    isSaving: false,
   })
   const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
   const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
@@ -443,6 +456,8 @@ function ClassroomPageContent({
         studentId: null,
         studentName: null,
       })
+      setTestGradingSaveHandler(null)
+      setTestGradingSaveState({ canSave: false, isSaving: false })
     }
   }, [activeTab])
 
@@ -879,6 +894,47 @@ function ClassroomPageContent({
       ? (testGradingContext.testId || selectedQuiz?.id || null)
       : null
 
+  async function handleRequestAssessmentDelete() {
+    if (!selectedQuiz) return
+
+    try {
+      const res = await fetch(`${assessmentApiBasePath}/${selectedQuiz.id}/results`)
+      const data = await res.json()
+      setPendingAssessmentDelete({
+        quiz: selectedQuiz,
+        responsesCount: Number(data?.stats?.responded || 0),
+      })
+    } catch {
+      setPendingAssessmentDelete({
+        quiz: selectedQuiz,
+        responsesCount: Number(selectedQuiz.stats.responded || 0),
+      })
+    }
+  }
+
+  async function handleConfirmAssessmentDelete() {
+    if (!pendingAssessmentDelete) return
+
+    setIsDeletingAssessment(true)
+    try {
+      const res = await fetch(`${assessmentApiBasePath}/${pendingAssessmentDelete.quiz.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || `Failed to delete ${assessmentLabel}`)
+      }
+
+      setSelectedQuiz(null)
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
+      )
+      setPendingAssessmentDelete(null)
+    } catch (error) {
+      console.error(`Error deleting ${assessmentLabel}:`, error)
+    } finally {
+      setIsDeletingAssessment(false)
+    }
+  }
+
   const content = (
     <AppShell
       user={user}
@@ -1120,7 +1176,9 @@ function ClassroomPageContent({
               : isTeacher &&
                 activeTab === 'tests' &&
                 testGradingContext.mode === 'grading'
-              ? testGradingContext.studentName || 'Test Grading'
+              ? testGradingContext.studentName
+                ? `${testGradingContext.studentName} Test`
+                : 'Test Grading'
               : isTeacher && isAssessmentTab
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
@@ -1163,6 +1221,33 @@ function ClassroomPageContent({
                 className="px-2 py-1 text-xs rounded bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50"
               >
                 {calendarSidebarState.bulkSaving ? 'Saving...' : 'Save'}
+              </button>
+            ) : isTeacher &&
+              activeTab === 'tests' &&
+              testGradingContext.mode === 'grading' &&
+              testGradingContext.studentId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!testGradingSaveHandler) return
+                  void testGradingSaveHandler()
+                }}
+                disabled={!testGradingSaveState.canSave || testGradingSaveState.isSaving}
+                className="px-2 py-1 text-xs rounded bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50"
+              >
+                {testGradingSaveState.isSaving ? 'Saving...' : 'Save'}
+              </button>
+            ) : isTeacher &&
+              activeTab === 'quizzes' &&
+              selectedQuiz ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRequestAssessmentDelete()
+                }}
+                className="px-2 py-1 text-xs rounded border border-danger text-danger hover:bg-danger-bg disabled:opacity-50"
+              >
+                Delete
               </button>
             ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
               <>
@@ -1215,6 +1300,8 @@ function ClassroomPageContent({
               selectedStudentId={testGradingContext.studentId}
               apiBasePath={assessmentApiBasePath}
               onUpdated={handleQuizUpdate}
+              onRegisterSaveHandler={setTestGradingSaveHandler}
+              onSaveStateChange={setTestGradingSaveState}
             />
           ) : isTeacher && isAssessmentTab && selectedQuiz ? (
             <QuizDetailPanel
@@ -1222,6 +1309,13 @@ function ClassroomPageContent({
               classroomId={classroom.id}
               apiBasePath={assessmentApiBasePath}
               onQuizUpdate={handleQuizUpdate}
+              onRequestDelete={
+                activeTab === 'tests'
+                  ? () => {
+                      void handleRequestAssessmentDelete()
+                    }
+                  : undefined
+              }
             />
           ) : isTeacher && isAssessmentTab ? (
             <div className="p-4">
@@ -1438,6 +1532,25 @@ function ClassroomPageContent({
           )}
         </RightSidebar>
       </ThreePanelShell>
+
+      <ConfirmDialog
+        isOpen={!!pendingAssessmentDelete}
+        title={`Delete ${assessmentLabel}?`}
+        description={
+          pendingAssessmentDelete && pendingAssessmentDelete.responsesCount > 0
+            ? `This ${assessmentLabel} has ${pendingAssessmentDelete.responsesCount} response${pendingAssessmentDelete.responsesCount === 1 ? '' : 's'}. Deleting it will permanently remove all student responses.`
+            : 'This action cannot be undone.'
+        }
+        confirmLabel={isDeletingAssessment ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        isConfirmDisabled={isDeletingAssessment}
+        isCancelDisabled={isDeletingAssessment}
+        onCancel={() => setPendingAssessmentDelete(null)}
+        onConfirm={() => {
+          void handleConfirmAssessmentDelete()
+        }}
+      />
 
     </AppShell>
   )

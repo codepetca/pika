@@ -14,6 +14,7 @@ export type TestQuestionDraft = {
   question_text: string
   options: string[]
   correct_option: number | null
+  answer_key: string | null
   points: number
   response_max_chars: number
   response_monospace: boolean
@@ -51,6 +52,17 @@ function normalizeQuestionText(input: unknown, allowEmpty = false): string | nul
 function normalizeResponseMonospace(input: unknown, fallback = false): boolean {
   if (typeof input === 'boolean') return input
   return fallback
+}
+
+function normalizeAnswerKey(input: unknown, fallback: string | null = null): string | null {
+  if (input === undefined) return fallback
+  if (input === null) return null
+  if (typeof input !== 'string') return null
+
+  const trimmed = input.trim()
+  if (!trimmed) return null
+  if (trimmed.length > 20000) return null
+  return trimmed
 }
 
 function normalizeOptions(input: unknown): string[] | null {
@@ -92,6 +104,10 @@ export function validateTestQuestionCreate(
 
   if (questionType === 'open_response') {
     const responseMonospace = normalizeResponseMonospace(input.response_monospace, false)
+    const answerKey = normalizeAnswerKey(input.answer_key, null)
+    if (input.answer_key !== undefined && input.answer_key !== null && answerKey === null) {
+      return { valid: false, error: 'answer_key must be a non-empty string up to 20000 characters' }
+    }
     return {
       valid: true,
       value: {
@@ -99,6 +115,7 @@ export function validateTestQuestionCreate(
         question_text: questionText,
         options: [],
         correct_option: null,
+        answer_key: answerKey,
         points,
         response_max_chars: responseMaxChars,
         response_monospace: responseMonospace,
@@ -133,6 +150,7 @@ export function validateTestQuestionCreate(
       question_text: questionText,
       options: normalizedOptions,
       correct_option: correctOption,
+      answer_key: null,
       points,
       response_max_chars: responseMaxChars,
       response_monospace: false,
@@ -177,6 +195,10 @@ export function validateTestQuestionUpdate(
       input.response_monospace,
       current.response_monospace
     )
+    const nextAnswerKey = normalizeAnswerKey(input.answer_key, current.answer_key)
+    if (input.answer_key !== undefined && input.answer_key !== null && nextAnswerKey === null) {
+      return { valid: false, error: 'answer_key must be a non-empty string up to 20000 characters' }
+    }
     return {
       valid: true,
       value: {
@@ -184,6 +206,7 @@ export function validateTestQuestionUpdate(
         question_text: nextText,
         options: [],
         correct_option: null,
+        answer_key: nextAnswerKey,
         points: nextPoints,
         response_max_chars: nextMaxChars,
         response_monospace: nextMonospace,
@@ -227,6 +250,7 @@ export function validateTestQuestionUpdate(
       question_text: nextText,
       options: nextOptions,
       correct_option: nextCorrectOption,
+      answer_key: null,
       points: nextPoints,
       response_max_chars: nextMaxChars,
       response_monospace: false,

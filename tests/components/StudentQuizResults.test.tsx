@@ -125,6 +125,53 @@ describe('StudentQuizResults', () => {
     })
   })
 
+  it('hides submission confirmation banner when disabled', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        question_results: [
+          {
+            question_id: 'q1',
+            question_type: 'multiple_choice',
+            question_text: 'What is 2 + 2?',
+            options: ['3', '4'],
+            points: 1,
+            response_max_chars: 5000,
+            correct_option: 1,
+            selected_option: 1,
+            response_text: null,
+            score: 1,
+            feedback: 'Correct',
+            graded_at: '2026-03-06T10:00:00.000Z',
+            is_correct: true,
+          },
+        ],
+        summary: {
+          earned_points: 1,
+          possible_points: 1,
+          percent: 100,
+        },
+      }),
+    })
+
+    render(
+      <StudentQuizResults
+        quizId="quiz-1"
+        myResponses={{ q1: 1 }}
+        assessmentType="test"
+        apiBasePath="/api/student/tests"
+        showSubmissionBanner={false}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Score')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Your response has been submitted.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Results' })).not.toBeInTheDocument()
+  })
+
   it('uses muted bar color for non-selected options', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({

@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { countCharacters, countWords } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import type { AssignmentDocHistoryEntry } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -30,11 +31,18 @@ export async function POST(
 
     const { data: assignment, error: assignmentError } = await supabase
       .from('assignments')
-      .select('classroom_id')
+      .select('classroom_id, is_draft, released_at')
       .eq('id', assignmentId)
       .single()
 
     if (assignmentError || !assignment) {
+      return NextResponse.json(
+        { error: 'Assignment not found' },
+        { status: 404 }
+      )
+    }
+
+    if (!isAssignmentVisibleToStudents(assignment)) {
       return NextResponse.json(
         { error: 'Assignment not found' },
         { status: 404 }
