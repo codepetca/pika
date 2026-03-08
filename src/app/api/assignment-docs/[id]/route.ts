@@ -8,6 +8,7 @@ import {
   insertVersionedBaselineHistory,
   persistVersionedHistory,
 } from '@/lib/server/versioned-history'
+import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -65,6 +66,13 @@ export async function GET(
       .single()
 
     if (assignmentError || !assignment) {
+      return NextResponse.json(
+        { error: 'Assignment not found' },
+        { status: 404 }
+      )
+    }
+
+    if (!isAssignmentVisibleToStudents(assignment)) {
       return NextResponse.json(
         { error: 'Assignment not found' },
         { status: 404 }
@@ -225,11 +233,18 @@ export async function PATCH(
     // Get assignment and verify enrollment
     const { data: assignment, error: assignmentError } = await supabase
       .from('assignments')
-      .select('classroom_id')
+      .select('classroom_id, is_draft, released_at')
       .eq('id', assignmentId)
       .single()
 
     if (assignmentError || !assignment) {
+      return NextResponse.json(
+        { error: 'Assignment not found' },
+        { status: 404 }
+      )
+    }
+
+    if (!isAssignmentVisibleToStudents(assignment)) {
       return NextResponse.json(
         { error: 'Assignment not found' },
         { status: 404 }

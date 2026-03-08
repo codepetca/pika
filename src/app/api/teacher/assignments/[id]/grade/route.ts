@@ -14,7 +14,14 @@ export async function POST(
     const user = await requireRole('teacher')
     const { id } = await params
     const body = await request.json()
-    const { student_id, score_completion, score_thinking, score_workflow, feedback } = body
+    const {
+      student_id,
+      score_completion,
+      score_thinking,
+      score_workflow,
+      feedback,
+      save_mode,
+    } = body
 
     if (!student_id || typeof student_id !== 'string') {
       return NextResponse.json({ error: 'student_id is required' }, { status: 400 })
@@ -31,6 +38,12 @@ export async function POST(
     if (typeof feedback !== 'string') {
       return NextResponse.json({ error: 'feedback must be a string' }, { status: 400 })
     }
+
+    if (save_mode !== undefined && save_mode !== 'draft' && save_mode !== 'graded') {
+      return NextResponse.json({ error: 'save_mode must be "draft" or "graded"' }, { status: 400 })
+    }
+
+    const shouldMarkGraded = save_mode === 'graded' || save_mode === undefined
 
     const supabase = getServiceRoleClient()
 
@@ -75,8 +88,8 @@ export async function POST(
         score_thinking: Number(score_thinking),
         score_workflow: Number(score_workflow),
         feedback,
-        graded_at: new Date().toISOString(),
-        graded_by: 'teacher',
+        graded_at: shouldMarkGraded ? new Date().toISOString() : null,
+        graded_by: shouldMarkGraded ? 'teacher' : null,
       }, { onConflict: 'assignment_id,student_id' })
       .select()
       .single()

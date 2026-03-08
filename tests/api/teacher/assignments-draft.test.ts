@@ -170,6 +170,40 @@ describe('POST /api/teacher/assignments/[id]/release', () => {
       expect(response.status).toBe(403)
       expect(data.error).toBe('Classroom is archived')
     })
+
+    it('should return 400 when release_at is in the past', async () => {
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'assignments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'assignment-1',
+                    is_draft: true,
+                    classrooms: { teacher_id: 'teacher-1', archived_at: null },
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/release', {
+        method: 'POST',
+        body: JSON.stringify({ release_at: '2020-01-01T00:00:00.000Z' }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Release date must be in the future')
+    })
   })
 
   describe('successful release', () => {
@@ -270,6 +304,56 @@ describe('POST /api/teacher/assignments/[id]/release', () => {
       expect(capturedUpdate).toBeDefined()
       expect(capturedUpdate.is_draft).toBe(false)
       expect(capturedUpdate.released_at).toBeDefined()
+    })
+
+    it('should schedule release when release_at is provided', async () => {
+      let capturedUpdate: any = null
+
+      const mockFrom = vi.fn((table: string) => {
+        if (table === 'assignments') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'assignment-1',
+                    is_draft: true,
+                    classrooms: { teacher_id: 'teacher-1', archived_at: null },
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+            update: vi.fn((updateData) => {
+              capturedUpdate = updateData
+              return {
+                eq: vi.fn(() => ({
+                  select: vi.fn(() => ({
+                    single: vi.fn().mockResolvedValue({
+                      data: { id: 'assignment-1', ...updateData },
+                      error: null,
+                    }),
+                  })),
+                })),
+              }
+            }),
+          }
+        }
+      })
+      ;(mockSupabaseClient.from as any) = mockFrom
+
+      const futureIso = '2099-03-01T14:00:00.000Z'
+      const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/release', {
+        method: 'POST',
+        body: JSON.stringify({ release_at: futureIso }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+
+      expect(capturedUpdate).toBeDefined()
+      expect(capturedUpdate.is_draft).toBe(false)
+      expect(capturedUpdate.released_at).toBe(futureIso)
     })
   })
 

@@ -26,6 +26,62 @@ export async function PATCH(
       return NextResponse.json({ error: 'feedback is required' }, { status: 400 })
     }
 
+    const metadataRequested =
+      body.ai_grading_basis !== undefined ||
+      body.ai_reference_answers !== undefined ||
+      body.ai_model !== undefined
+
+    let aiGradingBasis: 'teacher_key' | 'generated_reference' | null | undefined
+    if (body.ai_grading_basis !== undefined) {
+      if (body.ai_grading_basis === null) {
+        aiGradingBasis = null
+      } else if (
+        body.ai_grading_basis === 'teacher_key' ||
+        body.ai_grading_basis === 'generated_reference'
+      ) {
+        aiGradingBasis = body.ai_grading_basis
+      } else {
+        return NextResponse.json({ error: 'ai_grading_basis is invalid' }, { status: 400 })
+      }
+    }
+
+    let aiReferenceAnswers: string[] | null | undefined
+    if (body.ai_reference_answers !== undefined) {
+      if (body.ai_reference_answers === null) {
+        aiReferenceAnswers = null
+      } else if (Array.isArray(body.ai_reference_answers)) {
+        const normalized = body.ai_reference_answers
+          .map((value) => (typeof value === 'string' ? value.trim() : ''))
+          .filter((value) => value.length > 0)
+
+        if (normalized.length > 3) {
+          return NextResponse.json(
+            { error: 'ai_reference_answers cannot have more than 3 items' },
+            { status: 400 }
+          )
+        }
+        if (normalized.length === 0) {
+          return NextResponse.json({ error: 'ai_reference_answers cannot be empty' }, { status: 400 })
+        }
+
+        aiReferenceAnswers = normalized
+      } else {
+        return NextResponse.json({ error: 'ai_reference_answers must be an array or null' }, { status: 400 })
+      }
+    }
+
+    let aiModel: string | null | undefined
+    if (body.ai_model !== undefined) {
+      if (body.ai_model === null) {
+        aiModel = null
+      } else if (typeof body.ai_model === 'string') {
+        const normalized = body.ai_model.trim()
+        aiModel = normalized || null
+      } else {
+        return NextResponse.json({ error: 'ai_model must be a string or null' }, { status: 400 })
+      }
+    }
+
     const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
     if (!access.ok) {
       return NextResponse.json({ error: access.error }, { status: access.status })
@@ -75,14 +131,50 @@ export async function PATCH(
 
     const gradedAt = new Date().toISOString()
     const normalizedScore = Math.round(score * 100) / 100
+    const updatePayload: Record<string, unknown> = {
+      score: normalizedScore,
+      feedback,
+      graded_at: gradedAt,
+      graded_by: user.id,
+    }
+
+    if (metadataRequested) {
+      if (aiGradingBasis === null) {
+        updatePayload.ai_grading_basis = null
+        updatePayload.ai_reference_answers = null
+        updatePayload.ai_model = null
+      } else {
+        const resolvedBasis =
+          aiGradingBasis ??
+          (Array.isArray(aiReferenceAnswers) && aiReferenceAnswers.length > 0
+            ? 'generated_reference'
+            : undefined)
+
+        if (!resolvedBasis) {
+          return NextResponse.json({ error: 'AI grading metadata is incomplete' }, { status: 400 })
+        }
+
+        if (resolvedBasis === 'generated_reference') {
+          if (!Array.isArray(aiReferenceAnswers) || aiReferenceAnswers.length === 0) {
+            return NextResponse.json(
+              { error: 'generated_reference grading requires ai_reference_answers' },
+              { status: 400 }
+            )
+          }
+          updatePayload.ai_grading_basis = 'generated_reference'
+          updatePayload.ai_reference_answers = aiReferenceAnswers
+        } else {
+          updatePayload.ai_grading_basis = 'teacher_key'
+          updatePayload.ai_reference_answers = null
+        }
+
+        updatePayload.ai_model = aiModel ?? null
+      }
+    }
+
     const { data: updatedResponse, error: updateError } = await supabase
       .from('test_responses')
-      .update({
-        score: normalizedScore,
-        feedback,
-        graded_at: gradedAt,
-        graded_by: user.id,
-      })
+      .update(updatePayload)
       .eq('id', responseId)
       .eq('test_id', testId)
       .select('*')

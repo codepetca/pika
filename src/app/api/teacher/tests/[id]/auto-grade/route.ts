@@ -47,7 +47,7 @@ export async function POST(
     const supabase = getServiceRoleClient()
     const { data: openQuestionRows, error: openQuestionError } = await supabase
       .from('test_questions')
-      .select('id')
+      .select('id, question_text, points')
       .eq('test_id', testId)
       .eq('question_type', 'open_response')
 
@@ -57,6 +57,15 @@ export async function POST(
     }
 
     const openQuestionIds = (openQuestionRows || []).map((row) => row.id)
+    const openQuestionById = new Map(
+      (openQuestionRows || []).map((row) => [
+        row.id,
+        {
+          questionText: String(row.question_text || ''),
+          maxPoints: Number(row.points ?? 0),
+        },
+      ])
+    )
     if (openQuestionIds.length === 0) {
       return NextResponse.json({
         graded_students: 0,
@@ -71,11 +80,9 @@ export async function POST(
       .select(`
         id,
         student_id,
+        question_id,
         response_text,
-        test_questions!inner (
-          question_text,
-          points
-        )
+        submitted_at
       `)
       .eq('test_id', testId)
       .in('student_id', studentIds)
@@ -84,6 +91,23 @@ export async function POST(
     if (responsesError) {
       console.error('Error loading test open responses for auto-grade:', responsesError)
       return NextResponse.json({ error: 'Failed to load test responses' }, { status: 500 })
+    }
+
+    const { data: attemptRows, error: attemptError } = await supabase
+      .from('test_attempts')
+      .select('student_id, is_submitted, submitted_at')
+      .eq('test_id', testId)
+      .in('student_id', studentIds)
+
+    if (attemptError && attemptError.code !== 'PGRST205') {
+      console.error('Error loading test attempts for auto-grade:', attemptError)
+      return NextResponse.json({ error: 'Failed to load test attempts' }, { status: 500 })
+    }
+
+    const submittedAtByStudent = new Map<string, string | null>()
+    for (const row of attemptRows || []) {
+      if (!row.is_submitted) continue
+      submittedAtByStudent.set(row.student_id, row.submitted_at || null)
     }
 
     type GradeTask = {
@@ -95,29 +119,142 @@ export async function POST(
     }
 
     const tasksByStudent = new Map<string, GradeTask[]>()
+    const responseByStudentQuestion = new Map<string, {
+      id: string
+      student_id: string
+      question_id: string
+      response_text: string | null
+    }>()
+    const submittedAtFromResponses = new Map<string, string>()
+
     for (const row of responses || []) {
       const studentId = typeof row.student_id === 'string' ? row.student_id : null
       if (!studentId) continue
 
-      const question = Array.isArray(row.test_questions)
-        ? row.test_questions[0]
-        : row.test_questions
-      if (!question) continue
+      const questionId = typeof row.question_id === 'string' ? row.question_id : null
+      if (!questionId) continue
+      const questionMeta = openQuestionById.get(questionId)
+      if (!questionMeta) continue
 
-      const responseText = typeof row.response_text === 'string' ? row.response_text.trim() : ''
-      if (!responseText) continue
+      responseByStudentQuestion.set(`${studentId}:${questionId}`, {
+        id: String(row.id),
+        student_id: studentId,
+        question_id: questionId,
+        response_text: typeof row.response_text === 'string' ? row.response_text : null,
+      })
 
-      const task: GradeTask = {
-        responseId: row.id,
-        studentId,
-        questionText: String(question.question_text || ''),
-        responseText,
-        maxPoints: Number(question.points ?? 0),
+      if (typeof row.submitted_at === 'string') {
+        const previous = submittedAtFromResponses.get(studentId)
+        if (!previous || new Date(row.submitted_at).getTime() > new Date(previous).getTime()) {
+          submittedAtFromResponses.set(studentId, row.submitted_at)
+        }
       }
+    }
 
-      const current = tasksByStudent.get(studentId) || []
-      current.push(task)
-      tasksByStudent.set(studentId, current)
+    if (attemptError?.code === 'PGRST205') {
+      for (const [studentId, submittedAt] of submittedAtFromResponses) {
+        submittedAtByStudent.set(studentId, submittedAt)
+      }
+    }
+
+    const unansweredRowsToInsert: Array<{
+      test_id: string
+      question_id: string
+      student_id: string
+      selected_option: null
+      response_text: string
+      score: number
+      feedback: string
+      graded_at: string
+      graded_by: string
+      submitted_at: string
+    }> = []
+    const unansweredResponseIdsToGrade = new Set<string>()
+    const completedQuestionsByStudent = new Map<string, number>()
+    const failedStudentIds = new Set<string>()
+
+    for (const studentId of studentIds) {
+      if (!submittedAtByStudent.has(studentId)) continue
+      const submittedAt = submittedAtByStudent.get(studentId) || new Date().toISOString()
+
+      for (const questionId of openQuestionIds) {
+        const questionMeta = openQuestionById.get(questionId)
+        if (!questionMeta) continue
+
+        const existing = responseByStudentQuestion.get(`${studentId}:${questionId}`)
+        if (!existing) {
+          unansweredRowsToInsert.push({
+            test_id: testId,
+            question_id: questionId,
+            student_id: studentId,
+            selected_option: null,
+            response_text: '',
+            score: 0,
+            feedback: 'Unanswered',
+            graded_at: new Date().toISOString(),
+            graded_by: user.id,
+            submitted_at: submittedAt,
+          })
+          completedQuestionsByStudent.set(
+            studentId,
+            (completedQuestionsByStudent.get(studentId) || 0) + 1
+          )
+          continue
+        }
+
+        const responseText = typeof existing.response_text === 'string' ? existing.response_text.trim() : ''
+        if (!responseText) {
+          unansweredResponseIdsToGrade.add(existing.id)
+          completedQuestionsByStudent.set(
+            studentId,
+            (completedQuestionsByStudent.get(studentId) || 0) + 1
+          )
+          continue
+        }
+
+        const task: GradeTask = {
+          responseId: existing.id,
+          studentId,
+          questionText: questionMeta.questionText,
+          responseText,
+          maxPoints: questionMeta.maxPoints,
+        }
+        const current = tasksByStudent.get(studentId) || []
+        current.push(task)
+        tasksByStudent.set(studentId, current)
+      }
+    }
+
+    if (unansweredRowsToInsert.length > 0) {
+      const { error: insertUnansweredError } = await supabase
+        .from('test_responses')
+        .upsert(unansweredRowsToInsert, {
+          onConflict: 'question_id,student_id',
+          ignoreDuplicates: true,
+        })
+
+      if (insertUnansweredError) {
+        console.error('Error inserting unanswered open responses for auto-grade:', insertUnansweredError)
+        return NextResponse.json({ error: 'Failed to save unanswered grades' }, { status: 500 })
+      }
+    }
+
+    if (unansweredResponseIdsToGrade.size > 0) {
+      const { error: unansweredUpdateError } = await supabase
+        .from('test_responses')
+        .update({
+          score: 0,
+          feedback: 'Unanswered',
+          graded_at: new Date().toISOString(),
+          graded_by: user.id,
+        })
+        .eq('test_id', testId)
+        .in('id', Array.from(unansweredResponseIdsToGrade))
+
+      if (unansweredUpdateError) {
+        console.error('Error grading unanswered open responses for auto-grade:', unansweredUpdateError)
+        return NextResponse.json({ error: 'Failed to save unanswered grades' }, { status: 500 })
+      }
     }
 
     const queue: GradeTask[] = []
@@ -126,12 +263,10 @@ export async function POST(
     }
 
     const eligibleStudentIds = new Set(
-      studentIds.filter((studentId) => (tasksByStudent.get(studentId)?.length || 0) > 0)
+      studentIds.filter((studentId) => submittedAtByStudent.has(studentId))
     )
 
-    let gradedResponses = 0
-    const gradedStudentIds = new Set<string>()
-    const failedStudentIds = new Set<string>()
+    let gradedResponses = unansweredRowsToInsert.length + unansweredResponseIdsToGrade.size
     const errors: string[] = []
 
     async function runWorker() {
@@ -163,7 +298,10 @@ export async function POST(
           }
 
           gradedResponses += 1
-          gradedStudentIds.add(task.studentId)
+          completedQuestionsByStudent.set(
+            task.studentId,
+            (completedQuestionsByStudent.get(task.studentId) || 0) + 1
+          )
         } catch (error: any) {
           failedStudentIds.add(task.studentId)
           const message = error?.message || 'Failed to auto-grade response'
@@ -178,11 +316,12 @@ export async function POST(
     )
     await Promise.all(workers)
 
-    const fullyGradedStudents = Array.from(gradedStudentIds).filter(
-      (studentId) => !failedStudentIds.has(studentId)
-    )
+    const gradedStudentIds = Array.from(eligibleStudentIds).filter((studentId) => {
+      if (failedStudentIds.has(studentId)) return false
+      return (completedQuestionsByStudent.get(studentId) || 0) >= openQuestionIds.length
+    })
 
-    const gradedStudents = fullyGradedStudents.length
+    const gradedStudents = gradedStudentIds.length
     const skippedStudents = studentIds.length - gradedStudents
 
     return NextResponse.json({

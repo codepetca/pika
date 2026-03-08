@@ -76,6 +76,7 @@ interface AssignmentFormProps {
   error?: string
   titleInputRef?: RefObject<HTMLInputElement>
   onBlur?: () => void
+  footerContent?: ReactNode
   // Optional extra action button (e.g., Release for drafts)
   extraAction?: {
     label: ReactNode
@@ -103,6 +104,7 @@ export function AssignmentForm({
   error,
   titleInputRef,
   onBlur,
+  footerContent,
   extraAction,
 }: AssignmentFormProps) {
   const isSubmitDisabled = disabled || submitDisabled || !title || !dueAt
@@ -157,27 +159,29 @@ export function AssignmentForm({
 
       {error && <p className="text-sm text-warning">{error}</p>}
 
-      <div className="flex gap-2 justify-end">
-        <Button type="submit" disabled={isSubmitDisabled} className="min-w-[5.5rem]">
-          {submitLabel}
-        </Button>
-        {onCancel && (
-          <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled} className="min-w-[5.5rem]">
-            {cancelLabel}
+      {footerContent ?? (
+        <div className="flex gap-2 justify-end">
+          <Button type="submit" disabled={isSubmitDisabled} className="min-w-[5.5rem]">
+            {submitLabel}
           </Button>
-        )}
-        {extraAction && (
-          <Button
-            type="button"
-            variant={extraAction.variant === 'success' ? 'success' : 'secondary'}
-            onClick={extraAction.onClick}
-            disabled={disabled}
-            className="min-w-[5.5rem]"
-          >
-            {extraAction.label}
-          </Button>
-        )}
-      </div>
+          {onCancel && (
+            <Button type="button" variant="secondary" onClick={onCancel} disabled={disabled} className="min-w-[5.5rem]">
+              {cancelLabel}
+            </Button>
+          )}
+          {extraAction && (
+            <Button
+              type="button"
+              variant={extraAction.variant === 'success' ? 'success' : 'secondary'}
+              onClick={extraAction.onClick}
+              disabled={disabled}
+              className="min-w-[5.5rem]"
+            >
+              {extraAction.label}
+            </Button>
+          )}
+        </div>
+      )}
     </form>
   )
 }

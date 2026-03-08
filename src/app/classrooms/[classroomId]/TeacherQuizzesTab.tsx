@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, ClockAlert, LogOut, Plus, Send } from 'lucide-react'
+import { Check, Circle, ClockAlert, LogOut, Plus, Send } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
@@ -66,12 +66,12 @@ function formatPoints(value: number): string {
 
 const STATUS_META: Record<
   TestGradingStudentRow['status'],
-  { label: string; symbol: string; className: string }
+  { label: string; icon: typeof Circle; className: string }
 > = {
-  not_started: { label: 'Not started', symbol: '○', className: 'text-text-muted' },
-  in_progress: { label: 'In progress', symbol: '◔', className: 'text-warning' },
-  submitted: { label: 'Submitted', symbol: '●', className: 'text-success' },
-  returned: { label: 'Returned', symbol: '✓', className: 'text-primary' },
+  not_started: { label: 'Not started', icon: Circle, className: 'text-gray-400' },
+  in_progress: { label: 'In progress', icon: Circle, className: 'text-yellow-500' },
+  submitted: { label: 'Submitted', icon: Check, className: 'text-green-500' },
+  returned: { label: 'Returned', icon: Send, className: 'text-blue-500' },
 }
 
 export function TeacherQuizzesTab({
@@ -85,8 +85,6 @@ export function TeacherQuizzesTab({
   const [loading, setLoading] = useState(true)
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
-  const [deleteQuiz, setDeleteQuiz] = useState<{ quiz: QuizWithStats; responsesCount: number } | null>(null)
-  const [deleting, setDeleting] = useState(false)
   const [pendingCreatedQuizId, setPendingCreatedQuizId] = useState<string | null>(null)
 
   const [testsMode, setTestsMode] = useState<'authoring' | 'grading'>('authoring')
@@ -309,7 +307,7 @@ export function TeacherQuizzesTab({
     }
   }
 
-  async function handleBatchReturn() {
+  async function handleBatchReturn(options?: { closeTest?: boolean }) {
     if (!selectedQuizId || batchSelectedCount === 0) return
 
     setIsBatchReturning(true)
@@ -319,7 +317,10 @@ export function TeacherQuizzesTab({
       const res = await fetch(`${apiBasePath}/${selectedQuizId}/return`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
+        body: JSON.stringify({
+          student_ids: Array.from(batchSelectedIds),
+          close_test: options?.closeTest === true,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Return failed')
@@ -332,6 +333,9 @@ export function TeacherQuizzesTab({
 
       clearBatchSelection()
       setShowReturnConfirm(false)
+      if (data.test_closed) {
+        await loadQuizzes()
+      }
       await loadGradingRows()
     } catch (err: any) {
       setGradingError(err.message || 'Return failed')
@@ -363,42 +367,10 @@ export function TeacherQuizzesTab({
     )
   }
 
-  async function handleDeleteConfirm() {
-    if (!deleteQuiz) return
-    setDeleting(true)
-    try {
-      const res = await fetch(`${apiBasePath}/${deleteQuiz.quiz.id}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to delete quiz')
-      }
-      if (selectedQuizId === deleteQuiz.quiz.id) {
-        setSelectedQuizId(null)
-      }
-      window.dispatchEvent(
-        new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
-      )
-    } catch (err) {
-      console.error('Error deleting quiz:', err)
-    } finally {
-      setDeleting(false)
-      setDeleteQuiz(null)
-    }
-  }
-
-  async function handleRequestDelete(quiz: QuizWithStats) {
-    try {
-      const res = await fetch(`${apiBasePath}/${quiz.id}/results`)
-      const data = await res.json()
-      setDeleteQuiz({ quiz, responsesCount: data.stats?.responded || 0 })
-    } catch {
-      setDeleteQuiz({ quiz, responsesCount: quiz.stats.responded })
-    }
-  }
-
-  const assessmentLabel = isTestsView ? 'test' : 'quiz'
   const assessmentLabelPlural = isTestsView ? 'Tests' : 'Quizzes'
-  const selectedTestTitle = sortedQuizzes.find((quiz) => quiz.id === selectedQuizId)?.title || 'No test selected'
+  const selectedTest = sortedQuizzes.find((quiz) => quiz.id === selectedQuizId) || null
+  const selectedTestTitle = selectedTest?.title || 'No test selected'
+  const returnWillCloseActiveTest = isTestsView && testsMode === 'grading' && selectedTest?.status === 'active'
 
   return (
     <PageLayout>
@@ -596,6 +568,7 @@ export function TeacherQuizzesTab({
                           ? '—'
                           : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
                       const statusMeta = STATUS_META[student.status]
+                      const StatusIcon = statusMeta.icon
                       const awayCount = student.focus_summary?.away_count ?? 0
                       const awaySeconds = student.focus_summary?.away_total_seconds ?? 0
                       const awayMinutes = Math.floor(awaySeconds / 60)
@@ -638,7 +611,7 @@ export function TeacherQuizzesTab({
                                 className={`inline-flex min-w-5 cursor-help items-center justify-center text-sm font-semibold ${statusMeta.className}`}
                                 aria-label={statusMeta.label}
                               >
-                                {statusMeta.symbol}
+                                <StatusIcon className="h-4 w-4" />
                               </span>
                             </Tooltip>
                           </td>
@@ -709,7 +682,6 @@ export function TeacherQuizzesTab({
                 isSelected={selectedQuizId === quiz.id}
                 isReadOnly={isReadOnly}
                 onSelect={() => handleCardSelect(quiz)}
-                onDelete={() => handleRequestDelete(quiz)}
                 onQuizUpdate={loadQuizzes}
               />
             ))}
@@ -728,33 +700,32 @@ export function TeacherQuizzesTab({
       />
 
       <ConfirmDialog
-        isOpen={!!deleteQuiz}
-        title={`Delete ${assessmentLabel}?`}
-        description={
-          deleteQuiz && deleteQuiz.responsesCount > 0
-            ? `This ${assessmentLabel} has ${deleteQuiz.responsesCount} response${deleteQuiz.responsesCount === 1 ? '' : 's'}. Deleting it will permanently remove all student responses.`
-            : 'This action cannot be undone.'
-        }
-        confirmLabel={deleting ? 'Deleting...' : 'Delete'}
-        cancelLabel="Cancel"
-        confirmVariant="danger"
-        isConfirmDisabled={deleting}
-        isCancelDisabled={deleting}
-        onCancel={() => setDeleteQuiz(null)}
-        onConfirm={handleDeleteConfirm}
-      />
-
-      <ConfirmDialog
         isOpen={showReturnConfirm}
-        title={`Return test work to ${batchSelectedCount} selected student(s)?`}
-        description="Only students with fully graded open-response questions will be returned."
-        confirmLabel={isBatchReturning ? 'Returning...' : 'Return Test'}
+        title={
+          returnWillCloseActiveTest
+            ? `Close test and return work to ${batchSelectedCount} selected student(s)?`
+            : `Return test work to ${batchSelectedCount} selected student(s)?`
+        }
+        description={
+          returnWillCloseActiveTest
+            ? 'This test is still open. Confirming will close it for all students before returning selected work.'
+            : 'Only students with fully graded open-response questions will be returned.'
+        }
+        confirmLabel={
+          isBatchReturning
+            ? returnWillCloseActiveTest
+              ? 'Closing and Returning...'
+              : 'Returning...'
+            : returnWillCloseActiveTest
+              ? 'Close and Return'
+              : 'Return Test'
+        }
         cancelLabel="Cancel"
         isConfirmDisabled={isBatchReturning}
         isCancelDisabled={isBatchReturning}
         onCancel={() => setShowReturnConfirm(false)}
         onConfirm={() => {
-          void handleBatchReturn()
+          void handleBatchReturn({ closeTest: returnWillCloseActiveTest })
         }}
       />
     </PageLayout>

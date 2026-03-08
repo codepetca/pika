@@ -3,6 +3,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { getTodayInToronto } from '@/lib/timezone'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
+import { hasMeaningfulTestResponse } from '@/lib/test-responses'
+import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
+import { isQuizVisibleToStudents } from '@/lib/server/quizzes'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -82,10 +85,9 @@ export async function GET(request: NextRequest) {
     // Get all assignments for this classroom
     const { data: assignments, error: assignmentsError } = await supabase
       .from('assignments')
-      .select('id')
+      .select('id,released_at')
       .eq('classroom_id', classroomId)
       .eq('is_draft', false)
-      .not('released_at', 'is', null)
 
     if (assignmentsError) {
       console.error('Error fetching assignments:', assignmentsError)
@@ -97,7 +99,11 @@ export async function GET(request: NextRequest) {
 
     // Count unviewed assignments
     let unviewedCount = 0
-    const assignmentIds = assignments?.map((a) => a.id) || []
+    const assignmentIds = (assignments || [])
+      .filter((a: { is_draft?: boolean; released_at?: string | null }) =>
+        isAssignmentVisibleToStudents({ is_draft: false, released_at: a.released_at ?? null })
+      )
+      .map((a: { id: string }) => a.id)
 
     if (assignmentIds.length > 0) {
       // Get this student's docs for these assignments
@@ -129,51 +135,101 @@ export async function GET(request: NextRequest) {
 
     async function countActiveUnanswered(
       table: 'quizzes' | 'tests',
-      responsesTable: 'quiz_responses' | 'test_responses',
-      responseIdColumn: 'quiz_id' | 'test_id',
       opts?: { tolerateMissingTable?: boolean }
     ): Promise<{ count: number; error: boolean }> {
       const tolerateMissingTable = opts?.tolerateMissingTable === true
 
-      const { data: activeRows, error: activeError } = await supabase
-        .from(table)
-        .select('id')
-        .eq('classroom_id', classroomId)
-        .eq('status', 'active')
+      let activeIds: string[] = []
 
-      if (activeError) {
-        if (tolerateMissingTable && activeError.code === 'PGRST205') {
-          return { count: 0, error: false }
+      if (table === 'quizzes') {
+        const { data: activeRows, error: activeError } = await supabase
+          .from('quizzes')
+          .select('id,opens_at')
+          .eq('classroom_id', classroomId)
+          .eq('status', 'active')
+
+        if (activeError) {
+          if (tolerateMissingTable && activeError.code === 'PGRST205') {
+            return { count: 0, error: false }
+          }
+          console.error(`Error fetching ${table}:`, activeError)
+          return { count: 0, error: true }
         }
-        console.error(`Error fetching ${table}:`, activeError)
-        return { count: 0, error: true }
+
+        activeIds = (activeRows || [])
+          .filter((row) =>
+            isQuizVisibleToStudents({
+              status: 'active',
+              opens_at: row.opens_at ?? null,
+            })
+          )
+          .map((row) => row.id)
+      } else {
+        const { data: activeRows, error: activeError } = await supabase
+          .from('tests')
+          .select('id')
+          .eq('classroom_id', classroomId)
+          .eq('status', 'active')
+
+        if (activeError) {
+          if (tolerateMissingTable && activeError.code === 'PGRST205') {
+            return { count: 0, error: false }
+          }
+          console.error(`Error fetching ${table}:`, activeError)
+          return { count: 0, error: true }
+        }
+
+        activeIds = (activeRows || []).map((row) => row.id)
       }
 
-      const activeIds = activeRows?.map((row) => row.id) || []
       if (activeIds.length === 0) {
         return { count: 0, error: false }
       }
 
-      const { data: responses, error: responsesError } = await supabase
-        .from(responsesTable)
-        .select(responseIdColumn)
-        .eq('student_id', user.id)
-        .in(responseIdColumn, activeIds)
+      let responses:
+        | Array<{ quiz_id: string }>
+        | Array<{ test_id: string; selected_option: unknown; response_text: unknown }>
+        | null = null
+      let responsesError: { code?: string; message?: string; details?: string; hint?: string } | null = null
+
+      if (table === 'tests') {
+        const testResponsesResult = await supabase
+          .from('test_responses')
+          .select('test_id, selected_option, response_text')
+          .eq('student_id', user.id)
+          .in('test_id', activeIds)
+
+        responses = (testResponsesResult.data as typeof responses) || null
+        responsesError = testResponsesResult.error
+      } else {
+        const quizResponsesResult = await supabase
+          .from('quiz_responses')
+          .select('quiz_id')
+          .eq('student_id', user.id)
+          .in('quiz_id', activeIds)
+
+        responses = (quizResponsesResult.data as typeof responses) || null
+        responsesError = quizResponsesResult.error
+      }
 
       if (responsesError) {
         if (tolerateMissingTable && responsesError.code === 'PGRST205') {
           return { count: 0, error: false }
         }
-        console.error(`Error fetching ${responsesTable}:`, responsesError)
+        console.error(`Error fetching ${table} responses:`, responsesError)
         return { count: 0, error: true }
       }
 
       const respondedIds = new Set<string>()
       for (const row of responses || []) {
-        const assessmentId =
-          responseIdColumn === 'quiz_id'
-            ? (row as { quiz_id: string }).quiz_id
-            : (row as { test_id: string }).test_id
+        let assessmentId: string | null = null
+        if (table === 'tests') {
+          if (!hasMeaningfulTestResponse(row)) continue
+          assessmentId = (row as { test_id: string }).test_id
+        } else {
+          assessmentId = (row as { quiz_id: string }).quiz_id
+        }
+
         if (assessmentId) {
           respondedIds.add(assessmentId)
         }
@@ -206,8 +262,6 @@ export async function GET(request: NextRequest) {
 
     const activeQuizzesResult = await countActiveUnanswered(
       'quizzes',
-      'quiz_responses',
-      'quiz_id'
     )
     if (activeQuizzesResult.error) {
       return NextResponse.json(
@@ -218,8 +272,6 @@ export async function GET(request: NextRequest) {
 
     const activeTestsResult = await countActiveUnanswered(
       'tests',
-      'test_responses',
-      'test_id',
       { tolerateMissingTable: true }
     )
     if (activeTestsResult.error) {

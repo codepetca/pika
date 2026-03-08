@@ -2914,6 +2914,87 @@
 
 **Verification:**
 - `pnpm lint`
+
+## 2026-03-06 (ui copy): Answer key collapse labels simplified
+
+- Updated open-response answer-key collapsed labels in `TestQuestionEditor`:
+  - `Add Answer Key (Optional)` -> `Add Answer Key`
+  - `Answer Key Added (Click to Edit)` -> `Answer Key Added`
+- Kept expanded label unchanged: `Hide Answer Key`.
+- Updated `QuizDetailPanel` component tests to match new label text.
+- Fixed `Code` setting accessibility in `TestQuestionEditor` by wiring a proper `<label htmlFor>` to the checkbox (`getByLabelText('Code')` now works).
+- Updated one stale grid class assertion in `QuizDetailPanel` test to match current 4-column card layout class.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx`
+- Teacher screenshot: `/tmp/teacher-view-answer-key-label.png`
+- Student screenshot: `/tmp/student-view-answer-key-label.png`
+
+## 2026-03-06 (ui): Assessment list controls + delete moved to right panel header
+
+- Updated assessment cards (`QuizCard`) so status badges render in the subtitle line after response progress (`x/y responded`) instead of beside the title.
+- Made test status action controls larger and more prominent in card right rail:
+  - Draft/Closed -> primary `Open` button with play icon.
+  - Active -> danger `Stop` button with square icon.
+- Removed card-level delete action from `QuizCard`.
+- Moved assessment deletion to right sidebar header (`ClassroomPageClient`) as a top-right `Delete` action when an assessment is selected in authoring mode.
+- Added right-panel delete confirm flow in `ClassroomPageClient` with response-aware warning text and API delete dispatch/refresh.
+- Simplified `TeacherQuizzesTab` by removing in-tab delete state/confirm handling now owned by right-panel header action.
+- Updated component tests for `QuizCard` and `TeacherQuizzesTab` to match new delete location and card controls.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/teacher-view-assessment-ui.png`
+- Student screenshot: `/tmp/student-view-assessment-ui.png`
+- Targeted teacher tests screenshot: `/tmp/teacher-tests-right-panel-delete.png`
+
+## 2026-03-06 (ui tweak): Icon-only assessment state controls
+
+- Updated `QuizCard` assessment state buttons to icon-only controls (removed text labels from activate/reopen and stop buttons).
+- Changed play/activate controls to the `success` (green) button variant for stronger state affordance.
+- Kept stop control as red danger icon button.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/teacher-tests-icon-only-buttons.png`
+
+## 2026-03-06 (ui tweak): Move test delete into detail tabs row
+
+- Added an inline `Delete` action to the `QuizDetailPanel` tabs row (same line as `Questions / Documents / Preview / Results`) for test detail view.
+- Kept delete confirmation/delete execution in `ClassroomPageClient`; `QuizDetailPanel` now calls `onRequestDelete` callback.
+- Removed test-mode delete from right-sidebar header actions to avoid duplicate delete controls.
+- Left quiz delete in header unchanged.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot (targeted): `/tmp/teacher-tests-delete-inline-tabs.png`
+- Teacher screenshot (role): `/tmp/teacher-view-delete-inline-tabs.png`
+- Student screenshot (role): `/tmp/student-view-delete-inline-tabs.png`
+
+## 2026-03-06 (ui tweak): Stronger inline test delete button label
+
+- Updated the inline tabs-row delete action in `QuizDetailPanel` from a subtle text button to a prominent danger button.
+- Renamed label from `Delete` to `Delete Test`.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/components/QuizCard.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm lint`
+- Teacher screenshot (targeted): `/tmp/teacher-tests-delete-test-prominent.png`
+
+## 2026-03-06 (ui copy): Test state button tooltips use test wording
+
+- Updated `QuizCard` status-action tooltip copy to use assessment-specific terms:
+  - `Open test` / `Stop test` for tests.
+  - Quiz wording retained for quizzes.
+- This addresses test cards showing quiz wording in play/stop tooltips.
+
+**Verification:**
+- `pnpm exec vitest run tests/components/QuizCard.test.tsx`
+- `pnpm lint`
+- Tooltip screenshot (teacher, targeted): `/tmp/teacher-tests-tooltip-open-test-fixed.png`
 - `pnpm build`
 - Teacher screenshot (grading mode): `/tmp/teacher-tests-grading-actionbar.png`
 - Student screenshot (tests tab): `/tmp/student-tests-actionbar.png`
@@ -4164,6 +4245,20 @@
   - Added in-panel note: `Documentation stays in this panel during exam mode.`
 - Added assertion coverage in `/tests/components/StudentQuizzesTab.test.tsx`:
   - Confirms doc-open state no longer shows an `Open in new tab` button.
+## 2026-03-05 — Student test exam mode left header aligned to 50/50 style
+**Context:** Requested UI parity for the 30/70 exam-mode left pane header with the 50/50 header style, with exam-mode-specific behavior (`Documents` title, no back button, attached documents listed below).
+
+**Changes:**
+- Updated `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - Replaced exam-mode left heading `Exam Mode` with `Documents` using the same heading style as the 50/50 panel header.
+  - Added attached-document extraction for exam mode from:
+    - structured fields when present (`documents`, `attachments`, `attached_documents`, `resources`, `files`)
+    - markdown links and raw URLs in question text
+  - Rendered document links in the left pane (or `No attached documents.` fallback).
+  - Kept exam-mode maximize warning/button and focus metrics below the documents list.
+- Updated `/tests/components/StudentQuizzesTab.test.tsx`:
+  - Updated split behavior assertion to expect `Documents` in 30/70 mode.
+  - Added assertion that attached document links render in the 30/70 left pane.
 
 **Verification:**
 - `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
@@ -4645,3 +4740,711 @@
 - Teacher screenshot: `/tmp/pika-teacher-back-noborder-v1.png`
 - Student screenshot: `/tmp/pika-student-back-noborder-v1.png`
 - Student doc-open screenshot: `/tmp/pika-student-back-noborder-open-v1.png`
+- Playwright screenshots (manual visual verification):
+  - Teacher `/classrooms`: `/tmp/teacher-view-exam-header-fix.png`
+  - Student `/classrooms`: `/tmp/student-view-exam-header-fix.png`
+  - Student exam mode (30/70 with `Documents` + link): `/tmp/student-exam-mode-documents-header.png`
+
+**Note:**
+- Created one temporary active test to produce deterministic exam-mode screenshot, then removed it:
+  - Created: `b92a03cb-540e-4f5d-9673-d35ffb8b9d73` (`Exam Header Fix 1772734699`)
+  - Deleted via teacher API after verification.
+
+## 2026-03-05 — Merge-from-main reconciliation for exam-mode left header request
+**Context:** After syncing `codex/exam-mode-left-header` with latest `origin/main` (commit `d5c23b9`), the branch picked up the new test documents panel architecture. Needed to preserve the user-requested behavior in 30/70 exam mode.
+
+**Changes:**
+- Resolved merge conflicts in:
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - `/tests/components/StudentQuizzesTab.test.tsx`
+- Kept latest main behavior for test documents (teacher-managed docs, list/doc-panel toggle behavior).
+- Applied requested exam-mode left header behavior in 30/70 list state:
+  - Heading is `Documents` (matching 50/50 heading style)
+  - No back button in list state
+  - Exit/away telemetry badges remain visible below the documents section
+- Updated/realigned tests to reflect merged behavior and requested header state.
+
+**Verification:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx` (9/9 passing)
+- `pnpm lint`
+- Playwright screenshots:
+  - Teacher `/classrooms`: `/tmp/teacher-view-exam-header-continue2.png`
+  - Student `/classrooms`: `/tmp/student-view-exam-header-continue2.png`
+  - Student tests list view: `/tmp/student-tests-loaded-continue.png`
+  - Student exam mode 30/70 list state with `Documents` header: `/tmp/student-exam-mode-documents-list-continue2.png`
+
+**Note:**
+- Created temporary active test for deterministic exam-mode verification and deleted it afterward:
+  - Created: `85ab4788-79ce-481d-8cf3-85e2fcfda3f1` (`Exam Header Verify 1772736597`)
+  - Deleted after screenshot capture.
+
+## 2026-03-05 — Test results visibility switched to teacher-return gating
+**Context:** User reported confusion with the test `Visibility` control and requested a simpler policy: students should see test results only after teacher return in grading flow.
+
+**Changes:**
+- Updated test result/status logic to use teacher return state (`returned_at`) instead of `show_results`:
+  - `/src/lib/quizzes.ts`
+    - Added `canStudentViewTestResults()` and `getStudentTestStatus()`.
+  - `/src/app/api/student/tests/route.ts`
+    - Student list status for tests now derives from `status + responded + returned_at`.
+  - `/src/app/api/student/tests/[id]/route.ts`
+    - Detail `student_status` now uses return-based test status.
+  - `/src/app/api/student/tests/[id]/results/route.ts`
+    - Results now require returned test work (403 until returned).
+- Removed confusing teacher visibility control for tests:
+  - `/src/components/QuizCard.tsx`
+    - Eye toggle remains for quizzes only; hidden for tests.
+- Updated student test messaging:
+  - `/src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+    - Test results rendering now keys off `student_status === 'can_view_results'`.
+    - Submitted messaging now explains teacher close/return flow.
+- Updated tests:
+  - `/tests/unit/quizzes.test.ts`
+  - `/tests/api/student/tests-results.test.ts`
+  - `/tests/components/QuizCard.test.tsx`
+
+**Verification:**
+- `pnpm vitest run tests/unit/quizzes.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/components/QuizCard.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- Playwright screenshots:
+  - Teacher `/classrooms`: `/tmp/teacher-view-tests-returned-policy.png`
+  - Student `/classrooms`: `/tmp/student-view-tests-returned-policy.png`
+  - Teacher tests tab loaded: `/tmp/teacher-tests-tab-returned-policy-loaded.png`
+  - Student tests tab loaded: `/tmp/student-tests-tab-returned-policy-loaded.png`
+  - Teacher tests tab selected state: `/tmp/teacher-tests-selected-debug-wait8s.png`
+  - Student tests tab selected state: `/tmp/student-tests-tab-selected-returned-policy.png`
+
+## 2026-03-06 — Added return-gated student_status regression coverage
+**Context:** Follow-up review found missing direct assertions for `student_status` transitions in student tests list/detail APIs after return-gated policy change.
+
+**Changes:**
+- Updated `/tests/api/student/tests-route.test.ts`:
+  - Added explicit coverage for closed responded tests where:
+    - `returned_at` present -> `student_status=can_view_results`
+    - `returned_at` null -> `student_status=responded`
+- Updated `/tests/api/student/tests-id.test.ts`:
+  - Added detail-route coverage for closed submitted tests with and without `returned_at`.
+
+**Verification:**
+- `pnpm vitest run tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts`
+- Both suites passing.
+
+## 2026-03-06 — Added end-to-end API integration coverage for test return visibility
+**Context:** Review gap identified: no integration test proving teacher return action immediately unlocks student `can_view_results` and results endpoint access.
+
+**Changes:**
+- Added `/tests/api/integration/test-return-visibility-flow.test.ts`.
+- New integration scenario verifies full sequence with shared mock state:
+  1) student sees `responded` and gets 403 on results before return
+  2) teacher calls test return endpoint
+  3) student list/detail switch to `can_view_results`
+  4) student results endpoint returns 200 with returned metadata/score
+
+**Verification:**
+- `pnpm vitest run tests/api/integration/test-return-visibility-flow.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-results.test.ts tests/api/teacher/tests-return.test.ts`
+- all passing.
+
+## 2026-03-06 — Return flow now closes active tests + test status pill uses Open
+**Context:** Teacher could return while a test remained active, which blocked student result visibility under close+return gating. Also requested wording update from Active -> Open for test status pill.
+
+**Changes:**
+- Teacher return API (`/api/teacher/tests/[id]/return`):
+  - Enforces explicit close confirmation for active tests (`409` unless `close_test=true`).
+  - Closes active test before returning selected students when confirmed.
+  - Adds migration-aware error handling for missing `test_attempts.returned_at/returned_by`.
+- Added migration `043_backfill_test_attempt_return_columns.sql` to ensure return metadata columns/index exist.
+- Teacher grading UI:
+  - Return confirmation dialog now switches to "Close and Return" copy when selected test is active.
+  - Sends `close_test=true` in that path and refreshes list after auto-close.
+- Test status pill wording:
+  - Active **tests** now display `Open`; quizzes continue to display `Active`.
+
+**Verification:**
+- `pnpm exec vitest run tests/api/teacher/tests-return.test.ts tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm exec vitest run tests/unit/quizzes.test.ts tests/components/QuizCard.test.tsx`
+- Visual screenshots:
+  - Teacher active-return confirm modal: `/tmp/teacher-return-flow-3100.png`
+  - Teacher test cards showing `Open`: `/tmp/teacher-open-pill.png`
+  - Student tests tab sanity: `/tmp/student-open-pill-sanity.png`
+## 2026-03-05 — Open-response answer keys, AI grading audit trail, and 3-column test question cards
+**Context:** User requested implementation of the approved plan to (1) support optional open-response answer keys for AI grading, (2) persist AI grading basis/reference metadata, and (3) redesign test question authoring cards into a 3-column layout with a collapsed answer section.
+
+**Changes:**
+- Added migration `/supabase/migrations/042_add_test_answer_key_and_ai_audit.sql`:
+  - `test_questions.answer_key` (nullable)
+  - `test_responses.ai_grading_basis`, `test_responses.ai_reference_answers`, `test_responses.ai_model`
+  - Added DB constraints for allowed basis values and JSON array shape for references.
+- Extended test question validation + types:
+  - `answer_key` now supported for `open_response` and cleared for `multiple_choice`.
+  - Updated shared test response types to include AI audit metadata.
+- Implemented AI grading flow updates:
+  - `src/lib/ai-test-grading.ts` now grades against teacher answer key when present.
+  - If no answer key, it first generates 1-3 reference answers, then grades using those.
+  - Returns score, feedback, model, grading basis, and generated references.
+- Updated teacher test grading APIs:
+  - Auto-grade route persists `ai_grading_basis`, `ai_reference_answers`, and `ai_model` per graded response.
+  - AI-suggest route passes answer key context and returns enriched suggestion metadata.
+  - Manual response grading PATCH accepts/validates AI metadata and persists it when provided.
+  - Teacher results route now includes answer key on open-response questions and AI context metadata per answer.
+- Student safety hardening:
+  - Replaced student detail `select('*')` question queries with explicit field lists on:
+    - `/api/student/tests/[id]`
+    - `/api/student/quizzes/[id]`
+  - Excludes `correct_option` and `answer_key` from student detail payloads.
+- Teacher test question UI redesign (`src/components/TestQuestionEditor.tsx`):
+  - 3-column card layout:
+    - Left: drag handle + `Q#`
+    - Middle: prompt + response content
+    - Right: `Points`, `Code` (open-response), `Save`, `Delete`
+  - Open-response-only answer section is collapsed by default and expands on click.
+  - Closed state shows indicator text when answer key exists.
+- Updated relevant wiring (`QuizDetailPanel`, grading panel) to pass/store/display new fields.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm vitest run` (full suite): 130 files, 1200 tests passed.
+- Added/updated targeted tests:
+  - `tests/unit/ai-test-grading.test.ts`
+  - `tests/api/student/quizzes-id.test.ts`
+  - `tests/api/teacher/tests-ai-suggest.test.ts`
+  - `tests/api/teacher/tests-responses-grade.test.ts`
+  - updates to existing test question, auto-grade, student detail, and component tests.
+- Visual verification screenshots:
+  - Teacher tests authoring view (new 3-column card + collapsed answer section): `/tmp/teacher-test-authoring-answer-key.png`
+  - Student classrooms view check: `/tmp/student-classrooms-answer-key.png`
+
+**Note:**
+- Temporary screenshot setup tests titled `Codex Layout QA ...` were removed after verification.
+- Migration `042_add_test_answer_key_and_ai_audit.sql` still needs to be applied by a human before runtime usage of new DB columns.
+
+## 2026-03-06 (follow-up): Auto-grade reference reuse per question
+
+- Addressed PR review finding about inconsistent fallback grading references during bulk auto-grade.
+- Updated `src/lib/ai-test-grading.ts`:
+  - Added `generateTestOpenResponseReferences(...)` to generate fallback references once.
+  - Extended `suggestTestOpenResponseGrade(...)` to accept optional `referenceAnswers` and reuse them instead of regenerating.
+- Updated `src/app/api/teacher/tests/[id]/auto-grade/route.ts`:
+  - Pre-generates fallback references once per open-response question (only when no teacher answer key).
+  - Reuses shared references for all student responses for that question in the same run.
+  - If shared reference generation fails for a question, affected tasks are skipped with per-student error entries.
+- Added/updated tests:
+  - `tests/api/teacher/tests-auto-grade.test.ts` now asserts one-time reference generation + reuse in suggestion calls.
+  - `tests/unit/ai-test-grading.test.ts` now covers provided-reference reuse path (single model call).
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts`
+- `pnpm lint`
+
+## 2026-03-06 (follow-up): Persistent reference cache by question version
+
+- Implemented persistent open-response reference caching to reuse AI-generated reference answers across auto-grade runs.
+- Added migration:
+  - `supabase/migrations/043_add_test_question_reference_cache.sql`
+  - New `test_questions` columns:
+    - `ai_reference_cache_key text`
+    - `ai_reference_cache_answers jsonb`
+    - `ai_reference_cache_model text`
+    - `ai_reference_cache_generated_at timestamptz`
+  - Added constraints for JSON array shape and open-response-only usage.
+- Updated grading helper (`src/lib/ai-test-grading.ts`):
+  - `getTestOpenResponseGradingModel()`
+  - `buildTestOpenResponseReferenceCacheKey(...)`
+  - `normalizeTestOpenResponseReferenceAnswers(...)`
+- Updated test auto-grade route (`src/app/api/teacher/tests/[id]/auto-grade/route.ts`):
+  - Reads cached references from `test_questions`.
+  - Computes version key from `(question_text, points, model)`.
+  - Reuses cached references when key+model match.
+  - Generates and persists new references only on cache miss.
+  - Continues grading even if cache persistence fails (logs error).
+- Added/updated tests:
+  - `tests/api/teacher/tests-auto-grade.test.ts`:
+    - cache miss path generates + persists cache
+    - cache hit path reuses cached references and skips generation
+  - `tests/unit/ai-test-grading.test.ts`:
+    - cache key stability
+    - cached reference normalization
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts`
+- `pnpm lint`
+
+## 2026-03-06 (follow-up): Test grading UX consolidation + no-response manual grading
+
+- Updated teacher test grading UX in right sidebar:
+  - Removed per-question `AI Suggest` action from selected-student grading panel.
+  - Removed per-question `Save Grade` buttons.
+  - Added single header-level `Save` action (right-aligned beside student test title).
+- Open-response grading fields now render even when student response is missing:
+  - Teachers can enter score + feedback for unanswered open-response questions.
+  - This supports manual 0 + feedback workflows before return.
+- Added bulk-save API for selected student test grading:
+  - `PATCH /api/teacher/tests/[id]/students/[studentId]/grades`
+  - Validates teacher ownership, enrollment, question membership/type, and point bounds.
+  - Upserts grade rows for open-response questions and creates missing response rows with empty `response_text` when needed.
+- Added compatibility fallback for teacher results route when AI audit columns are missing (migration not yet applied):
+  - `GET /api/teacher/tests/[id]/results` now retries without AI columns if missing and maps AI fields to null.
+  - Added shared helper `isMissingTestResponseAiColumnsError`.
+
+**Tests added/updated:**
+- `tests/api/teacher/tests-students-grades.test.ts`
+- `tests/api/teacher/tests-results.test.ts` (AI-column fallback case)
+
+**Verification:**
+- `pnpm vitest run tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-students-grades.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/unit/ai-test-grading.test.ts`
+- `pnpm lint`
+- Visual verification screenshots:
+  - Teacher grading view with header `Save` + no-response grading fields visible:
+    - `/tmp/teacher-test-grading-no-response-with-question.png`
+  - Teacher classrooms view:
+    - `/tmp/teacher-view-tests-save.png`
+  - Student classrooms view:
+    - `/tmp/student-view-tests-save.png`
+- Added fallback in bulk student grade save route when AI audit columns are unavailable:
+  - Retry upsert without `ai_grading_basis` / `ai_reference_answers` / `ai_model` fields.
+  - Added API test coverage for this fallback path.
+
+## 2026-03-06 (sync): Rebased branch onto main and resequenced migrations
+
+- Rebasing `codex/test-answer-key-grading-ui` onto `origin/main` required one conflict resolution in `src/types/index.ts`.
+  - Kept both upstream test-document types and branch AI grading basis type.
+- Resequenced branch-added migrations to avoid collisions with `origin/main`:
+  - `042_add_test_answer_key_and_ai_audit.sql` -> `044_add_test_answer_key_and_ai_audit.sql`
+  - `043_add_test_question_reference_cache.sql` -> `045_add_test_question_reference_cache.sql`
+- Verified no duplicate migration prefixes remain.
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-students-grades.test.ts tests/api/teacher/tests-results.test.ts`
+
+## 2026-03-06 (follow-up): Code-question AI grading rubric and communication penalties
+
+- Updated AI open-response grading to treat code-marked questions (`response_monospace`) with a code-specific rubric.
+- Prompt behavior for coding questions now:
+  - prioritizes logic and algorithmic correctness over minor syntax/runtime issues,
+  - awards high partial credit for clear, logically sound solutions with small implementation mistakes,
+  - explicitly penalizes poor communication/readability (indentation, naming, structure),
+  - infers language from context when possible and grades language-agnostically if ambiguous.
+- Wired `response_monospace` through both auto-grade and single-response AI suggest routes.
+- Included coding mode in reference cache key versioning to avoid reusing non-code references for code questions.
+
+**Verification:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-ai-suggest.test.ts`
+- `pnpm lint`
+
+## 2026-03-06 (follow-up): Seed sample tests for AI grading demos
+
+- Added shared seed helper: `scripts/seed-tests.ts`.
+- Wired both seed entrypoints to create sample test data:
+  - `scripts/seed.ts` (`pnpm seed`)
+  - `scripts/clear-and-seed.ts` (`pnpm seed:fresh`)
+- Seed now creates:
+  - `Seed Test - AI Grading Demo` (closed) with mixed MC + open + coding questions.
+    - Includes open-response with `answer_key` and without `answer_key`.
+    - Includes coding open-response (`response_monospace=true`).
+    - Includes pre-populated responses/attempts for student1 + student2 so teacher auto-grade can be run immediately.
+  - `Seed Test - Unattempted Demo` (active) with MC + open + coding questions and no student responses.
+- Added explicit migration guard: if test tables/columns are missing, seed throws a clear message requiring test migrations `039-045`.
+
+**Verification:**
+- `pnpm lint`
+
+## 2026-03-06 (cleanup): Consolidated unapplied migrations 044 + 045
+
+- Since migrations were not applied in any environment yet, consolidated:
+  - folded `045_add_test_question_reference_cache.sql` SQL into `044_add_test_answer_key_and_ai_audit.sql`
+  - removed `045_add_test_question_reference_cache.sql`
+- Updated seed migration guard messages to point to `039-044`.
+
+**Verification:**
+- `pnpm lint`
+
+## 2026-03-06 (follow-up): Fix PR findings for placeholder submissions + cache context
+
+- Fixed test response submission/status regressions caused by manual grading placeholder rows:
+  - Added `src/lib/test-responses.ts` with `hasMeaningfulTestResponse` helpers.
+  - Updated student test list/detail/results, test attempt autosave gate, focus-events gate, teacher test list/results, and notifications to treat only meaningful rows (`selected_option` or non-empty `response_text`) as real responses.
+  - Updated student submit route to:
+    - block only when meaningful responses already exist,
+    - use `upsert(..., { onConflict: 'question_id,student_id' })` so placeholder rows cannot block later real submits.
+- Fixed AI reference cache context mismatch:
+  - `buildTestOpenResponseReferenceCacheKey` now includes `testTitle`.
+  - Auto-grade cache key generation/validation now passes `testTitle`.
+- Added/updated API + unit tests to cover:
+  - placeholder rows not counting as responded,
+  - submit still working when placeholder rows exist,
+  - cache key invalidation when test title changes.
+
+**Verification:**
+- `pnpm vitest run tests/api/teacher/tests-students-grades.test.ts tests/api/student/tests-results.test.ts tests/api/teacher/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-focus-events.test.ts tests/api/student/notifications.test.ts tests/api/student/tests-respond.test.ts tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-results.test.ts tests/api/student/tests-route.test.ts tests/api/student/tests-attempt.test.ts`
+- `pnpm lint`
+
+## 2026-03-06 (hotfix): Fix student notifications TypeScript build failure
+
+- Fixed `src/app/api/student/notifications/route.ts` type-check failure introduced by dynamic Supabase `select(...)` on a union table path.
+- Replaced dynamic response query with explicit branches:
+  - quizzes: `quiz_responses.select('quiz_id')`
+  - tests: `test_responses.select('test_id, selected_option, response_text')`
+- Preserved meaningful-response filtering for test placeholders via `hasMeaningfulTestResponse`.
+
+**Verification:**
+- `pnpm vitest run tests/api/student/notifications.test.ts`
+- `pnpm build`
+## 2026-03-06 — Teacher assessment draft autosave stabilization (JSON Patch flow)
+**Context:** Continued implementation of teacher-created test/quiz draft autosave using JSON Patch, then stabilized failing component tests and route integrations.
+
+**Changes:**
+- Hardened [`src/components/QuizDetailPanel.tsx`](/Users/stew/Repos/pika/src/components/QuizDetailPanel.tsx):
+  - `applyServerDraft` now tolerates partial/missing `draft.content` payloads and falls back to current quiz title/show-results.
+  - Save success path now handles responses that omit `draft` without crashing (`Cannot read properties of undefined (reading 'content')`).
+  - Title save on Enter/blur now forces immediate draft save (no debounce), while ongoing question edits remain debounced/throttled autosave.
+  - Memoized normalization helpers and fixed hook dependency issues.
+- Updated [`tests/components/QuizDetailPanel.test.tsx`](/Users/stew/Repos/pika/tests/components/QuizDetailPanel.test.tsx):
+  - Switched mocks from legacy `{questions}` detail response to draft contract `{draft: {version, content}}`.
+  - Updated title-save assertion to verify `PATCH .../draft` payload semantics.
+  - Reworked add-question assertion for local-first draft behavior (empty prompt retained, no legacy `POST` create-question call).
+
+**Verification:**
+- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx`
+- `pnpm vitest run tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-questions-route.test.ts tests/api/teacher/tests-questions-id.test.ts tests/api/teacher/tests-questions-reorder.test.ts tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/quizzes-questions-reorder.test.ts`
+- `pnpm lint`
+
+**UI visual verification (required):**
+- Teacher screenshot: `/tmp/teacher-view-autosave-draft.png`
+- Student screenshot: `/tmp/student-view-autosave-draft.png`
+- Refreshed auth state before capture: `pnpm e2e:auth`
+
+## 2026-03-06 — Rebase to origin/main + migration resequence
+**Context:** User requested rebase and migration filename update after draft-autosave implementation.
+
+**Rebase workflow:**
+- Stashed working tree (including untracked): `pre-rebase-main-20260306-120506`
+- Rebased local `main` onto `origin/main`
+- Restored stash; resolved conflicts in:
+  - `src/app/api/teacher/tests/[id]/route.ts`
+  - `src/app/api/teacher/tests/route.ts`
+  - `src/components/QuizDetailPanel.tsx`
+- Kept upstream test-documents behavior while preserving assessment-draft autosave/overlay logic.
+
+**Migration resequencing:**
+- `origin/main` already contains `042_test_documents.sql` and `043_backfill_test_attempt_return_columns.sql`.
+- Renamed new draft migration from `042_assessment_drafts.sql` to `044_assessment_drafts.sql` to remove duplicate numeric prefix.
+
+**Verification:**
+- `pnpm lint`
+- `pnpm vitest run tests/components/QuizDetailPanel.test.tsx`
+- `pnpm vitest run tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-questions-route.test.ts tests/api/teacher/tests-questions-id.test.ts tests/api/teacher/tests-questions-reorder.test.ts tests/api/teacher/tests-results.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/quizzes-questions-reorder.test.ts`
+
+**UI verification notes:**
+- Captured screenshots during this pass:
+  - `/tmp/teacher-view-rebase-migration.png`
+  - `/tmp/student-view-rebase-migration.png`
+- At capture time both rendered non-functional states (404/spinner), indicating local auth/session flow instability in dev environment during this rebase pass; requires follow-up if additional UI iteration is requested.
+
+## 2026-03-06 — Auto-submit draft test attempts on close
+**Context:** Requested behavior update so any student draft becomes a submission when a test closes (including close+return flow), while keeping offline support deferred.
+
+**Changes:**
+- Added [`src/lib/server/finalize-test-attempts.ts`](/Users/stew/Repos/pika/src/lib/server/finalize-test-attempts.ts) with `finalizeUnsubmittedTestAttemptsOnClose()` to:
+  - load unsubmitted `test_attempts`
+  - convert saved draft answers into `test_responses` (MC auto-scored, open responses ungraded)
+  - mark attempts as submitted with `submitted_at`
+- Wired close finalization into:
+  - [`src/app/api/teacher/tests/[id]/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/route.ts) for `active -> closed`
+  - [`src/app/api/teacher/tests/[id]/return/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/return/route.ts) before return eligibility checks
+- Added helper tests:
+  - [`tests/lib/finalize-test-attempts.test.ts`](/Users/stew/Repos/pika/tests/lib/finalize-test-attempts.test.ts)
+- Updated affected route tests to mock/assert finalization behavior:
+  - [`tests/api/teacher/tests-id-route.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-id-route.test.ts)
+  - [`tests/api/teacher/tests-return.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-return.test.ts)
+
+**Verification:**
+- `pnpm vitest run tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-return.test.ts tests/api/student/tests-route.test.ts tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+
+## 2026-03-06 — Return empty finalized submissions
+**Context:** Follow-up behavior request: students who started but submitted no answers should still be returnable after close finalization.
+
+**Changes:**
+- Updated [`src/app/api/teacher/tests/[id]/return/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/return/route.ts):
+  - reads submitted attempt state from `test_attempts`
+  - treats `is_submitted=true` attempts as return-eligible even if they have zero `test_responses`
+  - continues to require grading only for existing open-response rows (unanswered open questions no longer block return)
+- Added regression test in [`tests/api/teacher/tests-return.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-return.test.ts):
+  - `returns submitted students with empty finalized responses`
+
+**Verification:**
+- `pnpm vitest run tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-results.test.ts tests/lib/finalize-test-attempts.test.ts`
+- `pnpm lint`
+
+## 2026-03-06 — Unanswered open-response handling + close finalization ordering
+**Context:** Follow-up correction after review: unanswered open responses should stay unanswered, and if auto-graded they should receive `0` with default feedback (`Unanswered`). Also needed to avoid pre-close finalization ordering risk.
+
+**Changes:**
+- Updated [`src/lib/server/finalize-test-attempts.ts`](/Users/stew/Repos/pika/src/lib/server/finalize-test-attempts.ts):
+  - blank/whitespace open-response drafts are no longer inserted into `test_responses` during close finalization
+- Updated [`src/app/api/teacher/tests/[id]/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/route.ts):
+  - close-time finalization now runs **after** successful `tests.status='closed'` update
+- Enhanced [`src/app/api/teacher/tests/[id]/auto-grade/route.ts`](/Users/stew/Repos/pika/src/app/api/teacher/tests/[id]/auto-grade/route.ts):
+  - loads submitted attempts for selected students
+  - auto-assigns `score=0`, `feedback='Unanswered'` for blank open responses
+  - inserts missing unanswered open-response rows (for submitted students) with zero + `Unanswered`
+  - preserves AI grading for non-empty answers; returns updated graded/eligible counts
+
+**Tests:**
+- Added blank-open skip test in [`tests/lib/finalize-test-attempts.test.ts`](/Users/stew/Repos/pika/tests/lib/finalize-test-attempts.test.ts)
+- Updated auto-grade expectations in [`tests/api/teacher/tests-auto-grade.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-auto-grade.test.ts)
+- Added close-order assertion in [`tests/api/teacher/tests-id-route.test.ts`](/Users/stew/Repos/pika/tests/api/teacher/tests-id-route.test.ts)
+
+**Verification:**
+- `pnpm vitest run tests/lib/finalize-test-attempts.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-return.test.ts tests/api/teacher/tests-results.test.ts`
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx tests/api/student/tests-route.test.ts`
+- `pnpm lint`
+- Auto-grade compatibility addendum: when `test_attempts` is unavailable (`PGRST205`), submitted-student eligibility now falls back to `test_responses.submitted_at` so grading still works in legacy schemas.
+- Consistency safeguard: when close finalization fails, both close paths now attempt rollback to `active` (`tests/[id]` and `tests/[id]/return` close_test flow) to avoid partial close state.
+- Added rollback tests in `tests-id-route.test.ts` and `tests-return.test.ts`.
+
+## 2026-03-05 — Issue #348 draft grading + auto-finalize on return
+**Context:** Added a true draft grading workflow so teachers can save comments/scores without marking work graded, and ensured return-to-student finalizes draft-scored work automatically.
+
+**Changes:**
+- Updated `/src/app/api/teacher/assignments/[id]/grade/route.ts`:
+  - Added optional `save_mode` (`draft` | `graded`) validation.
+  - `save_mode=draft` now persists rubric scores/feedback while clearing `graded_at` and `graded_by`.
+  - Existing callers without `save_mode` keep prior behavior (treated as graded).
+- Updated `/src/app/api/teacher/assignments/[id]/return/route.ts`:
+  - Return eligibility now includes draft-scored docs with all rubric scores.
+  - Draft-scored docs are auto-finalized (`graded_at`/`graded_by`) when returned.
+- Updated `/src/components/TeacherStudentWorkPanel.tsx`:
+  - Added grading save-mode dropdown (`Draft`, `Graded`) beside Save button.
+  - Save payload now includes `save_mode`.
+  - Grade form now rehydrates scores/feedback for draft-saved docs (previously only graded docs prefilled).
+- Updated `/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`:
+  - Status icon for `graded` changed to circled check (`CheckCircle2`).
+  - Submitted/draft states continue to use uncircled check.
+  - Return confirmation eligibility text/count now includes draft-scored docs.
+- Added/updated tests:
+  - `/tests/api/teacher/assignments-id-grade.test.ts`
+  - `/tests/api/teacher/assignments-id-return.test.ts` (new)
+  - `/tests/components/TeacherStudentWorkPanel.test.tsx`
+
+**Verification:**
+- `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm test`
+- `pnpm lint`
+- Teacher screenshot: `/tmp/issue348-teacher-classrooms.png`
+- Student screenshot: `/tmp/issue348-student-classrooms.png`
+
+## 2026-03-06 — PR #374 review fixes (atomic return + grader attribution)
+**Context:** Addressed code review findings on issue #348 PR regarding partial commits in assignment return flow and missing grader attribution.
+
+**Changes:**
+- Updated `/src/app/api/teacher/assignments/[id]/return/route.ts`:
+  - Replaced two-step update logic with a single atomic RPC call (`return_assignment_docs_atomic`).
+  - Preserved grader attribution by passing `p_teacher_id` (`user.id`) to the RPC for draft auto-finalization.
+- Added migration `/supabase/migrations/043_assignment_return_atomic_rpc.sql`:
+  - Creates `public.return_assignment_docs_atomic(...)` PL/pgSQL function.
+  - Performs eligibility detection + finalize/return in one transactional update statement.
+  - Returns `{ returned_count, skipped_count }`.
+- Updated `/tests/api/teacher/assignments-id-return.test.ts`:
+  - Switched to RPC-based assertions.
+  - Added failure-path test for RPC errors.
+
+**Verification:**
+- `pnpm test tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-grade.test.ts`
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+
+**Note:** Migration `043_assignment_return_atomic_rpc.sql` must be applied manually by a human.
+
+## 2026-03-06 — Rebased issue #348 branch and resequenced migration filename
+**Context:** Synced `codex/348-draft-grade-status` with latest `origin/main` and resolved migration numbering collision.
+
+**Changes:**
+- Rebased branch onto `origin/main` (clean rebase, no conflicts).
+- Renamed migration to avoid collision with new main migration:
+  - `supabase/migrations/043_assignment_return_atomic_rpc.sql`
+  - -> `supabase/migrations/044_assignment_return_atomic_rpc.sql`
+
+**Verification:**
+- `pnpm test tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-grade.test.ts`
+- `pnpm lint`
+
+**Note:** Human still needs to apply migration `044_assignment_return_atomic_rpc.sql`.
+
+## 2026-03-07 — Rebased #348 branch again and resequenced migration to 046
+**Context:** Synced branch with latest `origin/main` and resolved new migration-number collision after upstream added migration 045.
+
+**Changes:**
+- Rebased `codex/348-draft-grade-status` onto `origin/main`.
+- Renamed migration:
+  - `supabase/migrations/044_assignment_return_atomic_rpc.sql`
+  - -> `supabase/migrations/046_assignment_return_atomic_rpc.sql`
+
+**Verification:**
+- Confirmed no duplicate migration prefixes in `supabase/migrations/`.
+
+**Note:** Human must apply migration `046_assignment_return_atomic_rpc.sql` manually.
+## 2026-03-01 [AI - GPT-5 Codex]
+**Goal:** Implement GH issue #292 unified scheduled release/open for assignments and quizzes, plus announcement scheduler shared refactor.
+**Completed:**
+- Added migration `039_quiz_scheduled_open_and_assignment_release_indexes.sql`:
+  - added `quizzes.opens_at timestamptz`
+  - backfilled existing active/closed quizzes
+  - added quiz/student visibility index and assignment release visibility index
+- Added shared scheduling layer:
+  - `src/lib/scheduling.ts` (Toronto date/time conversion, parse, future validation, visibility checks)
+  - `src/components/ScheduleDateTimePicker.tsx` (shared schedule picker UI, Toronto labels)
+  - unit tests: `tests/unit/scheduling.test.ts`
+- Added assignment visibility helper:
+  - `src/lib/server/assignments.ts`
+- Refactored/extended assignment APIs:
+  - `POST /api/teacher/assignments/[id]/release` now supports optional `release_at`
+  - `PATCH /api/teacher/assignments/[id]` now supports controlled draft/scheduled/live transitions (`is_draft`, `released_at`)
+  - enforced no revert/reschedule after live
+- Enforced scheduled assignment visibility on student side:
+  - `src/app/api/student/assignments/route.ts`
+  - all `src/app/api/assignment-docs/[id]/*` student endpoints now return 404 for unreleased assignments
+  - notifications now exclude scheduled-future assignments
+- Implemented quiz scheduling/open semantics:
+  - extended quiz types with `opens_at`
+  - added quiz visibility helpers in `src/lib/server/quizzes.ts`
+  - `PATCH /api/teacher/quizzes/[id]` supports `opens_at`, scheduled active→draft revert before open, blocks revert/reschedule after open
+  - student quiz list/detail/respond enforce `opens_at <= now`
+  - notifications exclude scheduled-future quizzes
+- Teacher UI scheduling implementation:
+  - `AssignmentModal` now supports: Post now, Schedule, Reschedule, Revert to draft (before go-live), Toronto schedule picker
+  - `SortableAssignmentCard` now renders Draft/Scheduled/Live state distinctions
+  - `TeacherClassroomView` treats scheduled (future release) assignments like draft for edit/reschedule flow
+  - `QuizCard` now supports: Open now, Schedule open, Reschedule, Cancel schedule→draft (before open), Scheduled badge/opening-at text
+- Announcement scheduler refactor:
+  - `TeacherAnnouncementsSection` now uses shared scheduling util + shared picker while preserving existing payload behavior (`scheduled_for`)
+- Added/updated tests:
+  - new: `tests/unit/server-quizzes.test.ts`
+  - new: `tests/api/teacher/quizzes-id.test.ts`
+  - new: `tests/api/student/quizzes-respond.test.ts`
+  - updated: `tests/components/AssignmentModal.test.tsx`
+  - updated: `tests/components/QuizCard.test.tsx`
+  - updated: `tests/api/teacher/assignments-draft.test.ts`
+  - updated mocks for assignment/quiz defaults in `tests/helpers/mocks.ts`
+- Validation runs:
+  - `pnpm lint` passed
+  - focused vitest suites for touched APIs/components/utilities passed
+  - announcement API regression tests passed
+- Required UI visual verification performed (teacher + student):
+  - `/tmp/issue292-teacher-classrooms.png`
+  - `/tmp/issue292-student-classrooms.png`
+  - `/tmp/issue292-teacher-assignments.png`
+  - `/tmp/issue292-student-assignments.png`
+  - `/tmp/issue292-teacher-quizzes.png`
+  - `/tmp/issue292-student-quizzes.png`
+  - `/tmp/issue292-teacher-assignment-modal.png`
+  - `/tmp/issue292-teacher-quiz-schedule.png`
+**Notes/Blockers:**
+- Local DB used for visual verification has not applied migration `039`; runtime logs show `column quizzes.opens_at does not exist` in student quiz/notifications endpoints until migration is applied.
+**Status:** in progress (implementation complete; waiting for migration apply in env + final review/PR steps)
+
+## 2026-03-07 — Increase header date/time size
+**Context:** User requested the global header date/time be larger.
+
+**Changes:**
+- Updated `/src/components/AppHeader.tsx`:
+  - changed header date/time text class from `text-sm` to `text-base`
+
+**Verification:**
+- Ran auth refresh for this worktree against `http://localhost:3001`:
+  - `E2E_BASE_URL=http://localhost:3001 pnpm e2e:auth`
+- Captured and visually checked required role screenshots:
+  - teacher: `/tmp/teacher-view-header-datetime-larger.png`
+  - student: `/tmp/student-view-header-datetime-larger.png`
+
+**Notes:**
+- `bash scripts/verify-env.sh` fails on this baseline due unrelated `zod` module resolution in existing tests; not changed by this task.
+## 2026-03-07 [AI - GPT-5 Codex]
+**Goal:** Refine assignment scheduled-release chip copy/actions in `AssignmentModal`.
+**Completed:**
+- Confirmed `AssignmentModal` scheduled chip uses `Scheduled for ...` copy with weekday/month/day/time format.
+- Confirmed chip styling matches scheduled amber tokens (`border-warning bg-warning-bg text-warning`).
+- Confirmed attached cancel icon button (`aria-label="Clear scheduled release"`) clears the schedule via draft revert patch flow.
+- Updated `tests/components/AssignmentModal.test.tsx` to assert `Scheduled for` UI copy and the attached chip cancel-button clear behavior.
+- Ran focused tests:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+- Ran required visual checks (teacher + student):
+  - `/tmp/teacher-assignment-scheduled-chip-v2.png`
+  - `/tmp/student-assignments-view-v2.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Update assignment list scheduled presentation in teacher cards.
+**Completed:**
+- Updated `SortableAssignmentCard` scheduled rendering so the status badge now shows full text: `Scheduled for <weekday month day, time>` in Toronto time.
+- Removed the separate `Releases ...` subtitle under due date for scheduled assignments.
+- Kept draft/live card behavior unchanged.
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx` (pass)
+  - visual verification screenshots:
+    - `/tmp/teacher-assignments-scheduled-badge-v4.png`
+    - `/tmp/student-assignments-scheduled-badge-v4.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Move scheduled badge under due date in assignment list and adjust copy format.
+**Completed:**
+- Updated `src/components/SortableAssignmentCard.tsx`:
+  - scheduled label format now `Scheduled Mon Mar 2, 9:00 AM`
+  - scheduled badge now renders directly below `Due: ...` in left content area
+  - removed scheduled badge rendering from middle status column for scheduled cards
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx` passed
+  - visual checks:
+    - `/tmp/teacher-assignments-scheduled-badge-v6.png` (shows scheduled badge below Due with new format)
+    - `/tmp/student-assignments-scheduled-badge-v6.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Remove mini modal schedule-clear action in assignment scheduling flow.
+**Completed:**
+- Removed `Clear schedule` button from the `Schedule Release` mini modal in `src/components/AssignmentModal.tsx`.
+- Kept clearing capability via the main modal scheduled chip cancel control (`Clear scheduled release`) as requested.
+- Updated component test to assert the mini modal no longer renders `Clear schedule`.
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+  - visual verification:
+    - `/tmp/teacher-mini-schedule-no-clear-v3.png`
+    - `/tmp/student-assignments-no-clear-v3.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Tighten scheduled split-button behavior after clear schedule.
+**Completed:**
+- Updated `AssignmentModal` split options so when an assignment is scheduled, dropdown options are empty (no `Post` option shown).
+- Updated `clearScheduledRelease()` behavior to keep modal open and set primary action to `Schedule` after clearing schedule, enabling immediate follow-up action via repopulated dropdown.
+- Updated component tests to verify:
+  - scheduled state dropdown is disabled/no options (including no `Post`)
+  - clearing schedule keeps modal open and repopulates dropdown with `Post`/`Draft` while `Schedule` remains primary.
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+  - visual verification screenshots:
+    - `/tmp/teacher-clear-schedule-repopulate-v2.png`
+    - `/tmp/student-clear-schedule-repopulate-v2.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Adjust scheduled assignment card layout/style to match requested design.
+**Completed:**
+- In `src/components/SortableAssignmentCard.tsx`:
+  - moved `Scheduled` badge back to the middle status column
+  - subtitle under `Due:` now shows only open time label (e.g. `Fri Mar 6, 10:00AM`) without `Scheduled` prefix
+  - updated scheduled card container/title styling to match draft cards, keeping only the badge and open-time label in amber theme
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+  - visual verification screenshots:
+    - `/tmp/teacher-assignment-card-style-v2.png`
+    - `/tmp/student-assignment-card-style-v2.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Ensure clear-schedule (`X`) keeps assignment modal open and repopulates split-button options.
+**Completed:**
+- Extended `AssignmentModal` success callback contract to support non-closing updates: `onSuccess(assignment, { closeModal?: boolean })`.
+- `clearScheduledRelease()` now emits `onSuccess(updated, { closeModal: false })` so parent data updates without closing the modal.
+- Updated `TeacherClassroomView` `AssignmentModal` callback to honor `closeModal: false` while keeping modal open.
+- Preserved split-button behavior after clear: primary remains `Schedule`, dropdown repopulates with `Post` + `Draft`.
+- Validation:
+  - `pnpm vitest run tests/components/AssignmentModal.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+  - `npx tsc --noEmit` (pass)
+  - visual verification:
+    - `/tmp/teacher-clear-x-keep-open-v3.png`
+    - `/tmp/student-clear-x-keep-open-v3.png`

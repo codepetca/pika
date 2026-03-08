@@ -29,7 +29,6 @@ describe('QuizCard', () => {
     isSelected: false,
     isReadOnly: false,
     onSelect: vi.fn(),
-    onDelete: vi.fn(),
     onQuizUpdate: vi.fn(),
   }
 
@@ -64,6 +63,20 @@ describe('QuizCard', () => {
     expect(screen.getByText('Active')).toBeInTheDocument()
   })
 
+  it('shows Open badge for active tests', () => {
+    const test = makeQuizWithStats({ status: 'active', assessment_type: 'test' })
+    render(
+      <QuizCard
+        quiz={test}
+        {...defaultProps}
+        apiBasePath="/api/teacher/tests"
+      />,
+      { wrapper: Wrapper }
+    )
+
+    expect(screen.getByText('Open')).toBeInTheDocument()
+  })
+
   it('shows Closed badge for closed quizzes', () => {
     const quiz = makeQuizWithStats({ status: 'closed' })
     render(<QuizCard quiz={quiz} {...defaultProps} />, { wrapper: Wrapper })
@@ -84,7 +97,7 @@ describe('QuizCard', () => {
     const quiz = makeQuizWithStats({ status: 'draft' })
     render(<QuizCard quiz={quiz} {...defaultProps} />, { wrapper: Wrapper })
 
-    expect(screen.getByLabelText('Activate quiz')).toBeInTheDocument()
+    expect(screen.getByLabelText('Open quiz now')).toBeInTheDocument()
   })
 
   it('shows close button for active quizzes', () => {
@@ -115,13 +128,19 @@ describe('QuizCard', () => {
     expect(screen.getByLabelText('Show results to students')).toBeInTheDocument()
   })
 
-  it('calls onDelete when delete button is clicked', () => {
-    const onDelete = vi.fn()
-    const quiz = makeQuizWithStats({ title: 'My Quiz' })
-    render(<QuizCard quiz={quiz} {...defaultProps} onDelete={onDelete} />, { wrapper: Wrapper })
+  it('does not render results visibility toggle for tests', () => {
+    const test = makeQuizWithStats({ assessment_type: 'test', show_results: true })
+    render(
+      <QuizCard
+        quiz={test}
+        {...defaultProps}
+        apiBasePath="/api/teacher/tests"
+      />,
+      { wrapper: Wrapper }
+    )
 
-    fireEvent.click(screen.getByLabelText('Delete My Quiz'))
-    expect(onDelete).toHaveBeenCalledTimes(1)
+    expect(screen.queryByLabelText('Hide results from students')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Show results to students')).not.toBeInTheDocument()
   })
 
   it('disables action buttons when isReadOnly', () => {
@@ -129,7 +148,6 @@ describe('QuizCard', () => {
     render(<QuizCard quiz={quiz} {...defaultProps} isReadOnly={true} />, { wrapper: Wrapper })
 
     expect(screen.getByLabelText('Close quiz')).toBeDisabled()
-    expect(screen.getByLabelText('Delete Test Quiz')).toBeDisabled()
   })
 
   it('applies selected styles when isSelected', () => {
@@ -145,10 +163,10 @@ describe('QuizCard', () => {
     const quiz = makeQuizWithStats({ status: 'draft' })
     render(<QuizCard quiz={quiz} {...defaultProps} />, { wrapper: Wrapper })
 
-    fireEvent.click(screen.getByLabelText('Activate quiz'))
+    fireEvent.click(screen.getByLabelText('Open quiz now'))
 
-    expect(screen.getByText('Activate quiz?')).toBeInTheDocument()
-    expect(screen.getByText('Once activated, students will be able to respond.')).toBeInTheDocument()
+    expect(screen.getByText('Open quiz now?')).toBeInTheDocument()
+    expect(screen.getByText('Students will be able to respond immediately.')).toBeInTheDocument()
   })
 
   it('sends PATCH to activate quiz on confirm', async () => {
@@ -159,8 +177,8 @@ describe('QuizCard', () => {
     const quiz = makeQuizWithStats({ status: 'draft' })
     render(<QuizCard quiz={quiz} {...defaultProps} onQuizUpdate={onQuizUpdate} />, { wrapper: Wrapper })
 
-    fireEvent.click(screen.getByLabelText('Activate quiz'))
-    fireEvent.click(screen.getByText('Activate'))
+    fireEvent.click(screen.getByLabelText('Open quiz now'))
+    fireEvent.click(screen.getByText('Open now'))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -205,8 +223,8 @@ describe('QuizCard', () => {
     const quiz = makeQuizWithStats({ status: 'draft', assessment_type: 'quiz' })
     render(<QuizCard quiz={quiz} {...defaultProps} onQuizUpdate={onQuizUpdate} />, { wrapper: Wrapper })
 
-    fireEvent.click(screen.getByLabelText('Activate quiz'))
-    fireEvent.click(screen.getByText('Activate'))
+    fireEvent.click(screen.getByLabelText('Open quiz now'))
+    fireEvent.click(screen.getByText('Open now'))
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Failed to update quiz')
@@ -242,7 +260,7 @@ describe('QuizCard', () => {
       { wrapper: Wrapper }
     )
 
-    fireEvent.click(screen.getByLabelText('Activate quiz'))
+    fireEvent.click(screen.getByLabelText('Activate test'))
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Q1: Question text is required')
@@ -279,8 +297,20 @@ describe('QuizCard', () => {
       { wrapper: Wrapper }
     )
 
-    fireEvent.click(screen.getByLabelText('Activate quiz'))
+    fireEvent.click(screen.getByLabelText('Activate test'))
 
     expect(await screen.findByText('Activate test?')).toBeInTheDocument()
+  })
+
+  it('shows scheduled state and scheduling controls for active future-open quizzes', () => {
+    const quiz = makeQuizWithStats({
+      status: 'active',
+      opens_at: '2099-03-01T14:00:00.000Z',
+    })
+    render(<QuizCard quiz={quiz} {...defaultProps} />, { wrapper: Wrapper })
+
+    expect(screen.getByText('Scheduled')).toBeInTheDocument()
+    expect(screen.getByLabelText('Reschedule quiz open')).toBeInTheDocument()
+    expect(screen.getByLabelText('Cancel scheduled open')).toBeInTheDocument()
   })
 })

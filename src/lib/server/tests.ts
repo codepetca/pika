@@ -37,6 +37,22 @@ export function isMissingTestAttemptReturnColumnsError(error: {
   return error.code === '42703' || error.code === 'PGRST204' || combined.includes('column')
 }
 
+export function isMissingTestResponseAiColumnsError(error: {
+  code?: string
+  message?: string
+  details?: string
+  hint?: string
+} | null | undefined): boolean {
+  if (!error) return false
+  const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
+  const mentionsAiColumn =
+    combined.includes('ai_grading_basis') ||
+    combined.includes('ai_reference_answers') ||
+    combined.includes('ai_model')
+  if (!mentionsAiColumn) return false
+  return error.code === '42703' || error.code === 'PGRST204' || combined.includes('column')
+}
+
 export async function assertTeacherOwnsTest(
   teacherId: string,
   testId: string,

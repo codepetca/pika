@@ -15,13 +15,14 @@ interface TestQuestionInfo {
 }
 
 type TestAnswerDetail = {
-  response_id: string
+  response_id: string | null
   question_type: 'multiple_choice' | 'open_response'
   selected_option: number | null
   response_text: string | null
   score: number | null
   feedback: string | null
   graded_at: string | null
+  is_draft?: boolean
 }
 
 interface TestStudentRow {
@@ -54,11 +55,18 @@ interface GradeDraft {
   feedback: string
 }
 
+interface SaveState {
+  canSave: boolean
+  isSaving: boolean
+}
+
 interface Props {
   testId: string
   selectedStudentId: string | null
   apiBasePath?: string
   onUpdated?: () => void
+  onRegisterSaveHandler?: ((handler: (() => Promise<void>) | null) => void)
+  onSaveStateChange?: ((state: SaveState) => void)
 }
 
 function formatPoints(value: number): string {
@@ -70,6 +78,8 @@ export function TestStudentGradingPanel({
   selectedStudentId,
   apiBasePath = '/api/teacher/tests',
   onUpdated,
+  onRegisterSaveHandler,
+  onSaveStateChange,
 }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -95,7 +105,7 @@ export function TestStudentGradingPanel({
       const nextDrafts: Record<string, GradeDraft> = {}
       for (const student of payload.students || []) {
         for (const answer of Object.values(student.answers || {})) {
-          if (answer.question_type !== 'open_response') continue
+          if (answer.question_type !== 'open_response' || answer.is_draft || !answer.response_id) continue
           nextDrafts[answer.response_id] = {
             score: answer.score != null ? String(answer.score) : '',
             feedback: answer.feedback || '',
@@ -113,6 +123,20 @@ export function TestStudentGradingPanel({
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    onRegisterSaveHandler?.(null)
+    return () => {
+      onRegisterSaveHandler?.(null)
+    }
+  }, [onRegisterSaveHandler])
+
+  useEffect(() => {
+    onSaveStateChange?.({
+      canSave: false,
+      isSaving: savingResponseId !== null || suggestingResponseId !== null,
+    })
+  }, [onSaveStateChange, savingResponseId, suggestingResponseId])
 
   const selectedStudent = useMemo(() => {
     if (!results || !selectedStudentId) return null
@@ -239,7 +263,7 @@ export function TestStudentGradingPanel({
                   </p>
                   <QuestionMarkdown content={question.question_text} className="mt-1" />
                   <p className="mt-2 text-xs text-text-muted">
-                    Answer: {selectedText}
+                    Answer: {selectedText}{answer?.is_draft ? ' (Draft)' : ''}
                     {awarded != null ? ` · ${formatPoints(awarded)}/${formatPoints(points)}` : ''}
                   </p>
                 </div>
@@ -258,6 +282,10 @@ export function TestStudentGradingPanel({
 
                 {!answer ? (
                   <p className="text-xs text-text-muted">No response submitted.</p>
+                ) : answer.is_draft || !answer.response_id ? (
+                  <p className="text-xs text-warning">
+                    Draft response (autosaved, not submitted). Grading unlocks after submission.
+                  </p>
                 ) : (
                   <>
                     <div className="grid gap-2 md:grid-cols-[120px_minmax(0,1fr)]">
@@ -268,13 +296,13 @@ export function TestStudentGradingPanel({
                         step="0.25"
                         value={gradeDrafts[answer.response_id]?.score ?? ''}
                         onChange={(event) =>
-                          updateDraft(answer.response_id, { score: event.target.value })
+                          updateDraft(answer.response_id!, { score: event.target.value })
                         }
                       />
                       <textarea
                         value={gradeDrafts[answer.response_id]?.feedback ?? ''}
                         onChange={(event) =>
-                          updateDraft(answer.response_id, { feedback: event.target.value })
+                          updateDraft(answer.response_id!, { feedback: event.target.value })
                         }
                         rows={3}
                         className="w-full rounded-md border border-border bg-surface px-3 py-2 text-xs text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
@@ -288,7 +316,7 @@ export function TestStudentGradingPanel({
                         size="sm"
                         variant="secondary"
                         disabled={suggestingResponseId === answer.response_id}
-                        onClick={() => handleSuggestGrade(answer.response_id)}
+                        onClick={() => handleSuggestGrade(answer.response_id!)}
                       >
                         {suggestingResponseId === answer.response_id ? 'Suggesting...' : 'AI Suggest'}
                       </Button>
@@ -297,7 +325,7 @@ export function TestStudentGradingPanel({
                         size="sm"
                         variant="primary"
                         disabled={savingResponseId === answer.response_id}
-                        onClick={() => handleSaveGrade(answer.response_id, points)}
+                        onClick={() => handleSaveGrade(answer.response_id!, points)}
                       >
                         {savingResponseId === answer.response_id ? 'Saving...' : 'Save Grade'}
                       </Button>

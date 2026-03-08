@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable'
 import {
   Check,
+  CheckCircle2,
   Circle,
   Clock,
   Pencil,
@@ -45,6 +46,7 @@ import {
   getAssignmentStatusLabel,
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
+import { isVisibleAtNow } from '@/lib/scheduling'
 import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
 import {
   DataTable,
@@ -137,6 +139,10 @@ function formatTorontoDateShort(iso: string) {
   })
 }
 
+function isScheduledAssignment(assignment: Assignment): boolean {
+  return !assignment.is_draft && !!assignment.released_at && !isVisibleAtNow(assignment.released_at)
+}
+
 function getRowClassName(isSelected: boolean): string {
   if (isSelected) {
     return 'cursor-pointer bg-info-bg border-l-2 border-l-blue-500'
@@ -168,8 +174,10 @@ function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: b
       break
     case 'submitted_on_time':
     case 'submitted_late':
-    case 'graded':
       icon = <Check className={cls} />
+      break
+    case 'graded':
+      icon = <CheckCircle2 className={cls} />
       break
     case 'returned':
       icon = <Send className={cls} />
@@ -356,8 +364,8 @@ export function TeacherClassroomView({
       setSelection({ mode: 'summary' })
       return
     }
-    // Draft assignments should open edit modal instead of detail view
-    if (assignment.is_draft) {
+    // Draft/scheduled assignments open the editor for release controls.
+    if (assignment.is_draft || isScheduledAssignment(assignment)) {
       setEditAssignment(assignment)
       setSelection({ mode: 'summary' })
     } else {
@@ -381,8 +389,8 @@ export function TeacherClassroomView({
         setSelection({ mode: 'summary' })
         return
       }
-      // Draft assignments should open edit modal instead of detail view
-      if (assignment.is_draft) {
+      // Draft/scheduled assignments open the editor for release controls.
+      if (assignment.is_draft || isScheduledAssignment(assignment)) {
         setEditAssignment(assignment)
         setSelection({ mode: 'summary' })
       } else {
@@ -540,7 +548,14 @@ export function TeacherClassroomView({
     if (!selectedAssignmentData) return 0
     let graded = 0
     for (const student of selectedAssignmentData.students) {
-      if (batchSelectedIds.has(student.student_id) && student.doc?.graded_at) {
+      const doc = student.doc
+      const hasDraftScores = !!(
+        doc &&
+        doc.score_completion != null &&
+        doc.score_thinking != null &&
+        doc.score_workflow != null
+      )
+      if (batchSelectedIds.has(student.student_id) && (doc?.graded_at || hasDraftScores)) {
         graded += 1
       }
     }
@@ -869,8 +884,8 @@ export function TeacherClassroomView({
                       isReadOnly={isReadOnly}
                       isDragDisabled={isReordering}
                       onSelect={() => {
-                        // Draft assignments open edit modal instead of detail view
-                        if (assignment.is_draft) {
+                        // Draft/scheduled assignments open edit modal instead of detail view
+                        if (assignment.is_draft || isScheduledAssignment(assignment)) {
                           setEditAssignment(assignment)
                         } else {
                           setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })
@@ -1046,7 +1061,7 @@ export function TeacherClassroomView({
       <ConfirmDialog
         isOpen={showReturnConfirm}
         title={`Return work to ${batchSelectedCount} selected student(s)?`}
-        description={`Eligible to return now: ${batchSelectedGradedCount} graded${batchSelectedUngradedCount > 0 ? ` • ${batchSelectedUngradedCount} ungraded will be skipped` : ''}`}
+        description={`Eligible to return now: ${batchSelectedGradedCount} ready (graded or draft-scored)${batchSelectedUngradedCount > 0 ? ` • ${batchSelectedUngradedCount} incomplete will be skipped` : ''}`}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
         isConfirmDisabled={isReturning}
@@ -1064,11 +1079,14 @@ export function TeacherClassroomView({
           setEditAssignment(null)
           setIsCreateModalOpen(false)
         }}
-        onSuccess={(assignment) => {
+        onSuccess={(assignment, options) => {
           if (editAssignment) {
             handleEditSuccess(assignment)
           } else {
             handleCreateSuccess(assignment)
+          }
+          if (options?.closeModal === false) {
+            return
           }
           setEditAssignment(null)
           setIsCreateModalOpen(false)
