@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, Plus, X } from 'lucide-react'
+import { Check, Copy, Plus, X } from 'lucide-react'
 import { Button, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { canEditQuizQuestions } from '@/lib/quizzes'
@@ -29,6 +29,7 @@ import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
 import type {
   JsonPatchOperation,
   QuizQuestion,
@@ -62,9 +63,15 @@ export function QuizDetailPanel({
   )
   const [results, setResults] = useState<QuizResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'questions' | 'documents' | 'preview' | 'results'>('questions')
+  const [viewMode, setViewMode] = useState<'questions' | 'documents' | 'markdown' | 'preview' | 'results'>('questions')
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [draftShowResults, setDraftShowResults] = useState(quiz.show_results)
+  const [markdownContent, setMarkdownContent] = useState('')
+  const [markdownError, setMarkdownError] = useState('')
+  const [markdownInfo, setMarkdownInfo] = useState('')
+  const [markdownDirty, setMarkdownDirty] = useState(false)
+  const [markdownSaving, setMarkdownSaving] = useState(false)
   const [conflictDraft, setConflictDraft] = useState<{
     version: number
     content: { title: string; show_results: boolean; questions: QuizQuestion[] }
@@ -151,6 +158,7 @@ export function QuizDetailPanel({
       }
 
       setEditTitle(nextTitle)
+      setDraftShowResults(nextShowResults)
       setQuestions(nextQuestions)
       draftVersionRef.current = draft.version
       lastSavedDraftRef.current = JSON.stringify(nextSnapshot)
@@ -165,13 +173,32 @@ export function QuizDetailPanel({
   // Sync editTitle when quiz changes
   useEffect(() => {
     setEditTitle(quiz.title)
+    setDraftShowResults(quiz.show_results)
     setIsEditingTitle(false)
     setConflictDraft(null)
-  }, [quiz.id, quiz.title])
+    setMarkdownDirty(false)
+    setMarkdownError('')
+    setMarkdownInfo('')
+  }, [quiz.id, quiz.show_results, quiz.title])
 
   useEffect(() => {
     setDocuments(normalizeTestDocuments((quiz as { documents?: unknown }).documents))
   }, [quiz])
+
+  const currentTestMarkdown = useMemo(() => {
+    if (!isTestsView) return ''
+    return testToMarkdown({
+      title: editTitle,
+      show_results: draftShowResults,
+      questions,
+      documents,
+    })
+  }, [documents, draftShowResults, editTitle, isTestsView, questions])
+
+  useEffect(() => {
+    if (!isTestsView || markdownDirty) return
+    setMarkdownContent(currentTestMarkdown)
+  }, [currentTestMarkdown, isTestsView, markdownDirty])
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -192,12 +219,12 @@ export function QuizDetailPanel({
   const saveDraft = useCallback(
     async (
       nextDraft: { title: string; show_results: boolean; questions: QuizQuestion[] },
-      options?: { forceFull?: boolean }
+      options?: { forceFull?: boolean; documents?: TestDocument[] }
     ) => {
       const nextSerialized = JSON.stringify(nextDraft)
       if (!options?.forceFull && nextSerialized === lastSavedDraftRef.current) {
         setSaveStatus('saved')
-        return
+        return true
       }
 
       setSaveStatus('saving')
@@ -222,6 +249,7 @@ export function QuizDetailPanel({
         version: number
         patch?: JsonPatchOperation[]
         content?: typeof nextDraft
+        documents?: TestDocument[]
       } = {
         version: draftVersionRef.current,
       }
@@ -230,6 +258,9 @@ export function QuizDetailPanel({
         body.patch = patch as JsonPatchOperation[]
       } else {
         body.content = nextDraft
+      }
+      if (options?.documents) {
+        body.documents = options.documents
       }
 
       try {
@@ -256,7 +287,7 @@ export function QuizDetailPanel({
           }
           setSaveStatus('unsaved')
           setError(data?.error || 'Draft updated elsewhere')
-          return
+          return false
         }
 
         if (!response.ok) {
@@ -280,10 +311,12 @@ export function QuizDetailPanel({
           setConflictDraft(null)
         }
         onQuizUpdate()
+        return true
       } catch (saveError: any) {
         console.error('Error saving draft:', saveError)
         setSaveStatus('unsaved')
         setError(saveError?.message || 'Failed to save draft')
+        return false
       }
     },
     [apiBasePath, applyServerDraft, normalizeDraftQuestions, onQuizUpdate, quiz.id]
@@ -405,11 +438,11 @@ export function QuizDetailPanel({
 
       scheduleAutosave({
         title: editTitle,
-        show_results: quiz.show_results,
+        show_results: draftShowResults,
         questions: reordered,
       })
     },
-    [editTitle, isEditable, normalizeQuestionPositions, questions, quiz.show_results, scheduleAutosave]
+    [draftShowResults, editTitle, isEditable, normalizeQuestionPositions, questions, scheduleAutosave]
   )
 
   useEffect(() => {
@@ -452,7 +485,7 @@ export function QuizDetailPanel({
 
     const nextDraft = {
       title: nextTitle,
-      show_results: quiz.show_results,
+      show_results: draftShowResults,
       questions,
     }
     pendingDraftRef.current = nextDraft
@@ -522,7 +555,7 @@ export function QuizDetailPanel({
 
     scheduleAutosave({
       title: editTitle,
-      show_results: quiz.show_results,
+      show_results: draftShowResults,
       questions: nextQuestions,
     })
   }
@@ -537,7 +570,7 @@ export function QuizDetailPanel({
 
     const nextDraft = {
       title: editTitle,
-      show_results: quiz.show_results,
+      show_results: draftShowResults,
       questions: nextQuestions,
     }
 
@@ -557,7 +590,7 @@ export function QuizDetailPanel({
 
     scheduleAutosave({
       title: editTitle,
-      show_results: quiz.show_results,
+      show_results: draftShowResults,
       questions: nextQuestions,
     })
   }
@@ -568,6 +601,99 @@ export function QuizDetailPanel({
       version: conflictDraft.version,
       content: conflictDraft.content,
     })
+  }
+
+  function handleMarkdownChange(content: string) {
+    setMarkdownContent(content)
+    setMarkdownDirty(true)
+    setMarkdownError('')
+    setMarkdownInfo('')
+  }
+
+  function handleResetMarkdown() {
+    setMarkdownContent(currentTestMarkdown)
+    setMarkdownDirty(false)
+    setMarkdownError('')
+    setMarkdownInfo('')
+  }
+
+  async function handleCopyMarkdown() {
+    try {
+      await navigator.clipboard.writeText(markdownContent)
+      setMarkdownInfo('Markdown copied to clipboard')
+    } catch {
+      setMarkdownError('Failed to copy markdown')
+    }
+  }
+
+  async function handleApplyMarkdown() {
+    if (!isTestsView) return
+    if (!isEditable) {
+      setMarkdownError('This test cannot be edited after students have responded.')
+      return
+    }
+
+    setMarkdownSaving(true)
+    setMarkdownError('')
+    setMarkdownInfo('')
+
+    const parsed = markdownToTest(markdownContent, {
+      defaultShowResults: draftShowResults,
+      existingQuestions: questions.map((question) => ({ id: question.id })),
+      existingDocuments: documents,
+    })
+
+    if (parsed.errors.length > 0 || !parsed.draftContent) {
+      setMarkdownError(parsed.errors.join('\n') || 'Invalid markdown')
+      setMarkdownSaving(false)
+      return
+    }
+
+    const existingById = new Map(questions.map((question) => [question.id, question]))
+    const now = new Date().toISOString()
+    const nextQuestions = normalizeQuestionPositions(
+      parsed.draftContent.questions.map((question, index) => {
+        const existing = existingById.get(question.id)
+        return {
+          id: question.id,
+          quiz_id: quiz.id,
+          question_type: question.question_type,
+          question_text: question.question_text,
+          options: question.options,
+          correct_option: question.correct_option,
+          answer_key: question.answer_key,
+          points: question.points,
+          response_max_chars: question.response_max_chars,
+          response_monospace: question.response_monospace,
+          position: index,
+          created_at: existing?.created_at || now,
+          updated_at: now,
+        }
+      })
+    )
+
+    const nextDraft = {
+      title: parsed.draftContent.title,
+      show_results: parsed.draftContent.show_results,
+      questions: nextQuestions,
+    }
+
+    const saved = await saveDraft(nextDraft, {
+      forceFull: true,
+      documents: parsed.documents,
+    })
+
+    if (saved) {
+      setEditTitle(parsed.draftContent.title)
+      setDraftShowResults(parsed.draftContent.show_results)
+      setQuestions(nextQuestions)
+      setDocuments(parsed.documents)
+      setMarkdownDirty(false)
+      setMarkdownError('')
+      setMarkdownInfo('Markdown applied')
+    }
+
+    setMarkdownSaving(false)
   }
 
   if (loading) {
@@ -604,6 +730,19 @@ export function QuizDetailPanel({
             }`}
           >
             Documents ({documents.length})
+          </button>
+        )}
+        {isTestsView && (
+          <button
+            type="button"
+            onClick={() => setViewMode('markdown')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              viewMode === 'markdown'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-default'
+            }`}
+          >
+            Markdown
           </button>
         )}
         <button
@@ -786,6 +925,75 @@ export function QuizDetailPanel({
               apiBasePath={apiBasePath}
               isEditable={isEditable}
               onUpdated={loadQuizDetails}
+            />
+          </div>
+        ) : viewMode === 'markdown' && isTestsView ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-text-muted">
+                Edit this test as markdown. Required fields: title, question prompts, valid options, and
+                Correct Option for multiple-choice questions.
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void handleCopyMarkdown()
+                  }}
+                  className="gap-1.5"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleResetMarkdown}
+                  disabled={!markdownDirty || markdownSaving}
+                >
+                  Reset
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    void handleApplyMarkdown()
+                  }}
+                  disabled={markdownSaving || !isEditable}
+                >
+                  {markdownSaving ? 'Applying...' : 'Apply Markdown'}
+                </Button>
+              </div>
+            </div>
+            {!isEditable && (
+              <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                This test is locked because students have responded.
+              </div>
+            )}
+            {markdownInfo && (
+              <div className="rounded-md border border-success bg-success-bg px-3 py-2 text-sm text-success">
+                {markdownInfo}
+              </div>
+            )}
+            {markdownError && (
+              <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger whitespace-pre-wrap">
+                {markdownError}
+              </div>
+            )}
+            <textarea
+              value={markdownContent}
+              onChange={(event) => handleMarkdownChange(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+                  event.preventDefault()
+                  void handleApplyMarkdown()
+                }
+              }}
+              className="min-h-[420px] w-full rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+              spellCheck={false}
             />
           </div>
         ) : viewMode === 'preview' ? (

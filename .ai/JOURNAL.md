@@ -5699,3 +5699,91 @@
 **Validation:**
 - `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/unit/ai-grading.test.ts` (pass)
 - `pnpm tsc --noEmit` (pass)
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Add teacher/admin test markdown editing in the selected test right-pane tab (single-test bidirectional markdown).
+**Completed:**
+- Added strict test markdown serializer/parser in `src/lib/test-markdown.ts`.
+  - Serializes test title/show-results, all question fields (MC + open response), and documents.
+  - Parses markdown back into validated draft content and document payload.
+  - Enforces strict validation and blocks apply on structural/field errors.
+  - Supports defaults for optional fields and stable IDs via existing-question/document fallbacks.
+- Extended test draft API (`src/app/api/teacher/tests/[id]/draft/route.ts`) to optionally accept `documents` on PATCH.
+  - Validates with `validateTestDocumentsPayload`.
+  - Persists `title`, `show_results`, and optional `documents` in one metadata update.
+- Updated `src/components/QuizDetailPanel.tsx` for tests:
+  - Added new `Markdown` tab in right pane tab strip.
+  - Added editable markdown textarea with `Copy`, `Reset`, and `Apply Markdown` actions.
+  - Added `Cmd/Ctrl+S` apply shortcut.
+  - Added parse/apply error and success states.
+  - Added draft-level `show_results` state handling so markdown changes persist correctly.
+  - Keeps markdown teacher-only by virtue of teacher-only panel usage; student view unchanged.
+- Added tests:
+  - `tests/lib/test-markdown.test.ts` (round-trip, defaults, strict error behavior)
+  - `tests/components/QuizDetailPanel.test.tsx` updates for new tab order and markdown apply/block flows.
+
+**Validation:**
+- `pnpm test tests/lib/test-markdown.test.ts tests/components/QuizDetailPanel.test.tsx` (pass)
+- `pnpm lint` (pass)
+- UI visual verification screenshots:
+  - Teacher tests markdown tab: `/tmp/teacher-test-markdown.png`
+  - Student tests view (no markdown tab): `/tmp/student-tests-view.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Add direct API coverage for test draft markdown document persistence.
+**Completed:**
+- Added `tests/api/teacher/tests-draft-route.test.ts` with focused coverage for `PATCH /api/teacher/tests/[id]/draft`:
+  - accepts valid `documents` payload and persists it with title/show_results sync
+  - rejects invalid `documents` payload (400) and blocks downstream ownership/update flow
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-draft-route.test.ts tests/lib/test-markdown.test.ts tests/components/QuizDetailPanel.test.tsx` (pass)
+- `pnpm lint` (pass)
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Address PR review findings for test markdown and draft route validation ordering.
+**Completed:**
+- Enforced strict parser validation in `src/lib/test-markdown.ts` so `multiple_choice` questions require `Correct Option`.
+- Reordered draft PATCH flow in `src/app/api/teacher/tests/[id]/draft/route.ts` to assert test ownership/archival access before validating optional `documents` payload.
+- Updated `tests/lib/test-markdown.test.ts`:
+  - Added `Correct Option` in optional-fields fixture.
+  - Added explicit regression test that missing `Correct Option` for multiple-choice returns a parse error and blocks apply.
+- Updated `tests/api/teacher/tests-draft-route.test.ts` to assert ownership check still runs on invalid `documents` payload.
+
+**Validation:**
+- `pnpm test tests/lib/test-markdown.test.ts tests/api/teacher/tests-draft-route.test.ts tests/components/QuizDetailPanel.test.tsx` (pass)
+- `pnpm lint` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Create a teacher-tests markdown schema document for external agent use.
+**Completed:**
+- Added `docs/guidance/teacher-tests-markdown-schema.md`.
+- Document includes:
+  - required top-level structure (`Title`, `## Questions`)
+  - per-question schema (MC + open-response)
+  - explicit requirement that MC questions include `Correct Option`
+  - documents section rules (`_None_`, preserve-on-omit behavior)
+  - defaults, constraints, and validation limits
+  - copy-paste template and valid full example
+
+**Validation:**
+- Doc-only change; no runtime code changes.
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Make required vs optional fields explicit in teacher test markdown schema.
+**Completed:**
+- Updated `docs/guidance/teacher-tests-markdown-schema.md` to label fields inline as `[Required]` or `[Optional]`.
+- Added explicit required/optional annotations in top-level structure, question/document field lists, and copy-paste template.
+
+**Validation:**
+- Doc-only change; verified rendered markdown content via `sed`.
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Fix PR review issue where markdown helper text omitted required MC `Correct Option` guidance.
+**Completed:**
+- Updated helper text in `src/components/QuizDetailPanel.tsx` to explicitly include `Correct Option` as required for multiple-choice questions.
+- Added regression assertion in `tests/components/QuizDetailPanel.test.tsx` to ensure the helper text remains aligned with parser validation.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx` (pass)

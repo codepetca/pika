@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { validateTestDocumentsPayload } from '@/lib/test-documents'
 import {
   buildNextDraftContent,
   buildTestDraftContentFromRows,
@@ -174,6 +175,15 @@ export async function PATCH(
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
+    let nextDocuments: ReturnType<typeof validateTestDocumentsPayload> | null = null
+    if (body?.documents !== undefined) {
+      const validation = validateTestDocumentsPayload(body.documents)
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.error }, { status: 400 })
+      }
+      nextDocuments = validation
+    }
+
     const supabase = getServiceRoleClient()
     const ensured = await ensureTestDraft(supabase, access.test, user.id)
     if (!ensured.ok) {
@@ -222,6 +232,7 @@ export async function PATCH(
       .update({
         title: updatedDraft.content.title,
         show_results: updatedDraft.content.show_results,
+        ...(nextDocuments ? { documents: nextDocuments.documents } : {}),
       })
       .eq('id', testId)
 
