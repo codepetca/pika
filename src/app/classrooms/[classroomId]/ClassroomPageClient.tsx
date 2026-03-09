@@ -444,7 +444,7 @@ function ClassroomPageContent({
     gradebookStudentDetailLoading,
     gradebookStudentDetailError,
     handleSelectGradebookStudent,
-    setGradebookClassSummary,
+    handleGradebookClassSummaryChange,
   } = useGradebookData({
     classroomId: classroom.id,
     isTeacher,
@@ -1004,7 +1004,7 @@ function ClassroomPageContent({
                     classroom={classroom}
                     selectedStudentId={selectedGradebookStudent?.student_id ?? null}
                     onSelectStudent={handleSelectGradebookStudent}
-                    onClassSummaryChange={setGradebookClassSummary}
+                    onClassSummaryChange={handleGradebookClassSummaryChange}
                   />
                 </TabContentTransition>
               )}
