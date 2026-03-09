@@ -460,6 +460,10 @@ function ClassroomPageContent({
     setSelectedQuiz(quiz)
   }, [])
 
+  const handleTestGradingDataRefresh = useCallback(() => {
+    setTestGradingPanelRefreshToken((prev) => prev + 1)
+  }, [])
+
   useEffect(() => {
     if (activeTab === 'quizzes' || activeTab === 'tests') {
       setSelectedQuiz(null)
