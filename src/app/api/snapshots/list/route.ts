@@ -7,10 +7,11 @@
 import { NextResponse } from 'next/server'
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
+import { withErrorHandler } from '@/lib/api-handler'
 
 const SNAPSHOTS_DIR = join(process.cwd(), 'e2e', '__snapshots__', 'ui-snapshots.spec.ts-snapshots')
 
-export async function GET() {
+export const GET = withErrorHandler('GetSnapshotList', async () => {
   try {
     const files = await readdir(SNAPSHOTS_DIR)
     const snapshots = files
@@ -33,4 +34,4 @@ export async function GET() {
     }
     throw error
   }
-}
+})

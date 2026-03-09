@@ -101,6 +101,17 @@ function ensureUniqueQuestionIds<TQuestion extends { id: string }>(questions: TQ
   return null
 }
 
+// TODO(cleanup-045): Remove this function and all callsites once migration 045
+// (`add_assessment_drafts_table`) is confirmed applied in ALL environments.
+// Search: grep -r "isMissingAssessmentDraftsError" src/
+// Direct callers (4 files):
+//   src/app/api/teacher/quizzes/route.ts
+//   src/app/api/teacher/quizzes/[id]/route.ts
+//   src/app/api/teacher/tests/route.ts
+//   src/app/api/teacher/tests/[id]/route.ts
+// Indirect callers via ensureAssessmentDraft (remove TODO(cleanup-045) comment there too):
+//   src/app/api/teacher/quizzes/[id]/draft/route.ts
+//   src/app/api/teacher/tests/[id]/draft/route.ts
 export function isMissingAssessmentDraftsError(error: {
   code?: string
   message?: string
@@ -265,8 +276,9 @@ export function buildNextDraftContent<TContent extends object>(
 
 export function buildQuizDraftContentFromRows(
   quiz: { title: string; show_results: boolean },
-  questions: Array<{ id: string; question_text: string; options: unknown }>
+  rows: unknown[]
 ): QuizDraftContent {
+  const questions = rows as Array<{ id: string; question_text: string; options: unknown }>
   return {
     title: quiz.title,
     show_results: quiz.show_results,
@@ -281,20 +293,23 @@ export function buildQuizDraftContentFromRows(
   }
 }
 
+type TestQuestionRow = {
+  id: string
+  question_type: unknown
+  question_text: string
+  options: unknown
+  correct_option: number | null
+  answer_key: string | null
+  points: number | string | null
+  response_max_chars: number | string | null
+  response_monospace: boolean | null
+}
+
 export function buildTestDraftContentFromRows(
   test: { title: string; show_results: boolean },
-  questions: Array<{
-    id: string
-    question_type: unknown
-    question_text: string
-    options: unknown
-    correct_option: number | null
-    answer_key: string | null
-    points: number | string | null
-    response_max_chars: number | string | null
-    response_monospace: boolean | null
-  }>
+  rows: unknown[]
 ): TestDraftContent {
+  const questions = rows as TestQuestionRow[]
   return {
     title: test.title,
     show_results: test.show_results,
@@ -546,6 +561,143 @@ export async function syncTestQuestionsFromDraft(
     if (error) {
       return { ok: false, status: 500, error: 'Failed to delete removed test question' }
     }
+  }
+
+  return { ok: true }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Generic helpers shared by quiz/test draft routes
+// ────────────────────────────────────────────────────────────────────────────
+
+export type EnsureDraftConfig<TContent> = {
+  /** Assessment type string used in DB ('quiz' | 'test') */
+  assessmentType: AssessmentDraftType
+  /** The parent assessment record */
+  assessment: { id: string; classroom_id: string; title: string; show_results: boolean }
+  /** User performing the operation */
+  userId: string
+  /** Name of the questions table (e.g. 'quiz_questions' | 'test_questions') */
+  questionsTable: string
+  /** Foreign-key column in the questions table (e.g. 'quiz_id' | 'test_id') */
+  questionsForeignKey: string
+  /** Columns to select from the questions table */
+  questionsSelect: string
+  /** Validate draft content; extra options forwarded as `opts` */
+  validateContent: (input: unknown, opts?: { allowEmptyQuestionText?: boolean }) => ValidationResult<TContent>
+  validateOptions?: { allowEmptyQuestionText?: boolean }
+  /** Build a fresh draft from the assessment + questions rows */
+  buildFromRows: (
+    assessment: { id: string; classroom_id: string; title: string; show_results: boolean },
+    rows: unknown[]
+  ) => TContent
+}
+
+/**
+ * Ensures an assessment draft exists and is valid; creates/repairs it if not.
+ * Shared by quiz and test draft routes to eliminate duplication.
+ */
+export async function ensureAssessmentDraft<TContent>(
+  supabase: SupabaseLike,
+  config: EnsureDraftConfig<TContent>
+): Promise<
+  | { ok: true; draft: AssessmentDraftRow<TContent> }
+  | { ok: false; status: number; error: string }
+> {
+  const {
+    assessment, assessmentType, userId,
+    questionsTable, questionsForeignKey, questionsSelect,
+    validateContent, validateOptions, buildFromRows,
+  } = config
+
+  const { draft, error } = await getAssessmentDraftByType<TContent>(
+    supabase, assessmentType, assessment.id
+  )
+
+  // TODO(cleanup-045): Remove this fallback once migration 045 is confirmed everywhere.
+  if (isMissingAssessmentDraftsError(error)) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Assessment drafts require migration 045 to be applied',
+    }
+  }
+
+  if (error) {
+    console.error(`Error fetching ${assessmentType} draft:`, error)
+    return { ok: false, status: 500, error: 'Failed to fetch draft' }
+  }
+
+  if (draft) {
+    const valid = validateContent(draft.content, validateOptions)
+    if (valid.valid) {
+      return { ok: true, draft: { ...draft, content: valid.value } }
+    }
+  }
+
+  const { data: questions, error: questionsError } = await supabase
+    .from(questionsTable)
+    .select(questionsSelect)
+    .eq(questionsForeignKey, assessment.id)
+    .order('position', { ascending: true })
+
+  if (questionsError) {
+    console.error(`Error building baseline ${assessmentType} draft:`, questionsError)
+    return { ok: false, status: 500, error: 'Failed to build draft' }
+  }
+
+  const content = buildFromRows(assessment, questions || [])
+
+  if (draft) {
+    const { draft: updatedDraft, error: updateError } = await updateAssessmentDraft(
+      supabase, draft.id, draft.version + 1, userId, content
+    )
+    if (updateError || !updatedDraft) {
+      console.error(`Error repairing ${assessmentType} draft:`, updateError)
+      return { ok: false, status: 500, error: 'Failed to update draft' }
+    }
+    return { ok: true, draft: updatedDraft }
+  }
+
+  const { draft: createdDraft, error: createError } = await createAssessmentDraft(supabase, {
+    assessmentType,
+    assessmentId: assessment.id,
+    classroomId: assessment.classroom_id,
+    userId,
+    content,
+  })
+
+  if (createError?.code === '23505') {
+    const raced = await getAssessmentDraftByType<TContent>(supabase, assessmentType, assessment.id)
+    if (raced.draft) return { ok: true, draft: raced.draft }
+  }
+
+  if (createError || !createdDraft) {
+    console.error(`Error creating ${assessmentType} draft:`, createError)
+    return { ok: false, status: 500, error: 'Failed to create draft' }
+  }
+
+  return { ok: true, draft: createdDraft }
+}
+
+/**
+ * Sync title and show_results from a saved draft back to the parent assessment table.
+ * Used after PATCH in quiz/test draft routes.
+ */
+export async function syncAssessmentMetadataFromDraft(
+  supabase: SupabaseLike,
+  parentTable: string,
+  id: string,
+  content: { title: string; show_results: boolean }
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const { error } = await supabase
+    .from(parentTable)
+    .update({ title: content.title, show_results: content.show_results })
+    .eq('id', id)
+
+  if (error) {
+    console.error(`Error syncing ${parentTable} metadata from draft:`, error)
+    return { ok: false, status: 500, error: 'Failed to sync assessment metadata' }
   }
 
   return { ok: true }
