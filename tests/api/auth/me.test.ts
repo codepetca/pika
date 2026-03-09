@@ -93,7 +93,7 @@ describe('GET /api/auth/me', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toBe('Failed to get user')
+      expect(data.error).toBe('Internal server error')
     })
   })
 })

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pika Session Start"
+  short_description: "Validates Pika worktree environment, loads context, and identifies the next task"
+  default_prompt: "Use $pika-session-start to set up my Pika AI session and identify what to work on next."

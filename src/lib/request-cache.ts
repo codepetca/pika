@@ -54,3 +54,11 @@ export function prefetchJSON<T>(
 export function invalidateCachedJSON(key: string) {
   cache.delete(key)
 }
+
+export function invalidateCachedJSONMatching(prefix: string) {
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) {
+      cache.delete(key)
+    }
+  }
+}
