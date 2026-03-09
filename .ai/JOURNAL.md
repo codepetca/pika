@@ -5754,3 +5754,27 @@
 - `pnpm test tests/lib/test-markdown.test.ts tests/api/teacher/tests-draft-route.test.ts tests/components/QuizDetailPanel.test.tsx` (pass)
 - `pnpm lint` (pass)
 - `pnpm exec tsc --noEmit` (pass)
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Create a teacher-tests markdown schema document for external agent use.
+**Completed:**
+- Added `docs/guidance/teacher-tests-markdown-schema.md`.
+- Document includes:
+  - required top-level structure (`Title`, `## Questions`)
+  - per-question schema (MC + open-response)
+  - explicit requirement that MC questions include `Correct Option`
+  - documents section rules (`_None_`, preserve-on-omit behavior)
+  - defaults, constraints, and validation limits
+  - copy-paste template and valid full example
+
+**Validation:**
+- Doc-only change; no runtime code changes.
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Make required vs optional fields explicit in teacher test markdown schema.
+**Completed:**
+- Updated `docs/guidance/teacher-tests-markdown-schema.md` to label fields inline as `[Required]` or `[Optional]`.
+- Added explicit required/optional annotations in top-level structure, question/document field lists, and copy-paste template.
+
+**Validation:**
+- Doc-only change; verified rendered markdown content via `sed`.
