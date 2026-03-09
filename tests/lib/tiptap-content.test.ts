@@ -7,6 +7,8 @@ import {
   countCharacters,
   countWords,
   plainTextToTiptapContent,
+  isSafeLinkHref,
+  sanitizeLinkHref,
 } from '@/lib/tiptap-content'
 
 describe('parseContentField', () => {
@@ -176,5 +178,53 @@ describe('plainTextToTiptapContent', () => {
   it('converts multiple lines to multiple paragraphs', () => {
     const result = plainTextToTiptapContent('Line 1\nLine 2\nLine 3')
     expect(result.content).toHaveLength(3)
+  })
+})
+
+describe('isSafeLinkHref', () => {
+  it('returns true for a valid https URL', () => {
+    expect(isSafeLinkHref('https://example.com')).toBe(true)
+  })
+
+  it('returns true for a valid http URL', () => {
+    expect(isSafeLinkHref('http://example.com')).toBe(true)
+  })
+
+  it('returns true for a mailto link', () => {
+    expect(isSafeLinkHref('mailto:user@example.com')).toBe(true)
+  })
+
+  it('returns false for empty string', () => {
+    expect(isSafeLinkHref('')).toBe(false)
+  })
+
+  it('returns false for an invalid URL (triggers catch branch)', () => {
+    expect(isSafeLinkHref('not a url at all %%')).toBe(false)
+  })
+
+  it('returns false for javascript: protocol', () => {
+    expect(isSafeLinkHref('javascript:alert(1)')).toBe(false)
+  })
+})
+
+describe('sanitizeLinkHref', () => {
+  it('returns null for empty string', () => {
+    expect(sanitizeLinkHref('')).toBeNull()
+  })
+
+  it('converts raw email to mailto: link', () => {
+    expect(sanitizeLinkHref('user@example.com')).toBe('mailto:user@example.com')
+  })
+
+  it('returns the URL for a valid https link', () => {
+    expect(sanitizeLinkHref('https://example.com')).toBe('https://example.com/')
+  })
+
+  it('prepends https:// when no scheme is given', () => {
+    expect(sanitizeLinkHref('example.com')).toBe('https://example.com/')
+  })
+
+  it('returns null for an unparseable input that cannot be fixed with https://', () => {
+    expect(sanitizeLinkHref('javascript:alert(1)')).toBeNull()
   })
 })
