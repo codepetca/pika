@@ -39,33 +39,64 @@ Pika is a Next.js 14 application deployed on Vercel with a Supabase backend. It 
 ```
 src/
 ├── app/
-│   ├── api/                       # API routes
+│   ├── api/                       # API routes (~130 route files)
 │   │   ├── auth/                  # signup, verify-signup, create-password, login, reset, me, logout
-│   │   ├── student/               # classrooms, join, entries, assignments
-│   │   ├── teacher/               # classrooms, roster, class-days, attendance, assignments, export-csv, entry
-│   │   └── assignment-docs/       # fetch/update/submit/unsubmit assignment docs
+│   │   ├── student/               # classrooms, join, entries, assignments, quizzes, tests
+│   │   ├── teacher/               # classrooms, roster, class-days, attendance, assignments,
+│   │   │                          #   quizzes, tests, gradebook, announcements, resources
+│   │   └── assignment-docs/       # fetch/update/submit/unsubmit/history assignment docs
 │   ├── login/, signup/, forgot-password/, reset-password/…
 │   ├── student/                   # student today/history dashboards
 │   ├── teacher/                   # teacher dashboard
-│   └── classrooms/                # shared classroom + assignment views
-├── components/                    # UI primitives and modals
-├── lib/                           # Core utilities (auth, crypto, timezone, attendance, calendar, assignments)
-└── types/                         # Shared TypeScript types
+│   └── classrooms/[classroomId]/  # classroom detail page with ~19 tabs
+│       └── ClassroomPageClient.tsx # ~1500 LOC god component (gradual decomposition ongoing)
+├── components/                    # Feature components and modals
+│   ├── QuizDetailPanel.tsx        # Quiz editor/viewer (~900 LOC, draft mode)
+│   ├── AssignmentModal.tsx        # Assignment editor (~900 LOC, scheduling)
+│   ├── TestStudentGradingPanel.tsx # Per-student test grading
+│   └── ...
+├── hooks/                         # Custom React hooks (extracted from components)
+├── lib/                           # Core utilities
+│   ├── api-handler.ts             # withErrorHandler wrapper + ApiError (MANDATORY for routes)
+│   ├── request-cache.ts           # Client-side in-memory cache (15–20s TTL)
+│   ├── tiptap-content.ts          # Tiptap editor utilities + parseContentField
+│   ├── ai-grading.ts              # AI grading for assignments (OpenAI)
+│   ├── ai-test-grading.ts         # AI grading for tests (OpenAI, gpt-5-nano)
+│   ├── server/
+│   │   ├── assessment-drafts.ts   # Unified quiz/test draft system (JSON Patch)
+│   │   └── tests.ts               # Test query helpers
+│   ├── assignments.ts, quizzes.ts, test-responses.ts, scheduling.ts …
+│   └── auth.ts, crypto.ts, timezone.ts, attendance.ts …
+├── types/                         # Shared TypeScript types (src/types/index.ts)
+└── ui/                            # Design-system primitives (import from @/ui NOT @/components)
+    ├── Button, Input, FormField, Select, AlertDialog, ConfirmDialog, Card, Tooltip, SplitButton
 
-supabase/migrations/               # 001–007 schema + RLS
+supabase/migrations/               # 001–045+ schema + RLS
 tests/                             # Vitest unit + API suites
+.claude/commands/                  # Claude Code slash commands
+.codex/prompts/                    # Codex CLI prompt mirrors
+.codex/skills/                     # Codex skills with companion scripts
 ```
 
 ---
 
 ## Key Patterns
 
-### UI/Dark Mode (Required)
-- **All UI components MUST support both light and dark modes**
-- Uses Tailwind's `dark:` prefix with `class` strategy (`darkMode: 'class'` in config)
-- Standard pattern: `bg-white dark:bg-gray-900`, `text-gray-900 dark:text-white`, etc.
-- E2E snapshots test both light and dark modes to ensure visual consistency
-- See `docs/core/design.md` and `docs/design-system.md` for complete dark mode patterns
+### UI/Theming (Required)
+- **All UI must use semantic design tokens** — NOT raw color or `dark:` classes in app code.
+- `dark:` classes are **PROHIBITED in all app code** outside `src/ui/` primitives.
+- Semantic token pattern:
+  ```tsx
+  // ✅ CORRECT — semantic tokens
+  <div className="bg-surface text-text-default border-border">
+  <p className="text-text-muted">Secondary text</p>
+
+  // ❌ WRONG — dark: classes in app code (blocked by CI)
+  <div className="bg-white dark:bg-gray-900">
+  ```
+- Common tokens: `bg-page`, `bg-surface`, `bg-surface-2`, `text-text-default`, `text-text-muted`,
+  `border-border`, `text-primary`, `text-danger`, `text-success`, `text-warning`
+- Full token reference: `src/ui/README.md` | Design rules: `docs/core/design.md`
 
 ### Authentication (Primary)
 - **Signup**: `/api/auth/signup` stores a verification code (mock-emailed); `/verify-signup` validates; `/create-password` hashes password (bcrypt), sets session.
@@ -110,6 +141,64 @@ export const GET = withErrorHandler('GetClassrooms', async (request) => {
 - Unknown errors → 500 (logged to console)
 
 **Do NOT** write manual try/catch blocks with error.name checks in new routes.
+
+Use `/migrate-error-handler` slash command to convert existing manual routes.
+
+### Client-Side Data Fetching (Required Pattern)
+Use `fetchJSONWithCache` from `@/lib/request-cache` for repeated client-side API calls.
+This avoids duplicate in-flight requests and caches responses for 15–20 seconds.
+
+```ts
+import { fetchJSONWithCache } from '@/lib/request-cache'
+
+// ✅ CORRECT — deduplicated + cached
+const data = await fetchJSONWithCache(
+  `gradebook:${classroomId}:${studentId}`,
+  () => fetch(`/api/teacher/gradebook?...`).then(r => r.json()),
+  60_000  // 1 min TTL
+)
+
+// ❌ WRONG — raw fetch in components (causes duplicate requests, no caching)
+const data = await fetch(`/api/teacher/gradebook?...`).then(r => r.json())
+```
+
+Use raw `fetch()` only for one-off mutations (POST/PATCH/DELETE) or when freshness is critical.
+
+### Assessments Pattern
+Pika has two assessment types: **quizzes** (graded by `show_results` flag) and **tests**
+(graded manually, returned via `returned_at`). They are stored in separate tables but share
+logic in the app layer:
+
+- **Discrimination**: `assessment_type: 'quiz' | 'test'` on both `quizzes` and `tests` tables
+- **Quiz status**: `getStudentQuizStatus()` from `@/lib/quizzes` — uses `show_results` field
+- **Test status**: `getStudentTestStatus()` from `@/lib/quizzes` — uses `returned_at` field
+- **Draft editing**: unified `assessment_drafts` table + JSON Patch via `@/lib/server/assessment-drafts`
+- **Scheduling**: `combineScheduleDateTimeToIso()` / `isScheduleIsoInFuture()` from `@/lib/scheduling`
+- **AI grading** (tests only): `src/lib/ai-test-grading.ts` — reference answer SHA-256 cached per question
+
+### Content Fields (Tiptap JSON)
+Assignment docs, quiz/test questions, announcements, and lesson plans store content as Tiptap JSON.
+Always parse content using the shared utility:
+
+```ts
+import { parseContentField } from '@/lib/tiptap-content'
+
+const content = parseContentField(doc.content)  // handles string or object
+```
+
+**Never define a local `parseContentField` function in a route file.**
+
+### Migration Shims
+When a DB migration is applied in stages (some environments may not have it yet), code uses
+guard patterns that should be removed once the migration is universally applied:
+
+```ts
+// Pattern: isMissing<Table>Error — check PGRST205 to detect missing column/table
+// Remove these when migration 0XX is confirmed applied everywhere
+if (isMissingAssessmentDraftsError(error)) { /* graceful fallback */ }
+```
+
+Search for `TODO(cleanup-0XX)` comments to find shims scheduled for removal.
 
 ### Request Validation (Zod)
 Use Zod schemas from `@/lib/validations/` for request body/query validation:
@@ -247,22 +336,43 @@ Existing indexes (migration 038):
 
 ---
 
-## Database Schema (Migrations 001–038)
+## Database Schema (Migrations 001–045+)
 
+### Core
 - `users` — `id`, `email`, `role`, `email_verified_at`, `password_hash`, timestamps
 - `verification_codes` — signup/reset codes with expiry/attempts
 - `student_profiles` — student metadata linked to `users`
-- `classrooms` — owned by teacher (`teacher_id`)
+- `classrooms` — owned by teacher (`teacher_id`); `name`, `join_code`, `allow_enrollment`
 - `classroom_enrollments` — student membership per classroom
+- `classroom_roster` — email allow-list for enrollment gating
 - `class_days` — `classroom_id`, `date`, `is_class_day`
 - `entries` — `student_id`, `classroom_id`, `date`, `text`, `mood`, `on_time`, timestamps
-- `assignments` — `classroom_id`, `title`, `description`, `due_at`, `created_by`
-- `assignment_docs` — one per (assignment, student); `content`, `is_submitted`, `submitted_at`
+
+### Assignments
+- `assignments` — `classroom_id`, `title`, `description`, `due_at`, `created_by`, `released_at`, `scheduled_release_at`
+- `assignment_docs` — one per (assignment, student); `content` (Tiptap JSON), `is_submitted`, `submitted_at`, `score`, `feedback`, `returned_at`
+- `assignment_doc_history` — change history for assignment docs
+
+### Assessments (Quizzes & Tests)
+> Both stored in separate tables but share `assessment_type: 'quiz' | 'test'` discrimination in app logic.
+- `quizzes` — `classroom_id`, `title`, `assessment_type`, `show_results`, `released_at`, `scheduled_release_at`
+- `quiz_questions` — `quiz_id`, `question_text`, `options` (JSONB array), `correct_option`, `points`, `order`
+- `quiz_responses` — `student_id`, `quiz_id`, `question_id`, `selected_option`, `is_correct`, `points_earned`
+- `tests` — `classroom_id`, `title`, `assessment_type`, `released_at`, `returned_at`, `scheduled_release_at`
+- `test_questions` — `test_id`, `question_text`, `question_type` (`multiple_choice` | `open_response`), `options`, `correct_option`, `points`, `order`, `reference_answer`, `reference_answer_cache_key`
+- `test_responses` — `student_id`, `test_id`, `question_id`, `selected_option`, `response_text`, `score`, `feedback`, `graded_at`, `ai_grading_model`, `returned`
+- `test_attempts` — `student_id`, `test_id`; tracks submission/return lifecycle
+- `assessment_drafts` — `assessment_id`, `assessment_type`, `content` (JSONB), `version`, `created_by`; used for collaborative editing with JSON Patch
+
+### Content
+- `announcements` — `classroom_id`, `title`, `content` (Tiptap JSON), `created_by`, timestamps
+- `resources` — `classroom_id`, `title`, `url`, `description`, timestamps
+- `lesson_plans` — `classroom_id`, `class_day_id`, `content` (Tiptap JSON)
 
 **RLS Highlights**
-- Auth tables (`verification_codes`) are server-managed only.
-- Classrooms/enrollments/class_days/entries: RLS disabled for public; app uses service role plus ownership/enrollment checks.
-- Assignments/assignment_docs: policies allow teachers of the classroom to read, students to read/write their own docs.
+- Auth tables (`verification_codes`) are server-managed only (service role).
+- All other tables: RLS disabled; app enforces ownership/enrollment via `requireRole` + service role checks.
+- Assignments/docs: teachers of the classroom read-all; students read/write their own docs only.
 
 ---
 

@@ -27,8 +27,10 @@ vi.mock('@/lib/server/tests', () => ({
 }))
 
 const suggestTestOpenResponseGrade = vi.fn()
+const getTestOpenResponseGradingModel = vi.fn(() => 'gpt-5-nano')
 vi.mock('@/lib/ai-test-grading', () => ({
   suggestTestOpenResponseGrade: (...args: any[]) => suggestTestOpenResponseGrade(...args),
+  getTestOpenResponseGradingModel: () => getTestOpenResponseGradingModel(),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -206,5 +208,81 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('prompt_guideline must be a string')
+  })
+
+  it('skips responses already graded with the current model (zero OpenAI calls)', async () => {
+    suggestTestOpenResponseGrade.mockResolvedValue({
+      score: 4.5,
+      feedback: 'Good explanation',
+      model: 'gpt-5-nano',
+      grading_basis: 'generated_reference',
+      reference_answers: ['Answer here'],
+    })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        const query = { eq: vi.fn().mockReturnThis() } as any
+        query.eq.mockImplementationOnce(() => query)
+        query.eq.mockImplementationOnce(async () => ({
+          data: [{ id: 'q-open-1', question_text: 'Explain arrays.', points: 5 }],
+          error: null,
+        }))
+        return { select: vi.fn(() => query) }
+      }
+
+      if (table === 'test_responses') {
+        const query = { eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis() } as any
+        query.in.mockImplementationOnce(() => query)
+        query.in.mockImplementationOnce(async () => ({
+          data: [
+            {
+              id: 'response-already-graded',
+              student_id: 'student-1',
+              question_id: 'q-open-1',
+              response_text: 'Arrays are ordered.',
+              // Already graded with the same model
+              ai_model: 'gpt-5-nano',
+              graded_at: '2026-03-01T12:00:00.000Z',
+              score: 4.0,
+            },
+          ],
+          error: null,
+        }))
+        return {
+          select: vi.fn(() => query),
+          update: vi.fn(() => ({ eq: vi.fn().mockReturnThis() })),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [
+                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-1'] }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    // Response was already graded — counts as graded_responses
+    expect(data.graded_responses).toBe(1)
+    expect(data.graded_students).toBe(1)
+    // Zero OpenAI calls made
+    expect(suggestTestOpenResponseGrade).not.toHaveBeenCalled()
   })
 })

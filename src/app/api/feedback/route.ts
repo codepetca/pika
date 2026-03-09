@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth'
+import { withErrorHandler } from '@/lib/api-handler'
 
 interface FeedbackBody {
   category: 'bug' | 'suggestion'
@@ -13,7 +14,7 @@ interface FeedbackBody {
   }
 }
 
-export async function POST(request: Request) {
+export const POST = withErrorHandler('PostFeedback', async (request) => {
   const token = process.env.GITHUB_FEEDBACK_TOKEN
   const repo = process.env.GITHUB_FEEDBACK_REPO
 
@@ -88,4 +89,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ success: true })
-}
+})

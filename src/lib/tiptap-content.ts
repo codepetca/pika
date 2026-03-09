@@ -3,6 +3,28 @@ import type { TiptapContent, TiptapNode } from '@/types'
 const ALLOWED_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 
 /**
+ * Parse content field from database, handling both JSONB and legacy TEXT columns.
+ * If content is a string (from TEXT column), parse it as JSON.
+ * If content is already an object (from JSONB column), return as-is.
+ * Returns an empty doc on parse failure or null/undefined input.
+ *
+ * Import this instead of defining a local parseContentField in route files.
+ */
+export function parseContentField(content: unknown): TiptapContent {
+  if (content === null || content === undefined) {
+    return { type: 'doc', content: [] }
+  }
+  if (typeof content === 'string') {
+    try {
+      return JSON.parse(content) as TiptapContent
+    } catch {
+      return { type: 'doc', content: [] }
+    }
+  }
+  return content as TiptapContent
+}
+
+/**
  * Validate that content matches Tiptap JSON schema
  */
 export function isValidTiptapContent(content: any): content is TiptapContent {

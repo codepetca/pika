@@ -8,9 +8,11 @@ If you are starting a new session, **first read** `.ai/START-HERE.md` (environme
 
 ## Overview
 
-**Pika** is a student daily log and attendance tracking application for an online high school course (GLD2O). Students submit daily journal entries before midnight (America/Toronto timezone), and teachers monitor attendance and read student submissions through a dashboard.
+**Pika** is a comprehensive online classroom management application for a Canadian high school course (GLD2O). Teachers manage classrooms with ~19 feature tabs: attendance, assignments, quizzes, tests, gradebook, announcements, resources, lesson plans, and more. Students submit journal entries, complete assignments, and take quizzes/tests.
 
-**Status**: Basic MVP complete - authentication, student experience, and teacher dashboard implemented. Currently adding comprehensive test coverage.
+**Tech**: Next.js 14 App Router + Supabase + Tailwind CSS + Vitest. Deployed on Vercel.
+
+**Status**: Feature-rich application with AI-assisted grading (OpenAI `gpt-5-nano`), Tiptap-based rich text editing, assessment draft system (JSON Patch), and scheduled content release. Ongoing: test coverage expansion, component decomposition, and API route standardization.
 
 ---
 
@@ -81,6 +83,40 @@ This TDD approach ensures code quality and prevents regressions.
 - Tailwind CSS for styling
 - Vitest + React Testing Library for tests
 
+### API Route Rules (MANDATORY)
+
+🔌 **ALL API routes MUST use `withErrorHandler`** from `@/lib/api-handler`:
+```ts
+export const GET = withErrorHandler('GetResource', async (request, context) => {
+  const user = await requireRole('teacher')
+  // ... happy path only — errors auto-mapped to 401/403/400/500
+})
+```
+- **Never** write `export async function GET(...)` with a manual `try/catch` in new routes.
+- Use `/migrate-error-handler` slash command to convert existing routes.
+- Use `ApiError` / `apiErrors` from `@/lib/api-handler` for domain errors.
+
+### Client-Side Fetch Rules (MANDATORY)
+
+📡 **Use `fetchJSONWithCache`** from `@/lib/request-cache` for repeated client-side API calls:
+```ts
+const data = await fetchJSONWithCache(
+  `resource:${id}`,  // cache key
+  () => fetch(`/api/.../resource`).then(r => r.json()),
+  20_000  // TTL in ms
+)
+```
+- Never make raw `fetch()` calls in components for data that is fetched repeatedly.
+- Exception: one-off mutations (POST/PATCH/DELETE) do NOT need the cache wrapper.
+
+### Tiptap Content Rule (MANDATORY)
+
+📝 **Never define a local `parseContentField`** in route files. Import from `@/lib/tiptap-content`:
+```ts
+import { parseContentField } from '@/lib/tiptap-content'
+const content = parseContentField(doc.content)  // handles string or object
+```
+
 ### Architecture Rules (PROHIBITED)
 
 ❌ **DO NOT**:
@@ -95,6 +131,9 @@ This TDD approach ensures code quality and prevents regressions.
 - **Use `dark:` classes in app code** (use semantic tokens instead)
 - **Import UI primitives from `@/components`** (use `@/ui`)
 - **Run or apply database migrations** (human applies migrations manually)
+- **Write manual try/catch error handling in API routes** (use `withErrorHandler`)
+- **Define `parseContentField` locally** (import from `@/lib/tiptap-content`)
+- **Make raw `fetch()` calls in components for repeated data** (use `fetchJSONWithCache`)
 
 ### Database Migrations (MANDATORY)
 
@@ -357,30 +396,68 @@ When facing implementation choices:
 - Commit `.env.local` or secrets — it's symlinked, not a real file
 - Skip the reading order — architectural drift happens fast
 - Start coding without a plan — state task, wait for approval
+- Write `export async function GET(...)` with manual try/catch — use `withErrorHandler`
+- Define `parseContentField` locally — import from `@/lib/tiptap-content`
+- Make raw `fetch()` in components — use `fetchJSONWithCache` for repeated reads
+- Use `dark:` Tailwind classes in app code — use semantic tokens (`bg-surface`, etc.)
+- Import from `@/components` for UI primitives — use `@/ui`
 
 **Recovery:**
 - Worked in hub by mistake? `git stash`, create worktree, `git stash pop` in worktree
 - Committed to wrong branch? `git reset --soft HEAD~1`, switch branches, recommit
 - Need to update features.json? Use the script, not manual edits
+- Added manual try/catch to a route? Run `/migrate-error-handler` on that file
+
+---
+
+## Anti-Drift Rules
+
+These are the patterns that **most commonly drift** when AI agents add code. Check each one before committing.
+
+| What to check | Required pattern | Violation flag |
+|---|---|---|
+| New API route handler | `export const X = withErrorHandler(...)` | `export async function X(...)` with try/catch |
+| New client-side fetch in component | `fetchJSONWithCache(key, fetcher, ttl)` | raw `fetch()` in component body |
+| Content field parsing | `import { parseContentField } from '@/lib/tiptap-content'` | local function definition |
+| UI colors/themes | `bg-surface`, `text-text-default`, etc. | `bg-white dark:bg-gray-900` or raw colors |
+| UI primitives | `import { Button } from '@/ui'` | `import { Button } from '@/components'` |
+| New Supabase column check | `isMissing<Table>Error` guard + `TODO(cleanup-0XX)` | silent failure or permanent guard |
+
+Run `/audit` before every commit to catch violations automatically.
 
 ---
 
 ## Quick Reference
 
-### Key Files
-- **Design system**: `src/ui/` — UI primitives (Button, Input, FormField, etc.)
+### Key Files — Core
+- **Error handling**: `src/lib/api-handler.ts` — `withErrorHandler`, `ApiError`, `apiErrors`
+- **Client cache**: `src/lib/request-cache.ts` — `fetchJSONWithCache(key, fetcher, ttlMs)`
+- **Auth**: `src/lib/auth.ts` — `requireRole('teacher' | 'student')`, session management
+- **Design system**: `src/ui/` — UI primitives (import from `@/ui`)
 - **Token definitions**: `src/styles/tokens.css` — CSS variables for theming
-- **Attendance logic**: `src/lib/attendance.ts` — Pure function, fully testable
-- **Timezone utilities**: `src/lib/timezone.ts` — America/Toronto handling
-- **Authentication**: `src/lib/auth.ts` — Session management
-- **Crypto**: `src/lib/crypto.ts` — Code generation and hashing
-- **Supabase client**: `src/lib/supabase.ts`
+- **Types**: `src/types/index.ts` — centralized TypeScript types (no duplication)
+
+### Key Files — Assessments
+- **Tiptap utils**: `src/lib/tiptap-content.ts` — `parseContentField`, `extractPlainText`, etc.
+- **Draft system**: `src/lib/server/assessment-drafts.ts` — unified quiz/test draft with JSON Patch
+- **Scheduling**: `src/lib/scheduling.ts` — `combineScheduleDateTimeToIso`, `isScheduleIsoInFuture`
+- **Quiz logic**: `src/lib/quizzes.ts` — `getStudentQuizStatus`, `getStudentTestStatus`
+- **Test responses**: `src/lib/test-responses.ts` — `hasMeaningfulTestResponse`
+- **AI grading**: `src/lib/ai-grading.ts` (assignments), `src/lib/ai-test-grading.ts` (tests)
+
+### Key Files — Infrastructure
+- **Attendance**: `src/lib/attendance.ts` — pure function, fully testable
+- **Timezone**: `src/lib/timezone.ts` — America/Toronto handling
+- **Crypto**: `src/lib/crypto.ts` — code generation and hashing
 
 ### Key Concepts
-- **ClassDay**: A day when attendance is expected
-- **Entry**: A student's journal submission for a day
-- **AttendanceStatus**: `'present' | 'absent'` (on_time field in Entry)
-- **on_time**: Calculated by comparing updated_at (Toronto time) to midnight
+- **Assessment discrimination**: `assessment_type: 'quiz' | 'test'` on both quiz and test records
+- **Tab mounting**: tabs mount once on first visit, then stay in DOM (persistent mounting)
+- **Prefetching**: assignments + resources prefetched at idle; others on demand
+- **Gradebook**: fetches on every student selection change (no caching currently — being fixed)
+- **Migration shims**: `isMissing<Table>Error` guards removed after migration confirmed applied
+- **ClassDay**: a day when attendance is expected
+- **Entry**: a student's journal submission for a day
 
 ### Common Commands
 ```bash
@@ -388,6 +465,13 @@ pnpm dev                 # Start dev server
 pnpm test:watch          # TDD mode
 pnpm test:coverage       # Check coverage
 gh issue view X          # View issue details
+/audit                   # Pre-commit violation check
+/migrate-error-handler   # Convert manual try/catch route to withErrorHandler
+/add-api-route           # Scaffold new route with best practices
+/session-start           # Validate environment + load context
+/work-on-issue <N>       # Load issue N, explore, plan
+/tdd <feature>           # Write tests first, then implement
+/ui-verify <page>        # Take Playwright screenshots to verify UI
 ```
 
 ---

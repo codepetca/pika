@@ -164,6 +164,24 @@ export function normalizeTestOpenResponseReferenceAnswers(raw: unknown): string[
   return normalizeReferenceAnswers(raw)
 }
 
+/**
+ * Builds a cache key for a graded open-response — used to detect whether a
+ * response has already been graded with the same model and hasn't changed.
+ * Stored alongside the grade so re-grading can skip unchanged responses.
+ */
+export function buildTestOpenResponseGradeCacheKey(input: {
+  responseText: string
+  questionId: string
+  model: string
+}): string {
+  const payload = JSON.stringify({
+    response_text: input.responseText.trim(),
+    question_id: input.questionId,
+    model: input.model.trim(),
+  })
+  return createHash('sha256').update(payload).digest('hex')
+}
+
 export function buildTestOpenResponseReferenceCacheKey(input: {
   testTitle: string
   questionText: string

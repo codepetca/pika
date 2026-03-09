@@ -28,9 +28,8 @@ import { QuizIndividualResponses } from '@/components/QuizIndividualResponses'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { normalizeTestDocuments } from '@/lib/test-documents'
-import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { useDraftMode } from '@/hooks/useDraftMode'
 import type {
-  JsonPatchOperation,
   QuizQuestion,
   QuizWithStats,
   QuizResultsAggregate,
@@ -53,8 +52,6 @@ export function QuizDetailPanel({
   onRequestDelete,
 }: Props) {
   void classroomId
-  const AUTOSAVE_DEBOUNCE_MS = 3000
-  const AUTOSAVE_MIN_INTERVAL_MS = 10_000
   const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [documents, setDocuments] = useState<TestDocument[]>(
@@ -64,110 +61,38 @@ export function QuizDetailPanel({
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'questions' | 'documents' | 'preview' | 'results'>('questions')
   const [error, setError] = useState('')
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
-  const [conflictDraft, setConflictDraft] = useState<{
-    version: number
-    content: { title: string; show_results: boolean; questions: QuizQuestion[] }
-  } | null>(null)
 
-  // Inline title editing
-  const [isEditingTitle, setIsEditingTitle] = useState(false)
-  const [editTitle, setEditTitle] = useState(quiz.title)
-  const [savingTitle, setSavingTitle] = useState(false)
+  // titleInputRef stays in the component — it's bound directly to the JSX <input>
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const draftVersionRef = useRef(1)
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const lastSaveAttemptAtRef = useRef(0)
-  const lastSavedDraftRef = useRef('')
-  const saveStatusRef = useRef<'saved' | 'saving' | 'unsaved'>('saved')
-  const pendingDraftRef = useRef<{
-    title: string
-    show_results: boolean
-    questions: QuizQuestion[]
-  } | null>(null)
+
+  // Draft autosave logic extracted to a hook
+  const {
+    editTitle,
+    setEditTitle,
+    isEditingTitle,
+    setIsEditingTitle,
+    savingTitle,
+    saveStatus,
+    conflictDraft,
+    pendingDraftRef,
+    applyServerDraft,
+    saveDraft,
+    scheduleSave,
+    scheduleAutosave,
+    handleTitleSave,
+  } = useDraftMode({
+    quizId: quiz.id,
+    quizTitle: quiz.title,
+    showResults: quiz.show_results,
+    apiBasePath,
+    onUpdate: onQuizUpdate,
+    onError: setError,
+    onQuestionsChange: setQuestions,
+  })
 
   const normalizeQuestionPositions = useCallback((nextQuestions: QuizQuestion[]): QuizQuestion[] => {
     return nextQuestions.map((question, index) => ({ ...question, position: index }))
   }, [])
-
-  const normalizeDraftQuestions = useCallback((rawQuestions: unknown[]): QuizQuestion[] => {
-    return normalizeQuestionPositions(
-      (rawQuestions || []).map((rawQuestion, index) => {
-        const question = (rawQuestion || {}) as Record<string, unknown>
-        const questionType = question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
-        return {
-          id: String(question.id || crypto.randomUUID()),
-          quiz_id: quiz.id,
-          question_text: String(question.question_text || ''),
-          options: Array.isArray(question.options)
-            ? question.options.map((option) => String(option))
-            : questionType === 'open_response'
-              ? []
-              : ['Option 1', 'Option 2'],
-          correct_option:
-            typeof question.correct_option === 'number' && Number.isInteger(question.correct_option)
-              ? question.correct_option
-              : questionType === 'multiple_choice'
-                ? 0
-                : null,
-          question_type: questionType,
-          points:
-            typeof question.points === 'number'
-              ? question.points
-              : questionType === 'open_response'
-                ? DEFAULT_OPEN_RESPONSE_POINTS
-                : DEFAULT_MULTIPLE_CHOICE_POINTS,
-          response_max_chars:
-            typeof question.response_max_chars === 'number' ? question.response_max_chars : 5000,
-          response_monospace: question.response_monospace === true,
-          answer_key:
-            typeof question.answer_key === 'string' && question.answer_key.trim().length > 0
-              ? question.answer_key.trim()
-              : null,
-          position: index,
-          created_at: String(question.created_at || new Date().toISOString()),
-          updated_at: String(question.updated_at || new Date().toISOString()),
-        }
-      })
-    )
-  }, [normalizeQuestionPositions, quiz.id])
-
-  const applyServerDraft = useCallback(
-    (draft?: {
-      version: number
-      content?: { title?: string; show_results?: boolean; questions?: unknown[] }
-    } | null) => {
-      if (!draft?.content) return
-
-      const nextTitle = typeof draft.content.title === 'string' ? draft.content.title : quiz.title
-      const nextShowResults =
-        typeof draft.content.show_results === 'boolean' ? draft.content.show_results : quiz.show_results
-      const nextQuestions = normalizeDraftQuestions(draft.content.questions || [])
-      const nextSnapshot = {
-        title: nextTitle,
-        show_results: nextShowResults,
-        questions: nextQuestions,
-      }
-
-      setEditTitle(nextTitle)
-      setQuestions(nextQuestions)
-      draftVersionRef.current = draft.version
-      lastSavedDraftRef.current = JSON.stringify(nextSnapshot)
-      pendingDraftRef.current = nextSnapshot
-      setSaveStatus('saved')
-      setError('')
-      setConflictDraft(null)
-    },
-    [normalizeDraftQuestions, quiz.show_results, quiz.title]
-  )
-
-  // Sync editTitle when quiz changes
-  useEffect(() => {
-    setEditTitle(quiz.title)
-    setIsEditingTitle(false)
-    setConflictDraft(null)
-  }, [quiz.id, quiz.title])
 
   useEffect(() => {
     setDocuments(normalizeTestDocuments((quiz as { documents?: unknown }).documents))
@@ -189,158 +114,6 @@ export function QuizDetailPanel({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
-  const saveDraft = useCallback(
-    async (
-      nextDraft: { title: string; show_results: boolean; questions: QuizQuestion[] },
-      options?: { forceFull?: boolean }
-    ) => {
-      const nextSerialized = JSON.stringify(nextDraft)
-      if (!options?.forceFull && nextSerialized === lastSavedDraftRef.current) {
-        setSaveStatus('saved')
-        return
-      }
-
-      setSaveStatus('saving')
-      lastSaveAttemptAtRef.current = Date.now()
-
-      let baseDraft = nextDraft
-      try {
-        if (lastSavedDraftRef.current) {
-          baseDraft = JSON.parse(lastSavedDraftRef.current) as typeof nextDraft
-        }
-      } catch {
-        baseDraft = nextDraft
-      }
-
-      const patch = createJsonPatch(baseDraft, nextDraft)
-      const shouldSendPatch =
-        !options?.forceFull &&
-        patch.length > 0 &&
-        !shouldStoreSnapshot(patch as JsonPatchOperation[], nextDraft)
-
-      const body: {
-        version: number
-        patch?: JsonPatchOperation[]
-        content?: typeof nextDraft
-      } = {
-        version: draftVersionRef.current,
-      }
-
-      if (shouldSendPatch) {
-        body.patch = patch as JsonPatchOperation[]
-      } else {
-        body.content = nextDraft
-      }
-
-      try {
-        const response = await fetch(`${apiBasePath}/${quiz.id}/draft`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-        const data = await response.json()
-
-        if (response.status === 409) {
-          const serverDraft = data?.draft as
-            | { version: number; content: { title: string; show_results: boolean; questions: QuizQuestion[] } }
-            | undefined
-          if (serverDraft) {
-            setConflictDraft({
-              version: serverDraft.version,
-              content: {
-                title: serverDraft.content.title,
-                show_results: serverDraft.content.show_results,
-                questions: normalizeDraftQuestions(serverDraft.content.questions || []),
-              },
-            })
-          }
-          setSaveStatus('unsaved')
-          setError(data?.error || 'Draft updated elsewhere')
-          return
-        }
-
-        if (!response.ok) {
-          throw new Error(data?.error || 'Failed to save draft')
-        }
-
-        const serverDraft = data?.draft as
-          | {
-              version: number
-              content?: { title?: string; show_results?: boolean; questions?: unknown[] }
-            }
-          | undefined
-        if (serverDraft?.content) {
-          applyServerDraft(serverDraft)
-        } else {
-          draftVersionRef.current += 1
-          lastSavedDraftRef.current = nextSerialized
-          pendingDraftRef.current = nextDraft
-          setSaveStatus('saved')
-          setError('')
-          setConflictDraft(null)
-        }
-        onQuizUpdate()
-      } catch (saveError: any) {
-        console.error('Error saving draft:', saveError)
-        setSaveStatus('unsaved')
-        setError(saveError?.message || 'Failed to save draft')
-      }
-    },
-    [apiBasePath, applyServerDraft, normalizeDraftQuestions, onQuizUpdate, quiz.id]
-  )
-
-  const scheduleSave = useCallback(
-    (
-      nextDraft: { title: string; show_results: boolean; questions: QuizQuestion[] },
-      options?: { force?: boolean }
-    ) => {
-      if (conflictDraft) return
-
-      pendingDraftRef.current = nextDraft
-
-      if (throttledSaveTimeoutRef.current) {
-        clearTimeout(throttledSaveTimeoutRef.current)
-        throttledSaveTimeoutRef.current = null
-      }
-
-      const now = Date.now()
-      const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
-
-      if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
-        void saveDraft(nextDraft)
-        return
-      }
-
-      const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastAttempt
-      throttledSaveTimeoutRef.current = setTimeout(() => {
-        throttledSaveTimeoutRef.current = null
-        const latestDraft = pendingDraftRef.current
-        if (latestDraft) {
-          void saveDraft(latestDraft)
-        }
-      }, waitMs)
-    },
-    [AUTOSAVE_MIN_INTERVAL_MS, conflictDraft, saveDraft]
-  )
-
-  const scheduleAutosave = useCallback(
-    (nextDraft: { title: string; show_results: boolean; questions: QuizQuestion[] }) => {
-      if (conflictDraft) return
-
-      pendingDraftRef.current = nextDraft
-      setSaveStatus('unsaved')
-      setError('')
-
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-
-      saveTimeoutRef.current = setTimeout(() => {
-        scheduleSave(nextDraft)
-      }, AUTOSAVE_DEBOUNCE_MS)
-    },
-    [AUTOSAVE_DEBOUNCE_MS, conflictDraft, scheduleSave]
-  )
 
   const loadQuizDetails = useCallback(async () => {
     setLoading(true)
@@ -412,55 +185,6 @@ export function QuizDetailPanel({
     [editTitle, isEditable, normalizeQuestionPositions, questions, quiz.show_results, scheduleAutosave]
   )
 
-  useEffect(() => {
-    saveStatusRef.current = saveStatus
-  }, [saveStatus])
-
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-      if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
-      if (pendingDraftRef.current && saveStatusRef.current === 'unsaved') {
-        void saveDraft(pendingDraftRef.current, { forceFull: true })
-      }
-    }
-  }, [saveDraft])
-
-  async function handleTitleSave() {
-    const trimmed = editTitle.trim()
-    const fallbackTitle =
-      (pendingDraftRef.current?.title || (() => {
-        try {
-          const parsed = JSON.parse(lastSavedDraftRef.current) as { title?: string }
-          return parsed?.title
-        } catch {
-          return quiz.title
-        }
-      })()) || quiz.title
-
-    if (!trimmed) {
-      setEditTitle(fallbackTitle)
-      setIsEditingTitle(false)
-      return
-    }
-
-    setSavingTitle(true)
-    setIsEditingTitle(false)
-    const nextTitle = trimmed
-    setEditTitle(nextTitle)
-    setSavingTitle(false)
-
-    const nextDraft = {
-      title: nextTitle,
-      show_results: quiz.show_results,
-      questions,
-    }
-    pendingDraftRef.current = nextDraft
-    setSaveStatus('unsaved')
-    setError('')
-    scheduleSave(nextDraft, { force: true })
-  }
-
   function handleTitleCancel() {
     const fallbackTitle = pendingDraftRef.current?.title || quiz.title
     setEditTitle(fallbackTitle)
@@ -468,7 +192,7 @@ export function QuizDetailPanel({
   }
 
   function handleTitleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') handleTitleSave()
+    if (e.key === 'Enter') void handleTitleSave(questions)
     if (e.key === 'Escape') handleTitleCancel()
   }
 
@@ -666,7 +390,7 @@ export function QuizDetailPanel({
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   onKeyDown={handleTitleKeyDown}
-                  onBlur={handleTitleSave}
+                  onBlur={() => void handleTitleSave(questions)}
                   disabled={savingTitle}
                   className="flex-1 text-lg font-semibold text-text-default bg-transparent border-b-2 border-primary outline-none py-0.5"
                 />
@@ -675,7 +399,7 @@ export function QuizDetailPanel({
                     variant="ghost"
                     size="sm"
                     className="p-1 text-success"
-                    onClick={handleTitleSave}
+                    onClick={() => void handleTitleSave(questions)}
                     disabled={savingTitle}
                     aria-label="Save title"
                   >
