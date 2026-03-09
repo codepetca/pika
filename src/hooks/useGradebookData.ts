@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { GradebookClassSummary, GradebookStudentDetail, GradebookStudentSummary } from '@/types'
 
 interface UseGradebookDataOptions {
@@ -20,7 +20,7 @@ export interface UseGradebookDataReturn {
   gradebookStudentDetailLoading: boolean
   gradebookStudentDetailError: string
   handleSelectGradebookStudent: (student: GradebookStudentSummary | null) => void
-  setGradebookClassSummary: React.Dispatch<React.SetStateAction<GradebookClassSummary | null>>
+  handleGradebookClassSummaryChange: (summary: GradebookClassSummary | null) => void
 }
 
 /**
@@ -54,6 +54,7 @@ export function useGradebookData({
     useState<GradebookClassSummary | null>(null)
   const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
   const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
+  const [detailRefreshToken, setDetailRefreshToken] = useState(0)
 
   const handleSelectGradebookStudent = useCallback(
     (student: GradebookStudentSummary | null) => {
@@ -61,6 +62,12 @@ export function useGradebookData({
     },
     []
   )
+
+  const handleGradebookClassSummaryChange = useCallback((summary: GradebookClassSummary | null) => {
+    setGradebookClassSummary(summary)
+    invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+    setDetailRefreshToken((previous) => previous + 1)
+  }, [classroomId])
 
   // Clear all gradebook state when navigating away from the gradebook tab
   useEffect(() => {
@@ -125,7 +132,15 @@ export function useGradebookData({
     return () => {
       cancelled = true
     }
-  }, [isTeacher, activeTab, selectedGradebookStudent, classroomId, setRightSidebarOpen, openRight])
+  }, [
+    isTeacher,
+    activeTab,
+    selectedGradebookStudent,
+    classroomId,
+    setRightSidebarOpen,
+    openRight,
+    detailRefreshToken,
+  ])
 
   return {
     selectedGradebookStudent,
@@ -134,6 +149,6 @@ export function useGradebookData({
     gradebookStudentDetailLoading,
     gradebookStudentDetailError,
     handleSelectGradebookStudent,
-    setGradebookClassSummary,
+    handleGradebookClassSummaryChange,
   }
 }
