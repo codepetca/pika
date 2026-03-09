@@ -338,6 +338,9 @@ function parseQuestionBlock(
   }
 
   if (questionType === 'multiple_choice') {
+    if (parsed.correct_option === undefined) {
+      errors.push(`${questionLabel}: Correct Option is required for multiple_choice questions`)
+    }
     const questionDraft: TestDraftQuestion = {
       id: nextId,
       question_type: 'multiple_choice',

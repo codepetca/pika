@@ -5739,3 +5739,18 @@
 **Validation:**
 - `pnpm test tests/api/teacher/tests-draft-route.test.ts tests/lib/test-markdown.test.ts tests/components/QuizDetailPanel.test.tsx` (pass)
 - `pnpm lint` (pass)
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Address PR review findings for test markdown and draft route validation ordering.
+**Completed:**
+- Enforced strict parser validation in `src/lib/test-markdown.ts` so `multiple_choice` questions require `Correct Option`.
+- Reordered draft PATCH flow in `src/app/api/teacher/tests/[id]/draft/route.ts` to assert test ownership/archival access before validating optional `documents` payload.
+- Updated `tests/lib/test-markdown.test.ts`:
+  - Added `Correct Option` in optional-fields fixture.
+  - Added explicit regression test that missing `Correct Option` for multiple-choice returns a parse error and blocks apply.
+- Updated `tests/api/teacher/tests-draft-route.test.ts` to assert ownership check still runs on invalid `documents` payload.
+
+**Validation:**
+- `pnpm test tests/lib/test-markdown.test.ts tests/api/teacher/tests-draft-route.test.ts tests/components/QuizDetailPanel.test.tsx` (pass)
+- `pnpm lint` (pass)
+- `pnpm exec tsc --noEmit` (pass)

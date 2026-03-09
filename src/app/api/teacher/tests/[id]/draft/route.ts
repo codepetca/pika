@@ -170,6 +170,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'content or patch is required' }, { status: 400 })
     }
 
+    const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
+
     let nextDocuments: ReturnType<typeof validateTestDocumentsPayload> | null = null
     if (body?.documents !== undefined) {
       const validation = validateTestDocumentsPayload(body.documents)
@@ -177,11 +182,6 @@ export async function PATCH(
         return NextResponse.json({ error: validation.error }, { status: 400 })
       }
       nextDocuments = validation
-    }
-
-    const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
-    if (!access.ok) {
-      return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
     const supabase = getServiceRoleClient()

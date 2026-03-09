@@ -182,6 +182,8 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
     expect(response.status).toBe(400)
     expect(data.error).toContain('valid id/title')
     expect(updateSpy).not.toHaveBeenCalled()
-    expect(assertTeacherOwnsTest).not.toHaveBeenCalled()
+    expect(assertTeacherOwnsTest).toHaveBeenCalledWith('teacher-1', 'test-1', {
+      checkArchived: true,
+    })
   })
 })

@@ -154,6 +154,7 @@ Pick one.
 Options:
 - A
 - B
+Correct Option: 1
 
 ### Question 2
 Type: open_response
@@ -189,6 +190,28 @@ _None_
       response_max_chars: 5000,
     })
     expect(result.documents).toEqual([])
+  })
+
+  it('returns an error when multiple-choice Correct Option is missing', () => {
+    const markdown = `# Test
+Title: Draft
+
+## Questions
+### Question 1
+Type: multiple_choice
+Prompt:
+Pick one.
+Options:
+- A
+- B
+`
+
+    const result = markdownToTest(markdown)
+
+    expect(result.draftContent).toBeNull()
+    expect(result.errors).toContain(
+      'Question 1: Correct Option is required for multiple_choice questions'
+    )
   })
 
   it('preserves existing documents when markdown omits the Documents section', () => {
