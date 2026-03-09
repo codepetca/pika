@@ -3,6 +3,7 @@ import {
   getStudentAssessmentStatus,
   getStudentQuizStatus,
   getStudentTestStatus,
+  getQuizAssessmentType,
 } from '@/lib/quizzes'
 
 describe('getStudentAssessmentStatus', () => {
@@ -97,6 +98,24 @@ describe('getStudentQuizStatus (thin wrapper)', () => {
 
   it('returns responded when closed but show_results is false', () => {
     expect(getStudentQuizStatus({ status: 'closed', show_results: false }, true)).toBe('responded')
+  })
+})
+
+describe('getQuizAssessmentType', () => {
+  it('returns "test" when assessment_type is "test"', () => {
+    expect(getQuizAssessmentType({ assessment_type: 'test' })).toBe('test')
+  })
+
+  it('returns "quiz" when assessment_type is "quiz"', () => {
+    expect(getQuizAssessmentType({ assessment_type: 'quiz' })).toBe('quiz')
+  })
+
+  it('returns "quiz" when assessment_type is null', () => {
+    expect(getQuizAssessmentType({ assessment_type: null })).toBe('quiz')
+  })
+
+  it('returns "quiz" when assessment_type is undefined', () => {
+    expect(getQuizAssessmentType({})).toBe('quiz')
   })
 })
 
