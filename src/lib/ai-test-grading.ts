@@ -361,9 +361,14 @@ ${input.responseText}`,
     throw new Error('AI grade suggestion did not include a numeric score')
   }
   const clampedScore = Math.min(maxPoints, Math.max(0, rawScore))
-  const score = scoreBuckets && scoreBuckets.length > 0
+  const roundedScore = scoreBuckets && scoreBuckets.length > 0
     ? scoreToNearestBucket(clampedScore, scoreBuckets)
     : Math.round(clampedScore)
+  const integerMaxScore = Math.max(0, Math.floor(maxPoints))
+  const score =
+    scoreBuckets && scoreBuckets.length > 0
+      ? roundedScore
+      : Math.min(integerMaxScore, Math.max(0, roundedScore))
 
   const feedback = String(parsed?.feedback || '').trim()
   if (!feedback) {

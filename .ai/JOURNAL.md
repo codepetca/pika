@@ -5686,3 +5686,16 @@
   - `/tmp/teacher-right-panel-after-clear-v9.png`
   - `/tmp/student-right-panel-refresh-fix-v9.png`
 - Added `cache: 'no-store'` to test results client fetches in both teacher grading table and right sidebar panel to avoid stale browser-cached `/results` responses after batch actions.
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Resolve PR review issues for AI grading preset/output compatibility and rounded score bounds.
+**Completed:**
+- Updated `GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE` in `src/lib/test-ai-prompt-guideline.ts` to remove the strict `Score:/Strength:/Next Step:/Improve:` output template so it no longer conflicts with the JSON response contract.
+- Hardened score finalization in `src/lib/ai-test-grading.ts` so non-bucket integer rounding never exceeds `maxPoints` when question points are fractional.
+- Added regression coverage in `tests/unit/ai-test-grading.test.ts`:
+  - verifies integer rounding remains within fractional max points
+  - verifies 11CS preset no longer injects conflicting output-format instructions.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/unit/ai-grading.test.ts` (pass)
+- `pnpm tsc --noEmit` (pass)

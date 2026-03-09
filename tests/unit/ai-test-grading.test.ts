@@ -4,6 +4,7 @@ import {
   normalizeTestOpenResponseReferenceAnswers,
   suggestTestOpenResponseGrade,
 } from '@/lib/ai-test-grading'
+import { GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline'
 
 describe('suggestTestOpenResponseGrade', () => {
   const originalApiKey = process.env.OPENAI_API_KEY
@@ -202,6 +203,55 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(systemPrompt).toContain('Teacher grading guideline:')
     expect(systemPrompt).toContain('Feedback must be exactly 1 sentence.')
     expect(systemPrompt).not.toContain('sentence starting with "Strength:"')
+  })
+
+  it('keeps rounded integer scores within fractional max points', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score": 2.5, "feedback": "Strength: Clear core idea. Next Step: be more precise. Improve: Add one concrete example."}',
+      }),
+    })
+
+    const suggestion = await suggestTestOpenResponseGrade({
+      testTitle: 'Fractional Points Test',
+      questionText: 'Explain inheritance briefly.',
+      responseText: 'A child class can use and extend parent behavior.',
+      maxPoints: 2.5,
+      answerKey: 'Inheritance allows subclasses to reuse and specialize superclass members.',
+    })
+
+    expect(suggestion.score).toBe(2)
+  })
+
+  it('supports 11CS preset guidance without conflicting output-format instruction', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score": 3, "feedback": "Strength: Correct use of loops. Next Step: improve variable naming. Improve: Add method decomposition for full marks."}',
+      }),
+    })
+
+    await suggestTestOpenResponseGrade({
+      testTitle: 'Grade 11 CS Unit 3',
+      questionText: 'Write a method to reverse a string.',
+      responseText: 'public String reverse(String s) { ... }',
+      maxPoints: 5,
+      answerKey: 'A correct solution iterates from end to start and builds a result string.',
+      promptGuidelineOverride: GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE,
+    })
+
+    const gradingRequest = fetchMock.mock.calls[0]?.[1]
+    const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
+    const systemPrompt = gradingBody.input?.[0]?.content?.[0]?.text as string
+
+    expect(systemPrompt).toContain('Teacher grading guideline:')
+    expect(systemPrompt).not.toContain('Output exactly in this format')
+    expect(systemPrompt).not.toContain('Score:')
   })
 })
 

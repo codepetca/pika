@@ -67,13 +67,4 @@ export const GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE = [
   '- Include one sentence starting with "Strength:"',
   '- Include one sentence starting with "Next Step:"',
   '- If the student did not receive full marks, include one sentence starting with "Improve:" and give one concrete action to reach full marks.',
-  '',
-  'Required output format',
-  '',
-  'Output exactly in this format and nothing else:',
-  '',
-  'Score:',
-  'Strength: <1 sentence>',
-  'Next Step: <1 sentence>',
-  'Improve: <1 sentence if not full marks only>',
 ].join('\n')
