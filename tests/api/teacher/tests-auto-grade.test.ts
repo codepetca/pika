@@ -69,7 +69,15 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
         } as any
         query.eq.mockImplementationOnce(() => query)
         query.eq.mockImplementationOnce(async () => ({
-          data: [{ id: 'q-open-1', question_text: 'Explain arrays vs objects.', points: 5 }],
+          data: [
+            {
+              id: 'q-open-1',
+              question_text: 'Explain arrays vs objects.',
+              points: 5,
+              response_monospace: true,
+              answer_key: 'Arrays are ordered lists; objects map keys to values.',
+            },
+          ],
           error: null,
         }))
         return {
@@ -145,7 +153,10 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
 
     const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
       method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1', 'student-2'] }),
+      body: JSON.stringify({
+        student_ids: ['student-1', 'student-2'],
+        prompt_guideline: 'Use exactly two sentences of feedback.',
+      }),
     })
     const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
     const data = await response.json()
@@ -156,6 +167,13 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
     expect(data.eligible_students).toBe(2)
     expect(data.graded_responses).toBe(2)
     expect(suggestTestOpenResponseGrade).toHaveBeenCalledTimes(1)
+    expect(suggestTestOpenResponseGrade).toHaveBeenCalledWith(
+      expect.objectContaining({
+        responseMonospace: true,
+        answerKey: 'Arrays are ordered lists; objects map keys to values.',
+        promptGuidelineOverride: 'Use exactly two sentences of feedback.',
+      })
+    )
     expect(aiUpdates).toEqual([
       expect.objectContaining({
         score: 4.5,
@@ -173,5 +191,20 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
         ids: ['response-2'],
       }),
     ])
+  })
+
+  it('returns 400 when prompt_guideline is not a string', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1'],
+        prompt_guideline: 123,
+      }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('prompt_guideline must be a string')
   })
 })

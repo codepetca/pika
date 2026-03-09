@@ -154,6 +154,82 @@ describe('POST /api/teacher/tests/[id]/return', () => {
     ])
   })
 
+  it('treats score-only open responses as graded for return eligibility', async () => {
+    const updatedStudentIds: string[][] = []
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+        } as any
+        query.eq.mockImplementationOnce(() => query)
+        query.eq.mockImplementationOnce(async () => ({
+          data: [{ id: 'q-open-1' }],
+          error: null,
+        }))
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_responses') {
+        const query = {
+          eq: vi.fn().mockReturnThis(),
+          in: vi.fn(async () => ({
+            data: [
+              {
+                student_id: 'student-1',
+                question_id: 'q-open-1',
+                score: 4,
+                feedback: null,
+                submitted_at: '2026-02-24T15:00:00.000Z',
+              },
+            ],
+            error: null,
+          })),
+        }
+        return {
+          select: vi.fn(() => query),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: vi.fn(async (_column: string, ids: string[]) => {
+                updatedStudentIds.push(ids)
+                return { error: null }
+              }),
+            })),
+          })),
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn(async () => ({
+              data: [{ student_id: 'student-1' }],
+              error: null,
+            })),
+          })),
+          insert: vi.fn(async () => ({ error: null })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-1'] }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.returned_count).toBe(1)
+    expect(data.skipped_count).toBe(0)
+    expect(updatedStudentIds).toEqual([['student-1']])
+  })
+
   it('returns submitted students with empty finalized responses', async () => {
     const updatedStudentIds: string[][] = []
     const insertSpy = vi.fn(async () => ({ error: null }))
