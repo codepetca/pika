@@ -5699,3 +5699,43 @@
 **Validation:**
 - `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/unit/ai-grading.test.ts` (pass)
 - `pnpm tsc --noEmit` (pass)
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Add teacher/admin test markdown editing in the selected test right-pane tab (single-test bidirectional markdown).
+**Completed:**
+- Added strict test markdown serializer/parser in `src/lib/test-markdown.ts`.
+  - Serializes test title/show-results, all question fields (MC + open response), and documents.
+  - Parses markdown back into validated draft content and document payload.
+  - Enforces strict validation and blocks apply on structural/field errors.
+  - Supports defaults for optional fields and stable IDs via existing-question/document fallbacks.
+- Extended test draft API (`src/app/api/teacher/tests/[id]/draft/route.ts`) to optionally accept `documents` on PATCH.
+  - Validates with `validateTestDocumentsPayload`.
+  - Persists `title`, `show_results`, and optional `documents` in one metadata update.
+- Updated `src/components/QuizDetailPanel.tsx` for tests:
+  - Added new `Markdown` tab in right pane tab strip.
+  - Added editable markdown textarea with `Copy`, `Reset`, and `Apply Markdown` actions.
+  - Added `Cmd/Ctrl+S` apply shortcut.
+  - Added parse/apply error and success states.
+  - Added draft-level `show_results` state handling so markdown changes persist correctly.
+  - Keeps markdown teacher-only by virtue of teacher-only panel usage; student view unchanged.
+- Added tests:
+  - `tests/lib/test-markdown.test.ts` (round-trip, defaults, strict error behavior)
+  - `tests/components/QuizDetailPanel.test.tsx` updates for new tab order and markdown apply/block flows.
+
+**Validation:**
+- `pnpm test tests/lib/test-markdown.test.ts tests/components/QuizDetailPanel.test.tsx` (pass)
+- `pnpm lint` (pass)
+- UI visual verification screenshots:
+  - Teacher tests markdown tab: `/tmp/teacher-test-markdown.png`
+  - Student tests view (no markdown tab): `/tmp/student-tests-view.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Add direct API coverage for test draft markdown document persistence.
+**Completed:**
+- Added `tests/api/teacher/tests-draft-route.test.ts` with focused coverage for `PATCH /api/teacher/tests/[id]/draft`:
+  - accepts valid `documents` payload and persists it with title/show_results sync
+  - rejects invalid `documents` payload (400) and blocks downstream ownership/update flow
+
+**Validation:**
+- `pnpm test tests/api/teacher/tests-draft-route.test.ts tests/lib/test-markdown.test.ts tests/components/QuizDetailPanel.test.tsx` (pass)
+- `pnpm lint` (pass)

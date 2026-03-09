@@ -28,6 +28,8 @@ const sampleResults: QuizResultsAggregate[] = [
   { question_id: 'q1', question_text: 'Favorite color?', options: ['Red', 'Blue', 'Green'], counts: [5, 10, 5], total_responses: 20 },
   { question_id: 'q2', question_text: 'Favorite animal?', options: ['Cat', 'Dog'], counts: [12, 8], total_responses: 20 },
 ]
+const markdownQuestionId1 = '11111111-1111-4111-8111-111111111111'
+const markdownQuestionId2 = '22222222-2222-4222-8222-222222222222'
 
 describe('QuizDetailPanel', () => {
   beforeEach(() => {
@@ -159,6 +161,7 @@ describe('QuizDetailPanel', () => {
       await waitFor(() => {
         expect(screen.getByText('Documents (1)')).toBeInTheDocument()
       })
+      expect(screen.getByText('Markdown')).toBeInTheDocument()
     })
 
     it('renders Documents tab before Preview in tests', async () => {
@@ -212,7 +215,210 @@ describe('QuizDetailPanel', () => {
       const tabLabels = Array.from(tabStrip!.querySelectorAll('button')).map((button) =>
         button.textContent?.trim() || ''
       )
-      expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Preview', 'Results (0)'])
+      expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Markdown', 'Preview', 'Results (0)'])
+    })
+  })
+
+  describe('Markdown tab', () => {
+    it('applies valid markdown and saves through draft endpoint', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Markdown Test',
+                show_results: false,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [],
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 2,
+              content: {
+                title: 'Markdown Test Updated',
+                show_results: true,
+                questions: [
+                  {
+                    id: markdownQuestionId1,
+                    question_type: 'multiple_choice',
+                    question_text: 'Updated prompt?',
+                    options: ['A', 'B'],
+                    correct_option: 1,
+                    answer_key: null,
+                    points: 1,
+                    response_max_chars: 5000,
+                    response_monospace: false,
+                  },
+                  {
+                    id: markdownQuestionId2,
+                    question_type: 'open_response',
+                    question_text: 'Explain why.',
+                    options: [],
+                    correct_option: null,
+                    answer_key: 'Any valid explanation.',
+                    points: 5,
+                    response_max_chars: 5000,
+                    response_monospace: true,
+                  },
+                ],
+              },
+            },
+          }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Markdown Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Markdown')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Markdown'))
+      fireEvent.change(screen.getByRole('textbox'), {
+        target: {
+          value: `# Test
+Title: Markdown Test Updated
+Show Results: true
+
+## Questions
+### Question 1
+ID: ${markdownQuestionId1}
+Type: multiple_choice
+Points: 1
+Prompt:
+Updated prompt?
+Options:
+- A
+- B
+Correct Option: 2
+
+### Question 2
+ID: ${markdownQuestionId2}
+Type: open_response
+Points: 5
+Code: true
+Prompt:
+Explain why.
+Answer Key:
+Any valid explanation.
+
+## Documents
+_None_
+`,
+        },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Markdown applied')).toBeInTheDocument()
+      })
+
+      const patchCall = fetchMock.mock.calls.find(
+        (call: any[]) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('/draft') &&
+          call[1]?.method === 'PATCH'
+      )
+      expect(patchCall).toBeTruthy()
+      const body = JSON.parse(patchCall?.[1]?.body ?? '{}')
+      expect(body.content.title).toBe('Markdown Test Updated')
+      expect(body.content.show_results).toBe(true)
+      expect(body.content.questions).toHaveLength(2)
+      expect(body.documents).toEqual([])
+    })
+
+    it('blocks apply when markdown is invalid', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Markdown Test',
+                show_results: false,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [],
+            },
+          }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Markdown Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Markdown')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Markdown'))
+      fireEvent.change(screen.getByRole('textbox'), {
+        target: {
+          value: `# Test
+Show Results: maybe
+
+## Questions
+### Question 1
+Type: multiple_choice
+Prompt:
+`,
+        },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown' }))
+
+      await waitFor(() => {
+        expect(screen.getByText(/Title is required/)).toBeInTheDocument()
+      })
+
+      const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
+      expect(patchCalls).toHaveLength(0)
     })
   })
 
