@@ -4,10 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, Circle, ClockAlert, LogOut, Plus, Send } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
-import { Button, ConfirmDialog, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, FormField, SplitButton, Tooltip } from '@/ui'
 import { useRightSidebar } from '@/components/layout'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { getQuizExitCount } from '@/lib/quizzes'
+import {
+  DEFAULT_TEST_AI_PROMPT_GUIDELINE,
+  GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE,
+} from '@/lib/test-ai-prompt-guideline'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizCard } from '@/components/QuizCard'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
@@ -18,6 +22,7 @@ interface Props {
   assessmentType: QuizAssessmentType
   onSelectQuiz?: (quiz: QuizWithStats | null) => void
   testsSidebarClickToken?: number
+  onTestGradingDataRefresh?: () => void
   onTestGradingContextChange?: (context: {
     mode: 'authoring' | 'grading'
     testId: string | null
@@ -79,6 +84,7 @@ export function TeacherQuizzesTab({
   assessmentType,
   onSelectQuiz,
   testsSidebarClickToken = 0,
+  onTestGradingDataRefresh,
   onTestGradingContextChange,
 }: Props) {
   const [quizzes, setQuizzes] = useState<QuizWithStats[]>([])
@@ -96,7 +102,12 @@ export function TeacherQuizzesTab({
   const [gradingWarning, setGradingWarning] = useState('')
   const [isBatchAutoGrading, setIsBatchAutoGrading] = useState(false)
   const [isBatchReturning, setIsBatchReturning] = useState(false)
+  const [isBatchClearingOpenGrades, setIsBatchClearingOpenGrades] = useState(false)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
+  const [showClearOpenGradesConfirm, setShowClearOpenGradesConfirm] = useState(false)
+  const [showPromptGuidelineModal, setShowPromptGuidelineModal] = useState(false)
+  const [batchPromptGuideline, setBatchPromptGuideline] = useState(DEFAULT_TEST_AI_PROMPT_GUIDELINE)
+  const [batchPromptGuidelineDraft, setBatchPromptGuidelineDraft] = useState(DEFAULT_TEST_AI_PROMPT_GUIDELINE)
 
   const { setOpen: setRightSidebarOpen } = useRightSidebar()
 
@@ -127,7 +138,7 @@ export function TeacherQuizzesTab({
     setGradingLoading(true)
     setGradingError('')
     try {
-      const res = await fetch(`${apiBasePath}/${selectedQuizId}/results`)
+      const res = await fetch(`${apiBasePath}/${selectedQuizId}/results`, { cache: 'no-store' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load test results')
       setGradingStudents((data.students || []) as TestGradingStudentRow[])
@@ -284,7 +295,10 @@ export function TeacherQuizzesTab({
       const res = await fetch(`${apiBasePath}/${selectedQuizId}/auto-grade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
+        body: JSON.stringify({
+          student_ids: Array.from(batchSelectedIds),
+          prompt_guideline: batchPromptGuideline,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Auto-grade failed')
@@ -300,6 +314,7 @@ export function TeacherQuizzesTab({
 
       clearBatchSelection()
       await loadGradingRows()
+      onTestGradingDataRefresh?.()
     } catch (err: any) {
       setGradingError(err.message || 'Auto-grade failed')
     } finally {
@@ -341,6 +356,39 @@ export function TeacherQuizzesTab({
       setGradingError(err.message || 'Return failed')
     } finally {
       setIsBatchReturning(false)
+    }
+  }
+
+  async function handleBatchClearOpenGrades() {
+    if (!selectedQuizId || batchSelectedCount === 0) return
+
+    setIsBatchClearingOpenGrades(true)
+    setGradingError('')
+    setGradingInfo('')
+    try {
+      const res = await fetch(`${apiBasePath}/${selectedQuizId}/clear-open-grades`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Clear open grades failed')
+
+      const clearedStudents = Number(data.cleared_students ?? 0)
+      const skippedStudents = Number(data.skipped_students ?? 0)
+      const clearedResponses = Number(data.cleared_responses ?? 0)
+      setGradingInfo(
+        `Cleared ${clearedResponses} open response${clearedResponses === 1 ? '' : 's'} across ${clearedStudents} student${clearedStudents === 1 ? '' : 's'}${skippedStudents > 0 ? ` • ${skippedStudents} skipped` : ''}`
+      )
+
+      clearBatchSelection()
+      setShowClearOpenGradesConfirm(false)
+      await loadGradingRows()
+      onTestGradingDataRefresh?.()
+    } catch (err: any) {
+      setGradingError(err.message || 'Clear open grades failed')
+    } finally {
+      setIsBatchClearingOpenGrades(false)
     }
   }
 
@@ -391,31 +439,48 @@ export function TeacherQuizzesTab({
               ) : null}
               {isTestsView && testsMode === 'grading' && !isReadOnly ? (
                 <>
-                  <Tooltip
-                    content={
-                      batchSelectedCount > 0
-                        ? `AI grade (${batchSelectedCount})`
-                        : 'Select students to grade'
-                    }
-                  >
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className={batchSelectedCount === 0 ? 'h-8 w-8 p-0 opacity-60' : 'h-8 w-8 p-0'}
-                      aria-label={batchSelectedCount > 0 ? `AI grade ${batchSelectedCount} selected` : 'AI grade selected students'}
-                      disabled={isBatchAutoGrading || isBatchReturning}
-                      onClick={() => {
-                        if (batchSelectedCount === 0) {
-                          setGradingWarning('Select students to grade')
-                          return
-                        }
-                        void handleBatchAutoGrade()
-                      }}
-                    >
-                      <Check className="h-4 w-4 text-primary" />
-                    </Button>
-                  </Tooltip>
+                  <SplitButton
+                    label={<Check className="h-4 w-4 text-primary" />}
+                    onPrimaryClick={() => {
+                      if (batchSelectedCount === 0) {
+                        setGradingWarning('Select students to grade')
+                        return
+                      }
+                      void handleBatchAutoGrade()
+                    }}
+                    options={[
+                      {
+                        id: 'edit-ai-guideline',
+                        label: 'AI prompt',
+                        onSelect: () => {
+                          setBatchPromptGuidelineDraft(batchPromptGuideline)
+                          setShowPromptGuidelineModal(true)
+                        },
+                      },
+                      {
+                        id: 'clear-open-grades',
+                        label: 'Clear open scores/feedback',
+                        onSelect: () => {
+                          if (batchSelectedCount === 0) {
+                            setGradingWarning('Select students to clear')
+                            return
+                          }
+                          setShowClearOpenGradesConfirm(true)
+                        },
+                      },
+                    ]}
+                    variant="secondary"
+                    size="sm"
+                    disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
+                    menuPlacement="down"
+                    toggleAriaLabel="Grade options"
+                    primaryButtonProps={{
+                      className: batchSelectedCount === 0 ? 'h-8 w-8 p-0 opacity-60' : 'h-8 w-8 p-0',
+                      'aria-label': batchSelectedCount > 0
+                        ? `Grade ${batchSelectedCount} selected`
+                        : 'Grade selected students',
+                    }}
+                  />
                   <Tooltip
                     content={
                       batchSelectedCount > 0
@@ -429,7 +494,7 @@ export function TeacherQuizzesTab({
                       size="sm"
                       className={batchSelectedCount === 0 ? 'h-8 w-8 p-0 opacity-60' : 'h-8 w-8 p-0'}
                       aria-label={batchSelectedCount > 0 ? `Return ${batchSelectedCount} selected tests` : 'Return selected tests'}
-                      disabled={isBatchAutoGrading || isBatchReturning}
+                      disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
                       onClick={() => {
                         if (batchSelectedCount === 0) {
                           setGradingWarning('Select students to return')
@@ -697,6 +762,81 @@ export function TeacherQuizzesTab({
         quiz={null}
         onClose={() => setShowModal(false)}
         onSuccess={handleQuizCreated}
+      />
+
+      <DialogPanel
+        isOpen={showPromptGuidelineModal}
+        onClose={() => {
+          setShowPromptGuidelineModal(false)
+          setBatchPromptGuidelineDraft(batchPromptGuideline)
+        }}
+        ariaLabelledBy="test-ai-prompt-guideline-title"
+        maxWidth="max-w-2xl"
+        className="p-6"
+      >
+        <h2 id="test-ai-prompt-guideline-title" className="text-lg font-semibold text-text-default">
+          AI Prompt Guideline
+        </h2>
+        <p className="mt-2 text-sm text-text-muted">
+          This guideline is included in AI grading requests for selected students.
+        </p>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-text-muted">Quick presets</span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setBatchPromptGuidelineDraft(GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE)}
+          >
+            11CS Java
+          </Button>
+        </div>
+        <div className="mt-4">
+          <FormField label="Prompt guideline">
+            <textarea
+              value={batchPromptGuidelineDraft}
+              onChange={(event) => setBatchPromptGuidelineDraft(event.target.value)}
+              rows={8}
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </FormField>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setShowPromptGuidelineModal(false)
+              setBatchPromptGuidelineDraft(batchPromptGuideline)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              setBatchPromptGuideline(batchPromptGuidelineDraft)
+              setShowPromptGuidelineModal(false)
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      </DialogPanel>
+
+      <ConfirmDialog
+        isOpen={showClearOpenGradesConfirm}
+        title={`Clear open scores and feedback for ${batchSelectedCount} selected student(s)?`}
+        description="This removes all open-response scores and feedback (including AI grading metadata) for the selected students."
+        confirmLabel={isBatchClearingOpenGrades ? 'Clearing...' : 'Clear Open Grades'}
+        confirmVariant="danger"
+        cancelLabel="Cancel"
+        isConfirmDisabled={isBatchClearingOpenGrades}
+        isCancelDisabled={isBatchClearingOpenGrades}
+        onCancel={() => setShowClearOpenGradesConfirm(false)}
+        onConfirm={() => {
+          void handleBatchClearOpenGrades()
+        }}
       />
 
       <ConfirmDialog

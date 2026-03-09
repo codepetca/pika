@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { TestAiGradingBasis } from '@/types'
+import { DEFAULT_TEST_AI_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
 const MAX_REFERENCE_ANSWERS = 3
@@ -121,6 +122,44 @@ function normalizeReferenceAnswers(raw: unknown): string[] {
   return deduped
 }
 
+function normalizeScoreBuckets(raw: unknown, maxPoints: number): number[] | null {
+  if (!Array.isArray(raw)) return null
+
+  const deduped: number[] = []
+  for (const value of raw) {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed)) continue
+    const normalized = Math.max(0, Math.min(maxPoints, Math.round(parsed * 100) / 100))
+    if (!deduped.includes(normalized)) {
+      deduped.push(normalized)
+    }
+  }
+
+  if (deduped.length === 0) return null
+  deduped.sort((a, b) => a - b)
+  return deduped
+}
+
+function scoreToNearestBucket(score: number, buckets: number[]): number {
+  let nearest = buckets[0]
+  let minDistance = Math.abs(score - nearest)
+
+  for (const bucket of buckets) {
+    const distance = Math.abs(score - bucket)
+    if (distance < minDistance || (distance === minDistance && bucket > nearest)) {
+      nearest = bucket
+      minDistance = distance
+    }
+  }
+
+  return nearest
+}
+
+function resolvePromptGuideline(raw: string | null | undefined): string {
+  if (raw == null) return DEFAULT_TEST_AI_PROMPT_GUIDELINE
+  return raw.trim()
+}
+
 export function normalizeTestOpenResponseReferenceAnswers(raw: unknown): string[] {
   return normalizeReferenceAnswers(raw)
 }
@@ -154,6 +193,7 @@ async function generateReferenceAnswers(opts: {
   const codingGuidance = opts.isCodingQuestion
     ? `
 - Treat this as a coding question. Provide reference answers as clear code-oriented solution outlines, including algorithm steps and expected structure.
+- For Java/CodeHS contexts, include platform helper APIs when appropriate (for example: ConsoleProgram, readInt/readLine, println, Randomizer).
 - If the language is not explicitly stated, infer likely language from the question/response context; if uncertain, keep references language-agnostic and focus on logic.`
     : ''
 
@@ -228,6 +268,8 @@ export async function suggestTestOpenResponseGrade(input: {
   answerKey?: string | null
   referenceAnswers?: string[] | null
   responseMonospace?: boolean
+  scoreBuckets?: number[] | null
+  promptGuidelineOverride?: string | null
 }): Promise<TestOpenResponseSuggestion> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
@@ -236,6 +278,8 @@ export async function suggestTestOpenResponseGrade(input: {
 
   const model = getTestOpenResponseGradingModel()
   const maxPoints = Math.max(0, input.maxPoints)
+  const promptGuideline = resolvePromptGuideline(input.promptGuidelineOverride)
+  const scoreBuckets = normalizeScoreBuckets(input.scoreBuckets, maxPoints)
   const isCodingQuestion = input.responseMonospace === true
   const answerKey = normalizeAnswerKey(input.answerKey)
   const providedReferenceAnswers = !answerKey && input.referenceAnswers != null
@@ -260,9 +304,15 @@ export async function suggestTestOpenResponseGrade(input: {
 - This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
 - If the approach is logically sound and clearly communicated but has minor implementation issues, award high partial credit (typically 80-95% of max points).
 - Penalize poor communication/readability: missing indentation, unclear variable or method names, and hard-to-follow structure should reduce marks.
+- For Java/CodeHS classroom contexts, treat platform helper APIs (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid and do not penalize solely for using them.
 - If language is unspecified, infer likely language from prompt/context/response. If still ambiguous, evaluate logic language-agnostically and do not penalize language choice alone.
 - Avoid nitpicking minor stylistic preferences when clarity and logic are strong.`
     : ''
+
+  const promptGuidelineContext = promptGuideline
+    ? `Teacher grading guideline:
+${promptGuideline}`
+    : 'Teacher grading guideline: none provided.'
 
   const systemPrompt = `You grade open-response test answers.
 Return ONLY valid JSON with this shape:
@@ -270,9 +320,10 @@ Return ONLY valid JSON with this shape:
 
 Rules:
 - score must be between 0 and ${maxPoints}
-- use at most 2 decimal places
-- feedback should be 2-4 sentences with one strength and one concrete improvement
-- grade for correctness and completeness, not just writing style${codingRubric}`
+- grade for correctness and completeness, not just writing style
+- if the score is less than ${maxPoints}, feedback should include one concrete improvement needed for full marks
+
+${promptGuidelineContext}${codingRubric}`
 
   const gradingContext =
     gradingBasis === 'teacher_key'
@@ -282,6 +333,11 @@ ${answerKey}`
 ${referenceAnswers.map((answer, index) => `${index + 1}. ${answer}`).join('\n')}
 
 Students may use different correct wording. Award credit for equivalent ideas.`
+
+  const scoreBucketContext = scoreBuckets && scoreBuckets.length > 0
+    ? `Score buckets: ${scoreBuckets.join(', ')}
+Choose the nearest bucket for the score.`
+    : 'No explicit score buckets were provided.'
 
   const parsed = await callOpenAIForJson({
     apiKey,
@@ -293,6 +349,8 @@ ${input.questionText}
 
 ${gradingContext}
 
+${scoreBucketContext}
+
 Student response:
 ${input.responseText}`,
     parseErrorMessage: 'Failed to parse AI grade suggestion',
@@ -303,7 +361,14 @@ ${input.responseText}`,
     throw new Error('AI grade suggestion did not include a numeric score')
   }
   const clampedScore = Math.min(maxPoints, Math.max(0, rawScore))
-  const score = Math.round(clampedScore * 100) / 100
+  const roundedScore = scoreBuckets && scoreBuckets.length > 0
+    ? scoreToNearestBucket(clampedScore, scoreBuckets)
+    : Math.round(clampedScore)
+  const integerMaxScore = Math.max(0, Math.floor(maxPoints))
+  const score =
+    scoreBuckets && scoreBuckets.length > 0
+      ? roundedScore
+      : Math.min(integerMaxScore, Math.max(0, roundedScore))
 
   const feedback = String(parsed?.feedback || '').trim()
   if (!feedback) {

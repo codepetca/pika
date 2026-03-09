@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Input } from '@/ui'
+import { Input } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import type { QuizFocusSummary } from '@/types'
@@ -60,10 +60,38 @@ interface SaveState {
   isSaving: boolean
 }
 
+type ParsedScore =
+  | { kind: 'empty' }
+  | { kind: 'invalid' }
+  | { kind: 'value'; value: number }
+
+function normalizeFeedback(raw: string | null | undefined): string {
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+
+function parseScore(raw: string | null | undefined): ParsedScore {
+  const trimmed = typeof raw === 'string' ? raw.trim() : ''
+  if (!trimmed) return { kind: 'empty' }
+  const parsed = Number(trimmed)
+  if (!Number.isFinite(parsed)) return { kind: 'invalid' }
+  return { kind: 'value', value: Math.round(parsed * 100) / 100 }
+}
+
+function areDraftsEqual(left: GradeDraft | undefined, right: GradeDraft | undefined): boolean {
+  const leftScore = parseScore(left?.score)
+  const rightScore = parseScore(right?.score)
+  const equalScores =
+    leftScore.kind === rightScore.kind &&
+    (leftScore.kind !== 'value' || leftScore.value === (rightScore as { value: number }).value)
+
+  return equalScores && normalizeFeedback(left?.feedback) === normalizeFeedback(right?.feedback)
+}
+
 interface Props {
   testId: string
   selectedStudentId: string | null
   apiBasePath?: string
+  refreshToken?: number
   onUpdated?: () => void
   onRegisterSaveHandler?: ((handler: (() => Promise<void>) | null) => void)
   onSaveStateChange?: ((state: SaveState) => void)
@@ -77,6 +105,7 @@ export function TestStudentGradingPanel({
   testId,
   selectedStudentId,
   apiBasePath = '/api/teacher/tests',
+  refreshToken = 0,
   onUpdated,
   onRegisterSaveHandler,
   onSaveStateChange,
@@ -86,8 +115,8 @@ export function TestStudentGradingPanel({
   const [results, setResults] = useState<TestResultsPayload | null>(null)
 
   const [gradeDrafts, setGradeDrafts] = useState<Record<string, GradeDraft>>({})
-  const [savingResponseId, setSavingResponseId] = useState<string | null>(null)
-  const [suggestingResponseId, setSuggestingResponseId] = useState<string | null>(null)
+  const [persistedDrafts, setPersistedDrafts] = useState<Record<string, GradeDraft>>({})
+  const [savingAll, setSavingAll] = useState(false)
   const [gradingError, setGradingError] = useState('')
   const [gradingMessage, setGradingMessage] = useState('')
 
@@ -95,7 +124,7 @@ export function TestStudentGradingPanel({
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`${apiBasePath}/${testId}/results`)
+      const res = await fetch(`${apiBasePath}/${testId}/results`, { cache: 'no-store' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load test results')
 
@@ -113,6 +142,7 @@ export function TestStudentGradingPanel({
         }
       }
       setGradeDrafts(nextDrafts)
+      setPersistedDrafts(nextDrafts)
     } catch (loadError: any) {
       setError(loadError.message || 'Failed to load test results')
     } finally {
@@ -122,26 +152,57 @@ export function TestStudentGradingPanel({
 
   useEffect(() => {
     void load()
-  }, [load])
-
-  useEffect(() => {
-    onRegisterSaveHandler?.(null)
-    return () => {
-      onRegisterSaveHandler?.(null)
-    }
-  }, [onRegisterSaveHandler])
-
-  useEffect(() => {
-    onSaveStateChange?.({
-      canSave: false,
-      isSaving: savingResponseId !== null || suggestingResponseId !== null,
-    })
-  }, [onSaveStateChange, savingResponseId, suggestingResponseId])
+  }, [load, refreshToken])
 
   const selectedStudent = useMemo(() => {
     if (!results || !selectedStudentId) return null
     return results.students.find((student) => student.student_id === selectedStudentId) || null
   }, [results, selectedStudentId])
+
+  const selectedOpenResponses = useMemo(() => {
+    if (!selectedStudent || !results) return [] as Array<{
+      responseId: string
+      maxPoints: number
+      questionNumber: number
+    }>
+
+    return results.questions.flatMap((question, index) => {
+      if (question.question_type !== 'open_response') return []
+      const answer = selectedStudent.answers[question.id]
+      if (!answer || answer.is_draft || !answer.response_id) return []
+
+      return [{
+        responseId: answer.response_id,
+        maxPoints: Number(question.points || 0),
+        questionNumber: index + 1,
+      }]
+    })
+  }, [results, selectedStudent])
+
+  const dirtyResponses = useMemo(() => {
+    return selectedOpenResponses.filter((item) =>
+      !areDraftsEqual(gradeDrafts[item.responseId], persistedDrafts[item.responseId])
+    )
+  }, [gradeDrafts, persistedDrafts, selectedOpenResponses])
+
+  const dirtyValidationError = useMemo(() => {
+    for (const item of dirtyResponses) {
+      const draft = gradeDrafts[item.responseId]
+      const score = parseScore(draft?.score)
+      const feedback = normalizeFeedback(draft?.feedback)
+
+      if (score.kind === 'invalid') {
+        return `Q${item.questionNumber}: score must be a valid number`
+      }
+      if (score.kind === 'value' && (score.value < 0 || score.value > item.maxPoints)) {
+        return `Q${item.questionNumber}: score must be between 0 and ${item.maxPoints}`
+      }
+      if (score.kind === 'empty' && feedback.length > 0) {
+        return `Q${item.questionNumber}: enter a score or clear feedback`
+      }
+    }
+    return ''
+  }, [dirtyResponses, gradeDrafts])
 
   function updateDraft(responseId: string, updates: Partial<GradeDraft>) {
     setGradeDrafts((prev) => ({
@@ -154,67 +215,72 @@ export function TestStudentGradingPanel({
     }))
   }
 
-  async function handleSuggestGrade(responseId: string) {
-    setGradingError('')
-    setGradingMessage('')
-    setSuggestingResponseId(responseId)
-    try {
-      const res = await fetch(`${apiBasePath}/${testId}/responses/${responseId}/ai-suggest`, {
-        method: 'POST',
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to generate AI suggestion')
-
-      updateDraft(responseId, {
-        score: data.suggestion?.score != null ? String(data.suggestion.score) : '',
-        feedback: data.suggestion?.feedback || '',
-      })
-      setGradingMessage('AI suggestion loaded. Review before saving.')
-    } catch (suggestError: any) {
-      setGradingError(suggestError.message || 'Failed to generate AI suggestion')
-    } finally {
-      setSuggestingResponseId(null)
-    }
-  }
-
-  async function handleSaveGrade(responseId: string, maxPoints: number) {
-    const draft = gradeDrafts[responseId]
-    if (!draft) return
-
-    const score = Number(draft.score)
-    if (!Number.isFinite(score) || score < 0 || score > maxPoints) {
-      setGradingError(`Score must be between 0 and ${maxPoints}`)
-      return
-    }
-    if (!draft.feedback.trim()) {
-      setGradingError('Feedback is required')
+  const saveAllGrades = useCallback(async () => {
+    if (!selectedStudent || dirtyResponses.length === 0) return
+    if (dirtyValidationError) {
+      setGradingError(dirtyValidationError)
       return
     }
 
     setGradingError('')
     setGradingMessage('')
-    setSavingResponseId(responseId)
+    setSavingAll(true)
     try {
-      const res = await fetch(`${apiBasePath}/${testId}/responses/${responseId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          score,
-          feedback: draft.feedback.trim(),
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to save grade')
+      for (const item of dirtyResponses) {
+        const draft = gradeDrafts[item.responseId]
+        const score = parseScore(draft?.score)
+        const feedback = normalizeFeedback(draft?.feedback)
+        if (score.kind === 'invalid') {
+          throw new Error(`Q${item.questionNumber}: score must be a valid number`)
+        }
+        const payload =
+          score.kind === 'empty'
+            ? { clear_grade: true }
+            : { score: score.value, feedback }
 
-      setGradingMessage('Grade saved.')
+        const res = await fetch(`${apiBasePath}/${testId}/responses/${item.responseId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to save grades')
+      }
+
+      setGradingMessage(
+        `Saved ${dirtyResponses.length} change${dirtyResponses.length === 1 ? '' : 's'}.`
+      )
       await load()
       onUpdated?.()
     } catch (saveError: any) {
-      setGradingError(saveError.message || 'Failed to save grade')
+      setGradingError(saveError.message || 'Failed to save grades')
     } finally {
-      setSavingResponseId(null)
+      setSavingAll(false)
     }
-  }
+  }, [
+    apiBasePath,
+    dirtyResponses,
+    dirtyValidationError,
+    gradeDrafts,
+    load,
+    onUpdated,
+    selectedStudent,
+    testId,
+  ])
+
+  useEffect(() => {
+    onRegisterSaveHandler?.(selectedStudent ? saveAllGrades : null)
+    return () => {
+      onRegisterSaveHandler?.(null)
+    }
+  }, [onRegisterSaveHandler, saveAllGrades, selectedStudent])
+
+  useEffect(() => {
+    onSaveStateChange?.({
+      canSave: !!selectedStudent && dirtyResponses.length > 0 && !dirtyValidationError && !savingAll,
+      isSaving: savingAll,
+    })
+  }, [dirtyResponses.length, dirtyValidationError, onSaveStateChange, savingAll, selectedStudent])
 
   if (loading) {
     return (
@@ -239,6 +305,14 @@ export function TestStudentGradingPanel({
       )}
       {gradingMessage && (
         <p className="rounded-md bg-success-bg px-3 py-2 text-xs text-success">{gradingMessage}</p>
+      )}
+      {dirtyValidationError && (
+        <p className="rounded-md bg-danger-bg px-3 py-2 text-xs text-danger">{dirtyValidationError}</p>
+      )}
+      {!dirtyValidationError && dirtyResponses.length > 0 && (
+        <p className="rounded-md bg-surface-2 px-3 py-2 text-xs text-text-muted">
+          {dirtyResponses.length} unsaved change{dirtyResponses.length === 1 ? '' : 's'}. Use Save in the header.
+        </p>
       )}
 
       {!selectedStudent ? (
@@ -306,29 +380,8 @@ export function TestStudentGradingPanel({
                         }
                         rows={3}
                         className="w-full rounded-md border border-border bg-surface px-3 py-2 text-xs text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="Feedback"
+                        placeholder="Feedback (optional)"
                       />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        disabled={suggestingResponseId === answer.response_id}
-                        onClick={() => handleSuggestGrade(answer.response_id!)}
-                      >
-                        {suggestingResponseId === answer.response_id ? 'Suggesting...' : 'AI Suggest'}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="primary"
-                        disabled={savingResponseId === answer.response_id}
-                        onClick={() => handleSaveGrade(answer.response_id!, points)}
-                      >
-                        {savingResponseId === answer.response_id ? 'Saving...' : 'Save Grade'}
-                      </Button>
                     </div>
                   </>
                 )}

@@ -33,6 +33,41 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
     vi.clearAllMocks()
   })
 
+  function mockOpenResponseRow() {
+    return {
+      id: 'response-1',
+      test_id: 'test-1',
+      question_id: 'question-1',
+      score: null,
+      feedback: null,
+      response_text: 'Water moves to balance concentration.',
+      test_questions: {
+        id: 'question-1',
+        question_type: 'open_response',
+        points: 5,
+      },
+    }
+  }
+
+  function setupSupabase(updateSpy: ReturnType<typeof vi.fn>) {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table !== 'test_responses') {
+        throw new Error(`Unexpected table: ${table}`)
+      }
+
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: mockOpenResponseRow(),
+            error: null,
+          }),
+        })),
+        update: updateSpy,
+      }
+    })
+  }
+
   it('persists AI grading metadata when saving a suggested grade', async () => {
     const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
       eq: vi.fn(() => ({
@@ -47,34 +82,7 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
       })),
     }))
 
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table !== 'test_responses') {
-        throw new Error(`Unexpected table: ${table}`)
-      }
-
-      return {
-        select: vi.fn(() => ({
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'response-1',
-              test_id: 'test-1',
-              question_id: 'question-1',
-              score: null,
-              feedback: null,
-              response_text: 'Water moves to balance concentration.',
-              test_questions: {
-                id: 'question-1',
-                question_type: 'open_response',
-                points: 5,
-              },
-            },
-            error: null,
-          }),
-        })),
-        update: updateSpy,
-      }
-    })
+    setupSupabase(updateSpy)
 
     const response = await PATCH(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1', {
@@ -102,5 +110,81 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
       })
     )
     expect(data.response.ai_grading_basis).toBe('generated_reference')
+  })
+
+  it('allows saving a score without feedback', async () => {
+    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'response-1', ...payload },
+              error: null,
+            }),
+          })),
+        })),
+      })),
+    }))
+    setupSupabase(updateSpy)
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          score: 3.5,
+          feedback: '   ',
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        score: 3.5,
+        feedback: null,
+      })
+    )
+    expect(data.response.feedback).toBeNull()
+  })
+
+  it('clears score, feedback, and grading metadata', async () => {
+    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'response-1', ...payload },
+              error: null,
+            }),
+          })),
+        })),
+      })),
+    }))
+    setupSupabase(updateSpy)
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          clear_grade: true,
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) }
+    )
+
+    expect(response.status).toBe(200)
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        score: null,
+        feedback: null,
+        graded_at: null,
+        graded_by: null,
+        ai_grading_basis: null,
+        ai_reference_answers: null,
+        ai_model: null,
+      })
+    )
   })
 })

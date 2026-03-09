@@ -442,6 +442,7 @@ function ClassroomPageContent({
   const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
   const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
   const [testsSidebarClickToken, setTestsSidebarClickToken] = useState(0)
+  const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
 
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
     setSelectedQuiz(quiz)
@@ -466,6 +467,10 @@ function ClassroomPageContent({
       new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
     )
   }, [classroom.id])
+
+  const handleTestGradingDataRefresh = useCallback(() => {
+    setTestGradingPanelRefreshToken((prev) => prev + 1)
+  }, [])
 
   const handleSelectGradebookStudent = useCallback((student: GradebookStudentSummary | null) => {
     setSelectedGradebookStudent(student)
@@ -1037,6 +1042,7 @@ function ClassroomPageContent({
                     assessmentType="test"
                     onSelectQuiz={handleSelectQuiz}
                     testsSidebarClickToken={testsSidebarClickToken}
+                    onTestGradingDataRefresh={handleTestGradingDataRefresh}
                     onTestGradingContextChange={setTestGradingContext}
                   />
                 </TabContentTransition>
@@ -1299,6 +1305,7 @@ function ClassroomPageContent({
               testId={gradingTestId}
               selectedStudentId={testGradingContext.studentId}
               apiBasePath={assessmentApiBasePath}
+              refreshToken={testGradingPanelRefreshToken}
               onUpdated={handleQuizUpdate}
               onRegisterSaveHandler={setTestGradingSaveHandler}
               onSaveStateChange={setTestGradingSaveState}
