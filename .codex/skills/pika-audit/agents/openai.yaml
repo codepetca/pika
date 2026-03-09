@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pika Audit"
+  short_description: "Pre-commit code audit for Pika: catches missing withErrorHandler, illegal dark: classes, and other violations"
+  default_prompt: "Use $pika-audit to scan changed files for violations before committing."

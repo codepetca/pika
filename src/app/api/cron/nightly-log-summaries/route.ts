@@ -11,6 +11,7 @@ import {
   getSummaryModel,
 } from '@/lib/log-summary'
 import type { TiptapContent } from '@/types'
+import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -207,10 +208,10 @@ async function generateSummaryForClassroom(
   return true
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withErrorHandler('GetCronNightlyLogSummaries', async (request: NextRequest) => {
   return handle(request)
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandler('PostCronNightlyLogSummaries', async (request: NextRequest) => {
   return handle(request)
-}
+})
