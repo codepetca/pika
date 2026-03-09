@@ -44,4 +44,23 @@ describe('SplitButton', () => {
     expect(onPrimaryClick).not.toHaveBeenCalled()
     expect(screen.queryByRole('menuitem', { name: 'Schedule' })).not.toBeInTheDocument()
   })
+
+  it('renders dropdown below when menuPlacement is down', () => {
+    render(
+      <SplitButton
+        label="Post"
+        onPrimaryClick={vi.fn()}
+        options={[
+          { id: 'schedule', label: 'Schedule', onSelect: vi.fn() },
+        ]}
+        toggleAriaLabel="Choose action"
+        menuPlacement="down"
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose action' }))
+    const menu = screen.getByRole('menu')
+    expect(menu.className).toContain('top-full')
+    expect(menu.className).not.toContain('bottom-full')
+  })
 })

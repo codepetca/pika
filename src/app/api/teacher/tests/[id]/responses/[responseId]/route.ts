@@ -16,14 +16,22 @@ export async function PATCH(
     const { id: testId, responseId } = await params
     const body = (await request.json()) as Record<string, unknown>
 
-    const score = Number(body.score)
-    if (!Number.isFinite(score) || score < 0) {
-      return NextResponse.json({ error: 'score must be a non-negative number' }, { status: 400 })
+    const clearGrade = body.clear_grade === true
+    if (body.clear_grade !== undefined && typeof body.clear_grade !== 'boolean') {
+      return NextResponse.json({ error: 'clear_grade must be a boolean' }, { status: 400 })
     }
 
-    const feedback = typeof body.feedback === 'string' ? body.feedback.trim() : ''
-    if (!feedback) {
-      return NextResponse.json({ error: 'feedback is required' }, { status: 400 })
+    let score: number | null = null
+    let feedback: string | null = null
+    if (!clearGrade) {
+      const rawScore = Number(body.score)
+      if (!Number.isFinite(rawScore) || rawScore < 0) {
+        return NextResponse.json({ error: 'score must be a non-negative number' }, { status: 400 })
+      }
+      score = Math.round(rawScore * 100) / 100
+
+      const normalizedFeedback = typeof body.feedback === 'string' ? body.feedback.trim() : ''
+      feedback = normalizedFeedback.length > 0 ? normalizedFeedback : null
     }
 
     const metadataRequested =
@@ -122,23 +130,31 @@ export async function PATCH(
     }
 
     const maxScore = Number(question.points ?? 0)
-    if (score > maxScore) {
+    if (score != null && score > maxScore) {
       return NextResponse.json(
         { error: `score cannot exceed ${maxScore}` },
         { status: 400 }
       )
     }
 
-    const gradedAt = new Date().toISOString()
-    const normalizedScore = Math.round(score * 100) / 100
-    const updatePayload: Record<string, unknown> = {
-      score: normalizedScore,
-      feedback,
-      graded_at: gradedAt,
-      graded_by: user.id,
-    }
+    const updatePayload: Record<string, unknown> = clearGrade
+      ? {
+          score: null,
+          feedback: null,
+          graded_at: null,
+          graded_by: null,
+          ai_grading_basis: null,
+          ai_reference_answers: null,
+          ai_model: null,
+        }
+      : {
+          score,
+          feedback,
+          graded_at: new Date().toISOString(),
+          graded_by: user.id,
+        }
 
-    if (metadataRequested) {
+    if (!clearGrade && metadataRequested) {
       if (aiGradingBasis === null) {
         updatePayload.ai_grading_basis = null
         updatePayload.ai_reference_answers = null

@@ -18,9 +18,16 @@ export async function POST(
     const user = await requireRole('teacher')
     const { id: testId } = await params
     const body = await request.json()
+    let promptGuidelineOverride: string | null | undefined = undefined
 
     if (!Array.isArray(body?.student_ids) || body.student_ids.length === 0) {
       return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })
+    }
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, 'prompt_guideline')) {
+      if (body.prompt_guideline != null && typeof body.prompt_guideline !== 'string') {
+        return NextResponse.json({ error: 'prompt_guideline must be a string' }, { status: 400 })
+      }
+      promptGuidelineOverride = body.prompt_guideline
     }
 
     const studentIds: string[] = Array.from(
@@ -47,7 +54,7 @@ export async function POST(
     const supabase = getServiceRoleClient()
     const { data: openQuestionRows, error: openQuestionError } = await supabase
       .from('test_questions')
-      .select('id, question_text, points')
+      .select('id, question_text, points, response_monospace, answer_key')
       .eq('test_id', testId)
       .eq('question_type', 'open_response')
 
@@ -63,6 +70,8 @@ export async function POST(
         {
           questionText: String(row.question_text || ''),
           maxPoints: Number(row.points ?? 0),
+          responseMonospace: row.response_monospace === true,
+          answerKey: typeof row.answer_key === 'string' ? row.answer_key : null,
         },
       ])
     )
@@ -116,6 +125,8 @@ export async function POST(
       questionText: string
       responseText: string
       maxPoints: number
+      responseMonospace: boolean
+      answerKey: string | null
     }
 
     const tasksByStudent = new Map<string, GradeTask[]>()
@@ -218,6 +229,8 @@ export async function POST(
           questionText: questionMeta.questionText,
           responseText,
           maxPoints: questionMeta.maxPoints,
+          responseMonospace: questionMeta.responseMonospace,
+          answerKey: questionMeta.answerKey,
         }
         const current = tasksByStudent.get(studentId) || []
         current.push(task)
@@ -280,6 +293,9 @@ export async function POST(
             questionText: task.questionText,
             responseText: task.responseText,
             maxPoints: task.maxPoints,
+            responseMonospace: task.responseMonospace,
+            answerKey: task.answerKey,
+            promptGuidelineOverride,
           })
 
           const { error: updateError } = await supabase
