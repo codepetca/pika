@@ -5448,3 +5448,241 @@
   - visual verification:
     - `/tmp/teacher-clear-x-keep-open-v3.png`
     - `/tmp/student-clear-x-keep-open-v3.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Fix test-grading friction: allow Java/CodeHS grading context, remove hard feedback requirement for test grading saves, and add quick clear for marks+feedback.
+**Completed:**
+- Updated test AI grading prompts (`src/lib/ai-test-grading.ts`) to explicitly allow Java/CodeHS helper APIs (e.g. `ConsoleProgram`, `readInt`, `readLine`, `println`, `Randomizer`) for coding-response grading/reference generation.
+- Updated test auto-grade route (`src/app/api/teacher/tests/[id]/auto-grade/route.ts`) to include and pass `response_monospace` + `answer_key` into AI grading calls so coding rubric and teacher keys are consistently applied during batch grading.
+- Updated per-response grading API (`src/app/api/teacher/tests/[id]/responses/[responseId]/route.ts`) to:
+  - make feedback optional when saving a numeric score,
+  - support `clear_grade: true` to clear score/feedback/graded fields and AI metadata.
+- Updated teacher grading UIs (`src/components/QuizIndividualResponses.tsx`, `src/components/TestStudentGradingPanel.tsx`) to:
+  - stop blocking save on empty feedback,
+  - relabel feedback placeholder as optional,
+  - add one-click `Clear` action that clears marks and feedback via API.
+- Updated grade-completion logic so score-only open-response grades count as graded in teacher results/return flows:
+  - `src/app/api/teacher/tests/[id]/results/route.ts`
+  - `src/app/api/teacher/tests/[id]/return/route.ts`
+- Added/updated tests to cover new behavior:
+  - `tests/unit/ai-test-grading.test.ts`
+  - `tests/api/teacher/tests-auto-grade.test.ts`
+  - `tests/api/teacher/tests-responses-grade.test.ts`
+  - `tests/api/teacher/tests-return.test.ts`
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-responses-grade.test.ts tests/api/teacher/tests-return.test.ts` (pass)
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/components/QuizResultsView.test.tsx` (pass)
+- `pnpm tsc --noEmit` (pass)
+- UI visual verification screenshots:
+  - `/tmp/teacher-view-grading-fixes.png`
+  - `/tmp/student-view-grading-fixes.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Remove per-question AI/save actions in teacher test grading and move to save-all flow.
+**Completed:**
+- Refactored `TestStudentGradingPanel` to remove per-question `AI Suggest` and `Save Grade` actions for open responses.
+- Implemented dirty-draft tracking + validation in `TestStudentGradingPanel` so edits are staged and saved via a single external save handler (`onRegisterSaveHandler`) consumed by the existing right-sidebar Save action in `ClassroomPageClient`.
+- Added unsaved-change indicator copy (`Use Save in the header`) and kept per-question `Clear` as local field reset (staged until save-all).
+- Added focused component tests in `tests/components/TestStudentGradingPanel.test.tsx` to verify:
+  - no per-question `AI Suggest` / `Save Grade` buttons
+  - save-all handler persists score/feedback changes
+  - clear fields save path submits `clear_grade: true`.
+
+**Validation:**
+- `pnpm vitest run tests/components/TestStudentGradingPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/teacher/tests-responses-grade.test.ts` (pass)
+- `pnpm tsc --noEmit` (pass)
+- `pnpm lint` (pass)
+- UI verification screenshots:
+  - `/tmp/teacher-view-test-grading-saveall.png`
+  - `/tmp/student-view-test-grading-saveall.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Remove per-question `Clear` action from teacher test grading panel.
+**Completed:**
+- Removed `Clear` button from open-response rows in `src/components/TestStudentGradingPanel.tsx`.
+- Kept delete behavior via manual edits: clearing score + feedback and clicking header Save now persists `clear_grade: true` through save-all flow.
+- Updated component test to clear fields manually (instead of clicking `Clear`) before save-all assertion.
+
+**Validation:**
+- `pnpm vitest run tests/components/TestStudentGradingPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/teacher/tests-responses-grade.test.ts` (pass)
+- `pnpm tsc --noEmit` (pass)
+- `pnpm lint` (pass)
+- UI verification screenshots:
+  - `/tmp/teacher-view-remove-clear.png`
+  - `/tmp/student-view-remove-clear.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Update AI test-grading prompt constraints for whole-number scoring and shorter conditional feedback.
+**Completed:**
+- Updated test open-response grading prompt in `src/lib/ai-test-grading.ts` to require:
+  - whole-number scores (no decimals),
+  - feedback length 1-3 sentences,
+  - one clear strength,
+  - one concrete improvement only when score is below full marks.
+- Updated score normalization to whole numbers by rounding parsed AI score before return.
+- Updated unit tests in `tests/unit/ai-test-grading.test.ts` for integer score expectations and new prompt text assertions.
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/api/teacher/tests-ai-suggest.test.ts` (pass)
+- `pnpm tsc --noEmit` (pass)
+- `pnpm lint` (pass)
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Apply user-tuned AI grading policy: nearest-bucket scoring, structured feedback style, and same policy for assignments.
+**Completed:**
+- Updated `src/lib/ai-test-grading.ts`:
+  - Added optional score-bucket support (`scoreBuckets`) with nearest-bucket normalization and round fallback when buckets are absent.
+  - Updated open-response grading prompt to require:
+    - nearest bucket when provided, otherwise whole-number scoring,
+    - `Strength:` and `Next Step:` feedback labels,
+    - `Improve:` label with concrete fix when score is below full marks.
+- Updated `src/lib/ai-grading.ts` assignment grading prompt to the same structured feedback policy (`Strength:` + `Next Step:`, plus conditional `Improve:` under full marks) with 1-3 sentences guidance.
+- Updated/added tests:
+  - `tests/unit/ai-test-grading.test.ts` (new nearest-bucket test + updated prompt assertions)
+  - `tests/unit/ai-grading.test.ts` (new prompt-rules coverage)
+
+**Validation:**
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/unit/ai-grading.test.ts tests/api/teacher/tests-ai-suggest.test.ts tests/api/teacher/tests-auto-grade.test.ts` (pass)
+- `pnpm tsc --noEmit` (pass)
+- `pnpm lint` (pass)
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Add split `Grade` action for teacher test grading with editable AI prompt-guideline modal and wire guideline through auto-grade requests.
+**Completed:**
+- Updated `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Replaced the grading icon button with a `SplitButton` (`Grade` primary action + dropdown action).
+  - Added dropdown option `Edit AI prompt guideline` that opens a modal.
+  - Added modal UI (`DialogPanel` + `FormField` textarea) to inspect/edit prompt guideline and save it for batch grading.
+  - Auto-grade POST body now includes `prompt_guideline`.
+- Added shared default guideline in `src/lib/test-ai-prompt-guideline.ts`.
+- Updated `src/lib/ai-test-grading.ts`:
+  - Added optional `promptGuidelineOverride` to `suggestTestOpenResponseGrade`.
+  - Included teacher guideline section in the system prompt (defaulting to shared guideline unless overridden).
+- Updated `src/app/api/teacher/tests/[id]/auto-grade/route.ts`:
+  - Accepts optional `prompt_guideline`, validates type, and passes through as `promptGuidelineOverride` to AI grading.
+- Added/updated tests:
+  - `tests/components/TeacherQuizzesTab.test.tsx` (split button + modal + request payload coverage)
+  - `tests/api/teacher/tests-auto-grade.test.ts` (prompt guideline passthrough + invalid type validation)
+  - `tests/unit/ai-test-grading.test.ts` (prompt override in system prompt)
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/api/teacher/tests-auto-grade.test.ts tests/unit/ai-test-grading.test.ts` (pass)
+- `pnpm tsc --noEmit` (pass)
+- `pnpm lint` (pass)
+- UI visual verification screenshots:
+  - `/tmp/teacher-tests-grade-split.png`
+  - `/tmp/teacher-tests-grade-guideline-modal.png`
+  - `/tmp/teacher-view-tests-grade-split.png`
+  - `/tmp/student-view-tests-grade-split.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Adjust tests grading split-button UX per feedback.
+**Completed:**
+- Removed visible `Grade` text from the tests grading split button primary action (icon-only).
+- Updated the split-button dropdown behavior to support placement and set the tests grading dropdown to open **downward**.
+- Added `menuPlacement` support to `src/ui/SplitButton.tsx` (`up` default, `down` option).
+- Added/updated tests:
+  - `tests/components/TeacherQuizzesTab.test.tsx` (primary action now targeted by aria-label)
+  - `tests/ui/SplitButton.test.tsx` (menu placement down coverage)
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/ui/SplitButton.test.tsx` (pass)
+- `pnpm tsc --noEmit` (pass)
+- UI visual verification screenshots:
+  - `/tmp/teacher-tests-grade-split-v2.png`
+  - `/tmp/teacher-tests-grade-dropdown-down-v2.png`
+  - `/tmp/teacher-tests-grade-guideline-modal-v2.png`
+  - `/tmp/teacher-view-tests-grade-split-v2.png`
+  - `/tmp/student-view-tests-grade-split-v2.png`
+- Re-ran UI verification against a dedicated dev instance on `http://localhost:3100` to ensure screenshots reflected the updated worktree code.
+  - `/tmp/teacher-tests-grade-split-v3-3100.png`
+  - `/tmp/teacher-tests-grade-dropdown-down-v3-3100.png`
+  - `/tmp/teacher-tests-grade-guideline-modal-v3-3100.png`
+  - `/tmp/student-view-tests-grade-split-v3-3100.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Rename tests grading split-button dropdown action label.
+**Completed:**
+- Changed dropdown menu item label from `Edit AI prompt guideline` to `AI prompt` in `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`.
+- Updated component test expectation in `tests/components/TeacherQuizzesTab.test.tsx`.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- UI visual verification screenshots (fresh run on `http://localhost:3100`):
+  - `/tmp/teacher-tests-ai-prompt-label-v5-3100.png`
+  - `/tmp/student-view-ai-prompt-label-v5-3100.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Add quick preset button for Grade 11 CS Java AI prompt guidance in tests grading modal.
+**Completed:**
+- Added `GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE` preset constant to `src/lib/test-ai-prompt-guideline.ts`.
+- Updated `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx` modal with a `Quick presets` row and `11CS Java` button that populates the prompt textarea instantly.
+- Updated `tests/components/TeacherQuizzesTab.test.tsx` to use the `11CS Java` preset and assert the saved auto-grade request sends the full preset guideline.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm tsc --noEmit` (pass)
+- UI visual verification screenshots:
+  - `/tmp/teacher-ai-prompt-11cs-quick-button-v6.png`
+  - `/tmp/student-ai-prompt-11cs-quick-button-v6.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Replace `11CS Java` quick-preset text with stricter integer-scoring and output-format rules.
+**Completed:**
+- Replaced `GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE` contents in `src/lib/test-ai-prompt-guideline.ts` with the new user-provided Grade 11 CS rules.
+- Kept preset button wiring unchanged (`11CS Java` still applies this preset).
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm tsc --noEmit` (pass)
+- UI visual verification screenshots:
+  - `/tmp/teacher-ai-prompt-11cs-updated-v7.png`
+  - `/tmp/student-ai-prompt-11cs-updated-v7.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Add bulk clear action for test open-response grading from the `Grade` split dropdown.
+**Completed:**
+- Added new API endpoint `POST /api/teacher/tests/[id]/clear-open-grades` in `src/app/api/teacher/tests/[id]/clear-open-grades/route.ts`.
+  - Validates `student_ids`.
+  - Verifies teacher owns the test.
+  - Clears open-response grade fields for selected students (`score`, `feedback`, `graded_at`, `graded_by`, AI metadata).
+  - Returns `cleared_students`, `skipped_students`, and `cleared_responses` counts.
+- Updated `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Added `Clear open scores/feedback` option under the `Grade` dropdown.
+  - Added danger confirmation dialog before clear.
+  - Added batch clear handler calling the new endpoint and refreshing grading rows.
+  - Added busy-state wiring so grade/return/clear actions disable while clear is running.
+- Added tests:
+  - `tests/api/teacher/tests-clear-open-grades.test.ts` (new endpoint coverage)
+  - `tests/components/TeacherQuizzesTab.test.tsx` (dropdown clear option + confirm + request payload)
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/api/teacher/tests-clear-open-grades.test.ts tests/api/teacher/tests-auto-grade.test.ts` (pass)
+- `pnpm tsc --noEmit` (pass)
+- UI visual verification screenshots:
+  - `/tmp/teacher-clear-open-grades-dropdown-v8.png`
+  - `/tmp/teacher-clear-open-grades-confirm-selected-v8.png`
+  - `/tmp/student-clear-open-grades-v8.png`
+
+## 2026-03-08 [AI - GPT-5 Codex]
+**Goal:** Fix stale right-sidebar test grading panel after batch auto-grade / clear actions.
+**Completed:**
+- Added a refresh bridge from tests table actions to the sidebar panel:
+  - `TeacherQuizzesTab` now exposes `onTestGradingDataRefresh` callback and calls it after successful batch auto-grade and batch clear-open-grades operations.
+  - `ClassroomPageClient` now tracks `testGradingPanelRefreshToken`, passes refresh callback into `TeacherQuizzesTab`, and passes token to `TestStudentGradingPanel`.
+  - `TestStudentGradingPanel` now accepts `refreshToken` prop and reloads `/results` when the token changes.
+- Added regression tests:
+  - `tests/components/TeacherQuizzesTab.test.tsx` now asserts the refresh callback is fired after batch grade and clear.
+  - `tests/components/TestStudentGradingPanel.test.tsx` now verifies panel re-fetches when `refreshToken` changes.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm vitest run tests/api/teacher/tests-clear-open-grades.test.ts tests/api/teacher/tests-auto-grade.test.ts` (pass)
+- `pnpm tsc --noEmit` (pass)
+- `pnpm lint` (pass)
+- UI verification screenshots:
+  - `/tmp/teacher-right-panel-before-clear-v9.png`
+  - `/tmp/teacher-right-panel-after-clear-v9.png`
+  - `/tmp/student-right-panel-refresh-fix-v9.png`
+- Added `cache: 'no-store'` to test results client fetches in both teacher grading table and right sidebar panel to avoid stale browser-cached `/results` responses after batch actions.

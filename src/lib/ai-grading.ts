@@ -65,7 +65,11 @@ export async function gradeStudentWork(opts: {
 Respond with ONLY valid JSON in this format:
 {"score_completion":N,"score_thinking":N,"score_workflow":N,"feedback":"..."}
 
-The feedback should be 2–4 sentences: mention strengths, areas for improvement, and be encouraging.`
+Feedback rules:
+- feedback should be 1-3 sentences
+- include one sentence starting with "Strength:"
+- include one sentence starting with "Next Step:"
+- if total score is less than 30, include one sentence starting with "Improve:" and give one concrete improvement to reach full marks.`
 
   const userContent = `Assignment: ${opts.assignmentTitle}
 Instructions: ${opts.instructions}

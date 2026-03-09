@@ -171,10 +171,6 @@ export function QuizIndividualResponses({
       setGradingError(`Score must be between 0 and ${maxPoints}`)
       return
     }
-    if (!draft.feedback.trim()) {
-      setGradingError('Feedback is required')
-      return
-    }
 
     setGradingError('')
     setGradingMessage('')
@@ -196,6 +192,29 @@ export function QuizIndividualResponses({
       onUpdated?.()
     } catch (saveError: any) {
       setGradingError(saveError.message || 'Failed to save grade')
+    } finally {
+      setSavingResponseId(null)
+    }
+  }
+
+  async function handleClearGrade(responseId: string) {
+    setGradingError('')
+    setGradingMessage('')
+    setSavingResponseId(responseId)
+    try {
+      const res = await fetch(`${apiBasePath}/${quizId}/responses/${responseId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clear_grade: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to clear grade')
+
+      setGradingMessage('Grade cleared.')
+      await load()
+      onUpdated?.()
+    } catch (clearError: any) {
+      setGradingError(clearError.message || 'Failed to clear grade')
     } finally {
       setSavingResponseId(null)
     }
@@ -320,7 +339,7 @@ export function QuizIndividualResponses({
                           onChange={(event) => updateDraft(answer.response_id, { feedback: event.target.value })}
                           rows={3}
                           className="w-full rounded-md border border-border bg-surface px-3 py-2 text-xs text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="Feedback"
+                          placeholder="Feedback (optional)"
                         />
                       </div>
                       <div className="flex items-center gap-2">
@@ -341,6 +360,15 @@ export function QuizIndividualResponses({
                           onClick={() => handleSaveGrade(answer.response_id, points)}
                         >
                           {savingResponseId === answer.response_id ? 'Saving...' : 'Save Grade'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={savingResponseId === answer.response_id}
+                          onClick={() => handleClearGrade(answer.response_id)}
+                        >
+                          {savingResponseId === answer.response_id ? 'Saving...' : 'Clear'}
                         </Button>
                       </div>
                     </li>

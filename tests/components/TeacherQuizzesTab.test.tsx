@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { TeacherQuizzesTab } from '@/app/classrooms/[classroomId]/TeacherQuizzesTab'
 import { TooltipProvider } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import { GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizAssessmentType, QuizWithStats } from '@/types'
 
@@ -83,6 +84,7 @@ describe('TeacherQuizzesTab', () => {
     assessmentType: QuizAssessmentType = 'quiz',
     options?: {
       onSelectQuiz?: (quiz: QuizWithStats | null) => void
+      onTestGradingDataRefresh?: () => void
       onTestGradingContextChange?: (context: {
         mode: 'authoring' | 'grading'
         testId: string | null
@@ -96,6 +98,7 @@ describe('TeacherQuizzesTab', () => {
         classroom={classroom}
         assessmentType={assessmentType}
         onSelectQuiz={options?.onSelectQuiz}
+        onTestGradingDataRefresh={options?.onTestGradingDataRefresh}
         onTestGradingContextChange={options?.onTestGradingContextChange}
       />,
       { wrapper: Wrapper }
@@ -394,5 +397,178 @@ describe('TeacherQuizzesTab', () => {
 
     const returnedStatusIcon = await screen.findByLabelText('Returned')
     expect(returnedStatusIcon.querySelector('.lucide-send')).not.toBeNull()
+  })
+
+  it('uses split grade button and sends edited AI prompt guideline', async () => {
+    const onTestGradingDataRefresh = vi.fn()
+    const quiz = makeQuiz({
+      id: 'test-ai-guideline',
+      title: 'AI Guideline Test',
+      assessment_type: 'test',
+      status: 'active',
+    })
+
+    const initialResultsPayload = {
+      quiz: { id: quiz.id, title: quiz.title, grading_finalized_at: null },
+      questions: [],
+      stats: { open_questions_count: 0, graded_open_responses: 0, ungraded_open_responses: 1, grading_finalized: false },
+      students: [
+        {
+          student_id: 'student-1',
+          name: 'Student One',
+          email: 'student1@example.com',
+          status: 'submitted',
+          submitted_at: '2026-02-25T15:06:00.000Z',
+          last_activity_at: '2026-02-25T23:07:00.000Z',
+          points_earned: 1,
+          points_possible: 6,
+          percent: 16.7,
+          graded_open_responses: 0,
+          ungraded_open_responses: 1,
+          focus_summary: null,
+        },
+      ],
+    }
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ quizzes: [quiz] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => initialResultsPayload,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          graded_students: 1,
+          skipped_students: 0,
+          eligible_students: 1,
+          graded_responses: 1,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => initialResultsPayload,
+      })
+
+    renderTab('test', { onTestGradingDataRefresh })
+    await screen.findByText('AI Guideline Test')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    await screen.findByText('Student One')
+
+    fireEvent.click(screen.getByLabelText('Select Student One'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grade options' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'AI prompt' }))
+
+    expect(await screen.findByRole('heading', { name: 'AI Prompt Guideline' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '11CS Java' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grade 1 selected' }))
+
+    await waitFor(() => {
+      const gradeCall = fetchMock.mock.calls.find(
+        ([url]: [string]) => typeof url === 'string' && url.includes('/api/teacher/tests/test-ai-guideline/auto-grade')
+      )
+      expect(gradeCall).toBeDefined()
+      const [, init] = gradeCall as [string, RequestInit]
+      expect(JSON.parse(String(init.body))).toEqual({
+        student_ids: ['student-1'],
+        prompt_guideline: GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE,
+      })
+    })
+
+    await waitFor(() => {
+      expect(onTestGradingDataRefresh).toHaveBeenCalledOnce()
+    })
+  })
+
+  it('clears selected open scores/feedback with confirmation', async () => {
+    const onTestGradingDataRefresh = vi.fn()
+    const quiz = makeQuiz({
+      id: 'test-clear-open-grades',
+      title: 'Clear Open Grades Test',
+      assessment_type: 'test',
+      status: 'active',
+    })
+
+    const initialResultsPayload = {
+      quiz: { id: quiz.id, title: quiz.title, grading_finalized_at: null },
+      questions: [],
+      stats: { open_questions_count: 0, graded_open_responses: 1, ungraded_open_responses: 0, grading_finalized: false },
+      students: [
+        {
+          student_id: 'student-1',
+          name: 'Student One',
+          email: 'student1@example.com',
+          status: 'submitted',
+          submitted_at: '2026-02-25T15:06:00.000Z',
+          last_activity_at: '2026-02-25T23:07:00.000Z',
+          points_earned: 4,
+          points_possible: 6,
+          percent: 66.7,
+          graded_open_responses: 1,
+          ungraded_open_responses: 0,
+          focus_summary: null,
+        },
+      ],
+    }
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ quizzes: [quiz] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => initialResultsPayload,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          cleared_students: 1,
+          skipped_students: 0,
+          cleared_responses: 1,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => initialResultsPayload,
+      })
+
+    renderTab('test', { onTestGradingDataRefresh })
+    await screen.findByText('Clear Open Grades Test')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    await screen.findByText('Student One')
+
+    fireEvent.click(screen.getByLabelText('Select Student One'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grade options' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clear open scores/feedback' }))
+
+    expect(await screen.findByText('Clear open scores and feedback for 1 selected student(s)?')).toBeInTheDocument()
+    expect(screen.getByText('This removes all open-response scores and feedback (including AI grading metadata) for the selected students.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear Open Grades' }))
+
+    await waitFor(() => {
+      const clearCall = fetchMock.mock.calls.find(
+        ([url]: [string]) => typeof url === 'string' && url.includes('/api/teacher/tests/test-clear-open-grades/clear-open-grades')
+      )
+      expect(clearCall).toBeDefined()
+      const [, init] = clearCall as [string, RequestInit]
+      expect(init.method).toBe('POST')
+      expect(JSON.parse(String(init.body))).toEqual({
+        student_ids: ['student-1'],
+      })
+    })
+
+    await waitFor(() => {
+      expect(onTestGradingDataRefresh).toHaveBeenCalledOnce()
+    })
   })
 })

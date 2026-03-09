@@ -105,8 +105,7 @@ export async function GET(
 
       if (question.question_type === 'open_response') {
         const hasScore = typeof response.score === 'number'
-        const hasFeedback = typeof response.feedback === 'string' && response.feedback.trim().length > 0
-        if (hasScore && hasFeedback) {
+        if (hasScore) {
           openGradedCounts.set(response.student_id, (openGradedCounts.get(response.student_id) || 0) + 1)
         } else {
           openUngradedCounts.set(response.student_id, (openUngradedCounts.get(response.student_id) || 0) + 1)
@@ -369,8 +368,7 @@ export async function GET(
     for (const response of responses || []) {
       if (!openQuestionIds.has(response.question_id)) continue
       const hasScore = typeof response.score === 'number'
-      const hasFeedback = typeof response.feedback === 'string' && response.feedback.trim().length > 0
-      if (hasScore && hasFeedback) {
+      if (hasScore) {
         gradedOpenResponses += 1
       } else {
         ungradedOpenResponses += 1

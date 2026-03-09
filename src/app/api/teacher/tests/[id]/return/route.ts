@@ -7,12 +7,10 @@ import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-te
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function hasGradedOpenResponse(score: unknown, feedback: unknown): boolean {
+function hasGradedOpenResponse(score: unknown): boolean {
   return (
     typeof score === 'number' &&
-    Number.isFinite(score) &&
-    typeof feedback === 'string' &&
-    feedback.trim().length > 0
+    Number.isFinite(score)
   )
 }
 
@@ -181,7 +179,7 @@ export async function POST(
 
       const openResponses = openResponsesByStudent.get(studentId) || []
       const allOpenGraded = openResponses.every((row) =>
-        hasGradedOpenResponse(row.score, row.feedback)
+        hasGradedOpenResponse(row.score)
       )
 
       if (allOpenGraded) {

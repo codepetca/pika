@@ -28,6 +28,7 @@ export interface SplitButtonProps {
   disabled?: boolean
   className?: string
   toggleAriaLabel?: string
+  menuPlacement?: 'up' | 'down'
   primaryButtonProps?: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick' | 'type'>
 }
 
@@ -40,6 +41,7 @@ export function SplitButton({
   disabled = false,
   className,
   toggleAriaLabel = 'More actions',
+  menuPlacement = 'up',
   primaryButtonProps,
 }: SplitButtonProps) {
   const { className: primaryClassName, ...restPrimaryButtonProps } = primaryButtonProps ?? {}
@@ -103,7 +105,10 @@ export function SplitButton({
         <div
           id={menuId}
           role="menu"
-          className="absolute bottom-full right-0 z-20 mb-1 min-w-[9rem] rounded-md border border-border-strong bg-surface p-1 shadow-xl"
+          className={cn(
+            'absolute right-0 z-20 min-w-[9rem] rounded-md border border-border-strong bg-surface p-1 shadow-xl',
+            menuPlacement === 'down' ? 'top-full mt-1' : 'bottom-full mb-1'
+          )}
         >
           {options.map((option) => (
             <button

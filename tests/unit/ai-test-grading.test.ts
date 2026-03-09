@@ -38,7 +38,7 @@ describe('suggestTestOpenResponseGrade', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(suggestion).toEqual({
-      score: 4.25,
+      score: 4,
       feedback: 'Good start. Add one more key detail.',
       model: 'gpt-5-nano',
       grading_basis: 'teacher_key',
@@ -77,7 +77,7 @@ describe('suggestTestOpenResponseGrade', () => {
       'Defines osmosis accurately.',
       'Mentions membrane and concentration gradient.',
     ])
-    expect(suggestion.score).toBe(3.5)
+    expect(suggestion.score).toBe(4)
   })
 
   it('reuses provided reference answers without generating new ones', async () => {
@@ -144,6 +144,64 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(systemPrompt).toContain('award high partial credit')
     expect(systemPrompt).toContain('Penalize poor communication/readability')
     expect(systemPrompt).toContain('missing indentation')
+    expect(systemPrompt).toContain('CodeHS')
+    expect(systemPrompt).toContain('ConsoleProgram')
+    expect(systemPrompt).toContain('If no score buckets are provided, use no decimal places')
+    expect(systemPrompt).toContain('Feedback should be 1-3 sentences')
+    expect(systemPrompt).toContain('if the score is less than 10, feedback should include one concrete improvement needed for full marks')
+    expect(systemPrompt).toContain('sentence starting with "Strength:"')
+    expect(systemPrompt).toContain('sentence starting with "Next Step:"')
+    expect(systemPrompt).toContain('sentence starting with "Improve:"')
+  })
+
+  it('maps score to nearest bucket when score buckets are provided', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score": 5, "feedback": "Strength: Good core idea. Next Step: tighten your explanation. Improve: Add membrane detail for full marks."}',
+      }),
+    })
+
+    const suggestion = await suggestTestOpenResponseGrade({
+      testTitle: 'Unit 1 Test',
+      questionText: 'Explain osmosis.',
+      responseText: 'Water moves to balance concentration.',
+      maxPoints: 10,
+      answerKey: 'Water moves across a semipermeable membrane down its concentration gradient.',
+      scoreBuckets: [0, 2, 4, 6, 8, 10],
+    })
+
+    expect(suggestion.score).toBe(6)
+  })
+
+  it('uses prompt guideline override when provided', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score": 3, "feedback": "Use loop invariant language and include one dry-run."}',
+      }),
+    })
+
+    await suggestTestOpenResponseGrade({
+      testTitle: 'Unit 1 Test',
+      questionText: 'Explain insertion sort.',
+      responseText: 'It inserts each item into the sorted part.',
+      maxPoints: 5,
+      answerKey: 'Insertion sort grows a sorted prefix by inserting each next element into its correct spot.',
+      promptGuidelineOverride: 'Feedback must be exactly 1 sentence.',
+    })
+
+    const gradingRequest = fetchMock.mock.calls[0]?.[1]
+    const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
+    const systemPrompt = gradingBody.input?.[0]?.content?.[0]?.text as string
+
+    expect(systemPrompt).toContain('Teacher grading guideline:')
+    expect(systemPrompt).toContain('Feedback must be exactly 1 sentence.')
+    expect(systemPrompt).not.toContain('sentence starting with "Strength:"')
   })
 })
 
