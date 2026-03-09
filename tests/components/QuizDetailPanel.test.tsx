@@ -301,6 +301,11 @@ describe('QuizDetailPanel', () => {
       })
 
       fireEvent.click(screen.getByText('Markdown'))
+      expect(
+        screen.getByText(
+          /Required fields: title, question prompts, valid options, and Correct Option for multiple-choice questions\./
+        )
+      ).toBeInTheDocument()
       fireEvent.change(screen.getByRole('textbox'), {
         target: {
           value: `# Test

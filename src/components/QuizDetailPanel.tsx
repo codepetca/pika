@@ -931,7 +931,8 @@ export function QuizDetailPanel({
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-text-muted">
-                Edit this test as markdown. Required fields: title, question prompts, and valid options.
+                Edit this test as markdown. Required fields: title, question prompts, valid options, and
+                Correct Option for multiple-choice questions.
               </p>
               <div className="flex items-center gap-2">
                 <Button

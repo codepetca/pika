@@ -5778,3 +5778,12 @@
 
 **Validation:**
 - Doc-only change; verified rendered markdown content via `sed`.
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Fix PR review issue where markdown helper text omitted required MC `Correct Option` guidance.
+**Completed:**
+- Updated helper text in `src/components/QuizDetailPanel.tsx` to explicitly include `Correct Option` as required for multiple-choice questions.
+- Added regression assertion in `tests/components/QuizDetailPanel.test.tsx` to ensure the helper text remains aligned with parser validation.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx` (pass)
