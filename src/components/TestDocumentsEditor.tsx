@@ -228,7 +228,6 @@ export function TestDocumentsEditor({
         source: 'link' as const,
       },
     ]
-    setLocalDocs(nextDocs)
     const persisted = await persistDocuments(nextDocs)
     if (persisted) {
       clearModalFields('link')
@@ -258,7 +257,6 @@ export function TestDocumentsEditor({
         content: content.slice(0, MAX_TEST_DOCUMENT_TEXT_LENGTH),
       },
     ]
-    setLocalDocs(nextDocs)
     const persisted = await persistDocuments(nextDocs)
     if (persisted) {
       clearModalFields('text')
@@ -294,7 +292,6 @@ export function TestDocumentsEditor({
         },
       ]
 
-      setLocalDocs(nextDocs)
       const persisted = await persistDocuments(nextDocs)
       if (persisted) {
         clearModalFields('upload')
@@ -310,7 +307,6 @@ export function TestDocumentsEditor({
   async function handleDelete(docId: string) {
     if (!isEditable || saving) return
     const nextDocs = localDocs.filter((doc) => doc.id !== docId)
-    setLocalDocs(nextDocs)
     await persistDocuments(nextDocs)
   }
 

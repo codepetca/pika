@@ -5994,3 +5994,13 @@
 
 **Validation:**
 - `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass, 24 tests)
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Resolve remaining optimistic-update regression in test documents editor.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx`:
+  - Removed pre-persist `setLocalDocs(...)` writes from add link, add text, upload, and delete handlers.
+  - Local UI state now updates only via `persistDocuments()` success path for all mutate actions.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass, 24 tests)
