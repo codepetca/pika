@@ -5982,3 +5982,15 @@
 - Visual verification screenshots:
   - Teacher docs tab with dropdown options visible: `/tmp/pika-teacher-docs-add-dropdown-v11.png`
   - Student view sanity check: `/tmp/pika-student-docs-dropdown-v11-check.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Address PR review findings for tests documents dropdown/editor flow.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx`:
+  - Removed optimistic local state write in `handleSaveEdit()` so edited docs only update after successful persistence.
+  - Replaced hard-coded add-menu id with `useId()`-generated id for stable per-instance `aria-controls`/`id` mapping.
+- Updated `tests/components/QuizDetailPanel.test.tsx`:
+  - Added coverage for `Add Document` dropdown `PDF` option opening the upload modal.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass, 24 tests)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ExternalLink, FileText, Link2, Pencil, Trash2, Upload } from 'lucide-react'
 import { Button, DialogPanel, Input } from '@/ui'
 import {
@@ -45,6 +45,7 @@ export function TestDocumentsEditor({
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const addMenuId = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
 
@@ -199,7 +200,6 @@ export function TestDocumentsEditor({
     }
 
     const nextDocs = localDocs.map((doc) => (doc.id === editingDoc.id ? nextDocBase : doc))
-    setLocalDocs(nextDocs)
     const persisted = await persistDocuments(nextDocs)
     if (persisted) {
       closeAddModal()
@@ -395,14 +395,14 @@ export function TestDocumentsEditor({
             aria-label="Add Document"
             aria-haspopup="menu"
             aria-expanded={isAddMenuOpen}
-            aria-controls="add-document-menu"
+            aria-controls={addMenuId}
           >
             Add Document
             <ChevronDown className="h-4 w-4" />
           </Button>
           {isAddMenuOpen && (
             <div
-              id="add-document-menu"
+              id={addMenuId}
               role="menu"
               className="absolute left-1/2 z-20 mt-1 w-44 -translate-x-1/2 rounded-md border border-border-strong bg-surface p-1 shadow-xl"
             >
