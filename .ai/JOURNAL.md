@@ -6146,3 +6146,16 @@
 
 **Validation:**
 - `pnpm run lint`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Fix CI `Test & Build` failure for PR #391.
+**Completed:**
+- Removed custom `FullscreenCapableElement` interface from `src/components/TeacherTestPreviewPage.tsx`.
+- Switched to native `HTMLElement` (`document.documentElement`) and runtime guard:
+  - `typeof fullscreenElement.requestFullscreen !== 'function'`
+- This resolves TypeScript incompatibility in CI (`TS2430` on `requestFullscreen` signature).
+
+**Validation:**
+- `npx tsc --noEmit`
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizForm.test.tsx tests/lib/test-markdown.test.ts`
+- `pnpm run lint`

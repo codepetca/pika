@@ -21,10 +21,6 @@ interface AllowedDocItem {
   content?: string
 }
 
-interface FullscreenCapableElement extends HTMLElement {
-  requestFullscreen?: () => Promise<void>
-}
-
 function isFullscreenActive(): boolean {
   return typeof document !== 'undefined' && Boolean(document.fullscreenElement)
 }
@@ -84,8 +80,8 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
   }, [allowedDocs])
 
   const requestExamFullscreen = useCallback(async () => {
-    const fullscreenElement = document.documentElement as FullscreenCapableElement
-    if (!fullscreenElement?.requestFullscreen) {
+    const fullscreenElement = document.documentElement
+    if (typeof fullscreenElement.requestFullscreen !== 'function') {
       const fullscreenNow = isFullscreenActive()
       fullscreenActiveRef.current = fullscreenNow
       setIsFullscreen(fullscreenNow)
