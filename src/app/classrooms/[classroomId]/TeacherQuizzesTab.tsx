@@ -8,6 +8,7 @@ import { Button, ConfirmDialog, DialogPanel, FormField, SplitButton, Tooltip } f
 import { useRightSidebar } from '@/components/layout'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { getQuizExitCount } from '@/lib/quizzes'
+import { compareByNameFields } from '@/lib/table-sort'
 import {
   DEFAULT_TEST_AI_PROMPT_GUIDELINE,
   GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE,
@@ -34,6 +35,8 @@ interface Props {
 interface TestGradingStudentRow {
   student_id: string
   name: string | null
+  first_name: string | null
+  last_name: string | null
   email: string
   status: 'not_started' | 'in_progress' | 'submitted' | 'returned'
   submitted_at: string | null
@@ -44,6 +47,34 @@ interface TestGradingStudentRow {
   graded_open_responses: number
   ungraded_open_responses: number
   focus_summary: QuizFocusSummary | null
+}
+
+type TestGradingSortColumn = 'first_name' | 'last_name'
+
+function splitDisplayName(name: string | null): { firstName: string | null; lastName: string | null } {
+  const trimmed = (name || '').trim()
+  if (!trimmed) return { firstName: null, lastName: null }
+
+  const parts = trimmed.split(/\s+/)
+  if (parts.length === 1) return { firstName: parts[0], lastName: null }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' '),
+  }
+}
+
+function getSortableNameParts(student: TestGradingStudentRow): { firstName: string | null; lastName: string | null } {
+  const firstName = (student.first_name || '').trim()
+  const lastName = (student.last_name || '').trim()
+  if (firstName || lastName) {
+    return {
+      firstName: firstName || null,
+      lastName: lastName || null,
+    }
+  }
+
+  return splitDisplayName(student.name)
 }
 
 function formatTorontoTime(iso: string | null): { value: string; isPm: boolean } {
@@ -97,6 +128,7 @@ export function TeacherQuizzesTab({
   const [gradingStudents, setGradingStudents] = useState<TestGradingStudentRow[]>([])
   const [gradingLoading, setGradingLoading] = useState(false)
   const [gradingError, setGradingError] = useState('')
+  const [gradingSortColumn, setGradingSortColumn] = useState<TestGradingSortColumn>('last_name')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [gradingInfo, setGradingInfo] = useState('')
   const [gradingWarning, setGradingWarning] = useState('')
@@ -116,9 +148,31 @@ export function TeacherQuizzesTab({
   const apiBasePath = isTestsView ? '/api/teacher/tests' : '/api/teacher/quizzes'
 
   const sortedQuizzes = useMemo(() => [...quizzes].sort((a, b) => a.position - b.position), [quizzes])
+  const sortedGradingStudents = useMemo(
+    () =>
+      [...gradingStudents].sort((a, b) => {
+        const aNameParts = getSortableNameParts(a)
+        const bNameParts = getSortableNameParts(b)
+        return compareByNameFields(
+          {
+            firstName: aNameParts.firstName,
+            lastName: aNameParts.lastName,
+            id: a.email || a.student_id,
+          },
+          {
+            firstName: bNameParts.firstName,
+            lastName: bNameParts.lastName,
+            id: b.email || b.student_id,
+          },
+          gradingSortColumn,
+          'asc'
+        )
+      }),
+    [gradingSortColumn, gradingStudents]
+  )
   const gradingRowIds = useMemo(
-    () => gradingStudents.map((student) => student.student_id),
-    [gradingStudents]
+    () => sortedGradingStudents.map((student) => student.student_id),
+    [sortedGradingStudents]
   )
   const {
     selectedIds: batchSelectedIds,
@@ -231,14 +285,17 @@ export function TeacherQuizzesTab({
       setSelectedStudentId(null)
       return
     }
-    if (gradingStudents.length === 0) {
+    if (sortedGradingStudents.length === 0) {
       setSelectedStudentId(null)
       return
     }
-    if (!selectedStudentId || !gradingStudents.some((student) => student.student_id === selectedStudentId)) {
-      setSelectedStudentId(gradingStudents[0].student_id)
+    if (
+      !selectedStudentId ||
+      !sortedGradingStudents.some((student) => student.student_id === selectedStudentId)
+    ) {
+      setSelectedStudentId(sortedGradingStudents[0].student_id)
     }
-  }, [gradingStudents, isTestsView, selectedStudentId, testsMode])
+  }, [isTestsView, selectedStudentId, sortedGradingStudents, testsMode])
 
   useEffect(() => {
     if (!isTestsView || !onTestGradingContextChange) return
@@ -592,7 +649,25 @@ export function TeacherQuizzesTab({
                           aria-label="Select all students"
                         />
                       </th>
-                      <th className="px-3 py-2 font-medium">Student</th>
+                      <th className="px-3 py-2 font-medium">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGradingSortColumn((prev) => (prev === 'last_name' ? 'first_name' : 'last_name'))
+                          }}
+                          className="inline-flex items-center gap-2 text-left text-text-muted hover:text-text-default"
+                          aria-label={
+                            gradingSortColumn === 'last_name'
+                              ? 'Sort students by first name'
+                              : 'Sort students by last name'
+                          }
+                        >
+                          <span>Student</span>
+                          <span className="text-xs font-medium text-text-muted">
+                            {gradingSortColumn === 'last_name' ? 'Last' : 'First'}
+                          </span>
+                        </button>
+                      </th>
                       <th className="w-8 px-2 py-2 font-medium" aria-label="Status" />
                       <th className="px-3 py-2 font-medium">Score</th>
                       <th className="px-3 py-2 font-medium">
@@ -626,7 +701,7 @@ export function TeacherQuizzesTab({
                     </tr>
                   </thead>
                   <tbody>
-                    {gradingStudents.map((student) => {
+                    {sortedGradingStudents.map((student) => {
                       const isSelected = student.student_id === selectedStudentId
                       const scoreLabel =
                         student.status === 'not_started'

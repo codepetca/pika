@@ -59,6 +59,14 @@ function listFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   )
 }
 
+function studentCheckboxOrder(): string[] {
+  return screen
+    .getAllByRole('checkbox')
+    .map((checkbox) => checkbox.getAttribute('aria-label') || '')
+    .filter((label) => label.startsWith('Select ') && label !== 'Select all students')
+    .map((label) => label.replace(/^Select /, ''))
+}
+
 describe('TeacherQuizzesTab', () => {
   const classroom = createMockClassroom()
   let fetchMock: ReturnType<typeof vi.fn>
@@ -296,6 +304,91 @@ describe('TeacherQuizzesTab', () => {
     expect(screen.queryByLabelText(/Focus events/i)).not.toBeInTheDocument()
     expect(statusIcon).toHaveAttribute('aria-label', 'Submitted')
     expect(statusIcon.querySelector('.lucide-check')).not.toBeNull()
+  })
+
+  it('toggles grading row sort between last-name asc and first-name asc from the student header', async () => {
+    const quiz = makeQuiz({
+      id: 'test-sort-names',
+      title: 'Sort Names Test',
+      assessment_type: 'test',
+    })
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ quizzes: [quiz] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: { id: quiz.id, title: quiz.title, grading_finalized_at: null },
+          questions: [],
+          stats: { open_questions_count: 0, graded_open_responses: 0, ungraded_open_responses: 0, grading_finalized: false },
+          students: [
+            {
+              student_id: 'student-1',
+              name: 'Zoe Marie Anderson',
+              first_name: 'Zoe Marie',
+              last_name: 'Anderson',
+              email: 'zoe-marie@example.com',
+              status: 'submitted',
+              submitted_at: '2026-02-25T15:06:00.000Z',
+              last_activity_at: '2026-02-25T23:07:00.000Z',
+              points_earned: 1,
+              points_possible: 6,
+              percent: 16.7,
+              graded_open_responses: 0,
+              ungraded_open_responses: 0,
+              focus_summary: null,
+            },
+            {
+              student_id: 'student-2',
+              name: 'Zoe Zimmer',
+              first_name: 'Zoe',
+              last_name: 'Zimmer',
+              email: 'zoe@example.com',
+              status: 'submitted',
+              submitted_at: '2026-02-25T15:06:00.000Z',
+              last_activity_at: '2026-02-25T23:07:00.000Z',
+              points_earned: 1,
+              points_possible: 6,
+              percent: 16.7,
+              graded_open_responses: 0,
+              ungraded_open_responses: 0,
+              focus_summary: null,
+            },
+            {
+              student_id: 'student-3',
+              name: 'Amy Brown',
+              first_name: 'Amy',
+              last_name: 'Brown',
+              email: 'amy@example.com',
+              status: 'submitted',
+              submitted_at: '2026-02-25T15:06:00.000Z',
+              last_activity_at: '2026-02-25T23:07:00.000Z',
+              points_earned: 1,
+              points_possible: 6,
+              percent: 16.7,
+              graded_open_responses: 0,
+              ungraded_open_responses: 0,
+              focus_summary: null,
+            },
+          ],
+        }),
+      })
+
+    renderTab('test')
+    await screen.findByText('Sort Names Test')
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+
+    await screen.findByText('Zoe Marie Anderson')
+    expect(studentCheckboxOrder()).toEqual(['Zoe Marie Anderson', 'Amy Brown', 'Zoe Zimmer'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort students by first name' }))
+    expect(studentCheckboxOrder()).toEqual(['Amy Brown', 'Zoe Zimmer', 'Zoe Marie Anderson'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort students by last name' }))
+    expect(studentCheckboxOrder()).toEqual(['Zoe Marie Anderson', 'Amy Brown', 'Zoe Zimmer'])
   })
 
   it('prompts to close active test before return and sends close_test=true', async () => {
