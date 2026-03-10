@@ -73,6 +73,34 @@ export interface ParseTestMarkdownOptions {
   existingDocuments?: TestDocument[]
 }
 
+export const TEST_MARKDOWN_AI_SCHEMA = `# Test                            # [Optional]
+Title: <Test Title>               # [Required]
+Show Results: false               # [Optional]
+
+## Questions                      # [Required]
+### Question 1
+Type: multiple_choice             # [Optional]
+Points: 1                         # [Optional]
+Prompt:
+<Question prompt>                 # [Required]
+Options:
+- <Option 1>
+- <Option 2>
+Correct Option: 1                 # [Required for multiple_choice]
+
+### Question 2
+Type: open_response               # [Optional]
+Points: 5                         # [Optional]
+Code: false                       # [Optional for open_response]
+Max Chars: 5000                   # [Optional for open_response]
+Prompt:
+<Open response prompt>            # [Required]
+Answer Key:
+<Optional answer key>             # [Optional for open_response]
+
+## Documents                      # [Optional]
+_None_`
+
 function parseBoolean(value: string): boolean | null {
   const normalized = value.trim().toLowerCase()
   if (normalized === 'true' || normalized === 'yes' || normalized === '1') return true

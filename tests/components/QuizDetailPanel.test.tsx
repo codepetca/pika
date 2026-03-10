@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
+import { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown'
 import { TooltipProvider } from '@/ui'
 import { createMockQuiz, createMockQuizQuestion } from '../helpers/mocks'
 import type { QuizWithStats, QuizQuestion, QuizResultsAggregate } from '@/types'
@@ -81,7 +82,7 @@ describe('QuizDetailPanel', () => {
   }
 
   describe('tabs', () => {
-    it('renders Questions, Preview, and Results tabs', async () => {
+    it('renders Questions, Preview, and Results tabs for quizzes', async () => {
       mockFetchForQuiz(sampleQuestions)
       const quiz = makeQuizWithStats()
 
@@ -162,9 +163,10 @@ describe('QuizDetailPanel', () => {
         expect(screen.getByText('Documents (1)')).toBeInTheDocument()
       })
       expect(screen.getByText('Markdown')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
     })
 
-    it('renders Documents tab before Preview in tests', async () => {
+    it('does not render a Preview tab in tests', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -212,10 +214,138 @@ describe('QuizDetailPanel', () => {
 
       const tabStrip = container.querySelector('.flex.border-b.border-border.shrink-0')
       expect(tabStrip).toBeTruthy()
-      const tabLabels = Array.from(tabStrip!.querySelectorAll('button')).map((button) =>
-        button.textContent?.trim() || ''
+      const tabLabels = Array.from(tabStrip!.children)
+        .filter((element) => element.tagName === 'BUTTON')
+        .map((element) => element.textContent?.trim() || '')
+      expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Markdown', 'Results (0)'])
+      expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+    })
+
+    it('saves draft and opens student preview route for tests', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Preview Action Test',
+                show_results: true,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [],
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 2,
+              content: {
+                title: 'Preview Action Test',
+                show_results: true,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+      const testQuiz = makeQuizWithStats({
+        id: 'test-preview-action-id',
+        assessment_type: 'test',
+        title: 'Preview Action Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
       )
-      expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Markdown', 'Preview', 'Results (0)'])
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+
+      await waitFor(() => {
+        expect(openSpy).toHaveBeenCalled()
+      })
+      const openArgs = openSpy.mock.calls.at(-1)
+      expect(openArgs?.[0]).toBe('/classrooms/classroom-1/tests/test-preview-action-id/preview')
+      expect(openArgs?.[1]).toBe('_blank')
+      expect(openArgs?.[2]).toContain('noopener')
+      expect(openArgs?.[2]).toContain('noreferrer')
+      expect(openArgs?.[2]).toContain('width=')
+      expect(openArgs?.[2]).toContain('height=')
+
+      const patchCall = fetchMock.mock.calls.find(
+        (call: any[]) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('/api/teacher/tests/test-preview-action-id/draft') &&
+          call[1]?.method === 'PATCH'
+      )
+      expect(patchCall).toBeTruthy()
+
+      openSpy.mockRestore()
+    })
+  })
+
+  describe('Preview tab', () => {
+    it('shows quiz preview with radio buttons', async () => {
+      mockFetchForQuiz(sampleQuestions)
+      const quiz = makeQuizWithStats()
+
+      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByText('Preview')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Preview'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
+        expect(screen.getByText('Favorite animal?')).toBeInTheDocument()
+      })
+
+      expect(screen.getByText('Red')).toBeInTheDocument()
+      expect(screen.getByText('Blue')).toBeInTheDocument()
+      expect(screen.getByText('Cat')).toBeInTheDocument()
+      expect(screen.getByText('Dog')).toBeInTheDocument()
+      expect(screen.getByText(/Selections are not saved/)).toBeInTheDocument()
+    })
+
+    it('shows empty preview when no questions', async () => {
+      mockFetchForQuiz([])
+      const quiz = makeQuizWithStats()
+
+      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
+
+      await waitFor(() => {
+        expect(screen.getByText('Preview')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Preview'))
+
+      await waitFor(() => {
+        expect(screen.getByText('No questions to preview.')).toBeInTheDocument()
+      })
     })
   })
 
@@ -301,11 +431,6 @@ describe('QuizDetailPanel', () => {
       })
 
       fireEvent.click(screen.getByText('Markdown'))
-      expect(
-        screen.getByText(
-          /Required fields: title, question prompts, valid options, and Correct Option for multiple-choice questions\./
-        )
-      ).toBeInTheDocument()
       fireEvent.change(screen.getByRole('textbox'), {
         target: {
           value: `# Test
@@ -424,6 +549,65 @@ Prompt:
 
       const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
       expect(patchCalls).toHaveLength(0)
+    })
+
+    it('copies markdown schema to clipboard', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Markdown Test',
+                show_results: false,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [],
+            },
+          }),
+        })
+
+      const clipboardWriteText = vi.fn().mockResolvedValue(undefined)
+      Object.defineProperty(globalThis.navigator, 'clipboard', {
+        value: { writeText: clipboardWriteText },
+        configurable: true,
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Markdown Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('Markdown')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Markdown'))
+      fireEvent.click(screen.getByRole('button', { name: 'Copy Schema' }))
+
+      await waitFor(() => {
+        expect(clipboardWriteText).toHaveBeenCalledWith(TEST_MARKDOWN_AI_SCHEMA)
+      })
+      expect(screen.getByText('Markdown schema copied to clipboard')).toBeInTheDocument()
     })
   })
 
@@ -963,75 +1147,6 @@ Prompt:
 
       expect(screen.getByRole('heading', { name: 'Upload pdf' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Choose file' })).toBeInTheDocument()
-    })
-  })
-
-  describe('Preview tab', () => {
-    it('shows quiz preview with radio buttons', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const quiz = makeQuizWithStats()
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText('Preview')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText('Preview'))
-
-      await waitFor(() => {
-        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
-        expect(screen.getByText('Favorite animal?')).toBeInTheDocument()
-      })
-
-      expect(screen.getByText('Red')).toBeInTheDocument()
-      expect(screen.getByText('Blue')).toBeInTheDocument()
-      expect(screen.getByText('Cat')).toBeInTheDocument()
-      expect(screen.getByText('Dog')).toBeInTheDocument()
-      expect(screen.getByText(/Selections are not saved/)).toBeInTheDocument()
-    })
-
-    it('hides the helper label in test preview', async () => {
-      mockFetchForQuiz(sampleQuestions)
-      const testQuiz = makeQuizWithStats({ assessment_type: 'test', title: 'Preview Test' })
-
-      render(
-        <QuizDetailPanel
-          quiz={testQuiz}
-          classroomId="classroom-1"
-          apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
-        />,
-        { wrapper: Wrapper }
-      )
-
-      await waitFor(() => {
-        expect(screen.getByText('Preview')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText('Preview'))
-
-      await waitFor(() => {
-        expect(screen.getByText('Favorite color?')).toBeInTheDocument()
-      })
-      expect(screen.queryByText(/Selections are not saved/)).not.toBeInTheDocument()
-    })
-
-    it('shows empty preview when no questions', async () => {
-      mockFetchForQuiz([])
-      const quiz = makeQuizWithStats()
-
-      render(<QuizDetailPanel quiz={quiz} classroomId="classroom-1" onQuizUpdate={vi.fn()} />, { wrapper: Wrapper })
-
-      await waitFor(() => {
-        expect(screen.getByText('Preview')).toBeInTheDocument()
-      })
-
-      fireEvent.click(screen.getByText('Preview'))
-
-      await waitFor(() => {
-        expect(screen.getByText('No questions to preview.')).toBeInTheDocument()
-      })
     })
   })
 
