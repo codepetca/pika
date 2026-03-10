@@ -775,12 +775,13 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByText('Documents (0)')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByText('Documents (0)'))
-
-      fireEvent.change(screen.getByPlaceholderText('Title (e.g., Java API)'), {
+      fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Link' }))
+      fireEvent.change(screen.getByPlaceholderText('Title'), {
         target: { value: 'Java API' },
       })
       fireEvent.change(screen.getByPlaceholderText('https://...'), {
@@ -885,12 +886,13 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByText('Documents (0)')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByText('Documents (0)'))
-
-      fireEvent.change(screen.getByPlaceholderText('Title (e.g., Allowed formulas)'), {
+      fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Text' }))
+      fireEvent.change(screen.getByPlaceholderText('Title'), {
         target: { value: 'Allowed formulas' },
       })
       fireEvent.change(screen.getByPlaceholderText('Paste text students can reference during the test...'), {

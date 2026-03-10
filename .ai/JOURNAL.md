@@ -5787,3 +5787,198 @@
 
 **Validation:**
 - `pnpm test tests/components/QuizDetailPanel.test.tsx` (pass)
+**Goal:** Simplify the teacher Tests → Documents authoring UX to reduce on-screen text density.
+**Completed:**
+- Refactored `src/components/TestDocumentsEditor.tsx`:
+  - Replaced always-visible inline add forms with a compact top section containing:
+    - one shared `Title` input
+    - three action buttons: `Add link`, `Add Text`, `Upload pdf`
+  - Added modal flows (`DialogPanel`) for each add action:
+    - link modal for URL input
+    - text modal for reference-text entry
+    - upload modal for file selection/upload
+  - Kept add/delete persistence behavior intact (PATCH save after mutation).
+  - Reduced visual clutter further by hiding `Reset` / `Save Documents` controls unless there are unsaved inline edits.
+- Updated `tests/components/QuizDetailPanel.test.tsx` to follow the new modal-driven interaction flow for link/text document creation.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots (Playwright, teacher + student):
+  - `/tmp/pika-teacher-tests-documents.png`
+  - `/tmp/pika-teacher-tests-documents-add-text-modal.png`
+  - `/tmp/pika-student-tests-tab.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Refine Tests Documents UX per follow-up feedback (less chrome, narrower text modal).
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx`:
+  - Removed the bordered/card wrapper around the top `Title` input + action buttons.
+  - Removed the `Title` field label (kept placeholder-only input).
+  - Narrowed the Add Text modal from `max-w-2xl` to `max-w-xl` and reduced textarea rows from 8 to 6.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - `/tmp/pika-teacher-tests-documents-v2.png`
+  - `/tmp/pika-teacher-tests-documents-add-text-modal-v2.png`
+  - `/tmp/pika-student-tests-tab-v2.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Apply follow-up copy/layout tweaks for Tests reference documents UX.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx`:
+  - Removed top-level title input from the page and moved title fields into each modal.
+  - Added per-modal title state (`linkTitle`, `textTitle`, `uploadTitle`) with reset-on-open and reset-on-success behavior.
+  - Renamed in-panel section label to `Reference Document` and only shows count suffix when count > 0.
+- Updated `src/components/QuizDetailPanel.tsx`:
+  - Renamed tab label from `Documents` to `Reference Document`.
+  - Suppressed zero count in tab label (shows count only when > 0).
+  - Renamed documents section heading to `Reference Document`.
+- Updated `tests/components/QuizDetailPanel.test.tsx` to reflect renamed tab labels and moved-title-input modal flow.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - `/tmp/pika-teacher-tests-reference-doc-v3.png`
+  - `/tmp/pika-teacher-tests-reference-doc-link-modal-v3.png`
+  - `/tmp/pika-teacher-tests-reference-doc-text-modal-v3.png`
+  - `/tmp/pika-student-tests-tab-v3.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Finalize wording for tests document UI labels.
+**Completed:**
+- Updated `src/components/QuizDetailPanel.tsx` labels:
+  - Tab label now uses `Documents` (with count only when > 0).
+  - Main section heading now uses `Reference Documents`.
+- Updated `src/components/TestDocumentsEditor.tsx` attached-documents heading to `Documents` (with count only when > 0).
+- Updated `tests/components/QuizDetailPanel.test.tsx` expectations to match the revised wording.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - `/tmp/pika-teacher-docs-copy-v4.png`
+  - `/tmp/pika-teacher-docs-text-modal-copy-v4.png`
+  - `/tmp/pika-student-tests-tab-copy-v4.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Hide empty attached-documents section when no docs exist.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx` to render the attached-documents section only when `localDocs.length > 0`.
+- Removed empty-state text block (`No documents yet.`) and its heading when there are no attached documents.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - `/tmp/pika-teacher-docs-empty-hidden-v5.png`
+  - `/tmp/pika-student-tests-tab-v5.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Adjust attached-document copy and remove item card styling.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx`:
+  - Changed attached list heading to `Attached Documents (n)`.
+  - Removed per-document card container styling (`rounded/border/bg`) so title/details render without card wrappers.
+- Kept tab wording and section wording from prior request unchanged.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher with attached doc: `/tmp/pika-teacher-attached-docs-v6b.png`
+  - Student view: `/tmp/pika-student-tests-tab-v6.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Rename attached list heading and remove per-item card chrome.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx`:
+  - Changed heading from `Documents (n)` to `Attached Documents (n)`.
+  - Removed card styling around each attached doc row (`rounded/border/bg`), leaving plain row layout.
+- Ran focused component tests and visual verification for teacher/student views.
+- Added a temporary sample link doc only for visual verification of `(1)` state, then removed it afterward.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher with attached-doc heading visible: `/tmp/pika-teacher-attached-docs-v6b.png`
+  - Student view: `/tmp/pika-student-tests-tab-v6.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Remove attached-document URL editing field from Tests documents panel while keeping quick access.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx`:
+  - Removed the editable URL input from attached non-text document rows.
+  - Kept title editing plus `Open` and `Remove` actions for attached link/upload docs.
+  - Updated attached row grid layout to compact 3-column structure (`title`, `Open`, `Remove`).
+- Confirmed save behavior remains unchanged for title edits and document list updates.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots (teacher/student):
+  - Teacher Documents tab with attached docs and no URL field: `/tmp/pika-teacher-docs-panel-v7b.png`
+  - Student classrooms view sanity check: `/tmp/pika-student-docs-panel-v7b.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Convert attached document rows to label + icon actions and route edits through a modal.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx`:
+  - Attached docs now render title as plain label text (no inline input fields).
+  - Replaced row actions with icon-only controls: edit (`Pencil`), open (`ExternalLink`), remove (`Trash2`).
+  - Added edit-modal flow for attached docs:
+    - `link`: edit title + URL
+    - `text`: edit title + text content
+    - `upload`: edit title
+  - Wired edit saves to existing `PATCH /api/teacher/tests/[id]` persistence flow.
+  - Removed old inline unsaved-edit controls (`Reset` / `Save Documents`) from attached-doc rows.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher docs panel with icon-only actions: `/tmp/pika-teacher-docs-icons-v8.png`
+  - Teacher edit modal opened from icon: `/tmp/pika-teacher-docs-edit-modal-v8.png`
+  - Student view sanity check: `/tmp/pika-student-docs-icons-v8.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Adjust attached docs layout to use one card per attached document.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx` attached-doc rendering:
+  - Removed shared wrapper-card style around the whole attached list.
+  - Wrapped each attached document row in its own card (`rounded-lg border border-border bg-surface`).
+  - Preserved icon actions (`edit`, `open`, `remove`) and title-label presentation.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher docs tab with per-document cards: `/tmp/pika-teacher-docs-each-card-v9.png`
+  - Student view sanity check: `/tmp/pika-student-docs-each-card-v9.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Reorder and simplify documents layout in Tests panel.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx` to:
+  - Remove the `Attached Documents` label/title text.
+  - Move attached document cards to directly below `Reference Documents` and above action buttons.
+  - Center the 3 action buttons (`Add link`, `Add Text`, `Upload pdf`) horizontally.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher docs tab: `/tmp/pika-teacher-docs-layout-v10.png`
+  - Student view sanity check: `/tmp/pika-student-docs-layout-v10.png`
+
+## 2026-03-09 [AI - GPT-5 Codex]
+**Goal:** Replace three add-document buttons with a single dropdown action.
+**Completed:**
+- Updated `src/components/TestDocumentsEditor.tsx`:
+  - Replaced `Add link` / `Add Text` / `Upload pdf` buttons with one centered `Add Document` dropdown button.
+  - Added dropdown menu options with icons:
+    - `Link` (`Link2`)
+    - `Text` (`FileText`)
+    - `PDF` (`Upload`)
+  - Kept existing modal flows by routing each option to `openAddModal('link' | 'text' | 'upload')`.
+  - Added outside-click + Escape handling to close the dropdown menu.
+- Updated `tests/components/QuizDetailPanel.test.tsx` add-document tests to use dropdown flow (`Add Document` -> `Link`/`Text`).
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher docs tab with dropdown options visible: `/tmp/pika-teacher-docs-add-dropdown-v11.png`
+  - Student view sanity check: `/tmp/pika-student-docs-dropdown-v11-check.png`
