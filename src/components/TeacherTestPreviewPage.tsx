@@ -100,6 +100,9 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
 
     try {
       await fullscreenElement.requestFullscreen()
+    } catch {
+      // Browsers can reject fullscreen when not initiated by a user gesture.
+      // Preview mode should continue normally even when fullscreen is unavailable.
     } finally {
       const fullscreenNow = isFullscreenActive()
       fullscreenActiveRef.current = fullscreenNow

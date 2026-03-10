@@ -6136,3 +6136,13 @@
 - Visual verification screenshots:
   - Teacher preview page with updated `Close Preview` button: `/tmp/pika-teacher-preview-close-button.png`
   - Student sanity view: `/tmp/pika-student-close-preview-sanity.png`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Prevent runtime errors when preview fullscreen request is rejected by browser policy.
+**Completed:**
+- Updated `src/components/TeacherTestPreviewPage.tsx`:
+  - Added `catch` handling around `requestFullscreen()` in `requestExamFullscreen`.
+  - Keeps preview functional when fullscreen is denied (no unhandled rejection/runtime error).
+
+**Validation:**
+- `pnpm run lint`
