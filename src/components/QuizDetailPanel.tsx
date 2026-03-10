@@ -729,7 +729,7 @@ export function QuizDetailPanel({
                 : 'border-transparent text-text-muted hover:text-text-default'
             }`}
           >
-            Documents ({documents.length})
+            {documents.length > 0 ? `Documents (${documents.length})` : 'Documents'}
           </button>
         )}
         {isTestsView && (
@@ -918,7 +918,7 @@ export function QuizDetailPanel({
           </div>
         ) : viewMode === 'documents' && isTestsView ? (
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-text-default">Documents</h3>
+            <h3 className="text-lg font-semibold text-text-default">Reference Documents</h3>
             <TestDocumentsEditor
               testId={quiz.id}
               documents={documents}

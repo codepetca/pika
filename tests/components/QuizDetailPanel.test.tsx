@@ -775,12 +775,13 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByText('Documents (0)')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByText('Documents (0)'))
-
-      fireEvent.change(screen.getByPlaceholderText('Title (e.g., Java API)'), {
+      fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Link' }))
+      fireEvent.change(screen.getByPlaceholderText('Title'), {
         target: { value: 'Java API' },
       })
       fireEvent.change(screen.getByPlaceholderText('https://...'), {
@@ -885,12 +886,13 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByText('Documents (0)')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByText('Documents (0)'))
-
-      fireEvent.change(screen.getByPlaceholderText('Title (e.g., Allowed formulas)'), {
+      fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Text' }))
+      fireEvent.change(screen.getByPlaceholderText('Title'), {
         target: { value: 'Allowed formulas' },
       })
       fireEvent.change(screen.getByPlaceholderText('Paste text students can reference during the test...'), {
@@ -911,6 +913,56 @@ Prompt:
           },
         ])
       })
+    })
+
+    it('opens upload modal from Add Document dropdown PDF option', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Doc Upload Modal Test',
+                show_results: true,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: { documents: [] },
+          }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Doc Upload Modal Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'PDF' }))
+
+      expect(screen.getByRole('heading', { name: 'Upload pdf' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Choose file' })).toBeInTheDocument()
     })
   })
 
