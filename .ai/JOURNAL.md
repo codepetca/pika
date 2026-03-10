@@ -6004,3 +6004,23 @@
 
 **Validation:**
 - `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx` (pass, 24 tests)
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Change assignment grading save controls to a split button (`Save` graded primary + `Draft` menu action).
+**Completed:**
+- Updated `src/components/TeacherStudentWorkPanel.tsx`:
+  - Replaced `Save mode` select + `Save` button with `SplitButton`.
+  - Primary `Save` now sends `save_mode: 'graded'`.
+  - Dropdown menu now provides `Draft`, which sends `save_mode: 'draft'`.
+  - Refactored `handleSaveGrade` to accept explicit mode per action.
+- Updated `tests/components/TeacherStudentWorkPanel.test.tsx`:
+  - Adjusted UI mock from `Select` to `SplitButton`.
+  - Updated assertions for new behavior (primary save => graded, menu `Draft` => draft).
+
+**Validation:**
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TeacherStudentWorkPanel.tsx --file tests/components/TeacherStudentWorkPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading panel split button: `/tmp/pika-teacher-grading-splitbutton.png`
+  - Teacher grading panel with dropdown open (`Draft` visible): `/tmp/pika-teacher-grading-splitbutton-menu.png`
+  - Student assignments view sanity check: `/tmp/pika-student-assignments-view.png`

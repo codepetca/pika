@@ -18,14 +18,20 @@ vi.mock('@/components/HistoryList', () => ({
 
 vi.mock('@/ui', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  Select: ({ options, ...props }: any) => (
-    <select {...props}>
-      {options.map((option: { value: string; label: string }) => (
-        <option key={option.value} value={option.value}>
+  SplitButton: ({ label, onPrimaryClick, options, toggleAriaLabel, ...props }: any) => (
+    <div {...props}>
+      <button type="button" onClick={onPrimaryClick}>
+        {label}
+      </button>
+      <button type="button" aria-label={toggleAriaLabel || 'More actions'}>
+        Toggle
+      </button>
+      {options.map((option: { id: string; label: string; onSelect: () => void }) => (
+        <button key={option.id} type="button" onClick={option.onSelect}>
           {option.label}
-        </option>
+        </button>
       ))}
-    </select>
+    </div>
   ),
   Tooltip: ({ children }: any) => <>{children}</>,
   RefreshingIndicator: ({ label = 'Refreshing...' }: { label?: string }) => <div>{label}</div>,
@@ -238,7 +244,7 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
     expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
   })
 
-  it('saves as draft by default', async () => {
+  it('saves as graded with the primary save action', async () => {
     const savedBodies: Array<Record<string, unknown>> = []
     mockFetchByStudent(
       {
@@ -253,31 +259,6 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
     render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
 
     await user.click(await screen.findByRole('button', { name: 'Grading' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-
-    await waitFor(() => {
-      expect(savedBodies).toHaveLength(1)
-    })
-    expect(savedBodies[0].save_mode).toBe('draft')
-    expect(screen.queryByText(/^Graded /)).not.toBeInTheDocument()
-  })
-
-  it('saves as graded when selected from save mode dropdown', async () => {
-    const savedBodies: Array<Record<string, unknown>> = []
-    mockFetchByStudent(
-      {
-        'student-1': { graded: false },
-      },
-      {
-        onGradeSave: (body) => savedBodies.push(body),
-      }
-    )
-
-    const user = userEvent.setup()
-    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
-
-    await user.click(await screen.findByRole('button', { name: 'Grading' }))
-    await user.selectOptions(screen.getByLabelText('Save mode'), 'graded')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => {
@@ -285,5 +266,30 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
     })
     expect(savedBodies[0].save_mode).toBe('graded')
     expect(await screen.findByText(/^Graded /)).toBeInTheDocument()
+  })
+
+  it('saves as draft from split-button menu action', async () => {
+    const savedBodies: Array<Record<string, unknown>> = []
+    mockFetchByStudent(
+      {
+        'student-1': { graded: false },
+      },
+      {
+        onGradeSave: (body) => savedBodies.push(body),
+      }
+    )
+
+    const user = userEvent.setup()
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
+
+    await user.click(await screen.findByRole('button', { name: 'Grading' }))
+    await user.click(screen.getByRole('button', { name: 'Choose save mode' }))
+    await user.click(screen.getByRole('button', { name: 'Draft' }))
+
+    await waitFor(() => {
+      expect(savedBodies).toHaveLength(1)
+    })
+    expect(savedBodies[0].save_mode).toBe('draft')
+    expect(screen.queryByText(/^Graded /)).not.toBeInTheDocument()
   })
 })
