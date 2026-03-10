@@ -6024,3 +6024,115 @@
   - Teacher grading panel split button: `/tmp/pika-teacher-grading-splitbutton.png`
   - Teacher grading panel with dropdown open (`Draft` visible): `/tmp/pika-teacher-grading-splitbutton-menu.png`
   - Student assignments view sanity check: `/tmp/pika-student-assignments-view.png`
+**Goal:** Replace test authoring Preview tab with a button that opens student-style exam preview mode without saving data.
+**Completed:**
+- Updated `src/components/QuizDetailPanel.tsx`:
+  - Removed the `Preview` tab for tests (quiz preview tab remains for quizzes).
+  - Added `Preview Student View` action button in test authoring header.
+  - Button force-saves current draft before opening preview URL in a new tab: `/classrooms/<classroomId>/tests/<testId>/preview`.
+- Added dedicated teacher preview route:
+  - `src/app/classrooms/[classroomId]/tests/[testId]/preview/page.tsx`
+  - Teacher-only access with ownership checks via `assertTeacherOwnsTest`.
+- Added preview page UI:
+  - `src/components/TeacherTestPreviewPage.tsx`
+  - Renders student-style test layout with exam-mode maximize warning, documents panel, and no-save preview banner.
+- Updated `src/components/StudentQuizForm.tsx`:
+  - Added `previewMode` prop.
+  - In preview mode, submit is simulated (no network call) and shows confirmation message that submission is not saved.
+- Updated/added tests:
+  - `tests/components/QuizDetailPanel.test.tsx`: test tab changes + preview button opening route.
+  - `tests/components/StudentQuizForm.test.tsx`: preview mode submit does not call fetch.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx`
+- `pnpm exec vitest run tests/components/StudentQuizForm.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm exec vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm run lint`
+- Visual verification screenshots:
+  - Teacher tests authoring with preview button visible: `/tmp/pika-teacher-tests-preview-button.png`
+  - Student tests tab sanity check: `/tmp/pika-student-tests-preview-button.png`
+  - Teacher preview window (exam-mode view): `/tmp/pika-teacher-test-preview-window-clean.png`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Refine test preview launch and labeling per UI feedback.
+**Completed:**
+- Updated `src/components/QuizDetailPanel.tsx`:
+  - Changed test action label from `Preview Student View` to `Preview`.
+  - Updated preview launch to open a maximized popup footprint (`left/top=0`, full available screen `width/height`) with `noopener,noreferrer`.
+- Updated `src/components/TeacherTestPreviewPage.tsx`:
+  - Changed top badge to `Preview Mode` and restyled to amber (`warning` semantic tokens).
+  - Added best-effort `window.moveTo(0,0)` + `window.resizeTo(availWidth, availHeight)` on preview load, then requests fullscreen exam mode.
+- Updated `tests/components/QuizDetailPanel.test.tsx` assertions for new label and popup feature string.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm run lint`
+- Visual verification screenshots:
+  - Teacher tests authoring with updated `Preview` button: `/tmp/pika-teacher-tests-preview-button-v2.png`
+  - Student tests tab sanity check: `/tmp/pika-student-tests-preview-button-v2.png`
+  - Preview window with amber `Preview Mode` badge: `/tmp/pika-teacher-test-preview-window-v2.png`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Increase preview launch maximization reliability.
+**Completed:**
+- Updated `src/components/QuizDetailPanel.tsx` preview launcher to:
+  - Open popup with max available dimensions and window chrome hints (`resizable=yes`, `scrollbars=yes`).
+  - Immediately call `moveTo(0,0)`, `resizeTo(maxWidth,maxHeight)`, and `focus()` on the popup window handle.
+- Existing preview page logic still attempts maximize + fullscreen on load.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx`
+- Visual verification screenshots:
+  - Teacher authoring with `Preview` button: `/tmp/pika-teacher-tests-preview-button-v3.png`
+  - Student tests tab sanity check: `/tmp/pika-student-tests-preview-button-v3.png`
+  - Preview window with amber `Preview Mode`: `/tmp/pika-teacher-test-preview-window-v3.png`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Place test preview action next to Results tab in authoring header.
+**Completed:**
+- Updated `src/components/QuizDetailPanel.tsx` tab/action strip layout:
+  - Moved `Preview` action button to sit immediately after `Results`.
+  - Kept `Delete Test` right-aligned.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx`
+- `pnpm run lint`
+- Visual verification screenshots:
+  - Teacher tests authoring (Preview beside Results): `/tmp/pika-teacher-tests-preview-next-to-results.png`
+  - Student tests tab sanity check: `/tmp/pika-student-tests-preview-next-to-results.png`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Simplify test markdown editor helper text and add quick access to AI generation schema.
+**Completed:**
+- Updated `src/components/QuizDetailPanel.tsx` markdown toolbar:
+  - Removed the inline helper note (`Edit this test as markdown...`).
+  - Added a `Copy Schema` button next to `Copy`.
+  - Wired `Copy Schema` to copy the shared test markdown schema and show success/error toast messages.
+- Added shared exported schema constant in `src/lib/test-markdown.ts`:
+  - `TEST_MARKDOWN_AI_SCHEMA` now provides the markdown template/schema used to guide AI-generated tests.
+- Updated `tests/components/QuizDetailPanel.test.tsx`:
+  - Removed assertion for deleted helper note.
+  - Added coverage for `Copy Schema` clipboard behavior.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx`
+- `pnpm exec vitest run tests/lib/test-markdown.test.ts tests/components/QuizDetailPanel.test.tsx`
+- `pnpm run lint`
+- Visual verification screenshots:
+  - Teacher markdown toolbar with `Copy Schema`: `/tmp/pika-teacher-tests-copy-schema.png`
+  - Student sanity view: `/tmp/pika-student-tests-copy-schema-sanity.png`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Rename preview exit action and close popup window instead of navigating inside preview tab.
+**Completed:**
+- Updated `src/components/TeacherTestPreviewPage.tsx`:
+  - Renamed top action button from `Back to Tests` to `Close Preview`.
+  - Renamed error-state action to `Close Preview`.
+  - Updated handler to call `window.close()` first and only fallback to `/classrooms/<id>?tab=tests` if the browser blocks close.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizForm.test.tsx`
+- `pnpm run lint`
+- Visual verification screenshots:
+  - Teacher preview page with updated `Close Preview` button: `/tmp/pika-teacher-preview-close-button.png`
+  - Student sanity view: `/tmp/pika-student-close-preview-sanity.png`
