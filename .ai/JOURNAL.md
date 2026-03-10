@@ -6191,3 +6191,25 @@
   - Teacher classrooms: `/tmp/pika-teacher-classrooms-v2.png`
   - Student classrooms: `/tmp/pika-student-classrooms-v2.png`
   - Teacher tests grading header (no `.asc`): `/tmp/pika-teacher-tests-grading-header-no-asc-v2.png`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Fix test grading name sorting to use structured first/last names (avoid parsing `name`).
+**Completed:**
+- Updated `src/app/api/teacher/tests/[id]/results/route.ts`:
+  - Added `first_name` and `last_name` to each returned student row.
+  - Kept `name` for display/backward compatibility.
+- Updated `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`:
+  - Added `first_name`/`last_name` to grading row type.
+  - Updated sort logic to use structured `first_name`/`last_name` first.
+  - Kept display-name parsing only as fallback when structured fields are missing.
+- Updated `tests/components/TeacherQuizzesTab.test.tsx`:
+  - Strengthened sorting test with multi-word first name data to verify first-name sorting does not rely on splitting display name.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm exec vitest run tests/api/teacher/tests-results.test.ts` (pass)
+- `pnpm exec vitest run tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms: `/tmp/pika-teacher-classrooms-fix2.png`
+  - Student classrooms: `/tmp/pika-student-classrooms-fix2.png`
+  - Teacher tests grading view: `/tmp/pika-teacher-tests-grading-structured-names-fix-v2.png`

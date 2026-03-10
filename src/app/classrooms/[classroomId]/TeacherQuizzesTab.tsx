@@ -35,6 +35,8 @@ interface Props {
 interface TestGradingStudentRow {
   student_id: string
   name: string | null
+  first_name: string | null
+  last_name: string | null
   email: string
   status: 'not_started' | 'in_progress' | 'submitted' | 'returned'
   submitted_at: string | null
@@ -49,7 +51,7 @@ interface TestGradingStudentRow {
 
 type TestGradingSortColumn = 'first_name' | 'last_name'
 
-function splitStudentName(name: string | null): { firstName: string | null; lastName: string | null } {
+function splitDisplayName(name: string | null): { firstName: string | null; lastName: string | null } {
   const trimmed = (name || '').trim()
   if (!trimmed) return { firstName: null, lastName: null }
 
@@ -60,6 +62,19 @@ function splitStudentName(name: string | null): { firstName: string | null; last
     firstName: parts[0],
     lastName: parts.slice(1).join(' '),
   }
+}
+
+function getSortableNameParts(student: TestGradingStudentRow): { firstName: string | null; lastName: string | null } {
+  const firstName = (student.first_name || '').trim()
+  const lastName = (student.last_name || '').trim()
+  if (firstName || lastName) {
+    return {
+      firstName: firstName || null,
+      lastName: lastName || null,
+    }
+  }
+
+  return splitDisplayName(student.name)
 }
 
 function formatTorontoTime(iso: string | null): { value: string; isPm: boolean } {
@@ -136,8 +151,8 @@ export function TeacherQuizzesTab({
   const sortedGradingStudents = useMemo(
     () =>
       [...gradingStudents].sort((a, b) => {
-        const aNameParts = splitStudentName(a.name)
-        const bNameParts = splitStudentName(b.name)
+        const aNameParts = getSortableNameParts(a)
+        const bNameParts = getSortableNameParts(b)
         return compareByNameFields(
           {
             firstName: aNameParts.firstName,
