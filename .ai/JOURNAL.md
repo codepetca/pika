@@ -6291,3 +6291,15 @@
 - Visual verification screenshots:
   - Teacher assignments table with new final-column artifacts layout + wrapped icon pills: `/tmp/pika-teacher-links-images-column-layout.png`
   - Student regression check: `/tmp/pika-student-3011-classrooms.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Close test coverage gap for teacher assignment detail API shape (`artifacts` + trimmed `doc`).
+**Completed:**
+- Updated `tests/api/teacher/assignments-id.test.ts`:
+  - Added GET route test verifying student rows include extracted `artifacts`.
+  - Added assertions that `doc` is trimmed to grading/submission fields only (no raw `content` or `is_submitted`).
+  - Added assertion that `student_updated_at` is sourced from latest `assignment_doc_history` timestamp.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-id.test.ts tests/lib/assignment-artifacts.test.ts` (pass)
+- `pnpm lint` (pass)
