@@ -6,7 +6,11 @@ import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Button, ConfirmDialog, DialogPanel, FormField, SplitButton, Tooltip } from '@/ui'
 import { useRightSidebar } from '@/components/layout'
-import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import {
+  TEACHER_QUIZZES_UPDATED_EVENT,
+  TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
+  type TeacherTestGradingRowUpdatedEventDetail,
+} from '@/lib/events'
 import { getQuizExitCount } from '@/lib/quizzes'
 import { compareByNameFields } from '@/lib/table-sort'
 import {
@@ -279,6 +283,32 @@ export function TeacherQuizzesTab({
 
     void loadGradingRows()
   }, [clearBatchSelection, isTestsView, loadGradingRows, selectedQuizId, testsMode])
+
+  useEffect(() => {
+    function handleGradingRowUpdate(event: Event) {
+      if (!isTestsView || testsMode !== 'grading' || !selectedQuizId) return
+
+      const detail = (event as CustomEvent<TeacherTestGradingRowUpdatedEventDetail>).detail
+      if (!detail || detail.testId !== selectedQuizId) return
+
+      setGradingStudents((prev) =>
+        prev.map((student) => {
+          if (student.student_id !== detail.studentId) return student
+          return {
+            ...student,
+            points_earned: detail.pointsEarned,
+            points_possible: detail.pointsPossible,
+            percent: detail.percent,
+            graded_open_responses: detail.gradedOpenResponses,
+            ungraded_open_responses: detail.ungradedOpenResponses,
+          }
+        })
+      )
+    }
+
+    window.addEventListener(TEACHER_TEST_GRADING_ROW_UPDATED_EVENT, handleGradingRowUpdate)
+    return () => window.removeEventListener(TEACHER_TEST_GRADING_ROW_UPDATED_EVENT, handleGradingRowUpdate)
+  }, [isTestsView, selectedQuizId, testsMode])
 
   useEffect(() => {
     if (!isTestsView || testsMode !== 'grading') {

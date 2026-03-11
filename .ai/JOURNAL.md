@@ -6303,3 +6303,446 @@
 **Validation:**
 - `pnpm exec vitest run tests/api/teacher/assignments-id.test.ts tests/lib/assignment-artifacts.test.ts` (pass)
 - `pnpm lint` (pass)
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Adjust teacher assignment status icons to distinguish submitted vs draft-saved vs graded states.
+**Completed:**
+- Updated `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx` status rendering:
+  - `submitted` now renders as a green circle.
+  - draft-saved grades (scores present, `graded_at` null) now render as a gray checkmark.
+  - `graded` now renders as a green checkmark.
+- Added `hasDraftSavedGrade()` helper in `src/lib/assignments.ts`.
+- Added unit coverage in `tests/unit/assignments.test.ts` for draft-grade detection logic.
+
+**Validation:**
+- `pnpm test tests/unit/assignments.test.ts` (pass)
+- `pnpm lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file src/lib/assignments.ts --file tests/unit/assignments.test.ts` (pass)
+- Visual verification (Playwright, localhost:3003):
+  - Teacher statuses: `/tmp/pika-teacher-assignment-selected.png`
+  - Teacher after Draft save (gray check): `/tmp/pika-teacher-draft-saved-icon.png`
+  - Teacher after graded Save (green check): `/tmp/pika-teacher-graded-saved-icon.png`
+  - Student assignments view sanity: `/tmp/pika-student-assignment-view.png`
+- Playwright DOM verification for Student1 status icon classes:
+  - Initial submitted: `lucide-circle ... text-green-500`
+  - After Draft save: `lucide-check ... text-gray-400`
+  - After graded Save: `lucide-check ... text-green-500`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Update test close confirmation copy to remove the premature results visibility statement.
+**Completed:**
+- Updated close-confirmation dialog description in `src/components/QuizCard.tsx`:
+  - From: `Students will no longer be able to respond. If results are enabled, students who responded will be able to see results after closing.`
+  - To: `Students will no longer be able to respond.`
+
+**Validation:**
+- `pnpm test tests/components/QuizCard.test.tsx` (pass)
+- `pnpm test tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm lint --file src/components/QuizCard.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher close confirmation modal: `/tmp/pika-teacher-close-test-confirm.png`
+  - Student tests view sanity check: `/tmp/pika-student-tests-view.png`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** Remove grading-save table flash by avoiding immediate assignment reload after sidebar grade/feedback saves.
+**Completed:**
+- Added typed grade-update event payload in `src/lib/events.ts` (`TeacherGradeUpdatedEventDetail`).
+- Updated `src/components/TeacherStudentWorkPanel.tsx` to dispatch structured grade-update events with `{ assignmentId, studentId, doc }` for manual save and AI-grade reload paths.
+- Updated `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx` to patch only the affected student row in local state on grade-update event instead of incrementing `refreshCounter` (no immediate full table reload/spinner).
+- Row patch now updates:
+  - `doc` fields,
+  - `status` via `calculateAssignmentStatus(...)`,
+  - `student_updated_at` timestamp.
+- Added test assertion in `tests/components/TeacherStudentWorkPanel.test.tsx` verifying the grade-update event includes payload detail.
+
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file src/components/TeacherStudentWorkPanel.tsx --file src/lib/events.ts --file tests/components/TeacherStudentWorkPanel.test.tsx` (pass)
+- Playwright flow check (teacher) reported `rows disappeared during save: false` during Save click.
+- Visual verification screenshots:
+  - Teacher before save: `/tmp/pika-teacher-grading-before-save-no-refresh.png`
+  - Teacher after save (no table flash, row updated): `/tmp/pika-teacher-grading-after-save-no-refresh.png`
+  - Student assignments sanity: `/tmp/pika-student-assignments-no-refresh-flow.png`
+
+## 2026-03-10 [AI - GPT-5 Codex]
+**Goal:** In Tests grading mode, avoid right-pane refresh flash on manual grade saves and immediately reflect updated score metrics in the left student table.
+**Completed:**
+- Added a new targeted event for tests grading row updates in `src/lib/events.ts`:
+  - `TEACHER_TEST_GRADING_ROW_UPDATED_EVENT`
+  - `TeacherTestGradingRowUpdatedEventDetail`
+- Updated `src/components/TestStudentGradingPanel.tsx` save flow to:
+  - Persist grade/feedback changes via PATCH without calling `load()` afterwards (no immediate panel reload/spinner flash).
+  - Locally patch selected student answers + derived metrics (`points_earned`, `points_possible`, `percent`, graded/ungraded open counts).
+  - Dispatch `TEACHER_TEST_GRADING_ROW_UPDATED_EVENT` with targeted row detail after successful save.
+- Updated `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx` to listen for `TEACHER_TEST_GRADING_ROW_UPDATED_EVENT` and patch the matching left-table row in-place (no full grading rows refetch).
+- Removed obsolete `onUpdated` prop usage for `TestStudentGradingPanel` in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`.
+- Added/updated regression tests:
+  - `tests/components/TestStudentGradingPanel.test.tsx`
+    - verifies save dispatches grading-row update detail
+    - verifies save does not trigger an extra `/results` fetch
+  - `tests/components/TeacherQuizzesTab.test.tsx`
+    - verifies left grading row updates from targeted event without extra `/results` reload
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx --file 'src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx' --file src/lib/events.ts --file tests/components/TestStudentGradingPanel.test.tsx --file tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- Mandatory visual verification screenshots:
+  - Teacher classrooms view: `/tmp/pika-teacher-tests-save-flow.png`
+  - Student classrooms view: `/tmp/pika-student-tests-save-flow.png`
+  - Teacher tests tab (grading mode view): `/tmp/pika-teacher-tests-grading-before-save.png`, `/tmp/pika-teacher-tests-grading-after-save.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Smooth test grading feedback save UX by avoiding per-keystroke jarring banners and surfacing save state inline in the right-pane header.
+**Completed:**
+- Implemented debounced autosave for test open-response grade/feedback edits in `src/components/TestStudentGradingPanel.tsx`:
+  - Autosave delay: `1200ms` (`AUTOSAVE_DELAY_MS`).
+  - Autosave triggers only when there are dirty changes, no validation error, and no active save.
+  - Save remains available via header Save button for immediate/manual save.
+- Removed jarring in-panel success banner (`Saved X change(s).`) from tests grading panel.
+- Added structured save-status reporting from `TestStudentGradingPanel` via `onSaveStateChange`:
+  - statuses: `idle | unsaved | saving | saved`.
+- Updated right-pane header actions in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx` to show inline save state text beside Save button:
+  - `Unsaved`, `Saving...`, `Saved`.
+- Added regression test in `tests/components/TestStudentGradingPanel.test.tsx` ensuring autosave is debounced and does not save per keypress.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx' --file tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms: `/tmp/pika-teacher-inline-save-status.png`
+  - Student classrooms: `/tmp/pika-student-inline-save-status.png`
+  - Teacher tests tab view: `/tmp/pika-teacher-tests-inline-status-view.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Remove tests-grading header Save button now that autosave is enabled, and rely on inline status text only.
+**Completed:**
+- Removed tests-grading header Save button from `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`.
+- Removed `testGradingSaveHandler` parent state/wiring in `ClassroomPageClient` (no longer needed without manual Save button).
+- Kept inline save status label (`Unsaved` / `Saving...` / `Saved`) in right-sidebar header.
+- Added blur-triggered autosave flush in `src/components/TestStudentGradingPanel.tsx` for score and feedback fields to reduce risk of lost edits when switching focus/student quickly.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms: `/tmp/pika-teacher-header-status-only.png`
+  - Student classrooms: `/tmp/pika-student-header-status-only.png`
+  - Teacher tests tab view: `/tmp/pika-teacher-tests-header-status-only-view.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Finalize tests grading header/pane labeling polish per teacher feedback.
+**Completed:**
+- Updated tests grading right-sidebar title to show **student name only** (removed "<Student> Test") in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`.
+- Styled inline save-status text in the tests header so `Saved` is green (`text-success`), `Saving...` muted, and `Unsaved` warning-colored.
+- Added a compact top metadata block in `src/components/TestStudentGradingPanel.tsx`:
+  - student name (more prominent),
+  - centered test title.
+- Kept Save button removed (status-only header) and autosave flow intact.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms: `/tmp/pika-teacher-saved-green-label.png`
+  - Student classrooms: `/tmp/pika-student-saved-green-label.png`
+  - Teacher tests tab view: `/tmp/pika-teacher-tests-name-title-updates.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Adjust tests grading header UX to keep metadata inline (no right-pane card).
+**Completed:**
+- Updated right-sidebar title handling to support rich title content in `src/components/layout/RightSidebar.tsx` (`title` now `ReactNode`; desktop header style made more prominent; safe mobile aria-label fallback retained).
+- Updated tests grading header in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`:
+  - student name shown prominently,
+  - test title shown inline (muted),
+  - `Saved` status remains green in header actions.
+- Removed the extra metadata card from top of `src/components/TestStudentGradingPanel.tsx` (student/test metadata now lives in header only).
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx tests/components/TeacherQuizzesTab.test.tsx` (pass)
+- `pnpm lint --file src/components/layout/RightSidebar.tsx --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx' --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms: `/tmp/pika-teacher-header-inline-name-title.png`
+  - Student classrooms: `/tmp/pika-student-header-inline-name-title.png`
+  - Teacher tests tab view: `/tmp/pika-teacher-tests-inline-name-title-v2.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Adjust open-response grading control layout in tests right pane.
+**Completed:**
+- In `src/components/TestStudentGradingPanel.tsx`, changed open-response grading controls to:
+  - feedback textarea on the left,
+  - score input on the right,
+  - score column width reduced to `60px` (about half previous width),
+  - feedback textarea reduced from 3 rows to 2 rows.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms: `/tmp/pika-teacher-feedback-score-layout.png`
+  - Student classrooms: `/tmp/pika-student-feedback-score-layout.png`
+  - Teacher tests tab view: `/tmp/pika-teacher-tests-feedback-score-layout.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Simplify test grading question visuals by removing card containers and highlighting each question header line.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx` question rendering:
+  - removed per-question card UI (`rounded border bg-surface p-3`),
+  - switched to lighter list rows with bottom separators,
+  - highlighted first line for each question with a tinted label:
+    - `Q# Multiple Choice Npts.`
+    - `Q# Open Response Npts.`
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms: `/tmp/pika-teacher-question-highlight.png`
+  - Student classrooms: `/tmp/pika-student-question-highlight.png`
+  - Teacher tests tab view: `/tmp/pika-teacher-tests-question-highlight.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Further simplify tests grading question presentation and increase text readability.
+**Completed:**
+- In `src/components/TestStudentGradingPanel.tsx`:
+  - removed horizontal divider lines between question rows,
+  - made the `Q# ...` line more prominent (`text-sm`, `font-bold`),
+  - removed left padding from the highlighted `Q#` line,
+  - increased response text size,
+  - increased feedback textarea text size.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms: `/tmp/pika-teacher-no-lines-bigger-text.png`
+  - Student classrooms: `/tmp/pika-student-no-lines-bigger-text.png`
+  - Teacher tests tab view: `/tmp/pika-teacher-tests-no-lines-bigger-text.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Rename question type labels and reposition point display in tests grading panel.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx`:
+  - `Multiple Choice` label changed to `MC`.
+  - `Open Response` label changed to `Open`.
+  - Removed point totals from the `Q#` header line.
+  - For MC answers: moved points display to the right end of the answer row.
+  - For Open answers: moved max points display into the bottom-right of the score box area.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms: `/tmp/pika-teacher-mc-open-points.png`
+  - Student classrooms: `/tmp/pika-student-mc-open-points.png`
+  - Teacher tests tab view: `/tmp/pika-teacher-tests-mc-open-points.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Make per-question grading input consistent for tests by showing editable score controls for both MC and Open responses, using split max-points styling, and persist MC manual overrides without refresh.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx` to:
+  - include both `multiple_choice` and `open_response` submitted answers in draft tracking and autosave dirty detection,
+  - save MC score overrides through the same autosave/manual-save path as open responses,
+  - replace standalone score input + `pts` labels with split score controls (`editable score | max points`) and remove `pts` text,
+  - render MC rows with a right-aligned split score control so teachers can manually override autograded scores.
+- Updated `src/app/api/teacher/tests/[id]/responses/[responseId]/route.ts` to allow manual grading for non-open responses (MC) while still enforcing score bounds and restricting AI metadata usage to open-response answers.
+- Added test coverage:
+  - `tests/components/TestStudentGradingPanel.test.tsx` now verifies MC + Open score inputs render and MC overrides persist via save handler.
+  - `tests/api/teacher/tests-responses-grade.test.ts` now verifies MC response manual score updates are accepted.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm test tests/api/teacher/tests-responses-grade.test.ts` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx --file 'src/app/api/teacher/tests/[id]/responses/[responseId]/route.ts'` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane: `/tmp/pika-teacher-tests-split-scorebox-v2.png`
+  - Student tests view: `/tmp/pika-student-tests-split-scorebox-v2.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Reduce tests grading score textbox area width by half.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx` score column width from `100px` to `50px` for both MC and Open question rows.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane: `/tmp/pika-teacher-tests-grade-box-half-width.png`
+  - Student tests view: `/tmp/pika-student-tests-grade-box-half-width.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Rebalance tests grading split score control after narrowing too much.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx`:
+  - widened score column from `50px` to `64px`,
+  - narrowed gray max-points segment (`min-w-8`, tighter padding, smaller text) so editable input and max side are closer in width.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane: `/tmp/pika-teacher-tests-grade-box-rebalanced.png`
+  - Student tests view: `/tmp/pika-student-tests-grade-box-rebalanced.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Remove score input steppers and ensure three-digit values (e.g., 100) fit without clipping.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx` split score input:
+  - removed browser spinner controls via input appearance classes,
+  - widened score column from `64px` to `80px` to comfortably display `100`,
+  - kept the right gray max-points segment compact.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane: `/tmp/pika-teacher-tests-no-spinner-wider-score.png`
+  - Student tests view: `/tmp/pika-student-tests-no-spinner-wider-score.png`
+  - Teacher with `100` entered (no clipping): `/tmp/pika-teacher-tests-score-100-fit.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Center-align score textbox value in tests grading split score control.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx` score input to center text (`text-center`).
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane: `/tmp/pika-teacher-tests-score-centered.png`
+  - Student tests view: `/tmp/pika-student-tests-score-centered.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Make feedback textbox one line by default and match score box height.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx` feedback input in open-response rows:
+  - changed `rows` from `2` to `1`,
+  - set fixed `h-9` so default height matches the grade box.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane: `/tmp/pika-teacher-tests-feedback-one-line.png`
+  - Student tests view: `/tmp/pika-student-tests-feedback-one-line.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Refine grading row sizing to remove feedback scrollbar artifact and rebalance control widths.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx`:
+  - increased both split score control and feedback input heights from `h-9` to `h-10` so they match,
+  - set feedback textarea to `resize-none` while keeping one-line default,
+  - slightly reduced score column width from `80px` to `76px`.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane: `/tmp/pika-teacher-tests-feedback-height-match-v2.png`
+  - Student tests view: `/tmp/pika-student-tests-feedback-height-match-v2.png`
+  - Teacher with `100` entered (still fits): `/tmp/pika-teacher-tests-score-width-100-v2.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Eliminate residual tiny scrollbar in one-line feedback textbox while keeping grade box height in sync.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx`:
+  - increased feedback textarea height from `h-10` to `h-11`,
+  - increased split score control height from `h-10` to `h-11` to match.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane: `/tmp/pika-teacher-tests-feedback-no-scroll-v3.png`
+  - Student tests view: `/tmp/pika-student-tests-feedback-no-scroll-v3.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Make feedback textbox auto-expand for multiline content.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx` to auto-resize feedback textareas:
+  - added textarea refs + resize helper that sets height to content scroll height with a one-line minimum,
+  - resize now runs on mount, on draft updates, and on feedback change,
+  - kept one-line default appearance while expanding for multiline content.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane with multiline feedback expansion: `/tmp/pika-teacher-tests-feedback-autogrow-v4.png`
+  - Student tests view: `/tmp/pika-student-tests-feedback-autogrow-v4.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Reduce one-line feedback box default height while preserving multiline auto-grow.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx`:
+  - reduced split score control base height from `h-11` to `h-10`,
+  - reduced feedback min height from `44px` to `40px` (`FEEDBACK_MIN_HEIGHT_PX` and `min-h-[40px]`),
+  - kept auto-grow behavior for multiline text unchanged.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane (shorter single-line default): `/tmp/pika-teacher-tests-feedback-shorter-default-v5.png`
+  - Teacher grading pane (multiline auto-grow): `/tmp/pika-teacher-tests-feedback-autogrow-v5.png`
+  - Student tests view: `/tmp/pika-student-tests-feedback-shorter-default-v5.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Make default feedback box height match grade box exactly while preserving multiline auto-grow.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx` auto-resize baseline:
+  - introduced shared baseline (`GRADE_BOX_HEIGHT_PX = 40`) for feedback textarea sizing,
+  - feedback textarea now starts at exact grade-box height (`h-10`) and only expands when measured content exceeds baseline,
+  - kept multiline auto-grow behavior intact.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane (baseline match): `/tmp/pika-teacher-tests-feedback-match-gradebox-v6.png`
+  - Teacher grading pane (multiline expansion): `/tmp/pika-teacher-tests-feedback-autogrow-v6.png`
+  - Student tests view: `/tmp/pika-student-tests-feedback-match-gradebox-v6.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Make single-line feedback box less tall while still matching grade box and preserving multiline expansion.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx`:
+  - reduced shared baseline height to `36px` (`h-9`) for both score control and feedback,
+  - tightened one-line feedback vertical rhythm (`py-1`, `leading-tight`),
+  - adjusted auto-resize baseline + threshold to keep one-line default compact and only grow when content truly exceeds one line.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane (compact default): `/tmp/pika-teacher-tests-feedback-compact-v7.png`
+  - Teacher grading pane (multiline auto-grow): `/tmp/pika-teacher-tests-feedback-compact-autogrow-v7.png`
+  - Student tests view: `/tmp/pika-student-tests-feedback-compact-v7.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Make open-response grade box height follow multiline feedback textarea height.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx`:
+  - added `stretch` option to `SplitScoreInput`,
+  - enabled `stretch` for open-response score controls so the grade box expands to match multiline feedback height,
+  - kept compact fixed height for non-stretched score controls.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane with multiline feedback + matched score height: `/tmp/pika-teacher-tests-gradebox-matches-multiline-v8.png`
+  - Student tests view: `/tmp/pika-student-tests-gradebox-matches-multiline-v8.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Keep grade box fixed at single-line height even when feedback expands to multiline.
+**Completed:**
+- Updated `src/components/TestStudentGradingPanel.tsx`:
+  - removed `stretch` behavior from `SplitScoreInput`,
+  - open-response score box now stays fixed at `h-9` (single-line baseline) and no longer grows with feedback textarea.
+
+**Validation:**
+- `pnpm test tests/components/TestStudentGradingPanel.test.tsx` (pass)
+- `pnpm lint --file src/components/TestStudentGradingPanel.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher grading pane baseline: `/tmp/pika-teacher-tests-gradebox-fixed-v9.png`
+  - Teacher grading pane with multiline feedback (grade box remains fixed): `/tmp/pika-teacher-tests-gradebox-fixed-multiline-v9.png`
+  - Student tests view: `/tmp/pika-student-tests-gradebox-fixed-v9.png`

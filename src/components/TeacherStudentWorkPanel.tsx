@@ -8,7 +8,7 @@ import { HistoryList } from '@/components/HistoryList'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
-import { TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
+import { TEACHER_GRADE_UPDATED_EVENT, type TeacherGradeUpdatedEventDetail } from '@/lib/events'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { readCookie, writeCookie } from '@/lib/cookies'
@@ -158,6 +158,15 @@ export function TeacherStudentWorkPanel({
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
   const showInitialSpinner = useDelayedBusy(loading && !data)
+
+  function dispatchGradeUpdated(doc: AssignmentDoc | null) {
+    const detail: TeacherGradeUpdatedEventDetail = {
+      assignmentId,
+      studentId,
+      doc,
+    }
+    window.dispatchEvent(new CustomEvent<TeacherGradeUpdatedEventDetail>(TEACHER_GRADE_UPDATED_EVENT, { detail }))
+  }
 
   function handleRightTabChange(nextTab: RightTab) {
     setRightTab(nextTab)
@@ -330,7 +339,7 @@ export function TeacherStudentWorkPanel({
       if (!res.ok) throw new Error(result.error || 'Failed to save grade')
       // Update local state
       setData((prev) => prev ? { ...prev, doc: result.doc } : prev)
-      window.dispatchEvent(new CustomEvent(TEACHER_GRADE_UPDATED_EVENT))
+      dispatchGradeUpdated(result.doc)
     } catch (err: any) {
       setData((prev) => (prev ? { ...prev, doc: previousDoc } : prev))
       setGradeError(err.message || 'Failed to save grade')
@@ -366,7 +375,7 @@ export function TeacherStudentWorkPanel({
         setData(reloadData)
         populateGradeForm(reloadData.doc)
         handleRightTabChange('grading') // Stay on grading tab to show results
-        window.dispatchEvent(new CustomEvent(TEACHER_GRADE_UPDATED_EVENT))
+        dispatchGradeUpdated(reloadData.doc ?? null)
       }
     } catch (err: any) {
       setGradeError(err.message || 'Auto-grade failed')

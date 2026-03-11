@@ -1,7 +1,8 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
+import { TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
 
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div data-testid="spinner" />,
@@ -58,12 +59,71 @@ function makeResultsPayload(score: number | null, feedback: string | null) {
   }
 }
 
+function makeMixedResultsPayload(mcScore: number, openScore: number | null, feedback: string | null) {
+  return {
+    quiz: { id: 'test-1', title: 'Unit Test' },
+    questions: [
+      {
+        id: 'q-mc-1',
+        question_text: 'What is 2 + 2?',
+        question_type: 'multiple_choice' as const,
+        options: ['3', '4', '5'],
+        points: 2,
+      },
+      {
+        id: 'q-open-1',
+        question_text: 'Explain osmosis.',
+        question_type: 'open_response' as const,
+        options: [],
+        points: 5,
+      },
+    ],
+    students: [
+      {
+        student_id: 'student-1',
+        name: 'Student One',
+        email: 'student1@example.com',
+        status: 'submitted' as const,
+        submitted_at: '2026-03-08T12:00:00.000Z',
+        last_activity_at: '2026-03-08T12:01:00.000Z',
+        points_earned: mcScore + (openScore ?? 0),
+        points_possible: 7,
+        percent: ((mcScore + (openScore ?? 0)) / 7) * 100,
+        graded_open_responses: openScore == null ? 0 : 1,
+        ungraded_open_responses: openScore == null ? 1 : 0,
+        answers: {
+          'q-mc-1': {
+            response_id: 'response-mc-1',
+            question_type: 'multiple_choice' as const,
+            selected_option: 1,
+            response_text: null,
+            score: mcScore,
+            feedback: null,
+            graded_at: '2026-03-08T12:04:00.000Z',
+          },
+          'q-open-1': {
+            response_id: 'response-open-1',
+            question_type: 'open_response' as const,
+            selected_option: null,
+            response_text: 'Water moves to balance concentration.',
+            score: openScore,
+            feedback,
+            graded_at: openScore == null ? null : '2026-03-08T12:05:00.000Z',
+          },
+        },
+        focus_summary: null,
+      },
+    ],
+  }
+}
+
 describe('TestStudentGradingPanel save-all grading', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -72,6 +132,11 @@ describe('TestStudentGradingPanel save-all grading', () => {
     let persistedScore: number | null = null
     let persistedFeedback: string | null = null
     const patchBodies: Array<Record<string, unknown>> = []
+    const gradingRowUpdates: Array<CustomEvent> = []
+    const handleGradingRowUpdated = (event: Event) => {
+      gradingRowUpdates.push(event as CustomEvent)
+    }
+    window.addEventListener(TEACHER_TEST_GRADING_ROW_UPDATED_EVENT, handleGradingRowUpdated, { once: true })
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
@@ -145,6 +210,104 @@ describe('TestStudentGradingPanel save-all grading', () => {
           feedback: '',
         }),
       ])
+    })
+
+    await waitFor(() => {
+      expect(gradingRowUpdates).toHaveLength(1)
+    })
+    expect(gradingRowUpdates[0].detail).toMatchObject({
+      testId: 'test-1',
+      studentId: 'student-1',
+      pointsEarned: 4,
+      pointsPossible: 5,
+      percent: 80,
+      gradedOpenResponses: 1,
+      ungradedOpenResponses: 0,
+    })
+
+    const resultsCalls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([input]) =>
+      String(input).endsWith('/api/teacher/tests/test-1/results')
+    )
+    expect(resultsCalls).toHaveLength(1)
+  })
+
+  it('renders score inputs for MC and open questions and saves MC overrides', async () => {
+    let persistedMcScore = 2
+    let persistedOpenScore: number | null = 3
+    let persistedOpenFeedback: string | null = 'Solid explanation.'
+    const patchCalls: Array<{ url: string; body: Record<string, unknown> }> = []
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/api/teacher/tests/test-1/results')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeMixedResultsPayload(
+            persistedMcScore,
+            persistedOpenScore,
+            persistedOpenFeedback
+          ),
+        })
+      }
+
+      if (url.endsWith('/api/teacher/tests/test-1/responses/response-mc-1') && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body || '{}')) as Record<string, unknown>
+        patchCalls.push({ url, body })
+        persistedMcScore = Number(body.score)
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ response: { id: 'response-mc-1', score: persistedMcScore } }),
+        })
+      }
+
+      if (url.endsWith('/api/teacher/tests/test-1/responses/response-open-1') && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body || '{}')) as Record<string, unknown>
+        patchCalls.push({ url, body })
+        persistedOpenScore = Number(body.score)
+        persistedOpenFeedback = typeof body.feedback === 'string' ? body.feedback : null
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            response: { id: 'response-open-1', score: persistedOpenScore, feedback: persistedOpenFeedback },
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    let saveHandler: (() => Promise<void>) | null = null
+    const user = userEvent.setup()
+    render(
+      <TestStudentGradingPanel
+        testId="test-1"
+        selectedStudentId="student-1"
+        onRegisterSaveHandler={(handler) => {
+          saveHandler = handler
+        }}
+      />
+    )
+
+    const scoreInputs = await screen.findAllByRole('spinbutton')
+    expect(scoreInputs).toHaveLength(2)
+    expect(screen.queryByText(/pts/i)).not.toBeInTheDocument()
+
+    await user.clear(scoreInputs[0])
+    await user.type(scoreInputs[0], '1')
+
+    await act(async () => {
+      await saveHandler?.()
+    })
+
+    await waitFor(() => {
+      expect(patchCalls).toHaveLength(1)
+    })
+    expect(patchCalls[0]).toMatchObject({
+      url: expect.stringContaining('/responses/response-mc-1'),
+      body: { score: 1 },
     })
   })
 
@@ -239,5 +402,58 @@ describe('TestStudentGradingPanel save-all grading', () => {
     await screen.findByDisplayValue('5')
     await screen.findByDisplayValue('Updated feedback')
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('autosaves feedback with debounce instead of per keypress', async () => {
+    const patchBodies: Array<Record<string, unknown>> = []
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/api/teacher/tests/test-1/results')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeResultsPayload(null, null),
+        })
+      }
+      if (url.endsWith('/api/teacher/tests/test-1/responses/response-1') && init?.method === 'PATCH') {
+        patchBodies.push(JSON.parse(String(init.body || '{}')) as Record<string, unknown>)
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ response: { id: 'response-1', score: 4, feedback: 'Great detail.' } }),
+        })
+      }
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    render(
+      <TestStudentGradingPanel
+        testId="test-1"
+        selectedStudentId="student-1"
+      />
+    )
+
+    const scoreInput = await screen.findByRole('spinbutton')
+    const feedbackInput = screen.getByRole('textbox')
+
+    fireEvent.change(scoreInput, { target: { value: '4' } })
+    fireEvent.change(feedbackInput, { target: { value: 'Great' } })
+    fireEvent.change(feedbackInput, { target: { value: 'Great detail.' } })
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 800))
+    })
+    expect(patchBodies).toHaveLength(0)
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600))
+    })
+
+    await waitFor(() => {
+      expect(patchBodies).toHaveLength(1)
+    })
+    expect(patchBodies[0]).toMatchObject({ score: 4, feedback: 'Great detail.' })
   })
 })

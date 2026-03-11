@@ -140,6 +140,20 @@ export function getAssignmentStatusIconClass(status: AssignmentStatus): string {
 }
 
 /**
+ * Detect whether a submitted doc has draft grading data saved
+ * (scores present but not marked graded yet).
+ */
+export function hasDraftSavedGrade(
+  doc: Pick<AssignmentDoc, 'graded_at' | 'score_completion' | 'score_thinking' | 'score_workflow'> | null | undefined
+): boolean {
+  if (!doc || doc.graded_at) return false
+
+  return doc.score_completion !== null
+    || doc.score_thinking !== null
+    || doc.score_workflow !== null
+}
+
+/**
  * Format a due date for display
  * Example: "Tue Dec 16"
  */
