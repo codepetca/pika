@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
+import { extractAssignmentArtifacts } from '@/lib/assignment-artifacts'
 import { extractPlainText } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
@@ -118,6 +119,7 @@ export async function GET(
       // users is a single object due to the foreign key relationship
       const userEmail = (enrollment.users as unknown as { id: string; email: string }).email
       const profile = profileMap.get(enrollment.student_id) || null
+      const artifacts = doc ? extractAssignmentArtifacts(doc.content) : []
 
       return {
         student_id: enrollment.student_id,
@@ -127,7 +129,18 @@ export async function GET(
         student_name: profile?.full_name || null,
         status,
         student_updated_at: doc ? (studentUpdatedAtByDocId.get(doc.id) ?? null) : null,
-        doc: doc || null
+        doc: doc
+          ? {
+              submitted_at: doc.submitted_at,
+              updated_at: doc.updated_at,
+              score_completion: doc.score_completion,
+              score_thinking: doc.score_thinking,
+              score_workflow: doc.score_workflow,
+              graded_at: doc.graded_at,
+              returned_at: doc.returned_at,
+            }
+          : null,
+        artifacts,
       }
     })
 
