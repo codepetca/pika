@@ -46,10 +46,10 @@ describe('getLayoutConfig', () => {
     expect(config.rightSidebar.desktopAlwaysOpen).toBe(true)
   })
 
-  it('should return desktopAlwaysOpen for teacher assignment routes', () => {
+  it('should only force desktopAlwaysOpen while viewing teacher work', () => {
     const listConfig = getLayoutConfig('assignments-teacher-list')
     const viewingConfig = getLayoutConfig('assignments-teacher-viewing')
-    expect(listConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
+    expect(listConfig.rightSidebar.desktopAlwaysOpen).toBeUndefined()
     expect(viewingConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
   })
 })

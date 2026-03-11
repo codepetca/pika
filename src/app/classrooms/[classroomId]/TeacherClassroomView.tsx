@@ -32,6 +32,7 @@ import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
+import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
@@ -68,6 +69,7 @@ import {
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import type { AssignmentArtifact } from '@/lib/assignment-artifacts'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -82,6 +84,7 @@ interface StudentSubmissionRow {
   student_last_name: string | null
   status: AssignmentStatus
   student_updated_at?: string | null
+  artifacts: AssignmentArtifact[]
   doc: {
     submitted_at?: string | null
     updated_at?: string | null
@@ -204,7 +207,7 @@ export function TeacherClassroomView({
 }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
-  const { openRight: openMobileSidebar } = useMobileDrawer()
+  const { openRight: openMobileSidebar, close: closeMobileSidebar } = useMobileDrawer()
   const { setExpanded: setLeftSidebarExpanded } = useLeftSidebar()
 
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
@@ -454,19 +457,15 @@ export function TeacherClassroomView({
     onViewModeChange?.(selection.mode)
   }, [selection.mode, onViewModeChange])
 
-  // Auto-open sidebar when assignment is selected (separate effect)
-  const prevSelectionModeRef = useRef<'summary' | 'assignment'>('summary')
+  // Keep inspector closed for assignment list view (work now lives in-table).
   useEffect(() => {
-    // Only open sidebar when transitioning from summary to assignment view
-    if (selection.mode === 'assignment' && prevSelectionModeRef.current === 'summary' && selectedAssignmentData) {
-      if (window.innerWidth < DESKTOP_BREAKPOINT) {
-        openMobileSidebar()
-      } else {
-        setSidebarOpen(true)
-      }
+    if (selection.mode !== 'assignment' || selectedStudentId) return
+    if (window.innerWidth < DESKTOP_BREAKPOINT) {
+      closeMobileSidebar()
+    } else {
+      setSidebarOpen(false)
     }
-    prevSelectionModeRef.current = selection.mode
-  }, [selection.mode, selectedAssignmentData, setSidebarOpen, openMobileSidebar])
+  }, [selection.mode, selectedStudentId, closeMobileSidebar, setSidebarOpen])
 
   function handleCreateSuccess(created: Assignment) {
     // Optimistically add the new assignment to the list
@@ -826,11 +825,9 @@ export function TeacherClassroomView({
       </div>
     )
 
-  // Show mobile toggle only when viewing an assignment (not a student)
-  // Summary mode: no toggle (mobile has no way to open panel)
-  // Assignment selected (no student): toggle visible (mobile can open instructions)
-  // Student selected: no toggle (panel auto-opens)
-  const showMobileToggle = selection.mode === 'assignment' && selectedStudentId === null
+  // Keep the panel toggle only in summary mode (markdown view).
+  // Assignment mode now shows work artifacts in-table instead of instructions.
+  const showMobileToggle = selection.mode === 'summary'
 
   return (
     <PageLayout>
@@ -944,12 +941,14 @@ export function TeacherClassroomView({
                       isActive={sortColumn === 'first'}
                       direction={sortDirection}
                       onClick={() => toggleSort('first')}
+                      className={isCompactTable ? 'w-[5.5rem]' : 'w-[8rem]'}
                     />
                     <SortableHeaderCell
                       label={isCompactTable ? 'L.' : 'Last Name'}
                       isActive={sortColumn === 'last'}
                       direction={sortDirection}
                       onClick={() => toggleSort('last')}
+                      className={isCompactTable ? 'w-[4.5rem]' : 'w-[8rem]'}
                     />
                     <SortableHeaderCell
                       label={isCompactTable ? '' : 'Status'}
@@ -960,6 +959,9 @@ export function TeacherClassroomView({
                     />
                     <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
                     {!isCompactTable && <DataTableHeaderCell className="w-[5.5rem]">Updated</DataTableHeaderCell>}
+                    <DataTableHeaderCell className={isCompactTable ? 'w-[6.5rem]' : 'w-[38%] min-w-[24rem]'}>
+                      {isCompactTable ? 'Work' : 'Links / Images'}
+                    </DataTableHeaderCell>
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
@@ -988,14 +990,14 @@ export function TeacherClassroomView({
                           aria-label={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
                         />
                       </DataTableCell>
-                      <DataTableCell className={isCompactTable ? 'max-w-[80px] truncate' : 'max-w-[120px] truncate'}>
+                      <DataTableCell className={isCompactTable ? 'w-[5.5rem] max-w-[5.5rem] truncate' : 'w-[8rem] max-w-[8rem] truncate'}>
                         {student.student_first_name ? (
                           <Tooltip content={`${student.student_first_name} ${student.student_last_name ?? ''}`}>
                             <span>{student.student_first_name}</span>
                           </Tooltip>
                         ) : '—'}
                       </DataTableCell>
-                      <DataTableCell className={isCompactTable ? 'w-8' : 'max-w-[120px] truncate'}>
+                      <DataTableCell className={isCompactTable ? 'w-[4.5rem] max-w-[4.5rem] truncate' : 'w-[8rem] max-w-[8rem] truncate'}>
                         {student.student_last_name ? (
                           isCompactTable ? (
                             <Tooltip content={student.student_last_name}>
@@ -1030,11 +1032,17 @@ export function TeacherClassroomView({
                           ) : '—'}
                         </DataTableCell>
                       )}
+                      <DataTableCell className={isCompactTable ? 'w-[6.5rem]' : 'w-[38%] min-w-[24rem] align-top'}>
+                        <AssignmentArtifactsCell
+                          artifacts={student.artifacts || []}
+                          isCompact={isCompactTable}
+                        />
+                      </DataTableCell>
                     </DataTableRow>
                     )
                   })}
                   {sortedStudents.length === 0 && (
-                    <EmptyStateRow colSpan={isCompactTable ? 5 : 6} message="No students enrolled" />
+                    <EmptyStateRow colSpan={isCompactTable ? 6 : 7} message="No students enrolled" />
                   )}
                 </DataTableBody>
               </DataTable>

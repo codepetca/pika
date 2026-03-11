@@ -6235,3 +6235,59 @@
   - Student classrooms view: `/tmp/pika-student-view.png`
   - Student exam mode (split view): `/tmp/pika-student-exam-mode.png`
   - Student exam mode (doc open): `/tmp/pika-student-exam-doc-open.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Replace teacher assignment instructions pane with in-table work artifacts (links/images) for each student submission.
+**Completed:**
+- Added artifact extraction utility in `src/lib/assignment-artifacts.ts`:
+  - Extracts `http/https` URLs from Tiptap link marks and plain text.
+  - Extracts image URLs from Tiptap image nodes.
+  - Classifies artifacts as `link` or `image` (including `submission-images` and image extensions).
+  - Excludes non-HTTP protocols (e.g., `mailto:`).
+- Updated `GET /api/teacher/assignments/[id]` (`src/app/api/teacher/assignments/[id]/route.ts`) to return per-student `artifacts` array and trim `doc` payload to grading/status fields used by the table.
+- Added new `AssignmentArtifactsCell` UI component (`src/components/AssignmentArtifactsCell.tsx`):
+  - Pill-based artifact display in the `Work` column.
+  - Desktop: up to 4 pills + `+N` overflow pill.
+  - Compact mode: summary pill (`N items`).
+  - Hover tooltip preview (image thumbnail or link summary).
+  - Click opens preview modal with link/image details and next/prev navigation.
+- Updated teacher assignments table (`src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`):
+  - Added `Links / Images` column and artifact cell rendering.
+  - Adjusted empty-state colSpan.
+  - Kept right-sidebar toggle available only in summary mode.
+- Updated classroom shell behavior (`src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`):
+  - In teacher assignment mode with no selected student, auto-close the right pane.
+  - Removed assignment-instructions fallback from teacher assignment mode.
+- Updated assignments layout defaults (`src/lib/layout-config.ts`):
+  - `assignments-teacher-list` now defaults to right pane closed.
+
+**Validation:**
+- `pnpm test -- tests/lib/assignment-artifacts.test.ts` (full suite ran; pass)
+- `pnpm test -- tests/unit/layout-config.test.ts` (full suite ran; pass)
+- `pnpm exec vitest run tests/components/AssignmentArtifactsCell.test.tsx` (pass)
+- `pnpm lint` (pass)
+- Visual verification screenshots:
+  - Teacher assignment selected (new `Links / Images` column visible): `/tmp/pika-teacher-assignment-work.png`
+  - Teacher assignments summary (right pane not forced open): `/tmp/pika-teacher-assignments-summary.png`
+  - Student assignments view (regression check): `/tmp/pika-student-assignments.png`
+
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Refine assignment artifacts table UX: icon-only type pills, move `Links / Images` to last column, and allow wrapped multi-row pills.
+**Completed:**
+- Updated `src/components/AssignmentArtifactsCell.tsx`:
+  - Pills now use link/image icons for type (no textual type prefix in visible pill text).
+  - Non-compact mode now renders all artifact pills (no `+N` overflow pill cap).
+  - Tuned pill/container sizing to encourage 2–3 pills per row and wrap extras to additional rows.
+- Updated `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`:
+  - Moved `Links / Images` to the last column in the assignment student table.
+  - Increased width allocation (`w-[38%] min-w-[24rem]`) for `Links / Images`.
+  - Tightened widths on first/last name columns to preserve horizontal space for artifacts.
+- Updated `tests/components/AssignmentArtifactsCell.test.tsx`:
+  - Replaced overflow-indicator expectation with assertion that one preview pill renders per artifact in non-compact mode.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/AssignmentArtifactsCell.test.tsx` (pass)
+- `pnpm lint` (pass)
+- Visual verification screenshots:
+  - Teacher assignments table with new final-column artifacts layout + wrapped icon pills: `/tmp/pika-teacher-links-images-column-layout.png`
+  - Student regression check: `/tmp/pika-student-3011-classrooms.png`

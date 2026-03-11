@@ -679,6 +679,21 @@ function ClassroomPageContent({
   }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
 
   useEffect(() => {
+    if (!isTeacher || activeTab !== 'assignments') return
+    if (assignmentViewMode !== 'assignment') return
+    if (selectedStudent) return
+    setRightSidebarOpen(false)
+    closeMobileDrawer()
+  }, [
+    isTeacher,
+    activeTab,
+    assignmentViewMode,
+    selectedStudent,
+    setRightSidebarOpen,
+    closeMobileDrawer,
+  ])
+
+  useEffect(() => {
     if (activeTab === 'roster') {
       setRightSidebarOpen(false)
     }
@@ -1189,6 +1204,8 @@ function ClassroomPageContent({
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
               ? selectedStudent.assignmentTitle
+              : isTeacher && activeTab === 'assignments'
+              ? ''
               : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
               : activeTab === 'today'
@@ -1498,6 +1515,12 @@ function ClassroomPageContent({
               assignmentId={selectedStudent.assignmentId}
               studentId={selectedStudent.studentId}
             />
+          ) : isTeacher && activeTab === 'assignments' ? (
+            <div className="p-4">
+              <p className="text-sm text-text-muted">
+                Select a student to view work.
+              </p>
+            </div>
           ) : activeTab === 'assignments' ? (
             <div>
               {selectedAssignment ? (
