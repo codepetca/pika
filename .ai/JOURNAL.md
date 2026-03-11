@@ -6213,3 +6213,25 @@
   - Teacher classrooms: `/tmp/pika-teacher-classrooms-fix2.png`
   - Student classrooms: `/tmp/pika-student-classrooms-fix2.png`
   - Teacher tests grading view: `/tmp/pika-teacher-tests-grading-structured-names-fix-v2.png`
+## 2026-03-11 [AI - GPT-5 Codex]
+**Goal:** Fix student exam-mode split-pane scrolling and preserve tab indentation in rendered test question markdown.
+**Completed:**
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`:
+  - In active exam mode (`showCurrentTestInfoPanel`), constrained split container to viewport height and prevented outer page scrolling (`lg:h-[calc(100dvh-7.5rem)]` + `lg:overflow-hidden`).
+  - Enabled independent right-pane scrolling via `lg:overflow-y-auto` on the right section.
+  - Enabled independent left-pane scrolling in the documents list panel via `overflow-y-auto` and applied `scrollbar-hover` so the scrollbar stays hidden until hover/focus interaction.
+- Updated `src/components/QuestionMarkdown.tsx`:
+  - Removed destructive top-level `.trim()` that stripped leading tab indentation from markdown input.
+  - Trimmed only blank boundary lines while preserving meaningful leading whitespace.
+  - Added `whitespace-pre-wrap` to paragraph/list/blockquote render paths so tabs and indentation display correctly in student question prompts.
+- Added/updated tests:
+  - `tests/components/QuestionMarkdown.test.tsx`: added tab-indented paragraph coverage.
+  - `tests/components/StudentQuizzesTab.test.tsx`: added assertions for exam-mode fixed-height/overflow split behavior and left-pane scroller class.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/QuestionMarkdown.test.tsx tests/components/StudentQuizzesTab.test.tsx` (pass)
+- Visual verification screenshots:
+  - Teacher classrooms view: `/tmp/pika-teacher-view.png`
+  - Student classrooms view: `/tmp/pika-student-view.png`
+  - Student exam mode (split view): `/tmp/pika-student-exam-mode.png`
+  - Student exam mode (doc open): `/tmp/pika-student-exam-doc-open.png`
