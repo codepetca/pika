@@ -52,10 +52,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
     }
 
-    const { count: totalStudents } = await supabase
+    const { data: enrollmentRows, count: totalStudents } = await supabase
       .from('classroom_enrollments')
-      .select('*', { count: 'exact', head: true })
+      .select('student_id', { count: 'exact' })
       .eq('classroom_id', classroomId)
+    const enrolledStudentIds = new Set((enrollmentRows || []).map((row) => row.student_id))
 
     const testIds = (tests || []).map((t) => t.id)
 
@@ -87,6 +88,7 @@ export async function GET(request: NextRequest) {
 
       for (const row of attemptRows || []) {
         if (!row.is_submitted) continue
+        if (!enrolledStudentIds.has(row.student_id)) continue
         if (!seen[row.test_id]) seen[row.test_id] = new Set()
         seen[row.test_id].add(row.student_id)
       }
@@ -103,6 +105,7 @@ export async function GET(request: NextRequest) {
 
       for (const row of responseRows || []) {
         if (!hasMeaningfulTestResponse(row)) continue
+        if (!enrolledStudentIds.has(row.student_id)) continue
         if (!seen[row.test_id]) seen[row.test_id] = new Set()
         seen[row.test_id].add(row.student_id)
       }
