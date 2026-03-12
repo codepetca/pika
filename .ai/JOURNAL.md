@@ -6759,3 +6759,16 @@
 - `npx tsc --noEmit` (pass)
 - `pnpm vitest run tests/unit/assignments.test.ts tests/components/TeacherStudentWorkPanel.test.tsx` (pass)
 - `pnpm build` (pass)
+
+## 2026-03-12 [AI - GPT-5 Codex]
+**Goal:** Fix Tests tab stats showing responded count greater than current class enrollment (e.g., 25/24).
+**Completed:**
+- Updated `src/app/api/teacher/tests/route.ts`:
+  - changed enrollment query to fetch `student_id` + count,
+  - built an enrolled-student set,
+  - filtered respondent aggregation so only currently enrolled students are counted from both `test_attempts` and `test_responses`.
+- Added API regression coverage in `tests/api/teacher/tests-route.test.ts`:
+  - new test verifies responders from removed/non-enrolled students are excluded from `stats.responded` while `stats.total_students` reflects current enrollment.
+
+**Validation:**
+- `pnpm exec vitest tests/api/teacher/tests-route.test.ts` (pass)
