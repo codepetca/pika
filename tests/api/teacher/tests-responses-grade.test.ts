@@ -33,23 +33,30 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
     vi.clearAllMocks()
   })
 
-  function mockOpenResponseRow() {
+  function mockResponseRow(
+    questionType: 'open_response' | 'multiple_choice' = 'open_response',
+    points = 5
+  ) {
     return {
       id: 'response-1',
       test_id: 'test-1',
       question_id: 'question-1',
       score: null,
       feedback: null,
-      response_text: 'Water moves to balance concentration.',
+      response_text: questionType === 'open_response' ? 'Water moves to balance concentration.' : null,
       test_questions: {
         id: 'question-1',
-        question_type: 'open_response',
-        points: 5,
+        question_type: questionType,
+        points,
       },
     }
   }
 
-  function setupSupabase(updateSpy: ReturnType<typeof vi.fn>) {
+  function setupSupabase(
+    updateSpy: ReturnType<typeof vi.fn>,
+    options: { questionType?: 'open_response' | 'multiple_choice'; points?: number } = {}
+  ) {
+    const { questionType = 'open_response', points = 5 } = options
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table !== 'test_responses') {
         throw new Error(`Unexpected table: ${table}`)
@@ -59,7 +66,7 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
         select: vi.fn(() => ({
           eq: vi.fn().mockReturnThis(),
           single: vi.fn().mockResolvedValue({
-            data: mockOpenResponseRow(),
+            data: mockResponseRow(questionType, points),
             error: null,
           }),
         })),
@@ -186,5 +193,41 @@ describe('PATCH /api/teacher/tests/[id]/responses/[responseId]', () => {
         ai_model: null,
       })
     )
+  })
+
+  it('allows manual score overrides for multiple-choice responses', async () => {
+    const updateSpy = vi.fn((payload: Record<string, unknown>) => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'response-1', ...payload },
+              error: null,
+            }),
+          })),
+        })),
+      })),
+    }))
+    setupSupabase(updateSpy, { questionType: 'multiple_choice', points: 2 })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          score: 1.5,
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        score: 1.5,
+        feedback: null,
+      })
+    )
+    expect(data.response.score).toBe(1.5)
   })
 })

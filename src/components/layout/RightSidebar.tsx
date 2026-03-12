@@ -10,7 +10,7 @@ export interface RightSidebarProps {
   children: ReactNode
   className?: string
   /** Title shown in mobile drawer header */
-  title?: string
+  title?: ReactNode
   /** Optional action buttons shown in header next to title */
   headerActions?: ReactNode
 }
@@ -24,6 +24,7 @@ export interface RightSidebarProps {
  */
 export function RightSidebar({ children, className, title = 'Details', headerActions }: RightSidebarProps) {
   const showHeader = !!(title || headerActions)
+  const mobileAriaLabel = typeof title === 'string' && title.trim().length > 0 ? title : 'Details'
   const { isOpen, enabled } = useRightSidebar()
   const { isRightOpen, close } = useMobileDrawer()
   const firstFocusableRef = useRef<HTMLButtonElement | null>(null)
@@ -75,7 +76,7 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
           {/* Header */}
           {showHeader && (
             <div className="flex items-center justify-between p-2 border-b border-border">
-              <span className="text-sm font-medium text-text-muted truncate flex-1 px-2">
+              <span className="truncate flex-1 px-2 text-sm font-semibold text-text-default">
                 {title}
               </span>
               {headerActions && (
@@ -104,7 +105,7 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={title || 'Details'}
+            aria-label={mobileAriaLabel}
             className={[
               'absolute inset-y-0 right-0 w-full max-w-md',
               'bg-surface',

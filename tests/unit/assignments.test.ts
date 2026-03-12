@@ -9,6 +9,7 @@ import {
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
   getAssignmentStatusIconClass,
+  hasDraftSavedGrade,
   formatDueDate,
   isPastDue,
   formatRelativeDueDate,
@@ -458,6 +459,60 @@ describe('assignment utilities', () => {
 
     it('should return gray for invalid status', () => {
       expect(getAssignmentStatusIconClass('invalid_status' as any)).toBe('text-gray-400')
+    })
+  })
+
+  // ==========================================================================
+  // hasDraftSavedGrade()
+  // ==========================================================================
+
+  describe('hasDraftSavedGrade', () => {
+    it('returns false when doc is null', () => {
+      expect(hasDraftSavedGrade(null)).toBe(false)
+    })
+
+    it('returns false when no score fields are set', () => {
+      const doc = createMockAssignmentDoc({
+        graded_at: null,
+        score_completion: null,
+        score_thinking: null,
+        score_workflow: null,
+      })
+
+      expect(hasDraftSavedGrade(doc)).toBe(false)
+    })
+
+    it('returns true when at least one score field is set and not graded', () => {
+      const doc = createMockAssignmentDoc({
+        graded_at: null,
+        score_completion: 8,
+        score_thinking: null,
+        score_workflow: null,
+      })
+
+      expect(hasDraftSavedGrade(doc)).toBe(true)
+    })
+
+    it('treats zero as a saved draft score', () => {
+      const doc = createMockAssignmentDoc({
+        graded_at: null,
+        score_completion: 0,
+        score_thinking: null,
+        score_workflow: null,
+      })
+
+      expect(hasDraftSavedGrade(doc)).toBe(true)
+    })
+
+    it('returns false once graded_at is present', () => {
+      const doc = createMockAssignmentDoc({
+        graded_at: '2026-03-10T14:00:00.000Z',
+        score_completion: 8,
+        score_thinking: 7,
+        score_workflow: 9,
+      })
+
+      expect(hasDraftSavedGrade(doc)).toBe(false)
     })
   })
 

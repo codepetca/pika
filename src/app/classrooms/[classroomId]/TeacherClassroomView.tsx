@@ -18,7 +18,6 @@ import {
 } from '@dnd-kit/sortable'
 import {
   Check,
-  CheckCircle2,
   Circle,
   Clock,
   Pencil,
@@ -43,8 +42,10 @@ import {
 } from '@/components/PageLayout'
 import { useRightSidebar, useMobileDrawer, useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import {
+  calculateAssignmentStatus,
   getAssignmentStatusIconClass,
   getAssignmentStatusLabel,
+  hasDraftSavedGrade,
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { isVisibleAtNow } from '@/lib/scheduling'
@@ -65,6 +66,7 @@ import {
   TEACHER_ASSIGNMENTS_SELECTION_EVENT,
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
   TEACHER_GRADE_UPDATED_EVENT,
+  type TeacherGradeUpdatedEventDetail,
 } from '@/lib/events'
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
@@ -156,9 +158,18 @@ function getRowClassName(isSelected: boolean): string {
 const STATUS_ICON_CLASS = 'h-4 w-4'
 const LATE_CLOCK_CLASS = 'h-3 w-3'
 
-function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: boolean }) {
+function StatusIcon({
+  status,
+  wasLate,
+  hasDraftGrade = false,
+}: {
+  status: AssignmentStatus
+  wasLate?: boolean
+  hasDraftGrade?: boolean
+}) {
   const colorClass = getAssignmentStatusIconClass(status)
-  const cls = `${STATUS_ICON_CLASS} ${colorClass}`
+  let iconColorClass = colorClass
+  let icon: React.ReactElement
 
   // Determine if this status should show the late clock indicator.
   // "late" statuses always show it; downstream statuses show it when wasLate is true.
@@ -167,33 +178,39 @@ function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: b
     status === 'submitted_late' ||
     ((status === 'graded' || status === 'returned' || status === 'resubmitted') && wasLate)
 
-  // Pick the base icon for each status
-  let icon: React.ReactElement
+  // Pick the base icon for each status.
+  // Submitted is a circle unless draft grading has been saved.
   switch (status) {
     case 'not_started':
     case 'in_progress':
     case 'in_progress_late':
-      icon = <Circle className={cls} />
+      icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
       break
     case 'submitted_on_time':
     case 'submitted_late':
-      icon = <Check className={cls} />
+      if (hasDraftGrade) {
+        iconColorClass = 'text-gray-400'
+        icon = <Check className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
+      } else {
+        icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
+      }
       break
     case 'graded':
-      icon = <CheckCircle2 className={cls} />
+      iconColorClass = 'text-green-500'
+      icon = <Check className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
       break
     case 'returned':
-      icon = <Send className={cls} />
+      icon = <Send className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
       break
     case 'resubmitted':
-      icon = <RotateCcw className={cls} />
+      icon = <RotateCcw className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
       break
     default:
-      icon = <Circle className={cls} />
+      icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
   }
 
   if (showLate) {
-    return <span className={`inline-flex items-center gap-0.5 ${colorClass}`}>{icon}<Clock className={LATE_CLOCK_CLASS} /></span>
+    return <span className={`inline-flex items-center gap-0.5 ${iconColorClass}`}>{icon}<Clock className={LATE_CLOCK_CLASS} /></span>
   }
   return icon
 }
@@ -700,10 +717,34 @@ export function TeacherClassroomView({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [selectedStudentId])
 
-  // Refresh table when a grade is saved in the sidebar
+  // Apply sidebar grade saves to the current row without forcing a table reload.
   useEffect(() => {
-    function onGradeUpdated() {
-      setRefreshCounter((c) => c + 1)
+    function onGradeUpdated(event: Event) {
+      const customEvent = event as CustomEvent<TeacherGradeUpdatedEventDetail>
+      const detail = customEvent.detail
+      if (!detail?.assignmentId || !detail?.studentId || !detail?.doc) return
+      const updatedDoc = detail.doc
+
+      setSelectedAssignmentData((prev) => {
+        if (!prev || prev.assignment.id !== detail.assignmentId) return prev
+
+        let didUpdate = false
+        const nextStudents = prev.students.map((student) => {
+          if (student.student_id !== detail.studentId) return student
+          didUpdate = true
+          return {
+            ...student,
+            doc: {
+              ...student.doc,
+              ...updatedDoc,
+            },
+            status: calculateAssignmentStatus(prev.assignment, updatedDoc),
+            student_updated_at: updatedDoc.updated_at ?? student.student_updated_at,
+          }
+        })
+
+        return didUpdate ? { ...prev, students: nextStudents } : prev
+      })
     }
 
     window.addEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
@@ -973,6 +1014,12 @@ export function TeacherClassroomView({
                       student.doc?.score_workflow != null
                         ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
                         : null
+                    const hasDraftGrade = hasDraftSavedGrade(student.doc ? {
+                      graded_at: student.doc.graded_at ?? null,
+                      score_completion: student.doc.score_completion ?? null,
+                      score_thinking: student.doc.score_thinking ?? null,
+                      score_workflow: student.doc.score_workflow ?? null,
+                    } : null)
                     const wasLate = !!(student.doc?.submitted_at && dueAtMs && new Date(student.doc.submitted_at).getTime() > dueAtMs)
                     return (
                     <DataTableRow
@@ -1016,6 +1063,7 @@ export function TeacherClassroomView({
                             <StatusIcon
                               status={student.status}
                               wasLate={wasLate}
+                              hasDraftGrade={hasDraftGrade}
                             />
                           </span>
                         </Tooltip>

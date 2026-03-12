@@ -428,13 +428,14 @@ function ClassroomPageContent({
     studentId: null,
     studentName: null,
   })
-  const [testGradingSaveHandler, setTestGradingSaveHandler] = useState<(() => Promise<void>) | null>(null)
   const [testGradingSaveState, setTestGradingSaveState] = useState<{
     canSave: boolean
     isSaving: boolean
+    status: 'idle' | 'unsaved' | 'saving' | 'saved'
   }>({
     canSave: false,
     isSaving: false,
+    status: 'idle',
   })
   const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
   const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
@@ -457,8 +458,7 @@ function ClassroomPageContent({
         studentId: null,
         studentName: null,
       })
-      setTestGradingSaveHandler(null)
-      setTestGradingSaveState({ canSave: false, isSaving: false })
+      setTestGradingSaveState({ canSave: false, isSaving: false, status: 'idle' })
     }
   }, [activeTab])
 
@@ -1197,9 +1197,18 @@ function ClassroomPageContent({
               : isTeacher &&
                 activeTab === 'tests' &&
                 testGradingContext.mode === 'grading'
-              ? testGradingContext.studentName
-                ? `${testGradingContext.studentName} Test`
-                : 'Test Grading'
+              ? (
+                <span className="relative flex w-full items-center">
+                  <span className="truncate pr-2 text-sm font-semibold text-text-default">
+                    {testGradingContext.studentName || 'Test Grading'}
+                  </span>
+                  {selectedQuiz?.title && (
+                    <span className="pointer-events-none absolute left-1/2 max-w-[70%] -translate-x-1/2 truncate text-center text-xs text-text-muted">
+                      {selectedQuiz.title}
+                    </span>
+                  )}
+                </span>
+              )
               : isTeacher && isAssessmentTab
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
@@ -1249,17 +1258,24 @@ function ClassroomPageContent({
               activeTab === 'tests' &&
               testGradingContext.mode === 'grading' &&
               testGradingContext.studentId ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!testGradingSaveHandler) return
-                  void testGradingSaveHandler()
-                }}
-                disabled={!testGradingSaveState.canSave || testGradingSaveState.isSaving}
-                className="px-2 py-1 text-xs rounded bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50"
-              >
-                {testGradingSaveState.isSaving ? 'Saving...' : 'Save'}
-              </button>
+              testGradingSaveState.status !== 'idle' ? (
+                <span
+                  className={[
+                    'px-1 text-xs',
+                    testGradingSaveState.status === 'saved'
+                      ? 'text-success font-medium'
+                      : testGradingSaveState.status === 'saving'
+                        ? 'text-text-muted'
+                        : 'text-warning',
+                  ].join(' ')}
+                >
+                  {testGradingSaveState.status === 'saved'
+                    ? 'Saved'
+                    : testGradingSaveState.status === 'saving'
+                      ? 'Saving...'
+                      : 'Unsaved'}
+                </span>
+              ) : null
             ) : isTeacher &&
               activeTab === 'quizzes' &&
               selectedQuiz ? (
@@ -1323,8 +1339,6 @@ function ClassroomPageContent({
               selectedStudentId={testGradingContext.studentId}
               apiBasePath={assessmentApiBasePath}
               refreshToken={testGradingPanelRefreshToken}
-              onUpdated={handleQuizUpdate}
-              onRegisterSaveHandler={setTestGradingSaveHandler}
               onSaveStateChange={setTestGradingSaveState}
             />
           ) : isTeacher && isAssessmentTab && selectedQuiz ? (
