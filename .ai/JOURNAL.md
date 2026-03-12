@@ -6746,3 +6746,16 @@
   - Teacher grading pane baseline: `/tmp/pika-teacher-tests-gradebox-fixed-v9.png`
   - Teacher grading pane with multiline feedback (grade box remains fixed): `/tmp/pika-teacher-tests-gradebox-fixed-multiline-v9.png`
   - Student tests view: `/tmp/pika-student-tests-gradebox-fixed-v9.png`
+
+## 2026-03-12 [AI - GPT-5 Codex]
+**Goal:** Resolve PR #395 CI/build TypeScript failures in teacher assignment grading view.
+**Completed:**
+- Updated `src/app/classrooms/[classroomId]/TeacherClassroomView.tsx` to fix strict-null/type errors from CI:
+  - captured `detail.doc` into a narrowed `updatedDoc` constant before async state updater use,
+  - used `updatedDoc` for status + updated timestamp derivation,
+  - normalized student doc grade fields to `null` defaults before calling `hasDraftSavedGrade`.
+
+**Validation:**
+- `npx tsc --noEmit` (pass)
+- `pnpm vitest run tests/unit/assignments.test.ts tests/components/TeacherStudentWorkPanel.test.tsx` (pass)
+- `pnpm build` (pass)

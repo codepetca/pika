@@ -723,6 +723,7 @@ export function TeacherClassroomView({
       const customEvent = event as CustomEvent<TeacherGradeUpdatedEventDetail>
       const detail = customEvent.detail
       if (!detail?.assignmentId || !detail?.studentId || !detail?.doc) return
+      const updatedDoc = detail.doc
 
       setSelectedAssignmentData((prev) => {
         if (!prev || prev.assignment.id !== detail.assignmentId) return prev
@@ -735,10 +736,10 @@ export function TeacherClassroomView({
             ...student,
             doc: {
               ...student.doc,
-              ...detail.doc,
+              ...updatedDoc,
             },
-            status: calculateAssignmentStatus(prev.assignment, detail.doc),
-            student_updated_at: detail.doc.updated_at ?? student.student_updated_at,
+            status: calculateAssignmentStatus(prev.assignment, updatedDoc),
+            student_updated_at: updatedDoc.updated_at ?? student.student_updated_at,
           }
         })
 
@@ -1013,7 +1014,12 @@ export function TeacherClassroomView({
                       student.doc?.score_workflow != null
                         ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
                         : null
-                    const hasDraftGrade = hasDraftSavedGrade(student.doc)
+                    const hasDraftGrade = hasDraftSavedGrade(student.doc ? {
+                      graded_at: student.doc.graded_at ?? null,
+                      score_completion: student.doc.score_completion ?? null,
+                      score_thinking: student.doc.score_thinking ?? null,
+                      score_workflow: student.doc.score_workflow ?? null,
+                    } : null)
                     const wasLate = !!(student.doc?.submitted_at && dueAtMs && new Date(student.doc.submitted_at).getTime() > dueAtMs)
                     return (
                     <DataTableRow
