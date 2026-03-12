@@ -152,10 +152,15 @@ function isStartOfBlock(line: string): boolean {
 }
 
 function parseBlocks(rawContent: string): MarkdownBlock[] {
-  const normalized = String(rawContent ?? '').replace(/\r\n?/g, '\n').trim()
-  if (!normalized) return []
+  const normalized = String(rawContent ?? '').replace(/\r\n?/g, '\n')
+  if (!normalized.trim()) return []
 
-  const lines = normalized.split('\n')
+  const rawLines = normalized.split('\n')
+  let start = 0
+  let end = rawLines.length
+  while (start < end && rawLines[start].trim().length === 0) start += 1
+  while (end > start && rawLines[end - 1].trim().length === 0) end -= 1
+  const lines = rawLines.slice(start, end)
   const blocks: MarkdownBlock[] = []
   let index = 0
 
@@ -275,9 +280,11 @@ export function QuestionMarkdown({ content, className = '' }: QuestionMarkdownPr
 
         if (block.type === 'unordered-list') {
           return (
-            <ul key={key} className="list-disc space-y-1 pl-5 text-sm text-text-default">
+            <ul key={key} className="list-disc space-y-1 pl-5 text-sm text-text-default whitespace-pre-wrap">
               {block.items.map((item, itemIndex) => (
-                <li key={`${key}-item-${itemIndex}`}>{parseInline(item, `${key}-${itemIndex}`)}</li>
+                <li key={`${key}-item-${itemIndex}`} className="whitespace-pre-wrap">
+                  {parseInline(item, `${key}-${itemIndex}`)}
+                </li>
               ))}
             </ul>
           )
@@ -285,9 +292,11 @@ export function QuestionMarkdown({ content, className = '' }: QuestionMarkdownPr
 
         if (block.type === 'ordered-list') {
           return (
-            <ol key={key} className="list-decimal space-y-1 pl-5 text-sm text-text-default">
+            <ol key={key} className="list-decimal space-y-1 pl-5 text-sm text-text-default whitespace-pre-wrap">
               {block.items.map((item, itemIndex) => (
-                <li key={`${key}-item-${itemIndex}`}>{parseInline(item, `${key}-${itemIndex}`)}</li>
+                <li key={`${key}-item-${itemIndex}`} className="whitespace-pre-wrap">
+                  {parseInline(item, `${key}-${itemIndex}`)}
+                </li>
               ))}
             </ol>
           )
@@ -295,7 +304,7 @@ export function QuestionMarkdown({ content, className = '' }: QuestionMarkdownPr
 
         if (block.type === 'blockquote') {
           return (
-            <blockquote key={key} className="border-l-2 border-border pl-3 text-sm text-text-muted">
+            <blockquote key={key} className="border-l-2 border-border pl-3 text-sm text-text-muted whitespace-pre-wrap">
               {parseInlineWithLineBreaks(block.text, key)}
             </blockquote>
           )
@@ -313,7 +322,7 @@ export function QuestionMarkdown({ content, className = '' }: QuestionMarkdownPr
         }
 
         return (
-          <p key={key} className="text-sm text-text-default">
+          <p key={key} className="text-sm text-text-default whitespace-pre-wrap">
             {parseInlineWithLineBreaks(block.text, key)}
           </p>
         )

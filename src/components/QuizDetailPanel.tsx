@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Check, Copy, Plus, X } from 'lucide-react'
+import { Check, Copy, ExternalLink, Plus, X } from 'lucide-react'
 import { Button, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { canEditQuizQuestions } from '@/lib/quizzes'
@@ -29,7 +29,7 @@ import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
-import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
+import { markdownToTest, testToMarkdown, TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown'
 import type {
   JsonPatchOperation,
   QuizQuestion,
@@ -53,7 +53,6 @@ export function QuizDetailPanel({
   onQuizUpdate,
   onRequestDelete,
 }: Props) {
-  void classroomId
   const AUTOSAVE_DEBOUNCE_MS = 3000
   const AUTOSAVE_MIN_INTERVAL_MS = 10_000
   const isTestsView = quiz.assessment_type === 'test' || apiBasePath.includes('/tests')
@@ -72,6 +71,7 @@ export function QuizDetailPanel({
   const [markdownInfo, setMarkdownInfo] = useState('')
   const [markdownDirty, setMarkdownDirty] = useState(false)
   const [markdownSaving, setMarkdownSaving] = useState(false)
+  const [openingTestPreview, setOpeningTestPreview] = useState(false)
   const [conflictDraft, setConflictDraft] = useState<{
     version: number
     content: { title: string; show_results: boolean; questions: QuizQuestion[] }
@@ -424,6 +424,12 @@ export function QuizDetailPanel({
     loadQuizDetails()
   }, [loadQuizDetails])
 
+  useEffect(() => {
+    if (!isTestsView) return
+    if (viewMode !== 'preview') return
+    setViewMode('questions')
+  }, [isTestsView, viewMode])
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
@@ -620,9 +626,20 @@ export function QuizDetailPanel({
   async function handleCopyMarkdown() {
     try {
       await navigator.clipboard.writeText(markdownContent)
+      setMarkdownError('')
       setMarkdownInfo('Markdown copied to clipboard')
     } catch {
       setMarkdownError('Failed to copy markdown')
+    }
+  }
+
+  async function handleCopyMarkdownSchema() {
+    try {
+      await navigator.clipboard.writeText(TEST_MARKDOWN_AI_SCHEMA)
+      setMarkdownError('')
+      setMarkdownInfo('Markdown schema copied to clipboard')
+    } catch {
+      setMarkdownError('Failed to copy markdown schema')
     }
   }
 
@@ -696,6 +713,54 @@ export function QuizDetailPanel({
     setMarkdownSaving(false)
   }
 
+  const handleOpenTestPreview = useCallback(async () => {
+    if (!isTestsView) return
+
+    setOpeningTestPreview(true)
+    const nextDraft = {
+      title: editTitle,
+      show_results: draftShowResults,
+      questions,
+    }
+
+    const saved = await saveDraft(nextDraft, {
+      forceFull: true,
+      documents,
+    })
+
+    if (saved) {
+      const popupWidth = Math.max(window.screen?.availWidth ?? 0, window.innerWidth ?? 0, 1280)
+      const popupHeight = Math.max(window.screen?.availHeight ?? 0, window.innerHeight ?? 0, 720)
+      const popupFeatures = [
+        'noopener',
+        'noreferrer',
+        'popup=yes',
+        'resizable=yes',
+        'scrollbars=yes',
+        'left=0',
+        'top=0',
+        `width=${popupWidth}`,
+        `height=${popupHeight}`,
+      ].join(',')
+      const previewWindow = window.open(
+        `/classrooms/${classroomId}/tests/${quiz.id}/preview`,
+        '_blank',
+        popupFeatures
+      )
+      if (previewWindow) {
+        try {
+          previewWindow.moveTo(0, 0)
+          previewWindow.resizeTo(popupWidth, popupHeight)
+          previewWindow.focus()
+        } catch {
+          // Browsers may block scripted move/resize/focus based on user settings.
+        }
+      }
+    }
+
+    setOpeningTestPreview(false)
+  }, [classroomId, documents, draftShowResults, editTitle, isTestsView, questions, quiz.id, saveDraft])
+
   if (loading) {
     return (
       <div className="p-4 flex justify-center">
@@ -745,17 +810,19 @@ export function QuizDetailPanel({
             Markdown
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => setViewMode('preview')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            viewMode === 'preview'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-text-muted hover:text-text-default'
-          }`}
-        >
-          Preview
-        </button>
+        {!isTestsView && (
+          <button
+            type="button"
+            onClick={() => setViewMode('preview')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              viewMode === 'preview'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:text-text-default'
+            }`}
+          >
+            Preview
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setViewMode('results')}
@@ -767,13 +834,30 @@ export function QuizDetailPanel({
         >
           Results ({quiz.stats.responded})
         </button>
+        {isTestsView && (
+          <div className="ml-2 flex items-center">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                void handleOpenTestPreview()
+              }}
+              disabled={openingTestPreview}
+              className="h-8 gap-1.5 px-3 font-semibold"
+            >
+              <ExternalLink className="h-4 w-4" />
+              {openingTestPreview ? 'Opening Preview...' : 'Preview'}
+            </Button>
+          </div>
+        )}
         {isTestsView && onRequestDelete ? (
           <Button
             type="button"
             variant="danger"
             size="sm"
             onClick={onRequestDelete}
-            className="ml-auto mr-3 h-8 self-center px-3 font-semibold"
+            className="ml-auto mr-3 h-8 px-3 font-semibold"
           >
             Delete Test
           </Button>
@@ -929,44 +1013,50 @@ export function QuizDetailPanel({
           </div>
         ) : viewMode === 'markdown' && isTestsView ? (
           <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs text-text-muted">
-                Edit this test as markdown. Required fields: title, question prompts, valid options, and
-                Correct Option for multiple-choice questions.
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    void handleCopyMarkdown()
-                  }}
-                  className="gap-1.5"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleResetMarkdown}
-                  disabled={!markdownDirty || markdownSaving}
-                >
-                  Reset
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    void handleApplyMarkdown()
-                  }}
-                  disabled={markdownSaving || !isEditable}
-                >
-                  {markdownSaving ? 'Applying...' : 'Apply Markdown'}
-                </Button>
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  void handleCopyMarkdown()
+                }}
+                className="gap-1.5"
+              >
+                <Copy className="h-4 w-4" />
+                Copy
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  void handleCopyMarkdownSchema()
+                }}
+                className="gap-1.5"
+              >
+                <Copy className="h-4 w-4" />
+                Copy Schema
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleResetMarkdown}
+                disabled={!markdownDirty || markdownSaving}
+              >
+                Reset
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  void handleApplyMarkdown()
+                }}
+                disabled={markdownSaving || !isEditable}
+              >
+                {markdownSaving ? 'Applying...' : 'Apply Markdown'}
+              </Button>
             </div>
             {!isEditable && (
               <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">

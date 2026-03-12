@@ -18,7 +18,6 @@ import {
 } from '@dnd-kit/sortable'
 import {
   Check,
-  CheckCircle2,
   Circle,
   Clock,
   Pencil,
@@ -32,6 +31,7 @@ import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
+import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import {
   ACTIONBAR_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
@@ -42,8 +42,10 @@ import {
 } from '@/components/PageLayout'
 import { useRightSidebar, useMobileDrawer, useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import {
+  calculateAssignmentStatus,
   getAssignmentStatusIconClass,
   getAssignmentStatusLabel,
+  hasDraftSavedGrade,
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { isVisibleAtNow } from '@/lib/scheduling'
@@ -64,10 +66,12 @@ import {
   TEACHER_ASSIGNMENTS_SELECTION_EVENT,
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
   TEACHER_GRADE_UPDATED_EVENT,
+  type TeacherGradeUpdatedEventDetail,
 } from '@/lib/events'
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import type { AssignmentArtifact } from '@/lib/assignment-artifacts'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -82,6 +86,7 @@ interface StudentSubmissionRow {
   student_last_name: string | null
   status: AssignmentStatus
   student_updated_at?: string | null
+  artifacts: AssignmentArtifact[]
   doc: {
     submitted_at?: string | null
     updated_at?: string | null
@@ -153,9 +158,18 @@ function getRowClassName(isSelected: boolean): string {
 const STATUS_ICON_CLASS = 'h-4 w-4'
 const LATE_CLOCK_CLASS = 'h-3 w-3'
 
-function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: boolean }) {
+function StatusIcon({
+  status,
+  wasLate,
+  hasDraftGrade = false,
+}: {
+  status: AssignmentStatus
+  wasLate?: boolean
+  hasDraftGrade?: boolean
+}) {
   const colorClass = getAssignmentStatusIconClass(status)
-  const cls = `${STATUS_ICON_CLASS} ${colorClass}`
+  let iconColorClass = colorClass
+  let icon: React.ReactElement
 
   // Determine if this status should show the late clock indicator.
   // "late" statuses always show it; downstream statuses show it when wasLate is true.
@@ -164,33 +178,39 @@ function StatusIcon({ status, wasLate }: { status: AssignmentStatus; wasLate?: b
     status === 'submitted_late' ||
     ((status === 'graded' || status === 'returned' || status === 'resubmitted') && wasLate)
 
-  // Pick the base icon for each status
-  let icon: React.ReactElement
+  // Pick the base icon for each status.
+  // Submitted is a circle unless draft grading has been saved.
   switch (status) {
     case 'not_started':
     case 'in_progress':
     case 'in_progress_late':
-      icon = <Circle className={cls} />
+      icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
       break
     case 'submitted_on_time':
     case 'submitted_late':
-      icon = <Check className={cls} />
+      if (hasDraftGrade) {
+        iconColorClass = 'text-gray-400'
+        icon = <Check className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
+      } else {
+        icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
+      }
       break
     case 'graded':
-      icon = <CheckCircle2 className={cls} />
+      iconColorClass = 'text-green-500'
+      icon = <Check className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
       break
     case 'returned':
-      icon = <Send className={cls} />
+      icon = <Send className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
       break
     case 'resubmitted':
-      icon = <RotateCcw className={cls} />
+      icon = <RotateCcw className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
       break
     default:
-      icon = <Circle className={cls} />
+      icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
   }
 
   if (showLate) {
-    return <span className={`inline-flex items-center gap-0.5 ${colorClass}`}>{icon}<Clock className={LATE_CLOCK_CLASS} /></span>
+    return <span className={`inline-flex items-center gap-0.5 ${iconColorClass}`}>{icon}<Clock className={LATE_CLOCK_CLASS} /></span>
   }
   return icon
 }
@@ -204,7 +224,7 @@ export function TeacherClassroomView({
 }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setSidebarOpen, width: sidebarWidth } = useRightSidebar()
-  const { openRight: openMobileSidebar } = useMobileDrawer()
+  const { openRight: openMobileSidebar, close: closeMobileSidebar } = useMobileDrawer()
   const { setExpanded: setLeftSidebarExpanded } = useLeftSidebar()
 
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
@@ -454,19 +474,15 @@ export function TeacherClassroomView({
     onViewModeChange?.(selection.mode)
   }, [selection.mode, onViewModeChange])
 
-  // Auto-open sidebar when assignment is selected (separate effect)
-  const prevSelectionModeRef = useRef<'summary' | 'assignment'>('summary')
+  // Keep inspector closed for assignment list view (work now lives in-table).
   useEffect(() => {
-    // Only open sidebar when transitioning from summary to assignment view
-    if (selection.mode === 'assignment' && prevSelectionModeRef.current === 'summary' && selectedAssignmentData) {
-      if (window.innerWidth < DESKTOP_BREAKPOINT) {
-        openMobileSidebar()
-      } else {
-        setSidebarOpen(true)
-      }
+    if (selection.mode !== 'assignment' || selectedStudentId) return
+    if (window.innerWidth < DESKTOP_BREAKPOINT) {
+      closeMobileSidebar()
+    } else {
+      setSidebarOpen(false)
     }
-    prevSelectionModeRef.current = selection.mode
-  }, [selection.mode, selectedAssignmentData, setSidebarOpen, openMobileSidebar])
+  }, [selection.mode, selectedStudentId, closeMobileSidebar, setSidebarOpen])
 
   function handleCreateSuccess(created: Assignment) {
     // Optimistically add the new assignment to the list
@@ -701,10 +717,34 @@ export function TeacherClassroomView({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [selectedStudentId])
 
-  // Refresh table when a grade is saved in the sidebar
+  // Apply sidebar grade saves to the current row without forcing a table reload.
   useEffect(() => {
-    function onGradeUpdated() {
-      setRefreshCounter((c) => c + 1)
+    function onGradeUpdated(event: Event) {
+      const customEvent = event as CustomEvent<TeacherGradeUpdatedEventDetail>
+      const detail = customEvent.detail
+      if (!detail?.assignmentId || !detail?.studentId || !detail?.doc) return
+      const updatedDoc = detail.doc
+
+      setSelectedAssignmentData((prev) => {
+        if (!prev || prev.assignment.id !== detail.assignmentId) return prev
+
+        let didUpdate = false
+        const nextStudents = prev.students.map((student) => {
+          if (student.student_id !== detail.studentId) return student
+          didUpdate = true
+          return {
+            ...student,
+            doc: {
+              ...student.doc,
+              ...updatedDoc,
+            },
+            status: calculateAssignmentStatus(prev.assignment, updatedDoc),
+            student_updated_at: updatedDoc.updated_at ?? student.student_updated_at,
+          }
+        })
+
+        return didUpdate ? { ...prev, students: nextStudents } : prev
+      })
     }
 
     window.addEventListener(TEACHER_GRADE_UPDATED_EVENT, onGradeUpdated)
@@ -826,11 +866,9 @@ export function TeacherClassroomView({
       </div>
     )
 
-  // Show mobile toggle only when viewing an assignment (not a student)
-  // Summary mode: no toggle (mobile has no way to open panel)
-  // Assignment selected (no student): toggle visible (mobile can open instructions)
-  // Student selected: no toggle (panel auto-opens)
-  const showMobileToggle = selection.mode === 'assignment' && selectedStudentId === null
+  // Keep the panel toggle only in summary mode (markdown view).
+  // Assignment mode now shows work artifacts in-table instead of instructions.
+  const showMobileToggle = selection.mode === 'summary'
 
   return (
     <PageLayout>
@@ -944,12 +982,14 @@ export function TeacherClassroomView({
                       isActive={sortColumn === 'first'}
                       direction={sortDirection}
                       onClick={() => toggleSort('first')}
+                      className={isCompactTable ? 'w-[5.5rem]' : 'w-[8rem]'}
                     />
                     <SortableHeaderCell
                       label={isCompactTable ? 'L.' : 'Last Name'}
                       isActive={sortColumn === 'last'}
                       direction={sortDirection}
                       onClick={() => toggleSort('last')}
+                      className={isCompactTable ? 'w-[4.5rem]' : 'w-[8rem]'}
                     />
                     <SortableHeaderCell
                       label={isCompactTable ? '' : 'Status'}
@@ -960,6 +1000,9 @@ export function TeacherClassroomView({
                     />
                     <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
                     {!isCompactTable && <DataTableHeaderCell className="w-[5.5rem]">Updated</DataTableHeaderCell>}
+                    <DataTableHeaderCell className={isCompactTable ? 'w-[6.5rem]' : 'w-[38%] min-w-[24rem]'}>
+                      {isCompactTable ? 'Work' : 'Links / Images'}
+                    </DataTableHeaderCell>
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
@@ -971,6 +1014,12 @@ export function TeacherClassroomView({
                       student.doc?.score_workflow != null
                         ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
                         : null
+                    const hasDraftGrade = hasDraftSavedGrade(student.doc ? {
+                      graded_at: student.doc.graded_at ?? null,
+                      score_completion: student.doc.score_completion ?? null,
+                      score_thinking: student.doc.score_thinking ?? null,
+                      score_workflow: student.doc.score_workflow ?? null,
+                    } : null)
                     const wasLate = !!(student.doc?.submitted_at && dueAtMs && new Date(student.doc.submitted_at).getTime() > dueAtMs)
                     return (
                     <DataTableRow
@@ -988,14 +1037,14 @@ export function TeacherClassroomView({
                           aria-label={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
                         />
                       </DataTableCell>
-                      <DataTableCell className={isCompactTable ? 'max-w-[80px] truncate' : 'max-w-[120px] truncate'}>
+                      <DataTableCell className={isCompactTable ? 'w-[5.5rem] max-w-[5.5rem] truncate' : 'w-[8rem] max-w-[8rem] truncate'}>
                         {student.student_first_name ? (
                           <Tooltip content={`${student.student_first_name} ${student.student_last_name ?? ''}`}>
                             <span>{student.student_first_name}</span>
                           </Tooltip>
                         ) : '—'}
                       </DataTableCell>
-                      <DataTableCell className={isCompactTable ? 'w-8' : 'max-w-[120px] truncate'}>
+                      <DataTableCell className={isCompactTable ? 'w-[4.5rem] max-w-[4.5rem] truncate' : 'w-[8rem] max-w-[8rem] truncate'}>
                         {student.student_last_name ? (
                           isCompactTable ? (
                             <Tooltip content={student.student_last_name}>
@@ -1014,6 +1063,7 @@ export function TeacherClassroomView({
                             <StatusIcon
                               status={student.status}
                               wasLate={wasLate}
+                              hasDraftGrade={hasDraftGrade}
                             />
                           </span>
                         </Tooltip>
@@ -1030,11 +1080,17 @@ export function TeacherClassroomView({
                           ) : '—'}
                         </DataTableCell>
                       )}
+                      <DataTableCell className={isCompactTable ? 'w-[6.5rem]' : 'w-[38%] min-w-[24rem] align-top'}>
+                        <AssignmentArtifactsCell
+                          artifacts={student.artifacts || []}
+                          isCompact={isCompactTable}
+                        />
+                      </DataTableCell>
                     </DataTableRow>
                     )
                   })}
                   {sortedStudents.length === 0 && (
-                    <EmptyStateRow colSpan={isCompactTable ? 5 : 6} message="No students enrolled" />
+                    <EmptyStateRow colSpan={isCompactTable ? 6 : 7} message="No students enrolled" />
                   )}
                 </DataTableBody>
               </DataTable>

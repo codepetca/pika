@@ -16,6 +16,7 @@ interface Props {
   questions: QuizQuestion[]
   initialResponses?: Record<string, number | TestResponseDraftValue> | TestResponses
   enableDraftAutosave?: boolean
+  previewMode?: boolean
   isInteractionLocked?: boolean
   assessmentType?: QuizAssessmentType
   apiBasePath?: string
@@ -27,6 +28,7 @@ export function StudentQuizForm({
   questions,
   initialResponses,
   enableDraftAutosave = false,
+  previewMode = false,
   isInteractionLocked = false,
   assessmentType,
   apiBasePath = '/api/student/quizzes',
@@ -49,6 +51,8 @@ export function StudentQuizForm({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [previewSubmitMessage, setPreviewSubmitMessage] = useState('')
+  const shouldAutosave = enableDraftAutosave && !previewMode
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -78,7 +82,7 @@ export function StudentQuizForm({
     draftResponses: TestResponses,
     options?: { trigger?: 'autosave' | 'blur'; force?: boolean }
   ) => {
-    if (!enableDraftAutosave) return
+    if (!shouldAutosave) return
 
     const next = normalizeTestResponses(draftResponses)
     const serialized = JSON.stringify(next)
@@ -109,22 +113,22 @@ export function StudentQuizForm({
       console.error('Error saving test draft:', saveError)
       setSaveStatus('unsaved')
     }
-  }, [apiBasePath, enableDraftAutosave, quizId])
+  }, [apiBasePath, quizId, shouldAutosave])
 
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
       if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
-      if (!enableDraftAutosave || !pendingResponsesRef.current) return
+      if (!shouldAutosave || !pendingResponsesRef.current) return
       void saveDraft(pendingResponsesRef.current, { trigger: 'blur' })
     }
-  }, [enableDraftAutosave, saveDraft])
+  }, [saveDraft, shouldAutosave])
 
   const scheduleSave = useCallback((
     draftResponses: TestResponses,
     options?: { force?: boolean; trigger?: 'autosave' | 'blur' }
   ) => {
-    if (!enableDraftAutosave) return
+    if (!shouldAutosave) return
 
     pendingResponsesRef.current = draftResponses
 
@@ -148,7 +152,7 @@ export function StudentQuizForm({
         void saveDraft(latest, { trigger: options?.trigger, force: options?.force })
       }
     }, waitMs)
-  }, [AUTOSAVE_MIN_INTERVAL_MS, enableDraftAutosave, saveDraft])
+  }, [AUTOSAVE_MIN_INTERVAL_MS, saveDraft, shouldAutosave])
 
   function toQuizSubmissionPayload(nextResponses: TestResponses): Record<string, number> {
     const payload: Record<string, number> = {}
@@ -170,7 +174,7 @@ export function StudentQuizForm({
           selected_option: optionIndex,
         },
       })
-      if (enableDraftAutosave) {
+      if (shouldAutosave) {
         setSaveStatus('unsaved')
         pendingResponsesRef.current = next
         if (saveTimeoutRef.current) {
@@ -195,7 +199,7 @@ export function StudentQuizForm({
           response_text: limited,
         },
       })
-      if (enableDraftAutosave) {
+      if (shouldAutosave) {
         setSaveStatus('unsaved')
         pendingResponsesRef.current = next
         if (saveTimeoutRef.current) {
@@ -244,9 +248,15 @@ export function StudentQuizForm({
   async function handleSubmit() {
     setSubmitting(true)
     setError('')
+    setPreviewSubmitMessage('')
 
     try {
-      if (enableDraftAutosave) {
+      if (previewMode) {
+        setPreviewSubmitMessage('Preview mode only. Submission was not saved.')
+        return
+      }
+
+      if (shouldAutosave) {
         await saveDraft(responses, { trigger: 'blur', force: true })
       }
 
@@ -365,7 +375,7 @@ export function StudentQuizForm({
         <div className="p-3 bg-danger-bg text-danger text-sm rounded-lg">{error}</div>
       )}
 
-      {enableDraftAutosave && (
+      {shouldAutosave && (
         <p className="text-xs text-text-muted">
           {saveStatus === 'saving'
             ? 'Saving...'
@@ -373,6 +383,12 @@ export function StudentQuizForm({
               ? 'Saved'
               : 'Unsaved changes'}
         </p>
+      )}
+
+      {previewSubmitMessage && (
+        <div className="rounded-lg border border-success bg-success-bg px-3 py-2 text-sm text-success">
+          {previewSubmitMessage}
+        </div>
       )}
 
       <div className="pt-4">
@@ -392,9 +408,13 @@ export function StudentQuizForm({
 
       <ConfirmDialog
         isOpen={showConfirm}
-        title="Submit your answers?"
-        description="You cannot change your answers after submitting."
-        confirmLabel={submitting ? 'Submitting...' : 'Submit'}
+        title={previewMode ? 'Simulate submit?' : 'Submit your answers?'}
+        description={
+          previewMode
+            ? 'This preview does not save data.'
+            : 'You cannot change your answers after submitting.'
+        }
+        confirmLabel={submitting ? 'Submitting...' : previewMode ? 'Simulate Submit' : 'Submit'}
         cancelLabel="Cancel"
         isConfirmDisabled={submitting}
         isCancelDisabled={submitting}

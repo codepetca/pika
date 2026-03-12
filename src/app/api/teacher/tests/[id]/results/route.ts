@@ -188,7 +188,10 @@ export async function GET(
       }
     }
 
-    const userById = new Map<string, { email: string; name: string | null }>()
+    const userById = new Map<
+      string,
+      { email: string; first_name: string | null; last_name: string | null; name: string | null }
+    >()
     if (classroomStudentIds.length > 0) {
       const { data: users } = await supabase
         .from('users')
@@ -199,15 +202,17 @@ export async function GET(
         .select('user_id, first_name, last_name')
         .in('user_id', classroomStudentIds)
       const profileMap = new Map(
-        (profiles || []).map((profile) => [
-          profile.user_id,
-          `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || null,
-        ])
+        (profiles || []).map((profile) => [profile.user_id, profile])
       )
       for (const userRow of users || []) {
+        const profile = profileMap.get(userRow.id)
+        const firstName = (profile?.first_name || '').trim() || null
+        const lastName = (profile?.last_name || '').trim() || null
         userById.set(userRow.id, {
           email: userRow.email,
-          name: profileMap.get(userRow.id) || null,
+          first_name: firstName,
+          last_name: lastName,
+          name: `${firstName || ''} ${lastName || ''}`.trim() || null,
         })
       }
     }
@@ -305,6 +310,8 @@ export async function GET(
       return {
         student_id: studentId,
         name: userInfo?.name || null,
+        first_name: userInfo?.first_name || null,
+        last_name: userInfo?.last_name || null,
         email: userInfo?.email || '',
         status,
         submitted_at: submittedAt,

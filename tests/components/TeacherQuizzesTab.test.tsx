@@ -3,7 +3,10 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { TeacherQuizzesTab } from '@/app/classrooms/[classroomId]/TeacherQuizzesTab'
 import { TooltipProvider } from '@/ui'
-import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
+import {
+  TEACHER_QUIZZES_UPDATED_EVENT,
+  TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
+} from '@/lib/events'
 import { GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizAssessmentType, QuizWithStats } from '@/types'
@@ -57,6 +60,14 @@ function listFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   return fetchMock.mock.calls.filter(
     ([url]: [string]) => typeof url === 'string' && url.includes('/api/teacher/') && url.includes('?classroom_id=')
   )
+}
+
+function studentCheckboxOrder(): string[] {
+  return screen
+    .getAllByRole('checkbox')
+    .map((checkbox) => checkbox.getAttribute('aria-label') || '')
+    .filter((label) => label.startsWith('Select ') && label !== 'Select all students')
+    .map((label) => label.replace(/^Select /, ''))
 }
 
 describe('TeacherQuizzesTab', () => {
@@ -296,6 +307,157 @@ describe('TeacherQuizzesTab', () => {
     expect(screen.queryByLabelText(/Focus events/i)).not.toBeInTheDocument()
     expect(statusIcon).toHaveAttribute('aria-label', 'Submitted')
     expect(statusIcon.querySelector('.lucide-check')).not.toBeNull()
+  })
+
+  it('toggles grading row sort between last-name asc and first-name asc from the student header', async () => {
+    const quiz = makeQuiz({
+      id: 'test-sort-names',
+      title: 'Sort Names Test',
+      assessment_type: 'test',
+    })
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ quizzes: [quiz] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: { id: quiz.id, title: quiz.title, grading_finalized_at: null },
+          questions: [],
+          stats: { open_questions_count: 0, graded_open_responses: 0, ungraded_open_responses: 0, grading_finalized: false },
+          students: [
+            {
+              student_id: 'student-1',
+              name: 'Zoe Marie Anderson',
+              first_name: 'Zoe Marie',
+              last_name: 'Anderson',
+              email: 'zoe-marie@example.com',
+              status: 'submitted',
+              submitted_at: '2026-02-25T15:06:00.000Z',
+              last_activity_at: '2026-02-25T23:07:00.000Z',
+              points_earned: 1,
+              points_possible: 6,
+              percent: 16.7,
+              graded_open_responses: 0,
+              ungraded_open_responses: 0,
+              focus_summary: null,
+            },
+            {
+              student_id: 'student-2',
+              name: 'Zoe Zimmer',
+              first_name: 'Zoe',
+              last_name: 'Zimmer',
+              email: 'zoe@example.com',
+              status: 'submitted',
+              submitted_at: '2026-02-25T15:06:00.000Z',
+              last_activity_at: '2026-02-25T23:07:00.000Z',
+              points_earned: 1,
+              points_possible: 6,
+              percent: 16.7,
+              graded_open_responses: 0,
+              ungraded_open_responses: 0,
+              focus_summary: null,
+            },
+            {
+              student_id: 'student-3',
+              name: 'Amy Brown',
+              first_name: 'Amy',
+              last_name: 'Brown',
+              email: 'amy@example.com',
+              status: 'submitted',
+              submitted_at: '2026-02-25T15:06:00.000Z',
+              last_activity_at: '2026-02-25T23:07:00.000Z',
+              points_earned: 1,
+              points_possible: 6,
+              percent: 16.7,
+              graded_open_responses: 0,
+              ungraded_open_responses: 0,
+              focus_summary: null,
+            },
+          ],
+        }),
+      })
+
+    renderTab('test')
+    await screen.findByText('Sort Names Test')
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+
+    await screen.findByText('Zoe Marie Anderson')
+    expect(studentCheckboxOrder()).toEqual(['Zoe Marie Anderson', 'Amy Brown', 'Zoe Zimmer'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort students by first name' }))
+    expect(studentCheckboxOrder()).toEqual(['Amy Brown', 'Zoe Zimmer', 'Zoe Marie Anderson'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort students by last name' }))
+    expect(studentCheckboxOrder()).toEqual(['Zoe Marie Anderson', 'Amy Brown', 'Zoe Zimmer'])
+  })
+
+  it('updates the grading row score from targeted sidebar save event without reloading', async () => {
+    const quiz = makeQuiz({ id: 'test-row-update', title: 'Row Update Test', assessment_type: 'test' })
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ quizzes: [quiz] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: { id: quiz.id, title: quiz.title, grading_finalized_at: null },
+          questions: [],
+          stats: { open_questions_count: 0, graded_open_responses: 0, ungraded_open_responses: 1, grading_finalized: false },
+          students: [
+            {
+              student_id: 'student-1',
+              name: 'Student One',
+              email: 'student1@example.com',
+              status: 'submitted',
+              submitted_at: '2026-02-25T15:06:00.000Z',
+              last_activity_at: '2026-02-25T23:07:00.000Z',
+              points_earned: 1,
+              points_possible: 6,
+              percent: 16.7,
+              graded_open_responses: 0,
+              ungraded_open_responses: 1,
+              focus_summary: null,
+            },
+          ],
+        }),
+      })
+
+    renderTab('test')
+    await screen.findByText('Row Update Test')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    await screen.findByText('Student One')
+    expect(screen.getByText('1/6')).toBeInTheDocument()
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(TEACHER_TEST_GRADING_ROW_UPDATED_EVENT, {
+          detail: {
+            testId: 'test-row-update',
+            studentId: 'student-1',
+            pointsEarned: 4,
+            pointsPossible: 6,
+            percent: 66.7,
+            gradedOpenResponses: 1,
+            ungradedOpenResponses: 0,
+          },
+        })
+      )
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('4/6')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('1/6')).not.toBeInTheDocument()
+
+    const resultsCalls = fetchMock.mock.calls.filter(
+      ([url]: [string]) => typeof url === 'string' && url.includes('/api/teacher/tests/test-row-update/results')
+    )
+    expect(resultsCalls).toHaveLength(1)
   })
 
   it('prompts to close active test before return and sends close_test=true', async () => {
