@@ -6,10 +6,12 @@ import { validateTestDocumentsPayload } from '@/lib/test-documents'
 import {
   buildNextDraftContent,
   buildTestDraftContentFromRows,
-  ensureAssessmentDraft,
-  syncAssessmentMetadataFromDraft,
+  createAssessmentDraft,
+  getAssessmentDraftByType,
+  isMissingAssessmentDraftsError,
   updateAssessmentDraft,
   validateTestDraftContent,
+  type AssessmentDraftRow,
   type TestDraftContent,
 } from '@/lib/server/assessment-drafts'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -24,9 +26,89 @@ const TEST_DRAFT_CONFIG = {
   questionsSelect:
     'id, question_type, question_text, options, correct_option, answer_key, points, response_max_chars, response_monospace',
   validateContent: validateTestDraftContent,
-  // Tests allow empty question text during draft editing (unlike quizzes)
   validateOptions: { allowEmptyQuestionText: true },
   buildFromRows: buildTestDraftContentFromRows,
+}
+
+async function ensureTestDraft(
+  supabase: any,
+  test: { id: string; classroom_id: string; title: string; show_results: boolean },
+  userId: string
+): Promise<
+  | { ok: true; draft: AssessmentDraftRow<TestDraftContent> }
+  | { ok: false; status: number; error: string }
+> {
+  const { draft, error } = await getAssessmentDraftByType<TestDraftContent>(
+    supabase,
+    'test',
+    test.id
+  )
+
+  if (isMissingAssessmentDraftsError(error)) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Assessment drafts require migration 045 to be applied',
+    }
+  }
+
+  if (error) {
+    console.error('Error fetching test draft:', error)
+    return { ok: false, status: 500, error: 'Failed to fetch draft' }
+  }
+
+  if (draft) {
+    const valid = validateTestDraftContent(draft.content, {
+      allowEmptyQuestionText: true,
+    })
+    if (valid.valid) {
+      return { ok: true, draft: { ...draft, content: valid.value } }
+    }
+  }
+
+  const { data: questions, error: questionsError } = await supabase
+    .from('test_questions')
+    .select(TEST_DRAFT_CONFIG.questionsSelect)
+    .eq('test_id', test.id)
+    .order('position', { ascending: true })
+
+  if (questionsError) {
+    console.error('Error building baseline test draft:', questionsError)
+    return { ok: false, status: 500, error: 'Failed to build draft' }
+  }
+
+  const content = buildTestDraftContentFromRows(test, questions || [])
+
+  if (draft) {
+    const { draft: updatedDraft, error: updateError } = await updateAssessmentDraft(
+      supabase,
+      draft.id,
+      draft.version + 1,
+      userId,
+      content
+    )
+    if (updateError || !updatedDraft) {
+      return { ok: false, status: 500, error: 'Failed to reset invalid draft' }
+    }
+    return { ok: true, draft: updatedDraft }
+  }
+
+  const { draft: createdDraft, error: createError } = await createAssessmentDraft(
+    supabase,
+    {
+      assessment_type: 'test',
+      assessment_id: test.id,
+      classroom_id: test.classroom_id,
+      content,
+      created_by: userId,
+      updated_by: userId,
+    }
+  )
+  if (createError || !createdDraft) {
+    console.error('Error creating test draft:', createError)
+    return { ok: false, status: 500, error: 'Failed to create draft' }
+  }
+  return { ok: true, draft: createdDraft }
 }
 
 export const GET = withErrorHandler('GetTestDraft', async (request, context) => {
@@ -39,11 +121,7 @@ export const GET = withErrorHandler('GetTestDraft', async (request, context) => 
   }
 
   const supabase = getServiceRoleClient()
-  const ensured = await ensureAssessmentDraft<TestDraftContent>(supabase, {
-    ...TEST_DRAFT_CONFIG,
-    assessment: access.test,
-    userId: user.id,
-  })
+  const ensured = await ensureTestDraft(supabase, access.test, user.id)
   if (!ensured.ok) {
     return NextResponse.json({ error: ensured.error }, { status: ensured.status })
   }
@@ -84,11 +162,7 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
   }
 
   const supabase = getServiceRoleClient()
-  const ensured = await ensureAssessmentDraft<TestDraftContent>(supabase, {
-    ...TEST_DRAFT_CONFIG,
-    assessment: access.test,
-    userId: user.id,
-  })
+  const ensured = await ensureTestDraft(supabase, access.test, user.id)
   if (!ensured.ok) {
     return NextResponse.json({ error: ensured.error }, { status: ensured.status })
   }
@@ -127,23 +201,19 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
     return NextResponse.json({ error: 'Failed to save draft' }, { status: 500 })
   }
 
-  const metaSync = await syncAssessmentMetadataFromDraft(
-    supabase, 'tests', testId, updatedDraft.content
-  )
-  if (!metaSync.ok) {
-    return NextResponse.json({ error: metaSync.error }, { status: metaSync.status })
-  }
+  // Sync title, show_results, and optionally documents to the tests table in one update
+  const { error: metaError } = await supabase
+    .from('tests')
+    .update({
+      title: updatedDraft.content.title,
+      show_results: updatedDraft.content.show_results,
+      ...(nextDocuments ? { documents: nextDocuments.documents } : {}),
+    })
+    .eq('id', testId)
 
-  if (nextDocuments) {
-    const { error: docsError } = await supabase
-      .from('tests')
-      .update({ documents: nextDocuments.documents })
-      .eq('id', testId)
-
-    if (docsError) {
-      console.error('Error syncing test documents from draft:', docsError)
-      return NextResponse.json({ error: 'Failed to sync assessment documents' }, { status: 500 })
-    }
+  if (metaError) {
+    console.error('Error syncing test metadata from draft:', metaError)
+    return NextResponse.json({ error: 'Failed to sync assessment metadata' }, { status: 500 })
   }
 
   return NextResponse.json({ draft: updatedDraft })
