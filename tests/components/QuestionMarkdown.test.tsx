@@ -38,4 +38,15 @@ describe('QuestionMarkdown', () => {
     render(<QuestionMarkdown content="   " />)
     expect(screen.getByText('—')).toBeInTheDocument()
   })
+
+  it('preserves tab-indented question text in paragraph rendering', () => {
+    const { container } = render(
+      <QuestionMarkdown content={`\tfor (let i = 0; i < 3; i++) {\n\t\tconsole.log(i)\n\t}`} />
+    )
+
+    const paragraph = container.querySelector('p')
+    expect(paragraph).toBeInTheDocument()
+    expect(paragraph).toHaveClass('whitespace-pre-wrap')
+    expect(paragraph?.textContent).toContain('\t\tconsole.log(i)')
+  })
 })

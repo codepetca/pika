@@ -28,6 +28,160 @@ describe('GET /api/teacher/assignments/[id]', () => {
     const response = await GET(request, { params: { id: 'a-999' } })
     expect(response.status).toBe(404)
   })
+
+  it('returns artifacts and trimmed doc fields for each student row', async () => {
+    const historyCreatedAt = '2026-03-10T10:00:00.000Z'
+    const submittedAt = '2026-03-10T09:00:00.000Z'
+    const updatedAt = '2026-03-10T09:30:00.000Z'
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'a-1',
+                  classroom_id: 'classroom-1',
+                  title: 'Assignment 1',
+                  description: 'Desc',
+                  rich_instructions: null,
+                  due_at: '2099-03-10T23:59:00.000Z',
+                  position: 0,
+                  is_draft: false,
+                  released_at: null,
+                  track_authenticity: true,
+                  created_by: 'teacher-1',
+                  created_at: '2026-03-01T00:00:00.000Z',
+                  updated_at: '2026-03-02T00:00:00.000Z',
+                  classrooms: {
+                    id: 'classroom-1',
+                    teacher_id: 'teacher-1',
+                    title: 'Test Classroom',
+                    archived_at: null,
+                  },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  student_id: 'student-1',
+                  users: { id: 'student-1', email: 'student1@example.com' },
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'student_profiles') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  user_id: 'student-1',
+                  first_name: 'Alex',
+                  last_name: 'Lee',
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'doc-1',
+                  assignment_id: 'a-1',
+                  student_id: 'student-1',
+                  content: {
+                    type: 'doc',
+                    content: [
+                      {
+                        type: 'paragraph',
+                        content: [
+                          {
+                            type: 'text',
+                            text: 'Source https://example.com/resource',
+                            marks: [{ type: 'link', attrs: { href: 'mailto:nope@example.com' } }],
+                          },
+                        ],
+                      },
+                      {
+                        type: 'image',
+                        attrs: { src: 'https://cdn.example.com/submission-images/shot.png' },
+                      },
+                    ],
+                  },
+                  is_submitted: true,
+                  submitted_at: submittedAt,
+                  updated_at: updatedAt,
+                  score_completion: 9,
+                  score_thinking: 8,
+                  score_workflow: 7,
+                  graded_at: '2026-03-10T12:00:00.000Z',
+                  returned_at: null,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'assignment_doc_history') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [{ assignment_doc_id: 'doc-1', created_at: historyCreatedAt }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1')
+    const response = await GET(request, { params: { id: 'a-1' } })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.students).toHaveLength(1)
+    expect(data.students[0].student_updated_at).toBe(historyCreatedAt)
+    expect(data.students[0].artifacts).toEqual([
+      { type: 'link', url: 'https://example.com/resource' },
+      { type: 'image', url: 'https://cdn.example.com/submission-images/shot.png' },
+    ])
+    expect(data.students[0].doc).toEqual({
+      submitted_at: submittedAt,
+      updated_at: updatedAt,
+      score_completion: 9,
+      score_thinking: 8,
+      score_workflow: 7,
+      graded_at: '2026-03-10T12:00:00.000Z',
+      returned_at: null,
+    })
+    expect(data.students[0].doc).not.toHaveProperty('content')
+    expect(data.students[0].doc).not.toHaveProperty('is_submitted')
+  })
 })
 
 describe('PATCH /api/teacher/assignments/[id]', () => {

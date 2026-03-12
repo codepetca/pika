@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { readCookie, writeCookie } from '@/lib/cookies'
+import { TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
 
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div data-testid="spinner" />,
@@ -18,14 +19,20 @@ vi.mock('@/components/HistoryList', () => ({
 
 vi.mock('@/ui', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  Select: ({ options, ...props }: any) => (
-    <select {...props}>
-      {options.map((option: { value: string; label: string }) => (
-        <option key={option.value} value={option.value}>
+  SplitButton: ({ label, onPrimaryClick, options, toggleAriaLabel, ...props }: any) => (
+    <div {...props}>
+      <button type="button" onClick={onPrimaryClick}>
+        {label}
+      </button>
+      <button type="button" aria-label={toggleAriaLabel || 'More actions'}>
+        Toggle
+      </button>
+      {options.map((option: { id: string; label: string; onSelect: () => void }) => (
+        <button key={option.id} type="button" onClick={option.onSelect}>
           {option.label}
-        </option>
+        </button>
       ))}
-    </select>
+    </div>
   ),
   Tooltip: ({ children }: any) => <>{children}</>,
   RefreshingIndicator: ({ label = 'Refreshing...' }: { label?: string }) => <div>{label}</div>,
@@ -238,8 +245,9 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
     expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
   })
 
-  it('saves as draft by default', async () => {
+  it('saves as graded with the primary save action', async () => {
     const savedBodies: Array<Record<string, unknown>> = []
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent')
     mockFetchByStudent(
       {
         'student-1': { graded: false },
@@ -253,37 +261,49 @@ describe('TeacherStudentWorkPanel right-tab persistence', () => {
     render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
 
     await user.click(await screen.findByRole('button', { name: 'Grading' }))
-    await user.click(screen.getByRole('button', { name: 'Save' }))
-
-    await waitFor(() => {
-      expect(savedBodies).toHaveLength(1)
-    })
-    expect(savedBodies[0].save_mode).toBe('draft')
-    expect(screen.queryByText(/^Graded /)).not.toBeInTheDocument()
-  })
-
-  it('saves as graded when selected from save mode dropdown', async () => {
-    const savedBodies: Array<Record<string, unknown>> = []
-    mockFetchByStudent(
-      {
-        'student-1': { graded: false },
-      },
-      {
-        onGradeSave: (body) => savedBodies.push(body),
-      }
-    )
-
-    const user = userEvent.setup()
-    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
-
-    await user.click(await screen.findByRole('button', { name: 'Grading' }))
-    await user.selectOptions(screen.getByLabelText('Save mode'), 'graded')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => {
       expect(savedBodies).toHaveLength(1)
     })
     expect(savedBodies[0].save_mode).toBe('graded')
+    const gradeEvent = dispatchSpy.mock.calls
+      .map(([event]) => event)
+      .find((event) => event.type === TEACHER_GRADE_UPDATED_EVENT) as CustomEvent | undefined
+    expect(gradeEvent).toBeDefined()
+    expect(gradeEvent?.detail).toMatchObject({
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      doc: expect.objectContaining({
+        student_id: 'student-1',
+        graded_at: '2026-02-20T13:00:00Z',
+      }),
+    })
     expect(await screen.findByText(/^Graded /)).toBeInTheDocument()
+  })
+
+  it('saves as draft from split-button menu action', async () => {
+    const savedBodies: Array<Record<string, unknown>> = []
+    mockFetchByStudent(
+      {
+        'student-1': { graded: false },
+      },
+      {
+        onGradeSave: (body) => savedBodies.push(body),
+      }
+    )
+
+    const user = userEvent.setup()
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" />)
+
+    await user.click(await screen.findByRole('button', { name: 'Grading' }))
+    await user.click(screen.getByRole('button', { name: 'Choose save mode' }))
+    await user.click(screen.getByRole('button', { name: 'Draft' }))
+
+    await waitFor(() => {
+      expect(savedBodies).toHaveLength(1)
+    })
+    expect(savedBodies[0].save_mode).toBe('draft')
+    expect(screen.queryByText(/^Graded /)).not.toBeInTheDocument()
   })
 })

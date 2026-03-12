@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { Button, RefreshingIndicator, Select, Tooltip } from '@/ui'
+import { Button, RefreshingIndicator, SplitButton, Tooltip } from '@/ui'
 import { RichTextViewer } from '@/components/editor'
 import { HistoryList } from '@/components/HistoryList'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
-import { TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
+import { TEACHER_GRADE_UPDATED_EVENT, type TeacherGradeUpdatedEventDetail } from '@/lib/events'
 import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { readCookie, writeCookie } from '@/lib/cookies'
@@ -154,11 +154,19 @@ export function TeacherStudentWorkPanel({
   const [scoreThinking, setScoreThinking] = useState<string>('')
   const [scoreWorkflow, setScoreWorkflow] = useState<string>('')
   const [feedback, setFeedback] = useState<string>('')
-  const [saveMode, setSaveMode] = useState<GradeSaveMode>('draft')
   const [gradeSaving, setGradeSaving] = useState(false)
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
   const showInitialSpinner = useDelayedBusy(loading && !data)
+
+  function dispatchGradeUpdated(doc: AssignmentDoc | null) {
+    const detail: TeacherGradeUpdatedEventDetail = {
+      assignmentId,
+      studentId,
+      doc,
+    }
+    window.dispatchEvent(new CustomEvent<TeacherGradeUpdatedEventDetail>(TEACHER_GRADE_UPDATED_EVENT, { detail }))
+  }
 
   function handleRightTabChange(nextTab: RightTab) {
     setRightTab(nextTab)
@@ -206,13 +214,11 @@ export function TeacherStudentWorkPanel({
       setScoreThinking(doc.score_thinking?.toString() ?? '')
       setScoreWorkflow(doc.score_workflow?.toString() ?? '')
       setFeedback(doc.feedback ?? '')
-      setSaveMode(doc.graded_at ? 'graded' : 'draft')
     } else {
       setScoreCompletion('')
       setScoreThinking('')
       setScoreWorkflow('')
       setFeedback('')
-      setSaveMode('draft')
     }
   }
 
@@ -268,9 +274,8 @@ export function TeacherStudentWorkPanel({
     loadHistory()
   }, [assignmentId, studentId])
 
-  async function handleSaveGrade() {
+  async function handleSaveGrade(selectedSaveMode: GradeSaveMode) {
     if (!data) return
-    const selectedSaveMode = saveMode
     const sc = Number(scoreCompletion)
     const st = Number(scoreThinking)
     const sw = Number(scoreWorkflow)
@@ -334,7 +339,7 @@ export function TeacherStudentWorkPanel({
       if (!res.ok) throw new Error(result.error || 'Failed to save grade')
       // Update local state
       setData((prev) => prev ? { ...prev, doc: result.doc } : prev)
-      window.dispatchEvent(new CustomEvent(TEACHER_GRADE_UPDATED_EVENT))
+      dispatchGradeUpdated(result.doc)
     } catch (err: any) {
       setData((prev) => (prev ? { ...prev, doc: previousDoc } : prev))
       setGradeError(err.message || 'Failed to save grade')
@@ -370,7 +375,7 @@ export function TeacherStudentWorkPanel({
         setData(reloadData)
         populateGradeForm(reloadData.doc)
         handleRightTabChange('grading') // Stay on grading tab to show results
-        window.dispatchEvent(new CustomEvent(TEACHER_GRADE_UPDATED_EVENT))
+        dispatchGradeUpdated(reloadData.doc ?? null)
       }
     } catch (err: any) {
       setGradeError(err.message || 'Auto-grade failed')
@@ -555,19 +560,26 @@ export function TeacherStudentWorkPanel({
                 <Button size="sm" variant="secondary" className="flex-1" onClick={handleAutoGrade} disabled={autoGrading}>
                   {autoGrading ? 'Grading...' : 'AI grade'}
                 </Button>
-                <Select
-                  className="h-8 w-[7.5rem] px-2 py-1 text-xs"
-                  aria-label="Save mode"
-                  value={saveMode}
-                  onChange={(event) => setSaveMode(event.target.value as GradeSaveMode)}
+                <SplitButton
+                  label={gradeSaving ? 'Saving...' : 'Save'}
+                  onPrimaryClick={() => {
+                    void handleSaveGrade('graded')
+                  }}
                   options={[
-                    { value: 'draft', label: 'Draft' },
-                    { value: 'graded', label: 'Graded' },
+                    {
+                      id: 'draft',
+                      label: 'Draft',
+                      onSelect: () => {
+                        void handleSaveGrade('draft')
+                      },
+                    },
                   ]}
+                  size="sm"
+                  className="flex-1"
+                  disabled={gradeSaving}
+                  toggleAriaLabel="Choose save mode"
+                  primaryButtonProps={{ className: 'flex-1 justify-center' }}
                 />
-                <Button size="sm" className="flex-1" onClick={handleSaveGrade} disabled={gradeSaving}>
-                  {gradeSaving ? 'Saving...' : 'Save'}
-                </Button>
               </div>
 
               {data.doc?.graded_at && (

@@ -439,7 +439,7 @@ export function QuizCard({
       <ConfirmDialog
         isOpen={showCloseConfirm}
         title={`Close ${assessmentLabel}?`}
-        description="Students will no longer be able to respond. If results are enabled, students who responded will be able to see results after closing."
+        description="Students will no longer be able to respond."
         confirmLabel={updating ? 'Closing...' : 'Close'}
         cancelLabel="Cancel"
         isConfirmDisabled={updating}
