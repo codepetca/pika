@@ -228,6 +228,10 @@ export async function POST(request: NextRequest) {
         is_draft: a.is_draft,
       }
 
+      if (a.is_draft) {
+        updateData.released_at = null
+      }
+
       // Set released_at when releasing
       if (isReleasing) {
         updateData.released_at = new Date().toISOString()

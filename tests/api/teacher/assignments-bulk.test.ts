@@ -175,6 +175,10 @@ describe('POST /api/teacher/assignments/bulk', () => {
     const data = await response.json()
     expect(data.updated).toBe(1)
     expect(data.created).toBe(0)
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      is_draft: true,
+      released_at: null,
+    }))
   })
 
   it('should return 403 when teacher cannot mutate classroom', async () => {
