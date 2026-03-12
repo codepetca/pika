@@ -105,11 +105,11 @@ describe('POST /api/teacher/assignments/bulk', () => {
     expect(data.errors).toContain('Assignment "Test" has no due date')
   })
 
-  it('should return 400 when trying to un-release assignment', async () => {
+  it('should return 400 when trying to un-release a live assignment', async () => {
     // Mock existing released assignment
     const mockIn = vi.fn().mockResolvedValue({
       data: [
-        { id: 'a-1', is_draft: false, released_at: '2025-01-01T00:00:00Z', title: 'Released' },
+        { id: 'a-1', is_draft: false, released_at: '2020-01-01T00:00:00Z', title: 'Released' },
       ],
       error: null,
     })
@@ -133,6 +133,48 @@ describe('POST /api/teacher/assignments/bulk', () => {
     expect(response.status).toBe(400)
     const data = await response.json()
     expect(data.errors.some((e: string) => e.includes('Cannot un-release'))).toBe(true)
+  })
+
+  it('should allow converting a scheduled assignment back to draft', async () => {
+    const mockIn = vi.fn().mockResolvedValue({
+      data: [
+        { id: 'a-1', title: 'Scheduled', is_draft: false, released_at: '2099-01-01T00:00:00Z' },
+      ],
+      error: null,
+    })
+    const mockSelectEq = vi.fn(() => ({ in: mockIn }))
+    const mockSelect = vi.fn(() => ({ eq: mockSelectEq }))
+
+    const mockUpdateSelect = vi.fn().mockResolvedValue({
+      data: [{ id: 'a-1', title: 'Scheduled', is_draft: true, released_at: null, position: 0 }],
+      error: null,
+    })
+    const mockUpdateEq = vi.fn(() => ({ select: mockUpdateSelect }))
+    const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }))
+
+    const mockFrom = vi.fn(() => ({
+      select: mockSelect,
+      update: mockUpdate,
+      insert: vi.fn(),
+    }))
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const assignments = [
+      { id: 'a-1', title: 'Scheduled', due_at: '2025-01-20T23:59:00Z', instructions: 'Test', is_draft: true, position: 0 },
+    ]
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/assignments/bulk',
+      {
+        method: 'POST',
+        body: JSON.stringify({ classroom_id: 'c-1', assignments }),
+      }
+    )
+    const response = await POST(request)
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.updated).toBe(1)
+    expect(data.created).toBe(0)
   })
 
   it('should return 403 when teacher cannot mutate classroom', async () => {

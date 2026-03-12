@@ -6772,3 +6772,22 @@
 
 **Validation:**
 - `pnpm exec vitest tests/api/teacher/tests-route.test.ts` (pass)
+
+## 2026-03-12 [AI - GPT-5 Codex]
+**Goal:** Allow scheduled assignments to be converted back to draft from markdown/bulk sync without triggering un-release errors.
+**Completed:**
+- Updated `src/lib/assignment-markdown.ts`:
+  - added live-vs-scheduled release check,
+  - only blocks `[DRAFT]` conversion when an assignment is already live.
+- Updated `src/app/api/teacher/assignments/bulk/route.ts`:
+  - aligned bulk validation with single-assignment route behavior,
+  - allows scheduled (`released_at` in future) -> draft transitions,
+  - still blocks live released -> draft transitions.
+- Added regression coverage:
+  - `tests/lib/assignment-markdown.test.ts` now verifies scheduled -> draft is allowed,
+  - `tests/api/teacher/assignments-bulk.test.ts` now verifies scheduled -> draft is allowed,
+  - kept existing live assignment block behavior covered.
+
+**Validation:**
+- `pnpm test -- tests/lib/assignment-markdown.test.ts tests/api/teacher/assignments-bulk.test.ts` (pass)
+- `pnpm lint --file src/lib/assignment-markdown.ts --file src/app/api/teacher/assignments/bulk/route.ts --file tests/lib/assignment-markdown.test.ts --file tests/api/teacher/assignments-bulk.test.ts` (pass)

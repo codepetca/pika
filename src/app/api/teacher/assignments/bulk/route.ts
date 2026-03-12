@@ -19,13 +19,34 @@ interface BulkAssignmentInput {
 
 const MAX_ASSIGNMENTS = 50
 
+function isLiveAssignment(
+  assignment: { is_draft: boolean; released_at: string | null },
+  now: Date = new Date()
+): boolean {
+  if (assignment.is_draft) {
+    return false
+  }
+
+  if (!assignment.released_at) {
+    return true
+  }
+
+  const releaseDate = new Date(assignment.released_at)
+  if (isNaN(releaseDate.getTime())) {
+    return true
+  }
+
+  return releaseDate <= now
+}
+
 /**
  * POST /api/teacher/assignments/bulk - Bulk create/update assignments
  *
  * Used by the markdown sidebar to sync assignments from markdown content.
  * - Creates new assignments (entries without ID) as drafts
  * - Updates existing assignments (entries with ID)
- * - Allows draft→released but blocks released→draft
+ * - Allows draft→released and scheduled→draft
+ * - Blocks live released→draft
  * - Updates positions based on order in array
  */
 export async function POST(request: NextRequest) {
@@ -119,6 +140,7 @@ export async function POST(request: NextRequest) {
     const existingById = new Map(existingAssignments.map((a) => [a.id, a]))
 
     // Validate ID references and draft status changes
+    const now = new Date()
     for (const a of inputAssignments) {
       if (a.id) {
         const existing = existingById.get(a.id)
@@ -127,8 +149,8 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Check for un-release attempt (released assignment being set to draft)
-        if (!existing.is_draft && a.is_draft) {
+        // Allow scheduled assignments to be moved back to draft before release.
+        if (isLiveAssignment(existing, now) && a.is_draft) {
           errors.push(`Cannot un-release assignment: ${a.title}`)
         }
       }
