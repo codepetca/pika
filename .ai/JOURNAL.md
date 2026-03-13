@@ -6812,3 +6812,16 @@
 - `pnpm exec vitest tests/components/StudentQuizResults.test.tsx` (pass)
 - `pnpm exec eslint src/components/StudentQuizResults.tsx tests/components/StudentQuizResults.test.tsx` (pass)
 - Visual verification completed with Playwright screenshots for student and teacher views.
+
+## 2026-03-13 [AI - GPT-5 Codex]
+**Goal:** Fix calendar lesson-plan typography so typed content matches existing content and the all-view preview uses the same font styling.
+**Completed:**
+- Updated `src/components/tiptap-node/paragraph-node/paragraph-node.scss` so non-first paragraphs inherit the surrounding font size and line height instead of forcing `1rem` / `1.4`.
+- Updated `src/components/LessonDayCell.tsx` and `src/components/tiptap-templates/simple/simple-editor.scss` to use a calendar-specific typography wrapper that makes the Tiptap editor and the all-view plain-text preview inherit the same font family, size, and line height.
+- Added `tests/components/LessonDayCell.test.tsx` to cover the shared calendar typography wrapper in editable and plain-text preview modes.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (pass in worktree)
+- `pnpm test -- tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx tests/lib/lesson-plan-markdown.test.ts` (pass; repo test command ran full suite, including new test)
+- `pnpm lint --file src/components/LessonDayCell.tsx --file tests/components/LessonDayCell.test.tsx` (pass)
+- Visual verification completed with Playwright screenshots for teacher week view, teacher all view, and student calendar view on `http://localhost:3001/classrooms/2d8d09d0-189c-4d75-92ec-3933163ec45c?tab=calendar`.
