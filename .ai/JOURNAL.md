@@ -6801,3 +6801,14 @@
 **Validation:**
 - `pnpm test -- tests/api/teacher/assignments-bulk.test.ts tests/lib/assignment-markdown.test.ts` (pass)
 - `pnpm lint --file src/app/api/teacher/assignments/bulk/route.ts --file tests/api/teacher/assignments-bulk.test.ts` (pass)
+
+## 2026-03-13 [AI - GPT-5 Codex]
+**Goal:** Make incorrect multiple-choice answers in returned tests stand out clearly for students.
+**Completed:**
+- Updated `src/components/StudentQuizResults.tsx` so only the incorrect multiple-choice answer text uses amber, while the answer block and the rest of the result card remain neutral.
+- Added component regression coverage in `tests/components/StudentQuizResults.test.tsx` for incorrect multiple-choice highlighting in the test-results view.
+
+**Validation:**
+- `pnpm exec vitest tests/components/StudentQuizResults.test.tsx` (pass)
+- `pnpm exec eslint src/components/StudentQuizResults.tsx tests/components/StudentQuizResults.test.tsx` (pass)
+- Visual verification completed with Playwright screenshots for student and teacher views.
