@@ -207,11 +207,11 @@ export const LessonDayCell = memo(function LessonDayCell({
       )}
 
       {/* Content area */}
-      <div className={`${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
+      <div className={`calendar-day-text ${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
         {plainTextOnly ? (
           // Plain text mode: lightweight rendering for 'all' view performance
           hasContent && (
-            <div className="text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap">
+            <div className="calendar-day-text text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap">
               {plainText}
             </div>
           )
