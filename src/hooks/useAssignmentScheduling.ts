@@ -325,7 +325,9 @@ export function useAssignmentScheduling({
       const updated = data.assignment as Assignment
       onAssignmentChange(updated)
       if (!isCreateMode) onSuccess(updated, { closeModal: false })
-      // Keep modal open after clearing so the user can immediately choose next action
+      // Keep modal open after clearing so the user can immediately re-schedule.
+      // Unlike revertAssignmentToDraft, primaryAction stays 'schedule' so the user
+      // can pick a new time without an extra click.
       setPrimaryAction('schedule')
       setShowCreateScheduleModal(false)
     } catch (err: unknown) {

@@ -119,9 +119,13 @@ export const PATCH = withErrorHandler('GradeTeacherTestResponse', async (request
   const question = Array.isArray(responseRow.test_questions)
     ? responseRow.test_questions[0]
     : responseRow.test_questions
-  if (!question || question.question_type !== 'open_response') {
+  if (!question) {
+    return NextResponse.json({ error: 'Question not found for response' }, { status: 404 })
+  }
+
+  if (metadataRequested && question.question_type !== 'open_response') {
     return NextResponse.json(
-      { error: 'Only open-response answers can be graded manually' },
+      { error: 'AI grading metadata is only supported for open-response answers' },
       { status: 400 }
     )
   }

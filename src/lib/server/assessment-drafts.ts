@@ -104,14 +104,14 @@ function ensureUniqueQuestionIds<TQuestion extends { id: string }>(questions: TQ
 // TODO(cleanup-045): Remove this function and all callsites once migration 045
 // (`add_assessment_drafts_table`) is confirmed applied in ALL environments.
 // Search: grep -r "isMissingAssessmentDraftsError" src/
-// Direct callers (4 files):
+// Direct callers (5 files):
 //   src/app/api/teacher/quizzes/route.ts
 //   src/app/api/teacher/quizzes/[id]/route.ts
 //   src/app/api/teacher/tests/route.ts
 //   src/app/api/teacher/tests/[id]/route.ts
+//   src/app/api/teacher/tests/[id]/draft/route.ts
 // Indirect callers via ensureAssessmentDraft (remove TODO(cleanup-045) comment there too):
 //   src/app/api/teacher/quizzes/[id]/draft/route.ts
-//   src/app/api/teacher/tests/[id]/draft/route.ts
 export function isMissingAssessmentDraftsError(error: {
   code?: string
   message?: string
