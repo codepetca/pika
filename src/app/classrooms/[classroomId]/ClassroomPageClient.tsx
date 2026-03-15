@@ -999,7 +999,7 @@ function ClassroomPageContent({
           </LeftSidebar>
         )}
 
-        <MainContent>
+        <MainContent className={activeTab === 'calendar' ? 'px-0 pt-0 pb-0' : ''}>
           {isArchived && (
             <div className="mb-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
               This classroom is archived. You can view content, but changes are

@@ -6825,3 +6825,126 @@
 - `pnpm test -- tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx tests/lib/lesson-plan-markdown.test.ts` (pass; repo test command ran full suite, including new test)
 - `pnpm lint --file src/components/LessonDayCell.tsx --file tests/components/LessonDayCell.test.tsx` (pass)
 - Visual verification completed with Playwright screenshots for teacher week view, teacher all view, and student calendar view on `http://localhost:3001/classrooms/2d8d09d0-189c-4d75-92ec-3933163ec45c?tab=calendar`.
+**Goal:** Remove the remaining gap above the classroom calendar below the main titlebar.
+**Completed:**
+- Updated `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx` to offset the full combined top spacing from the classroom shell and `PageContent`.
+- Updated `src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx` to apply the same calendar alignment so both roles render consistently.
+
+**Validation:**
+- `pnpm exec eslint src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx` (pass)
+- Visual verification completed with Playwright screenshots for teacher and student calendar tabs.
+
+## 2026-03-13 [AI - GPT-5 Codex]
+**Goal:** Remove the remaining top gap on the legacy teacher calendar route after the classroom-tab spacing fix.
+**Completed:**
+- Updated `src/app/teacher/layout.tsx` to remove the legacy teacher layout's top padding on the main content container while preserving bottom spacing.
+- Kept `src/app/teacher/calendar/page.tsx` aligned with the layout-level fix instead of relying on route-local negative offsets.
+
+**Validation:**
+- `pnpm exec eslint src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx src/app/teacher/layout.tsx src/app/teacher/calendar/page.tsx` (pass)
+- `pnpm e2e:auth` (pass)
+- Playwright verification:
+  - classroom calendar teacher/student screenshots passed again via `/tmp/pika-calendar-shot.spec.ts`
+  - standalone `/teacher/calendar` render measured `mainTop=81` and `cardTop=81` after restart, confirming the top gap is gone
+
+## 2026-03-13 [AI - GPT-5 Codex]
+**Goal:** Tighten the calendar action bar after it was identified as the remaining source of perceived top gap.
+**Completed:**
+- Updated `src/components/LessonCalendar.tsx` to reduce the header/action bar vertical padding and compact the navigation and view-mode controls.
+- Added an explicit `bg-surface` background to that header row so it reads as a continuous bar instead of extra page whitespace.
+
+**Validation:**
+- `pnpm exec eslint src/components/LessonCalendar.tsx` (pass via broader calendar/layout eslint run)
+- Playwright screenshots re-verified teacher and student classroom calendar tabs after the action-bar change.
+
+## 2026-03-13 [AI - GPT-5 Codex]
+**Goal:** Remove the remaining outer inset around the classroom calendar content.
+**Completed:**
+- Updated `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx` so the `calendar` tab uses a flush `MainContent` wrapper with no extra top or side padding.
+
+**Validation:**
+- Playwright screenshots re-verified teacher and student classroom calendar tabs after removing the outer wrapper padding.
+
+## 2026-03-13 [AI - GPT-5 Codex]
+**Goal:** Remove the container behind the `Week / Month / All` calendar mode selector.
+**Completed:**
+- Updated `src/components/LessonCalendar.tsx` so the mode buttons render directly in the header row without the surrounding `bg-surface-2` container.
+
+**Validation:**
+- `pnpm exec eslint src/components/LessonCalendar.tsx` (pass)
+- Playwright screenshots re-verified teacher and student classroom calendar tabs after the selector-container removal.
+
+## 2026-03-13 [AI - GPT-5 Codex]
+**Goal:** Make the selected calendar mode visually obvious.
+**Completed:**
+- Updated `src/components/LessonCalendar.tsx` so the active `week/month/all` button uses a strong primary-filled selected state, while inactive buttons remain muted.
+
+**Validation:**
+- `pnpm exec eslint src/components/LessonCalendar.tsx` (pass)
+- Playwright screenshots re-verified teacher and student classroom calendar tabs after restarting the dev server so the updated selected-state classes were loaded.
+
+## 2026-03-14 [AI - GPT-5 Codex]
+**Goal:** Make the selected calendar mode highlight more subtle.
+**Completed:**
+- Updated `src/components/LessonCalendar.tsx` so the active `week/month/all` button uses a softer bordered `bg-info-bg` state with `text-primary`, while inactive buttons stay muted.
+
+**Validation:**
+- `pnpm exec eslint src/components/LessonCalendar.tsx` (pass)
+- `pnpm exec vitest tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx` (pass)
+- Playwright screenshots re-verified teacher and student classroom calendar tabs after the softer selected-state change.
+
+## 2026-03-15 [AI - GPT-5 Codex]
+**Goal:** Remove the visible border from the selected calendar mode highlight.
+**Completed:**
+- Updated `src/components/LessonCalendar.tsx` so the active `week/month/all` button keeps the subtle `bg-info-bg` fill and primary text, but uses a transparent border.
+
+**Validation:**
+- `pnpm exec eslint src/components/LessonCalendar.tsx` (pass)
+- `pnpm exec vitest tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx` (pass)
+- Playwright screenshot re-verified the classroom calendar selected-state render after restarting the dev server.
+
+## 2026-03-15 [AI - GPT-5 Codex]
+**Goal:** Move the calendar's return-to-today control onto the date label between the navigation arrows.
+**Completed:**
+- Updated `src/components/LessonCalendar.tsx` so clicking the `March 2026` header label returns to today in week/month views.
+- Removed the separate Today icon button from the calendar header.
+- Added component coverage in `tests/components/LessonCalendar.test.tsx` for the date-label today action.
+
+**Validation:**
+- `pnpm exec eslint src/components/LessonCalendar.tsx tests/components/LessonCalendar.test.tsx` (pass)
+- `pnpm exec vitest tests/components/LessonCalendar.test.tsx tests/components/calendar-view-persistence.test.tsx` (pass)
+- Playwright screenshots re-verified teacher and student classroom calendar tabs after restarting the dev server so the updated header control loaded.
+
+## 2026-03-15 [AI - GPT-5 Codex]
+**Goal:** Let users open a focused day presentation from the week-view day headers.
+**Completed:**
+- Updated `src/components/LessonCalendar.tsx` so each week-view day header opens a `ContentDialog` for that specific day.
+- Reused the existing `LessonDayCell` content inside the modal in read-only mode, keeping assignments, announcements, and lesson-plan content consistent with the calendar grid.
+- Added component coverage in `tests/components/LessonCalendar.test.tsx` for opening the focused day dialog from the week header.
+
+**Validation:**
+- `pnpm exec eslint src/components/LessonCalendar.tsx tests/components/LessonCalendar.test.tsx` (pass)
+- `pnpm exec vitest tests/components/LessonCalendar.test.tsx tests/components/calendar-view-persistence.test.tsx` (pass)
+- Playwright screenshots re-verified the focused day modal in teacher and student classroom calendar views.
+
+## 2026-03-15 [AI - GPT-5 Codex]
+**Goal:** Simplify the focused day modal into a presentation-style slide.
+**Completed:**
+- Replaced the standard modal chrome in `src/components/LessonCalendar.tsx` with a minimal `DialogPanel` layout.
+- Removed close buttons and the subtitle, and switched the body to large plain-text lesson content suitable for presentation.
+- Kept supporting assignments and announcements as simple, secondary text blocks only when present.
+
+**Validation:**
+- `pnpm exec eslint src/components/LessonCalendar.tsx tests/components/LessonCalendar.test.tsx` (pass)
+- `pnpm exec vitest tests/components/LessonCalendar.test.tsx tests/components/calendar-view-persistence.test.tsx` (pass)
+- Playwright screenshots re-verified the minimal presentation modal in teacher and student classroom calendar views after restarting the dev server.
+
+## 2026-03-15 [AI - GPT-5 Codex]
+**Goal:** Make the focused day presentation modal feel closer to the day-cell proportions.
+**Completed:**
+- Tightened the modal width in `src/components/LessonCalendar.tsx` to a fixed portrait-sized panel with a viewport max width.
+- Kept the taller minimum height so the presentation still reads like a slide while matching the day-cell aspect more closely.
+
+**Validation:**
+- `pnpm exec eslint src/components/LessonCalendar.tsx` (pass)
+- Playwright screenshots re-verified the updated portrait modal in teacher and student classroom calendar views.
