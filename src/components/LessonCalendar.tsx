@@ -3,10 +3,11 @@
 import { useMemo, useState, useEffect } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
-import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose, CircleDot } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
+import { extractTextFromTiptap } from '@/lib/lesson-plan-markdown'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
-import { Tooltip } from '@/ui'
+import { DialogPanel, Tooltip } from '@/ui'
 import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment, Announcement } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
@@ -87,6 +88,7 @@ export function LessonCalendar({
 }: LessonCalendarProps) {
   const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [])
   const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
+  const [presentedDay, setPresentedDay] = useState<Date | null>(null)
   const { rightPanel: shortcutHint } = useKeyboardShortcutHint()
 
   // Build a map of date -> lesson plan for quick lookup
@@ -206,6 +208,16 @@ export function LessonCalendar({
     setExpandedWeekIdx(null)
   }, [viewMode])
 
+  useEffect(() => {
+    if (viewMode !== 'week') {
+      setPresentedDay(null)
+    }
+  }, [viewMode])
+
+  useEffect(() => {
+    setPresentedDay(null)
+  }, [currentDate])
+
   // Calculate month spans for the month label column
   // Returns array of { month: string, monthName: string, startIdx: number, count: number }
   const monthSpans = useMemo(() => {
@@ -264,6 +276,31 @@ export function LessonCalendar({
     onDateChange(today)
   }
 
+  const presentedDayDetails = useMemo(() => {
+    if (!presentedDay) return null
+
+    const dateString = format(presentedDay, 'yyyy-MM-dd')
+    const isWeekendDay = isWeekend(presentedDay)
+    const lessonPlan = plansByDate.get(dateString) || null
+    const lessonText = lessonPlan?.content?.content?.length
+      ? extractTextFromTiptap(lessonPlan.content)
+      : ''
+
+    return {
+      day: presentedDay,
+      dateString,
+      lessonPlan,
+      lessonText,
+      assignments: assignmentsByDate.get(dateString) || [],
+      announcements: announcementsByDate.get(dateString) || [],
+      isWeekend: isWeekendDay,
+      isToday: isSameDay(presentedDay, today),
+      isClassDay: classDays.length > 0 ? classDayDates.has(dateString) : undefined,
+    }
+  }, [presentedDay, plansByDate, assignmentsByDate, announcementsByDate, today, classDays.length, classDayDates])
+
+  const weekHeaderDays = viewMode === 'week' ? (weeks[0] || []) : []
+
   // Format header label
   const headerLabel = useMemo(() => {
     if (viewMode === 'week' || viewMode === 'month') {
@@ -280,60 +317,61 @@ export function LessonCalendar({
     <div className="flex flex-col">
       {/* Header with navigation, view mode selector, and actions */}
       {showHeader && (
-        <div className="grid grid-cols-3 items-center px-4 py-2 border-b border-border">
+        <div className="grid grid-cols-3 items-center border-b border-border bg-surface px-4 py-1.5">
           {/* Left: Navigation with month label */}
           <div className="flex items-center gap-1 justify-start">
             {viewMode !== 'all' && (
               <button
                 onClick={handlePrev}
-                className="p-1.5 rounded hover:bg-surface-hover"
+                className="rounded p-1 hover:bg-surface-hover"
                 aria-label="Previous"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
             )}
-            <span className="text-lg font-semibold text-text-default mx-1 min-w-[120px] text-center">
-              {headerLabel}
-            </span>
+            {viewMode !== 'all' ? (
+              <button
+                type="button"
+                onClick={handleToday}
+                className="mx-1 min-w-[120px] rounded px-2 py-0.5 text-center text-lg font-semibold text-text-default hover:bg-surface-hover"
+                aria-label="Go to today"
+              >
+                {headerLabel}
+              </button>
+            ) : (
+              <span className="mx-1 min-w-[120px] text-center text-lg font-semibold text-text-default">
+                {headerLabel}
+              </span>
+            )}
             {viewMode !== 'all' && (
               <>
                 <button
+                  type="button"
                   onClick={handleNext}
-                  className="p-1.5 rounded hover:bg-surface-hover"
+                  className="rounded p-1 hover:bg-surface-hover"
                   aria-label="Next"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
-                <Tooltip content="Today">
-                  <button
-                    onClick={handleToday}
-                    className="ml-2 p-1.5 rounded hover:bg-surface-hover"
-                    aria-label="Go to today"
-                  >
-                    <CircleDot className="w-5 h-5" />
-                  </button>
-                </Tooltip>
               </>
             )}
           </div>
 
           {/* Center: View mode selector */}
-          <div className="flex items-center justify-center">
-            <div className="flex items-center gap-1 bg-surface-2 rounded-lg p-1">
-              {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => onViewModeChange(mode)}
-                  className={`px-3 py-1 text-sm rounded-md capitalize transition-colors ${
-                    viewMode === mode
-                      ? 'bg-surface shadow-sm font-medium'
-                      : 'hover:bg-surface-hover'
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-center gap-1">
+            {(['week', 'month', 'all'] as CalendarViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => onViewModeChange(mode)}
+                className={`rounded-md border px-3 py-0.5 text-sm capitalize transition-colors ${
+                  viewMode === mode
+                    ? 'border-transparent bg-info-bg text-primary font-medium'
+                    : 'border-transparent text-text-muted hover:bg-surface-hover hover:text-text-default'
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
           </div>
 
           {/* Right: Actions */}
@@ -345,7 +383,7 @@ export function LessonCalendar({
               <Tooltip content={isSidebarOpen ? `Close sidebar (${shortcutHint})` : `Edit as Markdown (${shortcutHint})`}>
                 <button
                   onClick={onMarkdownToggle}
-                  className="p-1.5 rounded hover:bg-surface-hover"
+                  className="rounded p-1 hover:bg-surface-hover"
                   aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
                 >
                   {isSidebarOpen ? (
@@ -369,12 +407,29 @@ export function LessonCalendar({
           {DAY_LABELS.map((label, idx) => {
             const isWeekendDay = idx === 0 || idx === 6
             const isCompactView = viewMode !== 'week'
+            const headerLabel = isWeekendDay ? label.charAt(0) : label
+            const headerDay = weekHeaderDays[idx]
+
+            if (viewMode === 'week' && headerDay) {
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setPresentedDay(headerDay)}
+                  className={`${isCompactView ? 'py-0.5' : 'py-2'} border-r border-border text-center text-sm font-medium text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default last:border-r-0`}
+                  aria-label={`Open ${format(headerDay, 'EEEE, MMMM d, yyyy')}`}
+                >
+                  {headerLabel}
+                </button>
+              )
+            }
+
             return (
               <div
                 key={label}
                 className={`${isCompactView ? 'py-0.5' : 'py-2'} text-center text-sm font-medium border-r border-border last:border-r-0 text-text-muted`}
               >
-                {isWeekendDay ? label.charAt(0) : label}
+                {headerLabel}
               </div>
             )
           })}
@@ -502,6 +557,73 @@ export function LessonCalendar({
         })}
         </div>
       </div>
+
+      <DialogPanel
+        isOpen={presentedDayDetails !== null}
+        onClose={() => setPresentedDay(null)}
+        ariaLabelledBy="calendar-day-presentation-title"
+        maxWidth="max-w-none"
+        className="!w-[40rem] max-w-[92vw] border-none bg-surface px-8 py-8 shadow-2xl"
+      >
+        {presentedDayDetails && (
+          <div className="flex min-h-[76vh] flex-col">
+            <h2
+              id="calendar-day-presentation-title"
+              className="text-4xl font-semibold tracking-tight text-text-default sm:text-5xl"
+            >
+              {format(presentedDayDetails.day, 'EEEE, MMMM d, yyyy')}
+            </h2>
+
+            <div className="mt-8 flex-1 overflow-y-auto">
+              {presentedDayDetails.lessonText ? (
+                <div className="whitespace-pre-wrap text-2xl leading-relaxed text-text-default sm:text-3xl">
+                  {presentedDayDetails.lessonText}
+                </div>
+              ) : (
+                <div className="text-2xl leading-relaxed text-text-muted sm:text-3xl">
+                  No lesson content for this day.
+                </div>
+              )}
+
+              {presentedDayDetails.assignments.length > 0 && (
+                <div className="mt-10">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-text-muted">
+                    Assignments
+                  </h3>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {presentedDayDetails.assignments.map((assignment) => (
+                      <div
+                        key={assignment.id}
+                        className="rounded-full bg-info-bg px-5 py-2 text-lg font-medium text-text-default"
+                      >
+                        {assignment.title}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {presentedDayDetails.announcements.length > 0 && (
+                <div className="mt-10">
+                  <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-text-muted">
+                    Announcements
+                  </h3>
+                  <div className="mt-4 space-y-4">
+                    {presentedDayDetails.announcements.map((announcement) => (
+                      <p
+                        key={announcement.id}
+                        className="text-xl leading-relaxed text-text-default sm:text-2xl"
+                      >
+                        {announcement.content}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </DialogPanel>
     </div>
   )
 }
