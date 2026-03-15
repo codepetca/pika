@@ -93,15 +93,14 @@ async function ensureTestDraft(
     return { ok: true, draft: updatedDraft }
   }
 
-  const { draft: createdDraft, error: createError } = await createAssessmentDraft(
+  const { draft: createdDraft, error: createError } = await createAssessmentDraft<TestDraftContent>(
     supabase,
     {
-      assessment_type: 'test',
-      assessment_id: test.id,
-      classroom_id: test.classroom_id,
+      assessmentType: 'test',
+      assessmentId: test.id,
+      classroomId: test.classroom_id,
+      userId,
       content,
-      created_by: userId,
-      updated_by: userId,
     }
   )
   if (createError || !createdDraft) {
