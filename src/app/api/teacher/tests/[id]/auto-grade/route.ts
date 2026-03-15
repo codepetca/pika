@@ -231,14 +231,15 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
         continue
       }
 
-      // Skip if manually graded by a teacher (ai_model is null means no AI was used) or
-      // already graded with the same AI model — avoid clobbering teacher grades or redundant calls
-      const teacherGraded = existing.graded_at != null && existing.ai_model === null
+      // Skip if already graded with the same model — avoid redundant OpenAI calls.
+      // TODO: When ai_score/teacher_score are stored in separate columns, AI should
+      // always write ai_score without touching teacher_score, and this check can
+      // simply compare ai_model to avoid re-calling the same model twice.
       const alreadyAiGraded =
         existing.ai_model === currentModel &&
         existing.graded_at != null &&
         existing.score != null
-      if (teacherGraded || alreadyAiGraded) {
+      if (alreadyAiGraded) {
         cachedGradeCount += 1
         completedQuestionsByStudent.set(
           studentId,
