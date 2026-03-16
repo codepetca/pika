@@ -3,8 +3,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
 import { extractAssignmentArtifacts } from '@/lib/assignment-artifacts'
+import { parseAndValidateRepoUrl } from '@/lib/server/repo-review'
 import { extractPlainText } from '@/lib/tiptap-content'
-import type { TiptapContent } from '@/types'
+import type { AssignmentEvaluationMode, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -162,6 +163,7 @@ export async function GET(
         position: assignment.position ?? 0,
         is_draft: assignment.is_draft ?? false,
         released_at: assignment.released_at ?? null,
+        evaluation_mode: assignment.evaluation_mode ?? 'document',
         track_authenticity: assignment.track_authenticity ?? true,
         created_by: assignment.created_by,
         created_at: assignment.created_at,
@@ -199,12 +201,20 @@ export async function PATCH(
     const user = await requireRole('teacher')
     const { id } = await params
     const body = await request.json()
-    const { title, rich_instructions, due_at, is_draft, released_at } = body as {
+    const { title, rich_instructions, due_at, is_draft, released_at, evaluation_mode, repo_review } = body as {
       title?: string
       rich_instructions?: TiptapContent
       due_at?: string
       is_draft?: boolean
       released_at?: string | null
+      evaluation_mode?: AssignmentEvaluationMode
+      repo_review?: {
+        repo_url?: string
+        default_branch?: string
+        review_start_at?: string | null
+        review_end_at?: string | null
+        include_pr_reviews?: boolean
+      }
     }
 
     const supabase = getServiceRoleClient()
@@ -250,6 +260,30 @@ export async function PATCH(
       )
     }
 
+    if (evaluation_mode !== undefined && evaluation_mode !== 'document' && evaluation_mode !== 'repo_review') {
+      return NextResponse.json(
+        { error: 'evaluation_mode must be "document" or "repo_review"' },
+        { status: 400 }
+      )
+    }
+
+    const nextEvaluationMode = (evaluation_mode ?? existing.evaluation_mode ?? 'document') as AssignmentEvaluationMode
+    const repoUrl = typeof repo_review?.repo_url === 'string' ? repo_review.repo_url.trim() : ''
+
+    if (nextEvaluationMode === 'repo_review' && existing.evaluation_mode !== 'repo_review' && !repoUrl) {
+      return NextResponse.json(
+        { error: 'repo_review.repo_url is required when evaluation_mode is "repo_review"' },
+        { status: 400 }
+      )
+    }
+
+    if (repo_review && !repoUrl) {
+      return NextResponse.json(
+        { error: 'repo_review.repo_url must not be empty' },
+        { status: 400 }
+      )
+    }
+
     // Build update object
     const updates: Record<string, any> = {}
     if (title !== undefined) updates.title = title.trim()
@@ -259,6 +293,7 @@ export async function PATCH(
       updates.description = extractPlainText(instructions)  // Keep plain text in sync
     }
     if (due_at !== undefined) updates.due_at = due_at
+    if (evaluation_mode !== undefined) updates.evaluation_mode = evaluation_mode
 
     const now = new Date()
     const existingReleaseDate = existing.released_at ? new Date(existing.released_at) : null
@@ -334,6 +369,39 @@ export async function PATCH(
         { error: 'Failed to update assignment' },
         { status: 500 }
       )
+    }
+
+    if (nextEvaluationMode === 'repo_review' && repo_review?.repo_url) {
+      const parsedRepo = parseAndValidateRepoUrl(String(repo_review.repo_url))
+      const { error: configError } = await supabase
+        .from('assignment_repo_reviews')
+        .upsert({
+          assignment_id: id,
+          provider: 'github',
+          repo_owner: parsedRepo.owner,
+          repo_name: parsedRepo.name,
+          default_branch: String(repo_review.default_branch || 'main').trim() || 'main',
+          review_start_at: repo_review.review_start_at ?? null,
+          review_end_at: repo_review.review_end_at ?? null,
+          include_pr_reviews: repo_review.include_pr_reviews !== false,
+          config_json: {
+            metrics_version: 'v1',
+            prompt_version: 'v1',
+          },
+        }, { onConflict: 'assignment_id' })
+
+      if (configError) {
+        console.error('Error updating repo review config:', configError)
+        return NextResponse.json(
+          { error: 'Failed to update repo review config' },
+          { status: 500 }
+        )
+      }
+    } else if (nextEvaluationMode === 'document') {
+      await supabase
+        .from('assignment_repo_reviews')
+        .delete()
+        .eq('assignment_id', id)
     }
 
     return NextResponse.json({ assignment })

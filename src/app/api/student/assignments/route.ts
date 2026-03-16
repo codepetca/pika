@@ -65,6 +65,9 @@ export async function GET(request: NextRequest) {
       .filter((assignment) => isAssignmentVisibleToStudents(assignment))
       .map(assignment => {
       const doc = docMap.get(assignment.id)
+      if (assignment.evaluation_mode === 'repo_review' && !doc?.returned_at) {
+        return null
+      }
       const status = calculateAssignmentStatus(assignment, doc)
 
       return {
@@ -73,6 +76,7 @@ export async function GET(request: NextRequest) {
         doc: doc ? sanitizeDocForStudent(doc) : null
       }
       })
+      .filter(Boolean)
 
     return NextResponse.json({ assignments: assignmentsWithStatus })
   } catch (error: any) {

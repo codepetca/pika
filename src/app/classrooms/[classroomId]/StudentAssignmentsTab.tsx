@@ -93,6 +93,7 @@ export function StudentAssignmentsTab({
     if (!selectedAssignment) return 'summary'
     return 'edit'
   }, [selectedAssignment, selectedAssignmentId])
+  const isRepoReviewAssignment = selectedAssignment?.evaluation_mode === 'repo_review'
 
   const navigate = useCallback(
     (next: { assignmentId?: string | null }) => {
@@ -186,7 +187,7 @@ export function StudentAssignmentsTab({
           )
         }
         trailing={
-          selectedAssignment ? (
+          selectedAssignment && !isRepoReviewAssignment ? (
             <Button
               size="sm"
               variant={editorState.isSubmitted ? 'secondary' : 'primary'}
@@ -241,6 +242,9 @@ export function StudentAssignmentsTab({
                               <p className="text-xs text-text-muted mt-1">
                                 {formatRelativeDueDate(assignment.due_at)}
                               </p>
+                              {assignment.evaluation_mode === 'repo_review' && (
+                                <p className="text-xs text-primary mt-1">Repo review</p>
+                              )}
                             </div>
                             <span
                               className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(assignment.status)}`}
@@ -258,6 +262,39 @@ export function StudentAssignmentsTab({
               <div className="bg-surface rounded-lg shadow-sm">
                 <div className="p-6 text-sm text-text-muted">
                   That assignment is no longer available.
+                </div>
+              </div>
+            ) : isRepoReviewAssignment ? (
+              <div className="bg-surface rounded-lg shadow-sm">
+                <div className="space-y-4 p-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-default">{selectedAssignment.title}</h3>
+                    <p className="mt-1 text-sm text-text-muted">
+                      Repo review feedback is shared here after your teacher returns it.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border border-border bg-surface-2 p-3">
+                      <div className="text-xs text-text-muted">Completion</div>
+                      <div className="mt-1 text-lg font-semibold text-text-default">{selectedAssignment.doc?.score_completion ?? '—'}/10</div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-surface-2 p-3">
+                      <div className="text-xs text-text-muted">Thinking</div>
+                      <div className="mt-1 text-lg font-semibold text-text-default">{selectedAssignment.doc?.score_thinking ?? '—'}/10</div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-surface-2 p-3">
+                      <div className="text-xs text-text-muted">Workflow</div>
+                      <div className="mt-1 text-lg font-semibold text-text-default">{selectedAssignment.doc?.score_workflow ?? '—'}/10</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-surface-2 p-4">
+                    <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Feedback</div>
+                    <div className="mt-2 whitespace-pre-wrap text-sm text-text-default">
+                      {selectedAssignment.doc?.feedback?.trim() || 'No feedback has been returned yet.'}
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (

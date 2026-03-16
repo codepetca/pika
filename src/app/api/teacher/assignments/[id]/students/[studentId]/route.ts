@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
+import {
+  loadLatestCompletedRepoReviewRun,
+  loadLatestRepoReviewRun,
+  loadRepoReviewResults,
+} from '@/lib/server/repo-review'
 import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -105,6 +110,16 @@ export async function GET(
     }
 
     const status = calculateAssignmentStatus(assignment, doc)
+    const [latestRun, latestCompletedRun] = assignment.evaluation_mode === 'repo_review'
+      ? await Promise.all([
+          loadLatestRepoReviewRun(assignmentId),
+          loadLatestCompletedRepoReviewRun(assignmentId),
+        ])
+      : [null, null]
+    const resultsRun = latestCompletedRun || latestRun
+    const repoReviewResult = resultsRun
+      ? (await loadRepoReviewResults(resultsRun.id)).find((result) => result.student_id === studentId) || null
+      : null
 
     return NextResponse.json({
       assignment: {
@@ -112,6 +127,7 @@ export async function GET(
         classroom_id: assignment.classroom_id,
         title: assignment.title,
         description: assignment.description,
+        evaluation_mode: assignment.evaluation_mode ?? 'document',
         due_at: assignment.due_at,
         position: assignment.position ?? 0,
         created_by: assignment.created_by,
@@ -125,7 +141,14 @@ export async function GET(
         name: studentName
       },
       doc: doc || null,
-      status
+      status,
+      repo_review: assignment.evaluation_mode === 'repo_review'
+        ? {
+            latest_run: latestRun,
+            latest_completed_run: latestCompletedRun,
+            result: repoReviewResult,
+          }
+        : null,
     })
   } catch (error: any) {
     // Authentication error (401)

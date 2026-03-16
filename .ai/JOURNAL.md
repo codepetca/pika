@@ -6948,3 +6948,29 @@
 **Validation:**
 - `pnpm exec eslint src/components/LessonCalendar.tsx` (pass)
 - Playwright screenshots re-verified the updated portrait modal in teacher and student classroom calendar views.
+
+## 2026-03-15 [AI - GPT-5 Codex]
+**Goal:** Implement repo review grading v1 for assignments, teacher workflow, and student returned feedback.
+**Completed:**
+- Added `repo_review` assignment support across the schema, shared types, teacher assignment APIs, repo review APIs, analytics helpers, and AI feedback generation.
+- Added teacher UI support for selecting repo review mode, configuring GitHub repo settings, viewing repo review assignment details, and applying draft repo-review grades into the existing grading flow.
+- Added student UI support for returned repo-review feedback cards while keeping unreturned repo-review assignments hidden.
+- Tightened repo-review validation so assignments cannot switch into repo-review mode without a GitHub repo, and ensured draft-apply creates safe empty assignment docs only for students who do not already have one.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-repo-review-apply.test.ts tests/api/teacher/assignments-repo-review-config.test.ts tests/unit/repo-review.test.ts` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+- `pnpm exec supabase db push --local --yes` to apply `048_repo_review_grading.sql` to the local dev database
+- Playwright screenshots re-verified the repo-review teacher assignment detail view and the student returned-feedback view after creating and returning a local verification assignment.
+
+## 2026-03-16 [AI - GPT-5 Codex]
+**Goal:** Fix repo review follow-up issues found in review before PR.
+**Completed:**
+- Added a `loadLatestCompletedRepoReviewRun` path and updated repo-review apply/detail APIs to keep using the last completed analysis even if the most recent run failed.
+- Fixed repo-review sidebar next-student navigation to use the active student row set instead of the document-assignment row list.
+- Wired the ambiguous-change AI classifier into `analyzeRepoReviewAssignment` so heuristic ambiguities can now be overridden before weighting/scoring.
+- Added focused tests for completed-run fallback behavior and ambiguous classification overrides.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-repo-review-apply.test.ts tests/api/teacher/assignments-repo-review-route.test.ts tests/unit/repo-review-analysis.test.ts` (pass)
+- `pnpm exec tsc --noEmit` (pass)

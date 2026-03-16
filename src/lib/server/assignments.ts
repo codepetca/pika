@@ -1,6 +1,7 @@
 type AssignmentVisibilityRecord = {
   is_draft: boolean
   released_at: string | null
+  evaluation_mode?: 'document' | 'repo_review'
 }
 
 export function isAssignmentVisibleToStudents(
@@ -11,4 +12,3 @@ export function isAssignmentVisibleToStudents(
   if (!assignment.released_at) return true
   return new Date(assignment.released_at).getTime() <= now.getTime()
 }
-

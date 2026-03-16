@@ -117,6 +117,9 @@ export function SortableAssignmentCard({
           <p className="text-xs text-text-muted">
             Due: {formatDueDate(assignment.due_at)}
           </p>
+          {assignment.evaluation_mode === 'repo_review' && (
+            <p className="text-xs text-primary">Repo review</p>
+          )}
           {isScheduled && (
             <p className="text-xs text-warning">{scheduledOpenLabel}</p>
           )}

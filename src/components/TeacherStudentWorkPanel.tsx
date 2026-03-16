@@ -112,6 +112,33 @@ interface StudentWorkData {
   student: { id: string; email: string; name: string | null }
   doc: AssignmentDoc | null
   status: AssignmentStatus
+  repo_review?: {
+    latest_run: {
+      id: string
+      status: string
+      started_at: string
+      completed_at: string | null
+      warnings_json?: Array<{ message: string }>
+    } | null
+    result: {
+      commit_count: number
+      active_days: number
+      session_count: number
+      burst_ratio: number
+      weighted_contribution: number
+      relative_contribution_share: number
+      spread_score: number
+      iteration_score: number
+      draft_feedback: string | null
+      evidence_json: Array<{
+        id: string
+        type: string
+        title: string
+        summary?: string
+        authored_at?: string
+      }>
+    } | null
+  } | null
 }
 
 interface TeacherStudentWorkPanelProps {
@@ -251,6 +278,13 @@ export function TeacherStudentWorkPanel({
 
   // Load history
   useEffect(() => {
+    if (data?.assignment.evaluation_mode === 'repo_review') {
+      setHistoryEntries([])
+      setHistoryLoading(false)
+      setHistoryError('')
+      return
+    }
+
     setHistoryLoading(true)
     setHistoryError('')
 
@@ -272,7 +306,7 @@ export function TeacherStudentWorkPanel({
     }
 
     loadHistory()
-  }, [assignmentId, studentId])
+  }, [assignmentId, data?.assignment.evaluation_mode, studentId])
 
   async function handleSaveGrade(selectedSaveMode: GradeSaveMode) {
     if (!data) return
@@ -406,6 +440,8 @@ export function TeacherStudentWorkPanel({
 
   const isPreviewLocked = lockedEntryId !== null
   const displayContent = previewContent || data.doc?.content
+  const isRepoReviewAssignment = data.assignment.evaluation_mode === 'repo_review'
+  const repoReviewResult = data.repo_review?.result || null
 
   const sc = Number(scoreCompletion) || 0
   const st = Number(scoreThinking) || 0
@@ -428,7 +464,46 @@ export function TeacherStudentWorkPanel({
               : ''
           }`}
         >
-          {displayContent && !isEmpty(displayContent) ? (
+          {isRepoReviewAssignment ? (
+            <div className="space-y-4 p-4">
+              <div>
+                <h3 className="text-lg font-semibold text-text-default">{data.student.name || data.student.email}</h3>
+                <p className="mt-1 text-sm text-text-muted">
+                  Repo review evidence for {data.assignment.title}
+                </p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-lg border border-border bg-surface p-3">
+                  <div className="text-xs text-text-muted">Commits</div>
+                  <div className="mt-1 text-lg font-semibold text-text-default">{repoReviewResult?.commit_count ?? 0}</div>
+                </div>
+                <div className="rounded-lg border border-border bg-surface p-3">
+                  <div className="text-xs text-text-muted">Active Days</div>
+                  <div className="mt-1 text-lg font-semibold text-text-default">{repoReviewResult?.active_days ?? 0}</div>
+                </div>
+                <div className="rounded-lg border border-border bg-surface p-3">
+                  <div className="text-xs text-text-muted">Contribution</div>
+                  <div className="mt-1 text-lg font-semibold text-text-default">
+                    {repoReviewResult ? `${Math.round((repoReviewResult.relative_contribution_share || 0) * 100)}%` : '—'}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border bg-surface p-3">
+                  <div className="text-xs text-text-muted">Burst Ratio</div>
+                  <div className="mt-1 text-lg font-semibold text-text-default">
+                    {repoReviewResult ? `${Math.round((repoReviewResult.burst_ratio || 0) * 100)}%` : '—'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border bg-surface p-4">
+                <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Draft AI Feedback</div>
+                <div className="mt-2 whitespace-pre-wrap text-sm text-text-default">
+                  {repoReviewResult?.draft_feedback?.trim() || 'Run repo analysis to generate feedback.'}
+                </div>
+              </div>
+            </div>
+          ) : displayContent && !isEmpty(displayContent) ? (
             <div>
               <RichTextViewer content={displayContent} />
               <div className="mt-4 text-center text-xs text-text-muted">
@@ -455,7 +530,7 @@ export function TeacherStudentWorkPanel({
               }`}
               onClick={() => handleRightTabChange('history')}
             >
-              History
+              {isRepoReviewAssignment ? 'Evidence' : 'History'}
             </button>
             <button
               type="button"
@@ -476,7 +551,35 @@ export function TeacherStudentWorkPanel({
                 className="flex-1 min-h-0 overflow-y-auto"
                 onMouseLeave={handleHistoryMouseLeave}
               >
-                {historyLoading && historyEntries.length === 0 ? (
+                {isRepoReviewAssignment ? (
+                  <div className="space-y-3 p-3">
+                    {data.repo_review?.latest_run && (
+                      <div className="rounded-lg border border-border bg-surface p-3 text-xs text-text-muted">
+                        Latest run {formatInTimeZone(new Date(data.repo_review.latest_run.started_at), 'America/Toronto', 'MMM d, h:mm a')}
+                      </div>
+                    )}
+                    {repoReviewResult?.evidence_json?.length ? (
+                      repoReviewResult.evidence_json.map((item) => (
+                        <div key={item.id} className="rounded-lg border border-border bg-surface p-3">
+                          <div className="text-sm font-medium text-text-default">{item.title}</div>
+                          {item.summary && <div className="mt-1 text-xs text-text-muted">{item.summary}</div>}
+                          {item.authored_at && (
+                            <div className="mt-2 text-[11px] text-text-muted">
+                              {formatInTimeZone(new Date(item.authored_at), 'America/Toronto', 'MMM d, h:mm a')}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-text-muted">No evidence captured yet.</p>
+                    )}
+                    {data.repo_review?.latest_run?.warnings_json?.length ? (
+                      <div className="rounded-lg border border-warning bg-warning-bg p-3 text-xs text-warning">
+                        {data.repo_review.latest_run.warnings_json.map((warning) => warning.message).join(' ')}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : historyLoading && historyEntries.length === 0 ? (
                   <div className="p-4 text-center">
                     <Spinner size="sm" />
                   </div>
@@ -500,7 +603,7 @@ export function TeacherStudentWorkPanel({
                   <RefreshingIndicator label="Refreshing history..." className="px-3 pb-2 pt-0" />
                 )}
               </div>
-              {isPreviewLocked && previewEntry && (
+              {!isRepoReviewAssignment && isPreviewLocked && previewEntry && (
                 <div className="px-3 py-2 border-t border-border">
                   <Button onClick={handleExitPreview} variant="secondary" size="sm" className="w-full">
                     Exit preview
@@ -510,10 +613,12 @@ export function TeacherStudentWorkPanel({
             </>
           ) : (
             <div className="flex h-full min-h-0 flex-col gap-3 p-3">
-              <AuthenticityGauge
-                score={data.doc?.authenticity_score ?? null}
-                flags={data.doc?.authenticity_flags ?? []}
-              />
+              {!isRepoReviewAssignment && (
+                <AuthenticityGauge
+                  score={data.doc?.authenticity_score ?? null}
+                  flags={data.doc?.authenticity_flags ?? []}
+                />
+              )}
 
               {gradeError && (
                 <div className="text-xs text-danger">{gradeError}</div>
@@ -557,9 +662,11 @@ export function TeacherStudentWorkPanel({
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
-                <Button size="sm" variant="secondary" className="flex-1" onClick={handleAutoGrade} disabled={autoGrading}>
-                  {autoGrading ? 'Grading...' : 'AI grade'}
-                </Button>
+                {!isRepoReviewAssignment && (
+                  <Button size="sm" variant="secondary" className="flex-1" onClick={handleAutoGrade} disabled={autoGrading}>
+                    {autoGrading ? 'Grading...' : 'AI grade'}
+                  </Button>
+                )}
                 <SplitButton
                   label={gradeSaving ? 'Saving...' : 'Save'}
                   onPrimaryClick={() => {
