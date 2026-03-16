@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -9,146 +10,131 @@ export const revalidate = 0
  * GET /api/teacher/logs?classroom_id=xxx&date=YYYY-MM-DD
  * Returns roster students with an optional entry for the selected date.
  */
-export async function GET(request: NextRequest) {
-  try {
-    const user = await requireRole('teacher')
-    const { searchParams } = new URL(request.url)
-    const classroomId = searchParams.get('classroom_id')
-    const date = searchParams.get('date')
+export const GET = withErrorHandler('GetTeacherLogs', async (request: NextRequest) => {
+  const user = await requireRole('teacher')
+  const { searchParams } = new URL(request.url)
+  const classroomId = searchParams.get('classroom_id')
+  const date = searchParams.get('date')
 
-    if (!classroomId) {
-      return NextResponse.json(
-        { error: 'classroom_id is required' },
-        { status: 400 }
-      )
-    }
-
-    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return NextResponse.json(
-        { error: 'Invalid date format (use YYYY-MM-DD)' },
-        { status: 400 }
-      )
-    }
-
-    const supabase = getServiceRoleClient()
-
-    const { data: classroom, error: classroomError } = await supabase
-      .from('classrooms')
-      .select('teacher_id')
-      .eq('id', classroomId)
-      .single()
-
-    if (classroomError || !classroom) {
-      return NextResponse.json(
-        { error: 'Classroom not found' },
-        { status: 404 }
-      )
-    }
-
-    if (classroom.teacher_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      )
-    }
-
-    const { data: enrollments, error: enrollmentsError } = await supabase
-      .from('classroom_enrollments')
-      .select(`
-        student_id,
-        users!classroom_enrollments_student_id_fkey(
-          id,
-          email
-        )
-      `)
-      .eq('classroom_id', classroomId)
-
-    if (enrollmentsError) {
-      console.error('Error fetching enrollments:', enrollmentsError)
-      return NextResponse.json(
-        { error: 'Failed to fetch students' },
-        { status: 500 }
-      )
-    }
-
-    const studentIds = (enrollments || []).map(e => e.student_id)
-    const { data: profiles, error: profilesError } = await supabase
-      .from('student_profiles')
-      .select('user_id, first_name, last_name')
-      .in('user_id', studentIds)
-
-    if (profilesError) {
-      console.error('Error fetching student profiles:', profilesError)
-    }
-
-    const profileMap = new Map(
-      (profiles || []).map(p => [p.user_id, p])
-    )
-
-    const students = (enrollments || [])
-      .map(e => {
-        const u = e.users as unknown as { id: string; email: string }
-        const profile = profileMap.get(u.id)
-        return {
-          id: u.id,
-          email: u.email,
-          first_name: profile?.first_name || '',
-          last_name: profile?.last_name || '',
-        }
-      })
-      .sort((a, b) => a.email.localeCompare(b.email))
-
-    let entriesQuery = supabase
-      .from('entries')
-      .select('*')
-      .eq('classroom_id', classroomId)
-
-    if (date) {
-      entriesQuery = entriesQuery.eq('date', date)
-    }
-
-    const { data: entries, error: entriesError } = await entriesQuery
-
-    if (entriesError) {
-      console.error('Error fetching entries:', entriesError)
-      return NextResponse.json(
-        { error: 'Failed to fetch entries' },
-        { status: 500 }
-      )
-    }
-
-    const entryByStudentId = new Map(
-      (entries || []).map(entry => [entry.student_id, entry])
-    )
-
-    const logs = students.map(student => {
-      const entry = entryByStudentId.get(student.id) || null
-      return {
-        student_id: student.id,
-        student_email: student.email,
-        student_first_name: student.first_name,
-        student_last_name: student.last_name,
-        entry,
-      }
-    })
-
-    return NextResponse.json({
-      classroom_id: classroomId,
-      date: date || null,
-      logs,
-    })
-  } catch (error: any) {
-    if (error.name === 'AuthenticationError') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    if (error.name === 'AuthorizationError') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    console.error('Get teacher logs error:', error)
+  if (!classroomId) {
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'classroom_id is required' },
+      { status: 400 }
+    )
+  }
+
+  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return NextResponse.json(
+      { error: 'Invalid date format (use YYYY-MM-DD)' },
+      { status: 400 }
+    )
+  }
+
+  const supabase = getServiceRoleClient()
+
+  const { data: classroom, error: classroomError } = await supabase
+    .from('classrooms')
+    .select('teacher_id')
+    .eq('id', classroomId)
+    .single()
+
+  if (classroomError || !classroom) {
+    return NextResponse.json(
+      { error: 'Classroom not found' },
+      { status: 404 }
+    )
+  }
+
+  if (classroom.teacher_id !== user.id) {
+    return NextResponse.json(
+      { error: 'Forbidden' },
+      { status: 403 }
+    )
+  }
+
+  const { data: enrollments, error: enrollmentsError } = await supabase
+    .from('classroom_enrollments')
+    .select(`
+      student_id,
+      users!classroom_enrollments_student_id_fkey(
+        id,
+        email
+      )
+    `)
+    .eq('classroom_id', classroomId)
+
+  if (enrollmentsError) {
+    console.error('Error fetching enrollments:', enrollmentsError)
+    return NextResponse.json(
+      { error: 'Failed to fetch students' },
       { status: 500 }
     )
   }
-}
+
+  const studentIds = (enrollments || []).map(e => e.student_id)
+  const { data: profiles, error: profilesError } = await supabase
+    .from('student_profiles')
+    .select('user_id, first_name, last_name')
+    .in('user_id', studentIds)
+
+  if (profilesError) {
+    console.error('Error fetching student profiles:', profilesError)
+  }
+
+  const profileMap = new Map(
+    (profiles || []).map(p => [p.user_id, p])
+  )
+
+  const students = (enrollments || [])
+    .map(e => {
+      const u = e.users as unknown as { id: string; email: string }
+      const profile = profileMap.get(u.id)
+      return {
+        id: u.id,
+        email: u.email,
+        first_name: profile?.first_name || '',
+        last_name: profile?.last_name || '',
+      }
+    })
+    .sort((a, b) => a.email.localeCompare(b.email))
+
+  let entriesQuery = supabase
+    .from('entries')
+    .select('*')
+    .eq('classroom_id', classroomId)
+
+  if (date) {
+    entriesQuery = entriesQuery.eq('date', date)
+  }
+
+  const { data: entries, error: entriesError } = await entriesQuery
+
+  if (entriesError) {
+    console.error('Error fetching entries:', entriesError)
+    return NextResponse.json(
+      { error: 'Failed to fetch entries' },
+      { status: 500 }
+    )
+  }
+
+  const entryByStudentId = new Map(
+    (entries || []).map(entry => [entry.student_id, entry])
+  )
+
+  const logs = students.map(student => {
+    const entry = entryByStudentId.get(student.id) || null
+    return {
+      student_id: student.id,
+      student_email: student.email,
+      student_first_name: student.first_name,
+      student_last_name: student.last_name,
+      entry,
+    }
+  })
+
+  return NextResponse.json({
+    classroom_id: classroomId,
+    date: date || null,
+    logs,
+  })
+})

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ZodError } from 'zod'
-import { AuthenticationError, AuthorizationError } from '@/lib/auth'
 
 /**
  * Standard API error response shape.
@@ -46,16 +45,14 @@ function formatZodError(error: ZodError): string {
 }
 
 /**
- * Type-guards: check both instanceof and error.name for compatibility
- * with test mocks that replace @/lib/auth (which drops the class constructors).
+ * Type-guards using error.name — compatible with test mocks that replace
+ * @/lib/auth without re-exporting the error classes.
  */
 function isAuthenticationError(error: unknown): boolean {
-  if (error instanceof AuthenticationError) return true
   return error instanceof Error && error.name === 'AuthenticationError'
 }
 
 function isAuthorizationError(error: unknown): boolean {
-  if (error instanceof AuthorizationError) return true
   return error instanceof Error && error.name === 'AuthorizationError'
 }
 
