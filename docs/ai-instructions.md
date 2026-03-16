@@ -36,38 +36,14 @@ Then consult:
 
 ---
 
-## Architecture Snapshot
-
-### Tech Stack
-- **Framework**: Next.js 14+ (App Router, TypeScript)
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Email verification codes (signup/reset) + password login (**NO OAuth**)
-- **Styling**: Tailwind CSS
-- **Testing**: Vitest + React Testing Library
-- **Deployment**: Vercel
-
-### Key Characteristics
-- **Timezone**: America/Toronto (hardcoded for all deadline calculations)
-- **TDD-first**: Write tests before implementation for core logic
-- **Pure functions**: Attendance logic has no side effects, fully testable
-- **Mobile-first**: Student experience optimized for mobile devices
-- **No component libraries**: Tailwind CSS only
-- **Design system**: Import UI primitives from `@/ui`, use semantic tokens (see below)
-
----
-
 ## Core Loop
 
-When building features or fixing bugs, follow this cycle:
-
-1. **Load Context** — Read required documentation in order (see above)
-2. **Understand Requirements** — Read issue or user prompt carefully
+1. **Load Context** — Read required docs in order (above)
+2. **Understand Requirements** — Read issue or user prompt
 3. **Write Tests FIRST** — For core logic (utilities, business rules)
-4. **Implement Minimal Code** — Pass the tests you wrote
-5. **Refactor for Clarity** — Keep code simple and maintainable
-6. **Keep UI Thin** — Move logic to utilities, not components
-
-This TDD approach ensures code quality and prevents regressions.
+4. **Implement Minimal Code** — Pass the tests
+5. **Refactor** — Keep code simple
+6. **Keep UI Thin** — Logic in utilities, not components
 
 ---
 
@@ -191,200 +167,54 @@ See `/src/ui/README.md` for the full token reference.
 
 ---
 
-## Common Workflows
+## Workflows — Use Slash Commands
 
-### Workflow 1: Adding a Feature
+| Task | Claude Code | Codex |
+|---|---|---|
+| Start a session | `/session-start` | `.codex/prompts/session-start.md` |
+| Work on a GitHub issue | `/work-on-issue <N>` | `.codex/prompts/work-on-issue.md` |
+| TDD implementation | `/tdd <feature>` | `.codex/prompts/tdd.md` |
+| Verify UI changes (MANDATORY) | `/ui-verify <page>` | `.codex/prompts/ui-verify.md` |
+| Pre-commit audit | `/audit` | `.codex/prompts/audit.md` |
+| Migrate error handler | `/migrate-error-handler <file>` | `.codex/prompts/migrate-error-handler.md` |
+| Scaffold API route | `/add-api-route` | `.codex/prompts/add-api-route.md` |
 
-1. Read ai-instructions.md (this file)
-2. Read all required docs in sequence
-3. Create a worktree for your branch (see `docs/dev-workflow.md`)
-4. Identify which agent role to adopt (see agents.md)
-5. Write tests FIRST for core logic
-6. Implement minimal code to pass tests
-7. Refactor for clarity
-8. Update docs if architecture changes
-
-### Workflow 2: Working on an Issue
-
-1. Run: `gh issue view X --json number,title,body,labels`
-2. Follow reading order above
-3. Follow `docs/issue-worker.md` (protocol) and `docs/workflow/handle-issue.md` (quick pointer)
-4. Create a worktree for `issue/X-slug` (see `docs/dev-workflow.md`)
-5. Follow TDD workflow
-6. Create PR with "Closes #X"
-
-### Workflow 3: Load Context
-
-1. Say "load context" or similar trigger
-2. System loads ai-instructions.md (this file)
-3. System loads all files in Required Reading Order
-4. Confirm context loaded
-5. Ready to work
-
-### Workflow 4: Fixing a Bug
-
-1. Read ai-instructions.md and relevant core docs
-2. Create a worktree for your branch (see `docs/dev-workflow.md`)
-3. Write a failing test that reproduces the bug
-4. Fix code to pass the test
-5. Refactor if needed
-6. Verify all tests pass
-
-### Workflow 5: AI UI Verification (MANDATORY for UI Changes)
-
-**After ANY UI/UX change, you MUST visually verify using Playwright:**
-
-1. Ensure dev server is running: `pnpm dev`
-2. Generate auth states if needed: `pnpm e2e:auth`
-3. Take screenshots for **BOTH roles** when applicable:
-   ```bash
-   # Teacher view
-   npx playwright screenshot http://localhost:3000/<page> /tmp/teacher.png \
-     --load-storage .auth/teacher.json --viewport-size 1440,900
-
-   # Student view
-   npx playwright screenshot http://localhost:3000/<page> /tmp/student.png \
-     --load-storage .auth/student.json --viewport-size 1440,900
-   ```
-4. View the screenshots using the Read tool
-5. **Iterate on aesthetics**: If something looks off, fix the code and take another screenshot
-6. For automated verifications: `pnpm e2e:verify <scenario>`
-
-**This is not optional.** UI changes must be visually confirmed before committing.
-
-See `docs/guides/ai-ui-testing.md` for detailed patterns.
+UI changes **must** be visually verified before committing. See `docs/guides/ai-ui-testing.md` for patterns.
 
 ---
 
-## Git Worktrees (Required Workflow)
+## Git & Worktrees
 
-`docs/dev-workflow.md` is the single source of truth for worktree setup and usage.
+Worktree rules are in `.ai/START-HERE.md`. Key points:
+- All git commands: `git -C "$PIKA_WORKTREE"`
+- All file paths: absolute or `$PIKA_WORKTREE`-prefixed
+- Setup details: `docs/dev-workflow.md`
 
-Summary:
-- **Hub repo:** `$HOME/Repos/pika` (stays on `main`)
-- **Worktrees:** `$HOME/Repos/.worktrees/pika/<branch>`
-- Use `pika ls` and `pika claude <worktree>` or `pika codex <worktree>` to bind `PIKA_WORKTREE`
-- All git commands must use `git -C "$PIKA_WORKTREE"` (set `PIKA_WORKTREE="$HOME/Repos/pika"` for hub-level commands)
+### Merge Policies (MANDATORY)
 
-See `docs/dev-workflow.md` for create/cleanup steps and `.env.local` symlinks.
+- **`main`**: No merge commits. Use PR **Squash and merge** (preferred) or linear rebase/cherry-pick.
+- **`production`**: Direct push blocked. Use `/merge-main-into-production` command.
 
-### Main Merge Policy (MANDATORY)
+### Environment (.env.local)
 
-- `main` is protected against merge commits.
-- Do not push merge commits to `main`.
-- Use one of these landing strategies:
-  - PR **Squash and merge** (preferred)
-  - Linear local integration (`rebase`, `cherry-pick`, or `merge --squash` + commit)
-
-### Production Merge Policy (MANDATORY)
-
-- `production` requires pull requests; direct pushes are blocked by branch rules.
-- For `main` -> `production`:
-  1. Ensure `production` worktree exists (prune stale entries and re-add if needed).
-  2. Merge `origin/main` into local `production` worktree branch.
-  3. Push that merge commit to a temporary branch.
-  4. Open a PR with `base=production`.
-  5. Merge via GitHub, then fast-forward local `production` to `origin/production`.
-- When running `gh pr create`, prefer single-quoted title/body text (avoid shell-processed backticks).
+- Never commit `.env.local` — it's symlinked from `$HOME/Repos/.env/pika/.env.local`
+- Each worktree needs: `ln -sf $HOME/Repos/.env/pika/.env.local <worktree>/.env.local`
+- See `docs/dev-workflow.md` for setup
 
 ---
 
-## Environment Files (.env.local)
+## Specialized Agents
 
-### Core Principle
+See [/docs/core/agents.md](/docs/core/agents.md) for details. For complex features, use agents in sequence: Architect → Testing/QA → Implementation → UI/UX.
 
-`.env.local` contains real secrets and must NEVER be committed. All ACTIVE repos and worktrees must symlink `.env.local` from a single canonical location to avoid duplication and drift.
-
-### File Locations
-
-- **Canonical `.env.local`:** `$HOME/Repos/.env/pika/.env.local` (contains real secrets)
-- **Example file (committed):** `.env.example` (in repo, no secrets)
-
-### Symlink Setup
-
-Each worktree must symlink `.env.local` to the canonical file:
-
-```bash
-ln -sf $HOME/Repos/.env/pika/.env.local <worktree>/.env.local
-```
-
-**Why symlinks:**
-- Worktrees do not share gitignored files
-- Symlinks avoid duplication and drift across branches
-- `-s` = symbolic link, `-f` = force/replace existing file
-
-See `docs/dev-workflow.md` for the recommended worktree setup flow.
-
-### Branch-Specific Envs (Exceptions Only)
-
-Use separate `.env.local` files ONLY in these cases:
-- Running multiple Supabase/backend instances in parallel
-- Destructive DB schema or migration experiments
-- Different external API keys, models, or cost profiles
-
-**Otherwise, shared `.env.local` is mandatory.**
-
----
-
-## Archived Repos
-
-- Repos under `$HOME/Repos/archive/<project>` are inactive
-- Archived repos may have broken `.env.local` symlinks or missing worktrees
-- This is acceptable and intentional
-- Only active repos under `$HOME/Repos/` require valid env symlinks and worktrees
-
----
-
-## When to Spawn Specialized Agents
-
-See [/docs/core/agents.md](/docs/core/agents.md) for detailed agent definitions. Use these agents based on task type:
-
-| Task Type | Agent to Use |
-|-----------|--------------|
-| System design changes | **Architect Agent** |
-| Writing tests, TDD implementation | **Testing/QA Agent** |
-| Building features with TDD | **Implementation Agent** |
-| Database schema, migrations, RLS | **Data/Storage Agent** |
-| Code cleanup, refactoring | **Refactor Agent** |
-| UI components, visual design | **UI/UX Agent** |
-
-**Multi-agent collaboration**: For complex features, spawn multiple agents in sequence (e.g., Architect → Testing/QA → Implementation → UI/UX).
-
----
-
-## Platform-Specific Usage Notes
-
-### Claude Code (CLI)
-- Preferred tool for this project
-- Use `/docs` commands to navigate documentation
-- Follow TDD workflow with test:watch mode
-- Use git integration for commits and PRs
-
-### GitHub Copilot / Cursor
-- Read this file and core docs in workspace
-- Keep documentation open in editor
-- Verify suggestions against architectural constraints
-- Run tests frequently
-
-### ChatGPT / Claude.ai
-- Copy relevant docs into conversation context
-- Request full file contents, not snippets
-- Verify code against constraints before applying
-- Test implementations manually
-
----
-
-## Decision-Making Guidelines
-
-When facing implementation choices:
-
-1. **Follow existing patterns** — Check codebase for similar implementations
-2. **Prefer simplicity** — Don't over-engineer or add unnecessary abstractions
-3. **TDD-first** — Write tests to clarify expected behavior
-4. **Consult docs** — Re-read architecture.md and design.md
-5. **Document decisions** — Add comments for non-trivial logic
-6. **Make reasonable assumptions** — Don't block on minor details
-7. **Update docs** — If changing architecture, update relevant /docs files
+| Task | Agent |
+|---|---|
+| System design | Architect |
+| Tests / TDD | Testing/QA |
+| Feature implementation | Implementation |
+| Database / migrations | Data/Storage |
+| Refactoring | Refactor |
+| UI / visual design | UI/UX |
 
 ---
 
@@ -474,32 +304,3 @@ gh issue view X          # View issue details
 /ui-verify <page>        # Take Playwright screenshots to verify UI
 ```
 
----
-
-## Maintaining This File
-
-**When to update ai-instructions.md**:
-- Core architecture changes
-- New mandatory constraints added
-- New agent types introduced
-- Reading order changes
-- Critical patterns change
-
-**Who updates**:
-- Project maintainer (human)
-- AI agents should propose updates, not make them directly
-
----
-
-## Next Steps
-
-- **New to the project?** Continue reading in the order specified above
-- **Working on an issue?** See [/docs/workflow/handle-issue.md](/docs/workflow/handle-issue.md)
-- **Adding a feature?** See [/docs/guidance/](/docs/guidance/) for feature specs
-- **Need technical details?** See [/docs/core/architecture.md](/docs/core/architecture.md)
-- **Questions about testing?** See [/docs/core/tests.md](/docs/core/tests.md)
-- **Agent collaboration?** See [/docs/core/agents.md](/docs/core/agents.md)
-
----
-
-**Remember**: This file is your entry point. Read it first, then follow the reading order. This discipline prevents architectural drift and ensures consistent, high-quality implementations.
