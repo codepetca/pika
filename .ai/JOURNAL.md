@@ -6948,3 +6948,84 @@
 **Validation:**
 - `pnpm exec eslint src/components/LessonCalendar.tsx` (pass)
 - Playwright screenshots re-verified the updated portrait modal in teacher and student classroom calendar views.
+
+## 2026-03-16 [AI - GPT-5 Codex]
+**Goal:** Improve test review signal by adding direct coverage for untested server helpers and tightening the measured coverage gate.
+**Completed:**
+- Added direct unit coverage in `tests/unit/server-access.test.ts` for classroom, quiz, and test access helpers in `src/lib/server/*`, including schema-drift error detection helpers.
+- Added direct unit coverage in `tests/unit/assessment-drafts.test.ts` for draft validation, content shaping, draft persistence wrappers, and question sync paths in `src/lib/server/assessment-drafts.ts`.
+- Added direct API coverage in `tests/api/feedback.test.ts` for configuration, validation, upstream failure handling, and successful GitHub issue creation.
+- Tightened `vitest.config.ts` global thresholds from `70/70/67/70` to `80/85/75/80` and added file-specific thresholds for the newly covered server modules.
+
+**Validation:**
+- `pnpm exec vitest tests/unit/server-access.test.ts tests/unit/assessment-drafts.test.ts tests/api/feedback.test.ts` (pass)
+- `pnpm test:coverage` (pass; all 153 files / 1382 tests)
+
+## 2026-03-16 [AI - GPT-5 Codex]
+**Goal:** Bring `src/app/api/**` into measured coverage without breaking the signal from previously-covered core utilities.
+**Completed:**
+- Changed `vitest.config.ts` coverage `include` to explicitly measure `src/lib/**/*`, `src/ui/**/*`, and `src/app/api/**/route.ts` instead of excluding the full app tree.
+- Added direct route coverage for snapshot listing/serving, quiz focus-events, quiz listing, quiz results, and cron cleanup history in:
+  - `tests/api/snapshots-list.test.ts`
+  - `tests/api/snapshots-filename.test.ts`
+  - `tests/api/student/quizzes-focus-events.test.ts`
+  - `tests/api/student/quizzes.test.ts`
+  - `tests/api/student/quizzes-results.test.ts`
+  - `tests/api/cron/cleanup-history.test.ts`
+- Recalibrated global thresholds to the API-inclusive baseline and added stricter per-file thresholds for the newly covered API routes so the new coverage is enforced where tests now exist.
+
+**Validation:**
+- `pnpm exec vitest tests/api/snapshots-list.test.ts tests/api/snapshots-filename.test.ts tests/api/student/quizzes-focus-events.test.ts tests/api/student/quizzes.test.ts tests/api/student/quizzes-results.test.ts tests/api/cron/cleanup-history.test.ts` (pass)
+- `pnpm test:coverage` (pass; all 159 files / 1405 tests)
+
+## 2026-03-16 [AI - GPT-5 Codex]
+**Goal:** Close the remaining API coverage blind spots and enforce them with route-level thresholds.
+**Completed:**
+- Added direct route coverage for the previously unmeasured handlers in:
+  - `tests/api/classrooms-class-days.test.ts`
+  - `tests/api/cron/nightly-log-summaries.test.ts`
+  - `tests/api/teacher/log-summary.test.ts`
+  - `tests/api/teacher/gradebook-quiz-overrides.test.ts`
+  - `tests/api/teacher/student-history.test.ts`
+  - `tests/api/teacher/quizzes-route.test.ts`
+  - `tests/api/teacher/quizzes-draft-route.test.ts`
+  - `tests/api/teacher/quizzes-questions-route.test.ts`
+  - `tests/api/teacher/quizzes-questions-id.test.ts`
+  - `tests/api/teacher/quizzes-results.test.ts`
+- Reworked the new Supabase mocks to match the real query-builder chains, including cache-hit and generation paths for `src/app/api/teacher/log-summary/route.ts`.
+- Added file-specific coverage thresholds in `vitest.config.ts` for the newly covered blind-spot routes so regressions back to effectively-unmeasured coverage fail CI.
+
+**Validation:**
+- `pnpm exec vitest tests/api/classrooms-class-days.test.ts tests/api/cron/nightly-log-summaries.test.ts tests/api/teacher/log-summary.test.ts tests/api/teacher/gradebook-quiz-overrides.test.ts tests/api/teacher/student-history.test.ts tests/api/teacher/quizzes-route.test.ts tests/api/teacher/quizzes-draft-route.test.ts tests/api/teacher/quizzes-questions-route.test.ts tests/api/teacher/quizzes-questions-id.test.ts tests/api/teacher/quizzes-results.test.ts` (pass)
+- `pnpm test:coverage` (pass; all 169 files / 1438 tests)
+
+## 2026-03-16 [AI - GPT-5 Codex]
+**Goal:** Fix PR CI failures caused by upstream `main` changes after the coverage branch was opened.
+**Completed:**
+- Rebased `codex/test-coverage-review` onto `origin/main` so the branch matches the merge target used by GitHub Actions.
+- Updated `tests/api/snapshots-list.test.ts` to assert the current `withErrorHandler` contract for unexpected filesystem failures (`500` JSON response instead of a thrown error).
+- Updated `tests/api/teacher/quizzes-draft-route.test.ts` to mock the current draft helpers (`ensureAssessmentDraft` and `syncAssessmentMetadataFromDraft`) used by the rebased route implementation.
+- Recalibrated the file-specific threshold for `src/lib/server/assessment-drafts.ts` in `vitest.config.ts` to the new post-rebase baseline after upstream file growth.
+
+**Validation:**
+- `pnpm exec vitest tests/api/teacher/quizzes-draft-route.test.ts tests/api/snapshots-list.test.ts` (pass)
+- `pnpm test:coverage` (pass; all 175 files / 1540 tests)
+
+## 2026-03-17 [AI - GPT-5 Codex]
+**Goal:** Tighten rebased route thresholds so the coverage gate matches the branch's actual API coverage instead of the pre-rebase floor.
+**Completed:**
+- Raised the route-specific thresholds in `vitest.config.ts` for classroom class-days, nightly summaries, teacher log summary, student history, quiz override, and quiz route handlers to sit just below the rebased branch's measured coverage.
+- Left a small cushion under the current measured values to avoid flapping on incidental line movement while still protecting the coverage this PR established.
+
+**Validation:**
+- `pnpm test:coverage` (pass; all 175 files / 1540 tests)
+
+## 2026-03-17 [AI - GPT-5 Codex]
+**Goal:** Continue ratcheting soft per-file thresholds now that the rebased coverage baseline is stable.
+**Completed:**
+- Raised additional per-file thresholds in `vitest.config.ts` for `src/lib/server/classrooms.ts`, `src/lib/server/quizzes.ts`, and `src/lib/server/assessment-drafts.ts`.
+- Tightened soft API thresholds further for snapshots, student quiz routes, classroom class-days, nightly summaries, and the teacher quiz/log/history routes so they track the current measured coverage much more closely.
+- Corrected the `src/lib/server/quizzes.ts` line threshold from `78` to `77` after the full report showed the file currently measures `77.27%` line coverage, keeping the ratchet strict but attainable.
+
+**Validation:**
+- `pnpm test:coverage` (pass; all 175 files / 1540 tests)
