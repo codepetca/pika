@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { LessonCalendar } from '@/components/LessonCalendar'
 import { TooltipProvider } from '@/ui'
-import type { Classroom } from '@/types'
+import type { Assignment, Classroom } from '@/types'
 import type { ReactNode } from 'react'
 
 // Mock the keyboard shortcut hook
@@ -21,6 +21,22 @@ const mockClassroom: Classroom = {
   end_date: '2026-06-01',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
+}
+
+const mondayAssignment: Assignment = {
+  id: 'assignment-1',
+  classroom_id: 'cls-123',
+  title: 'Week 11 quiz',
+  description: 'Quiz instructions',
+  rich_instructions: null,
+  due_at: '2026-03-16T16:00:00.000Z',
+  position: 0,
+  is_draft: false,
+  released_at: '2026-03-10T00:00:00.000Z',
+  track_authenticity: false,
+  created_by: 't1',
+  created_at: '2026-03-01T00:00:00.000Z',
+  updated_at: '2026-03-01T00:00:00.000Z',
 }
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -96,5 +112,50 @@ describe('LessonCalendar', () => {
       // Month view uses minmax(0, 1fr) for equal distribution
       expect(style).toContain('minmax(0, 1fr)')
     })
+  })
+
+  it('uses the date label as the return-to-today control in week view', () => {
+    const onDateChange = vi.fn()
+
+    render(
+      <LessonCalendar
+        classroom={mockClassroom}
+        lessonPlans={[]}
+        viewMode="week"
+        currentDate={new Date('2026-03-15')}
+        editable={false}
+        onDateChange={onDateChange}
+        onViewModeChange={vi.fn()}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /go to today/i }))
+
+    expect(onDateChange).toHaveBeenCalledTimes(1)
+    expect(onDateChange.mock.calls[0]?.[0]).toBeInstanceOf(Date)
+  })
+
+  it('opens a focused day dialog from the week header', () => {
+    render(
+      <LessonCalendar
+        classroom={mockClassroom}
+        lessonPlans={[]}
+        assignments={[mondayAssignment]}
+        viewMode="week"
+        currentDate={new Date('2026-03-16T12:00:00')}
+        editable={false}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /open monday, march 16, 2026/i }))
+
+    const dialog = screen.getByRole('dialog', { name: /monday, march 16, 2026/i })
+
+    expect(dialog).toBeInTheDocument()
+    expect(within(dialog).getByText('Week 11 quiz')).toBeInTheDocument()
   })
 })

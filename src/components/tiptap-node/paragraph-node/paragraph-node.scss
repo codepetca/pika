@@ -35,8 +35,8 @@
 
   // Paragraph spacing
   p:not(:first-child):not(td p):not(th p) {
-    font-size: 1rem;
-    line-height: 1.4;
+    font-size: inherit;
+    line-height: inherit;
     font-weight: normal;
     margin-top: 0.25em;
   }

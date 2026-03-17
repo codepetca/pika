@@ -173,4 +173,93 @@ describe('GET /api/teacher/tests', () => {
     expect(data.quizzes).toHaveLength(1)
     expect(data.quizzes[0].stats.responded).toBe(0)
   })
+
+  it('counts only currently enrolled students as respondents', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) =>
+              resolve({
+                data: [{ id: 'test-1', classroom_id: 'classroom-1', title: 'T1', position: 0 }],
+                error: null,
+              })
+            ),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [{ student_id: 'student-1' }, { student_id: 'student-2' }],
+              count: 2,
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({ data: [{ test_id: 'test-1' }], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [
+                { test_id: 'test-1', student_id: 'student-1', is_submitted: true },
+                { test_id: 'test-1', student_id: 'student-3', is_submitted: true },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  test_id: 'test-1',
+                  student_id: 'student-2',
+                  selected_option: 0,
+                  response_text: null,
+                },
+                {
+                  test_id: 'test-1',
+                  student_id: 'student-4',
+                  selected_option: 1,
+                  response_text: null,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1')
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.quizzes).toHaveLength(1)
+    expect(data.quizzes[0].stats.total_students).toBe(2)
+    expect(data.quizzes[0].stats.responded).toBe(2)
+  })
 })

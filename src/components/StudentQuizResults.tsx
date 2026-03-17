@@ -150,8 +150,22 @@ export function StudentQuizResults({
         ? questionResults.map((result, index) => {
             const possible = Number(result.points || 0)
             const earned = result.score
+            const isIncorrectMultipleChoice =
+              result.question_type === 'multiple_choice' && result.is_correct === false
+            const selectedAnswer =
+              typeof result.selected_option === 'number'
+                ? (result.options[result.selected_option] || '—')
+                : 'No answer selected'
+            const correctAnswer =
+              typeof result.correct_option === 'number'
+                ? (result.options[result.correct_option] || '—')
+                : '—'
+
             return (
-              <div key={result.question_id} className="space-y-2 rounded-lg border border-border bg-surface p-4">
+              <div
+                key={result.question_id}
+                className="space-y-2 rounded-lg border border-border bg-surface p-4"
+              >
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                     Q{index + 1} · {possible} pts
@@ -161,20 +175,26 @@ export function StudentQuizResults({
 
                 {result.question_type === 'multiple_choice' ? (
                   <div className="space-y-1 text-sm">
-                    <p className="text-text-default">
-                      Your answer:{' '}
-                      <span className="font-medium">
-                        {typeof result.selected_option === 'number'
-                          ? (result.options[result.selected_option] || '—')
-                          : '—'}
-                      </span>
-                    </p>
-                    <p className="text-text-muted">
-                      Correct answer:{' '}
-                      {typeof result.correct_option === 'number'
-                        ? (result.options[result.correct_option] || '—')
-                        : '—'}
-                    </p>
+                    <div className="rounded-md bg-surface-2 px-3 py-2 text-text-default">
+                      <p
+                        className={`text-xs font-semibold uppercase tracking-wide ${
+                          isIncorrectMultipleChoice ? 'text-warning' : ''
+                        }`}
+                      >
+                        Your answer
+                      </p>
+                      <p className={`font-medium ${isIncorrectMultipleChoice ? 'text-warning' : ''}`}>
+                        {selectedAnswer}
+                      </p>
+                    </div>
+                    <div
+                      className="rounded-md bg-surface-2 px-3 py-2 text-text-muted"
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-wide">
+                        Correct answer
+                      </p>
+                      <p className="font-medium">{correctAnswer}</p>
+                    </div>
                   </div>
                 ) : (
                   <p className="whitespace-pre-wrap rounded-md bg-surface-2 px-3 py-2 text-sm text-text-default">
