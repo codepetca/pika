@@ -7010,3 +7010,12 @@
 **Validation:**
 - `pnpm exec vitest tests/api/teacher/quizzes-draft-route.test.ts tests/api/snapshots-list.test.ts` (pass)
 - `pnpm test:coverage` (pass; all 175 files / 1540 tests)
+
+## 2026-03-17 [AI - GPT-5 Codex]
+**Goal:** Tighten rebased route thresholds so the coverage gate matches the branch's actual API coverage instead of the pre-rebase floor.
+**Completed:**
+- Raised the route-specific thresholds in `vitest.config.ts` for classroom class-days, nightly summaries, teacher log summary, student history, quiz override, and quiz route handlers to sit just below the rebased branch's measured coverage.
+- Left a small cushion under the current measured values to avoid flapping on incidental line movement while still protecting the coverage this PR established.
+
+**Validation:**
+- `pnpm test:coverage` (pass; all 175 files / 1540 tests)
