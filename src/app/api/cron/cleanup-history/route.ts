@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { formatInTimeZone } from 'date-fns-tz'
 import { subDays } from 'date-fns'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -113,10 +114,10 @@ async function handle(request: NextRequest) {
   return NextResponse.json({ status: 'ok', deleted })
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withErrorHandler('GetCronCleanupHistory', async (request: NextRequest) => {
   return handle(request)
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withErrorHandler('PostCronCleanupHistory', async (request: NextRequest) => {
   return handle(request)
-}
+})

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pika UI Verify"
+  short_description: "Capture Playwright screenshots for visual verification of Pika UI changes (teacher + student views)"
+  default_prompt: "Use $pika-ui-verify to visually verify the UI changes I just made to the classrooms page."

@@ -30,6 +30,7 @@ import {
   useRightSidebar,
 } from '@/components/layout'
 import { DESKTOP_BREAKPOINT, getRouteKeyFromTab } from '@/lib/layout-config'
+import { useGradebookData } from '@/hooks/useGradebookData'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { Spinner } from '@/components/Spinner'
@@ -45,7 +46,7 @@ import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
 import { ConfirmDialog, TabContentTransition } from '@/ui'
-import { prefetchJSON } from '@/lib/request-cache'
+import { prefetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import type {
   Classroom,
@@ -437,16 +438,30 @@ function ClassroomPageContent({
     isSaving: false,
     status: 'idle',
   })
-  const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
-  const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
-  const [gradebookClassSummary, setGradebookClassSummary] = useState<GradebookClassSummary | null>(null)
-  const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
-  const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
+  const {
+    selectedGradebookStudent,
+    gradebookStudentDetail,
+    gradebookClassSummary,
+    gradebookStudentDetailLoading,
+    gradebookStudentDetailError,
+    handleSelectGradebookStudent,
+    handleGradebookClassSummaryChange,
+  } = useGradebookData({
+    classroomId: classroom.id,
+    isTeacher,
+    activeTab,
+    openRight,
+    setRightSidebarOpen,
+  })
   const [testsSidebarClickToken, setTestsSidebarClickToken] = useState(0)
   const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
 
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
     setSelectedQuiz(quiz)
+  }, [])
+
+  const handleTestGradingDataRefresh = useCallback(() => {
+    setTestGradingPanelRefreshToken((prev) => prev + 1)
   }, [])
 
   useEffect(() => {
@@ -467,14 +482,6 @@ function ClassroomPageContent({
       new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
     )
   }, [classroom.id])
-
-  const handleTestGradingDataRefresh = useCallback(() => {
-    setTestGradingPanelRefreshToken((prev) => prev + 1)
-  }, [])
-
-  const handleSelectGradebookStudent = useCallback((student: GradebookStudentSummary | null) => {
-    setSelectedGradebookStudent(student)
-  }, [])
 
   // State for markdown mode (teacher assignments tab - summary view only)
   const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
@@ -699,61 +706,6 @@ function ClassroomPageContent({
     }
   }, [activeTab, setRightSidebarOpen])
 
-  useEffect(() => {
-    if (activeTab !== 'gradebook') {
-      setSelectedGradebookStudent(null)
-      setGradebookStudentDetail(null)
-      setGradebookClassSummary(null)
-      setGradebookStudentDetailError('')
-      setGradebookStudentDetailLoading(false)
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    if (!isTeacher || activeTab !== 'gradebook' || !selectedGradebookStudent) return
-    const selectedStudentId = selectedGradebookStudent.student_id
-
-    if (window.innerWidth < DESKTOP_BREAKPOINT) {
-      openRight()
-    } else {
-      setRightSidebarOpen(true)
-    }
-
-    let cancelled = false
-
-    async function loadStudentDetail() {
-      setGradebookStudentDetailLoading(true)
-      setGradebookStudentDetailError('')
-      try {
-        const response = await fetch(
-          `/api/teacher/gradebook?classroom_id=${classroom.id}&student_id=${selectedStudentId}`
-        )
-        const data = await response.json()
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to load gradebook details')
-        }
-
-        if (!cancelled) {
-          setGradebookStudentDetail((data.selected_student as GradebookStudentDetail | null) || null)
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          setGradebookStudentDetail(null)
-          setGradebookStudentDetailError(err.message || 'Failed to load gradebook details')
-        }
-      } finally {
-        if (!cancelled) {
-          setGradebookStudentDetailLoading(false)
-        }
-      }
-    }
-
-    loadStudentDetail()
-    return () => {
-      cancelled = true
-    }
-  }, [isTeacher, activeTab, selectedGradebookStudent, classroom.id, setRightSidebarOpen, openRight])
-
   const prefetchTabData = useCallback((tab: string) => {
     const now = Date.now()
     const lastIntentAt = lastTabIntentRef.current[tab] || 0
@@ -777,6 +729,30 @@ function ClassroomPageContent({
             `student-assignments:${classroom.id}`,
             async () => {
               const response = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        }
+      }
+
+      if (tab === 'quizzes') {
+        if (isTeacher) {
+          prefetchJSON(
+            `teacher-quizzes:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/teacher/quizzes?classroom_id=${classroom.id}`)
+              if (!response.ok) throw new Error('Prefetch failed')
+              return response.json()
+            },
+            20_000,
+          )
+        } else {
+          prefetchJSON(
+            `student-quizzes:${classroom.id}`,
+            async () => {
+              const response = await fetch(`/api/student/quizzes?classroom_id=${classroom.id}`)
               if (!response.ok) throw new Error('Prefetch failed')
               return response.json()
             },
@@ -838,6 +814,7 @@ function ClassroomPageContent({
         () => {
           prefetchTabData('assignments')
           prefetchTabData('resources')
+          prefetchTabData('quizzes')
         },
         { timeout: 1200 },
       )
@@ -850,6 +827,7 @@ function ClassroomPageContent({
     const timer = window.setTimeout(() => {
       prefetchTabData('assignments')
       prefetchTabData('resources')
+      prefetchTabData('quizzes')
     }, 350)
     return () => window.clearTimeout(timer)
   }, [prefetchTabData])
@@ -999,7 +977,7 @@ function ClassroomPageContent({
           </LeftSidebar>
         )}
 
-        <MainContent>
+        <MainContent className={activeTab === 'calendar' ? 'px-0 pt-0 pb-0' : ''}>
           {isArchived && (
             <div className="mb-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
               This classroom is archived. You can view content, but changes are
@@ -1026,7 +1004,7 @@ function ClassroomPageContent({
                     classroom={classroom}
                     selectedStudentId={selectedGradebookStudent?.student_id ?? null}
                     onSelectStudent={handleSelectGradebookStudent}
-                    onClassSummaryChange={setGradebookClassSummary}
+                    onClassSummaryChange={handleGradebookClassSummaryChange}
                   />
                 </TabContentTransition>
               )}

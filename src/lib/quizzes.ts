@@ -80,15 +80,35 @@ export function canStudentViewTestResults(
 }
 
 /**
- * Get the student's status for a quiz
+ * Get the student's status for any assessment (quiz or test).
+ *
+ * - Quiz-style: pass `show_results` on the assessment object — results visible when closed + show_results.
+ * - Test-style: pass `opts.returnedAt` — results visible when closed + teacher has returned the work.
+ *
+ * Both wrappers below delegate here; call this directly when you have a mixed-type assessment.
+ */
+export function getStudentAssessmentStatus(
+  assessment: Pick<Quiz, 'status'> & { show_results?: boolean | null },
+  hasResponded: boolean,
+  opts?: { returnedAt?: string | null | boolean }
+): StudentQuizStatus {
+  if (!hasResponded) return 'not_started'
+  if (assessment.status === 'closed') {
+    if (opts?.returnedAt) return 'can_view_results'
+    if (assessment.show_results) return 'can_view_results'
+  }
+  return 'responded'
+}
+
+/**
+ * Get the student's status for a quiz.
+ * Results become visible when the quiz is closed and show_results is enabled.
  */
 export function getStudentQuizStatus(
   quiz: Pick<Quiz, 'show_results' | 'status'>,
   hasResponded: boolean
 ): StudentQuizStatus {
-  if (!hasResponded) return 'not_started'
-  if (quiz.show_results && quiz.status === 'closed') return 'can_view_results'
-  return 'responded'
+  return getStudentAssessmentStatus(quiz, hasResponded)
 }
 
 /**
@@ -100,9 +120,7 @@ export function getStudentTestStatus(
   hasResponded: boolean,
   returnedAt: string | null | undefined | boolean
 ): StudentQuizStatus {
-  if (!hasResponded) return 'not_started'
-  if (canStudentViewTestResults(test, hasResponded, returnedAt)) return 'can_view_results'
-  return 'responded'
+  return getStudentAssessmentStatus(test, hasResponded, { returnedAt })
 }
 
 /**

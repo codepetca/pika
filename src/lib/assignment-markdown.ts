@@ -34,6 +34,26 @@ export interface MarkdownSerializeResult {
   hasRichContent: boolean
 }
 
+function isLiveAssignment(
+  assignment: Pick<Assignment, 'is_draft' | 'released_at'>,
+  now: Date = new Date()
+): boolean {
+  if (assignment.is_draft) {
+    return false
+  }
+
+  if (!assignment.released_at) {
+    return true
+  }
+
+  const releaseDate = new Date(assignment.released_at)
+  if (isNaN(releaseDate.getTime())) {
+    return true
+  }
+
+  return releaseDate <= now
+}
+
 /**
  * Convert assignments to markdown format for editing
  */
@@ -138,8 +158,8 @@ export function markdownToAssignments(
     if (existing) {
       currentAssignment.id = existing.id
 
-      // Check for un-release attempt
-      if (!existing.is_draft && currentAssignment.is_draft) {
+      // Only block converting to draft if the assignment is already live.
+      if (isLiveAssignment(existing) && currentAssignment.is_draft) {
         errors.push(`Cannot un-release assignment: ${currentAssignment.title}`)
         currentAssignment = null
         currentInstructionLines = []

@@ -50,7 +50,7 @@ export default async function TeacherLayout({
           </div>
         </div>
       </nav>
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 pt-0 pb-8">
         {children}
       </main>
     </div>

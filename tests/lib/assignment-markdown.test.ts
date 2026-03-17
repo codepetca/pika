@@ -238,11 +238,31 @@ Instructions.
       id: 'a-1',
       title: 'Assignment',
       is_draft: false,
-      released_at: '2025-01-01T00:00:00Z',
+      released_at: '2020-01-01T00:00:00Z',
     })
     const result = markdownToAssignments(markdown, [releasedAssignment])
     expect(result.errors).toHaveLength(1)
     expect(result.errors[0]).toContain('Cannot un-release assignment')
+  })
+
+  it('should allow converting a scheduled assignment back to draft', () => {
+    const markdown = `## Assignment [DRAFT]
+Due: 2025-01-20
+
+Instructions.
+
+---
+`
+    const scheduledAssignment = makeAssignment({
+      id: 'a-1',
+      title: 'Assignment',
+      is_draft: false,
+      released_at: '2099-01-01T00:00:00Z',
+    })
+    const result = markdownToAssignments(markdown, [scheduledAssignment])
+    expect(result.errors).toHaveLength(0)
+    expect(result.assignments).toHaveLength(1)
+    expect(result.assignments[0].is_draft).toBe(true)
   })
 
   it('should parse due date correctly', () => {

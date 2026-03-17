@@ -172,6 +172,63 @@ describe('StudentQuizResults', () => {
     expect(screen.queryByRole('heading', { name: 'Results' })).not.toBeInTheDocument()
   })
 
+  it('highlights incorrect multiple-choice test answers', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        question_results: [
+          {
+            question_id: 'q1',
+            question_type: 'multiple_choice',
+            question_text: 'What is 2 + 2?',
+            options: ['3', '4'],
+            points: 1,
+            response_max_chars: 5000,
+            correct_option: 1,
+            selected_option: 0,
+            response_text: null,
+            score: 0,
+            feedback: null,
+            graded_at: '2026-03-06T10:00:00.000Z',
+            is_correct: false,
+          },
+        ],
+        summary: {
+          earned_points: 0,
+          possible_points: 1,
+          percent: 0,
+        },
+      }),
+    })
+
+    const { container } = render(
+      <StudentQuizResults
+        quizId="quiz-1"
+        myResponses={{ q1: 0 }}
+        assessmentType="test"
+        apiBasePath="/api/student/tests"
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Your answer')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Your answer')).toBeInTheDocument()
+    expect(screen.getByText('Correct answer')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('4')).toBeInTheDocument()
+
+    const incorrectAnswerLabel = screen.getByText('Your answer')
+    const incorrectAnswerText = screen.getByText('3')
+    expect(incorrectAnswerLabel.className).toContain('text-warning')
+    expect(incorrectAnswerText.className).toContain('text-warning')
+    expect(container.querySelector('.bg-warning-bg')).toBeNull()
+    expect(container.querySelector('.border-warning')).toBeNull()
+    expect(container.querySelector('.border-danger.bg-danger-bg')).toBeNull()
+  })
+
   it('uses muted bar color for non-selected options', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({

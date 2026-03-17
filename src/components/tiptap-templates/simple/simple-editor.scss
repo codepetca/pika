@@ -10,6 +10,18 @@
   font-family: "DM Sans", sans-serif;
 }
 
+.calendar-day-text {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.calendar-day-text .tiptap.ProseMirror {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
 // Placeholder text for empty editor
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);

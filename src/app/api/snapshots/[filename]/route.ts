@@ -3,17 +3,15 @@
  *
  * Serves snapshot images from the e2e snapshots directory.
  */
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { withErrorHandler } from '@/lib/api-handler'
 
 const SNAPSHOTS_DIR = join(process.cwd(), 'e2e', '__snapshots__', 'ui-snapshots.spec.ts-snapshots')
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { filename: string } }
-) {
-  const { filename } = params
+export const GET = withErrorHandler('GetSnapshot', async (_request, context) => {
+  const { filename } = await context.params
 
   // Security: only allow PNG files and prevent directory traversal
   if (!filename.endsWith('.png') || filename.includes('..') || filename.includes('/')) {
@@ -36,4 +34,4 @@ export async function GET(
     }
     throw error
   }
-}
+})

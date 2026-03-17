@@ -1,19 +1,12 @@
 import { NextResponse } from 'next/server'
 import { destroySession } from '@/lib/auth'
+import { withErrorHandler } from '@/lib/api-handler'
 
-export async function POST() {
-  try {
-    await destroySession()
+export const POST = withErrorHandler('PostLogout', async () => {
+  await destroySession()
 
-    return NextResponse.json({
-      success: true,
-      message: 'Logged out successfully',
-    })
-  } catch (error) {
-    console.error('Logout error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
+  return NextResponse.json({
+    success: true,
+    message: 'Logged out successfully',
+  })
+})
