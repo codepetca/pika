@@ -7019,3 +7019,13 @@
 
 **Validation:**
 - `pnpm test:coverage` (pass; all 175 files / 1540 tests)
+
+## 2026-03-17 [AI - GPT-5 Codex]
+**Goal:** Continue ratcheting soft per-file thresholds now that the rebased coverage baseline is stable.
+**Completed:**
+- Raised additional per-file thresholds in `vitest.config.ts` for `src/lib/server/classrooms.ts`, `src/lib/server/quizzes.ts`, and `src/lib/server/assessment-drafts.ts`.
+- Tightened soft API thresholds further for snapshots, student quiz routes, classroom class-days, nightly summaries, and the teacher quiz/log/history routes so they track the current measured coverage much more closely.
+- Corrected the `src/lib/server/quizzes.ts` line threshold from `78` to `77` after the full report showed the file currently measures `77.27%` line coverage, keeping the ratchet strict but attainable.
+
+**Validation:**
+- `pnpm test:coverage` (pass; all 175 files / 1540 tests)
