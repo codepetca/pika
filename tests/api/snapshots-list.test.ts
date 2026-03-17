@@ -51,6 +51,10 @@ describe('GET /api/snapshots/list', () => {
   it('rethrows unexpected filesystem errors', async () => {
     readdirMock.mockRejectedValue(new Error('permission denied'))
 
-    await expect(GET()).rejects.toThrow('permission denied')
+    const response = await GET()
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data).toEqual({ error: 'Internal server error' })
   })
 })

@@ -6998,3 +6998,15 @@
 **Validation:**
 - `pnpm exec vitest tests/api/classrooms-class-days.test.ts tests/api/cron/nightly-log-summaries.test.ts tests/api/teacher/log-summary.test.ts tests/api/teacher/gradebook-quiz-overrides.test.ts tests/api/teacher/student-history.test.ts tests/api/teacher/quizzes-route.test.ts tests/api/teacher/quizzes-draft-route.test.ts tests/api/teacher/quizzes-questions-route.test.ts tests/api/teacher/quizzes-questions-id.test.ts tests/api/teacher/quizzes-results.test.ts` (pass)
 - `pnpm test:coverage` (pass; all 169 files / 1438 tests)
+
+## 2026-03-16 [AI - GPT-5 Codex]
+**Goal:** Fix PR CI failures caused by upstream `main` changes after the coverage branch was opened.
+**Completed:**
+- Rebased `codex/test-coverage-review` onto `origin/main` so the branch matches the merge target used by GitHub Actions.
+- Updated `tests/api/snapshots-list.test.ts` to assert the current `withErrorHandler` contract for unexpected filesystem failures (`500` JSON response instead of a thrown error).
+- Updated `tests/api/teacher/quizzes-draft-route.test.ts` to mock the current draft helpers (`ensureAssessmentDraft` and `syncAssessmentMetadataFromDraft`) used by the rebased route implementation.
+- Recalibrated the file-specific threshold for `src/lib/server/assessment-drafts.ts` in `vitest.config.ts` to the new post-rebase baseline after upstream file growth.
+
+**Validation:**
+- `pnpm exec vitest tests/api/teacher/quizzes-draft-route.test.ts tests/api/snapshots-list.test.ts` (pass)
+- `pnpm test:coverage` (pass; all 175 files / 1540 tests)

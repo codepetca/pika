@@ -4,7 +4,8 @@ import { GET, PATCH } from '@/app/api/teacher/quizzes/[id]/draft/route'
 import { assertTeacherOwnsQuiz } from '@/lib/server/quizzes'
 import {
   buildNextDraftContent,
-  getAssessmentDraftByType,
+  ensureAssessmentDraft,
+  syncAssessmentMetadataFromDraft,
   updateAssessmentDraft,
 } from '@/lib/server/assessment-drafts'
 
@@ -43,8 +44,9 @@ vi.mock('@/lib/server/assessment-drafts', () => ({
     questions: [],
   })),
   createAssessmentDraft: vi.fn(),
-  getAssessmentDraftByType: vi.fn(),
+  ensureAssessmentDraft: vi.fn(),
   isMissingAssessmentDraftsError: vi.fn(() => false),
+  syncAssessmentMetadataFromDraft: vi.fn(),
   updateAssessmentDraft: vi.fn(),
   validateQuizDraftContent: vi.fn((content: any) => ({ valid: true, value: content })),
 }))
@@ -52,7 +54,8 @@ vi.mock('@/lib/server/assessment-drafts', () => ({
 describe('teacher quiz draft route', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(getAssessmentDraftByType).mockResolvedValue({
+    vi.mocked(ensureAssessmentDraft).mockResolvedValue({
+      ok: true,
       draft: {
         id: 'draft-1',
         assessment_type: 'quiz',
@@ -65,7 +68,6 @@ describe('teacher quiz draft route', () => {
         created_at: '2026-03-01T00:00:00.000Z',
         updated_at: '2026-03-01T00:00:00.000Z',
       },
-      error: null,
     } as any)
     vi.mocked(buildNextDraftContent).mockReturnValue({
       ok: true,
@@ -81,6 +83,9 @@ describe('teacher quiz draft route', () => {
         version: 3,
       },
       error: null,
+    } as any)
+    vi.mocked(syncAssessmentMetadataFromDraft).mockResolvedValue({
+      ok: true,
     } as any)
   })
 
@@ -108,14 +113,6 @@ describe('teacher quiz draft route', () => {
   })
 
   it('updates draft content and syncs quiz metadata', async () => {
-    const quizUpdateSpy = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
-    }))
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'quizzes') return { update: quizUpdateSpy }
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
     const response = await PATCH(
       new NextRequest('http://localhost:3000/api/teacher/quizzes/quiz-1/draft', {
         method: 'PATCH',
@@ -126,7 +123,12 @@ describe('teacher quiz draft route', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(quizUpdateSpy).toHaveBeenCalledWith({ title: 'Updated Quiz', show_results: true })
+    expect(syncAssessmentMetadataFromDraft).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'quizzes',
+      'quiz-1',
+      { title: 'Updated Quiz', show_results: true, questions: [] }
+    )
     expect(data.draft.content.title).toBe('Updated Quiz')
     expect(assertTeacherOwnsQuiz).toHaveBeenCalledWith('teacher-1', 'quiz-1', { checkArchived: true })
   })
