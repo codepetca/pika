@@ -155,7 +155,7 @@ describe('QuizCard', () => {
     const { container } = render(<QuizCard quiz={quiz} {...defaultProps} isSelected={true} />, { wrapper: Wrapper })
 
     const card = container.firstChild as HTMLElement
-    expect(card.className).toContain('bg-info-bg')
+    expect(card.className).toContain('bg-surface-selected')
     expect(card.className).toContain('border-primary')
   })
 

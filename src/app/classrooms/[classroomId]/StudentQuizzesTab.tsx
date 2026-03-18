@@ -759,7 +759,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
           </div>
         )}
 
-        <PageContent className="mt-1">
+        <PageContent className="pt-1">
           <div className="mx-auto w-full max-w-none">
             <div
               data-testid="student-test-split-container"

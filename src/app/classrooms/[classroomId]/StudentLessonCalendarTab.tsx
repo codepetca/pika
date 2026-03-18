@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { startOfWeek, format, startOfMonth, endOfMonth } from 'date-fns'
+import { addMonths, addWeeks, endOfMonth, format, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns'
+import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -109,7 +110,29 @@ export function StudentLessonCalendarTab({
 
   return (
     <PageLayout>
-      <PageContent className="-mt-[8px]">
+      <CalendarActionBar
+        viewMode={viewMode}
+        currentDate={currentDate}
+        rangeStart={classroom.start_date}
+        rangeEnd={classroom.end_date}
+        onPrev={() => {
+          if (viewMode === 'week') {
+            handleDateChange(subWeeks(currentDate, 1))
+          } else if (viewMode === 'month') {
+            handleDateChange(subMonths(currentDate, 1))
+          }
+        }}
+        onNext={() => {
+          if (viewMode === 'week') {
+            handleDateChange(addWeeks(currentDate, 1))
+          } else if (viewMode === 'month') {
+            handleDateChange(addMonths(currentDate, 1))
+          }
+        }}
+        onToday={() => handleDateChange(new Date())}
+        onViewModeChange={handleViewModeChange}
+      />
+      <PageContent className="pt-0">
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}
@@ -119,6 +142,7 @@ export function StudentLessonCalendarTab({
           viewMode={viewMode}
           currentDate={currentDate}
           editable={false}
+          showHeader={false}
           onDateChange={handleDateChange}
           onViewModeChange={handleViewModeChange}
           onAssignmentClick={handleAssignmentClick}

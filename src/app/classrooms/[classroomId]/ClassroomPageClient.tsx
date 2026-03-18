@@ -47,6 +47,7 @@ import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
 import { ConfirmDialog, TabContentTransition } from '@/ui'
+import { PageDensityProvider } from '@/components/PageLayout'
 import { prefetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import type {
@@ -892,6 +893,7 @@ function ClassroomPageContent({
     activeTab === 'tests'
       ? (testGradingContext.testId || selectedQuiz?.id || null)
       : null
+  const pageDensity = isTeacher ? 'teacher' : 'student'
 
   async function handleRequestAssessmentDelete() {
     if (!selectedQuiz) return
@@ -978,13 +980,14 @@ function ClassroomPageContent({
           </LeftSidebar>
         )}
 
-        <MainContent className={activeTab === 'calendar' ? 'px-0 pt-0 pb-0' : ''}>
-          {isArchived && (
-            <div className="mb-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-              This classroom is archived. You can view content, but changes are
-              disabled until it is restored.
-            </div>
-          )}
+        <MainContent density={pageDensity} className={activeTab === 'calendar' ? 'px-0 pt-0 pb-0' : ''}>
+          <PageDensityProvider density={pageDensity}>
+            {isArchived && (
+              <div className="mb-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                This classroom is archived. You can view content, but changes are
+                disabled until it is restored.
+              </div>
+            )}
 
           {isTeacher ? (
             <>
@@ -1161,6 +1164,7 @@ function ClassroomPageContent({
               )}
             </>
           )}
+          </PageDensityProvider>
         </MainContent>
 
         <RightSidebar

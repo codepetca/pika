@@ -7128,3 +7128,44 @@
   - teacher: `/tmp/pika-calendar-empty-prompt-teacher.png`
   - student: `/tmp/pika-calendar-empty-prompt-student.png`
 - Local browser verification is still limited by empty classroom seed data, so the screenshot pass only covers the authenticated empty `/classrooms` states, not a live calendar with empty lesson-plan cells.
+**Goal:** Centralize the existing classroom UI aesthetic into shared components and visual patterns that carry across teacher and student screens.
+**Completed:**
+- Expanded the shared design-system layer with new surface, elevation, and spacing tokens plus richer `Button`, `Card`, and `EmptyState` primitives.
+- Refactored the app shell and shared layout pieces, including the header, sidebars, nav states, action bars, and table shell, so the softened panel system applies across tabs by default.
+- Migrated key classroom and index surfaces to the shared system, including teacher and student classroom index screens, assignment cards, quiz cards, the student assignment editor, and gallery/snapshot views.
+- Expanded `e2e/ui-snapshots.spec.ts` to cover the missing teacher and student classroom tabs, then generated tracked visual baselines for the full 50-screen matrix in light and dark mode.
+- Updated `.gitignore` so Playwright baselines in `e2e/__snapshots__` are committed while transient test outputs remain ignored.
+
+**Validation:**
+- `pnpm test` (pass)
+- `pnpm lint` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --update-snapshots` (pass)
+- Manual Playwright screenshots reviewed for teacher classrooms, teacher assignments, teacher gradebook, teacher resources, student classrooms, student today, student assignments, and student resources.
+
+## 2026-03-17 [AI - GPT-5 Codex]
+**Goal:** Keep the standardized UI system introduced on the branch, but restore the app's original design language.
+**Completed:**
+- Retuned the shared token layer in `src/styles/tokens.css` back toward the original flatter palette, tighter radius system, and lighter shadows while keeping the newer semantic token surface area.
+- Updated shared primitives in `src/ui/Button.tsx` and `src/ui/Card.tsx` so cards, buttons, selected states, and hover states read like the original app rather than the softer panel-heavy variant.
+- Reworked shared shell components in `src/components/PageLayout.tsx`, `src/components/AppHeader.tsx`, `src/components/layout/LeftSidebar.tsx`, `src/components/layout/RightSidebar.tsx`, `src/components/layout/NavItems.tsx`, and `src/components/DataTable.tsx` so the standardized layout structure remains but the visual chrome matches the earlier product language.
+- Refreshed the Playwright snapshot baselines to match the restored design language across the full teacher/student screen matrix.
+
+**Validation:**
+- `pnpm lint` (pass)
+- `pnpm test` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --update-snapshots` (pass)
+- Manual Playwright screenshots reviewed for teacher classrooms, teacher gradebook, student today, and student assignments.
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Finalize the centralized classroom UI branch for PR, including the follow-up spacing and calendar action-bar refinements requested during review.
+**Completed:**
+- Tightened the shared `PageActionBar` treatment so attached headers inherit the pane background, use smaller vertical padding, and let the page container own the action slot.
+- Added density-aware page framing and stack spacing in `src/components/PageLayout.tsx`, `src/components/layout/MainContent.tsx`, and `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx` so teacher tabs stay compact and student tabs stay roomier across the classroom shell.
+- Fixed the student assignments summary state to avoid rendering empty action-bar chrome and aligned the summary content with the shared stack primitives.
+- Added `src/components/CalendarActionBar.tsx` and moved calendar controls out of `LessonCalendar` into the shared action pane for both teacher and student calendar tabs, including the clickable month label, centered view switcher, and visible teacher sidebar toggle.
+- Refreshed the tracked Playwright baselines in `e2e/__snapshots__/ui-snapshots.spec.ts-snapshots` to match the final light/dark teacher and student classroom surfaces.
+
+**Validation:**
+- `bash /Users/stew/Repos/pika/scripts/verify-env.sh` (pass)
+- `pnpm lint` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --update-snapshots` (pass)

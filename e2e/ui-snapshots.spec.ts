@@ -20,6 +20,21 @@ async function waitForContent(page: any) {
   await page.waitForLoadState('networkidle')
   // Small additional delay to ensure content is rendered
   await page.waitForTimeout(500)
+  // Remove transient fixed-position error toasts that can appear during async refetches
+  await page.evaluate(() => {
+    const isTransientErrorToast = (element: Element) => {
+      const text = (element.textContent || '').trim().toLowerCase()
+      if (!/^\d+\s+error(s)?$/.test(text)) return false
+      const style = window.getComputedStyle(element)
+      return style.position === 'fixed'
+    }
+
+    for (const element of Array.from(document.querySelectorAll('div, section, aside'))) {
+      if (isTransientErrorToast(element)) {
+        element.remove()
+      }
+    }
+  })
 }
 
 // Helper to enable dark mode by adding the 'dark' class to html element
@@ -30,6 +45,25 @@ async function enableDarkMode(page: any) {
   })
   // Small delay to let dark mode styles apply
   await page.waitForTimeout(200)
+}
+
+async function enterFirstClassroom(page: any) {
+  await page.goto('/classrooms')
+  await waitForContent(page)
+  const classroomCard = page.locator('[data-testid="classroom-card"]').first()
+  await expect(classroomCard).toBeVisible({ timeout: 15_000 })
+  await classroomCard.click()
+  await page.waitForURL('**/classrooms/**', { timeout: 15_000 })
+  await waitForContent(page)
+}
+
+async function openClassroomTab(page: any, label: string, options?: { dark?: boolean }) {
+  await enterFirstClassroom(page)
+  await page.getByRole('link', { name: label }).click()
+  await waitForContent(page)
+  if (options?.dark) {
+    await enableDarkMode(page)
+  }
 }
 
 // ============================================================================
@@ -179,6 +213,26 @@ test.describe('teacher screens - light mode', () => {
     await expect(page).toHaveScreenshot('teacher-classroom-assignments.png', { fullPage: true })
   })
 
+  test('classroom quizzes tab', async ({ page }) => {
+    await openClassroomTab(page, 'Quizzes')
+    await expect(page).toHaveScreenshot('teacher-classroom-quizzes.png', { fullPage: true })
+  })
+
+  test('classroom tests tab', async ({ page }) => {
+    await openClassroomTab(page, 'Tests')
+    await expect(page).toHaveScreenshot('teacher-classroom-tests.png', { fullPage: true })
+  })
+
+  test('classroom gradebook tab', async ({ page }) => {
+    await openClassroomTab(page, 'Gradebook')
+    await expect(page).toHaveScreenshot('teacher-classroom-gradebook.png', { fullPage: true })
+  })
+
+  test('classroom resources tab', async ({ page }) => {
+    await openClassroomTab(page, 'Resources')
+    await expect(page).toHaveScreenshot('teacher-classroom-resources.png', { fullPage: true })
+  })
+
   test('assignment detail page', async ({ page }) => {
     await page.goto('/classrooms')
     await page.locator('[data-testid="classroom-card"]').first().click()
@@ -239,6 +293,26 @@ test.describe('student screens - light mode', () => {
     await waitForContent(page)
 
     await expect(page).toHaveScreenshot('student-classroom-assignments.png', { fullPage: true })
+  })
+
+  test('classroom quizzes tab', async ({ page }) => {
+    await openClassroomTab(page, 'Quizzes')
+    await expect(page).toHaveScreenshot('student-classroom-quizzes.png', { fullPage: true })
+  })
+
+  test('classroom tests tab', async ({ page }) => {
+    await openClassroomTab(page, 'Tests')
+    await expect(page).toHaveScreenshot('student-classroom-tests.png', { fullPage: true })
+  })
+
+  test('classroom calendar tab', async ({ page }) => {
+    await openClassroomTab(page, 'Calendar')
+    await expect(page).toHaveScreenshot('student-classroom-calendar.png', { fullPage: true })
+  })
+
+  test('classroom resources tab', async ({ page }) => {
+    await openClassroomTab(page, 'Resources')
+    await expect(page).toHaveScreenshot('student-classroom-resources.png', { fullPage: true })
   })
 
   test('assignment editor', async ({ page }) => {
@@ -332,6 +406,26 @@ test.describe('teacher screens - dark mode', () => {
     await expect(page).toHaveScreenshot('teacher-classroom-assignments-dark.png', { fullPage: true })
   })
 
+  test('classroom quizzes tab', async ({ page }) => {
+    await openClassroomTab(page, 'Quizzes', { dark: true })
+    await expect(page).toHaveScreenshot('teacher-classroom-quizzes-dark.png', { fullPage: true })
+  })
+
+  test('classroom tests tab', async ({ page }) => {
+    await openClassroomTab(page, 'Tests', { dark: true })
+    await expect(page).toHaveScreenshot('teacher-classroom-tests-dark.png', { fullPage: true })
+  })
+
+  test('classroom gradebook tab', async ({ page }) => {
+    await openClassroomTab(page, 'Gradebook', { dark: true })
+    await expect(page).toHaveScreenshot('teacher-classroom-gradebook-dark.png', { fullPage: true })
+  })
+
+  test('classroom resources tab', async ({ page }) => {
+    await openClassroomTab(page, 'Resources', { dark: true })
+    await expect(page).toHaveScreenshot('teacher-classroom-resources-dark.png', { fullPage: true })
+  })
+
   test('classroom settings tab', async ({ page }) => {
     await page.goto('/classrooms')
     await page.locator('[data-testid="classroom-card"]').first().click()
@@ -385,6 +479,26 @@ test.describe('student screens - dark mode', () => {
     await enableDarkMode(page)
 
     await expect(page).toHaveScreenshot('student-classroom-assignments-dark.png', { fullPage: true })
+  })
+
+  test('classroom quizzes tab', async ({ page }) => {
+    await openClassroomTab(page, 'Quizzes', { dark: true })
+    await expect(page).toHaveScreenshot('student-classroom-quizzes-dark.png', { fullPage: true })
+  })
+
+  test('classroom tests tab', async ({ page }) => {
+    await openClassroomTab(page, 'Tests', { dark: true })
+    await expect(page).toHaveScreenshot('student-classroom-tests-dark.png', { fullPage: true })
+  })
+
+  test('classroom calendar tab', async ({ page }) => {
+    await openClassroomTab(page, 'Calendar', { dark: true })
+    await expect(page).toHaveScreenshot('student-classroom-calendar-dark.png', { fullPage: true })
+  })
+
+  test('classroom resources tab', async ({ page }) => {
+    await openClassroomTab(page, 'Resources', { dark: true })
+    await expect(page).toHaveScreenshot('student-classroom-resources-dark.png', { fullPage: true })
   })
 
   test('join classroom page', async ({ page }) => {

@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
-import { ConfirmDialog } from '@/ui'
+import { Button, Card, ConfirmDialog, EmptyState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ACTIONBAR_BUTTON_PRIMARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import type { Classroom } from '@/types'
@@ -225,15 +225,15 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         primary={
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-text-default">Classrooms</h1>
-            <div className="inline-flex rounded-md border border-border bg-surface">
+            <div className="inline-flex rounded-control border border-border bg-surface shadow-sm">
               <button
                 type="button"
                 onClick={() => setView('active')}
                 className={[
-                  'px-3 py-1.5 text-sm font-medium rounded-l-md',
+                  'rounded-l-control px-3 py-1.5 text-sm font-medium transition-colors',
                   view === 'active'
-                    ? 'bg-primary text-text-inverse'
-                    : 'text-text-muted hover:bg-surface-hover',
+                    ? 'bg-surface-selected text-text-default'
+                    : 'text-text-muted hover:bg-surface-accent',
                 ].join(' ')}
               >
                 Active
@@ -242,10 +242,10 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                 type="button"
                 onClick={() => setView('archived')}
                 className={[
-                  'px-3 py-1.5 text-sm font-medium rounded-r-md',
+                  'rounded-r-control px-3 py-1.5 text-sm font-medium transition-colors',
                   view === 'archived'
-                    ? 'bg-primary text-text-inverse'
-                    : 'text-text-muted hover:bg-surface-hover',
+                    ? 'bg-surface-selected text-text-default'
+                    : 'text-text-muted hover:bg-surface-accent',
                 ].join(' ')}
               >
                 Archived
@@ -268,76 +268,73 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             <Spinner size="lg" />
           </div>
         ) : visibleClassrooms.length === 0 ? (
-          <div className="bg-surface rounded-lg shadow-sm border border-border p-10 text-center">
-            <h2 className="text-lg font-semibold text-text-default">
-              {view === 'active' ? 'No classrooms yet' : 'No archived classrooms'}
-            </h2>
-            <p className="text-text-muted mt-2">
-              {view === 'active'
-                ? 'Create your first classroom to get started.'
-                : 'Archived classrooms will appear here.'}
-            </p>
-            {view === 'active' && (
-              <div className="mt-6">
-                <button
-                  type="button"
-                  className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
-                  onClick={() => setShowCreate(true)}
-                  aria-label="New classroom"
-                >
-                  <Plus className="h-5 w-5" aria-hidden="true" />
-                  <span>New</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <EmptyState
+            title={view === 'active' ? 'No classrooms yet' : 'No archived classrooms'}
+            description={
+              view === 'active'
+                ? 'Create your first classroom to start managing students, assignments, and attendance.'
+                : 'Archived classrooms will appear here so you can restore or permanently remove them later.'
+            }
+            action={
+              view === 'active' ? (
+                <Button onClick={() => setShowCreate(true)}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  <span>New classroom</span>
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
-          <div className="bg-surface rounded-lg shadow-sm border border-border divide-y divide-border">
+          <Card tone="panel" padding="none" className="overflow-hidden">
             {visibleClassrooms.map((c) => (
-              <div key={c.id} className="flex items-center gap-4 p-4">
+              <div key={c.id} className="flex items-center gap-4 border-b border-border px-5 py-4 last:border-b-0">
                 <button
                   type="button"
                   data-testid="classroom-card"
                   onClick={() => router.push(`/classrooms/${c.id}?tab=attendance`)}
-                  className="flex-1 text-left rounded-md -m-2 p-2 hover:bg-surface-hover"
+                  className="-m-2 flex-1 rounded-control p-2 text-left transition-colors hover:bg-surface-accent"
                 >
-                  <div className="text-sm font-semibold text-text-default">{c.title}</div>
-                  <div className="mt-1 text-sm text-text-muted">
+                  <div className="text-base font-semibold text-text-default">{c.title}</div>
+                  <div className="mt-1 text-sm leading-6 text-text-muted">
                     Code: <span className="font-mono">{c.class_code}</span>
                     {c.term_label ? ` • ${c.term_label}` : ''}
                   </div>
                 </button>
                 <div className="flex items-center gap-2">
                   {view === 'active' ? (
-                    <button
+                    <Button
                       type="button"
+                      variant="surface"
+                      size="xs"
                       onClick={() => setPendingAction({ mode: 'archive', classroom: c })}
-                      className="px-3 py-1.5 rounded-md text-xs font-medium border border-border text-text-default hover:bg-surface-hover"
                     >
                       Archive
-                    </button>
+                    </Button>
                   ) : (
                     <>
-                      <button
+                      <Button
                         type="button"
+                        variant="surface"
+                        size="xs"
                         onClick={() => setPendingAction({ mode: 'restore', classroom: c })}
-                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-border text-text-default hover:bg-surface-hover"
                       >
                         Restore
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="xs"
                         onClick={() => setPendingAction({ mode: 'delete', classroom: c })}
-                        className="px-3 py-1.5 rounded-md text-xs font-medium border border-danger text-danger hover:bg-danger-bg"
+                        className="text-danger hover:bg-danger-bg"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </>
                   )}
                 </div>
               </div>
             ))}
-          </div>
+          </Card>
         )}
       </PageContent>
 

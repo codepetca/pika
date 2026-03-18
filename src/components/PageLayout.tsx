@@ -1,8 +1,14 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MoreVertical } from 'lucide-react'
+import { buttonVariants } from '@/ui/Button'
+import { cn } from '@/ui/utils'
+
+export type PageDensity = 'default' | 'teacher' | 'student'
+
+const PageDensityContext = createContext<PageDensity>('default')
 
 export type ActionBarItem = {
   id: string
@@ -13,20 +19,26 @@ export type ActionBarItem = {
   primary?: boolean
 }
 
-const CONTROL_BASE =
-  'rounded-md border border-primary bg-info-bg text-base font-medium text-text-default hover:bg-info-bg-hover disabled:opacity-50 disabled:cursor-not-allowed'
-
-const CONTROL_SECONDARY_BASE =
-  'rounded-md border border-border bg-surface text-base font-medium text-text-default hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed'
-
-const CONTROL_PRIMARY_BASE =
-  'rounded-md border border-transparent bg-primary text-base font-medium text-white hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed'
-
-export const ACTIONBAR_BUTTON_CLASSNAME = `${CONTROL_BASE} px-3 py-2`
-export const ACTIONBAR_BUTTON_PRIMARY_CLASSNAME = `${CONTROL_PRIMARY_BASE} px-3 py-2`
-export const ACTIONBAR_BUTTON_SECONDARY_CLASSNAME = `${CONTROL_SECONDARY_BASE} px-3 py-2`
-export const ACTIONBAR_ICON_BUTTON_CLASSNAME = `${CONTROL_BASE} px-2.5 py-2 inline-flex items-center justify-center`
-export const ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME = `${CONTROL_BASE} px-4 py-2 inline-flex items-center justify-center`
+export const ACTIONBAR_BUTTON_CLASSNAME = cn(
+  buttonVariants({ variant: 'subtle', size: 'sm' }),
+  'min-h-10'
+)
+export const ACTIONBAR_BUTTON_PRIMARY_CLASSNAME = cn(
+  buttonVariants({ variant: 'primary', size: 'sm' }),
+  'min-h-10'
+)
+export const ACTIONBAR_BUTTON_SECONDARY_CLASSNAME = cn(
+  buttonVariants({ variant: 'secondary', size: 'sm' }),
+  'min-h-10'
+)
+export const ACTIONBAR_ICON_BUTTON_CLASSNAME = cn(
+  buttonVariants({ variant: 'subtle', size: 'sm' }),
+  'h-10 w-10 p-0'
+)
+export const ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME = cn(
+  buttonVariants({ variant: 'subtle', size: 'sm' }),
+  'min-h-10 px-4'
+)
 
 export function PageLayout({
   children,
@@ -35,7 +47,29 @@ export function PageLayout({
   children: ReactNode
   className?: string
 }) {
-  return <div className={['w-full', className].join(' ')}>{children}</div>
+  const density = useContext(PageDensityContext)
+  const frameClass =
+    density === 'teacher'
+      ? '-mx-3'
+      : density === 'student'
+        ? '-mx-4'
+        : '-mx-4'
+
+  return <div className={['w-auto flex flex-col', frameClass, className].join(' ')}>{children}</div>
+}
+
+export function PageDensityProvider({
+  children,
+  density,
+}: {
+  children: ReactNode
+  density: PageDensity
+}) {
+  return (
+    <PageDensityContext.Provider value={density}>
+      {children}
+    </PageDensityContext.Provider>
+  )
 }
 
 export function PageContent({
@@ -45,7 +79,29 @@ export function PageContent({
   children: ReactNode
   className?: string
 }) {
-  return <div className={['mt-2', className].join(' ')}>{children}</div>
+  const density = useContext(PageDensityContext)
+  const spacingClass =
+    density === 'teacher'
+      ? 'px-3 pt-3'
+      : density === 'student'
+        ? 'px-4 pt-4'
+        : 'px-4 pt-2'
+
+  return <div className={[spacingClass, className].join(' ')}>{children}</div>
+}
+
+export function PageStack({
+  children,
+  className = '',
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  const density = useContext(PageDensityContext)
+  const spacingClass =
+    density === 'teacher' ? 'space-y-3' : density === 'student' ? 'space-y-4' : 'space-y-4'
+
+  return <div className={[spacingClass, className].join(' ')}>{children}</div>
 }
 
 function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
@@ -99,7 +155,7 @@ function ActionBarMenu({ items }: { items: ActionBarItem[] }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-56 rounded-md border border-border bg-surface shadow-lg overflow-hidden z-20"
+          className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-md border border-border bg-surface shadow-lg"
         >
           {normalItems.map((item) => (
             <button
@@ -155,9 +211,23 @@ export function PageActionBar({
   trailing?: ReactNode
   className?: string
 }) {
+  const density = useContext(PageDensityContext)
+  const frameClass =
+    density === 'teacher'
+      ? 'px-3'
+      : density === 'student'
+        ? 'px-4'
+        : 'px-4'
+  const outerClass = cn(
+    'w-full border-b border-border bg-page py-2',
+    frameClass,
+    className,
+  )
+
   if (actionsAlign === 'start') {
     return (
-      <div className={['w-full flex items-start gap-2', className].join(' ')}>
+      <div className={outerClass}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div className="min-w-0">{primary}</div>
 
         {actions.length > 0 && (
@@ -167,14 +237,16 @@ export function PageActionBar({
                 <button
                   key={item.id}
                   type="button"
-                  className={[
+                  className={cn(
                     item.primary
                       ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
                       : ACTIONBAR_BUTTON_CLASSNAME,
-                    item.destructive
-                      ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
-                      : '',
-                  ].join(' ')}
+                    item.primary
+                      ? ''
+                      : item.destructive
+                        ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
+                        : ''
+                  )}
                   onClick={item.onSelect}
                   disabled={item.disabled}
                 >
@@ -190,12 +262,14 @@ export function PageActionBar({
 
         <div className="flex-1" />
         {trailing}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className={['w-full flex items-start gap-2', className].join(' ')}>
+    <div className={outerClass}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
       <div className="min-w-0 flex-1">{primary}</div>
 
       {actions.length > 0 && (
@@ -205,14 +279,14 @@ export function PageActionBar({
               <button
                 key={item.id}
                 type="button"
-                className={[
+                className={cn(
                   item.primary
                     ? ACTIONBAR_BUTTON_PRIMARY_CLASSNAME
                     : ACTIONBAR_BUTTON_CLASSNAME,
                   item.destructive
                     ? 'border-danger bg-danger-bg text-danger hover:bg-danger-bg-hover'
                     : '',
-                ].join(' ')}
+                )}
                 onClick={item.onSelect}
                 disabled={item.disabled}
               >
@@ -226,6 +300,7 @@ export function PageActionBar({
         </>
       )}
       {trailing}
+      </div>
     </div>
   )
 }

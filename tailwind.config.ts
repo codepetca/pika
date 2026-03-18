@@ -42,6 +42,10 @@ const config: Config = {
         surface: {
           DEFAULT: 'var(--color-surface)',
           2: 'var(--color-surface-2)',
+          3: 'var(--color-surface-3)',
+          panel: 'var(--color-surface-panel)',
+          accent: 'var(--color-surface-accent)',
+          selected: 'var(--color-surface-selected)',
           hover: 'var(--color-surface-hover)',
         },
         // Semantic border colors
@@ -98,12 +102,15 @@ const config: Config = {
       spacing: {
         dialog: 'var(--space-dialog)',
         card: 'var(--space-card)',
+        'card-compact': 'var(--space-card-compact)',
+        'card-cozy': 'var(--space-card-cozy)',
         section: 'var(--space-section)',
         field: 'var(--space-field)',
         control: 'var(--space-control)',
       },
       boxShadow: {
         elevated: 'var(--shadow-elevated)',
+        panel: 'var(--shadow-panel)',
         dialog: 'var(--shadow-dialog)',
       },
       typography: {

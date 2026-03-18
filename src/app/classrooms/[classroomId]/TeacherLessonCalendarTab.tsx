@@ -1,14 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { addMonths, addWeeks, endOfMonth, format, startOfMonth, subMonths, subWeeks } from 'date-fns'
+import { PanelRight, PanelRightClose } from 'lucide-react'
+import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar } from '@/components/layout'
 import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDays } from '@/hooks/useClassDays'
-import type { Announcement, Assignment, Classroom, LessonPlan } from '@/types'
+import { Button } from '@/ui'
+import type { Classroom, LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 import { normalizeLessonPlanMarkdown } from '@/lib/lesson-plan-content'
@@ -476,7 +479,48 @@ export function TeacherLessonCalendarTab({
 
   return (
     <PageLayout>
-      <PageContent className="-mt-[8px]">
+      <CalendarActionBar
+        viewMode={viewMode}
+        currentDate={currentDate}
+        rangeStart={classroom.start_date}
+        rangeEnd={classroom.end_date}
+        onPrev={() => {
+          if (viewMode === 'week') {
+            setCurrentDate((prev) => subWeeks(prev, 1))
+          } else if (viewMode === 'month') {
+            setCurrentDate((prev) => subMonths(prev, 1))
+          }
+        }}
+        onNext={() => {
+          if (viewMode === 'week') {
+            setCurrentDate((prev) => addWeeks(prev, 1))
+          } else if (viewMode === 'month') {
+            setCurrentDate((prev) => addMonths(prev, 1))
+          }
+        }}
+        onToday={() => setCurrentDate(new Date())}
+        onViewModeChange={handleViewModeChange}
+        trailing={
+          <div className="flex items-center gap-2">
+            {saving && <span className="text-sm text-text-muted">Saving...</span>}
+            <Button
+              type="button"
+              variant="subtle"
+              size="sm"
+              className="h-9 w-9 px-0"
+              onClick={handleMarkdownToggle}
+              aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
+            >
+              {isSidebarOpen ? (
+                <PanelRightClose className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <PanelRight className="h-4 w-4" aria-hidden="true" />
+              )}
+            </Button>
+          </div>
+        }
+      />
+      <PageContent className="pt-0">
         <LessonCalendar
           classroom={classroom}
           lessonPlans={lessonPlans}
@@ -486,14 +530,12 @@ export function TeacherLessonCalendarTab({
           viewMode={viewMode}
           currentDate={currentDate}
           editable={!classroom.archived_at}
-          saving={saving}
+          showHeader={false}
           onDateChange={setCurrentDate}
           onViewModeChange={handleViewModeChange}
           onContentChange={handleContentChange}
           onAssignmentClick={handleAssignmentClick}
           onAnnouncementClick={handleAnnouncementClick}
-          onMarkdownToggle={handleMarkdownToggle}
-          isSidebarOpen={isSidebarOpen}
         />
       </PageContent>
     </PageLayout>

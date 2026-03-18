@@ -27,7 +27,7 @@ export function TableCard({
   overflowX?: boolean
 }) {
   return (
-    <div className="bg-surface rounded-lg border border-border overflow-hidden">
+    <div className="overflow-hidden rounded-lg border border-border bg-surface">
       <div className={overflowX ? 'overflow-x-auto' : undefined}>{children}</div>
     </div>
   )
@@ -41,7 +41,7 @@ export function DataTable({ children, density }: { children: ReactNode; density?
 export function DataTableHead({ children }: { children: ReactNode }) {
   return (
     <thead
-      className="bg-surface-2 border-b border-border"
+      className="border-b border-border bg-surface-2"
     >
       {children}
     </thead>
@@ -262,7 +262,7 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
       ref={ref}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
+      className="rounded-card outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
     >
       {children}
     </div>
