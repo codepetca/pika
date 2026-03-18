@@ -20,6 +20,16 @@ async function waitForContent(page: any) {
   await page.waitForLoadState('networkidle')
   // Small additional delay to ensure content is rendered
   await page.waitForTimeout(500)
+  // Avoid snapshotting tabs while full-screen loading spinners are still visible.
+  await page
+    .waitForFunction(() => {
+      return !Array.from(document.querySelectorAll('.animate-spin')).some((element) => {
+        if (!(element instanceof HTMLElement)) return false
+        const style = window.getComputedStyle(element)
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
+      })
+    }, undefined, { timeout: 15_000 })
+    .catch(() => {})
   // Remove transient fixed-position error toasts that can appear during async refetches
   await page.evaluate(() => {
     const isTransientErrorToast = (element: Element) => {

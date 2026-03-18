@@ -7169,3 +7169,16 @@
 - `bash /Users/stew/Repos/pika/scripts/verify-env.sh` (pass)
 - `pnpm lint` (pass)
 - `pnpm exec playwright test e2e/ui-snapshots.spec.ts --update-snapshots` (pass)
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Remove the remaining vertical padding in the attached action-bar shell after PR review.
+**Completed:**
+- Removed the shared vertical padding from `src/components/PageLayout.tsx` so the action-bar area is defined by the controls themselves rather than a padded wrapper.
+- Re-verified the change visually on teacher gradebook, teacher assignments, teacher calendar, and the selected student assignment view before refreshing the branch snapshots.
+- Stabilized `e2e/ui-snapshots.spec.ts` by waiting for visible loading spinners to disappear before capturing screenshots, which fixed intermittent loading-state diffs on teacher tests/gradebook and allowed the refreshed student today baseline to reflect the fully loaded screen.
+
+**Validation:**
+- `pnpm lint --file e2e/ui-snapshots.spec.ts --file src/components/PageLayout.tsx` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom tests tab|classroom gradebook tab"` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom today tab" --update-snapshots` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts` (pass)
