@@ -219,7 +219,7 @@ export function PageActionBar({
         ? 'px-4'
         : 'px-4'
   const outerClass = cn(
-    'w-full border-b border-border bg-page',
+    'mt-header-compact w-full bg-page',
     frameClass,
     className,
   )

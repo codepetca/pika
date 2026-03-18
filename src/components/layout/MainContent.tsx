@@ -23,10 +23,10 @@ export function MainContent({ children, className, maxWidth, density = 'default'
   const maxWidthClass = MAIN_CONTENT_MAX_WIDTHS[maxWidth ?? config.mainContent.maxWidth]
   const spacingClass =
     density === 'teacher'
-      ? 'px-3 pt-3 pb-3'
+      ? 'px-3 pb-3'
       : density === 'student'
-        ? 'px-4 pt-4 pb-4'
-        : 'px-4 pt-2 pb-3'
+        ? 'px-4 pb-4'
+        : 'px-4 pb-3'
 
   return (
     <main

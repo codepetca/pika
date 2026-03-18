@@ -25,7 +25,7 @@ async function authenticate(page: any, email: string, storagePath: string) {
 
   // Submit and wait for redirect
   await page.getByRole('button', { name: 'Login' }).click()
-  await page.waitForURL('**/classrooms**', { timeout: 30_000 })
+  await expect.poll(() => page.url(), { timeout: 30_000 }).toMatch(/\/classrooms/)
 
   // Verify successful login
   await expect(page).toHaveURL(/\/classrooms/)

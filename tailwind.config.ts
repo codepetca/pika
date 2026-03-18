@@ -107,6 +107,7 @@ const config: Config = {
         section: 'var(--space-section)',
         field: 'var(--space-field)',
         control: 'var(--space-control)',
+        'header-compact': 'var(--space-header-compact)',
       },
       boxShadow: {
         elevated: 'var(--shadow-elevated)',

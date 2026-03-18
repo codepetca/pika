@@ -185,7 +185,7 @@ export function TeacherSettingsTab({
   return (
     <PageLayout>
       {/* Sub-tab navigation */}
-      <div className="flex border-b border-border mb-4">
+      <div className="mb-2 flex border-b border-border">
         <button
           type="button"
           onClick={() => onSectionChange('general')}
@@ -211,7 +211,7 @@ export function TeacherSettingsTab({
       </div>
 
       {section === 'general' ? (
-        <PageContent className="space-y-5">
+        <PageContent className="space-y-4 pt-0">
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
               <div className="flex items-center gap-2">

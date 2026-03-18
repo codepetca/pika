@@ -7176,9 +7176,16 @@
 - Removed the shared vertical padding from `src/components/PageLayout.tsx` so the action-bar area is defined by the controls themselves rather than a padded wrapper.
 - Re-verified the change visually on teacher gradebook, teacher assignments, teacher calendar, and the selected student assignment view before refreshing the branch snapshots.
 - Stabilized `e2e/ui-snapshots.spec.ts` by waiting for visible loading spinners to disappear before capturing screenshots, which fixed intermittent loading-state diffs on teacher tests/gradebook and allowed the refreshed student today baseline to reflect the fully loaded screen.
+- Removed the remaining shell-level top padding from `src/components/layout/MainContent.tsx`, which was the source of the gap between the main classroom header and the first in-tab element on non-calendar tabs.
+- Extended the snapshot wait helper to also ignore visible `animate-pulse` loading skeletons so student today verification captures rendered content instead of route placeholders.
+- Added a slight top inset back to `PageActionBar` in `src/components/PageLayout.tsx` and removed the action-bar bottom divider so attached headers sit off the main frame by a hair without reading as a separated card.
 
 **Validation:**
 - `pnpm lint --file e2e/ui-snapshots.spec.ts --file src/components/PageLayout.tsx` (pass)
 - `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom tests tab|classroom gradebook tab"` (pass)
 - `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom today tab" --update-snapshots` (pass)
 - `pnpm exec playwright test e2e/ui-snapshots.spec.ts` (pass)
+- `pnpm lint --file src/components/layout/MainContent.tsx --file e2e/ui-snapshots.spec.ts` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom attendance tab|classroom today tab" --update-snapshots` (pass)
+- `pnpm lint --file src/components/PageLayout.tsx --file src/components/layout/MainContent.tsx --file e2e/ui-snapshots.spec.ts` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom attendance tab|assignment editor" --update-snapshots` (pass)
