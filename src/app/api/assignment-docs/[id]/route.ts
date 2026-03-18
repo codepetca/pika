@@ -10,6 +10,7 @@ import {
 } from '@/lib/server/versioned-history'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
+import { loadAssignmentFeedbackEntries } from '@/lib/server/assignment-feedback'
 import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -107,7 +108,13 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
             raced.content = parseContentField(raced.content)
           }
           // Race condition: another request created the doc, so this wasn't first view
-          return NextResponse.json({ assignment, doc: raced ? sanitizeDocForStudent(raced) : raced, wasFirstView: false })
+          const feedbackEntries = raced ? await loadAssignmentFeedbackEntries(assignmentId, user.id) : []
+          return NextResponse.json({
+            assignment,
+            doc: raced ? sanitizeDocForStudent(raced) : raced,
+            feedback_entries: feedbackEntries,
+            wasFirstView: false,
+          })
         }
 
         console.error('Error creating assignment doc:', createError)
@@ -118,7 +125,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
       }
 
       // New doc created = first view
-      return NextResponse.json({ assignment, doc: created, wasFirstView: true })
+      return NextResponse.json({ assignment, doc: created, feedback_entries: [], wasFirstView: true })
     }
     console.error('Error fetching assignment doc:', docError)
     return NextResponse.json(
@@ -148,7 +155,14 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
     }
   }
 
-  return NextResponse.json({ assignment, doc: sanitizeDocForStudent(existingDoc), wasFirstView })
+  const feedbackEntries = await loadAssignmentFeedbackEntries(assignmentId, user.id)
+
+  return NextResponse.json({
+    assignment,
+    doc: sanitizeDocForStudent(existingDoc),
+    feedback_entries: feedbackEntries,
+    wasFirstView,
+  })
 })
 
 // PATCH /api/assignment-docs/[id] - Save content (autosave)

@@ -55,6 +55,12 @@ function makeDoc(overrides: Record<string, unknown>) {
     score_thinking: null,
     score_workflow: null,
     feedback: null,
+    teacher_feedback_draft: null,
+    teacher_feedback_draft_updated_at: null,
+    feedback_returned_at: '2026-02-15T00:00:00Z',
+    ai_feedback_suggestion: null,
+    ai_feedback_suggested_at: null,
+    ai_feedback_model: null,
     graded_at: null,
     graded_by: null,
     returned_at: '2026-02-15T00:00:00Z',
@@ -83,7 +89,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: async () => ({ assignment: makeAssignment(), doc, wasFirstView: false }),
+        json: async () => ({ assignment: makeAssignment(), doc, feedback_entries: [], wasFirstView: false }),
       })
     })
   }
@@ -92,6 +98,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     mockLoadResponses(
       makeDoc({
         feedback: 'Teacher comment only.',
+        returned_at: null,
         score_completion: null,
         score_thinking: null,
         score_workflow: null,
@@ -104,7 +111,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
       expect(screen.getByText('Feedback')).toBeInTheDocument()
     })
     expect(screen.getByText('Teacher comment only.')).toBeInTheDocument()
-    expect(screen.getByText('No score assigned.')).toBeInTheDocument()
+    expect(screen.getByText('Grades will appear after your teacher returns them.')).toBeInTheDocument()
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
   })
 

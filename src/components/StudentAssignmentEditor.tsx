@@ -19,7 +19,7 @@ import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
-import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
+import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentFeedbackEntry, TiptapContent } from '@/types'
 
 export interface StudentAssignmentEditorHandle {
   submit: () => Promise<void>
@@ -53,6 +53,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [doc, setDoc] = useState<AssignmentDoc | null>(null)
+  const [feedbackEntries, setFeedbackEntries] = useState<AssignmentFeedbackEntry[]>([])
   const [content, setContent] = useState<TiptapContent>({ type: 'doc', content: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -93,6 +94,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
       setAssignment(data.assignment)
       setDoc(data.doc)
+      setFeedbackEntries(data.feedback_entries || [])
       setContent(data.doc?.content || { type: 'doc', content: [] })
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
 
@@ -461,12 +463,27 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   const status = calculateAssignmentStatus(assignment, doc)
   const isPreviewLocked = lockedEntryId !== null
-  const hasFeedback = Boolean(doc?.feedback?.trim())
   const hasCompletionScore = doc?.score_completion != null
   const hasThinkingScore = doc?.score_thinking != null
   const hasWorkflowScore = doc?.score_workflow != null
   const hasAnyScore = hasCompletionScore || hasThinkingScore || hasWorkflowScore
   const hasFullScoreSet = hasCompletionScore && hasThinkingScore && hasWorkflowScore
+  const feedbackVisible = Boolean(doc?.feedback_returned_at || doc?.returned_at || feedbackEntries.length > 0)
+  const displayedFeedbackEntries = feedbackEntries.length > 0
+    ? feedbackEntries
+    : (doc?.feedback?.trim() && doc.feedback_returned_at
+        ? [{
+            id: 'latest-feedback',
+            assignment_id: assignmentId,
+            student_id: doc.student_id,
+            entry_kind: doc.returned_at ? 'grading_feedback' : 'teacher_feedback',
+            author_type: 'teacher' as const,
+            body: doc.feedback.trim(),
+            returned_at: doc.feedback_returned_at,
+            created_at: doc.feedback_returned_at,
+            created_by: null,
+          }]
+        : [])
 
   const editorContent = (
     <div className="flex flex-col gap-6 h-full min-h-0">
@@ -671,13 +688,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         </div>
       )}
 
-      {/* Grade panel (shown when work has been returned) */}
-      {doc?.returned_at && (hasFeedback || hasAnyScore) && (
+      {/* Feedback panel */}
+      {feedbackVisible && (
         <div className="bg-surface rounded-lg shadow-sm border border-border p-4 space-y-3">
           <h3 className="text-sm font-semibold text-text-default">Feedback</h3>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <div className="space-y-2 text-sm md:pr-4 md:border-r md:border-border">
-              {hasCompletionScore && (
+              {doc?.returned_at && hasCompletionScore && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-text-muted">Completion</span>
                   <span className="inline-flex items-center gap-1 font-medium">
@@ -688,7 +705,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </span>
                 </div>
               )}
-              {hasThinkingScore && (
+              {doc?.returned_at && hasThinkingScore && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-text-muted">Thinking</span>
                   <span className="inline-flex items-center gap-1 font-medium">
@@ -699,7 +716,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </span>
                 </div>
               )}
-              {hasWorkflowScore && (
+              {doc?.returned_at && hasWorkflowScore && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-text-muted">Workflow</span>
                   <span className="inline-flex items-center gap-1 font-medium">
@@ -710,7 +727,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </span>
                 </div>
               )}
-              {hasFullScoreSet && (
+              {doc?.returned_at && hasFullScoreSet && (
                 <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 pt-1">
                   <span className="text-text-default font-medium">Total</span>
                   <div className="flex justify-center">
@@ -726,14 +743,32 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </span>
                 </div>
               )}
-              {!hasAnyScore && (
-                <div className="text-xs text-text-muted">No score assigned.</div>
+              {doc?.returned_at ? (
+                !hasAnyScore && (
+                  <div className="text-xs text-text-muted">No score assigned.</div>
+                )
+              ) : (
+                <div className="text-xs text-text-muted">Grades will appear after your teacher returns them.</div>
               )}
             </div>
-            <div>
-              <div className="text-sm text-text-default whitespace-pre-wrap">
-                {doc.feedback?.trim() || 'No feedback provided yet.'}
-              </div>
+            <div className="space-y-3">
+              {displayedFeedbackEntries.length > 0 ? (
+                displayedFeedbackEntries.map((entry) => (
+                  <div key={entry.id} className="rounded-md border border-border bg-page px-3 py-2">
+                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                      {entry.entry_kind === 'grading_feedback' ? 'Grade Return' : 'Returned Feedback'} . {' '}
+                      {formatInTimeZone(new Date(entry.returned_at), 'America/Toronto', 'MMM d, h:mm a')}
+                    </div>
+                    <div className="text-sm text-text-default whitespace-pre-wrap">
+                      {entry.body}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-text-default whitespace-pre-wrap">
+                  {doc?.feedback?.trim() || 'No feedback provided yet.'}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -2,20 +2,39 @@
 
 import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import { X } from 'lucide-react'
-import type { Assignment, ClassDay, TiptapContent } from '@/types'
+import type { Assignment, AssignmentEvaluationMode, ClassDay, TiptapContent } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
-import { ConfirmDialog, DialogPanel, SplitButton } from '@/ui'
+import { ConfirmDialog, DialogPanel, FormField, Input, Select, SplitButton } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
 import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
-import { isVisibleAtNow, getTodayInSchedulingTimezone } from '@/lib/scheduling'
+import { DEFAULT_SCHEDULE_TIME, getTodayInSchedulingTimezone, isVisibleAtNow, parseScheduleIsoToParts } from '@/lib/scheduling'
 import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAssignmentScheduling'
 
 const EMPTY_INSTRUCTIONS: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
+type AssignmentEditorValues = {
+  title: string
+  instructions: TiptapContent
+  dueAt: string
+  evaluationMode: AssignmentEvaluationMode
+  repoUrl: string
+  repoDefaultBranch: string
+  reviewStartAt: string
+  reviewEndAt: string
+  includePrReviews: boolean
+}
+
+function validateAssignmentValues(values: AssignmentEditorValues): string | null {
+  if (values.evaluationMode === 'repo_review' && !values.repoUrl.trim()) {
+    return 'GitHub repo is required for Repo Review assignments'
+  }
+
+  return null
+}
 
 interface AssignmentModalProps {
   isOpen: boolean
@@ -35,6 +54,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   const [title, setTitle] = useState('')
   const [instructions, setInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
+  const [evaluationMode, setEvaluationMode] = useState<AssignmentEvaluationMode>('document')
+  const [repoUrl, setRepoUrl] = useState('')
+  const [repoDefaultBranch, setRepoDefaultBranch] = useState('main')
+  const [reviewStartAt, setReviewStartAt] = useState('')
+  const [reviewEndAt, setReviewEndAt] = useState('')
+  const [includePrReviews, setIncludePrReviews] = useState(true)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
 
@@ -46,8 +71,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAtRef = useRef<number>(0)
-  const lastSavedValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
-  const pendingValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
+  const lastSavedValuesRef = useRef<AssignmentEditorValues | null>(null)
+  const pendingValuesRef = useRef<AssignmentEditorValues | null>(null)
 
   const isCreateMode = !assignment
 
@@ -81,6 +106,25 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     openScheduleModalWithSave, handleActionSelection, triggerPrimaryAction,
   } = scheduling
 
+  function toDateTimeLocal(value: string | null | undefined): string {
+    if (!value) return ''
+    return new Date(value).toISOString().slice(0, 16)
+  }
+
+  const toRepoReviewPayload = useCallback((values: AssignmentEditorValues) => {
+    if (values.evaluationMode !== 'repo_review' || !values.repoUrl.trim()) {
+      return undefined
+    }
+
+    return {
+      repo_url: values.repoUrl.trim(),
+      default_branch: values.repoDefaultBranch.trim() || 'main',
+      review_start_at: values.reviewStartAt ? new Date(values.reviewStartAt).toISOString() : null,
+      review_end_at: values.reviewEndAt ? new Date(values.reviewEndAt).toISOString() : null,
+      include_pr_reviews: values.includePrReviews,
+    }
+  }, [])
+
   useEffect(() => {
     if (!isOpen) return
 
@@ -99,7 +143,33 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setTitle(nextTitle)
       setInstructions(nextInstructions)
       setDueAt(nextDueAt)
-      lastSavedValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt }
+      setEvaluationMode(assignment.evaluation_mode ?? 'document')
+      setRepoUrl('')
+      setRepoDefaultBranch('main')
+      setReviewStartAt('')
+      setReviewEndAt('')
+      setIncludePrReviews(true)
+      if (assignment.released_at && !isVisibleAtNow(assignment.released_at)) {
+        const scheduled = parseScheduleIsoToParts(assignment.released_at)
+        setScheduleDate(scheduled.date)
+        setScheduleTime(scheduled.time)
+        setPrimaryAction('schedule')
+      } else {
+        setScheduleDate(getTodayInSchedulingTimezone())
+        setScheduleTime(DEFAULT_SCHEDULE_TIME)
+        setPrimaryAction('post')
+      }
+      lastSavedValuesRef.current = {
+        title: nextTitle,
+        instructions: nextInstructions,
+        dueAt: nextDueAt,
+        evaluationMode: assignment.evaluation_mode ?? 'document',
+        repoUrl: '',
+        repoDefaultBranch: 'main',
+        reviewStartAt: '',
+        reviewEndAt: '',
+        includePrReviews: true,
+      }
       setSaveStatus('saved')
     } else {
       // Create mode: immediately create a draft
@@ -107,6 +177,15 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setTitle('')
       setInstructions(EMPTY_INSTRUCTIONS)
       setDueAt(defaultDueAt)
+      setEvaluationMode('document')
+      setRepoUrl('')
+      setRepoDefaultBranch('main')
+      setReviewStartAt('')
+      setReviewEndAt('')
+      setIncludePrReviews(true)
+      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleTime(DEFAULT_SCHEDULE_TIME)
+      setPrimaryAction('post')
       lastSavedValuesRef.current = null
       setSaveStatus('saving')
       setCreating(true)
@@ -140,8 +219,51 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
   }, [assignment, isOpen, setDueAt, setError, defaultDueAt])
 
+  useEffect(() => {
+    if (!isOpen || !assignment || assignment.evaluation_mode !== 'repo_review') return
+
+    let isMounted = true
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/teacher/assignments/${assignment.id}/repo-review`)
+        const data = await res.json()
+        if (!res.ok || !data.config || !isMounted) return
+
+        const config = data.config
+        const nextRepoUrl = `${config.repo_owner}/${config.repo_name}`
+        const nextReviewStart = toDateTimeLocal(config.review_start_at)
+        const nextReviewEnd = toDateTimeLocal(config.review_end_at)
+        const nextIncludePrReviews = config.include_pr_reviews !== false
+
+        setRepoUrl(nextRepoUrl)
+        setRepoDefaultBranch(config.default_branch || 'main')
+        setReviewStartAt(nextReviewStart)
+        setReviewEndAt(nextReviewEnd)
+        setIncludePrReviews(nextIncludePrReviews)
+        lastSavedValuesRef.current = {
+          title: assignment.title,
+          instructions: assignment.rich_instructions ?? EMPTY_INSTRUCTIONS,
+          dueAt: formatDateInToronto(new Date(assignment.due_at)),
+          evaluationMode: assignment.evaluation_mode ?? 'document',
+          repoUrl: nextRepoUrl,
+          repoDefaultBranch: config.default_branch || 'main',
+          reviewStartAt: nextReviewStart,
+          reviewEndAt: nextReviewEnd,
+          includePrReviews: nextIncludePrReviews,
+        }
+      } catch {
+        // Leave repo review fields empty if config load fails.
+      }
+    })()
+
+    return () => {
+      isMounted = false
+    }
+  }, [assignment, isOpen])
+
   // Get only the fields that changed compared to last saved values
-  function getChangedFields(values: { title: string; instructions: TiptapContent; dueAt: string }) {
+  const getChangedFields = useCallback((values: AssignmentEditorValues) => {
     const saved = lastSavedValuesRef.current
     if (!saved) return null
 
@@ -151,13 +273,26 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (JSON.stringify(values.instructions) !== JSON.stringify(saved.instructions)) {
       changes.rich_instructions = values.instructions
     }
+    if (values.evaluationMode !== saved.evaluationMode) {
+      changes.evaluation_mode = values.evaluationMode
+    }
+    if (
+      values.repoUrl !== saved.repoUrl
+      || values.repoDefaultBranch !== saved.repoDefaultBranch
+      || values.reviewStartAt !== saved.reviewStartAt
+      || values.reviewEndAt !== saved.reviewEndAt
+      || values.includePrReviews !== saved.includePrReviews
+      || values.evaluationMode !== saved.evaluationMode
+    ) {
+      changes.repo_review = toRepoReviewPayload(values)
+    }
 
     return Object.keys(changes).length > 0 ? changes : null
-  }
+  }, [toRepoReviewPayload])
 
   // Create a new assignment
   const createAssignment = useCallback(async (
-    values: { title: string; instructions: TiptapContent; dueAt: string }
+    values: AssignmentEditorValues
   ): Promise<Assignment | null> => {
     try {
       const response = await fetch('/api/teacher/assignments', {
@@ -168,6 +303,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           title: values.title.trim() || `Untitled (${format(nowInToronto(), 'yyyy-MM-dd HH:mm:ss')})`,
           rich_instructions: values.instructions,
           due_at: toTorontoEndOfDayIso(values.dueAt),
+          evaluation_mode: values.evaluationMode,
+          repo_review: toRepoReviewPayload(values),
         }),
       })
 
@@ -185,14 +322,24 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setError(err.message || 'Failed to create assignment')
       return null
     }
-  }, [classroomId, setError])
+  }, [classroomId, setError, toRepoReviewPayload])
 
   // Automatically create draft when modal opens in create mode
   useEffect(() => {
     if (!creating) return
 
     const createDraft = async () => {
-      const initialValues = { title: '', instructions: EMPTY_INSTRUCTIONS, dueAt: defaultDueAt }
+      const initialValues: AssignmentEditorValues = {
+        title: '',
+        instructions: EMPTY_INSTRUCTIONS,
+        dueAt: defaultDueAt,
+        evaluationMode: 'document',
+        repoUrl: '',
+        repoDefaultBranch: 'main',
+        reviewStartAt: '',
+        reviewEndAt: '',
+        includePrReviews: true,
+      }
       const newAssignment = await createAssignment(initialValues)
       setCreating(false)
 
@@ -202,7 +349,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         setInstructions(newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS)
         const assignmentDueAt = formatDateInToronto(new Date(newAssignment.due_at))
         setDueAt(assignmentDueAt)
-        lastSavedValuesRef.current = { title: newAssignment.title, instructions: newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS, dueAt: assignmentDueAt }
+        lastSavedValuesRef.current = {
+          title: newAssignment.title,
+          instructions: newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS,
+          dueAt: assignmentDueAt,
+          evaluationMode: newAssignment.evaluation_mode ?? 'document',
+          repoUrl: '',
+          repoDefaultBranch: 'main',
+          reviewStartAt: '',
+          reviewEndAt: '',
+          includePrReviews: true,
+        }
         setSaveStatus('saved')
 
         // Focus and select title after creation
@@ -221,9 +378,16 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
-    values: { title: string; instructions: TiptapContent; dueAt: string },
+    values: AssignmentEditorValues,
     options?: { closeAfter?: boolean }
   ) => {
+    const validationError = validateAssignmentValues(values)
+    if (validationError) {
+      setError(validationError)
+      setSaveStatus('unsaved')
+      return
+    }
+
     setSaveStatus('saving')
     lastSaveAtRef.current = Date.now()
 
@@ -283,11 +447,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setError(err.message || 'Failed to save assignment')
       setSaveStatus('unsaved')
     }
-  }, [currentAssignment, createAssignment, onClose, onSuccess, setError])
+  }, [currentAssignment, createAssignment, getChangedFields, onClose, onSuccess, setError])
 
   // Schedule a debounced save with minimum interval throttling
   const scheduleSave = useCallback((
-    values: { title: string; instructions: TiptapContent; dueAt: string },
+    values: AssignmentEditorValues,
     options?: { force?: boolean }
   ) => {
     pendingValuesRef.current = values
@@ -316,7 +480,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   }, [saveChanges])
 
   // Schedule autosave after a debounce period
-  function scheduleAutosave(values: { title: string; instructions: TiptapContent; dueAt: string }) {
+  function scheduleAutosave(values: AssignmentEditorValues) {
     pendingValuesRef.current = values
     setSaveStatus('unsaved')
 
@@ -331,7 +495,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
-    scheduleAutosave({ title: newTitle, instructions, dueAt })
+    scheduleAutosave({
+      title: newTitle,
+      instructions,
+      dueAt,
+      evaluationMode,
+      repoUrl,
+      repoDefaultBranch,
+      reviewStartAt,
+      reviewEndAt,
+      includePrReviews,
+    })
   }
 
   function handleInstructionsChange(newInstructions: TiptapContent) {
@@ -343,12 +517,81 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       return
     }
     setInstructions(newInstructions)
-    scheduleAutosave({ title, instructions: newInstructions, dueAt })
+    scheduleAutosave({
+      title,
+      instructions: newInstructions,
+      dueAt,
+      evaluationMode,
+      repoUrl,
+      repoDefaultBranch,
+      reviewStartAt,
+      reviewEndAt,
+      includePrReviews,
+    })
   }
 
   function handleDueAtChange(newDueAt: string) {
     updateDueDate(newDueAt)
-    scheduleAutosave({ title, instructions, dueAt: newDueAt })
+    scheduleAutosave({
+      title,
+      instructions,
+      dueAt: newDueAt,
+      evaluationMode,
+      repoUrl,
+      repoDefaultBranch,
+      reviewStartAt,
+      reviewEndAt,
+      includePrReviews,
+    })
+  }
+
+  function handleEvaluationModeChange(nextMode: AssignmentEvaluationMode) {
+    setEvaluationMode(nextMode)
+    scheduleAutosave({
+      title,
+      instructions,
+      dueAt,
+      evaluationMode: nextMode,
+      repoUrl,
+      repoDefaultBranch,
+      reviewStartAt,
+      reviewEndAt,
+      includePrReviews,
+    })
+  }
+
+  function handleRepoFieldChange(field: 'repoUrl' | 'repoDefaultBranch' | 'reviewStartAt' | 'reviewEndAt', value: string) {
+    if (field === 'repoUrl') setRepoUrl(value)
+    if (field === 'repoDefaultBranch') setRepoDefaultBranch(value)
+    if (field === 'reviewStartAt') setReviewStartAt(value)
+    if (field === 'reviewEndAt') setReviewEndAt(value)
+
+    scheduleAutosave({
+      title,
+      instructions,
+      dueAt,
+      evaluationMode,
+      repoUrl: field === 'repoUrl' ? value : repoUrl,
+      repoDefaultBranch: field === 'repoDefaultBranch' ? value : repoDefaultBranch,
+      reviewStartAt: field === 'reviewStartAt' ? value : reviewStartAt,
+      reviewEndAt: field === 'reviewEndAt' ? value : reviewEndAt,
+      includePrReviews,
+    })
+  }
+
+  function handleIncludePrReviewsChange(nextValue: boolean) {
+    setIncludePrReviews(nextValue)
+    scheduleAutosave({
+      title,
+      instructions,
+      dueAt,
+      evaluationMode,
+      repoUrl,
+      repoDefaultBranch,
+      reviewStartAt,
+      reviewEndAt,
+      includePrReviews: nextValue,
+    })
   }
 
   function handlePrevDate() {
@@ -387,7 +630,21 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
 
     if ((saveStatus === 'unsaved' || pendingValuesRef.current) && currentAssignment) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? {
+        title,
+        instructions,
+        dueAt,
+        evaluationMode,
+        repoUrl,
+        repoDefaultBranch,
+        reviewStartAt,
+        reviewEndAt,
+        includePrReviews,
+      }
+      const validationError = validateAssignmentValues(valuesToSave)
+      if (validationError) {
+        throw new Error(validationError)
+      }
       const changedFields = getChangedFields(valuesToSave)
 
       if (changedFields) {
@@ -424,7 +681,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
     pendingValuesRef.current = null
     setSaving(true)
-    await saveChanges({ title, instructions, dueAt }, { closeAfter: true })
+    await saveChanges({
+      title,
+      instructions,
+      dueAt,
+      evaluationMode,
+      repoUrl,
+      repoDefaultBranch,
+      reviewStartAt,
+      reviewEndAt,
+      includePrReviews,
+    }, { closeAfter: true })
     setSaving(false)
   }
 
@@ -440,7 +707,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
     pendingValuesRef.current = null
     setSaving(true)
-    await saveChanges({ title, instructions, dueAt }, { closeAfter: true })
+    await saveChanges({
+      title,
+      instructions,
+      dueAt,
+      evaluationMode,
+      repoUrl,
+      repoDefaultBranch,
+      reviewStartAt,
+      reviewEndAt,
+      includePrReviews,
+    }, { closeAfter: true })
     setSaving(false)
   }
 
@@ -465,7 +742,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
     // If there are unsaved changes, save before closing
     if (saveStatus === 'unsaved' || pendingValuesRef.current) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? {
+        title,
+        instructions,
+        dueAt,
+        evaluationMode,
+        repoUrl,
+        repoDefaultBranch,
+        reviewStartAt,
+        reviewEndAt,
+        includePrReviews,
+      }
       await saveChanges(valuesToSave, { closeAfter: true })
     } else {
       if (currentAssignment) {
@@ -517,6 +804,73 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
             instructions={instructions}
             dueAt={dueAt}
             classDays={classDays}
+            extraFields={(
+              <>
+                <FormField label="Evaluation Mode">
+                  <Select
+                    value={evaluationMode}
+                    onChange={(event) => handleEvaluationModeChange(event.target.value as AssignmentEvaluationMode)}
+                    options={[
+                      { value: 'document', label: 'Document Submission' },
+                      { value: 'repo_review', label: 'Repo Review' },
+                    ]}
+                    disabled={saving || releasing || creating}
+                  />
+                </FormField>
+
+                {evaluationMode === 'repo_review' && (
+                  <div className="space-y-3 rounded-lg border border-border bg-surface-2 p-3">
+                    <FormField label="GitHub Repo" required>
+                      <Input
+                        value={repoUrl}
+                        onChange={(event) => handleRepoFieldChange('repoUrl', event.target.value)}
+                        placeholder="owner/repo or https://github.com/owner/repo"
+                        disabled={saving || releasing || creating}
+                      />
+                    </FormField>
+
+                    <FormField label="Default Branch">
+                      <Input
+                        value={repoDefaultBranch}
+                        onChange={(event) => handleRepoFieldChange('repoDefaultBranch', event.target.value)}
+                        placeholder="main"
+                        disabled={saving || releasing || creating}
+                      />
+                    </FormField>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <FormField label="Review Start">
+                        <Input
+                          type="datetime-local"
+                          value={reviewStartAt}
+                          onChange={(event) => handleRepoFieldChange('reviewStartAt', event.target.value)}
+                          disabled={saving || releasing || creating}
+                        />
+                      </FormField>
+                      <FormField label="Review End">
+                        <Input
+                          type="datetime-local"
+                          value={reviewEndAt}
+                          onChange={(event) => handleRepoFieldChange('reviewEndAt', event.target.value)}
+                          disabled={saving || releasing || creating}
+                        />
+                      </FormField>
+                    </div>
+
+                    <label className="flex items-center gap-2 text-sm text-text-default">
+                      <input
+                        type="checkbox"
+                        checked={includePrReviews}
+                        onChange={(event) => handleIncludePrReviewsChange(event.target.checked)}
+                        disabled={saving || releasing || creating}
+                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                      />
+                      Include pull requests and review comments
+                    </label>
+                  </div>
+                )}
+              </>
+            )}
             onTitleChange={handleTitleChange}
             onInstructionsChange={handleInstructionsChange}
             onDueAtChange={handleDueAtChange}

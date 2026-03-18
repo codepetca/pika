@@ -10,7 +10,7 @@ import {
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
 } from '@/lib/assignments'
-import type { AssignmentWithStatus, Classroom, TiptapContent } from '@/types'
+import type { AssignmentDoc, AssignmentFeedbackEntry, AssignmentWithStatus, Classroom, TiptapContent } from '@/types'
 import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
 import { RichTextViewer } from '@/components/editor'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
@@ -37,6 +37,9 @@ export function StudentAssignmentsTab({
   const [refreshing, setRefreshing] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
   const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false })
+  const [selectedRepoDoc, setSelectedRepoDoc] = useState<AssignmentDoc | null>(null)
+  const [selectedRepoFeedbackEntries, setSelectedRepoFeedbackEntries] = useState<AssignmentFeedbackEntry[]>([])
+  const [selectedRepoLoading, setSelectedRepoLoading] = useState(false)
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
   const wasActiveRef = useRef(isActive)
   const showBlockingSpinner = useDelayedBusy(loading && assignments.length === 0)
@@ -93,6 +96,23 @@ export function StudentAssignmentsTab({
     if (!selectedAssignment) return 'summary'
     return 'edit'
   }, [selectedAssignment, selectedAssignmentId])
+  const isRepoReviewAssignment = selectedAssignment?.evaluation_mode === 'repo_review'
+  const repoReviewDoc = selectedRepoDoc || selectedAssignment?.doc || null
+  const repoReviewFeedbackEntries = selectedRepoFeedbackEntries.length > 0
+    ? selectedRepoFeedbackEntries
+    : (repoReviewDoc?.feedback?.trim() && repoReviewDoc.feedback_returned_at
+        ? [{
+            id: 'latest-feedback',
+            assignment_id: selectedAssignment?.id || '',
+            student_id: repoReviewDoc.student_id,
+            entry_kind: repoReviewDoc.returned_at ? 'grading_feedback' : 'teacher_feedback',
+            author_type: 'teacher' as const,
+            body: repoReviewDoc.feedback.trim(),
+            returned_at: repoReviewDoc.feedback_returned_at,
+            created_at: repoReviewDoc.feedback_returned_at,
+            created_by: null,
+          }]
+        : [])
 
   const navigate = useCallback(
     (next: { assignmentId?: string | null }) => {
@@ -128,6 +148,45 @@ export function StudentAssignmentsTab({
       setShowInstructions(false)
     }
   }, [isFirstTimeView])
+
+  useEffect(() => {
+    if (!isRepoReviewAssignment || !selectedAssignment?.id) {
+      setSelectedRepoDoc(null)
+      setSelectedRepoFeedbackEntries([])
+      setSelectedRepoLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setSelectedRepoLoading(true)
+    void fetch(`/api/assignment-docs/${selectedAssignment.id}`)
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load repo review feedback')
+        }
+        if (!cancelled) {
+          setSelectedRepoDoc(data.doc || null)
+          setSelectedRepoFeedbackEntries(data.feedback_entries || [])
+        }
+      })
+      .catch((error) => {
+        console.error('Error loading repo review feedback:', error)
+        if (!cancelled) {
+          setSelectedRepoDoc(selectedAssignment.doc || null)
+          setSelectedRepoFeedbackEntries([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSelectedRepoLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isRepoReviewAssignment, selectedAssignment?.doc, selectedAssignment?.id])
 
   // Mark assignment as viewed locally when closing first-time instructions
   const markAsViewed = useCallback(() => {
@@ -186,7 +245,7 @@ export function StudentAssignmentsTab({
           )
         }
         trailing={
-          selectedAssignment ? (
+          selectedAssignment && !isRepoReviewAssignment ? (
             <Button
               size="sm"
               variant={editorState.isSubmitted ? 'secondary' : 'primary'}
@@ -241,6 +300,9 @@ export function StudentAssignmentsTab({
                               <p className="text-xs text-text-muted mt-1">
                                 {formatRelativeDueDate(assignment.due_at)}
                               </p>
+                              {assignment.evaluation_mode === 'repo_review' && (
+                                <p className="text-xs text-primary mt-1">Repo review</p>
+                              )}
                             </div>
                             <span
                               className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(assignment.status)}`}
@@ -258,6 +320,54 @@ export function StudentAssignmentsTab({
               <div className="bg-surface rounded-lg shadow-sm">
                 <div className="p-6 text-sm text-text-muted">
                   That assignment is no longer available.
+                </div>
+              </div>
+            ) : isRepoReviewAssignment ? (
+              <div className="bg-surface rounded-lg shadow-sm">
+                <div className="space-y-4 p-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-default">{selectedAssignment.title}</h3>
+                    <p className="mt-1 text-sm text-text-muted">
+                      Repo review feedback is shared here after your teacher returns it.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border border-border bg-surface-2 p-3">
+                      <div className="text-xs text-text-muted">Completion</div>
+                      <div className="mt-1 text-lg font-semibold text-text-default">{repoReviewDoc?.score_completion ?? '—'}/10</div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-surface-2 p-3">
+                      <div className="text-xs text-text-muted">Thinking</div>
+                      <div className="mt-1 text-lg font-semibold text-text-default">{repoReviewDoc?.score_thinking ?? '—'}/10</div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-surface-2 p-3">
+                      <div className="text-xs text-text-muted">Workflow</div>
+                      <div className="mt-1 text-lg font-semibold text-text-default">{repoReviewDoc?.score_workflow ?? '—'}/10</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-surface-2 p-4">
+                    <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Feedback</div>
+                    {selectedRepoLoading ? (
+                      <div className="mt-2 text-sm text-text-muted">Loading feedback…</div>
+                    ) : repoReviewFeedbackEntries.length > 0 ? (
+                      <div className="mt-2 space-y-3">
+                        {repoReviewFeedbackEntries.map((entry) => (
+                          <div key={entry.id} className="rounded border border-border bg-surface px-3 py-2">
+                            <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                              {entry.entry_kind === 'grading_feedback' ? 'Grade Return' : 'Returned Feedback'}
+                            </div>
+                            <div className="whitespace-pre-wrap text-sm text-text-default">{entry.body}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-2 whitespace-pre-wrap text-sm text-text-default">
+                        {repoReviewDoc?.feedback?.trim() || 'No feedback has been returned yet.'}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (

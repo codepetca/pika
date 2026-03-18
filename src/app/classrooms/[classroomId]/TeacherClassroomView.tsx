@@ -17,6 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import {
+  BarChart3,
   Check,
   Circle,
   Clock,
@@ -25,7 +26,7 @@ import {
   RotateCcw,
   Send,
 } from 'lucide-react'
-import { ConfirmDialog, RefreshingIndicator, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, Input, RefreshingIndicator, Tooltip } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -49,7 +50,18 @@ import {
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { isVisibleAtNow } from '@/lib/scheduling'
-import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
+import type {
+  AssignmentRepoReviewConfig,
+  AssignmentRepoReviewResult,
+  AssignmentRepoReviewRun,
+  Classroom,
+  Assignment,
+  AssignmentStats,
+  AssignmentStatus,
+  ClassDay,
+  TiptapContent,
+  SelectedStudentInfo,
+} from '@/types'
 import {
   DataTable,
   DataTableBody,
@@ -95,7 +107,42 @@ interface StudentSubmissionRow {
     score_workflow?: number | null
     graded_at?: string | null
     returned_at?: string | null
+    feedback_returned_at?: string | null
   } | null
+}
+
+interface RepoReviewStudentRow {
+  student_id: string
+  student_email: string
+  student_name: string | null
+  github_login: string | null
+  commit_emails: string[]
+  status: AssignmentStatus
+  doc: {
+    submitted_at?: string | null
+    updated_at?: string | null
+    score_completion?: number | null
+    score_thinking?: number | null
+    score_workflow?: number | null
+    graded_at?: string | null
+    returned_at?: string | null
+  } | null
+  result: AssignmentRepoReviewResult | null
+}
+
+interface SelectedRepoReviewData {
+  assignment: Assignment
+  classroom: { id: string; title: string; teacher_id: string; archived_at: string | null }
+  config: AssignmentRepoReviewConfig | null
+  latest_run: AssignmentRepoReviewRun | null
+  latest_completed_run: AssignmentRepoReviewRun | null
+  summary: {
+    confidence: number
+    team_timeline: Array<{ date: string; weighted_contribution: number; commit_count: number }>
+    contribution_total: number
+    warnings: Array<{ message: string }>
+  }
+  students: RepoReviewStudentRow[]
 }
 
 export type AssignmentViewMode = 'summary' | 'assignment'
@@ -157,6 +204,18 @@ function getRowClassName(isSelected: boolean): string {
 
 const STATUS_ICON_CLASS = 'h-4 w-4'
 const LATE_CLOCK_CLASS = 'h-3 w-3'
+
+function MetricBar({ value }: { value: number }) {
+  const percentage = Math.max(0, Math.min(100, Math.round(value * 100)))
+  return (
+    <div className="h-2 w-full rounded-full bg-surface-2">
+      <div
+        className="h-full rounded-full bg-primary transition-[width]"
+        style={{ width: `${percentage}%` }}
+      />
+    </div>
+  )
+}
 
 function StatusIcon({
   status,
@@ -251,8 +310,13 @@ export function TeacherClassroomView({
     assignment: Assignment
     students: StudentSubmissionRow[]
   } | null>(null)
+  const [selectedRepoReviewData, setSelectedRepoReviewData] = useState<SelectedRepoReviewData | null>(null)
   const [selectedAssignmentLoading, setSelectedAssignmentLoading] = useState(false)
   const [selectedAssignmentError, setSelectedAssignmentError] = useState<string>('')
+  const [repoReviewSaving, setRepoReviewSaving] = useState(false)
+  const [repoReviewRunning, setRepoReviewRunning] = useState(false)
+  const [repoReviewApplying, setRepoReviewApplying] = useState(false)
+  const [repoReviewMappings, setRepoReviewMappings] = useState<Record<string, { github_login: string; commit_emails: string }>>({})
 
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: 'first' | 'last' | 'status'
@@ -270,6 +334,7 @@ export function TeacherClassroomView({
 
   // Batch grading state
   const [isAutoGrading, setIsAutoGrading] = useState(false)
+  const [isArtifactRepoAnalyzing, setIsArtifactRepoAnalyzing] = useState(false)
   const [isReturning, setIsReturning] = useState(false)
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
@@ -425,36 +490,50 @@ export function TeacherClassroomView({
   useEffect(() => {
     if (selection.mode !== 'assignment') {
       setSelectedAssignmentData(null)
+      setSelectedRepoReviewData(null)
       setSelectedAssignmentError('')
       setSelectedAssignmentLoading(false)
       return
     }
 
     const assignmentId = selection.assignmentId
+    const assignmentMeta = assignments.find((item) => item.id === assignmentId)
 
     async function loadSelectedAssignment() {
       setSelectedAssignmentLoading(true)
       setSelectedAssignmentError('')
       try {
-        const response = await fetch(`/api/teacher/assignments/${assignmentId}`)
+        const response = await fetch(
+          assignmentMeta?.evaluation_mode === 'repo_review'
+            ? `/api/teacher/assignments/${assignmentId}/repo-review`
+            : `/api/teacher/assignments/${assignmentId}`
+        )
         const data = await response.json()
         if (!response.ok) {
           throw new Error(data.error || 'Failed to load assignment')
         }
-        setSelectedAssignmentData({
-          assignment: data.assignment,
-          students: (data.students || []) as StudentSubmissionRow[],
-        })
+
+        if (assignmentMeta?.evaluation_mode === 'repo_review') {
+          setSelectedRepoReviewData(data as SelectedRepoReviewData)
+          setSelectedAssignmentData(null)
+        } else {
+          setSelectedAssignmentData({
+            assignment: data.assignment,
+            students: (data.students || []) as StudentSubmissionRow[],
+          })
+          setSelectedRepoReviewData(null)
+        }
       } catch (err: any) {
         setSelectedAssignmentError(err.message || 'Failed to load assignment')
         setSelectedAssignmentData(null)
+        setSelectedRepoReviewData(null)
       } finally {
         setSelectedAssignmentLoading(false)
       }
     }
 
     loadSelectedAssignment()
-  }, [selection, refreshCounter])
+  }, [assignments, refreshCounter, selection])
 
   // Notify parent about selected assignment for sidebar
   useEffect(() => {
@@ -466,8 +545,29 @@ export function TeacherClassroomView({
         title: assignment.title,
         instructions: assignment.rich_instructions || assignment.description,
       })
+    } else if (selectedRepoReviewData) {
+      onSelectAssignment?.(null)
     }
-  }, [selection.mode, selectedAssignmentData, onSelectAssignment])
+  }, [selection.mode, selectedAssignmentData, selectedRepoReviewData, onSelectAssignment])
+
+  useEffect(() => {
+    if (!selectedRepoReviewData) {
+      setRepoReviewMappings({})
+      return
+    }
+
+    setRepoReviewMappings(
+      Object.fromEntries(
+        selectedRepoReviewData.students.map((student) => [
+          student.student_id,
+          {
+            github_login: student.github_login || '',
+            commit_emails: student.commit_emails.join(', '),
+          },
+        ])
+      )
+    )
+  }, [selectedRepoReviewData])
 
   // Notify parent of view mode changes
   useEffect(() => {
@@ -550,7 +650,44 @@ export function TeacherClassroomView({
     return rows
   }, [selectedAssignmentData, sortColumn, sortDirection])
 
-  const studentRowIds = useMemo(() => sortedStudents.map((s) => s.student_id), [sortedStudents])
+  const sortedRepoReviewStudents = useMemo(() => {
+    if (!selectedRepoReviewData) return []
+    const rows = [...selectedRepoReviewData.students]
+    if (sortColumn === 'status') {
+      rows.sort((a, b) => {
+        const scoreA = a.result?.relative_contribution_share ?? 0
+        const scoreB = b.result?.relative_contribution_share ?? 0
+        const cmp = scoreB - scoreA
+        if (cmp !== 0) return applyDirection(cmp, sortDirection)
+        return (a.student_name || a.student_email).localeCompare(b.student_name || b.student_email)
+      })
+      return rows
+    }
+
+    const nameColumn = sortColumn === 'first' ? 'first_name' as const : 'last_name' as const
+    rows.sort((a, b) =>
+      compareByNameFields(
+        {
+          firstName: a.student_name?.split(' ')[0] || null,
+          lastName: a.student_name?.split(' ').slice(1).join(' ') || null,
+          id: a.student_email,
+        },
+        {
+          firstName: b.student_name?.split(' ')[0] || null,
+          lastName: b.student_name?.split(' ').slice(1).join(' ') || null,
+          id: b.student_email,
+        },
+        nameColumn,
+        sortDirection
+      )
+    )
+    return rows
+  }, [selectedRepoReviewData, sortColumn, sortDirection])
+
+  const isRepoReviewSelection = !!selectedRepoReviewData
+  const currentStudentRows = isRepoReviewSelection ? sortedRepoReviewStudents : sortedStudents
+
+  const studentRowIds = useMemo(() => currentStudentRows.map((s) => s.student_id), [currentStudentRows])
   const dueAtMs = useMemo(() => selectedAssignmentData ? new Date(selectedAssignmentData.assignment.due_at).getTime() : 0, [selectedAssignmentData])
   const {
     selectedIds: batchSelectedIds,
@@ -561,9 +698,9 @@ export function TeacherClassroomView({
     selectedCount: batchSelectedCount,
   } = useStudentSelection(studentRowIds)
   const batchSelectedGradedCount = useMemo(() => {
-    if (!selectedAssignmentData) return 0
+    if (currentStudentRows.length === 0) return 0
     let graded = 0
-    for (const student of selectedAssignmentData.students) {
+    for (const student of currentStudentRows) {
       const doc = student.doc
       const hasDraftScores = !!(
         doc &&
@@ -576,7 +713,7 @@ export function TeacherClassroomView({
       }
     }
     return graded
-  }, [selectedAssignmentData, batchSelectedIds])
+  }, [batchSelectedIds, currentStudentRows])
   const batchSelectedUngradedCount = batchSelectedCount - batchSelectedGradedCount
 
   // Auto-dismiss warning after 3 seconds, or immediately when students are selected
@@ -624,6 +761,38 @@ export function TeacherClassroomView({
     }
   }
 
+  async function handleBatchArtifactRepoAnalyze() {
+    if (!selectedAssignmentData || batchSelectedCount === 0) return
+    setBatchProgressCount(batchSelectedCount)
+    setIsArtifactRepoAnalyzing(true)
+    setError('')
+    setInfo('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/artifact-repo/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Repo analysis failed')
+
+      const skipSummary = Object.entries((data.skipped_reasons || {}) as Record<string, number>)
+        .map(([reason, count]) => `${count} ${reason}`)
+        .join(' • ')
+      setInfo(
+        `Analyzed ${data.analyzed_students ?? 0} student(s) across ${data.repo_groups ?? 0} repo group(s)${
+          skipSummary ? ` • ${skipSummary}` : ''
+        }`
+      )
+      batchClearSelection()
+      setRefreshCounter((c) => c + 1)
+    } catch (err: any) {
+      setError(err.message || 'Repo analysis failed')
+    } finally {
+      setIsArtifactRepoAnalyzing(false)
+    }
+  }
+
   async function handleBatchReturn() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
     setBatchProgressCount(batchSelectedCount)
@@ -654,28 +823,29 @@ export function TeacherClassroomView({
 
   const selectedStudentIndex = useMemo(() => {
     if (!selectedStudentId) return -1
-    return sortedStudents.findIndex((student) => student.student_id === selectedStudentId)
-  }, [sortedStudents, selectedStudentId])
+    return currentStudentRows.findIndex((student) => student.student_id === selectedStudentId)
+  }, [currentStudentRows, selectedStudentId])
 
   const canGoPrevStudent = selectedStudentIndex > 0
-  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < sortedStudents.length - 1
+  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < currentStudentRows.length - 1
 
   const handleGoPrevStudent = useCallback(() => {
     if (selectedStudentIndex <= 0) return
-    setSelectedStudentId(sortedStudents[selectedStudentIndex - 1].student_id)
-  }, [selectedStudentIndex, sortedStudents])
+    setSelectedStudentId(currentStudentRows[selectedStudentIndex - 1].student_id)
+  }, [currentStudentRows, selectedStudentIndex])
 
   const handleGoNextStudent = useCallback(() => {
-    if (selectedStudentIndex === -1 || selectedStudentIndex >= sortedStudents.length - 1) return
-    setSelectedStudentId(sortedStudents[selectedStudentIndex + 1].student_id)
-  }, [selectedStudentIndex, sortedStudents])
+    if (selectedStudentIndex === -1 || selectedStudentIndex >= currentStudentRows.length - 1) return
+    setSelectedStudentId(currentStudentRows[selectedStudentIndex + 1].student_id)
+  }, [currentStudentRows, selectedStudentIndex])
 
   // Notify parent when student selection changes
   useEffect(() => {
-    if (selectedStudentId && selection.mode === 'assignment' && selectedAssignmentData?.assignment?.id) {
+    const activeAssignment = selectedAssignmentData?.assignment || selectedRepoReviewData?.assignment || null
+    if (selectedStudentId && selection.mode === 'assignment' && activeAssignment?.id) {
       onSelectStudent?.({
-        assignmentId: selectedAssignmentData.assignment.id,
-        assignmentTitle: selectedAssignmentData.assignment.title,
+        assignmentId: activeAssignment.id,
+        assignmentTitle: activeAssignment.title,
         studentId: selectedStudentId,
         canGoPrev: canGoPrevStudent,
         canGoNext: canGoNextStudent,
@@ -685,7 +855,7 @@ export function TeacherClassroomView({
     } else {
       onSelectStudent?.(null)
     }
-  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, selectedAssignmentData?.assignment?.title, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
+  }, [selectedAssignmentData?.assignment, selectedRepoReviewData?.assignment, selectedStudentId, selection.mode, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
 
   // Auto-open right sidebar and collapse left sidebar when student is selected
   const prevSelectedStudentIdRef = useRef<string | null>(null)
@@ -795,7 +965,92 @@ export function TeacherClassroomView({
   }
 
   const canEditAssignment =
-    selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
+    selection.mode === 'assignment' && (!!selectedAssignmentData || !!selectedRepoReviewData) && !selectedAssignmentLoading && !isReadOnly
+
+  async function handleRunRepoReview() {
+    if (!selectedRepoReviewData) return
+    setRepoReviewRunning(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${selectedRepoReviewData.assignment.id}/repo-review/run`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to run repo review')
+      setInfo(`Analyzed ${data.analyzed_students ?? 0} student(s)`)
+      setRefreshCounter((count) => count + 1)
+    } catch (err: any) {
+      setError(err.message || 'Failed to run repo review')
+    } finally {
+      setRepoReviewRunning(false)
+    }
+  }
+
+  async function handleApplyRepoReview() {
+    if (!selectedRepoReviewData) return
+    setRepoReviewApplying(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${selectedRepoReviewData.assignment.id}/repo-review/apply`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to apply repo review drafts')
+      setInfo(`Applied draft grades for ${data.applied_count ?? 0} student(s)`)
+      setRefreshCounter((count) => count + 1)
+    } catch (err: any) {
+      setError(err.message || 'Failed to apply repo review drafts')
+    } finally {
+      setRepoReviewApplying(false)
+    }
+  }
+
+  function updateRepoReviewMapping(studentId: string, field: 'github_login' | 'commit_emails', value: string) {
+    setRepoReviewMappings((prev) => ({
+      ...prev,
+      [studentId]: {
+        github_login: prev[studentId]?.github_login || '',
+        commit_emails: prev[studentId]?.commit_emails || '',
+        [field]: value,
+      },
+    }))
+  }
+
+  async function handleSaveRepoReviewMappings() {
+    if (!selectedRepoReviewData?.config) return
+    setRepoReviewSaving(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${selectedRepoReviewData.assignment.id}/repo-review/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'github',
+          repo_url: `${selectedRepoReviewData.config.repo_owner}/${selectedRepoReviewData.config.repo_name}`,
+          default_branch: selectedRepoReviewData.config.default_branch,
+          review_start_at: selectedRepoReviewData.config.review_start_at,
+          review_end_at: selectedRepoReviewData.config.review_end_at,
+          include_pr_reviews: selectedRepoReviewData.config.include_pr_reviews,
+          student_mappings: selectedRepoReviewData.students.map((student) => ({
+            student_id: student.student_id,
+            github_login: repoReviewMappings[student.student_id]?.github_login?.trim() || null,
+            commit_emails: (repoReviewMappings[student.student_id]?.commit_emails || '')
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean),
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save GitHub mappings')
+      setInfo('Saved repo review mappings')
+      setRefreshCounter((count) => count + 1)
+    } catch (err: any) {
+      setError(err.message || 'Failed to save GitHub mappings')
+    } finally {
+      setRepoReviewSaving(false)
+    }
+  }
 
   const primaryButtons =
     selection.mode === 'summary' ? (
@@ -809,6 +1064,62 @@ export function TeacherClassroomView({
         <Plus className="h-5 w-5" aria-hidden="true" />
         <span>New</span>
       </button>
+    ) : selectedRepoReviewData ? (
+      <div className="flex gap-2 flex-wrap items-center">
+        <button
+          type="button"
+          className={`${ACTIONBAR_BUTTON_CLASSNAME} flex items-center gap-1`}
+          onClick={() => {
+            setEditAssignment(selectedRepoReviewData.assignment)
+          }}
+          disabled={!canEditAssignment}
+          aria-label="Edit assignment"
+        >
+          <Pencil className="h-5 w-5" aria-hidden="true" />
+          <span>Edit</span>
+        </button>
+        <button
+          type="button"
+          className={`${ACTIONBAR_BUTTON_CLASSNAME} flex items-center gap-1`}
+          onClick={() => {
+            void handleRunRepoReview()
+          }}
+          disabled={repoReviewRunning || isReadOnly}
+          aria-label="Analyze repo"
+        >
+          <BarChart3 className="h-5 w-5" aria-hidden="true" />
+          <span>{repoReviewRunning ? 'Analyzing...' : 'Analyze'}</span>
+        </button>
+        <button
+          type="button"
+          className={`${ACTIONBAR_BUTTON_CLASSNAME} flex items-center gap-1`}
+          onClick={() => {
+            void handleApplyRepoReview()
+          }}
+          disabled={repoReviewApplying || isReadOnly || !selectedRepoReviewData.latest_completed_run}
+          aria-label="Apply draft grades"
+        >
+          <Check className="h-5 w-5" aria-hidden="true" />
+          <span>{repoReviewApplying ? 'Applying...' : 'Apply Drafts'}</span>
+        </button>
+        <Tooltip content={batchSelectedCount > 0 ? `Return (${batchSelectedCount})` : 'Select students to return'}>
+          <button
+            type="button"
+            className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} ${batchSelectedCount === 0 ? 'opacity-50' : ''}`}
+            onClick={() => {
+              if (batchSelectedCount === 0) {
+                setWarning('Select students to return')
+                return
+              }
+              setShowReturnConfirm(true)
+            }}
+            disabled={isReturning || isReadOnly}
+            aria-label={batchSelectedCount > 0 ? `Return to ${batchSelectedCount} students` : 'Select students to return'}
+          >
+            <Send className={`h-5 w-5 ${batchSelectedCount > 0 ? 'text-blue-500' : ''}`} aria-hidden="true" />
+          </button>
+        </Tooltip>
+      </div>
     ) : (
       <div className="flex gap-2 flex-wrap items-center">
         <button
@@ -827,6 +1138,23 @@ export function TeacherClassroomView({
         </button>
         {selectedAssignmentData && (
           <>
+            <Tooltip content={batchSelectedCount > 0 ? `Analyze repo (${batchSelectedCount})` : 'Select students to analyze repos'}>
+              <button
+                type="button"
+                className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} ${batchSelectedCount === 0 ? 'opacity-50' : ''}`}
+                onClick={() => {
+                  if (batchSelectedCount === 0) {
+                    setWarning('Select students to analyze repos')
+                    return
+                  }
+                  void handleBatchArtifactRepoAnalyze()
+                }}
+                disabled={isArtifactRepoAnalyzing || isReadOnly}
+                aria-label={batchSelectedCount > 0 ? `Analyze repos for ${batchSelectedCount} students` : 'Select students to analyze repos'}
+              >
+                <BarChart3 className={`h-5 w-5 ${batchSelectedCount > 0 ? 'text-primary' : ''}`} aria-hidden="true" />
+              </button>
+            </Tooltip>
             <Tooltip content={batchSelectedCount > 0 ? `AI grade (${batchSelectedCount})` : 'Select students to grade'}>
               <button
                 type="button"
@@ -938,10 +1266,210 @@ export function TeacherClassroomView({
             </DndContext>
           )}
         </div>
+      ) : isRepoReviewSelection ? (
+        <KeyboardNavigableTable
+          ref={tableContainerRef}
+          rowKeys={currentStudentRows.map((s) => s.student_id)}
+          selectedKey={selectedStudentId}
+          onSelectKey={setSelectedStudentId}
+        >
+          <div className="space-y-3">
+            {selectedAssignmentLoading ? (
+              <TableCard>
+                <div className="flex justify-center py-10">
+                  <Spinner />
+                </div>
+              </TableCard>
+            ) : selectedAssignmentError || !selectedRepoReviewData ? (
+              <TableCard>
+                <div className="p-4 text-sm text-danger">
+                  {selectedAssignmentError || 'Failed to load repo review'}
+                </div>
+              </TableCard>
+            ) : (
+              <>
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                  <div className="rounded-lg border border-border bg-surface p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs uppercase tracking-wide text-text-muted">Repo Review</div>
+                        <div className="mt-1 text-lg font-semibold text-text-default">
+                          {selectedRepoReviewData.config
+                            ? `${selectedRepoReviewData.config.repo_owner}/${selectedRepoReviewData.config.repo_name}`
+                            : 'Repo not configured'}
+                        </div>
+                        <div className="mt-1 text-sm text-text-muted">
+                          Branch {selectedRepoReviewData.config?.default_branch || 'main'}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="rounded-full border border-border bg-surface-2 px-3 py-1 text-sm font-medium text-text-default">
+                          Confidence {Math.round((selectedRepoReviewData.summary.confidence || 0) * 100)}%
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            void handleSaveRepoReviewMappings()
+                          }}
+                          disabled={repoReviewSaving || !selectedRepoReviewData.config}
+                        >
+                          {repoReviewSaving ? 'Saving...' : 'Save mappings'}
+                        </Button>
+                      </div>
+                    </div>
+                    {selectedRepoReviewData.latest_run?.warnings_json?.length ? (
+                      <div className="mt-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                        {selectedRepoReviewData.latest_run.warnings_json.map((warning) => warning.message).join(' ')}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-surface p-4">
+                    <div className="text-xs uppercase tracking-wide text-text-muted">Team Timeline</div>
+                    <div className="mt-3 flex items-end gap-1">
+                      {selectedRepoReviewData.summary.team_timeline.length ? (
+                        selectedRepoReviewData.summary.team_timeline.map((point) => (
+                          <Tooltip
+                            key={point.date}
+                            content={`${point.date}: ${point.commit_count} commit${point.commit_count === 1 ? '' : 's'}`}
+                          >
+                            <div
+                              className="flex-1 rounded-t bg-primary/80"
+                              style={{ height: `${Math.max(12, Math.round(point.weighted_contribution * 24))}px` }}
+                            />
+                          </Tooltip>
+                        ))
+                      ) : (
+                        <div className="text-sm text-text-muted">Run analysis to populate workflow activity.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <TableCard>
+                  <DataTable density={isCompactTable ? 'tight' : 'compact'}>
+                    <DataTableHead>
+                      <DataTableRow>
+                        <DataTableHeaderCell className="w-10">
+                          <input
+                            type="checkbox"
+                            checked={batchAllSelected}
+                            onChange={batchToggleSelectAll}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                            aria-label="Select all students"
+                          />
+                        </DataTableHeaderCell>
+                        <SortableHeaderCell
+                          label={isCompactTable ? 'First' : 'First Name'}
+                          isActive={sortColumn === 'first'}
+                          direction={sortDirection}
+                          onClick={() => toggleSort('first')}
+                          className={isCompactTable ? 'w-[5.5rem]' : 'w-[8rem]'}
+                        />
+                        <SortableHeaderCell
+                          label={isCompactTable ? 'L.' : 'Last Name'}
+                          isActive={sortColumn === 'last'}
+                          direction={sortDirection}
+                          onClick={() => toggleSort('last')}
+                          className={isCompactTable ? 'w-[4.5rem]' : 'w-[8rem]'}
+                        />
+                        <DataTableHeaderCell className="w-[14rem]">GitHub Mapping</DataTableHeaderCell>
+                        <DataTableHeaderCell className="w-[8rem]">Contribution</DataTableHeaderCell>
+                        <DataTableHeaderCell className="w-[8rem]">Consistency</DataTableHeaderCell>
+                        <DataTableHeaderCell className="w-[8rem]">Iteration</DataTableHeaderCell>
+                        <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
+                      </DataTableRow>
+                    </DataTableHead>
+                    <DataTableBody>
+                      {sortedRepoReviewStudents.map((student) => {
+                        const isSelected = selectedStudentId === student.student_id
+                        const totalScore =
+                          student.doc?.score_completion != null &&
+                          student.doc?.score_thinking != null &&
+                          student.doc?.score_workflow != null
+                            ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
+                            : null
+                        const [firstName, ...lastNameParts] = (student.student_name || '').split(' ')
+                        return (
+                          <DataTableRow
+                            key={student.student_id}
+                            className={getRowClassName(isSelected)}
+                            onClick={() => setSelectedStudentId(isSelected ? null : student.student_id)}
+                          >
+                            <DataTableCell>
+                              <input
+                                type="checkbox"
+                                checked={batchSelectedIds.has(student.student_id)}
+                                onChange={() => batchToggleSelect(student.student_id)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                                aria-label={`Select ${student.student_name || student.student_email}`}
+                              />
+                            </DataTableCell>
+                            <DataTableCell>{firstName || '—'}</DataTableCell>
+                            <DataTableCell>{lastNameParts.join(' ') || '—'}</DataTableCell>
+                            <DataTableCell className="align-top">
+                              <div className="space-y-2">
+                                <Input
+                                  value={repoReviewMappings[student.student_id]?.github_login || ''}
+                                  onChange={(event) => updateRepoReviewMapping(student.student_id, 'github_login', event.target.value)}
+                                  placeholder="github login"
+                                  onClick={(event) => event.stopPropagation()}
+                                />
+                                <Input
+                                  value={repoReviewMappings[student.student_id]?.commit_emails || ''}
+                                  onChange={(event) => updateRepoReviewMapping(student.student_id, 'commit_emails', event.target.value)}
+                                  placeholder="commit emails (comma separated)"
+                                  onClick={(event) => event.stopPropagation()}
+                                />
+                              </div>
+                            </DataTableCell>
+                            <DataTableCell>
+                              <div className="space-y-1">
+                                <MetricBar value={student.result?.relative_contribution_share || 0} />
+                                <div className="text-xs text-text-muted">
+                                  {Math.round((student.result?.relative_contribution_share || 0) * 100)}%
+                                </div>
+                              </div>
+                            </DataTableCell>
+                            <DataTableCell>
+                              <div className="space-y-1">
+                                <MetricBar value={student.result?.spread_score || 0} />
+                                <div className="text-xs text-text-muted">
+                                  {Math.round((student.result?.spread_score || 0) * 100)}%
+                                </div>
+                              </div>
+                            </DataTableCell>
+                            <DataTableCell>
+                              <div className="space-y-1">
+                                <MetricBar value={student.result?.iteration_score || 0} />
+                                <div className="text-xs text-text-muted">
+                                  {Math.round((student.result?.iteration_score || 0) * 100)}%
+                                </div>
+                              </div>
+                            </DataTableCell>
+                            <DataTableCell className="whitespace-nowrap text-text-muted">
+                              {totalScore !== null ? `${Math.round((totalScore / 30) * 100)}%` : '—'}
+                            </DataTableCell>
+                          </DataTableRow>
+                        )
+                      })}
+                      {sortedRepoReviewStudents.length === 0 && (
+                        <EmptyStateRow colSpan={8} message="No students enrolled" />
+                      )}
+                    </DataTableBody>
+                  </DataTable>
+                </TableCard>
+              </>
+            )}
+          </div>
+        </KeyboardNavigableTable>
       ) : (
         <KeyboardNavigableTable
           ref={tableContainerRef}
-          rowKeys={sortedStudents.map((s) => s.student_id)}
+          rowKeys={currentStudentRows.map((s) => s.student_id)}
           selectedKey={selectedStudentId}
           onSelectKey={setSelectedStudentId}
         >
@@ -956,11 +1484,17 @@ export function TeacherClassroomView({
               </div>
             ) : (
               <div className="relative">
-              {(isAutoGrading || isReturning) && (
+              {(isAutoGrading || isArtifactRepoAnalyzing || isReturning) && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-surface/70">
                   <div className="flex items-center gap-2 text-sm text-text-muted">
                     <Spinner />
-                    <span>{isAutoGrading ? `Grading ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…` : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}</span>
+                    <span>
+                      {isAutoGrading
+                        ? `Grading ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+                        : isArtifactRepoAnalyzing
+                          ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+                          : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
+                    </span>
                   </div>
                 </div>
               )}
@@ -1001,7 +1535,7 @@ export function TeacherClassroomView({
                     <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
                     {!isCompactTable && <DataTableHeaderCell className="w-[5.5rem]">Updated</DataTableHeaderCell>}
                     <DataTableHeaderCell className={isCompactTable ? 'w-[6.5rem]' : 'w-[38%] min-w-[24rem]'}>
-                      {isCompactTable ? 'Work' : 'Links / Images'}
+                      {isCompactTable ? 'Work' : 'Artifacts'}
                     </DataTableHeaderCell>
                   </DataTableRow>
                 </DataTableHead>

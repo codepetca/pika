@@ -3,9 +3,10 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
 import { extractAssignmentArtifacts } from '@/lib/assignment-artifacts'
+import { parseAndValidateRepoUrl } from '@/lib/server/repo-review'
 import { extractPlainText } from '@/lib/tiptap-content'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { TiptapContent } from '@/types'
+import type { AssignmentEvaluationMode, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,7 +17,6 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
   const { id } = await context.params
   const supabase = getServiceRoleClient()
 
-  // Fetch assignment and verify ownership
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
     .select(`
@@ -45,7 +45,6 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     )
   }
 
-  // Get all students in classroom with their assignment docs
   const { data: enrollments, error: enrollmentError } = await supabase
     .from('classroom_enrollments')
     .select(`
@@ -65,35 +64,31 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     )
   }
 
-  // Get student profiles for names
-  const studentIds = enrollments?.map(e => e.student_id) || []
+  const studentIds = enrollments?.map((enrollment) => enrollment.student_id) || []
   const { data: profiles } = await supabase
     .from('student_profiles')
     .select('user_id, first_name, last_name')
     .in('user_id', studentIds)
 
   const profileMap = new Map(
-    profiles?.map(p => [
-      p.user_id,
+    profiles?.map((profile) => [
+      profile.user_id,
       {
-        first_name: p.first_name,
-        last_name: p.last_name,
-        full_name: `${p.first_name} ${p.last_name}`.trim(),
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        full_name: `${profile.first_name} ${profile.last_name}`.trim(),
       },
     ]) || []
   )
 
-  // Get all assignment docs for this assignment
   const { data: docs } = await supabase
     .from('assignment_docs')
     .select('*')
     .eq('assignment_id', id)
 
-  const docMap = new Map(docs?.map(d => [d.student_id, d]) || [])
-  const docIds = (docs || []).map((d) => d.id)
+  const docMap = new Map(docs?.map((doc) => [doc.student_id, doc]) || [])
+  const docIds = (docs || []).map((doc) => doc.id)
 
-  // Student-only activity signal: most recent history entry per assignment doc.
-  // This excludes teacher grading updates that also touch assignment_docs.updated_at.
   const studentUpdatedAtByDocId = new Map<string, string>()
   if (docIds.length > 0) {
     const { data: historyRows } = await supabase
@@ -109,11 +104,9 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     }
   }
 
-  // Build student submission list
-  const students = (enrollments || []).map(enrollment => {
+  const students = (enrollments || []).map((enrollment) => {
     const doc = docMap.get(enrollment.student_id)
     const status = calculateAssignmentStatus(assignment, doc)
-    // users is a single object due to the foreign key relationship
     const userEmail = (enrollment.users as unknown as { id: string; email: string }).email
     const profile = profileMap.get(enrollment.student_id) || null
     const artifacts = doc ? extractAssignmentArtifacts(doc.content) : []
@@ -135,13 +128,13 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
             score_workflow: doc.score_workflow,
             graded_at: doc.graded_at,
             returned_at: doc.returned_at,
+            feedback_returned_at: doc.feedback_returned_at,
           }
         : null,
       artifacts,
     }
   })
 
-  // Sort by name (with email fallback)
   students.sort((a, b) => {
     const nameA = a.student_name || a.student_email
     const nameB = b.student_name || b.student_email
@@ -159,13 +152,14 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
       position: assignment.position ?? 0,
       is_draft: assignment.is_draft ?? false,
       released_at: assignment.released_at ?? null,
+      evaluation_mode: assignment.evaluation_mode ?? 'document',
       track_authenticity: assignment.track_authenticity ?? true,
       created_by: assignment.created_by,
       created_at: assignment.created_at,
-      updated_at: assignment.updated_at
+      updated_at: assignment.updated_at,
     },
     classroom: assignment.classrooms,
-    students
+    students,
   })
 })
 
@@ -174,17 +168,24 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
   const user = await requireRole('teacher')
   const { id } = await context.params
   const body = await request.json()
-  const { title, rich_instructions, due_at, is_draft, released_at } = body as {
+  const { title, rich_instructions, due_at, is_draft, released_at, evaluation_mode, repo_review } = body as {
     title?: string
     rich_instructions?: TiptapContent
     due_at?: string
     is_draft?: boolean
     released_at?: string | null
+    evaluation_mode?: AssignmentEvaluationMode
+    repo_review?: {
+      repo_url?: string
+      default_branch?: string
+      review_start_at?: string | null
+      review_end_at?: string | null
+      include_pr_reviews?: boolean
+    }
   }
 
   const supabase = getServiceRoleClient()
 
-  // Fetch assignment and verify ownership
   const { data: existing, error: existingError } = await supabase
     .from('assignments')
     .select(`
@@ -225,15 +226,37 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     )
   }
 
-  // Build update object
+  if (evaluation_mode !== undefined && evaluation_mode !== 'document' && evaluation_mode !== 'repo_review') {
+    return NextResponse.json(
+      { error: 'evaluation_mode must be "document" or "repo_review"' },
+      { status: 400 }
+    )
+  }
+
+  const nextEvaluationMode = (evaluation_mode ?? existing.evaluation_mode ?? 'document') as AssignmentEvaluationMode
+  const repoUrl = typeof repo_review?.repo_url === 'string' ? repo_review.repo_url.trim() : ''
+  if (nextEvaluationMode === 'repo_review' && existing.evaluation_mode !== 'repo_review' && !repoUrl) {
+    return NextResponse.json(
+      { error: 'repo_review.repo_url is required when evaluation_mode is "repo_review"' },
+      { status: 400 }
+    )
+  }
+  if (repo_review && !repoUrl) {
+    return NextResponse.json(
+      { error: 'repo_review.repo_url must not be empty' },
+      { status: 400 }
+    )
+  }
+
   const updates: Record<string, any> = {}
   if (title !== undefined) updates.title = title.trim()
   if (rich_instructions !== undefined) {
     const instructions: TiptapContent = rich_instructions
     updates.rich_instructions = instructions
-    updates.description = extractPlainText(instructions)  // Keep plain text in sync
+    updates.description = extractPlainText(instructions)
   }
   if (due_at !== undefined) updates.due_at = due_at
+  if (evaluation_mode !== undefined) updates.evaluation_mode = evaluation_mode
 
   const now = new Date()
   const existingReleaseDate = existing.released_at ? new Date(existing.released_at) : null
@@ -303,12 +326,45 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     .select()
     .single()
 
-  if (error) {
+  if (error || !assignment) {
     console.error('Error updating assignment:', error)
     return NextResponse.json(
       { error: 'Failed to update assignment' },
       { status: 500 }
     )
+  }
+
+  if (nextEvaluationMode === 'repo_review' && repo_review?.repo_url) {
+    const parsedRepo = parseAndValidateRepoUrl(String(repo_review.repo_url))
+    const { error: configError } = await supabase
+      .from('assignment_repo_reviews')
+      .upsert({
+        assignment_id: id,
+        provider: 'github',
+        repo_owner: parsedRepo.owner,
+        repo_name: parsedRepo.name,
+        default_branch: String(repo_review.default_branch || 'main').trim() || 'main',
+        review_start_at: repo_review.review_start_at ?? null,
+        review_end_at: repo_review.review_end_at ?? null,
+        include_pr_reviews: repo_review.include_pr_reviews !== false,
+        config_json: {
+          metrics_version: 'v1',
+          prompt_version: 'v1',
+        },
+      }, { onConflict: 'assignment_id' })
+
+    if (configError) {
+      console.error('Error updating repo review config:', configError)
+      return NextResponse.json(
+        { error: 'Failed to update repo review config' },
+        { status: 500 }
+      )
+    }
+  } else if (nextEvaluationMode === 'document') {
+    await supabase
+      .from('assignment_repo_reviews')
+      .delete()
+      .eq('assignment_id', id)
   }
 
   return NextResponse.json({ assignment })
@@ -320,7 +376,6 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
   const { id } = await context.params
   const supabase = getServiceRoleClient()
 
-  // Fetch assignment and verify ownership
   const { data: existing, error: existingError } = await supabase
     .from('assignments')
     .select(`

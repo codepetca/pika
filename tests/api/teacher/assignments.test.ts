@@ -81,4 +81,22 @@ describe('POST /api/teacher/assignments', () => {
     const response = await POST(request)
     expect(response.status).toBe(400)
   })
+
+  it('requires a repo url for repo review assignments', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments', {
+      method: 'POST',
+      body: JSON.stringify({
+        classroom_id: 'c1',
+        title: 'Repo Review',
+        due_at: '2026-03-20T23:59:59.000Z',
+        evaluation_mode: 'repo_review',
+      }),
+    })
+
+    const response = await POST(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(body.error).toContain('repo_review.repo_url')
+  })
 })
