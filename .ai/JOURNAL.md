@@ -7029,3 +7029,14 @@
 
 **Validation:**
 - `pnpm test:coverage` (pass; all 175 files / 1540 tests)
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Fix stale classrooms state immediately after login.
+**Completed:**
+- Switched the post-login redirect from App Router client navigation to a hard browser navigation so the first authenticated visit to `/classrooms` cannot reuse a stale cached payload from the logged-out session.
+- Extracted the hard-navigation call into a small client helper to keep the login client easy to test.
+- Updated the login component tests to assert full-document navigation behavior instead of `router.push`.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/LoginClient.test.tsx tests/api/auth/login.test.ts` (pass)
+- Browser verification against `http://localhost:3002`: teacher and student both logged in and saw `/classrooms` render classroom cards immediately; screenshots saved to `/tmp/pika-login-teacher.png` and `/tmp/pika-login-student.png`
