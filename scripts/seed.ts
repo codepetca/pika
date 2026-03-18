@@ -16,6 +16,7 @@ import { createClient } from '@supabase/supabase-js'
 import { generateClassDays, generateClassDaysFromRange, getSemesterDates, getSemesterForDate } from '../src/lib/calendar'
 import { hashPassword } from '../src/lib/crypto'
 import { getTodayInToronto } from '../src/lib/timezone'
+import { seedAssignmentReviewFixtures } from './seed-assignment-review-fixtures'
 import { seedSampleTests } from './seed-tests'
 import { config } from 'dotenv'
 import { addDays, format, parse, subDays } from 'date-fns'
@@ -421,10 +422,17 @@ async function seed() {
   console.log('Creating sample assignments...')
 
   // Delete existing assignment data for this classroom
-  await supabase.from('assignment_docs').delete().in('assignment_id',
+  const existingAssignmentIds =
     (await supabase.from('assignments').select('id').eq('classroom_id', createdClassroom.id)).data?.map((a: any) => a.id) ?? []
-  )
-  await supabase.from('assignments').delete().eq('classroom_id', createdClassroom.id)
+  if (existingAssignmentIds.length > 0) {
+    await supabase.from('assignment_feedback_entries').delete().in('assignment_id', existingAssignmentIds)
+    await supabase.from('assignment_repo_targets').delete().in('assignment_id', existingAssignmentIds)
+    await supabase.from('assignment_repo_review_results').delete().in('assignment_id', existingAssignmentIds)
+    await supabase.from('assignment_repo_review_runs').delete().in('assignment_id', existingAssignmentIds)
+    await supabase.from('assignment_repo_reviews').delete().in('assignment_id', existingAssignmentIds)
+    await supabase.from('assignment_docs').delete().in('assignment_id', existingAssignmentIds)
+    await supabase.from('assignments').delete().eq('classroom_id', createdClassroom.id)
+  }
 
   const now = new Date()
   const assignments = [
@@ -938,6 +946,22 @@ async function seed() {
         )
         console.log(`✓ Created ${historyEntries.length} history entries across 10 days\n`)
       }
+
+      await seedAssignmentReviewFixtures({
+        supabase,
+        classroomId: createdClassroom.id,
+        teacherId: createdTeacher.id,
+        students: students.map((student) => ({
+          id: student.id,
+          email: student.email,
+        })),
+        assignments: {
+          narrative,
+          letter,
+        },
+        now,
+      })
+      console.log('✓ Added repo artifact, repo review, and feedback-return fixtures\n')
     }
   }
 

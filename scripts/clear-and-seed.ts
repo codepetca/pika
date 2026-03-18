@@ -15,6 +15,7 @@ import { createClient } from '@supabase/supabase-js'
 import { generateClassDays, generateClassDaysFromRange, getSemesterDates, getSemesterForDate } from '../src/lib/calendar'
 import { hashPassword } from '../src/lib/crypto'
 import { getTodayInToronto } from '../src/lib/timezone'
+import { seedAssignmentReviewFixtures } from './seed-assignment-review-fixtures'
 import { seedSampleTests } from './seed-tests'
 import { config } from 'dotenv'
 import { addDays, format, parse, subDays } from 'date-fns'
@@ -109,6 +110,26 @@ async function clearAndSeed() {
 
   // Clear data in correct order (respecting foreign keys)
   ensureOk(
+    await supabase.from('assignment_feedback_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete assignment_feedback_entries'
+  )
+  ensureOk(
+    await supabase.from('assignment_repo_targets').delete().neq('assignment_id', '00000000-0000-0000-0000-000000000000'),
+    'Delete assignment_repo_targets'
+  )
+  ensureOk(
+    await supabase.from('assignment_repo_review_results').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete assignment_repo_review_results'
+  )
+  ensureOk(
+    await supabase.from('assignment_repo_review_runs').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete assignment_repo_review_runs'
+  )
+  ensureOk(
+    await supabase.from('assignment_repo_reviews').delete().neq('assignment_id', '00000000-0000-0000-0000-000000000000'),
+    'Delete assignment_repo_reviews'
+  )
+  ensureOk(
     await supabase.from('assignment_docs').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     'Delete assignment_docs'
   )
@@ -151,6 +172,10 @@ async function clearAndSeed() {
   ensureOk(
     await supabase.from('verification_codes').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     'Delete verification_codes'
+  )
+  ensureOk(
+    await supabase.from('user_github_identities').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+    'Delete user_github_identities'
   )
   ensureOk(
     await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
@@ -523,6 +548,22 @@ async function clearAndSeed() {
 
   ensureOk(await supabase.from('assignment_docs').insert(assignmentDocs), 'Insert assignment_docs')
   console.log(`✓ Created ${assignmentDocs.length} assignment docs (student work)\n`)
+
+  await seedAssignmentReviewFixtures({
+    supabase,
+    classroomId: createdClassroom.id,
+    teacherId: createdTeacher.id,
+    students: students.map((student) => ({
+      id: student.id,
+      email: student.email,
+    })),
+    assignments: {
+      narrative,
+      letter,
+    },
+    now,
+  })
+  console.log('✓ Added repo artifact, repo review, and feedback-return fixtures\n')
 
   await seedSampleTests({
     supabase,
