@@ -689,6 +689,11 @@ Prompt:
       )
 
       await waitFor(() => {
+        expect(screen.getByText('Questions (1)')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('Questions (1)'))
+
+      await waitFor(() => {
         expect(screen.getByDisplayValue('Explain your reasoning')).toBeInTheDocument()
       })
 
@@ -735,6 +740,11 @@ Prompt:
         />,
         { wrapper: Wrapper }
       )
+
+      await waitFor(() => {
+        expect(screen.getByText('Questions (1)')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('Questions (1)'))
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Add Answer Key' })).toBeInTheDocument()
@@ -799,6 +809,11 @@ Prompt:
         />,
         { wrapper: Wrapper }
       )
+
+      await waitFor(() => {
+        expect(screen.getByText('Questions (1)')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('Questions (1)'))
 
       await waitFor(() => {
         expect(screen.getByDisplayValue('Explain inertia.')).toBeInTheDocument()
@@ -869,6 +884,11 @@ Prompt:
         />,
         { wrapper: Wrapper }
       )
+
+      await waitFor(() => {
+        expect(screen.getByText('Questions (0)')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('Questions (0)'))
 
       await waitFor(() => {
         expect(screen.getByText('Add MC Question')).toBeInTheDocument()

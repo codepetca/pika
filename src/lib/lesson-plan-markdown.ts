@@ -1,13 +1,13 @@
-import { format, parse, isWeekend } from 'date-fns'
+import { format, isWeekend, parse } from 'date-fns'
+import { getLessonPlanMarkdown, normalizeLessonPlanMarkdown, buildLessonPlanContentFields } from '@/lib/lesson-plan-content'
+import { limitedMarkdownToPlainText, markdownToTiptapContent, tiptapToMarkdown } from '@/lib/limited-markdown'
 import type { Classroom, LessonPlan, TiptapContent } from '@/types'
-
-const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
 
 /**
  * Convert lesson plans to markdown format for export
  */
 export function lessonPlansToMarkdown(
-  classroom: Classroom,
+  _classroom: Classroom,
   plans: LessonPlan[],
   startDate: string,
   endDate: string
@@ -30,11 +30,9 @@ export function lessonPlansToMarkdown(
       lines.push(`## ${dateStr}`)
 
       const plan = planMap.get(dateStr)
-      if (plan && plan.content.content && plan.content.content.length > 0) {
-        const text = extractTextFromTiptap(plan.content)
-        if (text) {
-          lines.push(text)
-        }
+      const markdown = getLessonPlanMarkdown(plan).markdown
+      if (markdown.trim().length > 0) {
+        lines.push(markdown.trim())
       }
       lines.push('')
     }
@@ -50,9 +48,14 @@ export function lessonPlansToMarkdown(
 export function markdownToLessonPlans(
   markdown: string,
   classroom: Classroom
-): { plans: Array<{ date: string; content: TiptapContent }>; errors: string[] } {
+): {
+  plans: Array<{ date: string; content_markdown: string; content: TiptapContent }>
+  clearedDates: string[]
+  errors: string[]
+} {
   const errors: string[] = []
-  const plans: Array<{ date: string; content: TiptapContent }> = []
+  const plans: Array<{ date: string; content_markdown: string; content: TiptapContent }> = []
+  const clearedDates: string[] = []
   const seenDates = new Set<string>()
 
   const lines = markdown.split('\n').map(line => line.replace(/\r$/, ''))
@@ -63,12 +66,16 @@ export function markdownToLessonPlans(
 
   function flushCurrentPlan() {
     if (currentDate) {
-      const text = currentContent.join('\n').trim()
-      if (text) {
+      const normalized = normalizeLessonPlanMarkdown(currentContent.join('\n')).trim()
+      if (normalized) {
+        const contentFields = buildLessonPlanContentFields(normalized)
         plans.push({
           date: currentDate,
-          content: textToTiptapContent(text),
+          content_markdown: contentFields.content_markdown,
+          content: contentFields.content,
         })
+      } else {
+        clearedDates.push(currentDate)
       }
     }
     currentContent = []
@@ -134,53 +141,13 @@ export function markdownToLessonPlans(
   // Flush last plan
   flushCurrentPlan()
 
-  return { plans, errors }
+  return { plans, clearedDates, errors }
 }
 
-/**
- * Extract plain text from Tiptap content
- */
 export function extractTextFromTiptap(content: TiptapContent): string {
-  const lines: string[] = []
-
-  function processNode(node: any): void {
-    if (node.type === 'text') {
-      lines.push(node.text || '')
-    } else if (node.content) {
-      node.content.forEach(processNode)
-      if (node.type === 'paragraph' || node.type === 'heading') {
-        lines.push('\n')
-      }
-    }
-  }
-
-  if (content.content) {
-    content.content.forEach(processNode)
-  }
-
-  return lines.join('').trim()
+  return limitedMarkdownToPlainText(tiptapToMarkdown(content).markdown)
 }
 
-/**
- * Convert plain text to Tiptap content
- */
 export function textToTiptapContent(text: string): TiptapContent {
-  if (!text.trim()) {
-    return EMPTY_CONTENT
-  }
-
-  const paragraphs = text.split(/\n\n+/).filter((p) => p.trim())
-
-  return {
-    type: 'doc',
-    content: paragraphs.map((p) => ({
-      type: 'paragraph',
-      content: [
-        {
-          type: 'text',
-          text: p.trim(),
-        },
-      ],
-    })),
-  }
+  return markdownToTiptapContent(text.trim())
 }

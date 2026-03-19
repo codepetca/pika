@@ -45,6 +45,7 @@ describe('GET /api/teacher/assignments/[id]', () => {
                   classroom_id: 'classroom-1',
                   title: 'Assignment 1',
                   description: 'Desc',
+                  instructions_markdown: 'Desc',
                   rich_instructions: null,
                   due_at: '2099-03-10T23:59:00.000Z',
                   position: 0,

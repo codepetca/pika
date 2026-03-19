@@ -46,6 +46,14 @@ interface Props {
   onRequestDelete?: () => void
 }
 
+type AssessmentEditorDraft = {
+  title: string
+  show_results: boolean
+  questions: QuizQuestion[]
+  source_format?: 'markdown'
+  source_markdown?: string
+}
+
 export function QuizDetailPanel({
   quiz,
   classroomId,
@@ -62,7 +70,9 @@ export function QuizDetailPanel({
   )
   const [results, setResults] = useState<QuizResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<'questions' | 'documents' | 'markdown' | 'preview' | 'results'>('questions')
+  const [viewMode, setViewMode] = useState<'questions' | 'documents' | 'markdown' | 'preview' | 'results'>(
+    () => (quiz.assessment_type === 'test' || apiBasePath.includes('/tests') ? 'markdown' : 'questions')
+  )
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [draftShowResults, setDraftShowResults] = useState(quiz.show_results)
@@ -88,11 +98,7 @@ export function QuizDetailPanel({
   const lastSaveAttemptAtRef = useRef(0)
   const lastSavedDraftRef = useRef('')
   const saveStatusRef = useRef<'saved' | 'saving' | 'unsaved'>('saved')
-  const pendingDraftRef = useRef<{
-    title: string
-    show_results: boolean
-    questions: QuizQuestion[]
-  } | null>(null)
+  const pendingDraftRef = useRef<AssessmentEditorDraft | null>(null)
 
   const normalizeQuestionPositions = useCallback((nextQuestions: QuizQuestion[]): QuizQuestion[] => {
     return nextQuestions.map((question, index) => ({ ...question, position: index }))
@@ -143,7 +149,13 @@ export function QuizDetailPanel({
   const applyServerDraft = useCallback(
     (draft?: {
       version: number
-      content?: { title?: string; show_results?: boolean; questions?: unknown[] }
+      content?: {
+        title?: string
+        show_results?: boolean
+        questions?: unknown[]
+        source_format?: 'markdown'
+        source_markdown?: string
+      }
     } | null) => {
       if (!draft?.content) return
 
@@ -155,6 +167,10 @@ export function QuizDetailPanel({
         title: nextTitle,
         show_results: nextShowResults,
         questions: nextQuestions,
+        ...(draft.content.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
+        ...(typeof draft.content.source_markdown === 'string'
+          ? { source_markdown: draft.content.source_markdown }
+          : {}),
       }
 
       setEditTitle(nextTitle)
@@ -218,10 +234,25 @@ export function QuizDetailPanel({
 
   const saveDraft = useCallback(
     async (
-      nextDraft: { title: string; show_results: boolean; questions: QuizQuestion[] },
-      options?: { forceFull?: boolean; documents?: TestDocument[] }
+      nextDraft: AssessmentEditorDraft,
+      options?: { forceFull?: boolean; documents?: TestDocument[]; sourceMarkdown?: string }
     ) => {
-      const nextSerialized = JSON.stringify(nextDraft)
+      const contentDraft =
+        isTestsView
+          ? {
+              ...nextDraft,
+              source_format: 'markdown' as const,
+              source_markdown:
+                options?.sourceMarkdown ??
+                testToMarkdown({
+                  title: nextDraft.title,
+                  show_results: nextDraft.show_results,
+                  questions: nextDraft.questions,
+                  documents: options?.documents ?? documents,
+                }),
+            }
+          : nextDraft
+      const nextSerialized = JSON.stringify(contentDraft)
       if (!options?.forceFull && nextSerialized === lastSavedDraftRef.current) {
         setSaveStatus('saved')
         return true
@@ -230,17 +261,18 @@ export function QuizDetailPanel({
       setSaveStatus('saving')
       lastSaveAttemptAtRef.current = Date.now()
 
-      let baseDraft = nextDraft
+      let baseDraft = contentDraft
       try {
         if (lastSavedDraftRef.current) {
-          baseDraft = JSON.parse(lastSavedDraftRef.current) as typeof nextDraft
+          baseDraft = JSON.parse(lastSavedDraftRef.current) as AssessmentEditorDraft
         }
       } catch {
-        baseDraft = nextDraft
+        baseDraft = contentDraft
       }
 
-      const patch = createJsonPatch(baseDraft, nextDraft)
+      const patch = createJsonPatch(baseDraft, contentDraft)
       const shouldSendPatch =
+        !isTestsView &&
         !options?.forceFull &&
         patch.length > 0 &&
         !shouldStoreSnapshot(patch as JsonPatchOperation[], nextDraft)
@@ -248,7 +280,7 @@ export function QuizDetailPanel({
       const body: {
         version: number
         patch?: JsonPatchOperation[]
-        content?: typeof nextDraft
+        content?: AssessmentEditorDraft
         documents?: TestDocument[]
       } = {
         version: draftVersionRef.current,
@@ -257,7 +289,7 @@ export function QuizDetailPanel({
       if (shouldSendPatch) {
         body.patch = patch as JsonPatchOperation[]
       } else {
-        body.content = nextDraft
+        body.content = contentDraft
       }
       if (options?.documents) {
         body.documents = options.documents
@@ -319,12 +351,12 @@ export function QuizDetailPanel({
         return false
       }
     },
-    [apiBasePath, applyServerDraft, normalizeDraftQuestions, onQuizUpdate, quiz.id]
+    [apiBasePath, applyServerDraft, documents, isTestsView, normalizeDraftQuestions, onQuizUpdate, quiz.id]
   )
 
   const scheduleSave = useCallback(
     (
-      nextDraft: { title: string; show_results: boolean; questions: QuizQuestion[] },
+      nextDraft: AssessmentEditorDraft,
       options?: { force?: boolean }
     ) => {
       if (conflictDraft) return
@@ -357,7 +389,7 @@ export function QuizDetailPanel({
   )
 
   const scheduleAutosave = useCallback(
-    (nextDraft: { title: string; show_results: boolean; questions: QuizQuestion[] }) => {
+    (nextDraft: AssessmentEditorDraft) => {
       if (conflictDraft) return
 
       pendingDraftRef.current = nextDraft
@@ -781,9 +813,9 @@ export function QuizDetailPanel({
               ? 'border-primary text-primary'
               : 'border-transparent text-text-muted hover:text-text-default'
           }`}
-        >
-          Questions ({questions.length})
-        </button>
+          >
+            {`Questions (${questions.length})`}
+          </button>
         {isTestsView && (
           <button
             type="button"

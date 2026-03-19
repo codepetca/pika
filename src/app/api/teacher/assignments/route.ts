@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
-import { extractPlainText } from '@/lib/tiptap-content'
+import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -76,6 +75,7 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
 
       return {
         ...assignment,
+        instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
         stats: {
           total_students: totalStudents || 0,
           submitted,
@@ -92,7 +92,7 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
 export const POST = withErrorHandler('PostTeacherAssignments', async (request, context) => {
   const user = await requireRole('teacher')
   const body = await request.json()
-  const { classroom_id, title, rich_instructions, due_at } = body
+  const { classroom_id, title, instructions_markdown, rich_instructions, due_at } = body
 
   if (!classroom_id) {
     return NextResponse.json(
@@ -133,12 +133,21 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
   const nextPosition =
     typeof lastAssignmentResult.data?.position === 'number' ? lastAssignmentResult.data.position + 1 : 0
 
-  const instructions: TiptapContent = rich_instructions ?? { type: 'doc', content: [] }
+  const instructionFields = buildAssignmentInstructionFields(
+    typeof instructions_markdown === 'string'
+      ? instructions_markdown
+      : getAssignmentInstructionsMarkdown({
+          instructions_markdown: null,
+          rich_instructions: rich_instructions ?? null,
+          description: '',
+        }).markdown
+  )
   const insertBody: Record<string, any> = {
     classroom_id,
     title: title.trim(),
-    rich_instructions: instructions,
-    description: extractPlainText(instructions),
+    instructions_markdown: instructionFields.instructions_markdown,
+    rich_instructions: instructionFields.rich_instructions,
+    description: instructionFields.description,
     due_at,
     created_by: user.id,
     track_authenticity: true,

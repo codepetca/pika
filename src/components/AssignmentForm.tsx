@@ -3,6 +3,7 @@
 import type { FormEvent, ReactNode, RefObject } from 'react'
 import { Input, Button, FormField } from '@/ui'
 import { DateActionBar } from '@/components/DateActionBar'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { RichTextEditor } from '@/components/editor'
 import { getTodayInToronto } from '@/lib/timezone'
 import type { ClassDay, TiptapContent } from '@/types'
@@ -59,12 +60,14 @@ function getRelativeDays(dueAt: string, classDays?: ClassDay[]): { text: string;
 
 interface AssignmentFormProps {
   title: string
-  instructions: TiptapContent
+  instructionsMarkdown: string
+  legacyInstructions: TiptapContent
   dueAt: string
   classDays?: ClassDay[]
   extraFields?: ReactNode
   onTitleChange: (next: string) => void
-  onInstructionsChange: (next: TiptapContent) => void
+  onInstructionsMarkdownChange: (next: string) => void
+  onLegacyInstructionsChange: (next: TiptapContent) => void
   onDueAtChange: (next: string) => void
   onPrevDate: () => void
   onNextDate: () => void
@@ -78,6 +81,7 @@ interface AssignmentFormProps {
   titleInputRef?: RefObject<HTMLInputElement>
   onBlur?: () => void
   footerContent?: ReactNode
+  markdownWarning?: string | null
   // Optional extra action button (e.g., Release for drafts)
   extraAction?: {
     label: ReactNode
@@ -88,12 +92,14 @@ interface AssignmentFormProps {
 
 export function AssignmentForm({
   title,
-  instructions,
+  instructionsMarkdown,
+  legacyInstructions,
   dueAt,
   classDays,
   extraFields,
   onTitleChange,
-  onInstructionsChange,
+  onInstructionsMarkdownChange,
+  onLegacyInstructionsChange,
   onDueAtChange,
   onPrevDate,
   onNextDate,
@@ -107,6 +113,7 @@ export function AssignmentForm({
   titleInputRef,
   onBlur,
   footerContent,
+  markdownWarning,
   extraAction,
 }: AssignmentFormProps) {
   const isSubmitDisabled = disabled || submitDisabled || !title || !dueAt
@@ -130,15 +137,61 @@ export function AssignmentForm({
         <label className="block text-sm font-medium text-text-muted mb-1">
           Instructions
         </label>
-        <div className="min-h-[200px] border border-border-strong rounded-lg overflow-hidden">
-          <RichTextEditor
-            content={instructions}
-            onChange={onInstructionsChange}
-            onBlur={onBlur}
-            placeholder="Assignment instructions (optional)"
-            disabled={disabled}
-          />
+        <div className="rounded-lg border border-border-strong overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-border bg-surface-2 px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-primary">Markdown First</span>
+            <span>Preview and legacy fallback below</span>
+          </div>
+          {markdownWarning && (
+            <div className="border-b border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+              {markdownWarning}
+            </div>
+          )}
+          <div className="grid min-h-[260px] gap-0 md:grid-cols-2">
+            <div className="border-r border-border">
+              <div className="border-b border-border bg-surface-2 px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+                Author Markdown
+              </div>
+              <textarea
+                value={instructionsMarkdown}
+                onChange={(e) => onInstructionsMarkdownChange(e.target.value)}
+                onBlur={onBlur}
+                placeholder="Assignment instructions in markdown (optional)"
+                disabled={disabled}
+                spellCheck={false}
+                className="min-h-[220px] w-full resize-y border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0"
+              />
+            </div>
+            <div className="bg-page">
+              <div className="border-b border-border bg-surface-2 px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+                Preview
+              </div>
+              <div className="min-h-[220px] p-3">
+                <LimitedMarkdown
+                  content={instructionsMarkdown}
+                  emptyPlaceholder={<div className="text-sm text-text-muted">No assignment details provided.</div>}
+                />
+              </div>
+            </div>
+          </div>
+          <details className="border-t border-border bg-surface">
+            <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-text-muted">
+              Legacy Rich Text Editor
+            </summary>
+            <div className="min-h-[200px] border-t border-border">
+              <RichTextEditor
+                content={legacyInstructions}
+                onChange={onLegacyInstructionsChange}
+                onBlur={onBlur}
+                placeholder="Legacy assignment instructions"
+                disabled={disabled}
+              />
+            </div>
+          </details>
         </div>
+        <p className="mt-1 text-xs text-text-muted">
+          Supported markdown: headings, lists, bold, italic, links, inline code, and fenced code blocks.
+        </p>
       </div>
 
       {extraFields}

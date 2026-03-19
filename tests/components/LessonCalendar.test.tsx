@@ -28,6 +28,7 @@ const mondayAssignment: Assignment = {
   classroom_id: 'cls-123',
   title: 'Week 11 quiz',
   description: 'Quiz instructions',
+  instructions_markdown: 'Quiz instructions',
   rich_instructions: null,
   due_at: '2026-03-16T16:00:00.000Z',
   position: 0,

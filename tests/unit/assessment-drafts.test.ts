@@ -200,6 +200,7 @@ describe('assessment drafts', () => {
     ).toEqual({
       title: 'Test',
       show_results: false,
+      source_format: 'markdown',
       questions: [
         {
           id: TEST_ID_1,

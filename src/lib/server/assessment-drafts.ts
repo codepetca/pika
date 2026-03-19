@@ -38,6 +38,8 @@ export type TestDraftContent = {
   title: string
   show_results: boolean
   questions: TestDraftQuestion[]
+  source_format?: 'markdown'
+  source_markdown?: string
 }
 
 export type AssessmentDraftRow<TContent> = {
@@ -88,6 +90,12 @@ function parseStringArray(value: unknown): string[] | null {
 
 function parseBoolean(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null
+}
+
+function parseOptionalMarkdown(value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== 'string') return undefined
+  return value.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 }
 
 function ensureUniqueQuestionIds<TQuestion extends { id: string }>(questions: TQuestion[]): string | null {
@@ -185,6 +193,10 @@ export function validateQuizDraftContent(input: unknown): ValidationResult<QuizD
       title,
       show_results: showResults,
       questions,
+      ...(input.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
+      ...(parseOptionalMarkdown(input.source_markdown) !== undefined
+        ? { source_markdown: parseOptionalMarkdown(input.source_markdown) }
+        : {}),
     },
   }
 }
@@ -330,6 +342,7 @@ export function buildTestDraftContentFromRows(
       response_max_chars: Number(question.response_max_chars ?? 5000),
       response_monospace: question.response_monospace === true,
     })),
+    source_format: 'markdown',
   }
 }
 

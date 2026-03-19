@@ -10,6 +10,7 @@ describe('AssignmentModal', () => {
     classroom_id: 'classroom-1',
     title: 'Original title',
     description: 'Original instructions',
+    instructions_markdown: 'Original instructions',
     rich_instructions: {
       type: 'doc',
       content: [{ type: 'paragraph', attrs: { textAlign: null }, content: [{ type: 'text', text: 'Original instructions' }] }],
@@ -175,7 +176,7 @@ describe('AssignmentModal', () => {
       const payload = JSON.parse(options.body)
       expect(payload.title).toBe('Updated title')
       expect(payload.due_at).toBeUndefined()
-      expect(payload.rich_instructions).toBeUndefined()
+      expect(payload.instructions_markdown).toBeUndefined()
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled()

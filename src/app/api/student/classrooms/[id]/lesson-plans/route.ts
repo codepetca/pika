@@ -6,6 +6,7 @@ import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { nowInToronto } from '@/lib/timezone'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { LessonPlanVisibility } from '@/types'
+import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -111,7 +112,10 @@ export const GET = withErrorHandler('GetStudentLessonPlans', async (request, con
   }
 
   return NextResponse.json({
-    lesson_plans: lessonPlans || [],
+    lesson_plans: (lessonPlans || []).map((lessonPlan) => ({
+      ...lessonPlan,
+      content_markdown: getLessonPlanMarkdown(lessonPlan).markdown,
+    })),
     visibility,
     max_date: maxDate,
   })

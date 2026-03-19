@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
-import { plainTextToTiptapContent, extractPlainText } from '@/lib/tiptap-content'
+import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -179,12 +178,13 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
   // Create new assignments
   if (toCreate.length > 0) {
     const insertData = toCreate.map((a) => {
-      const richInstructions = plainTextToTiptapContent(a.instructions)
+      const instructionFields = buildAssignmentInstructionFields(a.instructions)
       return {
         classroom_id,
         title: a.title.trim(),
-        description: a.instructions, // Plain text for backwards compatibility
-        rich_instructions: richInstructions,
+        instructions_markdown: instructionFields.instructions_markdown,
+        description: instructionFields.description,
+        rich_instructions: instructionFields.rich_instructions,
         due_at: a.due_at,
         position: a.position,
         is_draft: true, // New assignments are always drafts
@@ -214,15 +214,16 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
     const existing = existingById.get(a.id!)
     if (!existing) continue
 
-    const richInstructions = plainTextToTiptapContent(a.instructions)
+    const instructionFields = buildAssignmentInstructionFields(a.instructions)
 
     // Determine if we're releasing (draft→released)
     const isReleasing = existing.is_draft && !a.is_draft
 
     const updateData: Record<string, any> = {
       title: a.title.trim(),
-      description: a.instructions,
-      rich_instructions: richInstructions,
+      instructions_markdown: instructionFields.instructions_markdown,
+      description: instructionFields.description,
+      rich_instructions: instructionFields.rich_instructions,
       due_at: a.due_at,
       position: a.position,
       is_draft: a.is_draft,

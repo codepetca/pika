@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { PUT } from '@/app/api/teacher/classrooms/[id]/lesson-plans/[date]/route'
+import { POST, PUT } from '@/app/api/teacher/classrooms/[id]/lesson-plans/[date]/route'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
@@ -94,6 +94,7 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/[date]', () => {
       classroom_id: 'c-1',
       date: '2025-01-06',
       content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Test' }] }] },
+      content_markdown: 'Test',
     }
 
     const mockFrom = vi.fn(() => ({
@@ -120,6 +121,7 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/[date]', () => {
     const data = await response.json()
     expect(data.lesson_plan.id).toBe('lp-1')
     expect(data.lesson_plan.date).toBe('2025-01-06')
+    expect(data.lesson_plan.content_markdown).toBe('Test')
   })
 
   it('should return 401 when not authenticated', async () => {
@@ -162,5 +164,68 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/[date]', () => {
       params: Promise.resolve({ id: 'c-1', date: '2025-01-06' }),
     })
     expect(response.status).toBe(500)
+  })
+
+  it('deletes the lesson plan when markdown is cleared', async () => {
+    const deleteChain = {
+      eq: vi.fn().mockReturnThis(),
+    }
+    deleteChain.eq.mockReturnValueOnce(deleteChain)
+    deleteChain.eq.mockResolvedValueOnce({ error: null })
+
+    const mockFrom = vi.fn(() => ({
+      delete: vi.fn(() => deleteChain),
+    }))
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/lesson-plans/2025-01-06',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content_markdown: '' }),
+      }
+    )
+    const response = await PUT(request, {
+      params: Promise.resolve({ id: 'c-1', date: '2025-01-06' }),
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.lesson_plan).toBeNull()
+    expect(mockFrom).toHaveBeenCalledWith('lesson_plans')
+  })
+
+  it('accepts POST requests for unload beacons', async () => {
+    const mockLessonPlan = {
+      id: 'lp-1',
+      classroom_id: 'c-1',
+      date: '2025-01-06',
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Beacon' }] }] },
+      content_markdown: 'Beacon',
+    }
+
+    const mockFrom = vi.fn(() => ({
+      upsert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({ data: mockLessonPlan, error: null }),
+        })),
+      })),
+    }))
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/lesson-plans/2025-01-06',
+      {
+        method: 'POST',
+        body: JSON.stringify({ content_markdown: 'Beacon' }),
+      }
+    )
+    const response = await POST(request, {
+      params: Promise.resolve({ id: 'c-1', date: '2025-01-06' }),
+    })
+
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.lesson_plan.content_markdown).toBe('Beacon')
   })
 })

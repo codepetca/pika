@@ -137,11 +137,26 @@ Term: 2025-01-07 - 2025-01-10
 ## 2025-01-08
 Actual content here
 `
-    const { plans, errors } = markdownToLessonPlans(markdown, mockClassroom)
+    const { plans, clearedDates, errors } = markdownToLessonPlans(markdown, mockClassroom)
 
     expect(errors).toHaveLength(0)
     expect(plans).toHaveLength(1)
     expect(plans[0].date).toBe('2025-01-08')
+    expect(clearedDates).toEqual(['2025-01-07'])
+  })
+
+  it('tracks cleared dates for empty sections', () => {
+    const markdown = `## 2025-01-07
+
+## 2025-01-08
+Actual content here
+`
+
+    const { plans, clearedDates, errors } = markdownToLessonPlans(markdown, mockClassroom)
+
+    expect(errors).toHaveLength(0)
+    expect(plans.map((plan) => plan.date)).toEqual(['2025-01-08'])
+    expect(clearedDates).toEqual(['2025-01-07'])
   })
 
   it('should report error for invalid date', () => {

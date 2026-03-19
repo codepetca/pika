@@ -58,6 +58,7 @@ export interface LessonPlan {
   classroom_id: string
   date: string // YYYY-MM-DD
   content: TiptapContent
+  content_markdown: string | null
   created_at: string
   updated_at: string
 }
@@ -152,6 +153,7 @@ export interface Assignment {
   classroom_id: string
   title: string
   description: string
+  instructions_markdown: string | null  // Canonical teacher-authored markdown instructions
   rich_instructions: TiptapContent | null  // Rich text instructions
   due_at: string  // ISO 8601 timestamp
   position: number

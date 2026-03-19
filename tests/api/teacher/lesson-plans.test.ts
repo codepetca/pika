@@ -56,8 +56,8 @@ describe('GET /api/teacher/classrooms/[id]/lesson-plans', () => {
 
   it('should return lesson plans for date range', async () => {
     const mockLessonPlans = [
-      { id: 'lp-1', classroom_id: 'c-1', date: '2025-01-06', content: { type: 'doc', content: [] } },
-      { id: 'lp-2', classroom_id: 'c-1', date: '2025-01-07', content: { type: 'doc', content: [] } },
+      { id: 'lp-1', classroom_id: 'c-1', date: '2025-01-06', content: { type: 'doc', content: [] }, content_markdown: 'Plan 1' },
+      { id: 'lp-2', classroom_id: 'c-1', date: '2025-01-07', content: { type: 'doc', content: [] }, content_markdown: 'Plan 2' },
     ]
 
     const mockFrom = vi.fn(() => ({
@@ -82,6 +82,7 @@ describe('GET /api/teacher/classrooms/[id]/lesson-plans', () => {
     const data = await response.json()
     expect(data.lesson_plans).toHaveLength(2)
     expect(data.lesson_plans[0].date).toBe('2025-01-06')
+    expect(data.lesson_plans[0].content_markdown).toBe('Plan 1')
   })
 
   it('should return 401 when not authenticated', async () => {

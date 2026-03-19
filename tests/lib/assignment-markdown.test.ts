@@ -16,6 +16,7 @@ function makeAssignment(overrides: Partial<Assignment> = {}): Assignment {
     classroom_id: 'c-1',
     title: 'Test Assignment',
     description: 'Plain text description',
+    instructions_markdown: 'Plain text description',
     rich_instructions: null,
     due_at: '2025-01-20T23:59:00Z',
     position: 0,
@@ -61,7 +62,7 @@ describe('assignmentsToMarkdown', () => {
   })
 
   it('should include plain text instructions', () => {
-    const assignments = [makeAssignment({ description: 'Complete problems 1-10' })]
+    const assignments = [makeAssignment({ instructions_markdown: 'Complete problems 1-10', description: 'Complete problems 1-10' })]
     const result = assignmentsToMarkdown(assignments)
     expect(result.markdown).toContain('Complete problems 1-10')
   })
@@ -80,7 +81,7 @@ describe('assignmentsToMarkdown', () => {
         },
       ],
     }
-    const assignments = [makeAssignment({ rich_instructions: richInstructions })]
+    const assignments = [makeAssignment({ instructions_markdown: null, rich_instructions: richInstructions })]
     const result = assignmentsToMarkdown(assignments)
     expect(result.markdown).toContain('First paragraph.')
     expect(result.markdown).toContain('Second paragraph.')
@@ -98,9 +99,22 @@ describe('assignmentsToMarkdown', () => {
         },
       ],
     }
-    const assignments = [makeAssignment({ rich_instructions: richInstructions })]
+    const assignments = [makeAssignment({ instructions_markdown: null, rich_instructions: richInstructions })]
     const result = assignmentsToMarkdown(assignments)
-    expect(result.hasRichContent).toBe(true)
+    expect(result.hasRichContent).toBe(false)
+  })
+
+  it('prefers canonical markdown instructions when present', () => {
+    const assignments = [
+      makeAssignment({
+        instructions_markdown: '## Canonical\n\n- Keep bullets',
+        description: 'Legacy description',
+      }),
+    ]
+    const result = assignmentsToMarkdown(assignments)
+    expect(result.markdown).toContain('## Canonical')
+    expect(result.markdown).toContain('- Keep bullets')
+    expect(result.markdown).not.toContain('Legacy description')
   })
 
   it('should separate assignments with ---', () => {

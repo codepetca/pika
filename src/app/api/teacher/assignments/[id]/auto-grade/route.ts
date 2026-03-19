@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { gradeStudentWork } from '@/lib/ai-grading'
-import { extractPlainText } from '@/lib/tiptap-content'
+import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { withErrorHandler } from '@/lib/api-handler'
+import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
 import type { AssignmentDocHistoryEntry } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -55,9 +56,9 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
     return NextResponse.json({ error: 'Failed to fetch student docs' }, { status: 500 })
   }
 
-  const instructionsText = assignment.rich_instructions
-    ? extractPlainText(assignment.rich_instructions)
-    : assignment.description || ''
+  const instructionsText = limitedMarkdownToPlainText(
+    getAssignmentInstructionsMarkdown(assignment).markdown
+  )
 
   // Process with concurrency limit
   let gradedCount = 0
