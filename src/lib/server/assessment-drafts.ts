@@ -257,6 +257,10 @@ export function validateTestDraftContent(
       title,
       show_results: showResults,
       questions,
+      ...(input.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
+      ...(parseOptionalMarkdown(input.source_markdown) !== undefined
+        ? { source_markdown: parseOptionalMarkdown(input.source_markdown) }
+        : {}),
     },
   }
 }
