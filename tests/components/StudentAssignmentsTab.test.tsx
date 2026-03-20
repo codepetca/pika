@@ -65,6 +65,7 @@ function makeAssignment(overrides: Partial<AssignmentWithStatus> = {}): Assignme
     classroom_id: 'cls-1',
     title: 'Essay Assignment',
     description: 'Write an essay',
+    instructions_markdown: 'Write an essay',
     rich_instructions: null,
     due_at: '2025-06-01T00:00:00Z',
     created_at: '2024-01-01T00:00:00Z',

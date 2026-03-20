@@ -32,6 +32,7 @@ import {
 import { DESKTOP_BREAKPOINT, getRouteKeyFromTab } from '@/lib/layout-config'
 import { useGradebookData } from '@/hooks/useGradebookData'
 import { RichTextViewer } from '@/components/editor'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { Spinner } from '@/components/Spinner'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -1527,9 +1528,7 @@ function ClassroomPageContent({
               {selectedAssignment ? (
                 selectedAssignment.instructions ? (
                   typeof selectedAssignment.instructions === 'string' ? (
-                    <p className="text-sm text-text-default whitespace-pre-wrap">
-                      {selectedAssignment.instructions}
-                    </p>
+                    <LimitedMarkdown content={selectedAssignment.instructions} />
                   ) : (
                     <RichTextViewer content={selectedAssignment.instructions} />
                   )

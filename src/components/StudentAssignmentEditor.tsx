@@ -6,6 +6,7 @@ import { Button, ContentDialog, FormField, Input, Tooltip } from '@/ui'
 import { History } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   formatDueDate,
@@ -540,9 +541,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const editorContent = (
     <div className="flex flex-col gap-6 h-full min-h-0">
       {/* Instructions */}
-      {!isEmbedded && (assignment.rich_instructions || assignment.description) && (
+      {!isEmbedded && (assignment.instructions_markdown || assignment.rich_instructions || assignment.description) && (
         <div className="bg-page border border-border rounded-lg p-4">
-          {assignment.rich_instructions ? (
+          {assignment.instructions_markdown ? (
+            <LimitedMarkdown content={assignment.instructions_markdown} />
+          ) : assignment.rich_instructions ? (
             <RichTextViewer content={assignment.rich_instructions} />
           ) : (
             <p className="text-text-muted whitespace-pre-wrap">{assignment.description}</p>

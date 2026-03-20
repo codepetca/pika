@@ -14,6 +14,7 @@ import {
 import type { AssignmentWithStatus, Classroom, TiptapContent } from '@/types'
 import { StudentAssignmentEditor, type StudentAssignmentEditorHandle } from '@/components/StudentAssignmentEditor'
 import { RichTextViewer } from '@/components/editor'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 
@@ -298,7 +299,9 @@ export function StudentAssignmentsTab({
         subtitle={selectedAssignment?.title}
         maxWidth="max-w-4xl"
       >
-        {selectedAssignment?.rich_instructions ? (
+        {selectedAssignment?.instructions_markdown ? (
+          <LimitedMarkdown content={selectedAssignment.instructions_markdown} />
+        ) : selectedAssignment?.rich_instructions ? (
           <RichTextViewer content={selectedAssignment.rich_instructions} />
         ) : selectedAssignment?.description ? (
           <div className="text-sm text-text-muted whitespace-pre-wrap">

@@ -47,6 +47,7 @@ export const createMockAssignment = (overrides: Partial<Assignment> = {}): Assig
   classroom_id: 'classroom-1',
   title: 'Test Assignment',
   description: 'Complete the reading and answer the questions.',
+  instructions_markdown: 'Complete the reading and answer the questions.',
   rich_instructions: null,
   due_at: '2024-10-20T23:59:59-04:00',
   position: 0,

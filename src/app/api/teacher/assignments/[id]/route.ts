@@ -3,9 +3,8 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
 import { extractAssignmentArtifacts } from '@/lib/assignment-artifacts'
-import { extractPlainText } from '@/lib/tiptap-content'
+import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -146,6 +145,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
       classroom_id: assignment.classroom_id,
       title: assignment.title,
       description: assignment.description,
+      instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
       rich_instructions: assignment.rich_instructions,
       due_at: assignment.due_at,
       position: assignment.position ?? 0,
@@ -166,9 +166,10 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
   const user = await requireRole('teacher')
   const { id } = await context.params
   const body = await request.json()
-  const { title, rich_instructions, due_at, is_draft, released_at } = body as {
+  const { title, instructions_markdown, rich_instructions, due_at, is_draft, released_at } = body as {
     title?: string
-    rich_instructions?: TiptapContent
+    instructions_markdown?: string
+    rich_instructions?: unknown
     due_at?: string
     is_draft?: boolean
     released_at?: string | null
@@ -218,10 +219,19 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
 
   const updates: Record<string, any> = {}
   if (title !== undefined) updates.title = title.trim()
-  if (rich_instructions !== undefined) {
-    const instructions: TiptapContent = rich_instructions
-    updates.rich_instructions = instructions
-    updates.description = extractPlainText(instructions)
+  if (instructions_markdown !== undefined || rich_instructions !== undefined) {
+    const instructionFields = buildAssignmentInstructionFields(
+      typeof instructions_markdown === 'string'
+        ? instructions_markdown
+        : getAssignmentInstructionsMarkdown({
+            instructions_markdown: null,
+            rich_instructions: rich_instructions as any,
+            description: '',
+          }).markdown
+    )
+    updates.instructions_markdown = instructionFields.instructions_markdown
+    updates.rich_instructions = instructionFields.rich_instructions
+    updates.description = instructionFields.description
   }
   if (due_at !== undefined) updates.due_at = due_at
 

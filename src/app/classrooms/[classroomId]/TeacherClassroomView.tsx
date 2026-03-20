@@ -489,7 +489,7 @@ export function TeacherClassroomView({
       const { assignment } = selectedAssignmentData
       onSelectAssignment?.({
         title: assignment.title,
-        instructions: assignment.rich_instructions || assignment.description,
+        instructions: assignment.instructions_markdown || assignment.rich_instructions || assignment.description,
       })
     }
   }, [selection.mode, selectedAssignmentData, onSelectAssignment])
@@ -1274,7 +1274,7 @@ export function TeacherAssignmentsMarkdownSidebar({
     <div className="flex flex-col h-full">
       {hasRichContent && (
         <div className="mx-3 mt-3 p-2 rounded bg-warning-bg text-sm text-warning">
-          Some assignments have rich formatting that will be lost when editing as plain text.
+          Some legacy assignments were converted from rich text and may have simplified formatting.
         </div>
       )}
 

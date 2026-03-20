@@ -8,6 +8,7 @@ function makePlan(date: string, content: TiptapContent): LessonPlan {
     classroom_id: 'c1',
     date,
     content,
+    content_markdown: null,
     created_at: '2024-01-01',
     updated_at: '2024-01-01',
   }
@@ -26,7 +27,7 @@ describe('isNormalizationNoise', () => {
     expect(isNormalizationNoise(lastSeen, [], DATE, JSON.stringify(REAL_CONTENT))).toBe(true)
   })
 
-  it('returns true when last seen matches stored plan (Tiptap normalization)', () => {
+  it('returns false when content differs from last seen, even if legacy stored content differed only by normalization', () => {
     const stored = REAL_CONTENT
     const normalized: TiptapContent = {
       type: 'doc',
@@ -34,7 +35,7 @@ describe('isNormalizationNoise', () => {
     }
     const plans = [makePlan(DATE, stored)]
     const lastSeen = new Map([[DATE, JSON.stringify(stored)]])
-    expect(isNormalizationNoise(lastSeen, plans, DATE, JSON.stringify(normalized))).toBe(true)
+    expect(isNormalizationNoise(lastSeen, plans, DATE, JSON.stringify(normalized))).toBe(false)
   })
 
   it('returns false when no last seen entry exists', () => {

@@ -7040,3 +7040,91 @@
 **Validation:**
 - `pnpm exec vitest run tests/components/LoginClient.test.tsx tests/api/auth/login.test.ts` (pass)
 - Browser verification against `http://localhost:3002`: teacher and student both logged in and saw `/classrooms` render classroom cards immediately; screenshots saved to `/tmp/pika-login-teacher.png` and `/tmp/pika-login-student.png`
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Move teacher-authored assignments and tests to limited-markdown-first authoring with compatibility for legacy assignment rich text.
+**Completed:**
+- Added a shared limited markdown parser/renderer plus Tiptap conversion helpers so teacher auth flows can use a constrained markdown subset while still mirroring legacy rich-content fields during rollout.
+- Made assignment instructions markdown canonical in the teacher APIs and UI, including derived `description`/`rich_instructions`, legacy-read precedence, bulk import handling, and student rendering from the shared markdown renderer.
+- Switched the teacher assignment modal to a markdown-first editor with preview and a temporary legacy rich-text fallback, including warnings for lossy legacy conversion.
+- Made test drafts persist `source_format: 'markdown'` and `source_markdown`, switched teacher test authoring to open on the markdown tab by default, and kept the structured question/documents views as fallback tabs.
+- Added the `instructions_markdown` migration and updated unit/API/component coverage for assignment markdown conversion, draft persistence, and markdown-first test authoring.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/assessment-drafts.test.ts tests/components/QuizDetailPanel.test.tsx tests/api/teacher/assignments.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/assignment-docs/assignment-docs-id.test.ts tests/lib/test-markdown.test.ts tests/lib/assignment-markdown.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-bulk.test.ts tests/api/teacher/tests-draft-route.test.ts tests/components/AssignmentModal.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/QuestionMarkdown.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+- Browser verification against `http://localhost:3000`:
+  - teacher assignment markdown editor: `/tmp/pika-markdown-check/teacher-assignment-edit.png`
+  - teacher test markdown tab: `/tmp/pika-markdown-check/teacher-test-markdown.png`
+  - student assignment instructions modal: `/tmp/pika-markdown-check/student-assignment-view.png`
+  - student in-progress test view: `/tmp/pika-markdown-check/student-test-in-progress.png`
+
+## 2026-03-19 [AI - GPT-5 Codex]
+**Goal:** Make calendar lesson plans markdown-canonical with inline editable cells and the same limited formatting contract used for teacher-authored assignments.
+**Completed:**
+- Added `lesson_plans.content_markdown` as the new canonical field in code, along with lesson-plan markdown helpers that prefer canonical markdown, convert legacy Tiptap content on read, and derive a temporary compatibility `content` mirror on write.
+- Updated teacher and student lesson-plan APIs, bulk lesson-plan markdown import/export, and calendar state management so lesson plans flow through canonical markdown rather than Tiptap-first JSON.
+- Replaced inline Tiptap cell editing with markdown preview plus inline textarea source editing, including keyboard shortcuts for bold, italic, unordered list, heading-3, and inline code.
+- Switched teacher and student calendar rendering to the shared limited markdown renderer so lesson-plan display is consistent with the assignment markdown rollout.
+- Added the combined markdown-source migration file `supabase/migrations/048_assignment_markdown_source.sql` for both assignments and lesson plans, and expanded API/component/unit coverage for lesson-plan markdown helpers, routes, and inline cell behavior.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (pass; 175 files / 1543 tests)
+- `pnpm exec tsc --noEmit` (pass)
+- Browser verification against `http://localhost:3002`:
+  - teacher calendar markdown preview: `/tmp/pika-calendar-markdown-check/teacher-calendar-preview.png`
+  - teacher inline markdown cell edit state: `/tmp/pika-calendar-markdown-check/teacher-calendar-inline-edit.png`
+  - student calendar markdown rendering: `/tmp/pika-calendar-markdown-check/student-calendar-preview.png`
+- Direct DB spot-check confirmed the local database does not yet have `lesson_plans.content_markdown`; migration `048_assignment_markdown_source.sql` still needs to be applied by a human before live assignment and lesson-plan saves can persist the new fields.
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Rebase `codex/teacher-authored-markdown` onto `origin/main` and resequence branch-added migrations.
+**Completed:**
+- Rebased the branch onto `origin/main` and resolved assignment API/modal conflicts by preserving markdown-canonical assignment behavior while keeping newer main-branch scheduling, feedback, and repo-target changes.
+- Renamed the branch-added markdown migration from `048_assignment_markdown_source.sql` to `049_assignment_markdown_source.sql` because `origin/main` now already contains `048_repo_review_grading.sql`.
+
+**Validation:**
+- `pnpm exec tsc --noEmit` (pass)
+- `pnpm exec vitest run tests/api/teacher/assignments-id.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/student/lesson-plans.test.ts tests/api/teacher/lesson-plans-date.test.ts tests/api/teacher/lesson-plans-bulk.test.ts tests/components/AssignmentModal.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx tests/unit/assessment-drafts.test.ts tests/lib/lesson-plan-markdown.test.ts` (pass)
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Fix the post-review calendar markdown regressions in the rebased markdown-authoring PR.
+**Completed:**
+- Updated the teacher calendar sidebar loader to overlay pending inline lesson-plan edits onto fetched plans before generating bulk markdown, so opening the sidebar no longer drops unsaved inline cell changes.
+- Removed the legacy lesson-plan bulk parser rule that stripped lines starting with `# ` and `Term:`, so valid markdown headings and plain text are preserved inside lesson-plan bodies.
+- Added regression coverage for preserving those content lines and for merging/removing pending inline lesson-plan edits before bulk markdown generation.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/lesson-plan-markdown.test.ts tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx tests/api/student/lesson-plans.test.ts tests/api/teacher/lesson-plans-date.test.ts tests/api/teacher/lesson-plans-bulk.test.ts` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Simplify the teacher assignment modal markdown authoring UI and land the pending inline-calendar interaction tweaks.
+**Completed:**
+- Removed the legacy rich-text fallback from the teacher assignment modal so instructions are authored in a single markdown-first flow.
+- Reworked the instructions area with a lighter inline markdown toolbar, icon-based formatting controls, undo/redo, simpler title and instructions placeholders, and a tighter due-date/action layout.
+- Hid autogenerated `Untitled...` draft titles from the title field, while keeping the backend fallback title generation for background draft creation.
+- Added release guards so assignments cannot be posted or scheduled without a user-provided title, and updated the split-button/schedule flows to respect that validation.
+- Committed the pending calendar polish that keeps Escape-edited content, makes the full day cell clickable for inline edit, and enables inline editing in `All` view.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/AssignmentModal.test.tsx tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+- Browser screenshot pass against `http://localhost:3000/classrooms`:
+  - teacher: `/tmp/pika-assignment-large-h-teacher.png`
+  - student: `/tmp/pika-assignment-large-h-student.png`
+- Local browser verification is still limited by empty classroom seed data, so the screenshot pass only covers the authenticated empty `/classrooms` states, not a live assignment modal.
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Remove the default `Add lesson plan...` prompt text from empty calendar cells before merge.
+**Completed:**
+- Removed the visible empty-state prompt text from editable lesson-plan cells and removed the inline textarea placeholder so blank cells stay visually empty until the teacher clicks in.
+- Added regression coverage to ensure empty editable lesson-plan cells do not render the old prompt text in either preview or edit mode.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+- Browser screenshot pass against `http://localhost:3000/classrooms`:
+  - teacher: `/tmp/pika-calendar-empty-prompt-teacher.png`
+  - student: `/tmp/pika-calendar-empty-prompt-student.png`
+- Local browser verification is still limited by empty classroom seed data, so the screenshot pass only covers the authenticated empty `/classrooms` states, not a live calendar with empty lesson-plan cells.

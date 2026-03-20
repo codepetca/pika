@@ -7,6 +7,7 @@ import {
   resolveAssignmentRepoTarget,
 } from '@/lib/server/assignment-repo-targets'
 import { loadAssignmentFeedbackEntries } from '@/lib/server/assignment-feedback'
+import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { parseContentField } from '@/lib/tiptap-content'
 import { withErrorHandler } from '@/lib/api-handler'
 
@@ -109,6 +110,7 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
       classroom_id: assignment.classroom_id,
       title: assignment.title,
       description: assignment.description,
+      instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
       due_at: assignment.due_at,
       position: assignment.position ?? 0,
       created_by: assignment.created_by,
