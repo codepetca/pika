@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
+  applyPendingLessonPlanChanges,
   lessonPlansToMarkdown,
   markdownToLessonPlans,
   extractTextFromTiptap,
@@ -159,6 +160,21 @@ Actual content here
     expect(clearedDates).toEqual(['2025-01-07'])
   })
 
+  it('preserves # headings and Term: lines inside lesson plan content', () => {
+    const markdown = `## 2025-01-07
+# Warm-up
+Term: review key vocabulary
+Paragraph text
+`
+
+    const { plans, errors } = markdownToLessonPlans(markdown, mockClassroom)
+
+    expect(errors).toHaveLength(0)
+    expect(plans).toHaveLength(1)
+    expect(plans[0].content_markdown).toContain('# Warm-up')
+    expect(plans[0].content_markdown).toContain('Term: review key vocabulary')
+  })
+
   it('should report error for invalid date', () => {
     const markdown = `# Lesson Plans: Biology 101
 Term: 2025-01-07 - 2025-01-10
@@ -243,6 +259,54 @@ Far future content
 
     expect(errors).toHaveLength(0)
     expect(plans).toHaveLength(2)
+  })
+})
+
+describe('applyPendingLessonPlanChanges', () => {
+  it('overlays unsaved inline edits onto fetched plans', () => {
+    const merged = applyPendingLessonPlanChanges(
+      [
+        {
+          id: 'lp-1',
+          classroom_id: 'c-1',
+          date: '2025-01-07',
+          content: textToTiptapContent('Old content'),
+          content_markdown: 'Old content',
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-01T00:00:00Z',
+        },
+      ],
+      new Map([
+        ['2025-01-07', 'Unsaved replacement'],
+        ['2025-01-08', 'Brand new pending content'],
+      ]),
+      'c-1'
+    )
+
+    expect(merged).toHaveLength(2)
+    expect(merged[0].content_markdown).toBe('Unsaved replacement')
+    expect(merged[1].date).toBe('2025-01-08')
+    expect(merged[1].content_markdown).toBe('Brand new pending content')
+  })
+
+  it('removes fetched plans when a pending inline edit clears the day', () => {
+    const merged = applyPendingLessonPlanChanges(
+      [
+        {
+          id: 'lp-1',
+          classroom_id: 'c-1',
+          date: '2025-01-07',
+          content: textToTiptapContent('Old content'),
+          content_markdown: 'Old content',
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-01T00:00:00Z',
+        },
+      ],
+      new Map([['2025-01-07', '']]),
+      'c-1'
+    )
+
+    expect(merged).toHaveLength(0)
   })
 })
 

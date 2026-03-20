@@ -6,7 +6,7 @@ import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar } from '@/components/layout'
-import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
+import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDays } from '@/hooks/useClassDays'
 import type { Announcement, Assignment, Classroom, LessonPlan } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
@@ -333,7 +333,7 @@ export function TeacherLessonCalendarTab({
         }
       }
       const data = await res.json()
-      const plans = data.lesson_plans || []
+      const plans = applyPendingLessonPlanChanges(data.lesson_plans || [], pendingChangesRef.current, classroom.id)
       const markdown = lessonPlansToMarkdown(classroom, plans, start, end)
       setMarkdownContent(markdown)
       markdownContentRef.current = markdown

@@ -131,10 +131,7 @@ export function markdownToLessonPlans(
         currentDate = null
       }
     } else if (currentDate !== null) {
-      // Skip the title line and term line
-      if (!line.startsWith('# ') && !line.startsWith('Term:')) {
-        currentContent.push(line)
-      }
+      currentContent.push(line)
     }
   }
 
@@ -150,4 +147,40 @@ export function extractTextFromTiptap(content: TiptapContent): string {
 
 export function textToTiptapContent(text: string): TiptapContent {
   return markdownToTiptapContent(text.trim())
+}
+
+const PENDING_LESSON_PLAN_TIMESTAMP = '1970-01-01T00:00:00.000Z'
+
+export function applyPendingLessonPlanChanges(
+  plans: LessonPlan[],
+  pendingChanges: ReadonlyMap<string, string>,
+  classroomId: string
+): LessonPlan[] {
+  if (pendingChanges.size === 0) {
+    return plans
+  }
+
+  const mergedPlans = new Map(plans.map((plan) => [plan.date, plan]))
+
+  for (const [date, contentMarkdown] of pendingChanges.entries()) {
+    const normalized = normalizeLessonPlanMarkdown(contentMarkdown)
+    if (normalized.trim().length === 0) {
+      mergedPlans.delete(date)
+      continue
+    }
+
+    const existing = mergedPlans.get(date)
+    const contentFields = buildLessonPlanContentFields(normalized)
+    mergedPlans.set(date, {
+      id: existing?.id ?? `pending-${date}`,
+      classroom_id: existing?.classroom_id ?? classroomId,
+      date,
+      content: contentFields.content,
+      content_markdown: contentFields.content_markdown,
+      created_at: existing?.created_at ?? PENDING_LESSON_PLAN_TIMESTAMP,
+      updated_at: existing?.updated_at ?? PENDING_LESSON_PLAN_TIMESTAMP,
+    })
+  }
+
+  return Array.from(mergedPlans.values()).sort((left, right) => left.date.localeCompare(right.date))
 }

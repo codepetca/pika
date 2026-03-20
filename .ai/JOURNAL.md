@@ -7086,3 +7086,14 @@
 **Validation:**
 - `pnpm exec tsc --noEmit` (pass)
 - `pnpm exec vitest run tests/api/teacher/assignments-id.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/student/lesson-plans.test.ts tests/api/teacher/lesson-plans-date.test.ts tests/api/teacher/lesson-plans-bulk.test.ts tests/components/AssignmentModal.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx tests/unit/assessment-drafts.test.ts tests/lib/lesson-plan-markdown.test.ts` (pass)
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Fix the post-review calendar markdown regressions in the rebased markdown-authoring PR.
+**Completed:**
+- Updated the teacher calendar sidebar loader to overlay pending inline lesson-plan edits onto fetched plans before generating bulk markdown, so opening the sidebar no longer drops unsaved inline cell changes.
+- Removed the legacy lesson-plan bulk parser rule that stripped lines starting with `# ` and `Term:`, so valid markdown headings and plain text are preserved inside lesson-plan bodies.
+- Added regression coverage for preserving those content lines and for merging/removing pending inline lesson-plan edits before bulk markdown generation.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/lesson-plan-markdown.test.ts tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx tests/api/student/lesson-plans.test.ts tests/api/teacher/lesson-plans-date.test.ts tests/api/teacher/lesson-plans-bulk.test.ts` (pass)
+- `pnpm exec tsc --noEmit` (pass)
