@@ -212,6 +212,53 @@ describe('PATCH /api/teacher/assignments/[id]', () => {
     const response = await PATCH(request, { params: { id: 'a-1' } })
     expect(response.status).toBe(400)
   })
+
+  it('accepts a basic assignment patch without repo review mode', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'a-1',
+                  title: 'Assignment 1',
+                  classrooms: { teacher_id: 'teacher-1', archived_at: null },
+                },
+                error: null,
+              }),
+            })),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'a-1',
+                    title: 'Updated title',
+                    classrooms: { teacher_id: 'teacher-1', archived_at: null },
+                  },
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        title: 'Updated title',
+      }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'a-1' } })
+    expect(response.status).toBe(200)
+  })
 })
 
 describe('DELETE /api/teacher/assignments/[id]', () => {

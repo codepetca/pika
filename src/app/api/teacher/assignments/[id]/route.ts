@@ -16,7 +16,6 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
   const { id } = await context.params
   const supabase = getServiceRoleClient()
 
-  // Fetch assignment and verify ownership
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
     .select(`
@@ -45,7 +44,6 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     )
   }
 
-  // Get all students in classroom with their assignment docs
   const { data: enrollments, error: enrollmentError } = await supabase
     .from('classroom_enrollments')
     .select(`
@@ -65,35 +63,31 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     )
   }
 
-  // Get student profiles for names
-  const studentIds = enrollments?.map(e => e.student_id) || []
+  const studentIds = enrollments?.map((enrollment) => enrollment.student_id) || []
   const { data: profiles } = await supabase
     .from('student_profiles')
     .select('user_id, first_name, last_name')
     .in('user_id', studentIds)
 
   const profileMap = new Map(
-    profiles?.map(p => [
-      p.user_id,
+    profiles?.map((profile) => [
+      profile.user_id,
       {
-        first_name: p.first_name,
-        last_name: p.last_name,
-        full_name: `${p.first_name} ${p.last_name}`.trim(),
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        full_name: `${profile.first_name} ${profile.last_name}`.trim(),
       },
     ]) || []
   )
 
-  // Get all assignment docs for this assignment
   const { data: docs } = await supabase
     .from('assignment_docs')
     .select('*')
     .eq('assignment_id', id)
 
-  const docMap = new Map(docs?.map(d => [d.student_id, d]) || [])
-  const docIds = (docs || []).map((d) => d.id)
+  const docMap = new Map(docs?.map((doc) => [doc.student_id, doc]) || [])
+  const docIds = (docs || []).map((doc) => doc.id)
 
-  // Student-only activity signal: most recent history entry per assignment doc.
-  // This excludes teacher grading updates that also touch assignment_docs.updated_at.
   const studentUpdatedAtByDocId = new Map<string, string>()
   if (docIds.length > 0) {
     const { data: historyRows } = await supabase
@@ -109,11 +103,9 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     }
   }
 
-  // Build student submission list
-  const students = (enrollments || []).map(enrollment => {
+  const students = (enrollments || []).map((enrollment) => {
     const doc = docMap.get(enrollment.student_id)
     const status = calculateAssignmentStatus(assignment, doc)
-    // users is a single object due to the foreign key relationship
     const userEmail = (enrollment.users as unknown as { id: string; email: string }).email
     const profile = profileMap.get(enrollment.student_id) || null
     const artifacts = doc ? extractAssignmentArtifacts(doc.content) : []
@@ -135,13 +127,13 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
             score_workflow: doc.score_workflow,
             graded_at: doc.graded_at,
             returned_at: doc.returned_at,
+            feedback_returned_at: doc.feedback_returned_at,
           }
         : null,
       artifacts,
     }
   })
 
-  // Sort by name (with email fallback)
   students.sort((a, b) => {
     const nameA = a.student_name || a.student_email
     const nameB = b.student_name || b.student_email
@@ -162,10 +154,10 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
       track_authenticity: assignment.track_authenticity ?? true,
       created_by: assignment.created_by,
       created_at: assignment.created_at,
-      updated_at: assignment.updated_at
+      updated_at: assignment.updated_at,
     },
     classroom: assignment.classrooms,
-    students
+    students,
   })
 })
 
@@ -184,7 +176,6 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
 
   const supabase = getServiceRoleClient()
 
-  // Fetch assignment and verify ownership
   const { data: existing, error: existingError } = await supabase
     .from('assignments')
     .select(`
@@ -225,13 +216,12 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     )
   }
 
-  // Build update object
   const updates: Record<string, any> = {}
   if (title !== undefined) updates.title = title.trim()
   if (rich_instructions !== undefined) {
     const instructions: TiptapContent = rich_instructions
     updates.rich_instructions = instructions
-    updates.description = extractPlainText(instructions)  // Keep plain text in sync
+    updates.description = extractPlainText(instructions)
   }
   if (due_at !== undefined) updates.due_at = due_at
 
@@ -303,7 +293,7 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     .select()
     .single()
 
-  if (error) {
+  if (error || !assignment) {
     console.error('Error updating assignment:', error)
     return NextResponse.json(
       { error: 'Failed to update assignment' },
@@ -320,7 +310,6 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
   const { id } = await context.params
   const supabase = getServiceRoleClient()
 
-  // Fetch assignment and verify ownership
   const { data: existing, error: existingError } = await supabase
     .from('assignments')
     .select(`

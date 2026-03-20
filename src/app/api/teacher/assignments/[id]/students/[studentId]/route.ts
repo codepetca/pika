@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
+import {
+  loadAssignmentRepoTarget,
+  resolveAssignmentRepoTarget,
+} from '@/lib/server/assignment-repo-targets'
+import { loadAssignmentFeedbackEntries } from '@/lib/server/assignment-feedback'
 import { parseContentField } from '@/lib/tiptap-content'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -15,7 +19,6 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
   const { id: assignmentId, studentId } = await context.params
   const supabase = getServiceRoleClient()
 
-  // Fetch assignment and verify ownership
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
     .select(`
@@ -43,7 +46,6 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
     )
   }
 
-  // Verify student is enrolled
   const { data: enrollment, error: enrollmentError } = await supabase
     .from('classroom_enrollments')
     .select(`
@@ -64,31 +66,42 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
     )
   }
 
-  // Get student profile for name
-  const { data: profile } = await supabase
-    .from('student_profiles')
-    .select('first_name, last_name')
-    .eq('user_id', studentId)
-    .single()
+  const [{ data: profile }, { data: docRow }, feedbackEntries, repoTarget] = await Promise.all([
+    supabase
+      .from('student_profiles')
+      .select('first_name, last_name')
+      .eq('user_id', studentId)
+      .single(),
+    supabase
+      .from('assignment_docs')
+      .select('*')
+      .eq('assignment_id', assignmentId)
+      .eq('student_id', studentId)
+      .single(),
+    loadAssignmentFeedbackEntries(assignmentId, studentId),
+    loadAssignmentRepoTarget(assignmentId, studentId),
+  ])
 
-  const studentName = profile
-    ? `${profile.first_name} ${profile.last_name}`
-    : null
-
-  // Get assignment doc
-  const { data: doc } = await supabase
-    .from('assignment_docs')
-    .select('*')
-    .eq('assignment_id', assignmentId)
-    .eq('student_id', studentId)
-    .single()
-
-  // Parse content if it's a string (for backwards compatibility)
+  const doc = docRow || null
   if (doc) {
     doc.content = parseContentField(doc.content)
   }
 
   const status = calculateAssignmentStatus(assignment, doc)
+  const repoSelection = resolveAssignmentRepoTarget({
+    submittedRepoUrl: doc?.repo_url ?? null,
+    submittedGitHubUsername: doc?.github_username ?? null,
+    target: repoTarget,
+  })
+
+  const { data: latestRepoReviewResult } = await supabase
+    .from('assignment_repo_review_results')
+    .select('*')
+    .eq('assignment_id', assignmentId)
+    .eq('student_id', studentId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   return NextResponse.json({
     assignment: {
@@ -100,15 +113,20 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
       position: assignment.position ?? 0,
       created_by: assignment.created_by,
       created_at: assignment.created_at,
-      updated_at: assignment.updated_at
+      updated_at: assignment.updated_at,
     },
     classroom: assignment.classrooms,
     student: {
       id: studentId,
       email: (enrollment.users as unknown as { id: string; email: string }).email,
-      name: studentName
+      name: profile ? `${profile.first_name} ${profile.last_name}` : null,
     },
-    doc: doc || null,
-    status
+    doc,
+    status,
+    feedback_entries: feedbackEntries,
+    repo_target: {
+      ...repoSelection,
+      latest_result: latestRepoReviewResult || null,
+    },
   })
 })

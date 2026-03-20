@@ -62,6 +62,7 @@ interface AssignmentFormProps {
   instructions: TiptapContent
   dueAt: string
   classDays?: ClassDay[]
+  extraFields?: ReactNode
   onTitleChange: (next: string) => void
   onInstructionsChange: (next: TiptapContent) => void
   onDueAtChange: (next: string) => void
@@ -90,6 +91,7 @@ export function AssignmentForm({
   instructions,
   dueAt,
   classDays,
+  extraFields,
   onTitleChange,
   onInstructionsChange,
   onDueAtChange,
@@ -138,6 +140,8 @@ export function AssignmentForm({
           />
         </div>
       </div>
+
+      {extraFields}
 
       <div>
         {(() => {

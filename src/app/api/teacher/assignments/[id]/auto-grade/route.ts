@@ -90,9 +90,11 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
             score_completion: result.score_completion,
             score_thinking: result.score_thinking,
             score_workflow: result.score_workflow,
-            feedback: result.feedback,
-            graded_at: new Date().toISOString(),
-            graded_by: `ai:${result.model}`,
+            ai_feedback_suggestion: result.feedback,
+            ai_feedback_suggested_at: new Date().toISOString(),
+            ai_feedback_model: result.model,
+            graded_at: null,
+            graded_by: null,
           })
           .eq('id', doc.id)
 

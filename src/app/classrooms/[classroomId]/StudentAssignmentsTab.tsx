@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Pencil } from 'lucide-react'
 import { Button, ContentDialog, RefreshingIndicator } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -36,7 +37,7 @@ export function StudentAssignmentsTab({
   const [hasLoaded, setHasLoaded] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
-  const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false })
+  const [editorState, setEditorState] = useState({ isSubmitted: false, canSubmit: false, submitting: false, hasRepoMetadata: false })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
   const wasActiveRef = useRef(isActive)
   const showBlockingSpinner = useDelayedBusy(loading && assignments.length === 0)
@@ -143,6 +144,8 @@ export function StudentAssignmentsTab({
                 assignment_id: a.id,
                 student_id: '',
                 content: { type: 'doc', content: [] } as TiptapContent,
+                repo_url: null,
+                github_username: null,
                 is_submitted: false,
                 submitted_at: null,
                 viewed_at: now,
@@ -150,6 +153,12 @@ export function StudentAssignmentsTab({
                 score_thinking: null,
                 score_workflow: null,
                 feedback: null,
+                teacher_feedback_draft: null,
+                teacher_feedback_draft_updated_at: null,
+                feedback_returned_at: null,
+                ai_feedback_suggestion: null,
+                ai_feedback_suggested_at: null,
+                ai_feedback_model: null,
                 graded_at: null,
                 graded_by: null,
                 returned_at: null,
@@ -176,13 +185,23 @@ export function StudentAssignmentsTab({
       <PageActionBar
         primary={
           selectedAssignment && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => setShowInstructions(true)}
-            >
-              Instructions
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowInstructions(true)}
+              >
+                Instructions
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => editorRef.current?.openRepoDialog()}
+              >
+                <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                Repo
+              </Button>
+            </div>
           )
         }
         trailing={

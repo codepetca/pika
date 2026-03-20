@@ -17,6 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import {
+  BarChart3,
   Check,
   Circle,
   Clock,
@@ -25,7 +26,7 @@ import {
   RotateCcw,
   Send,
 } from 'lucide-react'
-import { ConfirmDialog, RefreshingIndicator, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, RefreshingIndicator, Tooltip } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -49,7 +50,15 @@ import {
 } from '@/lib/assignments'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { isVisibleAtNow } from '@/lib/scheduling'
-import type { Classroom, Assignment, AssignmentStats, AssignmentStatus, ClassDay, TiptapContent, SelectedStudentInfo } from '@/types'
+import type {
+  Classroom,
+  Assignment,
+  AssignmentStats,
+  AssignmentStatus,
+  ClassDay,
+  TiptapContent,
+  SelectedStudentInfo,
+} from '@/types'
 import {
   DataTable,
   DataTableBody,
@@ -95,6 +104,7 @@ interface StudentSubmissionRow {
     score_workflow?: number | null
     graded_at?: string | null
     returned_at?: string | null
+    feedback_returned_at?: string | null
   } | null
 }
 
@@ -157,6 +167,18 @@ function getRowClassName(isSelected: boolean): string {
 
 const STATUS_ICON_CLASS = 'h-4 w-4'
 const LATE_CLOCK_CLASS = 'h-3 w-3'
+
+function MetricBar({ value }: { value: number }) {
+  const percentage = Math.max(0, Math.min(100, Math.round(value * 100)))
+  return (
+    <div className="h-2 w-full rounded-full bg-surface-2">
+      <div
+        className="h-full rounded-full bg-primary transition-[width]"
+        style={{ width: `${percentage}%` }}
+      />
+    </div>
+  )
+}
 
 function StatusIcon({
   status,
@@ -270,6 +292,7 @@ export function TeacherClassroomView({
 
   // Batch grading state
   const [isAutoGrading, setIsAutoGrading] = useState(false)
+  const [isArtifactRepoAnalyzing, setIsArtifactRepoAnalyzing] = useState(false)
   const [isReturning, setIsReturning] = useState(false)
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
@@ -431,6 +454,7 @@ export function TeacherClassroomView({
     }
 
     const assignmentId = selection.assignmentId
+    const assignmentMeta = assignments.find((item) => item.id === assignmentId)
 
     async function loadSelectedAssignment() {
       setSelectedAssignmentLoading(true)
@@ -441,6 +465,7 @@ export function TeacherClassroomView({
         if (!response.ok) {
           throw new Error(data.error || 'Failed to load assignment')
         }
+
         setSelectedAssignmentData({
           assignment: data.assignment,
           students: (data.students || []) as StudentSubmissionRow[],
@@ -454,7 +479,7 @@ export function TeacherClassroomView({
     }
 
     loadSelectedAssignment()
-  }, [selection, refreshCounter])
+  }, [assignments, refreshCounter, selection])
 
   // Notify parent about selected assignment for sidebar
   useEffect(() => {
@@ -550,7 +575,9 @@ export function TeacherClassroomView({
     return rows
   }, [selectedAssignmentData, sortColumn, sortDirection])
 
-  const studentRowIds = useMemo(() => sortedStudents.map((s) => s.student_id), [sortedStudents])
+  const currentStudentRows = sortedStudents
+
+  const studentRowIds = useMemo(() => currentStudentRows.map((s) => s.student_id), [currentStudentRows])
   const dueAtMs = useMemo(() => selectedAssignmentData ? new Date(selectedAssignmentData.assignment.due_at).getTime() : 0, [selectedAssignmentData])
   const {
     selectedIds: batchSelectedIds,
@@ -561,9 +588,9 @@ export function TeacherClassroomView({
     selectedCount: batchSelectedCount,
   } = useStudentSelection(studentRowIds)
   const batchSelectedGradedCount = useMemo(() => {
-    if (!selectedAssignmentData) return 0
+    if (currentStudentRows.length === 0) return 0
     let graded = 0
-    for (const student of selectedAssignmentData.students) {
+    for (const student of currentStudentRows) {
       const doc = student.doc
       const hasDraftScores = !!(
         doc &&
@@ -576,7 +603,7 @@ export function TeacherClassroomView({
       }
     }
     return graded
-  }, [selectedAssignmentData, batchSelectedIds])
+  }, [batchSelectedIds, currentStudentRows])
   const batchSelectedUngradedCount = batchSelectedCount - batchSelectedGradedCount
 
   // Auto-dismiss warning after 3 seconds, or immediately when students are selected
@@ -624,6 +651,38 @@ export function TeacherClassroomView({
     }
   }
 
+  async function handleBatchArtifactRepoAnalyze() {
+    if (!selectedAssignmentData || batchSelectedCount === 0) return
+    setBatchProgressCount(batchSelectedCount)
+    setIsArtifactRepoAnalyzing(true)
+    setError('')
+    setInfo('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/artifact-repo/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Repo analysis failed')
+
+      const skipSummary = Object.entries((data.skipped_reasons || {}) as Record<string, number>)
+        .map(([reason, count]) => `${count} ${reason}`)
+        .join(' • ')
+      setInfo(
+        `Analyzed ${data.analyzed_students ?? 0} student(s) across ${data.repo_groups ?? 0} repo group(s)${
+          skipSummary ? ` • ${skipSummary}` : ''
+        }`
+      )
+      batchClearSelection()
+      setRefreshCounter((c) => c + 1)
+    } catch (err: any) {
+      setError(err.message || 'Repo analysis failed')
+    } finally {
+      setIsArtifactRepoAnalyzing(false)
+    }
+  }
+
   async function handleBatchReturn() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
     setBatchProgressCount(batchSelectedCount)
@@ -654,29 +713,36 @@ export function TeacherClassroomView({
 
   const selectedStudentIndex = useMemo(() => {
     if (!selectedStudentId) return -1
-    return sortedStudents.findIndex((student) => student.student_id === selectedStudentId)
-  }, [sortedStudents, selectedStudentId])
+    return currentStudentRows.findIndex((student) => student.student_id === selectedStudentId)
+  }, [currentStudentRows, selectedStudentId])
 
   const canGoPrevStudent = selectedStudentIndex > 0
-  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < sortedStudents.length - 1
+  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < currentStudentRows.length - 1
+  const selectedStudentRow = useMemo(() => {
+    if (!selectedStudentId) return null
+    return currentStudentRows.find((student) => student.student_id === selectedStudentId) ?? null
+  }, [currentStudentRows, selectedStudentId])
 
   const handleGoPrevStudent = useCallback(() => {
     if (selectedStudentIndex <= 0) return
-    setSelectedStudentId(sortedStudents[selectedStudentIndex - 1].student_id)
-  }, [selectedStudentIndex, sortedStudents])
+    setSelectedStudentId(currentStudentRows[selectedStudentIndex - 1].student_id)
+  }, [currentStudentRows, selectedStudentIndex])
 
   const handleGoNextStudent = useCallback(() => {
-    if (selectedStudentIndex === -1 || selectedStudentIndex >= sortedStudents.length - 1) return
-    setSelectedStudentId(sortedStudents[selectedStudentIndex + 1].student_id)
-  }, [selectedStudentIndex, sortedStudents])
+    if (selectedStudentIndex === -1 || selectedStudentIndex >= currentStudentRows.length - 1) return
+    setSelectedStudentId(currentStudentRows[selectedStudentIndex + 1].student_id)
+  }, [currentStudentRows, selectedStudentIndex])
 
   // Notify parent when student selection changes
   useEffect(() => {
-    if (selectedStudentId && selection.mode === 'assignment' && selectedAssignmentData?.assignment?.id) {
+    const activeAssignment = selectedAssignmentData?.assignment || null
+    if (selectedStudentId && selection.mode === 'assignment' && activeAssignment?.id) {
+      const studentName = `${selectedStudentRow?.student_first_name || ''} ${selectedStudentRow?.student_last_name || ''}`.trim()
       onSelectStudent?.({
-        assignmentId: selectedAssignmentData.assignment.id,
-        assignmentTitle: selectedAssignmentData.assignment.title,
+        assignmentId: activeAssignment.id,
+        assignmentTitle: activeAssignment.title,
         studentId: selectedStudentId,
+        studentName: studentName || selectedStudentRow?.student_email || 'Student',
         canGoPrev: canGoPrevStudent,
         canGoNext: canGoNextStudent,
         onGoPrev: handleGoPrevStudent,
@@ -685,7 +751,7 @@ export function TeacherClassroomView({
     } else {
       onSelectStudent?.(null)
     }
-  }, [selectedStudentId, selection.mode, selectedAssignmentData?.assignment?.id, selectedAssignmentData?.assignment?.title, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
+  }, [selectedAssignmentData?.assignment, selectedStudentId, selection.mode, selectedStudentRow, canGoPrevStudent, canGoNextStudent, handleGoPrevStudent, handleGoNextStudent, onSelectStudent])
 
   // Auto-open right sidebar and collapse left sidebar when student is selected
   const prevSelectedStudentIdRef = useRef<string | null>(null)
@@ -827,6 +893,23 @@ export function TeacherClassroomView({
         </button>
         {selectedAssignmentData && (
           <>
+            <Tooltip content={batchSelectedCount > 0 ? `Analyze repo (${batchSelectedCount})` : 'Select students to analyze repos'}>
+              <button
+                type="button"
+                className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} ${batchSelectedCount === 0 ? 'opacity-50' : ''}`}
+                onClick={() => {
+                  if (batchSelectedCount === 0) {
+                    setWarning('Select students to analyze repos')
+                    return
+                  }
+                  void handleBatchArtifactRepoAnalyze()
+                }}
+                disabled={isArtifactRepoAnalyzing || isReadOnly}
+                aria-label={batchSelectedCount > 0 ? `Analyze repos for ${batchSelectedCount} students` : 'Select students to analyze repos'}
+              >
+                <BarChart3 className={`h-5 w-5 ${batchSelectedCount > 0 ? 'text-primary' : ''}`} aria-hidden="true" />
+              </button>
+            </Tooltip>
             <Tooltip content={batchSelectedCount > 0 ? `AI grade (${batchSelectedCount})` : 'Select students to grade'}>
               <button
                 type="button"
@@ -941,7 +1024,7 @@ export function TeacherClassroomView({
       ) : (
         <KeyboardNavigableTable
           ref={tableContainerRef}
-          rowKeys={sortedStudents.map((s) => s.student_id)}
+          rowKeys={currentStudentRows.map((s) => s.student_id)}
           selectedKey={selectedStudentId}
           onSelectKey={setSelectedStudentId}
         >
@@ -956,11 +1039,17 @@ export function TeacherClassroomView({
               </div>
             ) : (
               <div className="relative">
-              {(isAutoGrading || isReturning) && (
+              {(isAutoGrading || isArtifactRepoAnalyzing || isReturning) && (
                 <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-surface/70">
                   <div className="flex items-center gap-2 text-sm text-text-muted">
                     <Spinner />
-                    <span>{isAutoGrading ? `Grading ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…` : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}</span>
+                    <span>
+                      {isAutoGrading
+                        ? `Grading ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+                        : isArtifactRepoAnalyzing
+                          ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+                          : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
+                    </span>
                   </div>
                 </div>
               )}
@@ -1001,7 +1090,7 @@ export function TeacherClassroomView({
                     <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
                     {!isCompactTable && <DataTableHeaderCell className="w-[5.5rem]">Updated</DataTableHeaderCell>}
                     <DataTableHeaderCell className={isCompactTable ? 'w-[6.5rem]' : 'w-[38%] min-w-[24rem]'}>
-                      {isCompactTable ? 'Work' : 'Links / Images'}
+                      {isCompactTable ? 'Work' : 'Artifacts'}
                     </DataTableHeaderCell>
                   </DataTableRow>
                 </DataTableHead>
