@@ -99,6 +99,9 @@ export function QuizDetailPanel({
   const lastSavedDraftRef = useRef('')
   const saveStatusRef = useRef<'saved' | 'saving' | 'unsaved'>('saved')
   const pendingDraftRef = useRef<AssessmentEditorDraft | null>(null)
+  const markdownDirtyRef = useRef(false)
+  const savedMarkdownRef = useRef('')
+  const documentsRef = useRef(documents)
 
   const normalizeQuestionPositions = useCallback((nextQuestions: QuizQuestion[]): QuizQuestion[] => {
     return nextQuestions.map((question, index) => ({ ...question, position: index }))
@@ -163,19 +166,30 @@ export function QuizDetailPanel({
       const nextShowResults =
         typeof draft.content.show_results === 'boolean' ? draft.content.show_results : quiz.show_results
       const nextQuestions = normalizeDraftQuestions(draft.content.questions || [])
+      const nextSourceMarkdown =
+        typeof draft.content.source_markdown === 'string'
+          ? draft.content.source_markdown
+          : testToMarkdown({
+              title: nextTitle,
+              show_results: nextShowResults,
+              questions: nextQuestions,
+              documents: documentsRef.current,
+            })
       const nextSnapshot = {
         title: nextTitle,
         show_results: nextShowResults,
         questions: nextQuestions,
         ...(draft.content.source_format === 'markdown' ? { source_format: 'markdown' as const } : {}),
-        ...(typeof draft.content.source_markdown === 'string'
-          ? { source_markdown: draft.content.source_markdown }
-          : {}),
+        source_markdown: nextSourceMarkdown,
       }
 
       setEditTitle(nextTitle)
       setDraftShowResults(nextShowResults)
       setQuestions(nextQuestions)
+      savedMarkdownRef.current = nextSourceMarkdown
+      if (!markdownDirtyRef.current) {
+        setMarkdownContent(nextSourceMarkdown)
+      }
       draftVersionRef.current = draft.version
       lastSavedDraftRef.current = JSON.stringify(nextSnapshot)
       pendingDraftRef.current = nextSnapshot
@@ -193,6 +207,7 @@ export function QuizDetailPanel({
     setIsEditingTitle(false)
     setConflictDraft(null)
     setMarkdownDirty(false)
+    markdownDirtyRef.current = false
     setMarkdownError('')
     setMarkdownInfo('')
   }, [quiz.id, quiz.show_results, quiz.title])
@@ -200,6 +215,10 @@ export function QuizDetailPanel({
   useEffect(() => {
     setDocuments(normalizeTestDocuments((quiz as { documents?: unknown }).documents))
   }, [quiz])
+
+  useEffect(() => {
+    documentsRef.current = documents
+  }, [documents])
 
   const currentTestMarkdown = useMemo(() => {
     if (!isTestsView) return ''
@@ -210,11 +229,6 @@ export function QuizDetailPanel({
       documents,
     })
   }, [documents, draftShowResults, editTitle, isTestsView, questions])
-
-  useEffect(() => {
-    if (!isTestsView || markdownDirty) return
-    setMarkdownContent(currentTestMarkdown)
-  }, [currentTestMarkdown, isTestsView, markdownDirty])
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -644,15 +658,25 @@ export function QuizDetailPanel({
   function handleMarkdownChange(content: string) {
     setMarkdownContent(content)
     setMarkdownDirty(true)
+    markdownDirtyRef.current = true
     setMarkdownError('')
     setMarkdownInfo('')
   }
 
   function handleResetMarkdown() {
-    setMarkdownContent(currentTestMarkdown)
+    setMarkdownContent(savedMarkdownRef.current || currentTestMarkdown)
     setMarkdownDirty(false)
+    markdownDirtyRef.current = false
     setMarkdownError('')
     setMarkdownInfo('')
+  }
+
+  function handleRebuildMarkdownFromStructured() {
+    setMarkdownContent(currentTestMarkdown)
+    setMarkdownDirty(true)
+    markdownDirtyRef.current = true
+    setMarkdownError('')
+    setMarkdownInfo('Markdown rebuilt from structured editor')
   }
 
   async function handleCopyMarkdown() {
@@ -738,6 +762,7 @@ export function QuizDetailPanel({
       setQuestions(nextQuestions)
       setDocuments(parsed.documents)
       setMarkdownDirty(false)
+      markdownDirtyRef.current = false
       setMarkdownError('')
       setMarkdownInfo('Markdown applied')
     }
@@ -1069,6 +1094,15 @@ export function QuizDetailPanel({
               >
                 <Copy className="h-4 w-4" />
                 Copy Schema
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleRebuildMarkdownFromStructured}
+                disabled={markdownSaving}
+              >
+                Rebuild From Structured
               </Button>
               <Button
                 type="button"

@@ -350,6 +350,78 @@ describe('QuizDetailPanel', () => {
   })
 
   describe('Markdown tab', () => {
+    it('loads and resets to the persisted source markdown instead of regenerating from structured fields', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const persistedSourceMarkdown = `# Test
+Title: Markdown Test
+Show Results: false
+
+<!-- teacher formatting should survive -->
+
+## Questions
+### Question 1
+ID: ${markdownQuestionId1}
+Type: multiple_choice
+Prompt:
+Favorite color?
+Options:
+- Red
+- Blue
+- Green
+Correct Option: 2
+`
+
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Markdown Test',
+                show_results: false,
+                questions: sampleQuestions,
+                source_format: 'markdown',
+                source_markdown: persistedSourceMarkdown,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [],
+            },
+          }),
+        })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Markdown Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const textarea = await screen.findByRole('textbox')
+      expect(textarea).toHaveValue(persistedSourceMarkdown)
+
+      fireEvent.change(textarea, { target: { value: 'edited markdown' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('textbox')).toHaveValue(persistedSourceMarkdown)
+      })
+    })
+
     it('applies valid markdown and saves through draft endpoint', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock
