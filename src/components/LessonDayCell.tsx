@@ -364,7 +364,6 @@ export const LessonDayCell = memo(function LessonDayCell({
             onChange={(event) => handleMarkdownChange(event.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={() => setIsEditing(false)}
-            placeholder="Add lesson plan..."
             className={`w-full resize-none border-none bg-transparent font-mono text-text-default focus:outline-none ${compact ? 'min-h-[4.5rem] text-[10px] leading-tight' : 'min-h-[6rem] text-sm leading-snug'}`}
           />
         ) : (
@@ -379,10 +378,6 @@ export const LessonDayCell = memo(function LessonDayCell({
                 className={`${previewClassName} text-text-muted`.trim()}
                 emptyPlaceholder={null}
               />
-            ) : editable ? (
-              <div className={`${compact ? 'text-[10px]' : 'text-sm'} text-text-muted/70`}>
-                Add lesson plan...
-              </div>
             ) : null}
           </button>
         )}

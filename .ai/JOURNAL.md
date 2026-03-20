@@ -7114,3 +7114,17 @@
   - teacher: `/tmp/pika-assignment-large-h-teacher.png`
   - student: `/tmp/pika-assignment-large-h-student.png`
 - Local browser verification is still limited by empty classroom seed data, so the screenshot pass only covers the authenticated empty `/classrooms` states, not a live assignment modal.
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Remove the default `Add lesson plan...` prompt text from empty calendar cells before merge.
+**Completed:**
+- Removed the visible empty-state prompt text from editable lesson-plan cells and removed the inline textarea placeholder so blank cells stay visually empty until the teacher clicks in.
+- Added regression coverage to ensure empty editable lesson-plan cells do not render the old prompt text in either preview or edit mode.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+- Browser screenshot pass against `http://localhost:3000/classrooms`:
+  - teacher: `/tmp/pika-calendar-empty-prompt-teacher.png`
+  - student: `/tmp/pika-calendar-empty-prompt-student.png`
+- Local browser verification is still limited by empty classroom seed data, so the screenshot pass only covers the authenticated empty `/classrooms` states, not a live calendar with empty lesson-plan cells.

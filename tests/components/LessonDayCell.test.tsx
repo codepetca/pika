@@ -70,6 +70,26 @@ describe('LessonDayCell', () => {
     expect(screen.getByDisplayValue('Lesson text')).toHaveClass('font-mono')
   })
 
+  it('does not render default add-lesson-plan prompt text for empty editable cells', () => {
+    render(
+      <LessonDayCell
+        date="2026-03-14"
+        day={new Date('2026-03-14T12:00:00.000Z')}
+        lessonPlan={null}
+        isWeekend={false}
+        isToday={false}
+        editable={true}
+        compact={false}
+      />
+    )
+
+    expect(screen.queryByText('Add lesson plan...')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('14'))
+
+    expect(screen.getByRole('textbox')).not.toHaveAttribute('placeholder')
+  })
+
   it('enters inline markdown edit mode when the date header is clicked', () => {
     const { container } = render(
       <LessonDayCell
