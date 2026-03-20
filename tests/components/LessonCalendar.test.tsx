@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { LessonCalendar } from '@/components/LessonCalendar'
 import { TooltipProvider } from '@/ui'
-import type { Assignment, Classroom } from '@/types'
+import type { Assignment, Classroom, LessonPlan, TiptapContent } from '@/types'
 import type { ReactNode } from 'react'
 
 // Mock the keyboard shortcut hook
@@ -36,6 +36,21 @@ const mondayAssignment: Assignment = {
   released_at: '2026-03-10T00:00:00.000Z',
   track_authenticity: false,
   created_by: 't1',
+  created_at: '2026-03-01T00:00:00.000Z',
+  updated_at: '2026-03-01T00:00:00.000Z',
+}
+
+const lessonPlanContent: TiptapContent = {
+  type: 'doc',
+  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'All mode lesson' }] }],
+}
+
+const allModeLessonPlan: LessonPlan = {
+  id: 'lesson-plan-1',
+  classroom_id: 'cls-123',
+  date: '2026-03-16',
+  content: lessonPlanContent,
+  content_markdown: 'All mode lesson',
   created_at: '2026-03-01T00:00:00.000Z',
   updated_at: '2026-03-01T00:00:00.000Z',
 }
@@ -158,5 +173,25 @@ describe('LessonCalendar', () => {
 
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText('Week 11 quiz')).toBeInTheDocument()
+  })
+
+  it('allows inline editing in all view', () => {
+    render(
+      <LessonCalendar
+        classroom={mockClassroom}
+        lessonPlans={[allModeLessonPlan]}
+        viewMode="all"
+        currentDate={new Date('2026-03-16T12:00:00')}
+        editable={true}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+        onContentChange={vi.fn()}
+      />,
+      { wrapper: Wrapper }
+    )
+
+    fireEvent.click(screen.getByText('All mode lesson'))
+
+    expect(screen.getByDisplayValue('All mode lesson')).toBeInTheDocument()
   })
 })

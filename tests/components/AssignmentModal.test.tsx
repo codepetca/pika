@@ -63,6 +63,48 @@ describe('AssignmentModal', () => {
       expect(screen.getByDisplayValue('2025-01-15')).toBeInTheDocument()
     })
 
+    it('renders a markdown-only instructions editor with formatting buttons', () => {
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={baseAssignment}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByText('Author Markdown')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Legacy Rich Text Editor/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/Supported markdown:/i)).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Heading' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Italic' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Bullet list' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Inline code' })).toBeInTheDocument()
+
+      const instructions = screen.getByPlaceholderText('Assignment instructions') as HTMLTextAreaElement
+      instructions.focus()
+      instructions.setSelectionRange(0, 8)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
+
+      expect(instructions).toHaveValue('**Original** instructions')
+      expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+      expect(instructions).toHaveValue('Original instructions')
+      expect(screen.getByRole('button', { name: 'Redo' })).toBeEnabled()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Redo' }))
+
+      expect(instructions).toHaveValue('**Original** instructions')
+    })
+
     it('shows save status indicator', () => {
       render(
         <AssignmentModal
@@ -196,6 +238,53 @@ describe('AssignmentModal', () => {
       )
 
       expect(screen.getByRole('button', { name: 'Post' })).toBeInTheDocument()
+    })
+
+    it('requires a title before posting a draft assignment', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={{ ...baseAssignment, title: 'Untitled Assignment' }}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      const titleInput = screen.getByPlaceholderText('Add a title')
+      expect(titleInput).toHaveValue('')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+
+      expect(screen.getByText('Add a title before posting or scheduling this assignment.')).toBeInTheDocument()
+      expect(document.activeElement).toBe(titleInput)
+      expect(screen.queryByText('Post assignment to students?')).not.toBeInTheDocument()
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('requires a title before opening schedule flow for a draft assignment', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={{ ...baseAssignment, title: 'Untitled Assignment' }}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Add a title before posting or scheduling this assignment.')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Schedule Release')).not.toBeInTheDocument()
+      expect(fetchMock).not.toHaveBeenCalled()
     })
 
     it('opens mini schedule modal when scheduled assignment primary is clicked', async () => {
@@ -392,6 +481,9 @@ describe('AssignmentModal', () => {
         expect(screen.getByText('Edit Draft')).toBeInTheDocument()
       })
 
+      expect(screen.getByPlaceholderText('Add a title')).toHaveValue('')
+      expect(screen.queryByDisplayValue('Untitled Assignment')).not.toBeInTheDocument()
+
       // Should have called POST to create the draft
       expect(fetchMock).toHaveBeenCalledTimes(1)
       const [url, options] = fetchMock.mock.calls[0]
@@ -509,7 +601,7 @@ describe('AssignmentModal', () => {
 
     it('opens schedule modal from split action and schedules release', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-      const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' }
+      const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Essay outline' }
       fetchMock
         .mockResolvedValueOnce({
           ok: true,
@@ -535,6 +627,7 @@ describe('AssignmentModal', () => {
         expect(screen.getByText('Edit Draft')).toBeInTheDocument()
       })
 
+      fireEvent.change(screen.getByPlaceholderText('Add a title'), { target: { value: 'Essay outline' } })
       fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
 
@@ -565,7 +658,7 @@ describe('AssignmentModal', () => {
 
     it('closes create modal when save schedule is confirmed', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-      const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Untitled Assignment' }
+      const newAssignment = { ...baseAssignment, id: 'new-draft-1', title: 'Research summary' }
       fetchMock
         .mockResolvedValueOnce({
           ok: true,
@@ -599,6 +692,7 @@ describe('AssignmentModal', () => {
         expect(screen.getByText('Edit Draft')).toBeInTheDocument()
       })
 
+      fireEvent.change(screen.getByPlaceholderText('Add a title'), { target: { value: 'Research summary' } })
       fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
       await waitFor(() => {

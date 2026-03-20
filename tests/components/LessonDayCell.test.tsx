@@ -70,6 +70,25 @@ describe('LessonDayCell', () => {
     expect(screen.getByDisplayValue('Lesson text')).toHaveClass('font-mono')
   })
 
+  it('enters inline markdown edit mode when the date header is clicked', () => {
+    const { container } = render(
+      <LessonDayCell
+        date="2026-03-13"
+        day={new Date('2026-03-13T12:00:00.000Z')}
+        lessonPlan={lessonPlan}
+        isWeekend={false}
+        isToday={false}
+        editable={true}
+        compact={false}
+      />
+    )
+
+    fireEvent.click(screen.getByText('13'))
+
+    expect(screen.getByDisplayValue('Lesson text')).toHaveClass('font-mono')
+    expect(container.querySelector('textarea')).toBeTruthy()
+  })
+
   it('keeps the edited markdown visible after blur when parent state updates optimistically', () => {
     render(<Harness />)
 
@@ -79,6 +98,17 @@ describe('LessonDayCell', () => {
     fireEvent.blur(textarea)
 
     expect(screen.getByText('Updated lesson text')).toBeInTheDocument()
+  })
+
+  it('keeps the edited markdown visible after pressing escape', () => {
+    render(<Harness />)
+
+    fireEvent.click(screen.getByRole('button'))
+    const textarea = screen.getByDisplayValue('Lesson text')
+    fireEvent.change(textarea, { target: { value: 'Saved via escape' } })
+    fireEvent.keyDown(textarea, { key: 'Escape' })
+
+    expect(screen.getByText('Saved via escape')).toBeInTheDocument()
   })
 
   it('renders markdown preview inside the shared calendar text wrapper', () => {

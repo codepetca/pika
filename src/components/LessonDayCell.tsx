@@ -133,12 +133,10 @@ export const LessonDayCell = memo(function LessonDayCell({
   const [isEditing, setIsEditing] = useState(false)
   const [localMarkdown, setLocalMarkdown] = useState(markdown)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
-  const editStartMarkdownRef = useRef(markdown)
 
   useEffect(() => {
     if (!isEditing) {
       setLocalMarkdown(markdown)
-      editStartMarkdownRef.current = markdown
     }
   }, [markdown, isEditing])
 
@@ -153,7 +151,6 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   const handleStartEditing = useCallback(() => {
     if (!editable) return
-    editStartMarkdownRef.current = markdown
     setLocalMarkdown(markdown)
     setIsEditing(true)
   }, [editable, markdown])
@@ -204,12 +201,9 @@ export const LessonDayCell = memo(function LessonDayCell({
     }
     if (event.key === 'Escape') {
       event.preventDefault()
-      const original = editStartMarkdownRef.current
-      setLocalMarkdown(original)
-      onContentChange?.(date, original)
       setIsEditing(false)
     }
-  }, [applyShortcut, date, onContentChange])
+  }, [applyShortcut])
 
   const hasContent = markdown.trim().length > 0
   const previewClassName = compact || plainTextOnly
@@ -281,6 +275,11 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   return (
     <div
+      onClick={() => {
+        if (!isEditing) {
+          handleStartEditing()
+        }
+      }}
       className={`
         relative h-full min-w-0 overflow-hidden
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}

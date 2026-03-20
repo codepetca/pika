@@ -543,7 +543,7 @@ export function LessonCalendar({
                   isWeekend={isWeekendDay}
                   isToday={isToday}
                   isClassDay={isClassDay}
-                  editable={editable && !isWeekendDay && viewMode !== 'all'}
+                  editable={editable && !isWeekendDay}
                   compact={viewMode !== 'week' && !isExpanded}
                   plainTextOnly={viewMode === 'all'}
                   onContentChange={onContentChange}

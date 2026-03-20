@@ -2,10 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import { X } from 'lucide-react'
-import type { Assignment, ClassDay, TiptapContent } from '@/types'
+import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
-import { markdownToTiptapContent, tiptapToMarkdown } from '@/lib/limited-markdown'
 import { ConfirmDialog, DialogPanel, SplitButton } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format } from 'date-fns'
@@ -15,7 +14,6 @@ import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { DEFAULT_SCHEDULE_TIME, getTodayInSchedulingTimezone, isVisibleAtNow, parseScheduleIsoToParts } from '@/lib/scheduling'
 import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAssignmentScheduling'
 
-const EMPTY_INSTRUCTIONS: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
 type AssignmentEditorValues = {
@@ -24,10 +22,18 @@ type AssignmentEditorValues = {
   dueAt: string
 }
 
+function getDisplayedAssignmentTitle(title: string): string {
+  return /^Untitled(?:\b|\s*\()/.test(title)
+    ? ''
+    : title
+}
+
 function validateAssignmentValues(values: AssignmentEditorValues): string | null {
   void values
   return null
 }
+
+const RELEASE_TITLE_ERROR = 'Add a title before posting or scheduling this assignment.'
 
 interface AssignmentModalProps {
   isOpen: boolean
@@ -40,14 +46,15 @@ interface AssignmentModalProps {
 
 export function AssignmentModal({ isOpen, classroomId, assignment, classDays, onClose, onSuccess }: AssignmentModalProps) {
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const isInitializedRef = useRef(false)
+  const instructionsHistoryRef = useRef<string[]>([])
+  const instructionsHistoryIndexRef = useRef(-1)
+  const isApplyingInstructionsHistoryRef = useRef(false)
 
   // The current assignment being edited (created on first save in create mode)
   const [currentAssignment, setCurrentAssignment] = useState<Assignment | null>(null)
 
   const [title, setTitle] = useState('')
   const [instructionsMarkdown, setInstructionsMarkdown] = useState('')
-  const [legacyInstructions, setLegacyInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
   const [markdownWarning, setMarkdownWarning] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -64,6 +71,39 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const pendingValuesRef = useRef<AssignmentEditorValues | null>(null)
 
   const isCreateMode = !assignment
+
+  const resetInstructionsHistory = useCallback((value: string) => {
+    instructionsHistoryRef.current = [value]
+    instructionsHistoryIndexRef.current = 0
+    isApplyingInstructionsHistoryRef.current = false
+  }, [])
+
+  const pushInstructionsHistory = useCallback((value: string) => {
+    if (isApplyingInstructionsHistoryRef.current) return
+
+    const history = instructionsHistoryRef.current
+    const currentIndex = instructionsHistoryIndexRef.current
+    const currentValue = currentIndex >= 0 ? history[currentIndex] : undefined
+
+    if (currentValue === value) return
+
+    const nextHistory = currentIndex >= 0
+      ? history.slice(0, currentIndex + 1)
+      : []
+    nextHistory.push(value)
+    instructionsHistoryRef.current = nextHistory
+    instructionsHistoryIndexRef.current = nextHistory.length - 1
+  }, [])
+
+  const applyInstructionsHistoryValue = useCallback((value: string) => {
+    isApplyingInstructionsHistoryRef.current = true
+    setInstructionsMarkdown(value)
+    setMarkdownWarning(null)
+    scheduleAutosave({ title, instructionsMarkdown: value, dueAt })
+    requestAnimationFrame(() => {
+      isApplyingInstructionsHistoryRef.current = false
+    })
+  }, [dueAt, title])
 
   const scheduling = useAssignmentScheduling({
     currentAssignment,
@@ -99,22 +139,20 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (!isOpen) return
 
     // Reset state when modal opens
-    isInitializedRef.current = false
     setError('')
     resetForAssignment(assignment)
 
     if (assignment) {
       // Edit mode: populate from existing assignment
-      const nextTitle = assignment.title
+      const nextTitle = getDisplayedAssignmentTitle(assignment.title)
       const resolvedInstructions = getAssignmentInstructionsMarkdown(assignment)
       const nextInstructionsMarkdown = resolvedInstructions.markdown
-      const nextLegacyInstructions = markdownToTiptapContent(nextInstructionsMarkdown)
       const nextDueAt = formatDateInToronto(new Date(assignment.due_at))
 
       setCurrentAssignment(assignment)
       setTitle(nextTitle)
       setInstructionsMarkdown(nextInstructionsMarkdown)
-      setLegacyInstructions(nextLegacyInstructions)
+      resetInstructionsHistory(nextInstructionsMarkdown)
       setMarkdownWarning(
         resolvedInstructions.hasLossyConversion
           ? resolvedInstructions.warnings.join(' ')
@@ -142,7 +180,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setCurrentAssignment(null)
       setTitle('')
       setInstructionsMarkdown('')
-      setLegacyInstructions(EMPTY_INSTRUCTIONS)
+      resetInstructionsHistory('')
       setMarkdownWarning(null)
       setDueAt(defaultDueAt)
       setScheduleDate(getTodayInSchedulingTimezone())
@@ -162,11 +200,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         titleInputRef.current?.select()
       }
     }, 100)
-
-    // Mark as initialized after the legacy editor mirror has had time to mount
-    requestAnimationFrame(() => {
-      isInitializedRef.current = true
-    })
 
     // Cleanup timeouts on close/change
     return () => {
@@ -239,10 +272,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
       if (newAssignment) {
         const resolvedInstructions = getAssignmentInstructionsMarkdown(newAssignment)
+        const nextTitle = getDisplayedAssignmentTitle(newAssignment.title)
         setCurrentAssignment(newAssignment)
-        setTitle(newAssignment.title)
+        setTitle(nextTitle)
         setInstructionsMarkdown(resolvedInstructions.markdown)
-        setLegacyInstructions(markdownToTiptapContent(resolvedInstructions.markdown))
+        resetInstructionsHistory(resolvedInstructions.markdown)
         setMarkdownWarning(
           resolvedInstructions.hasLossyConversion
             ? resolvedInstructions.warnings.join(' ')
@@ -251,7 +285,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         const assignmentDueAt = formatDateInToronto(new Date(newAssignment.due_at))
         setDueAt(assignmentDueAt)
         lastSavedValuesRef.current = {
-          title: newAssignment.title,
+          title: nextTitle,
           instructionsMarkdown: resolvedInstructions.markdown,
           dueAt: assignmentDueAt,
         }
@@ -328,7 +362,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         savedAssignment = updatedAssignment
         const resolvedInstructions = getAssignmentInstructionsMarkdown(updatedAssignment)
         setCurrentAssignment(updatedAssignment)
-        setLegacyInstructions(markdownToTiptapContent(resolvedInstructions.markdown))
         setMarkdownWarning(
           resolvedInstructions.hasLossyConversion
             ? resolvedInstructions.warnings.join(' ')
@@ -401,29 +434,31 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
+    if (newTitle.trim()) {
+      setError('')
+    }
     scheduleAutosave({ title: newTitle, instructionsMarkdown, dueAt })
   }
 
   function handleInstructionsMarkdownChange(newInstructionsMarkdown: string) {
     setInstructionsMarkdown(newInstructionsMarkdown)
-    setLegacyInstructions(markdownToTiptapContent(newInstructionsMarkdown))
+    pushInstructionsHistory(newInstructionsMarkdown)
     setMarkdownWarning(null)
     scheduleAutosave({ title, instructionsMarkdown: newInstructionsMarkdown, dueAt })
   }
 
-  function handleLegacyInstructionsChange(newInstructions: TiptapContent) {
-    const converted = tiptapToMarkdown(newInstructions)
-    const nextMarkdown = converted.markdown
+  function handleInstructionsUndo() {
+    const nextIndex = instructionsHistoryIndexRef.current - 1
+    if (nextIndex < 0) return
+    instructionsHistoryIndexRef.current = nextIndex
+    applyInstructionsHistoryValue(instructionsHistoryRef.current[nextIndex] ?? '')
+  }
 
-    if (!isInitializedRef.current) {
-      setLegacyInstructions(newInstructions)
-      return
-    }
-
-    setLegacyInstructions(newInstructions)
-    setInstructionsMarkdown(nextMarkdown)
-    setMarkdownWarning(converted.hasLossyConversion ? converted.warnings.join(' ') : null)
-    scheduleAutosave({ title, instructionsMarkdown: nextMarkdown, dueAt })
+  function handleInstructionsRedo() {
+    const nextIndex = instructionsHistoryIndexRef.current + 1
+    if (nextIndex >= instructionsHistoryRef.current.length) return
+    instructionsHistoryIndexRef.current = nextIndex
+    applyInstructionsHistoryValue(instructionsHistoryRef.current[nextIndex] ?? '')
   }
 
   function handleDueAtChange(newDueAt: string) {
@@ -524,13 +559,33 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     setSaving(false)
   }
 
+  function ensureTitleBeforeRelease(): boolean {
+    if (title.trim()) return true
+
+    setError(RELEASE_TITLE_ERROR)
+    titleInputRef.current?.focus()
+    return false
+  }
+
   // Wrapper: hook handles post/schedule/revert; component handles 'draft' already-a-draft case
   async function handleTriggerPrimaryAction(action: CreateSubmitAction = primaryAction) {
     if (action === 'draft' && currentAssignment?.is_draft) {
       await saveDraftAndClose()
       return
     }
+
+    if ((action === 'post' || action === 'schedule') && !ensureTitleBeforeRelease()) {
+      return
+    }
+
     await triggerPrimaryAction(action)
+  }
+
+  function handleSplitActionSelection(action: CreateSubmitAction) {
+    if ((action === 'post' || action === 'schedule') && !ensureTitleBeforeRelease()) {
+      return
+    }
+    handleActionSelection(action)
   }
 
   async function handleClose() {
@@ -595,12 +650,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           <AssignmentForm
             title={title}
             instructionsMarkdown={instructionsMarkdown}
-            legacyInstructions={legacyInstructions}
             dueAt={dueAt}
             classDays={classDays}
             onTitleChange={handleTitleChange}
             onInstructionsMarkdownChange={handleInstructionsMarkdownChange}
-            onLegacyInstructionsChange={handleLegacyInstructionsChange}
+            onInstructionsUndo={handleInstructionsUndo}
+            onInstructionsRedo={handleInstructionsRedo}
             onDueAtChange={handleDueAtChange}
             onPrevDate={handlePrevDate}
             onNextDate={handleNextDate}
@@ -611,6 +666,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
             titleInputRef={titleInputRef}
             onBlur={flushAutosave}
             markdownWarning={markdownWarning}
+            canUndoInstructions={instructionsHistoryIndexRef.current > 0}
+            canRedoInstructions={instructionsHistoryIndexRef.current < instructionsHistoryRef.current.length - 1}
             footerContent={
               currentAssignment
                 ? (
@@ -620,6 +677,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
                           <button
                             type="button"
                             onClick={() => {
+                              if (!ensureTitleBeforeRelease()) return
                               void openScheduleModalWithSave()
                             }}
                             disabled={creating || releasing || saving}
@@ -653,7 +711,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
                         primaryButtonProps={{
                           className: 'w-[9rem] justify-center font-semibold',
                         }}
-                        options={splitOptions}
+                        options={splitOptions.map((option) => ({
+                          ...option,
+                          onSelect: () => handleSplitActionSelection(option.id as CreateSubmitAction),
+                        }))}
                       />
                     </div>
                   )
@@ -685,6 +746,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           onTimeChange={setScheduleTime}
           onCancel={() => setShowCreateScheduleModal(false)}
           onConfirm={() => {
+            if (!ensureTitleBeforeRelease()) return
             void scheduleAssignmentRelease({ closeAfter: isScheduled })
           }}
           confirmLabel={releasing ? 'Scheduling...' : isScheduled ? 'Save schedule' : 'Schedule'}
@@ -705,7 +767,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         isConfirmDisabled={releasing}
         isCancelDisabled={releasing}
         onCancel={() => setShowPostNowConfirm(false)}
-        onConfirm={postAssignmentNow}
+        onConfirm={() => {
+          if (!ensureTitleBeforeRelease()) return
+          void postAssignmentNow()
+        }}
       />
 
       <ConfirmDialog
