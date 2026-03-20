@@ -126,10 +126,6 @@ async function clearAndSeed() {
     'Delete assignment_repo_review_runs'
   )
   ensureOk(
-    await supabase.from('assignment_repo_reviews').delete().neq('assignment_id', '00000000-0000-0000-0000-000000000000'),
-    'Delete assignment_repo_reviews'
-  )
-  ensureOk(
     await supabase.from('assignment_docs').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     'Delete assignment_docs'
   )
@@ -172,10 +168,6 @@ async function clearAndSeed() {
   ensureOk(
     await supabase.from('verification_codes').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     'Delete verification_codes'
-  )
-  ensureOk(
-    await supabase.from('user_github_identities').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-    'Delete user_github_identities'
   )
   ensureOk(
     await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000'),

@@ -11,21 +11,18 @@ import {
 } from '@/lib/repo-review'
 import { gradeRepoReviewFeedback } from '@/lib/repo-review-ai'
 import {
-  extractRepoArtifactsFromContent,
-  loadAssignmentRepoTarget,
   resolveAssignmentRepoTarget,
   saveAssignmentRepoTarget,
   validatePublicGitHubRepo,
 } from '@/lib/server/assignment-repo-targets'
 import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
-import { parseContentField } from '@/lib/tiptap-content'
-import type { AssignmentRepoReviewConfig, UserGitHubIdentity } from '@/types'
+import type { AssignmentRepoReviewConfig } from '@/types'
 
 type GroupedStudent = {
   studentId: string
   email: string
   name: string | null
-  githubIdentity: UserGitHubIdentity | null
+  effectiveGitHubUsername: string
 }
 
 function createConfigForResolvedRepo(opts: {
@@ -54,8 +51,10 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
   const user = await requireRole('teacher')
   const { id: assignmentId } = await context.params
   const assignment = await assertTeacherOwnsAssignment(user.id, assignmentId)
-  const body = await request.json()
-  const studentIds = Array.isArray(body.student_ids) ? body.student_ids.filter((value): value is string => typeof value === 'string') : []
+  const body: unknown = await request.json()
+  const studentIds = Array.isArray((body as { student_ids?: unknown[] })?.student_ids)
+    ? ((body as { student_ids: unknown[] }).student_ids.filter((value: unknown): value is string => typeof value === 'string'))
+    : []
 
   if (studentIds.length === 0) {
     throw apiErrors.badRequest('student_ids array is required')
@@ -87,12 +86,6 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
         .select('user_id, first_name, last_name')
         .in('user_id', enrolledStudentIds)
     : { data: [] as Array<{ user_id: string; first_name: string | null; last_name: string | null }> }
-  const { data: githubIdentities } = enrolledStudentIds.length > 0
-    ? await supabase
-        .from('user_github_identities')
-        .select('*')
-        .in('user_id', enrolledStudentIds)
-    : { data: [] as UserGitHubIdentity[] }
   const { data: docs } = enrolledStudentIds.length > 0
     ? await supabase
         .from('assignment_docs')
@@ -114,9 +107,6 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
       `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || null,
     ])
   )
-  const githubIdentityMap = new Map(
-    (githubIdentities || []).map((identity) => [identity.user_id, identity as UserGitHubIdentity])
-  )
   const docMap = new Map((docs || []).map((doc) => [doc.student_id, doc]))
   const repoTargetMap = new Map((repoTargets || []).map((target) => [target.student_id, target]))
 
@@ -126,13 +116,13 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
   for (const enrollment of enrollments || []) {
     const studentId = enrollment.student_id
     const doc = docMap.get(studentId)
-    const candidateRepos = doc ? extractRepoArtifactsFromContent(parseContentField(doc.content)) : []
     const resolved = resolveAssignmentRepoTarget({
-      candidateRepos,
+      submittedRepoUrl: typeof doc?.repo_url === 'string' ? doc.repo_url : null,
+      submittedGitHubUsername: typeof doc?.github_username === 'string' ? doc.github_username : null,
       target: repoTargetMap.get(studentId) || null,
     })
 
-    if (!resolved.effectiveRepoUrl) {
+    if (!resolved.effectiveRepoUrl || !resolved.effectiveGitHubUsername) {
       const reason = resolved.validationMessage || 'No valid repo selected'
       skippedReasons.set(reason, (skippedReasons.get(reason) || 0) + 1)
       continue
@@ -142,7 +132,8 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
     await saveAssignmentRepoTarget({
       assignmentId,
       studentId,
-      repoUrl: validation.repoUrl,
+      repoUrl: resolved.selectionMode === 'teacher_override' ? validation.repoUrl : null,
+      overrideGitHubUsername: resolved.selectionMode === 'teacher_override' ? resolved.effectiveGitHubUsername : null,
       selectionMode: resolved.selectionMode,
       validationStatus: validation.validationStatus,
       validationMessage: validation.validationMessage,
@@ -162,7 +153,7 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
       studentId,
       email: (enrollment.users as unknown as { email: string }).email,
       name: profileMap.get(studentId) || null,
-      githubIdentity: githubIdentityMap.get(studentId) || null,
+      effectiveGitHubUsername: resolved.effectiveGitHubUsername,
     }
     if (existing) {
       existing.students.push(groupedStudent)
@@ -227,10 +218,8 @@ export const POST = withErrorHandler('RunTeacherAssignmentArtifactRepoAnalysis',
         studentId: student.studentId,
         email: student.email,
         name: student.name,
-        githubLogin: student.githubIdentity?.github_login || null,
-        commitEmails: student.githubIdentity?.commit_emails?.length
-          ? student.githubIdentity.commit_emails
-          : [student.email],
+        githubLogin: student.effectiveGitHubUsername,
+        commitEmails: [student.email],
       }))
 
       const analysis = await analyzeRepoReviewAssignment({

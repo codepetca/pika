@@ -25,6 +25,14 @@ vi.mock('@/components/editor', () => ({
 
 vi.mock('@/ui', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  ContentDialog: ({ isOpen, title, children }: any) => isOpen ? <div role="dialog" aria-label={title}>{children}</div> : null,
+  FormField: ({ label, children }: any) => (
+    <label>
+      <span>{label}</span>
+      {children}
+    </label>
+  ),
+  Input: (props: any) => <input {...props} />,
   Tooltip: ({ children }: any) => <>{children}</>,
 }))
 
@@ -46,6 +54,8 @@ function makeDoc(overrides: Record<string, unknown>) {
     assignment_id: 'assignment-1',
     student_id: 'student-1',
     content: { type: 'doc', content: [] },
+    repo_url: null,
+    github_username: null,
     is_submitted: false,
     submitted_at: null,
     viewed_at: '2026-02-10T00:00:00Z',
@@ -158,5 +168,22 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('80%')).toBeInTheDocument()
     expect(screen.getByText('Strong effort and clear structure.')).toBeInTheDocument()
+  })
+
+  it('shows saved repo metadata under the assignment title when present', async () => {
+    mockLoadResponses(
+      makeDoc({
+        repo_url: 'https://github.com/codepetca/pika',
+        github_username: 'student1-demo',
+      }),
+    )
+
+    render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Repo', { exact: false })).toBeInTheDocument()
+    })
+    expect(screen.getByRole('link', { name: 'https://github.com/codepetca/pika' })).toHaveAttribute('href', 'https://github.com/codepetca/pika')
+    expect(screen.getByText('@student1-demo')).toBeInTheDocument()
   })
 })

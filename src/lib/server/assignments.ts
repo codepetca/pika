@@ -1,7 +1,6 @@
 type AssignmentVisibilityRecord = {
   is_draft: boolean
   released_at: string | null
-  evaluation_mode?: 'document' | 'repo_review'
 }
 
 export function isAssignmentVisibleToStudents(

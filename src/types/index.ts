@@ -147,9 +147,6 @@ export interface TiptapMark {
   attrs?: Record<string, any>
 }
 
-// Assignment types
-export type AssignmentEvaluationMode = 'document' | 'repo_review'
-
 export interface Assignment {
   id: string
   classroom_id: string
@@ -160,7 +157,6 @@ export interface Assignment {
   position: number
   is_draft: boolean  // Whether assignment is a draft (not visible to students)
   released_at: string | null  // When the assignment was released to students
-  evaluation_mode: AssignmentEvaluationMode
   track_authenticity: boolean
   points_possible?: number
   include_in_final?: boolean
@@ -182,6 +178,8 @@ export interface AssignmentDoc {
   assignment_id: string
   student_id: string
   content: TiptapContent  // Rich text content (JSONB)
+  repo_url: string | null
+  github_username: string | null
   is_submitted: boolean
   submitted_at: string | null
   viewed_at: string | null
@@ -266,7 +264,7 @@ export interface AssignmentFeedbackEntry {
 
 export type RepoReviewProvider = 'github'
 export type RepoReviewRunStatus = 'queued' | 'running' | 'completed' | 'failed'
-export type AssignmentRepoTargetSelectionMode = 'auto' | 'teacher_selected' | 'teacher_override'
+export type AssignmentRepoTargetSelectionMode = 'auto' | 'teacher_override'
 export type AssignmentRepoTargetValidationStatus =
   | 'missing'
   | 'ambiguous'
@@ -312,6 +310,7 @@ export interface AssignmentRepoTarget {
   assignment_id: string
   student_id: string
   selected_repo_url: string | null
+  override_github_username: string | null
   repo_owner: string | null
   repo_name: string | null
   selection_mode: AssignmentRepoTargetSelectionMode
@@ -406,6 +405,7 @@ export interface SelectedStudentInfo {
   assignmentId: string
   assignmentTitle: string
   studentId: string
+  studentName: string
   canGoPrev: boolean
   canGoNext: boolean
   onGoPrev: () => void

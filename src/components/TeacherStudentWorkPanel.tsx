@@ -9,7 +9,6 @@ import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { TEACHER_GRADE_UPDATED_EVENT, type TeacherGradeUpdatedEventDetail } from '@/lib/events'
-import type { AssignmentArtifact } from '@/lib/assignment-artifacts'
 import type {
   Assignment,
   AssignmentDoc,
@@ -22,7 +21,6 @@ import type {
   AssignmentStatus,
   AuthenticityFlag,
   TiptapContent,
-  UserGitHubIdentity,
 } from '@/types'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { readCookie, writeCookie } from '@/lib/cookies'
@@ -62,6 +60,20 @@ function AuthenticityGauge({ score, flags }: { score: number | null; flags: Auth
     >
       <div>{bar}</div>
     </Tooltip>
+  )
+}
+
+function RepoMetricBar({ label, value }: { label: string; value: number }) {
+  const percentage = Math.max(0, Math.min(100, Math.round(value * 100)))
+
+  return (
+    <div className="relative h-6 overflow-hidden rounded-full border border-border bg-surface-2">
+      <div className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width]" style={{ width: `${percentage}%` }} />
+      <div className="absolute inset-0 z-10 flex items-center justify-between px-3 text-[10px] font-semibold leading-none">
+        <span className="text-text-default">{label}</span>
+        <span className="text-text-default">{percentage}%</span>
+      </div>
+    </div>
   )
 }
 
@@ -127,11 +139,12 @@ interface StudentWorkData {
   doc: AssignmentDoc | null
   status: AssignmentStatus
   feedback_entries: AssignmentFeedbackEntry[]
-  github_identity: UserGitHubIdentity | null
   repo_target: {
     target: AssignmentRepoTarget | null
-    candidateRepos: AssignmentArtifact[]
+    submittedRepoUrl: string | null
+    submittedGitHubUsername: string | null
     effectiveRepoUrl: string | null
+    effectiveGitHubUsername: string | null
     repoOwner: string | null
     repoName: string | null
     selectionMode: AssignmentRepoTargetSelectionMode
@@ -185,12 +198,7 @@ export function TeacherStudentWorkPanel({
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
   const [feedbackReturning, setFeedbackReturning] = useState(false)
-  const [repoSaving, setRepoSaving] = useState(false)
   const [repoAnalyzing, setRepoAnalyzing] = useState(false)
-  const [githubLogin, setGithubLogin] = useState('')
-  const [commitEmails, setCommitEmails] = useState('')
-  const [selectedRepoUrl, setSelectedRepoUrl] = useState('')
-  const [overrideRepoUrl, setOverrideRepoUrl] = useState('')
   const showInitialSpinner = useDelayedBusy(loading && !data)
 
   function dispatchGradeUpdated(doc: AssignmentDoc | null) {
@@ -257,14 +265,7 @@ export function TeacherStudentWorkPanel({
   }
 
   function populateRepoForm(nextData: StudentWorkData) {
-    setGithubLogin(nextData.github_identity?.github_login ?? '')
-    setCommitEmails((nextData.github_identity?.commit_emails || []).join(', '))
-    setSelectedRepoUrl(nextData.repo_target.target?.selection_mode === 'teacher_selected'
-      ? (nextData.repo_target.target?.selected_repo_url ?? '')
-      : '')
-    setOverrideRepoUrl(nextData.repo_target.target?.selection_mode === 'teacher_override'
-      ? (nextData.repo_target.target?.selected_repo_url ?? '')
-      : '')
+    void nextData
   }
 
   const loadStudentWork = useCallback(async (): Promise<StudentWorkData | null> => {
@@ -298,13 +299,6 @@ export function TeacherStudentWorkPanel({
 
   // Load history
   useEffect(() => {
-    if (data?.assignment.evaluation_mode === 'repo_review') {
-      setHistoryEntries([])
-      setHistoryLoading(false)
-      setHistoryError('')
-      return
-    }
-
     setHistoryLoading(true)
     setHistoryError('')
 
@@ -326,7 +320,7 @@ export function TeacherStudentWorkPanel({
     }
 
     loadHistory()
-  }, [assignmentId, data?.assignment.evaluation_mode, studentId])
+  }, [assignmentId, studentId])
 
   async function handleSaveGrade(selectedSaveMode: GradeSaveMode) {
     if (!data) return
@@ -348,6 +342,8 @@ export function TeacherStudentWorkPanel({
         assignment_id: assignmentId,
         student_id: studentId,
         content: { type: 'doc', content: [] },
+        repo_url: null,
+        github_username: null,
         is_submitted: false,
         submitted_at: null,
         viewed_at: null,
@@ -475,42 +471,8 @@ export function TeacherStudentWorkPanel({
     }
   }
 
-  async function handleSaveRepoTarget(selectionMode: AssignmentRepoTargetSelectionMode, repoUrl?: string) {
-    if (!data || data.assignment.evaluation_mode === 'repo_review') return
-
-    const payloadRepoUrl = (repoUrl ?? '').trim()
-    if (selectionMode !== 'auto' && !payloadRepoUrl) {
-      setGradeError('Choose or enter a repo URL before saving')
-      return
-    }
-
-    setRepoSaving(true)
-    setGradeError('')
-    try {
-      const res = await fetch(`/api/teacher/assignments/${assignmentId}/repo-targets/${studentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          selection_mode: selectionMode,
-          selected_repo_url: payloadRepoUrl,
-          github_login: githubLogin.trim() || null,
-          commit_emails: commitEmails,
-          clear_identity: !githubLogin.trim() && !commitEmails.trim(),
-        }),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || 'Failed to save repo target')
-      await loadStudentWork()
-    } catch (err: any) {
-      setGradeError(err.message || 'Failed to save repo target')
-    } finally {
-      setRepoSaving(false)
-    }
-  }
-
   async function handleAnalyzeRepo() {
-    if (!data || data.assignment.evaluation_mode === 'repo_review') return
-
+    if (!data) return
     setRepoAnalyzing(true)
     setGradeError('')
     try {
@@ -560,12 +522,18 @@ export function TeacherStudentWorkPanel({
 
   const isPreviewLocked = lockedEntryId !== null
   const displayContent = previewContent || data.doc?.content
-  const isRepoReviewAssignment = data.assignment.evaluation_mode === 'repo_review'
   const repoReviewResult = data.repo_target?.latest_result || null
   const feedbackEntries = data.feedback_entries || []
-  const repoCandidates = data.repo_target?.candidateRepos || []
-  const hasRepoArtifacts = repoCandidates.length > 0
-  const effectiveRepoLabel = data.repo_target?.effectiveRepoUrl || data.repo_target?.target?.selected_repo_url || ''
+  const repoDisplayUrl =
+    data.repo_target.submittedRepoUrl ||
+    data.repo_target.effectiveRepoUrl ||
+    data.repo_target.target?.selected_repo_url ||
+    ''
+  const repoDisplayGitHubUsername =
+    data.repo_target.submittedGitHubUsername ||
+    data.repo_target.effectiveGitHubUsername ||
+    repoReviewResult?.github_login ||
+    ''
 
   const sc = Number(scoreCompletion) || 0
   const st = Number(scoreThinking) || 0
@@ -588,47 +556,34 @@ export function TeacherStudentWorkPanel({
               : ''
           }`}
         >
-          {isRepoReviewAssignment ? (
-            <div className="space-y-4 p-4">
-              <div>
-                <h3 className="text-lg font-semibold text-text-default">{data.student.name || data.student.email}</h3>
-                <p className="mt-1 text-sm text-text-muted">
-                  Repo review evidence for {data.assignment.title}
-                </p>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-lg border border-border bg-surface p-3">
-                  <div className="text-xs text-text-muted">Commits</div>
-                  <div className="mt-1 text-lg font-semibold text-text-default">{repoReviewResult?.commit_count ?? 0}</div>
+          {(repoDisplayUrl || repoDisplayGitHubUsername) && (
+            <div className="border-b border-border bg-surface px-4 py-3">
+              <div className="min-w-0 space-y-1">
+                <div className="truncate text-sm font-medium text-text-default">
+                  <span className="text-text-muted">Repo </span>
+                  {repoDisplayUrl ? (
+                    <a
+                      href={repoDisplayUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {repoDisplayUrl}
+                    </a>
+                  ) : (
+                    '—'
+                  )}
                 </div>
-                <div className="rounded-lg border border-border bg-surface p-3">
-                  <div className="text-xs text-text-muted">Active Days</div>
-                  <div className="mt-1 text-lg font-semibold text-text-default">{repoReviewResult?.active_days ?? 0}</div>
-                </div>
-                <div className="rounded-lg border border-border bg-surface p-3">
-                  <div className="text-xs text-text-muted">Contribution</div>
-                  <div className="mt-1 text-lg font-semibold text-text-default">
-                    {repoReviewResult ? `${Math.round((repoReviewResult.relative_contribution_share || 0) * 100)}%` : '—'}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-border bg-surface p-3">
-                  <div className="text-xs text-text-muted">Burst Ratio</div>
-                  <div className="mt-1 text-lg font-semibold text-text-default">
-                    {repoReviewResult ? `${Math.round((repoReviewResult.burst_ratio || 0) * 100)}%` : '—'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-border bg-surface p-4">
-                <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Draft AI Feedback</div>
-                <div className="mt-2 whitespace-pre-wrap text-sm text-text-default">
-                  {repoReviewResult?.draft_feedback?.trim() || 'Run repo analysis to generate feedback.'}
+                <div className="truncate text-sm text-text-muted">
+                  <span className="font-medium text-text-default">
+                    {repoDisplayGitHubUsername ? `@${repoDisplayGitHubUsername}` : '—'}
+                  </span>
                 </div>
               </div>
             </div>
-          ) : displayContent && !isEmpty(displayContent) ? (
-            <div>
+          )}
+          {displayContent && !isEmpty(displayContent) ? (
+            <div className="p-4">
               <RichTextViewer content={displayContent} />
               <div className="mt-4 text-center text-xs text-text-muted">
                 {countCharacters(displayContent)} characters
@@ -654,7 +609,7 @@ export function TeacherStudentWorkPanel({
               }`}
               onClick={() => handleRightTabChange('history')}
             >
-              {isRepoReviewAssignment ? 'Evidence' : 'History'}
+              History
             </button>
             <button
               type="button"
@@ -675,25 +630,7 @@ export function TeacherStudentWorkPanel({
                 className="flex-1 min-h-0 overflow-y-auto"
                 onMouseLeave={handleHistoryMouseLeave}
               >
-                {isRepoReviewAssignment ? (
-                  <div className="space-y-3 p-3">
-                    {repoReviewResult?.evidence_json?.length ? (
-                      repoReviewResult.evidence_json.map((item) => (
-                        <div key={item.id} className="rounded-lg border border-border bg-surface p-3">
-                          <div className="text-sm font-medium text-text-default">{item.title}</div>
-                          {item.summary && <div className="mt-1 text-xs text-text-muted">{item.summary}</div>}
-                          {item.authored_at && (
-                            <div className="mt-2 text-[11px] text-text-muted">
-                              {formatInTimeZone(new Date(item.authored_at), 'America/Toronto', 'MMM d, h:mm a')}
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-text-muted">No evidence captured yet.</p>
-                    )}
-                  </div>
-                ) : historyLoading && historyEntries.length === 0 ? (
+                {historyLoading && historyEntries.length === 0 ? (
                   <div className="p-4 text-center">
                     <Spinner size="sm" />
                   </div>
@@ -717,7 +654,7 @@ export function TeacherStudentWorkPanel({
                   <RefreshingIndicator label="Refreshing history..." className="px-3 pb-2 pt-0" />
                 )}
               </div>
-              {!isRepoReviewAssignment && isPreviewLocked && previewEntry && (
+              {isPreviewLocked && previewEntry && (
                 <div className="px-3 py-2 border-t border-border">
                   <Button onClick={handleExitPreview} variant="secondary" size="sm" className="w-full">
                     Exit preview
@@ -727,30 +664,13 @@ export function TeacherStudentWorkPanel({
             </>
           ) : (
             <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
-              {!isRepoReviewAssignment && (
-                <AuthenticityGauge
-                  score={data.doc?.authenticity_score ?? null}
-                  flags={data.doc?.authenticity_flags ?? []}
-                />
-              )}
+              <AuthenticityGauge
+                score={data.doc?.authenticity_score ?? null}
+                flags={data.doc?.authenticity_flags ?? []}
+              />
 
               {gradeError && (
                 <div className="rounded border border-danger bg-danger-bg px-2 py-1.5 text-xs text-danger">{gradeError}</div>
-              )}
-
-              {feedbackEntries.length > 0 && (
-                <div className="space-y-2">
-                  <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Returned Feedback</div>
-                  {feedbackEntries.map((entry) => (
-                    <div key={entry.id} className="rounded border border-border bg-surface p-2">
-                      <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
-                        {entry.entry_kind === 'grading_feedback' ? 'Grade Return' : 'Feedback Return'} . {' '}
-                        {formatInTimeZone(new Date(entry.returned_at), 'America/Toronto', 'MMM d, h:mm a')}
-                      </div>
-                      <div className="whitespace-pre-wrap text-sm text-text-default">{entry.body}</div>
-                    </div>
-                  ))}
-                </div>
               )}
 
               {data.doc?.ai_feedback_suggestion?.trim() && (
@@ -771,135 +691,35 @@ export function TeacherStudentWorkPanel({
                 </div>
               )}
 
-              {!isRepoReviewAssignment && (
-                <div className="rounded border border-border bg-surface p-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
                   <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Repo Analysis</div>
-                  <div className="mt-2 space-y-3">
-                    <div>
-                      <div className="text-[11px] font-medium text-text-muted">Detected Repos</div>
-                      {hasRepoArtifacts ? (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {repoCandidates.map((artifact) => {
-                            const artifactUrl = artifact.normalized_url || artifact.url
-                            const isActive = selectedRepoUrl === artifactUrl
-                              || (!selectedRepoUrl && data.repo_target?.effectiveRepoUrl === artifactUrl && data.repo_target?.selectionMode !== 'teacher_override')
-                            return (
-                              <button
-                                key={artifactUrl}
-                                type="button"
-                                onClick={() => setSelectedRepoUrl(artifactUrl)}
-                                className={[
-                                  'rounded-full border px-2 py-1 text-xs',
-                                  isActive
-                                    ? 'border-primary bg-info-bg text-primary'
-                                    : 'border-border bg-page text-text-default hover:bg-surface-hover',
-                                ].join(' ')}
-                              >
-                                {artifact.repo_owner && artifact.repo_name ? `${artifact.repo_owner}/${artifact.repo_name}` : artifactUrl}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      ) : (
-                        <div className="mt-1 text-xs text-text-muted">No GitHub repo link detected in the submission.</div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-[11px] font-medium text-text-muted">
-                        Teacher Override
-                        <input
-                          type="text"
-                          value={overrideRepoUrl}
-                          onChange={(event) => setOverrideRepoUrl(event.target.value)}
-                          placeholder="https://github.com/owner/repo"
-                          className="mt-1 h-8 w-full rounded border border-border bg-page px-2 text-sm text-text-default"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2">
-                      <label className="block text-[11px] font-medium text-text-muted">
-                        GitHub Login
-                        <input
-                          type="text"
-                          value={githubLogin}
-                          onChange={(event) => setGithubLogin(event.target.value)}
-                          placeholder="github username"
-                          className="mt-1 h-8 w-full rounded border border-border bg-page px-2 text-sm text-text-default"
-                        />
-                      </label>
-                      <label className="block text-[11px] font-medium text-text-muted">
-                        Commit Emails
-                        <input
-                          type="text"
-                          value={commitEmails}
-                          onChange={(event) => setCommitEmails(event.target.value)}
-                          placeholder="comma separated"
-                          className="mt-1 h-8 w-full rounded border border-border bg-page px-2 text-sm text-text-default"
-                        />
-                      </label>
-                    </div>
-
-                    <div className="rounded border border-border bg-page px-2 py-1.5 text-xs text-text-muted">
-                      Status: {data.repo_target.validationStatus}
-                      {data.repo_target.validationMessage ? ` . ${data.repo_target.validationMessage}` : ''}
-                      {effectiveRepoLabel ? ` . ${effectiveRepoLabel}` : ''}
-                    </div>
-
-                    {repoReviewResult && (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="rounded border border-border bg-page p-2">
-                          <div className="text-[11px] text-text-muted">Contribution</div>
-                          <div className="mt-1 text-sm font-semibold text-text-default">
-                            {Math.round((repoReviewResult.relative_contribution_share || 0) * 100)}%
-                          </div>
-                        </div>
-                        <div className="rounded border border-border bg-page p-2">
-                          <div className="text-[11px] text-text-muted">Consistency</div>
-                          <div className="mt-1 text-sm font-semibold text-text-default">
-                            {Math.round((repoReviewResult.spread_score || 0) * 100)}%
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => { void handleSaveRepoTarget('teacher_selected', selectedRepoUrl || data.repo_target.effectiveRepoUrl || '') }}
-                        disabled={repoSaving || (!selectedRepoUrl && !data.repo_target.effectiveRepoUrl)}
-                      >
-                        {repoSaving ? 'Saving...' : 'Save Selection'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => { void handleSaveRepoTarget('teacher_override', overrideRepoUrl) }}
-                        disabled={repoSaving || !overrideRepoUrl.trim()}
-                      >
-                        Save Override
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => { void handleSaveRepoTarget('auto') }}
-                        disabled={repoSaving}
-                      >
-                        Use Auto
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => { void handleAnalyzeRepo() }}
-                        disabled={repoAnalyzing || !data.repo_target.effectiveRepoUrl}
-                      >
-                        {repoAnalyzing ? 'Analyzing...' : 'Analyze Repo'}
-                      </Button>
-                    </div>
-                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => { void handleAnalyzeRepo() }}
+                    disabled={repoAnalyzing || !data.repo_target.effectiveRepoUrl || !data.repo_target.effectiveGitHubUsername}
+                  >
+                    {repoAnalyzing ? 'Analyzing...' : 'Analyze Repo'}
+                  </Button>
                 </div>
-              )}
+
+                {repoReviewResult && (
+                  <div className="space-y-2">
+                    <RepoMetricBar
+                      label="Contribution"
+                      value={repoReviewResult.relative_contribution_share || 0}
+                    />
+                    <RepoMetricBar
+                      label="Consistency"
+                      value={repoReviewResult.spread_score || 0}
+                    />
+                    <RepoMetricBar
+                      label="Iteration"
+                      value={repoReviewResult.iteration_score || 0}
+                    />
+                  </div>
+                )}
+              </div>
 
               <ScoreInput label="Completion" value={scoreCompletion} onChange={setScoreCompletion} />
               <ScoreInput label="Thinking" value={scoreThinking} onChange={setScoreThinking} />
@@ -929,21 +749,38 @@ export function TeacherStudentWorkPanel({
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1">
+              {feedbackEntries.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Returned Feedback</div>
+                  <div className="rounded border border-border bg-surface p-3">
+                    <div className="space-y-3">
+                      {feedbackEntries.map((entry, index) => (
+                        <div key={entry.id} className={index > 0 ? 'border-t border-border pt-3' : ''}>
+                          <div className="mb-1 text-[11px] font-medium text-text-muted">
+                            {formatInTimeZone(new Date(entry.returned_at), 'America/Toronto', 'MMM d, h:mm a')}
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm text-text-default">{entry.body}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Feedback Draft</div>
                 <textarea
                   value={feedbackDraft}
                   onChange={(e) => setFeedbackDraft(e.target.value)}
-                  className="h-full min-h-[8rem] w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default resize-none"
+                  className="min-h-[10rem] w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default resize-y"
                   placeholder="Teacher feedback draft"
                 />
               </div>
 
               <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {!isRepoReviewAssignment && (
-                  <Button size="sm" variant="secondary" className="flex-1" onClick={handleAutoGrade} disabled={autoGrading}>
-                    {autoGrading ? 'Grading...' : 'AI grade'}
-                  </Button>
-                )}
+                <Button size="sm" variant="secondary" className="flex-1" onClick={handleAutoGrade} disabled={autoGrading}>
+                  {autoGrading ? 'Grading...' : 'AI grade'}
+                </Button>
                 <Button
                   size="sm"
                   variant="secondary"

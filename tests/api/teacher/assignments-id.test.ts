@@ -213,7 +213,7 @@ describe('PATCH /api/teacher/assignments/[id]', () => {
     expect(response.status).toBe(400)
   })
 
-  it('requires a repo url when switching an assignment to repo review mode', async () => {
+  it('accepts a basic assignment patch without repo review mode', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'assignments') {
         return {
@@ -223,11 +223,24 @@ describe('PATCH /api/teacher/assignments/[id]', () => {
                 data: {
                   id: 'a-1',
                   title: 'Assignment 1',
-                  evaluation_mode: 'document',
                   classrooms: { teacher_id: 'teacher-1', archived_at: null },
                 },
                 error: null,
               }),
+            })),
+          })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn().mockResolvedValue({
+                  data: {
+                    id: 'a-1',
+                    title: 'Updated title',
+                    classrooms: { teacher_id: 'teacher-1', archived_at: null },
+                  },
+                  error: null,
+                }),
+              })),
             })),
           })),
         }
@@ -239,15 +252,12 @@ describe('PATCH /api/teacher/assignments/[id]', () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a-1', {
       method: 'PATCH',
       body: JSON.stringify({
-        evaluation_mode: 'repo_review',
+        title: 'Updated title',
       }),
     })
 
     const response = await PATCH(request, { params: { id: 'a-1' } })
-    const body = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(body.error).toContain('repo_review.repo_url')
+    expect(response.status).toBe(200)
   })
 })
 

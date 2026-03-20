@@ -82,21 +82,44 @@ describe('POST /api/teacher/assignments', () => {
     expect(response.status).toBe(400)
   })
 
-  it('requires a repo url for repo review assignments', async () => {
+  it('creates a basic assignment without repo review config', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        const orderBuilder = {
+          limit: vi.fn(() => ({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+          })),
+        }
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => orderBuilder),
+            })),
+          })),
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: 'a-1', title: 'Essay Draft' },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments', {
       method: 'POST',
       body: JSON.stringify({
         classroom_id: 'c1',
-        title: 'Repo Review',
+        title: 'Essay Draft',
         due_at: '2026-03-20T23:59:59.000Z',
-        evaluation_mode: 'repo_review',
       }),
     })
 
     const response = await POST(request)
-    const body = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(body.error).toContain('repo_review.repo_url')
+    expect(response.status).toBe(201)
   })
 })

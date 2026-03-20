@@ -1190,7 +1190,16 @@ function ClassroomPageContent({
               : isTeacher && isAssessmentTab
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
-              ? selectedStudent.assignmentTitle
+              ? (
+                <span className="relative flex w-full items-center">
+                  <span className="truncate pr-2 text-sm font-semibold text-text-default">
+                    {selectedStudent.studentName}
+                  </span>
+                  <span className="pointer-events-none absolute left-1/2 max-w-[65%] -translate-x-1/2 truncate text-center text-xs text-text-muted">
+                    {selectedStudent.assignmentTitle}
+                  </span>
+                </span>
+              )
               : isTeacher && activeTab === 'assignments'
               ? ''
               : activeTab === 'assignments'

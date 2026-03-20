@@ -429,7 +429,6 @@ async function seed() {
     await supabase.from('assignment_repo_targets').delete().in('assignment_id', existingAssignmentIds)
     await supabase.from('assignment_repo_review_results').delete().in('assignment_id', existingAssignmentIds)
     await supabase.from('assignment_repo_review_runs').delete().in('assignment_id', existingAssignmentIds)
-    await supabase.from('assignment_repo_reviews').delete().in('assignment_id', existingAssignmentIds)
     await supabase.from('assignment_docs').delete().in('assignment_id', existingAssignmentIds)
     await supabase.from('assignments').delete().eq('classroom_id', createdClassroom.id)
   }

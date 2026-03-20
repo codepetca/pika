@@ -87,6 +87,8 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
           assignment_id: assignmentId,
           student_id: user.id,
           content: { type: 'doc', content: [] },
+          repo_url: null,
+          github_username: null,
           is_submitted: false,
           submitted_at: null,
           viewed_at: new Date().toISOString(),
@@ -174,6 +176,8 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
     content: TiptapContent
     trigger?: AssignmentDocHistoryTrigger
   }
+  const repoUrl = typeof body.repo_url === 'string' ? body.repo_url.trim() : undefined
+  const githubUsername = typeof body.github_username === 'string' ? body.github_username.trim() : undefined
   // Clamp client-reported tracking values to non-negative integers
   const paste_word_count = Math.max(0, Math.round(Number(body.paste_word_count) || 0))
   const keystroke_count = Math.max(0, Math.round(Number(body.keystroke_count) || 0))
@@ -234,7 +238,7 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
   // Fetch doc to enforce ownership and submission rules
   const { data: existingDoc, error: docFetchError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, is_submitted, content')
+    .select('id, student_id, is_submitted, content, repo_url, github_username')
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .single()
@@ -247,6 +251,8 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
           assignment_id: assignmentId,
           student_id: user.id,
           content,
+          repo_url: repoUrl ?? null,
+          github_username: githubUsername ?? null,
           is_submitted: false,
           submitted_at: null,
         })
@@ -298,7 +304,9 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
   const { data: doc, error } = await supabase
     .from('assignment_docs')
     .update({
-      content
+      content,
+      ...(repoUrl !== undefined ? { repo_url: repoUrl || null } : {}),
+      ...(githubUsername !== undefined ? { github_username: githubUsername || null } : {}),
     })
     .eq('id', existingDoc.id)
     .select()

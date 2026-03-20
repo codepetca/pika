@@ -61,14 +61,6 @@ export const GET = withErrorHandler('GetStudentAssignments', async (request, con
     .map((assignment) => {
       const doc = docMap.get(assignment.id)
 
-      if (
-        assignment.evaluation_mode === 'repo_review'
-        && !doc?.returned_at
-        && !doc?.feedback_returned_at
-      ) {
-        return null
-      }
-
       return {
         ...assignment,
         status: calculateAssignmentStatus(assignment, doc),

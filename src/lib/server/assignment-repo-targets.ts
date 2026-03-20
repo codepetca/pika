@@ -13,7 +13,10 @@ const GITHUB_API_BASE = 'https://api.github.com'
 export interface ResolvedAssignmentRepoTarget {
   target: AssignmentRepoTarget | null
   candidateRepos: AssignmentArtifact[]
+  submittedRepoUrl: string | null
+  submittedGitHubUsername: string | null
   effectiveRepoUrl: string | null
+  effectiveGitHubUsername: string | null
   repoOwner: string | null
   repoName: string | null
   selectionMode: AssignmentRepoTargetSelectionMode
@@ -50,22 +53,28 @@ export function extractRepoArtifactsFromContent(content: unknown): AssignmentArt
 }
 
 export function resolveAssignmentRepoTarget(opts: {
-  candidateRepos: AssignmentArtifact[]
+  candidateRepos?: AssignmentArtifact[]
+  submittedRepoUrl: string | null
+  submittedGitHubUsername: string | null
   target: AssignmentRepoTarget | null
 }): ResolvedAssignmentRepoTarget {
-  const candidateRepos = opts.candidateRepos
+  const candidateRepos = opts.candidateRepos || []
   const target = opts.target
-  const normalizedCandidates = new Map(
-    candidateRepos
-      .map((artifact) => [artifact.normalized_url || normalizeGitHubRepoUrl(artifact.url), artifact] as const)
-      .filter(([normalizedUrl]) => Boolean(normalizedUrl))
-  )
+  const submittedRepoUrl = opts.submittedRepoUrl?.trim() || null
+  const submittedGitHubUsername = opts.submittedGitHubUsername?.trim() || null
+  const normalizedSubmittedRepoUrl = submittedRepoUrl ? normalizeGitHubRepoUrl(submittedRepoUrl) : null
 
-  if (target?.selection_mode === 'teacher_override' && target.selected_repo_url) {
+  if (
+    target?.selection_mode === 'teacher_override'
+    && (target.selected_repo_url || target.override_github_username)
+  ) {
     return {
       target,
       candidateRepos,
-      effectiveRepoUrl: target.selected_repo_url,
+      submittedRepoUrl,
+      submittedGitHubUsername,
+      effectiveRepoUrl: target.selected_repo_url || normalizedSubmittedRepoUrl,
+      effectiveGitHubUsername: target.override_github_username || submittedGitHubUsername,
       repoOwner: target.repo_owner,
       repoName: target.repo_name,
       selectionMode: 'teacher_override',
@@ -74,56 +83,46 @@ export function resolveAssignmentRepoTarget(opts: {
     }
   }
 
-  if (target?.selected_repo_url) {
-    const normalizedTargetUrl = normalizeGitHubRepoUrl(target.selected_repo_url)
-    if (normalizedTargetUrl && normalizedCandidates.has(normalizedTargetUrl)) {
-      const artifact = normalizedCandidates.get(normalizedTargetUrl)!
-      return {
-        target,
-        candidateRepos,
-        effectiveRepoUrl: artifact.normalized_url || artifact.url,
-        repoOwner: artifact.repo_owner || target.repo_owner,
-        repoName: artifact.repo_name || target.repo_name,
-        selectionMode: target.selection_mode,
-        validationStatus: target.validation_status,
-        validationMessage: target.validation_message,
-      }
-    }
-  }
-
-  if (candidateRepos.length === 0) {
+  if (!submittedRepoUrl) {
     return {
       target,
       candidateRepos,
+      submittedRepoUrl: null,
+      submittedGitHubUsername,
       effectiveRepoUrl: null,
+      effectiveGitHubUsername: submittedGitHubUsername,
       repoOwner: null,
       repoName: null,
       selectionMode: target?.selection_mode ?? 'auto',
       validationStatus: 'missing',
-      validationMessage: 'No GitHub repo link detected in the submission.',
+      validationMessage: 'No repo link has been submitted yet.',
     }
   }
 
-  if (candidateRepos.length > 1) {
+  if (!submittedGitHubUsername) {
     return {
       target,
       candidateRepos,
-      effectiveRepoUrl: null,
-      repoOwner: null,
-      repoName: null,
+      submittedRepoUrl,
+      submittedGitHubUsername: null,
+      effectiveRepoUrl: normalizedSubmittedRepoUrl || submittedRepoUrl,
+      effectiveGitHubUsername: null,
+      repoOwner: target?.repo_owner ?? null,
+      repoName: target?.repo_name ?? null,
       selectionMode: target?.selection_mode ?? 'auto',
-      validationStatus: 'ambiguous',
-      validationMessage: 'Multiple GitHub repo links were detected. Choose one repo to analyze.',
+      validationStatus: 'invalid',
+      validationMessage: 'GitHub username is required before repo analysis can run.',
     }
   }
-
-  const onlyRepo = candidateRepos[0]
   return {
     target,
     candidateRepos,
-    effectiveRepoUrl: onlyRepo.normalized_url || onlyRepo.url,
-    repoOwner: onlyRepo.repo_owner || null,
-    repoName: onlyRepo.repo_name || null,
+    submittedRepoUrl,
+    submittedGitHubUsername,
+    effectiveRepoUrl: normalizedSubmittedRepoUrl || submittedRepoUrl,
+    effectiveGitHubUsername: submittedGitHubUsername,
+    repoOwner: target?.repo_owner || null,
+    repoName: target?.repo_name || null,
     selectionMode: target?.selection_mode ?? 'auto',
     validationStatus: target?.validation_status ?? 'valid',
     validationMessage: target?.validation_message ?? null,
@@ -200,7 +199,8 @@ export async function validatePublicGitHubRepo(repoUrl: string): Promise<{
 export async function saveAssignmentRepoTarget(opts: {
   assignmentId: string
   studentId: string
-  repoUrl: string
+  repoUrl: string | null
+  overrideGitHubUsername: string | null
   selectionMode: AssignmentRepoTargetSelectionMode
   validationStatus: AssignmentRepoTargetValidationStatus
   validationMessage: string | null
@@ -214,6 +214,7 @@ export async function saveAssignmentRepoTarget(opts: {
       assignment_id: opts.assignmentId,
       student_id: opts.studentId,
       selected_repo_url: opts.repoUrl,
+      override_github_username: opts.overrideGitHubUsername,
       repo_owner: opts.repoOwner,
       repo_name: opts.repoName,
       selection_mode: opts.selectionMode,
@@ -230,4 +231,3 @@ export async function saveAssignmentRepoTarget(opts: {
 
   return data as AssignmentRepoTarget
 }
-

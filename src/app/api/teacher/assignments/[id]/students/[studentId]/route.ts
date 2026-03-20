@@ -3,7 +3,6 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus } from '@/lib/assignments'
 import {
-  extractRepoArtifactsFromContent,
   loadAssignmentRepoTarget,
   resolveAssignmentRepoTarget,
 } from '@/lib/server/assignment-repo-targets'
@@ -67,7 +66,7 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
     )
   }
 
-  const [{ data: profile }, { data: docRow }, { data: githubIdentity }, feedbackEntries, repoTarget] = await Promise.all([
+  const [{ data: profile }, { data: docRow }, feedbackEntries, repoTarget] = await Promise.all([
     supabase
       .from('student_profiles')
       .select('first_name, last_name')
@@ -79,11 +78,6 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
       .eq('assignment_id', assignmentId)
       .eq('student_id', studentId)
       .single(),
-    supabase
-      .from('user_github_identities')
-      .select('*')
-      .eq('user_id', studentId)
-      .maybeSingle(),
     loadAssignmentFeedbackEntries(assignmentId, studentId),
     loadAssignmentRepoTarget(assignmentId, studentId),
   ])
@@ -94,9 +88,9 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
   }
 
   const status = calculateAssignmentStatus(assignment, doc)
-  const candidateRepos = doc ? extractRepoArtifactsFromContent(doc.content) : []
   const repoSelection = resolveAssignmentRepoTarget({
-    candidateRepos,
+    submittedRepoUrl: doc?.repo_url ?? null,
+    submittedGitHubUsername: doc?.github_username ?? null,
     target: repoTarget,
   })
 
@@ -117,7 +111,6 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
       description: assignment.description,
       due_at: assignment.due_at,
       position: assignment.position ?? 0,
-      evaluation_mode: assignment.evaluation_mode ?? 'document',
       created_by: assignment.created_by,
       created_at: assignment.created_at,
       updated_at: assignment.updated_at,
@@ -131,7 +124,6 @@ export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (reques
     doc,
     status,
     feedback_entries: feedbackEntries,
-    github_identity: githubIdentity || null,
     repo_target: {
       ...repoSelection,
       latest_result: latestRepoReviewResult || null,

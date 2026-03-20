@@ -158,6 +158,8 @@ export async function seedAssignmentReviewFixtures(opts: {
           assignment_id: assignments.letter.id,
           student_id: student1.id,
           content: letterStudent1Content,
+          repo_url: repoUrl,
+          github_username: 'student1-demo',
           is_submitted: false,
           submitted_at: null,
           score_completion: 8,
@@ -173,6 +175,8 @@ export async function seedAssignmentReviewFixtures(opts: {
           assignment_id: assignments.letter.id,
           student_id: student2.id,
           content: letterStudent2Content,
+          repo_url: repoUrl,
+          github_username: 'student2-demo',
           is_submitted: false,
           submitted_at: null,
           score_completion: 6,
@@ -225,33 +229,16 @@ export async function seedAssignmentReviewFixtures(opts: {
 
   ensureOk(
     await supabase
-      .from('user_github_identities')
-      .upsert([
-        {
-          user_id: student1.id,
-          github_login: 'student1-demo',
-          commit_emails: [student1.email],
-        },
-        {
-          user_id: student2.id,
-          github_login: 'student2-demo',
-          commit_emails: [student2.email],
-        },
-      ], { onConflict: 'user_id' }),
-    'Upsert GitHub identities'
-  )
-
-  ensureOk(
-    await supabase
       .from('assignment_repo_targets')
       .upsert([
         {
           assignment_id: assignments.letter.id,
           student_id: student1.id,
           selected_repo_url: repoUrl,
+          override_github_username: 'student1-demo',
           repo_owner: 'codepetca',
           repo_name: 'pika',
-          selection_mode: 'teacher_selected',
+          selection_mode: 'teacher_override',
           validation_status: 'valid',
           validation_message: null,
           validated_at: oneDayAgoIso,
@@ -260,6 +247,7 @@ export async function seedAssignmentReviewFixtures(opts: {
           assignment_id: assignments.letter.id,
           student_id: student2.id,
           selected_repo_url: repoUrl,
+          override_github_username: null,
           repo_owner: 'codepetca',
           repo_name: 'pika',
           selection_mode: 'auto',
@@ -350,193 +338,5 @@ export async function seedAssignmentReviewFixtures(opts: {
         },
       ]),
     'Insert artifact repo review results'
-  )
-
-  const repoReviewDueAt = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
-  const repoReviewReleasedAt = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000).toISOString()
-
-  const { data: repoReviewAssignment, error: repoReviewAssignmentError } = await supabase
-    .from('assignments')
-    .insert({
-      classroom_id: classroomId,
-      title: 'Collaborative App Repo Review',
-      description: 'Teacher repo review of the shared project repository.',
-      rich_instructions: null,
-      due_at: repoReviewDueAt,
-      position: 3,
-      is_draft: false,
-      released_at: repoReviewReleasedAt,
-      evaluation_mode: 'repo_review',
-      created_by: teacherId,
-    })
-    .select('id')
-    .single()
-  ensureOk({ error: repoReviewAssignmentError }, 'Insert repo review assignment')
-  const createdRepoReviewAssignment = ensureData(repoReviewAssignment, 'Insert repo review assignment')
-
-  ensureOk(
-    await supabase
-      .from('assignment_repo_reviews')
-      .insert({
-        assignment_id: createdRepoReviewAssignment.id,
-        provider: 'github',
-        repo_owner: 'codepetca',
-        repo_name: 'pika',
-        default_branch: 'main',
-        review_start_at: repoReviewReleasedAt,
-        review_end_at: repoReviewDueAt,
-        include_pr_reviews: true,
-        config_json: { seeded: true },
-      }),
-    'Insert repo review config'
-  )
-
-  const { data: repoReviewRun, error: repoReviewRunError } = await supabase
-    .from('assignment_repo_review_runs')
-    .insert({
-      assignment_id: createdRepoReviewAssignment.id,
-      repo_owner: 'codepetca',
-      repo_name: 'pika',
-      status: 'completed',
-      triggered_by: teacherId,
-      started_at: threeDaysAgoIso,
-      completed_at: twoDaysAgoIso,
-      source_ref: 'main',
-      metrics_version: 'v2-seed',
-      prompt_version: 'v2-seed',
-      model: 'repo-review-v2-seed',
-      warnings_json: [],
-    })
-    .select('id')
-    .single()
-  ensureOk({ error: repoReviewRunError }, 'Insert repo review assignment run')
-  const createdRepoReviewRun = ensureData(repoReviewRun, 'Insert repo review assignment run')
-
-  ensureOk(
-    await supabase
-      .from('assignment_repo_review_results')
-      .insert([
-        {
-          run_id: createdRepoReviewRun.id,
-          assignment_id: createdRepoReviewAssignment.id,
-          student_id: student1.id,
-          github_login: 'student1-demo',
-          commit_count: 16,
-          active_days: 6,
-          session_count: 7,
-          burst_ratio: 0.22,
-          weighted_contribution: 13.1,
-          relative_contribution_share: 0.58,
-          spread_score: 0.84,
-          iteration_score: 0.78,
-          semantic_breakdown_json: { feature: 0.5, test: 0.2, bugfix: 0.15, refactor: 0.15 },
-          timeline_json: [
-            { date: fiveDaysAgoIso.slice(0, 10), weighted_contribution: 3.4, commit_count: 4 },
-            { date: threeDaysAgoIso.slice(0, 10), weighted_contribution: 4.2, commit_count: 5 },
-            { date: twoDaysAgoIso.slice(0, 10), weighted_contribution: 5.5, commit_count: 7 },
-          ],
-          evidence_json: buildRepoEvidence('Owned primary feature flow', 'Implemented the main feature flow and coordinated follow-up fixes.', threeDaysAgoIso),
-          draft_score_completion: 9,
-          draft_score_thinking: 8,
-          draft_score_workflow: 8,
-          draft_feedback: 'Owned the core feature flow and worked steadily across the review window. Good iteration and meaningful follow-up fixes.',
-          confidence: 0.9,
-        },
-        {
-          run_id: createdRepoReviewRun.id,
-          assignment_id: createdRepoReviewAssignment.id,
-          student_id: student2.id,
-          github_login: 'student2-demo',
-          commit_count: 11,
-          active_days: 5,
-          session_count: 5,
-          burst_ratio: 0.31,
-          weighted_contribution: 9.6,
-          relative_contribution_share: 0.42,
-          spread_score: 0.71,
-          iteration_score: 0.73,
-          semantic_breakdown_json: { test: 0.35, bugfix: 0.3, docs: 0.1, styling: 0.25 },
-          timeline_json: [
-            { date: fourDaysAgoIso.slice(0, 10), weighted_contribution: 2.8, commit_count: 3 },
-            { date: threeDaysAgoIso.slice(0, 10), weighted_contribution: 2.1, commit_count: 2 },
-            { date: oneDayAgoIso.slice(0, 10), weighted_contribution: 4.7, commit_count: 6 },
-          ],
-          evidence_json: buildRepoEvidence('Owned tests and polish', 'Added tests, polish work, and follow-up fixes after review.', twoDaysAgoIso),
-          draft_score_completion: 7,
-          draft_score_thinking: 7,
-          draft_score_workflow: 7,
-          draft_feedback: 'Made meaningful testing and polish contributions with visible follow-up after review. A bit more spread across the window would strengthen the workflow signal.',
-          confidence: 0.86,
-        },
-      ]),
-    'Insert repo review assignment results'
-  )
-
-  ensureOk(
-    await supabase
-      .from('assignment_docs')
-      .upsert([
-        {
-          assignment_id: createdRepoReviewAssignment.id,
-          student_id: student1.id,
-          content: { type: 'doc', content: [] },
-          is_submitted: false,
-          submitted_at: null,
-          score_completion: 9,
-          score_thinking: 8,
-          score_workflow: 8,
-          feedback: 'Owned the core feature flow and worked steadily across the review window. Good iteration and meaningful follow-up fixes.',
-          teacher_feedback_draft: 'Owned the core feature flow and worked steadily across the review window. Good iteration and meaningful follow-up fixes.',
-          teacher_feedback_draft_updated_at: twoDaysAgoIso,
-          feedback_returned_at: twoDaysAgoIso,
-          graded_at: twoDaysAgoIso,
-          graded_by: 'teacher',
-          returned_at: twoDaysAgoIso,
-        },
-        {
-          assignment_id: createdRepoReviewAssignment.id,
-          student_id: student2.id,
-          content: { type: 'doc', content: [] },
-          is_submitted: false,
-          submitted_at: null,
-          score_completion: 7,
-          score_thinking: 7,
-          score_workflow: 7,
-          feedback: 'Made meaningful testing and polish contributions with visible follow-up after review. A bit more spread across the window would strengthen the workflow signal.',
-          teacher_feedback_draft: 'Made meaningful testing and polish contributions with visible follow-up after review. A bit more spread across the window would strengthen the workflow signal.',
-          teacher_feedback_draft_updated_at: twoDaysAgoIso,
-          feedback_returned_at: twoDaysAgoIso,
-          graded_at: twoDaysAgoIso,
-          graded_by: 'teacher',
-          returned_at: twoDaysAgoIso,
-        },
-      ], { onConflict: 'assignment_id,student_id' }),
-    'Upsert repo review docs'
-  )
-
-  ensureOk(
-    await supabase
-      .from('assignment_feedback_entries')
-      .insert([
-        {
-          assignment_id: createdRepoReviewAssignment.id,
-          student_id: student1.id,
-          entry_kind: 'grading_feedback',
-          author_type: 'teacher',
-          body: 'Owned the core feature flow and worked steadily across the review window. Good iteration and meaningful follow-up fixes.',
-          returned_at: twoDaysAgoIso,
-          created_by: teacherId,
-        },
-        {
-          assignment_id: createdRepoReviewAssignment.id,
-          student_id: student2.id,
-          entry_kind: 'grading_feedback',
-          author_type: 'teacher',
-          body: 'Made meaningful testing and polish contributions with visible follow-up after review. A bit more spread across the window would strengthen the workflow signal.',
-          returned_at: twoDaysAgoIso,
-          created_by: teacherId,
-        },
-      ]),
-    'Insert repo review feedback history'
   )
 }
