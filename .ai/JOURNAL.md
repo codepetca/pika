@@ -7076,3 +7076,13 @@
   - teacher inline markdown cell edit state: `/tmp/pika-calendar-markdown-check/teacher-calendar-inline-edit.png`
   - student calendar markdown rendering: `/tmp/pika-calendar-markdown-check/student-calendar-preview.png`
 - Direct DB spot-check confirmed the local database does not yet have `lesson_plans.content_markdown`; migration `048_assignment_markdown_source.sql` still needs to be applied by a human before live assignment and lesson-plan saves can persist the new fields.
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Rebase `codex/teacher-authored-markdown` onto `origin/main` and resequence branch-added migrations.
+**Completed:**
+- Rebased the branch onto `origin/main` and resolved assignment API/modal conflicts by preserving markdown-canonical assignment behavior while keeping newer main-branch scheduling, feedback, and repo-target changes.
+- Renamed the branch-added markdown migration from `048_assignment_markdown_source.sql` to `049_assignment_markdown_source.sql` because `origin/main` now already contains `048_repo_review_grading.sql`.
+
+**Validation:**
+- `pnpm exec tsc --noEmit` (pass)
+- `pnpm exec vitest run tests/api/teacher/assignments-id.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/student/lesson-plans.test.ts tests/api/teacher/lesson-plans-date.test.ts tests/api/teacher/lesson-plans-bulk.test.ts tests/components/AssignmentModal.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx tests/unit/assessment-drafts.test.ts tests/lib/lesson-plan-markdown.test.ts` (pass)
