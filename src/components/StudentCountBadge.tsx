@@ -12,11 +12,11 @@ interface CountBadgeProps {
  */
 export function CountBadge({ count, tooltip, variant = 'primary' }: CountBadgeProps) {
   const bgClass =
-    variant === 'success' ? 'bg-green-500' :
-    variant === 'danger' ? 'bg-red-500' :
+    variant === 'success' ? 'bg-success text-text-inverse' :
+    variant === 'danger' ? 'bg-danger text-text-inverse' :
     'bg-primary'
   const badge = (
-    <span className={`inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2 rounded-full ${bgClass} text-white text-sm font-semibold`}>
+    <span className={`inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-badge px-2 text-sm font-semibold ${bgClass} ${variant === 'primary' ? 'text-text-inverse' : ''}`}>
       {count}
     </span>
   )

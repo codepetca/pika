@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
-import { extractPlainText } from '@/lib/tiptap-content'
+import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
-import type { TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -32,8 +31,6 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
 
   const supabase = getServiceRoleClient()
 
-  // Fetch assignments with submission stats.
-  // Fall back to due_at ordering if the position column isn't available yet.
   let assignments: any[] | null = null
   const withPosition = await supabase
     .from('assignments')
@@ -59,16 +56,13 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
     assignments = withPosition.data
   }
 
-  // Count total students in classroom once
   const { count: totalStudents } = await supabase
     .from('classroom_enrollments')
     .select('*', { count: 'exact', head: true })
     .eq('classroom_id', classroomId)
 
-  // Get submission stats for each assignment
   const assignmentsWithStats = await Promise.all(
     (assignments || []).map(async (assignment) => {
-      // Count submitted docs
       const { data: docs } = await supabase
         .from('assignment_docs')
         .select('is_submitted, submitted_at')
@@ -77,17 +71,16 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
 
       const submitted = docs?.length || 0
       const dueAt = new Date(assignment.due_at)
-      const late = docs?.filter(doc =>
-        doc.submitted_at && new Date(doc.submitted_at) > dueAt
-      ).length || 0
+      const late = docs?.filter((doc) => doc.submitted_at && new Date(doc.submitted_at) > dueAt).length || 0
 
       return {
         ...assignment,
+        instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
         stats: {
           total_students: totalStudents || 0,
           submitted,
-          late
-        }
+          late,
+        },
       }
     })
   )
@@ -99,9 +92,8 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
 export const POST = withErrorHandler('PostTeacherAssignments', async (request, context) => {
   const user = await requireRole('teacher')
   const body = await request.json()
-  const { classroom_id, title, rich_instructions, due_at } = body
+  const { classroom_id, title, instructions_markdown, rich_instructions, due_at } = body
 
-  // Validate required fields
   if (!classroom_id) {
     return NextResponse.json(
       { error: 'classroom_id is required' },
@@ -120,7 +112,6 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
       { status: 400 }
     )
   }
-
   const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
   if (!ownership.ok) {
     return NextResponse.json(
@@ -131,7 +122,6 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
 
   const supabase = getServiceRoleClient()
 
-  // Create assignment
   const lastAssignmentResult = await supabase
     .from('assignments')
     .select('position')
@@ -143,18 +133,26 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
   const nextPosition =
     typeof lastAssignmentResult.data?.position === 'number' ? lastAssignmentResult.data.position + 1 : 0
 
-  const instructions: TiptapContent = rich_instructions ?? { type: 'doc', content: [] }
+  const instructionFields = buildAssignmentInstructionFields(
+    typeof instructions_markdown === 'string'
+      ? instructions_markdown
+      : getAssignmentInstructionsMarkdown({
+          instructions_markdown: null,
+          rich_instructions: rich_instructions ?? null,
+          description: '',
+        }).markdown
+  )
   const insertBody: Record<string, any> = {
     classroom_id,
     title: title.trim(),
-    rich_instructions: instructions,
-    description: extractPlainText(instructions),  // Keep plain text for backwards compatibility
+    instructions_markdown: instructionFields.instructions_markdown,
+    rich_instructions: instructionFields.rich_instructions,
+    description: instructionFields.description,
     due_at,
     created_by: user.id,
     track_authenticity: true,
   }
 
-  // If the position column doesn't exist yet, omit it for backwards compatibility.
   if (!lastAssignmentResult.error) {
     insertBody.position = nextPosition
   }
@@ -165,7 +163,7 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
     .select()
     .single()
 
-  if (error) {
+  if (error || !assignment) {
     console.error('Error creating assignment:', error)
     return NextResponse.json(
       { error: 'Failed to create assignment' },

@@ -46,7 +46,7 @@ export function AppShell({
   examModeHeader,
 }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-page">
+    <div className="flex min-h-dvh flex-col bg-page">
       {showHeader && (
         <AppHeader
           user={user}
@@ -59,7 +59,12 @@ export function AppShell({
           examModeHeader={examModeHeader}
         />
       )}
-      <main className={mainClassName || 'max-w-7xl mx-auto px-4 py-3'}>
+      <main
+        className={[
+          'flex-1 min-h-0',
+          mainClassName || 'max-w-7xl mx-auto px-4 py-3',
+        ].join(' ')}
+      >
         {children}
       </main>
     </div>

@@ -11,6 +11,7 @@ function makeDraftAssignment(overrides: Partial<Assignment> = {}): Assignment {
     classroom_id: 'class-1',
     title: 'Test Assignment',
     description: '',
+    instructions_markdown: '',
     rich_instructions: null,
     due_at: new Date(Date.now() + 86400_000).toISOString(),
     position: 0,

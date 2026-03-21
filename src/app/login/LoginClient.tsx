@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Input, Button, FormField } from '@/ui'
+import { navigateTo } from '@/lib/client-navigation'
 
 function isSafeNextPath(next: string): boolean {
   if (!next.startsWith('/')) return false
@@ -48,17 +49,13 @@ export function LoginClient() {
         throw new Error(data.error || 'Login failed')
       }
 
-      // Invalidate Next.js client-side router cache so stale pages
-      // from a previous user session are not served.
-      router.refresh()
-
       const next = searchParams.get('next')
       if (next && isSafeNextPath(next)) {
-        router.push(next)
+        navigateTo(next)
         return
       }
 
-      router.push(data.redirectUrl)
+      navigateTo(data.redirectUrl)
     } catch (err: any) {
       setError(err.message || 'An error occurred')
       setLoading(false)
@@ -158,4 +155,3 @@ export function LoginClient() {
     </div>
   )
 }
-

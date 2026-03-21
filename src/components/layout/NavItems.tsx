@@ -304,9 +304,15 @@ export function NavItems({
     closeMobileDrawer()
   }
 
+  const activeItemClass = 'bg-surface-selected text-text-default shadow-sm'
+  const inactiveItemClass = 'text-text-muted hover:bg-surface-hover hover:text-text-default'
+  const activeNestedItemClass = 'border border-primary bg-surface-selected text-text-default shadow-sm'
+  const inactiveNestedItemClass = 'border border-transparent text-text-muted hover:bg-surface-hover hover:text-text-default'
+  const itemRadiusClass = 'rounded-control'
+
   // Determine layout class based on collapsed state
   const getLayoutClass = (isCollapsed: boolean) =>
-    isCollapsed ? 'justify-center w-12 h-12 mx-auto' : 'gap-3 px-3 h-12'
+    isCollapsed ? 'justify-center w-full h-12 px-0' : 'gap-3 px-3 h-12 w-full'
 
   return (
     <nav className="space-y-1">
@@ -337,11 +343,10 @@ export function NavItems({
                 aria-current={isActive ? 'page' : undefined}
                 aria-label={assignmentsAriaLabel}
                 className={[
-                  'group flex items-center rounded-md text-base font-medium transition-colors',
+                  'group flex items-center text-base font-medium transition-colors',
+                  itemRadiusClass,
                   layoutClass,
-                  isActive
-                    ? 'bg-info-bg text-info'
-                    : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
+                  isActive ? activeItemClass : inactiveItemClass,
                 ].join(' ')}
               >
                 <NavIconWithDot Icon={Icon} showDot={showAssignmentsPulse} />
@@ -377,12 +382,12 @@ export function NavItems({
                             onNavigate()
                           }}
                           className={[
-                            'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
+                            'w-full rounded-control border px-2.5 py-2 text-left text-sm transition-colors',
                             isAssignmentActive
-                              ? 'bg-info-bg text-info'
+                              ? activeNestedItemClass
                               : isUnviewed
-                                ? 'text-primary font-medium hover:bg-info-bg'
-                                : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
+                                ? 'border-transparent bg-info-bg font-medium text-primary hover:bg-info-bg-hover'
+                                : inactiveNestedItemClass,
                           ].join(' ')}
                         >
                           <span className="truncate block">{assignment.title}</span>
@@ -416,11 +421,10 @@ export function NavItems({
                 aria-expanded={canShowNested ? isExpandedState : undefined}
                 aria-label={item.label}
                 className={[
-                  'group flex items-center rounded-md text-base font-medium transition-colors',
+                  'group flex items-center text-base font-medium transition-colors',
+                  itemRadiusClass,
                   layoutClass,
-                  isActive
-                    ? 'bg-info-bg text-info'
-                    : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
+                  isActive ? activeItemClass : inactiveItemClass,
                 ].join(' ')}
               >
                 <Icon className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
@@ -449,7 +453,7 @@ export function NavItems({
               )}
 
               {canShowNested && isExpandedState && assignments && assignments.length > 0 && (
-                <div className="pl-10 pr-3 space-y-1">
+                <div className="space-y-1 pl-10 pr-1">
                   {assignments.map((assignment) => {
                     const isAssignmentActive =
                       activeTab === 'assignments' && activeAssignmentId === assignment.id
@@ -464,10 +468,10 @@ export function NavItems({
                             onNavigate()
                           }}
                           className={[
-                            'w-full text-left text-base rounded-md px-2 py-1.5 transition-colors',
+                            'w-full rounded-control border px-2.5 py-2 text-left text-sm transition-colors',
                             isAssignmentActive
-                              ? 'bg-info-bg text-info'
-                              : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
+                              ? activeNestedItemClass
+                              : inactiveNestedItemClass,
                           ].join(' ')}
                         >
                           <span className="truncate block">{assignment.title}</span>
@@ -503,11 +507,10 @@ export function NavItems({
             aria-current={isActive ? 'page' : undefined}
             aria-label={ariaLabel}
             className={[
-              'group flex items-center rounded-md text-base font-medium transition-colors',
+              'group flex items-center text-base font-medium transition-colors',
+              itemRadiusClass,
               layoutClass,
-              isActive
-                ? 'bg-info-bg text-info'
-                : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
+              isActive ? activeItemClass : inactiveItemClass,
             ].join(' ')}
           >
             <NavIconWithDot Icon={Icon} showDot={shouldPulse} />

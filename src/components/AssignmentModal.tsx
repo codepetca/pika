@@ -2,20 +2,38 @@
 
 import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react'
 import { X } from 'lucide-react'
-import type { Assignment, ClassDay, TiptapContent } from '@/types'
+import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
+import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { ConfirmDialog, DialogPanel, SplitButton } from '@/ui'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
 import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
-import { isVisibleAtNow, getTodayInSchedulingTimezone } from '@/lib/scheduling'
+import { DEFAULT_SCHEDULE_TIME, getTodayInSchedulingTimezone, isVisibleAtNow, parseScheduleIsoToParts } from '@/lib/scheduling'
 import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAssignmentScheduling'
 
-const EMPTY_INSTRUCTIONS: TiptapContent = { type: 'doc', content: [] }
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
+type AssignmentEditorValues = {
+  title: string
+  instructionsMarkdown: string
+  dueAt: string
+}
+
+function getDisplayedAssignmentTitle(title: string): string {
+  return /^Untitled(?:\b|\s*\()/.test(title)
+    ? ''
+    : title
+}
+
+function validateAssignmentValues(values: AssignmentEditorValues): string | null {
+  void values
+  return null
+}
+
+const RELEASE_TITLE_ERROR = 'Add a title before posting or scheduling this assignment.'
 
 interface AssignmentModalProps {
   isOpen: boolean
@@ -28,13 +46,16 @@ interface AssignmentModalProps {
 
 export function AssignmentModal({ isOpen, classroomId, assignment, classDays, onClose, onSuccess }: AssignmentModalProps) {
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const isInitializedRef = useRef(false)
+  const instructionsHistoryRef = useRef<string[]>([])
+  const instructionsHistoryIndexRef = useRef(-1)
+  const isApplyingInstructionsHistoryRef = useRef(false)
 
   // The current assignment being edited (created on first save in create mode)
   const [currentAssignment, setCurrentAssignment] = useState<Assignment | null>(null)
 
   const [title, setTitle] = useState('')
-  const [instructions, setInstructions] = useState<TiptapContent>(EMPTY_INSTRUCTIONS)
+  const [instructionsMarkdown, setInstructionsMarkdown] = useState('')
+  const [markdownWarning, setMarkdownWarning] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
 
@@ -46,10 +67,43 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAtRef = useRef<number>(0)
-  const lastSavedValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
-  const pendingValuesRef = useRef<{ title: string; instructions: TiptapContent; dueAt: string } | null>(null)
+  const lastSavedValuesRef = useRef<AssignmentEditorValues | null>(null)
+  const pendingValuesRef = useRef<AssignmentEditorValues | null>(null)
 
   const isCreateMode = !assignment
+
+  const resetInstructionsHistory = useCallback((value: string) => {
+    instructionsHistoryRef.current = [value]
+    instructionsHistoryIndexRef.current = 0
+    isApplyingInstructionsHistoryRef.current = false
+  }, [])
+
+  const pushInstructionsHistory = useCallback((value: string) => {
+    if (isApplyingInstructionsHistoryRef.current) return
+
+    const history = instructionsHistoryRef.current
+    const currentIndex = instructionsHistoryIndexRef.current
+    const currentValue = currentIndex >= 0 ? history[currentIndex] : undefined
+
+    if (currentValue === value) return
+
+    const nextHistory = currentIndex >= 0
+      ? history.slice(0, currentIndex + 1)
+      : []
+    nextHistory.push(value)
+    instructionsHistoryRef.current = nextHistory
+    instructionsHistoryIndexRef.current = nextHistory.length - 1
+  }, [])
+
+  const applyInstructionsHistoryValue = useCallback((value: string) => {
+    isApplyingInstructionsHistoryRef.current = true
+    setInstructionsMarkdown(value)
+    setMarkdownWarning(null)
+    scheduleAutosave({ title, instructionsMarkdown: value, dueAt })
+    requestAnimationFrame(() => {
+      isApplyingInstructionsHistoryRef.current = false
+    })
+  }, [dueAt, title])
 
   const scheduling = useAssignmentScheduling({
     currentAssignment,
@@ -85,28 +139,53 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (!isOpen) return
 
     // Reset state when modal opens
-    isInitializedRef.current = false
     setError('')
     resetForAssignment(assignment)
 
     if (assignment) {
       // Edit mode: populate from existing assignment
-      const nextTitle = assignment.title
-      const nextInstructions = assignment.rich_instructions ?? EMPTY_INSTRUCTIONS
+      const nextTitle = getDisplayedAssignmentTitle(assignment.title)
+      const resolvedInstructions = getAssignmentInstructionsMarkdown(assignment)
+      const nextInstructionsMarkdown = resolvedInstructions.markdown
       const nextDueAt = formatDateInToronto(new Date(assignment.due_at))
 
       setCurrentAssignment(assignment)
       setTitle(nextTitle)
-      setInstructions(nextInstructions)
+      setInstructionsMarkdown(nextInstructionsMarkdown)
+      resetInstructionsHistory(nextInstructionsMarkdown)
+      setMarkdownWarning(
+        resolvedInstructions.hasLossyConversion
+          ? resolvedInstructions.warnings.join(' ')
+          : null
+      )
       setDueAt(nextDueAt)
-      lastSavedValuesRef.current = { title: nextTitle, instructions: nextInstructions, dueAt: nextDueAt }
+      if (assignment.released_at && !isVisibleAtNow(assignment.released_at)) {
+        const scheduled = parseScheduleIsoToParts(assignment.released_at)
+        setScheduleDate(scheduled.date)
+        setScheduleTime(scheduled.time)
+        setPrimaryAction('schedule')
+      } else {
+        setScheduleDate(getTodayInSchedulingTimezone())
+        setScheduleTime(DEFAULT_SCHEDULE_TIME)
+        setPrimaryAction('post')
+      }
+      lastSavedValuesRef.current = {
+        title: nextTitle,
+        instructionsMarkdown: nextInstructionsMarkdown,
+        dueAt: nextDueAt,
+      }
       setSaveStatus('saved')
     } else {
       // Create mode: immediately create a draft
       setCurrentAssignment(null)
       setTitle('')
-      setInstructions(EMPTY_INSTRUCTIONS)
+      setInstructionsMarkdown('')
+      resetInstructionsHistory('')
+      setMarkdownWarning(null)
       setDueAt(defaultDueAt)
+      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleTime(DEFAULT_SCHEDULE_TIME)
+      setPrimaryAction('post')
       lastSavedValuesRef.current = null
       setSaveStatus('saving')
       setCreating(true)
@@ -122,11 +201,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       }
     }, 100)
 
-    // Mark as initialized after TipTap has had time to normalize content
-    requestAnimationFrame(() => {
-      isInitializedRef.current = true
-    })
-
     // Cleanup timeouts on close/change
     return () => {
       if (saveTimeoutRef.current) {
@@ -141,15 +215,15 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   }, [assignment, isOpen, setDueAt, setError, defaultDueAt])
 
   // Get only the fields that changed compared to last saved values
-  function getChangedFields(values: { title: string; instructions: TiptapContent; dueAt: string }) {
+  function getChangedFields(values: AssignmentEditorValues) {
     const saved = lastSavedValuesRef.current
     if (!saved) return null
 
     const changes: Record<string, unknown> = {}
     if (values.title !== saved.title) changes.title = values.title
     if (values.dueAt !== saved.dueAt) changes.due_at = toTorontoEndOfDayIso(values.dueAt)
-    if (JSON.stringify(values.instructions) !== JSON.stringify(saved.instructions)) {
-      changes.rich_instructions = values.instructions
+    if (values.instructionsMarkdown !== saved.instructionsMarkdown) {
+      changes.instructions_markdown = values.instructionsMarkdown
     }
 
     return Object.keys(changes).length > 0 ? changes : null
@@ -157,7 +231,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   // Create a new assignment
   const createAssignment = useCallback(async (
-    values: { title: string; instructions: TiptapContent; dueAt: string }
+    values: AssignmentEditorValues
   ): Promise<Assignment | null> => {
     try {
       const response = await fetch('/api/teacher/assignments', {
@@ -166,7 +240,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         body: JSON.stringify({
           classroom_id: classroomId,
           title: values.title.trim() || `Untitled (${format(nowInToronto(), 'yyyy-MM-dd HH:mm:ss')})`,
-          rich_instructions: values.instructions,
+          instructions_markdown: values.instructionsMarkdown,
           due_at: toTorontoEndOfDayIso(values.dueAt),
         }),
       })
@@ -192,17 +266,29 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     if (!creating) return
 
     const createDraft = async () => {
-      const initialValues = { title: '', instructions: EMPTY_INSTRUCTIONS, dueAt: defaultDueAt }
+      const initialValues = { title: '', instructionsMarkdown: '', dueAt: defaultDueAt }
       const newAssignment = await createAssignment(initialValues)
       setCreating(false)
 
       if (newAssignment) {
+        const resolvedInstructions = getAssignmentInstructionsMarkdown(newAssignment)
+        const nextTitle = getDisplayedAssignmentTitle(newAssignment.title)
         setCurrentAssignment(newAssignment)
-        setTitle(newAssignment.title)
-        setInstructions(newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS)
+        setTitle(nextTitle)
+        setInstructionsMarkdown(resolvedInstructions.markdown)
+        resetInstructionsHistory(resolvedInstructions.markdown)
+        setMarkdownWarning(
+          resolvedInstructions.hasLossyConversion
+            ? resolvedInstructions.warnings.join(' ')
+            : null
+        )
         const assignmentDueAt = formatDateInToronto(new Date(newAssignment.due_at))
         setDueAt(assignmentDueAt)
-        lastSavedValuesRef.current = { title: newAssignment.title, instructions: newAssignment.rich_instructions ?? EMPTY_INSTRUCTIONS, dueAt: assignmentDueAt }
+        lastSavedValuesRef.current = {
+          title: nextTitle,
+          instructionsMarkdown: resolvedInstructions.markdown,
+          dueAt: assignmentDueAt,
+        }
         setSaveStatus('saved')
 
         // Focus and select title after creation
@@ -221,9 +307,16 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
-    values: { title: string; instructions: TiptapContent; dueAt: string },
+    values: AssignmentEditorValues,
     options?: { closeAfter?: boolean }
   ) => {
+    const validationError = validateAssignmentValues(values)
+    if (validationError) {
+      setError(validationError)
+      setSaveStatus('unsaved')
+      return
+    }
+
     setSaveStatus('saving')
     lastSaveAtRef.current = Date.now()
 
@@ -265,9 +358,20 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           throw new Error('Invalid response: missing assignment data')
         }
 
-        savedAssignment = data.assignment
-        setCurrentAssignment(savedAssignment)
-        lastSavedValuesRef.current = { ...values }
+        const updatedAssignment = data.assignment as Assignment
+        savedAssignment = updatedAssignment
+        const resolvedInstructions = getAssignmentInstructionsMarkdown(updatedAssignment)
+        setCurrentAssignment(updatedAssignment)
+        setMarkdownWarning(
+          resolvedInstructions.hasLossyConversion
+            ? resolvedInstructions.warnings.join(' ')
+            : null
+        )
+        lastSavedValuesRef.current = {
+          title: values.title,
+          instructionsMarkdown: resolvedInstructions.markdown,
+          dueAt: values.dueAt,
+        }
       }
 
       pendingValuesRef.current = null
@@ -283,11 +387,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       setError(err.message || 'Failed to save assignment')
       setSaveStatus('unsaved')
     }
-  }, [currentAssignment, createAssignment, onClose, onSuccess, setError])
+  }, [currentAssignment, createAssignment, getChangedFields, onClose, onSuccess, setError])
 
-  // Schedule a debounced save with minimum interval throttling
   const scheduleSave = useCallback((
-    values: { title: string; instructions: TiptapContent; dueAt: string },
+    values: AssignmentEditorValues,
     options?: { force?: boolean }
   ) => {
     pendingValuesRef.current = values
@@ -316,7 +419,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
   }, [saveChanges])
 
   // Schedule autosave after a debounce period
-  function scheduleAutosave(values: { title: string; instructions: TiptapContent; dueAt: string }) {
+  function scheduleAutosave(values: AssignmentEditorValues) {
     pendingValuesRef.current = values
     setSaveStatus('unsaved')
 
@@ -331,24 +434,36 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
-    scheduleAutosave({ title: newTitle, instructions, dueAt })
+    if (newTitle.trim()) {
+      setError('')
+    }
+    scheduleAutosave({ title: newTitle, instructionsMarkdown, dueAt })
   }
 
-  function handleInstructionsChange(newInstructions: TiptapContent) {
-    if (!isInitializedRef.current) {
-      setInstructions(newInstructions)
-      if (lastSavedValuesRef.current) {
-        lastSavedValuesRef.current.instructions = newInstructions
-      }
-      return
-    }
-    setInstructions(newInstructions)
-    scheduleAutosave({ title, instructions: newInstructions, dueAt })
+  function handleInstructionsMarkdownChange(newInstructionsMarkdown: string) {
+    setInstructionsMarkdown(newInstructionsMarkdown)
+    pushInstructionsHistory(newInstructionsMarkdown)
+    setMarkdownWarning(null)
+    scheduleAutosave({ title, instructionsMarkdown: newInstructionsMarkdown, dueAt })
+  }
+
+  function handleInstructionsUndo() {
+    const nextIndex = instructionsHistoryIndexRef.current - 1
+    if (nextIndex < 0) return
+    instructionsHistoryIndexRef.current = nextIndex
+    applyInstructionsHistoryValue(instructionsHistoryRef.current[nextIndex] ?? '')
+  }
+
+  function handleInstructionsRedo() {
+    const nextIndex = instructionsHistoryIndexRef.current + 1
+    if (nextIndex >= instructionsHistoryRef.current.length) return
+    instructionsHistoryIndexRef.current = nextIndex
+    applyInstructionsHistoryValue(instructionsHistoryRef.current[nextIndex] ?? '')
   }
 
   function handleDueAtChange(newDueAt: string) {
     updateDueDate(newDueAt)
-    scheduleAutosave({ title, instructions, dueAt: newDueAt })
+    scheduleAutosave({ title, instructionsMarkdown, dueAt: newDueAt })
   }
 
   function handlePrevDate() {
@@ -387,7 +502,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
 
     if ((saveStatus === 'unsaved' || pendingValuesRef.current) && currentAssignment) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? { title, instructionsMarkdown, dueAt }
       const changedFields = getChangedFields(valuesToSave)
 
       if (changedFields) {
@@ -424,7 +539,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
     pendingValuesRef.current = null
     setSaving(true)
-    await saveChanges({ title, instructions, dueAt }, { closeAfter: true })
+    await saveChanges({ title, instructionsMarkdown, dueAt }, { closeAfter: true })
     setSaving(false)
   }
 
@@ -440,8 +555,16 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
     pendingValuesRef.current = null
     setSaving(true)
-    await saveChanges({ title, instructions, dueAt }, { closeAfter: true })
+    await saveChanges({ title, instructionsMarkdown, dueAt }, { closeAfter: true })
     setSaving(false)
+  }
+
+  function ensureTitleBeforeRelease(): boolean {
+    if (title.trim()) return true
+
+    setError(RELEASE_TITLE_ERROR)
+    titleInputRef.current?.focus()
+    return false
   }
 
   // Wrapper: hook handles post/schedule/revert; component handles 'draft' already-a-draft case
@@ -450,7 +573,19 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
       await saveDraftAndClose()
       return
     }
+
+    if ((action === 'post' || action === 'schedule') && !ensureTitleBeforeRelease()) {
+      return
+    }
+
     await triggerPrimaryAction(action)
+  }
+
+  function handleSplitActionSelection(action: CreateSubmitAction) {
+    if ((action === 'post' || action === 'schedule') && !ensureTitleBeforeRelease()) {
+      return
+    }
+    handleActionSelection(action)
   }
 
   async function handleClose() {
@@ -465,7 +600,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
 
     // If there are unsaved changes, save before closing
     if (saveStatus === 'unsaved' || pendingValuesRef.current) {
-      const valuesToSave = pendingValuesRef.current ?? { title, instructions, dueAt }
+      const valuesToSave = pendingValuesRef.current ?? { title, instructionsMarkdown, dueAt }
       await saveChanges(valuesToSave, { closeAfter: true })
     } else {
       if (currentAssignment) {
@@ -514,11 +649,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         <div className="flex-1 min-h-0 overflow-y-auto">
           <AssignmentForm
             title={title}
-            instructions={instructions}
+            instructionsMarkdown={instructionsMarkdown}
             dueAt={dueAt}
             classDays={classDays}
             onTitleChange={handleTitleChange}
-            onInstructionsChange={handleInstructionsChange}
+            onInstructionsMarkdownChange={handleInstructionsMarkdownChange}
+            onInstructionsUndo={handleInstructionsUndo}
+            onInstructionsRedo={handleInstructionsRedo}
             onDueAtChange={handleDueAtChange}
             onPrevDate={handlePrevDate}
             onNextDate={handleNextDate}
@@ -528,6 +665,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
             error={error}
             titleInputRef={titleInputRef}
             onBlur={flushAutosave}
+            markdownWarning={markdownWarning}
+            canUndoInstructions={instructionsHistoryIndexRef.current > 0}
+            canRedoInstructions={instructionsHistoryIndexRef.current < instructionsHistoryRef.current.length - 1}
             footerContent={
               currentAssignment
                 ? (
@@ -537,6 +677,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
                           <button
                             type="button"
                             onClick={() => {
+                              if (!ensureTitleBeforeRelease()) return
                               void openScheduleModalWithSave()
                             }}
                             disabled={creating || releasing || saving}
@@ -570,7 +711,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
                         primaryButtonProps={{
                           className: 'w-[9rem] justify-center font-semibold',
                         }}
-                        options={splitOptions}
+                        options={splitOptions.map((option) => ({
+                          ...option,
+                          onSelect: () => handleSplitActionSelection(option.id as CreateSubmitAction),
+                        }))}
                       />
                     </div>
                   )
@@ -602,6 +746,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
           onTimeChange={setScheduleTime}
           onCancel={() => setShowCreateScheduleModal(false)}
           onConfirm={() => {
+            if (!ensureTitleBeforeRelease()) return
             void scheduleAssignmentRelease({ closeAfter: isScheduled })
           }}
           confirmLabel={releasing ? 'Scheduling...' : isScheduled ? 'Save schedule' : 'Schedule'}
@@ -622,7 +767,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         isConfirmDisabled={releasing}
         isCancelDisabled={releasing}
         onCancel={() => setShowPostNowConfirm(false)}
-        onConfirm={postAssignmentNow}
+        onConfirm={() => {
+          if (!ensureTitleBeforeRelease()) return
+          void postAssignmentNow()
+        }}
       />
 
       <ConfirmDialog

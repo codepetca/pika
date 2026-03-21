@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Button, RefreshingIndicator, SplitButton, Tooltip } from '@/ui'
 import { RichTextViewer } from '@/components/editor'
@@ -9,7 +9,19 @@ import { countCharacters, isEmpty } from '@/lib/tiptap-content'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { TEACHER_GRADE_UPDATED_EVENT, type TeacherGradeUpdatedEventDetail } from '@/lib/events'
-import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentStatus, AuthenticityFlag, TiptapContent } from '@/types'
+import type {
+  Assignment,
+  AssignmentDoc,
+  AssignmentDocHistoryEntry,
+  AssignmentFeedbackEntry,
+  AssignmentRepoReviewResult,
+  AssignmentRepoTarget,
+  AssignmentRepoTargetSelectionMode,
+  AssignmentRepoTargetValidationStatus,
+  AssignmentStatus,
+  AuthenticityFlag,
+  TiptapContent,
+} from '@/types'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { readCookie, writeCookie } from '@/lib/cookies'
 
@@ -48,6 +60,20 @@ function AuthenticityGauge({ score, flags }: { score: number | null; flags: Auth
     >
       <div>{bar}</div>
     </Tooltip>
+  )
+}
+
+function RepoMetricBar({ label, value }: { label: string; value: number }) {
+  const percentage = Math.max(0, Math.min(100, Math.round(value * 100)))
+
+  return (
+    <div className="relative h-6 overflow-hidden rounded-full border border-border bg-surface-2">
+      <div className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width]" style={{ width: `${percentage}%` }} />
+      <div className="absolute inset-0 z-10 flex items-center justify-between px-3 text-[10px] font-semibold leading-none">
+        <span className="text-text-default">{label}</span>
+        <span className="text-text-default">{percentage}%</span>
+      </div>
+    </div>
   )
 }
 
@@ -112,6 +138,20 @@ interface StudentWorkData {
   student: { id: string; email: string; name: string | null }
   doc: AssignmentDoc | null
   status: AssignmentStatus
+  feedback_entries: AssignmentFeedbackEntry[]
+  repo_target: {
+    target: AssignmentRepoTarget | null
+    submittedRepoUrl: string | null
+    submittedGitHubUsername: string | null
+    effectiveRepoUrl: string | null
+    effectiveGitHubUsername: string | null
+    repoOwner: string | null
+    repoName: string | null
+    selectionMode: AssignmentRepoTargetSelectionMode
+    validationStatus: AssignmentRepoTargetValidationStatus
+    validationMessage: string | null
+    latest_result: AssignmentRepoReviewResult | null
+  }
 }
 
 interface TeacherStudentWorkPanelProps {
@@ -153,10 +193,12 @@ export function TeacherStudentWorkPanel({
   const [scoreCompletion, setScoreCompletion] = useState<string>('')
   const [scoreThinking, setScoreThinking] = useState<string>('')
   const [scoreWorkflow, setScoreWorkflow] = useState<string>('')
-  const [feedback, setFeedback] = useState<string>('')
+  const [feedbackDraft, setFeedbackDraft] = useState<string>('')
   const [gradeSaving, setGradeSaving] = useState(false)
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
+  const [feedbackReturning, setFeedbackReturning] = useState(false)
+  const [repoAnalyzing, setRepoAnalyzing] = useState(false)
   const showInitialSpinner = useDelayedBusy(loading && !data)
 
   function dispatchGradeUpdated(doc: AssignmentDoc | null) {
@@ -213,41 +255,47 @@ export function TeacherStudentWorkPanel({
       setScoreCompletion(doc.score_completion?.toString() ?? '')
       setScoreThinking(doc.score_thinking?.toString() ?? '')
       setScoreWorkflow(doc.score_workflow?.toString() ?? '')
-      setFeedback(doc.feedback ?? '')
+      setFeedbackDraft(doc.teacher_feedback_draft ?? doc.feedback ?? '')
     } else {
       setScoreCompletion('')
       setScoreThinking('')
       setScoreWorkflow('')
-      setFeedback('')
+      setFeedbackDraft('')
     }
   }
 
-  // Load student work
-  useEffect(() => {
+  function populateRepoForm(nextData: StudentWorkData) {
+    void nextData
+  }
+
+  const loadStudentWork = useCallback(async (): Promise<StudentWorkData | null> => {
     setLoading(true)
     setError('')
-    handleExitPreview()
     setGradeError('')
-
-    async function loadStudentWork() {
-      try {
-        const response = await fetch(`/api/teacher/assignments/${assignmentId}/students/${studentId}`)
-        const result = await response.json()
-        if (!response.ok) {
-          throw new Error(result.error || 'Failed to load student work')
-        }
-        setData(result)
-        populateGradeForm(result.doc)
-      } catch (err: any) {
-        setError(err.message || 'Failed to load student work')
-      } finally {
-        setLoading(false)
+    handleExitPreview()
+    try {
+      const response = await fetch(`/api/teacher/assignments/${assignmentId}/students/${studentId}`)
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to load student work')
       }
+      setData(result)
+      populateGradeForm(result.doc)
+      populateRepoForm(result)
+      return result
+    } catch (err: any) {
+      setError(err.message || 'Failed to load student work')
+      return null
+    } finally {
+      setLoading(false)
     }
-
-    loadStudentWork()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignmentId, studentId])
+
+  // Load student work
+  useEffect(() => {
+    void loadStudentWork()
+  }, [loadStudentWork])
 
   // Load history
   useEffect(() => {
@@ -294,6 +342,8 @@ export function TeacherStudentWorkPanel({
         assignment_id: assignmentId,
         student_id: studentId,
         content: { type: 'doc', content: [] },
+        repo_url: null,
+        github_username: null,
         is_submitted: false,
         submitted_at: null,
         viewed_at: null,
@@ -301,6 +351,12 @@ export function TeacherStudentWorkPanel({
         score_thinking: null,
         score_workflow: null,
         feedback: null,
+        teacher_feedback_draft: null,
+        teacher_feedback_draft_updated_at: null,
+        feedback_returned_at: null,
+        ai_feedback_suggestion: null,
+        ai_feedback_suggested_at: null,
+        ai_feedback_model: null,
         graded_at: null,
         graded_by: null,
         returned_at: null,
@@ -312,7 +368,8 @@ export function TeacherStudentWorkPanel({
       score_completion: sc,
       score_thinking: st,
       score_workflow: sw,
-      feedback,
+      teacher_feedback_draft: feedbackDraft,
+      teacher_feedback_draft_updated_at: new Date().toISOString(),
       graded_at: selectedSaveMode === 'graded'
         ? (previousDoc?.graded_at || new Date().toISOString())
         : null,
@@ -331,7 +388,7 @@ export function TeacherStudentWorkPanel({
           score_completion: sc,
           score_thinking: st,
           score_workflow: sw,
-          feedback,
+          feedback: feedbackDraft,
           save_mode: selectedSaveMode,
         }),
       })
@@ -368,19 +425,78 @@ export function TeacherStudentWorkPanel({
         setGradeError('No gradable content found — the submission may be empty')
         return
       }
-      // Reload data to get updated grades
-      const reloadRes = await fetch(`/api/teacher/assignments/${assignmentId}/students/${studentId}`)
-      const reloadData = await reloadRes.json()
-      if (reloadRes.ok) {
-        setData(reloadData)
-        populateGradeForm(reloadData.doc)
-        handleRightTabChange('grading') // Stay on grading tab to show results
-        dispatchGradeUpdated(reloadData.doc ?? null)
-      }
+      const refreshed = await loadStudentWork()
+      handleRightTabChange('grading')
+      dispatchGradeUpdated(refreshed?.doc ?? null)
     } catch (err: any) {
       setGradeError(err.message || 'Auto-grade failed')
     } finally {
       setAutoGrading(false)
+    }
+  }
+
+  async function handleReturnFeedback() {
+    if (!data) return
+    const trimmed = feedbackDraft.trim()
+    if (!trimmed) {
+      setGradeError('Feedback draft is required before returning feedback')
+      return
+    }
+
+    setFeedbackReturning(true)
+    setGradeError('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${assignmentId}/feedback-return`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          feedback: trimmed,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Failed to return feedback')
+
+      setData((prev) => prev ? {
+        ...prev,
+        doc: result.doc,
+        feedback_entries: [...prev.feedback_entries, result.entry],
+      } : prev)
+      populateGradeForm(result.doc)
+      dispatchGradeUpdated(result.doc)
+    } catch (err: any) {
+      setGradeError(err.message || 'Failed to return feedback')
+    } finally {
+      setFeedbackReturning(false)
+    }
+  }
+
+  async function handleAnalyzeRepo() {
+    if (!data) return
+    setRepoAnalyzing(true)
+    setGradeError('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${assignmentId}/artifact-repo/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: [studentId] }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Repo analysis failed')
+      const refreshed = await loadStudentWork()
+      dispatchGradeUpdated(refreshed?.doc ?? null)
+      if ((result.analyzed_students ?? 0) === 0 && result.skipped_reasons) {
+        const message = Object.entries(result.skipped_reasons as Record<string, number>)
+          .map(([reason, count]) => `${count} ${reason}`)
+          .join(' ')
+        if (message) {
+          setGradeError(message)
+        }
+      }
+    } catch (err: any) {
+      setGradeError(err.message || 'Repo analysis failed')
+    } finally {
+      setRepoAnalyzing(false)
     }
   }
 
@@ -406,6 +522,18 @@ export function TeacherStudentWorkPanel({
 
   const isPreviewLocked = lockedEntryId !== null
   const displayContent = previewContent || data.doc?.content
+  const repoReviewResult = data.repo_target?.latest_result || null
+  const feedbackEntries = data.feedback_entries || []
+  const repoDisplayUrl =
+    data.repo_target.submittedRepoUrl ||
+    data.repo_target.effectiveRepoUrl ||
+    data.repo_target.target?.selected_repo_url ||
+    ''
+  const repoDisplayGitHubUsername =
+    data.repo_target.submittedGitHubUsername ||
+    data.repo_target.effectiveGitHubUsername ||
+    repoReviewResult?.github_login ||
+    ''
 
   const sc = Number(scoreCompletion) || 0
   const st = Number(scoreThinking) || 0
@@ -428,8 +556,34 @@ export function TeacherStudentWorkPanel({
               : ''
           }`}
         >
+          {(repoDisplayUrl || repoDisplayGitHubUsername) && (
+            <div className="border-b border-border bg-surface px-4 py-3">
+              <div className="min-w-0 space-y-1">
+                <div className="truncate text-sm font-medium text-text-default">
+                  <span className="text-text-muted">Repo </span>
+                  {repoDisplayUrl ? (
+                    <a
+                      href={repoDisplayUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {repoDisplayUrl}
+                    </a>
+                  ) : (
+                    '—'
+                  )}
+                </div>
+                <div className="truncate text-sm text-text-muted">
+                  <span className="font-medium text-text-default">
+                    {repoDisplayGitHubUsername ? `@${repoDisplayGitHubUsername}` : '—'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
           {displayContent && !isEmpty(displayContent) ? (
-            <div>
+            <div className="p-4">
               <RichTextViewer content={displayContent} />
               <div className="mt-4 text-center text-xs text-text-muted">
                 {countCharacters(displayContent)} characters
@@ -509,15 +663,63 @@ export function TeacherStudentWorkPanel({
               )}
             </>
           ) : (
-            <div className="flex h-full min-h-0 flex-col gap-3 p-3">
+            <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
               <AuthenticityGauge
                 score={data.doc?.authenticity_score ?? null}
                 flags={data.doc?.authenticity_flags ?? []}
               />
 
               {gradeError && (
-                <div className="text-xs text-danger">{gradeError}</div>
+                <div className="rounded border border-danger bg-danger-bg px-2 py-1.5 text-xs text-danger">{gradeError}</div>
               )}
+
+              {data.doc?.ai_feedback_suggestion?.trim() && (
+                <div className="rounded border border-border bg-surface p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-xs font-medium uppercase tracking-wide text-text-muted">AI Suggestion</div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setFeedbackDraft(data.doc?.ai_feedback_suggestion || '')}
+                    >
+                      Use
+                    </Button>
+                  </div>
+                  <div className="mt-2 whitespace-pre-wrap text-sm text-text-default">
+                    {data.doc.ai_feedback_suggestion}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Repo Analysis</div>
+                  <Button
+                    size="sm"
+                    onClick={() => { void handleAnalyzeRepo() }}
+                    disabled={repoAnalyzing || !data.repo_target.effectiveRepoUrl || !data.repo_target.effectiveGitHubUsername}
+                  >
+                    {repoAnalyzing ? 'Analyzing...' : 'Analyze Repo'}
+                  </Button>
+                </div>
+
+                {repoReviewResult && (
+                  <div className="space-y-2">
+                    <RepoMetricBar
+                      label="Contribution"
+                      value={repoReviewResult.relative_contribution_share || 0}
+                    />
+                    <RepoMetricBar
+                      label="Consistency"
+                      value={repoReviewResult.spread_score || 0}
+                    />
+                    <RepoMetricBar
+                      label="Iteration"
+                      value={repoReviewResult.iteration_score || 0}
+                    />
+                  </div>
+                )}
+              </div>
 
               <ScoreInput label="Completion" value={scoreCompletion} onChange={setScoreCompletion} />
               <ScoreInput label="Thinking" value={scoreThinking} onChange={setScoreThinking} />
@@ -547,18 +749,46 @@ export function TeacherStudentWorkPanel({
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1">
+              {feedbackEntries.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Returned Feedback</div>
+                  <div className="rounded border border-border bg-surface p-3">
+                    <div className="space-y-3">
+                      {feedbackEntries.map((entry, index) => (
+                        <div key={entry.id} className={index > 0 ? 'border-t border-border pt-3' : ''}>
+                          <div className="mb-1 text-[11px] font-medium text-text-muted">
+                            {formatInTimeZone(new Date(entry.returned_at), 'America/Toronto', 'MMM d, h:mm a')}
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm text-text-default">{entry.body}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <div className="text-xs font-medium uppercase tracking-wide text-text-muted">Feedback Draft</div>
                 <textarea
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  className="h-full min-h-[8rem] w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default resize-none"
-                  placeholder="Feedback"
+                  value={feedbackDraft}
+                  onChange={(e) => setFeedbackDraft(e.target.value)}
+                  className="min-h-[10rem] w-full rounded border border-border bg-surface px-2 py-1 text-sm text-text-default resize-y"
+                  placeholder="Teacher feedback draft"
                 />
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <Button size="sm" variant="secondary" className="flex-1" onClick={handleAutoGrade} disabled={autoGrading}>
                   {autoGrading ? 'Grading...' : 'AI grade'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => { void handleReturnFeedback() }}
+                  disabled={feedbackReturning || !feedbackDraft.trim()}
+                >
+                  {feedbackReturning ? 'Returning...' : 'Return Feedback'}
                 </Button>
                 <SplitButton
                   label={gradeSaving ? 'Saving...' : 'Save'}

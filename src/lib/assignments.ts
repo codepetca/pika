@@ -7,6 +7,7 @@ import { formatInTimeZone } from 'date-fns-tz'
  * Status logic (checked in order):
  * - no assignment_docs row: "not_started"
  * - returned_at set AND is_submitted AND submitted_at > returned_at: "resubmitted"
+ * - feedback_returned_at set: "returned"
  * - returned_at set: "returned"
  * - graded_at set (returned_at null): "graded"
  * - is_submitted = false && now <= due_at: "in_progress"
@@ -33,6 +34,10 @@ export function calculateAssignmentStatus(
     if (submittedAt > returnedAt) {
       return 'resubmitted'
     }
+  }
+
+  if (doc.feedback_returned_at) {
+    return 'returned'
   }
 
   // Returned
@@ -206,12 +211,19 @@ const GRADE_FIELDS = [
   'score_completion',
   'score_thinking',
   'score_workflow',
-  'feedback',
   'graded_at',
   'graded_by',
   'returned_at',
   'authenticity_score',
   'authenticity_flags',
+] as const
+
+const DRAFT_ONLY_FIELDS = [
+  'teacher_feedback_draft',
+  'teacher_feedback_draft_updated_at',
+  'ai_feedback_suggestion',
+  'ai_feedback_suggested_at',
+  'ai_feedback_model',
 ] as const
 
 /**
@@ -225,6 +237,12 @@ export function sanitizeDocForStudent<T extends Record<string, any>>(doc: T): T 
   const sanitized = { ...doc }
   for (const field of GRADE_FIELDS) {
     ;(sanitized as any)[field] = null
+  }
+  for (const field of DRAFT_ONLY_FIELDS) {
+    ;(sanitized as any)[field] = null
+  }
+  if (!doc.feedback_returned_at) {
+    ;(sanitized as any).feedback = null
   }
   return sanitized
 }

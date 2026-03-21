@@ -34,9 +34,8 @@ pnpm-lock.yaml
 next-env.d.ts
 supabase/.temp/
 
-# Playwright / UI snapshots (generated locally)
+# Playwright / UI test outputs
 /playwright-report/
 /test-results/
 /artifacts/
 /.auth/
-/e2e/__snapshots__/

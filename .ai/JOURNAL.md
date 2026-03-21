@@ -7029,3 +7029,222 @@
 
 **Validation:**
 - `pnpm test:coverage` (pass; all 175 files / 1540 tests)
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Fix stale classrooms state immediately after login.
+**Completed:**
+- Switched the post-login redirect from App Router client navigation to a hard browser navigation so the first authenticated visit to `/classrooms` cannot reuse a stale cached payload from the logged-out session.
+- Extracted the hard-navigation call into a small client helper to keep the login client easy to test.
+- Updated the login component tests to assert full-document navigation behavior instead of `router.push`.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/LoginClient.test.tsx tests/api/auth/login.test.ts` (pass)
+- Browser verification against `http://localhost:3002`: teacher and student both logged in and saw `/classrooms` render classroom cards immediately; screenshots saved to `/tmp/pika-login-teacher.png` and `/tmp/pika-login-student.png`
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Move teacher-authored assignments and tests to limited-markdown-first authoring with compatibility for legacy assignment rich text.
+**Completed:**
+- Added a shared limited markdown parser/renderer plus Tiptap conversion helpers so teacher auth flows can use a constrained markdown subset while still mirroring legacy rich-content fields during rollout.
+- Made assignment instructions markdown canonical in the teacher APIs and UI, including derived `description`/`rich_instructions`, legacy-read precedence, bulk import handling, and student rendering from the shared markdown renderer.
+- Switched the teacher assignment modal to a markdown-first editor with preview and a temporary legacy rich-text fallback, including warnings for lossy legacy conversion.
+- Made test drafts persist `source_format: 'markdown'` and `source_markdown`, switched teacher test authoring to open on the markdown tab by default, and kept the structured question/documents views as fallback tabs.
+- Added the `instructions_markdown` migration and updated unit/API/component coverage for assignment markdown conversion, draft persistence, and markdown-first test authoring.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/assessment-drafts.test.ts tests/components/QuizDetailPanel.test.tsx tests/api/teacher/assignments.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/assignment-docs/assignment-docs-id.test.ts tests/lib/test-markdown.test.ts tests/lib/assignment-markdown.test.ts tests/api/teacher/assignments-id.test.ts tests/api/teacher/assignments-bulk.test.ts tests/api/teacher/tests-draft-route.test.ts tests/components/AssignmentModal.test.tsx tests/components/StudentAssignmentsTab.test.tsx tests/components/QuestionMarkdown.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+- Browser verification against `http://localhost:3000`:
+  - teacher assignment markdown editor: `/tmp/pika-markdown-check/teacher-assignment-edit.png`
+  - teacher test markdown tab: `/tmp/pika-markdown-check/teacher-test-markdown.png`
+  - student assignment instructions modal: `/tmp/pika-markdown-check/student-assignment-view.png`
+  - student in-progress test view: `/tmp/pika-markdown-check/student-test-in-progress.png`
+
+## 2026-03-19 [AI - GPT-5 Codex]
+**Goal:** Make calendar lesson plans markdown-canonical with inline editable cells and the same limited formatting contract used for teacher-authored assignments.
+**Completed:**
+- Added `lesson_plans.content_markdown` as the new canonical field in code, along with lesson-plan markdown helpers that prefer canonical markdown, convert legacy Tiptap content on read, and derive a temporary compatibility `content` mirror on write.
+- Updated teacher and student lesson-plan APIs, bulk lesson-plan markdown import/export, and calendar state management so lesson plans flow through canonical markdown rather than Tiptap-first JSON.
+- Replaced inline Tiptap cell editing with markdown preview plus inline textarea source editing, including keyboard shortcuts for bold, italic, unordered list, heading-3, and inline code.
+- Switched teacher and student calendar rendering to the shared limited markdown renderer so lesson-plan display is consistent with the assignment markdown rollout.
+- Added the combined markdown-source migration file `supabase/migrations/048_assignment_markdown_source.sql` for both assignments and lesson plans, and expanded API/component/unit coverage for lesson-plan markdown helpers, routes, and inline cell behavior.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (pass; 175 files / 1543 tests)
+- `pnpm exec tsc --noEmit` (pass)
+- Browser verification against `http://localhost:3002`:
+  - teacher calendar markdown preview: `/tmp/pika-calendar-markdown-check/teacher-calendar-preview.png`
+  - teacher inline markdown cell edit state: `/tmp/pika-calendar-markdown-check/teacher-calendar-inline-edit.png`
+  - student calendar markdown rendering: `/tmp/pika-calendar-markdown-check/student-calendar-preview.png`
+- Direct DB spot-check confirmed the local database does not yet have `lesson_plans.content_markdown`; migration `048_assignment_markdown_source.sql` still needs to be applied by a human before live assignment and lesson-plan saves can persist the new fields.
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Rebase `codex/teacher-authored-markdown` onto `origin/main` and resequence branch-added migrations.
+**Completed:**
+- Rebased the branch onto `origin/main` and resolved assignment API/modal conflicts by preserving markdown-canonical assignment behavior while keeping newer main-branch scheduling, feedback, and repo-target changes.
+- Renamed the branch-added markdown migration from `048_assignment_markdown_source.sql` to `049_assignment_markdown_source.sql` because `origin/main` now already contains `048_repo_review_grading.sql`.
+
+**Validation:**
+- `pnpm exec tsc --noEmit` (pass)
+- `pnpm exec vitest run tests/api/teacher/assignments-id.test.ts tests/api/integration/assignment-draft-flow.test.ts tests/api/student/lesson-plans.test.ts tests/api/teacher/lesson-plans-date.test.ts tests/api/teacher/lesson-plans-bulk.test.ts tests/components/AssignmentModal.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx tests/unit/assessment-drafts.test.ts tests/lib/lesson-plan-markdown.test.ts` (pass)
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Fix the post-review calendar markdown regressions in the rebased markdown-authoring PR.
+**Completed:**
+- Updated the teacher calendar sidebar loader to overlay pending inline lesson-plan edits onto fetched plans before generating bulk markdown, so opening the sidebar no longer drops unsaved inline cell changes.
+- Removed the legacy lesson-plan bulk parser rule that stripped lines starting with `# ` and `Term:`, so valid markdown headings and plain text are preserved inside lesson-plan bodies.
+- Added regression coverage for preserving those content lines and for merging/removing pending inline lesson-plan edits before bulk markdown generation.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/lesson-plan-markdown.test.ts tests/components/calendar-view-persistence.test.tsx tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx tests/api/student/lesson-plans.test.ts tests/api/teacher/lesson-plans-date.test.ts tests/api/teacher/lesson-plans-bulk.test.ts` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Simplify the teacher assignment modal markdown authoring UI and land the pending inline-calendar interaction tweaks.
+**Completed:**
+- Removed the legacy rich-text fallback from the teacher assignment modal so instructions are authored in a single markdown-first flow.
+- Reworked the instructions area with a lighter inline markdown toolbar, icon-based formatting controls, undo/redo, simpler title and instructions placeholders, and a tighter due-date/action layout.
+- Hid autogenerated `Untitled...` draft titles from the title field, while keeping the backend fallback title generation for background draft creation.
+- Added release guards so assignments cannot be posted or scheduled without a user-provided title, and updated the split-button/schedule flows to respect that validation.
+- Committed the pending calendar polish that keeps Escape-edited content, makes the full day cell clickable for inline edit, and enables inline editing in `All` view.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/AssignmentModal.test.tsx tests/components/LessonCalendar.test.tsx tests/components/LessonDayCell.test.tsx` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+- Browser screenshot pass against `http://localhost:3000/classrooms`:
+  - teacher: `/tmp/pika-assignment-large-h-teacher.png`
+  - student: `/tmp/pika-assignment-large-h-student.png`
+- Local browser verification is still limited by empty classroom seed data, so the screenshot pass only covers the authenticated empty `/classrooms` states, not a live assignment modal.
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Remove the default `Add lesson plan...` prompt text from empty calendar cells before merge.
+**Completed:**
+- Removed the visible empty-state prompt text from editable lesson-plan cells and removed the inline textarea placeholder so blank cells stay visually empty until the teacher clicks in.
+- Added regression coverage to ensure empty editable lesson-plan cells do not render the old prompt text in either preview or edit mode.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/LessonDayCell.test.tsx tests/components/LessonCalendar.test.tsx` (pass)
+- `pnpm exec tsc --noEmit` (pass)
+- Browser screenshot pass against `http://localhost:3000/classrooms`:
+  - teacher: `/tmp/pika-calendar-empty-prompt-teacher.png`
+  - student: `/tmp/pika-calendar-empty-prompt-student.png`
+- Local browser verification is still limited by empty classroom seed data, so the screenshot pass only covers the authenticated empty `/classrooms` states, not a live calendar with empty lesson-plan cells.
+**Goal:** Centralize the existing classroom UI aesthetic into shared components and visual patterns that carry across teacher and student screens.
+**Completed:**
+- Expanded the shared design-system layer with new surface, elevation, and spacing tokens plus richer `Button`, `Card`, and `EmptyState` primitives.
+- Refactored the app shell and shared layout pieces, including the header, sidebars, nav states, action bars, and table shell, so the softened panel system applies across tabs by default.
+- Migrated key classroom and index surfaces to the shared system, including teacher and student classroom index screens, assignment cards, quiz cards, the student assignment editor, and gallery/snapshot views.
+- Expanded `e2e/ui-snapshots.spec.ts` to cover the missing teacher and student classroom tabs, then generated tracked visual baselines for the full 50-screen matrix in light and dark mode.
+- Updated `.gitignore` so Playwright baselines in `e2e/__snapshots__` are committed while transient test outputs remain ignored.
+
+**Validation:**
+- `pnpm test` (pass)
+- `pnpm lint` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --update-snapshots` (pass)
+- Manual Playwright screenshots reviewed for teacher classrooms, teacher assignments, teacher gradebook, teacher resources, student classrooms, student today, student assignments, and student resources.
+
+## 2026-03-17 [AI - GPT-5 Codex]
+**Goal:** Keep the standardized UI system introduced on the branch, but restore the app's original design language.
+**Completed:**
+- Retuned the shared token layer in `src/styles/tokens.css` back toward the original flatter palette, tighter radius system, and lighter shadows while keeping the newer semantic token surface area.
+- Updated shared primitives in `src/ui/Button.tsx` and `src/ui/Card.tsx` so cards, buttons, selected states, and hover states read like the original app rather than the softer panel-heavy variant.
+- Reworked shared shell components in `src/components/PageLayout.tsx`, `src/components/AppHeader.tsx`, `src/components/layout/LeftSidebar.tsx`, `src/components/layout/RightSidebar.tsx`, `src/components/layout/NavItems.tsx`, and `src/components/DataTable.tsx` so the standardized layout structure remains but the visual chrome matches the earlier product language.
+- Refreshed the Playwright snapshot baselines to match the restored design language across the full teacher/student screen matrix.
+
+**Validation:**
+- `pnpm lint` (pass)
+- `pnpm test` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --update-snapshots` (pass)
+- Manual Playwright screenshots reviewed for teacher classrooms, teacher gradebook, student today, and student assignments.
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Finalize the centralized classroom UI branch for PR, including the follow-up spacing and calendar action-bar refinements requested during review.
+**Completed:**
+- Tightened the shared `PageActionBar` treatment so attached headers inherit the pane background, use smaller vertical padding, and let the page container own the action slot.
+- Added density-aware page framing and stack spacing in `src/components/PageLayout.tsx`, `src/components/layout/MainContent.tsx`, and `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx` so teacher tabs stay compact and student tabs stay roomier across the classroom shell.
+- Fixed the student assignments summary state to avoid rendering empty action-bar chrome and aligned the summary content with the shared stack primitives.
+- Added `src/components/CalendarActionBar.tsx` and moved calendar controls out of `LessonCalendar` into the shared action pane for both teacher and student calendar tabs, including the clickable month label, centered view switcher, and visible teacher sidebar toggle.
+- Refreshed the tracked Playwright baselines in `e2e/__snapshots__/ui-snapshots.spec.ts-snapshots` to match the final light/dark teacher and student classroom surfaces.
+
+**Validation:**
+- `bash /Users/stew/Repos/pika/scripts/verify-env.sh` (pass)
+- `pnpm lint` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --update-snapshots` (pass)
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Remove the remaining vertical padding in the attached action-bar shell after PR review.
+**Completed:**
+- Removed the shared vertical padding from `src/components/PageLayout.tsx` so the action-bar area is defined by the controls themselves rather than a padded wrapper.
+- Re-verified the change visually on teacher gradebook, teacher assignments, teacher calendar, and the selected student assignment view before refreshing the branch snapshots.
+- Stabilized `e2e/ui-snapshots.spec.ts` by waiting for visible loading spinners to disappear before capturing screenshots, which fixed intermittent loading-state diffs on teacher tests/gradebook and allowed the refreshed student today baseline to reflect the fully loaded screen.
+- Removed the remaining shell-level top padding from `src/components/layout/MainContent.tsx`, which was the source of the gap between the main classroom header and the first in-tab element on non-calendar tabs.
+- Extended the snapshot wait helper to also ignore visible `animate-pulse` loading skeletons so student today verification captures rendered content instead of route placeholders.
+- Added a slight top inset back to `PageActionBar` in `src/components/PageLayout.tsx` and removed the action-bar bottom divider so attached headers sit off the main frame by a hair without reading as a separated card.
+
+**Validation:**
+- `pnpm lint --file e2e/ui-snapshots.spec.ts --file src/components/PageLayout.tsx` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom tests tab|classroom gradebook tab"` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom today tab" --update-snapshots` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts` (pass)
+- `pnpm lint --file src/components/layout/MainContent.tsx --file e2e/ui-snapshots.spec.ts` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom attendance tab|classroom today tab" --update-snapshots` (pass)
+- `pnpm lint --file src/components/PageLayout.tsx --file src/components/layout/MainContent.tsx --file e2e/ui-snapshots.spec.ts` (pass)
+- `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom attendance tab|assignment editor" --update-snapshots` (pass)
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Extend full-height pane behavior to additional classroom tabs, especially student tests and calendar-style panels.
+**Completed:**
+- Reworked the classroom shell height chain so authenticated pages use a true `min-h-dvh -> flex-1/min-h-0 -> h-full/min-h-0` flow in `src/components/AppShell.tsx`, `src/components/layout/ThreePanelShell.tsx`, `src/components/layout/MainContent.tsx`, `src/ui/TabContentTransition.tsx`, and `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`.
+- Updated `src/components/PageLayout.tsx` and `src/components/layout/MainContent.tsx` to merge override spacing classes correctly via `cn`, so tab-specific `pt-0`, `pt-1`, and `pb-0` overrides actually win over density defaults.
+- Converted student tests and both teacher/student calendar tabs to fill their available pane height using flex-based wrappers instead of viewport math in `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`, `src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx`, and `src/components/LessonCalendar.tsx`.
+- Added screenshots from the worktree dev server for student tests, student calendar, teacher tests, and teacher calendar under `/tmp/pika-worktree-*.png`.
+
+**Validation:**
+- `pnpm lint --file src/components/PageLayout.tsx --file src/components/layout/MainContent.tsx --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx' --file 'src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx' --file 'src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx' --file 'src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx' --file src/components/AppShell.tsx --file src/components/LessonCalendar.tsx --file src/components/layout/ThreePanelShell.tsx --file src/ui/TabContentTransition.tsx` (pass)
+- Manual Playwright screenshots captured from the worktree server on port `3005`
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Rebase `codex/ui-system-centralization` onto `origin/main`, preserve the markdown migration changes, and restore the in-progress UI/UX work so implementation can continue.
+**Completed:**
+- Rebased the worktree branch onto `origin/main` and resolved conflicts between the branch’s shared UI-system work and `main`’s markdown migration in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx`, `src/components/StudentAssignmentEditor.tsx`, and `tests/components/StudentAssignmentEditor.feedback-card.test.tsx`.
+- Restored the pre-rebase local UI work from stash, resolved the follow-up conflicts in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx` and `src/components/LessonDayCell.tsx`, and returned the worktree to an unstaged working state for continued UI iteration.
+- Audited `supabase/migrations` against `origin/main`; no new migration files were added on this branch and no duplicate migration prefixes were present, so no resequencing was needed.
+
+**Validation:**
+- `git -C "$PIKA_WORKTREE" diff --name-only --diff-filter=A origin/main -- supabase/migrations` (no output)
+- duplicate migration prefix check across `supabase/migrations` (no output)
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Finish the remaining student-side classroom UI polish before re-pushing the centralized UI-system PR.
+**Completed:**
+- Restored the standard top inset in `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx` so the first assignment card no longer sits flush against the top of the content pane in summary mode.
+- Wrapped the student calendar in the same rounded bordered surface as the teacher calendar in `src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx` so both roles share the same framed weekday/header treatment.
+- Hardened `src/components/LessonCalendar.tsx` against horizontal overflow with `min-w-0` and `overflow-x-hidden` on the shared calendar wrappers so the student calendar no longer shows a horizontal scrollbar.
+
+**Validation:**
+- `pnpm lint --file 'src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx'` (pass)
+- `pnpm lint --file 'src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx'` (pass)
+- `pnpm lint --file src/components/LessonCalendar.tsx` (pass)
+- Visual verification screenshots: `/tmp/student-assignments-final.png`, `/tmp/student-calendar-final.png`, `/tmp/teacher-calendar-final.png`
+- `bash scripts/verify-env.sh` (fails on existing issues in `tests/components/calendar-view-persistence.test.tsx` and `tests/api/teacher/assignments-id-return.test.ts`)
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Polish remaining calendar action-bar spacing and control styling after review feedback.
+**Completed:**
+- Updated the teacher calendar sidebar toggle in `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx` from the blue `subtle` variant to the neutral `ghost` variant so it matches the assignment-tab header controls.
+- Added a small top gap between the calendar action bar and the calendar surface in both `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx` and `src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx`.
+
+**Validation:**
+- `pnpm lint --file 'src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx' --file 'src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx'` (pass)
+- Visual verification screenshots: `/tmp/teacher-calendar-toggle-neutral.png`, `/tmp/student-calendar-gap.png`, `/tmp/teacher-calendar-gap.png`
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Repair the failing CI checks on PR #408 so the branch is merge-ready.
+**Completed:**
+- Updated `tests/components/calendar-view-persistence.test.tsx` to account for the intentionally duplicated desktop/mobile calendar view-mode controls rendered by `CalendarActionBar`.
+- Rewrote `tests/api/teacher/assignments-id-return.test.ts` to match the current route implementation in `src/app/api/teacher/assignments/[id]/return/route.ts`, which now works directly against `assignment_docs` instead of the old RPC path.
+- Added the missing branch coverage case in `tests/unit/assignments.test.ts` for `sanitizeDocForStudent` when `feedback_returned_at` is set but `returned_at` is still null, restoring the strict 100% branch threshold for `src/lib/assignments.ts`.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/calendar-view-persistence.test.tsx tests/api/teacher/assignments-id-return.test.ts` (pass)
+- `pnpm run test:coverage` (pass)
+- `pnpm build` (pass with existing hook-dependency warnings in `src/components/AssignmentModal.tsx` and `src/components/StudentAssignmentEditor.tsx`)

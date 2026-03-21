@@ -342,6 +342,8 @@ export interface ContentDialogProps {
   children: ReactNode
   /** Max width class, defaults to 'max-w-2xl' */
   maxWidth?: string
+  showHeaderClose?: boolean
+  showFooterClose?: boolean
 }
 
 /**
@@ -368,6 +370,8 @@ export function ContentDialog({
   subtitle,
   children,
   maxWidth = 'max-w-2xl',
+  showHeaderClose = true,
+  showFooterClose = true,
 }: ContentDialogProps) {
   const titleId = useId()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -375,8 +379,10 @@ export function ContentDialog({
   // Focus the close button when the dialog opens
   useEffect(() => {
     if (!isOpen) return
-    closeButtonRef.current?.focus()
-  }, [isOpen])
+    if (showHeaderClose) {
+      closeButtonRef.current?.focus()
+    }
+  }, [isOpen, showHeaderClose])
 
   // Escape key closes the dialog
   useEffect(() => {
@@ -411,20 +417,24 @@ export function ContentDialog({
               <p className="text-xs text-text-muted truncate mt-0.5">{subtitle}</p>
             )}
           </div>
-          <Button ref={closeButtonRef} variant="ghost" size="sm" onClick={onClose} aria-label="Close">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </Button>
+          {showHeaderClose && (
+            <Button ref={closeButtonRef} variant="ghost" size="sm" onClick={onClose} aria-label="Close">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Button>
+          )}
         </div>
         <div className="mt-4 flex-1 min-h-0 overflow-y-auto">
           {children}
         </div>
-        <div className="mt-6 flex justify-end flex-shrink-0">
-          <Button variant="secondary" onClick={onClose}>
-            Close
-          </Button>
-        </div>
+        {showFooterClose && (
+          <div className="mt-6 flex justify-end flex-shrink-0">
+            <Button variant="secondary" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

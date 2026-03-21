@@ -1,13 +1,11 @@
 'use client'
 
-import { useCallback, useMemo, memo } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
-import { RichTextEditor } from '@/components/editor/RichTextEditor'
-import { extractTextFromTiptap } from '@/lib/lesson-plan-markdown'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { Tooltip } from '@/ui'
-import type { LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
-
-const EMPTY_CONTENT: TiptapContent = { type: 'doc', content: [] }
+import type { Announcement, Assignment, LessonPlan } from '@/types'
 
 // Helper to check if announcement is scheduled (not yet published)
 function isScheduled(announcement: Announcement): boolean {
@@ -26,10 +24,93 @@ interface LessonDayCellProps {
   isClassDay?: boolean // undefined means class days not initialized
   editable: boolean
   compact?: boolean
-  plainTextOnly?: boolean // Force plain text rendering (for 'all' view performance)
-  onContentChange?: (date: string, content: TiptapContent) => void
+  plainTextOnly?: boolean
+  onContentChange?: (date: string, contentMarkdown: string) => void
   onAssignmentClick?: (assignment: Assignment) => void
   onAnnouncementClick?: () => void
+}
+
+type MarkdownShortcut = 'bold' | 'italic' | 'code' | 'unordered-list' | 'heading-3'
+
+type ShortcutResult = {
+  value: string
+  selectionStart: number
+  selectionEnd: number
+}
+
+function applyWrapShortcut(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  open: string,
+  close = open
+): ShortcutResult {
+  const selected = value.slice(selectionStart, selectionEnd)
+  const replacement = `${open}${selected}${close}`
+  const nextValue = `${value.slice(0, selectionStart)}${replacement}${value.slice(selectionEnd)}`
+
+  if (selectionStart === selectionEnd) {
+    return {
+      value: nextValue,
+      selectionStart: selectionStart + open.length,
+      selectionEnd: selectionStart + open.length,
+    }
+  }
+
+  return {
+    value: nextValue,
+    selectionStart: selectionStart + open.length,
+    selectionEnd: selectionStart + open.length + selected.length,
+  }
+}
+
+function toggleLinePrefix(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  prefix: string
+): ShortcutResult {
+  const blockStart = value.lastIndexOf('\n', Math.max(selectionStart - 1, 0)) + 1
+  const nextBreak = value.indexOf('\n', selectionEnd)
+  const blockEnd = nextBreak === -1 ? value.length : nextBreak
+  const block = value.slice(blockStart, blockEnd)
+  const lines = block.split('\n')
+  const shouldRemove = lines.every((line) => line.trim().length === 0 || line.startsWith(prefix))
+  const updated = lines.map((line) => {
+    if (line.trim().length === 0) return line
+    if (shouldRemove) {
+      return line.startsWith(prefix) ? line.slice(prefix.length) : line
+    }
+    return `${prefix}${line}`
+  })
+  const replacement = updated.join('\n')
+
+  return {
+    value: `${value.slice(0, blockStart)}${replacement}${value.slice(blockEnd)}`,
+    selectionStart: blockStart,
+    selectionEnd: blockStart + replacement.length,
+  }
+}
+
+export function applyMarkdownShortcut(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  shortcut: MarkdownShortcut
+): ShortcutResult {
+  if (shortcut === 'bold') {
+    return applyWrapShortcut(value, selectionStart, selectionEnd, '**')
+  }
+  if (shortcut === 'italic') {
+    return applyWrapShortcut(value, selectionStart, selectionEnd, '*')
+  }
+  if (shortcut === 'code') {
+    return applyWrapShortcut(value, selectionStart, selectionEnd, '`')
+  }
+  if (shortcut === 'unordered-list') {
+    return toggleLinePrefix(value, selectionStart, selectionEnd, '- ')
+  }
+  return toggleLinePrefix(value, selectionStart, selectionEnd, '### ')
 }
 
 export const LessonDayCell = memo(function LessonDayCell({
@@ -48,23 +129,97 @@ export const LessonDayCell = memo(function LessonDayCell({
   onAssignmentClick,
   onAnnouncementClick,
 }: LessonDayCellProps) {
-  const content = lessonPlan?.content || EMPTY_CONTENT
+  const markdown = useMemo(() => getLessonPlanMarkdown(lessonPlan).markdown, [lessonPlan])
+  const [isEditing, setIsEditing] = useState(false)
+  const [localMarkdown, setLocalMarkdown] = useState(markdown)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
-  const handleContentChange = useCallback(
-    (newContent: TiptapContent) => {
-      onContentChange?.(date, newContent)
-    },
-    [date, onContentChange]
-  )
+  useEffect(() => {
+    if (!isEditing) {
+      setLocalMarkdown(markdown)
+    }
+  }, [markdown, isEditing])
 
-  // Check if content is empty
-  const hasContent = content.content && content.content.length > 0
+  useEffect(() => {
+    if (!isEditing) return
+    const textarea = textareaRef.current
+    if (!textarea) return
+    textarea.focus()
+    const cursor = textarea.value.length
+    textarea.setSelectionRange(cursor, cursor)
+  }, [isEditing])
 
-  // For plain text mode, extract text (avoids creating heavy Tiptap editor instances)
+  const handleStartEditing = useCallback(() => {
+    if (!editable) return
+    setLocalMarkdown(markdown)
+    setIsEditing(true)
+  }, [editable, markdown])
+
+  const handleMarkdownChange = useCallback((nextMarkdown: string) => {
+    setLocalMarkdown(nextMarkdown)
+    onContentChange?.(date, nextMarkdown)
+  }, [date, onContentChange])
+
+  const applyShortcut = useCallback((shortcut: MarkdownShortcut) => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    const result = applyMarkdownShortcut(
+      textarea.value,
+      textarea.selectionStart,
+      textarea.selectionEnd,
+      shortcut
+    )
+
+    handleMarkdownChange(result.value)
+    requestAnimationFrame(() => {
+      textarea.focus()
+      textarea.setSelectionRange(result.selectionStart, result.selectionEnd)
+    })
+  }, [handleMarkdownChange])
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
+      event.preventDefault()
+      applyShortcut('bold')
+      return
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'i') {
+      event.preventDefault()
+      applyShortcut('italic')
+      return
+    }
+    if ((event.metaKey || event.ctrlKey) && event.altKey && event.key.toLowerCase() === 'l') {
+      event.preventDefault()
+      applyShortcut('unordered-list')
+      return
+    }
+    if ((event.metaKey || event.ctrlKey) && event.altKey && event.key === '3') {
+      event.preventDefault()
+      applyShortcut('heading-3')
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setIsEditing(false)
+    }
+  }, [applyShortcut])
+
+  const hasContent = markdown.trim().length > 0
   const plainText = useMemo(() => {
     if (!plainTextOnly || !hasContent) return ''
-    return extractTextFromTiptap(content)
-  }, [plainTextOnly, hasContent, content])
+    return markdown
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/^\s*[-*]\s+/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  }, [plainTextOnly, hasContent, markdown])
+  const previewClassName = compact || plainTextOnly
+    ? 'space-y-1 text-[10px] leading-tight [&_p]:text-[10px] [&_p]:leading-tight [&_ul]:text-[10px] [&_ol]:text-[10px] [&_blockquote]:text-[10px] [&_h1]:text-xs [&_h2]:text-[11px] [&_h3]:text-[10px]'
+    : 'space-y-2 text-sm leading-snug [&_p]:text-sm [&_ul]:text-sm [&_ol]:text-sm [&_blockquote]:text-sm [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm'
 
   // Weekend cells are narrow and minimal
   if (isWeekend) {
@@ -131,6 +286,11 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   return (
     <div
+      onClick={() => {
+        if (!isEditing) {
+          handleStartEditing()
+        }
+      }}
       className={`
         relative h-full min-w-0 overflow-hidden
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
@@ -208,33 +368,36 @@ export const LessonDayCell = memo(function LessonDayCell({
 
       {/* Content area */}
       <div className={`calendar-day-text ${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
-        {plainTextOnly ? (
-          // Plain text mode: lightweight rendering for 'all' view performance
-          hasContent && (
-            <div className="calendar-day-text text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap">
-              {plainText}
-            </div>
-          )
-        ) : editable ? (
-          <RichTextEditor
-            content={content}
-            onChange={handleContentChange}
-            placeholder="Add lesson plan..."
-            editable={true}
-            showToolbar={false}
-            className={compact ? 'text-xs' : 'text-sm'}
+        {isEditing ? (
+          <textarea
+            ref={textareaRef}
+            value={localMarkdown}
+            onChange={(event) => handleMarkdownChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={() => setIsEditing(false)}
+            className={`w-full resize-none border-none bg-transparent font-mono text-text-default focus:outline-none ${compact ? 'min-h-[4.5rem] text-[10px] leading-tight' : 'min-h-[6rem] text-sm leading-snug'}`}
           />
-        ) : hasContent ? (
-          <div className={`${compact ? 'text-xs' : 'text-sm'} text-text-muted`}>
-            <RichTextEditor
-              content={content}
-              onChange={() => {}}
-              editable={false}
-              showToolbar={false}
-              className={compact ? 'text-xs' : 'text-sm'}
-            />
-          </div>
-        ) : null}
+        ) : (
+          <button
+            type="button"
+            onClick={handleStartEditing}
+            className={`w-full text-left ${editable ? 'cursor-text' : 'cursor-default'}`}
+          >
+            {hasContent ? (
+              plainTextOnly ? (
+                <div className="text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap">
+                  {plainText}
+                </div>
+              ) : (
+                <LimitedMarkdown
+                  content={markdown}
+                  className={`${previewClassName} text-text-muted`.trim()}
+                  emptyPlaceholder={null}
+                />
+              )
+            ) : null}
+          </button>
+        )}
       </div>
     </div>
   )

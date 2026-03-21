@@ -32,9 +32,6 @@ export const GET = withErrorHandler('GetStudentAssignments', async (request, con
     )
   }
 
-  // Fetch all student-visible assignments for the classroom:
-  // - not drafts
-  // - released_at is null (legacy) or already reached
   const { data: assignments, error } = await supabase
     .from('assignments')
     .select('*')
@@ -50,29 +47,27 @@ export const GET = withErrorHandler('GetStudentAssignments', async (request, con
     )
   }
 
-  // Get student's docs for these assignments
-  const assignmentIds = assignments?.map(a => a.id) || []
+  const assignmentIds = assignments?.map((assignment) => assignment.id) || []
   const { data: docs } = await supabase
     .from('assignment_docs')
     .select('*')
     .eq('student_id', user.id)
     .in('assignment_id', assignmentIds)
 
-  const docMap = new Map(docs?.map(d => [d.assignment_id, d]) || [])
+  const docMap = new Map(docs?.map((doc) => [doc.assignment_id, doc]) || [])
 
-  // Add status to each assignment
   const assignmentsWithStatus = (assignments || [])
     .filter((assignment) => isAssignmentVisibleToStudents(assignment))
-    .map(assignment => {
-    const doc = docMap.get(assignment.id)
-    const status = calculateAssignmentStatus(assignment, doc)
+    .map((assignment) => {
+      const doc = docMap.get(assignment.id)
 
-    return {
-      ...assignment,
-      status,
-      doc: doc ? sanitizeDocForStudent(doc) : null
-    }
+      return {
+        ...assignment,
+        status: calculateAssignmentStatus(assignment, doc),
+        doc: doc ? sanitizeDocForStudent(doc) : null,
+      }
     })
+    .filter(Boolean)
 
   return NextResponse.json({ assignments: assignmentsWithStatus })
 })

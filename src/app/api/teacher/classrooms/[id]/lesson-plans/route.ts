@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -48,5 +49,10 @@ export const GET = withErrorHandler('GetLessonPlans', async (request, context) =
     )
   }
 
-  return NextResponse.json({ lesson_plans: lessonPlans || [] })
+  return NextResponse.json({
+    lesson_plans: (lessonPlans || []).map((lessonPlan) => ({
+      ...lessonPlan,
+      content_markdown: getLessonPlanMarkdown(lessonPlan).markdown,
+    })),
+  })
 })

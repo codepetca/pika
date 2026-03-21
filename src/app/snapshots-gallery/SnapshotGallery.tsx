@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
+import { Card } from '@/ui'
 
 interface Snapshot {
   filename: string
@@ -62,7 +63,7 @@ export function SnapshotGallery() {
   return (
     <div className="min-h-screen bg-page">
       {/* Header */}
-      <div className="bg-surface border-b border-border sticky top-0 z-10">
+      <div className="sticky top-0 z-10 border-b border-border bg-surface-panel shadow-panel">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
@@ -79,7 +80,7 @@ export function SnapshotGallery() {
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'all'
                     ? 'bg-primary text-text-inverse'
-                    : 'bg-surface text-text-default border border-border hover:bg-page'
+                    : 'bg-surface text-text-default border border-border hover:bg-surface-accent'
                 }`}
               >
                 All ({snapshots.length})
@@ -89,7 +90,7 @@ export function SnapshotGallery() {
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'auth'
                     ? 'bg-primary text-text-inverse'
-                    : 'bg-surface text-text-default border border-border hover:bg-page'
+                    : 'bg-surface text-text-default border border-border hover:bg-surface-accent'
                 }`}
               >
                 Auth ({groupedSnapshots.auth.length})
@@ -99,7 +100,7 @@ export function SnapshotGallery() {
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'teacher'
                     ? 'bg-primary text-text-inverse'
-                    : 'bg-surface text-text-default border border-border hover:bg-page'
+                    : 'bg-surface text-text-default border border-border hover:bg-surface-accent'
                 }`}
               >
                 Teacher ({groupedSnapshots.teacher.length})
@@ -109,7 +110,7 @@ export function SnapshotGallery() {
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                   filter === 'student'
                     ? 'bg-primary text-text-inverse'
-                    : 'bg-surface text-text-default border border-border hover:bg-page'
+                    : 'bg-surface text-text-default border border-border hover:bg-surface-accent'
                 }`}
               >
                 Student ({groupedSnapshots.student.length})
@@ -123,7 +124,7 @@ export function SnapshotGallery() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSnapshots.map((snapshot) => (
-            <div key={snapshot.filename} className="bg-surface rounded-lg shadow-sm border border-border overflow-hidden hover:shadow-md transition-shadow">
+            <Card key={snapshot.filename} tone="panel" padding="none" className="overflow-hidden transition-shadow hover:shadow-panel">
               {/* Snapshot name */}
               <div className="px-4 py-3 border-b border-border bg-page">
                 <h3 className="text-sm font-medium text-text-default truncate" title={snapshot.name}>
@@ -157,7 +158,7 @@ export function SnapshotGallery() {
               <div className="px-4 py-2 bg-page border-t border-border">
                 <code className="text-xs text-text-muted break-all">{snapshot.filename}</code>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </div>

@@ -80,6 +80,16 @@ describe('GET /api/assignment-docs/[id]', () => {
             })),
           })),
         }
+      } else if (table === 'assignment_feedback_entries') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [],
+              error: null,
+            }),
+          })),
+        }
       }
     })
     ;(mockSupabaseClient.from as any) = mockFrom
@@ -124,6 +134,16 @@ describe('PATCH /api/assignment-docs/[id]', () => {
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
               data: { id: 'enroll-1' },
+              error: null,
+            }),
+          })),
+        }
+      } else if (table === 'assignment_feedback_entries') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [],
               error: null,
             }),
           })),

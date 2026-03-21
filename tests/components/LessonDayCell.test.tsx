@@ -1,15 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { LessonDayCell } from '@/components/LessonDayCell'
+import { useState } from 'react'
+import { applyMarkdownShortcut, LessonDayCell } from '@/components/LessonDayCell'
 import type { LessonPlan, TiptapContent } from '@/types'
-
-vi.mock('@/components/editor/RichTextEditor', () => ({
-  RichTextEditor: ({
-    className,
-  }: {
-    className?: string
-  }) => <div data-testid="rich-text-editor" className={className} />,
-}))
 
 const content: TiptapContent = {
   type: 'doc',
@@ -21,12 +14,45 @@ const lessonPlan: LessonPlan = {
   classroom_id: 'class-1',
   date: '2026-03-13',
   content,
+  content_markdown: 'Lesson text',
   created_at: '2026-03-13T00:00:00.000Z',
   updated_at: '2026-03-13T00:00:00.000Z',
 }
 
 describe('LessonDayCell', () => {
-  it('applies the shared calendar text wrapper in editable mode', () => {
+  function Harness() {
+    const [plan, setPlan] = useState<LessonPlan | null>(lessonPlan)
+
+    return (
+      <LessonDayCell
+        date="2026-03-13"
+        day={new Date('2026-03-13T12:00:00.000Z')}
+        lessonPlan={plan}
+        isWeekend={false}
+        isToday={false}
+        editable={true}
+        compact={false}
+        onContentChange={(date, contentMarkdown) => {
+          setPlan((current) => {
+            if (!contentMarkdown.trim()) {
+              return null
+            }
+
+            return {
+              ...(current ?? {
+                ...lessonPlan,
+                id: `local-${date}`,
+                date,
+              }),
+              content_markdown: contentMarkdown,
+            }
+          })
+        }}
+      />
+    )
+  }
+
+  it('enters inline markdown edit mode when the preview is clicked', () => {
     const { container } = render(
       <LessonDayCell
         date="2026-03-13"
@@ -40,10 +66,72 @@ describe('LessonDayCell', () => {
     )
 
     expect(container.querySelector('.calendar-day-text')).toBeTruthy()
-    expect(screen.getByTestId('rich-text-editor')).toHaveClass('text-sm')
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByDisplayValue('Lesson text')).toHaveClass('font-mono')
   })
 
-  it('uses the shared calendar text wrapper for plain-text previews', () => {
+  it('does not render default add-lesson-plan prompt text for empty editable cells', () => {
+    render(
+      <LessonDayCell
+        date="2026-03-14"
+        day={new Date('2026-03-14T12:00:00.000Z')}
+        lessonPlan={null}
+        isWeekend={false}
+        isToday={false}
+        editable={true}
+        compact={false}
+      />
+    )
+
+    expect(screen.queryByText('Add lesson plan...')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('14'))
+
+    expect(screen.getByRole('textbox')).not.toHaveAttribute('placeholder')
+  })
+
+  it('enters inline markdown edit mode when the date header is clicked', () => {
+    const { container } = render(
+      <LessonDayCell
+        date="2026-03-13"
+        day={new Date('2026-03-13T12:00:00.000Z')}
+        lessonPlan={lessonPlan}
+        isWeekend={false}
+        isToday={false}
+        editable={true}
+        compact={false}
+      />
+    )
+
+    fireEvent.click(screen.getByText('13'))
+
+    expect(screen.getByDisplayValue('Lesson text')).toHaveClass('font-mono')
+    expect(container.querySelector('textarea')).toBeTruthy()
+  })
+
+  it('keeps the edited markdown visible after blur when parent state updates optimistically', () => {
+    render(<Harness />)
+
+    fireEvent.click(screen.getByRole('button'))
+    const textarea = screen.getByDisplayValue('Lesson text')
+    fireEvent.change(textarea, { target: { value: 'Updated lesson text' } })
+    fireEvent.blur(textarea)
+
+    expect(screen.getByText('Updated lesson text')).toBeInTheDocument()
+  })
+
+  it('keeps the edited markdown visible after pressing escape', () => {
+    render(<Harness />)
+
+    fireEvent.click(screen.getByRole('button'))
+    const textarea = screen.getByDisplayValue('Lesson text')
+    fireEvent.change(textarea, { target: { value: 'Saved via escape' } })
+    fireEvent.keyDown(textarea, { key: 'Escape' })
+
+    expect(screen.getByText('Saved via escape')).toBeInTheDocument()
+  })
+
+  it('renders markdown preview inside the shared calendar text wrapper', () => {
     render(
       <LessonDayCell
         date="2026-03-13"
@@ -57,6 +145,16 @@ describe('LessonDayCell', () => {
       />
     )
 
-    expect(screen.getByText('Lesson text')).toHaveClass('calendar-day-text')
+    expect(screen.getByText('Lesson text').closest('.calendar-day-text')).toBeTruthy()
+  })
+
+  it('applies bold shortcut to the selected markdown range', () => {
+    const result = applyMarkdownShortcut('hello world', 0, 5, 'bold')
+    expect(result.value).toBe('**hello** world')
+  })
+
+  it('toggles list prefix for the selected lines', () => {
+    const result = applyMarkdownShortcut('item one\nitem two', 0, 'item one\nitem two'.length, 'unordered-list')
+    expect(result.value).toBe('- item one\n- item two')
   })
 })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
+import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { countCharacters, countWords, isValidTiptapContent, parseContentField } from '@/lib/tiptap-content'
 import { sanitizeDocForStudent } from '@/lib/assignments'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
@@ -10,6 +11,7 @@ import {
 } from '@/lib/server/versioned-history'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
+import { loadAssignmentFeedbackEntries } from '@/lib/server/assignment-feedback'
 import type { AssignmentDocHistoryEntry, AssignmentDocHistoryTrigger, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -86,6 +88,8 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
           assignment_id: assignmentId,
           student_id: user.id,
           content: { type: 'doc', content: [] },
+          repo_url: null,
+          github_username: null,
           is_submitted: false,
           submitted_at: null,
           viewed_at: new Date().toISOString(),
@@ -107,7 +111,16 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
             raced.content = parseContentField(raced.content)
           }
           // Race condition: another request created the doc, so this wasn't first view
-          return NextResponse.json({ assignment, doc: raced ? sanitizeDocForStudent(raced) : raced, wasFirstView: false })
+          const feedbackEntries = raced ? await loadAssignmentFeedbackEntries(assignmentId, user.id) : []
+          return NextResponse.json({
+            assignment: {
+              ...assignment,
+              instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
+            },
+            doc: raced ? sanitizeDocForStudent(raced) : raced,
+            feedback_entries: feedbackEntries,
+            wasFirstView: false,
+          })
         }
 
         console.error('Error creating assignment doc:', createError)
@@ -118,7 +131,15 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
       }
 
       // New doc created = first view
-      return NextResponse.json({ assignment, doc: created, wasFirstView: true })
+      return NextResponse.json({
+        assignment: {
+          ...assignment,
+          instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
+        },
+        doc: created,
+        feedback_entries: [],
+        wasFirstView: true,
+      })
     }
     console.error('Error fetching assignment doc:', docError)
     return NextResponse.json(
@@ -148,7 +169,17 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
     }
   }
 
-  return NextResponse.json({ assignment, doc: sanitizeDocForStudent(existingDoc), wasFirstView })
+  const feedbackEntries = await loadAssignmentFeedbackEntries(assignmentId, user.id)
+
+  return NextResponse.json({
+    assignment: {
+      ...assignment,
+      instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
+    },
+    doc: sanitizeDocForStudent(existingDoc),
+    feedback_entries: feedbackEntries,
+    wasFirstView,
+  })
 })
 
 // PATCH /api/assignment-docs/[id] - Save content (autosave)
@@ -160,6 +191,8 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
     content: TiptapContent
     trigger?: AssignmentDocHistoryTrigger
   }
+  const repoUrl = typeof body.repo_url === 'string' ? body.repo_url.trim() : undefined
+  const githubUsername = typeof body.github_username === 'string' ? body.github_username.trim() : undefined
   // Clamp client-reported tracking values to non-negative integers
   const paste_word_count = Math.max(0, Math.round(Number(body.paste_word_count) || 0))
   const keystroke_count = Math.max(0, Math.round(Number(body.keystroke_count) || 0))
@@ -220,7 +253,7 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
   // Fetch doc to enforce ownership and submission rules
   const { data: existingDoc, error: docFetchError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, is_submitted, content')
+    .select('id, student_id, is_submitted, content, repo_url, github_username')
     .eq('assignment_id', assignmentId)
     .eq('student_id', user.id)
     .single()
@@ -233,6 +266,8 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
           assignment_id: assignmentId,
           student_id: user.id,
           content,
+          repo_url: repoUrl ?? null,
+          github_username: githubUsername ?? null,
           is_submitted: false,
           submitted_at: null,
         })
@@ -284,7 +319,9 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
   const { data: doc, error } = await supabase
     .from('assignment_docs')
     .update({
-      content
+      content,
+      ...(repoUrl !== undefined ? { repo_url: repoUrl || null } : {}),
+      ...(githubUsername !== undefined ? { github_username: githubUsername || null } : {}),
     })
     .eq('id', existingDoc.id)
     .select()

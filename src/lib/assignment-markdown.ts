@@ -1,6 +1,6 @@
 import { format, parse, isValid } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
-import { extractPlainText, plainTextToTiptapContent } from '@/lib/tiptap-content'
+import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import type { Assignment, TiptapContent, TiptapNode } from '@/types'
 
 const TORONTO_TZ = 'America/Toronto'
@@ -65,9 +65,10 @@ export function assignmentsToMarkdown(
 
   for (let i = 0; i < assignments.length; i++) {
     const assignment = assignments[i]
+    const instructions = getAssignmentInstructionsMarkdown(assignment)
 
     // Check for rich formatting
-    if (assignment.rich_instructions && hasRichFormatting(assignment.rich_instructions)) {
+    if (instructions.hasLossyConversion) {
       hasRichContent = true
     }
 
@@ -81,13 +82,8 @@ export function assignmentsToMarkdown(
     lines.push(`Due: ${formattedDate}`)
     lines.push('')
 
-    // Instructions (extract plain text from rich content if available)
-    const instructionsText = assignment.rich_instructions
-      ? extractPlainText(assignment.rich_instructions)
-      : assignment.description || ''
-
-    if (instructionsText.trim()) {
-      lines.push(instructionsText.trim())
+    if (instructions.markdown.trim()) {
+      lines.push(instructions.markdown.trim())
     }
 
     lines.push('')

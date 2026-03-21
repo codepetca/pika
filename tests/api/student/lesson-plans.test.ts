@@ -59,8 +59,8 @@ describe('GET /api/student/classrooms/[id]/lesson-plans', () => {
 
   it('should return lesson plans with visibility=all (no restrictions)', async () => {
     const mockLessonPlans = [
-      { id: 'lp-1', classroom_id: 'c-1', date: '2025-01-06', content: { type: 'doc', content: [] } },
-      { id: 'lp-2', classroom_id: 'c-1', date: '2025-02-15', content: { type: 'doc', content: [] } },
+      { id: 'lp-1', classroom_id: 'c-1', date: '2025-01-06', content: { type: 'doc', content: [] }, content_markdown: 'Plan 1' },
+      { id: 'lp-2', classroom_id: 'c-1', date: '2025-02-15', content: { type: 'doc', content: [] }, content_markdown: 'Plan 2' },
     ]
 
     const selectMock = vi.fn(() => ({
@@ -102,6 +102,7 @@ describe('GET /api/student/classrooms/[id]/lesson-plans', () => {
     expect(data.visibility).toBe('all')
     expect(data.max_date).toBeNull()
     expect(data.lesson_plans).toHaveLength(2)
+    expect(data.lesson_plans[0].content_markdown).toBe('Plan 1')
   })
 
   it('should clamp end date for current_week visibility', async () => {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ExternalLink, Image as ImageIcon, Link2 } from 'lucide-react'
+import { ExternalLink, FolderGit2, Image as ImageIcon, Link2 } from 'lucide-react'
 import {
   summarizeArtifactUrl,
   type AssignmentArtifact,
@@ -14,7 +14,7 @@ interface AssignmentArtifactsCellProps {
 }
 
 function getArtifactLabel(artifact: AssignmentArtifact): string {
-  const prefix = artifact.type === 'image' ? 'Image' : 'Link'
+  const prefix = artifact.type === 'image' ? 'Image' : artifact.type === 'repo' ? 'Repo' : 'Link'
   return `${prefix} . ${summarizeArtifactUrl(artifact.url)}`
 }
 
@@ -25,6 +25,9 @@ function getArtifactSummary(artifact: AssignmentArtifact): string {
 function ArtifactTypeIcon({ artifact }: { artifact: AssignmentArtifact }) {
   if (artifact.type === 'image') {
     return <ImageIcon className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+  }
+  if (artifact.type === 'repo') {
+    return <FolderGit2 className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
   }
   return <Link2 className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
 }
@@ -109,7 +112,13 @@ export function AssignmentArtifactsCell({
       <ContentDialog
         isOpen={selectedArtifact !== null}
         onClose={() => setModalIndex(null)}
-        title={selectedArtifact?.type === 'image' ? 'Image Preview' : 'Link Preview'}
+        title={
+          selectedArtifact?.type === 'image'
+            ? 'Image Preview'
+            : selectedArtifact?.type === 'repo'
+              ? 'Repo Preview'
+              : 'Link Preview'
+        }
         subtitle={
           modalIndex !== null
             ? `${modalIndex + 1} of ${artifacts.length}`

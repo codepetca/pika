@@ -25,6 +25,14 @@ vi.mock('@/components/editor', () => ({
 
 vi.mock('@/ui', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  ContentDialog: ({ isOpen, title, children }: any) => isOpen ? <div role="dialog" aria-label={title}>{children}</div> : null,
+  FormField: ({ label, children }: any) => (
+    <label>
+      <span>{label}</span>
+      {children}
+    </label>
+  ),
+  Input: (props: any) => <input {...props} />,
   Tooltip: ({ children }: any) => <>{children}</>,
 }))
 
@@ -34,6 +42,7 @@ function makeAssignment() {
     classroom_id: 'classroom-1',
     title: 'Assignment Title',
     description: 'Assignment description',
+    instructions_markdown: 'Assignment description',
     due_at: '2026-02-20T00:00:00Z',
     created_at: '2026-02-01T00:00:00Z',
     updated_at: '2026-02-01T00:00:00Z',
@@ -46,6 +55,8 @@ function makeDoc(overrides: Record<string, unknown>) {
     assignment_id: 'assignment-1',
     student_id: 'student-1',
     content: { type: 'doc', content: [] },
+    repo_url: null,
+    github_username: null,
     is_submitted: false,
     submitted_at: null,
     viewed_at: '2026-02-10T00:00:00Z',
@@ -55,6 +66,12 @@ function makeDoc(overrides: Record<string, unknown>) {
     score_thinking: null,
     score_workflow: null,
     feedback: null,
+    teacher_feedback_draft: null,
+    teacher_feedback_draft_updated_at: null,
+    feedback_returned_at: '2026-02-15T00:00:00Z',
+    ai_feedback_suggestion: null,
+    ai_feedback_suggested_at: null,
+    ai_feedback_model: null,
     graded_at: null,
     graded_by: null,
     returned_at: '2026-02-15T00:00:00Z',
@@ -83,7 +100,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: async () => ({ assignment: makeAssignment(), doc, wasFirstView: false }),
+        json: async () => ({ assignment: makeAssignment(), doc, feedback_entries: [], wasFirstView: false }),
       })
     })
   }
@@ -92,6 +109,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     mockLoadResponses(
       makeDoc({
         feedback: 'Teacher comment only.',
+        returned_at: null,
         score_completion: null,
         score_thinking: null,
         score_workflow: null,
@@ -104,7 +122,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
       expect(screen.getByText('Feedback')).toBeInTheDocument()
     })
     expect(screen.getByText('Teacher comment only.')).toBeInTheDocument()
-    expect(screen.getByText('No score assigned.')).toBeInTheDocument()
+    expect(screen.getByText('Grades will appear after your teacher returns them.')).toBeInTheDocument()
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
   })
 
@@ -151,5 +169,22 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     expect(screen.getByText('Total')).toBeInTheDocument()
     expect(screen.getByText('80%')).toBeInTheDocument()
     expect(screen.getByText('Strong effort and clear structure.')).toBeInTheDocument()
+  })
+
+  it('shows saved repo metadata under the assignment title when present', async () => {
+    mockLoadResponses(
+      makeDoc({
+        repo_url: 'https://github.com/codepetca/pika',
+        github_username: 'student1-demo',
+      }),
+    )
+
+    render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Repo', { exact: false })).toBeInTheDocument()
+    })
+    expect(screen.getByRole('link', { name: 'https://github.com/codepetca/pika' })).toHaveAttribute('href', 'https://github.com/codepetca/pika')
+    expect(screen.getByText('@student1-demo')).toBeInTheDocument()
   })
 })

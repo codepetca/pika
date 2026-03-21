@@ -84,7 +84,8 @@ export const POST = withErrorHandler('PostTeacherAssignmentGrade', async (reques
       score_completion: Number(score_completion),
       score_thinking: Number(score_thinking),
       score_workflow: Number(score_workflow),
-      feedback,
+      teacher_feedback_draft: feedback,
+      teacher_feedback_draft_updated_at: new Date().toISOString(),
       graded_at: shouldMarkGraded ? new Date().toISOString() : null,
       graded_by: shouldMarkGraded ? 'teacher' : null,
     }, { onConflict: 'assignment_id,student_id' })
