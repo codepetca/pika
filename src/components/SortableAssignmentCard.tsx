@@ -71,15 +71,15 @@ export function SortableAssignmentCard({
       ref={setNodeRef}
       style={style}
       className={[
-        'w-full text-left p-3 border rounded-lg',
+        'w-full rounded-card border p-3.5 text-left shadow-elevated',
         isDraft || isScheduled
           ? 'border-border-strong bg-surface-2'
-          : 'border-border bg-surface',
+          : 'border-border bg-surface-panel',
         isDragging
-          ? 'shadow-xl scale-[1.02] z-50 border-primary opacity-90'
+          ? 'z-50 scale-[1.02] border-primary opacity-95 shadow-panel'
           : isDraft || isScheduled
-            ? 'transition hover:border-border-strong hover:bg-surface-hover'
-            : 'transition hover:border-primary hover:bg-info-bg',
+            ? 'transition hover:border-border-strong hover:bg-surface-3'
+            : 'transition hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel',
       ].join(' ')}
     >
       <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3">
@@ -123,13 +123,13 @@ export function SortableAssignmentCard({
         </button>
 
         {/* Middle: Status */}
-        <div className="text-center whitespace-nowrap px-4">
+        <div className="whitespace-nowrap px-4 text-center">
           {isDraft ? (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-surface-2 text-text-muted">
+            <span className="inline-flex items-center rounded-badge bg-surface-3 px-2.5 py-1 text-xs font-semibold text-text-muted">
               Draft
             </span>
           ) : isScheduled ? (
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-warning-bg text-warning">
+            <span className="inline-flex items-center rounded-badge bg-warning-bg px-2.5 py-1 text-xs font-semibold text-warning">
               Scheduled
             </span>
           ) : (

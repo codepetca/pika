@@ -107,7 +107,7 @@ describe('LessonCalendar', () => {
       expect(style).toContain('grid-template-rows: 1fr')
     })
 
-    it('renders rows with minmax in month view', () => {
+    it('renders month rows with compact content-based minimum heights', () => {
       const { container } = render(
         <LessonCalendar
           classroom={mockClassroom}
@@ -125,8 +125,8 @@ describe('LessonCalendar', () => {
       expect(grid).toBeTruthy()
 
       const style = grid?.getAttribute('style')
-      // Month view uses minmax(0, 1fr) for equal distribution
-      expect(style).toContain('minmax(0, 1fr)')
+      expect(style).toContain('minmax(4.5rem, auto)')
+      expect(style).not.toContain('minmax(0, 1fr)')
     })
   })
 

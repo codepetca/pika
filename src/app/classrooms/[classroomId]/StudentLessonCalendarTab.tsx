@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { startOfWeek, format, startOfMonth, endOfMonth } from 'date-fns'
+import { addMonths, addWeeks, endOfMonth, format, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns'
+import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -97,7 +98,7 @@ export function StudentLessonCalendarTab({
 
   if (loading && lessonPlans.length === 0) {
     return (
-      <PageLayout>
+      <PageLayout bleedX={false}>
         <PageContent>
           <div className="flex items-center justify-center h-64">
             <Spinner />
@@ -108,22 +109,47 @@ export function StudentLessonCalendarTab({
   }
 
   return (
-    <PageLayout>
-      <PageContent className="-mt-[8px]">
-        <LessonCalendar
-          classroom={classroom}
-          lessonPlans={lessonPlans}
-          assignments={assignments}
-          announcements={announcements}
-          classDays={classDays}
-          viewMode={viewMode}
-          currentDate={currentDate}
-          editable={false}
-          onDateChange={handleDateChange}
-          onViewModeChange={handleViewModeChange}
-          onAssignmentClick={handleAssignmentClick}
-          onAnnouncementClick={handleAnnouncementClick}
-        />
+    <PageLayout bleedX={false}>
+      <CalendarActionBar
+        viewMode={viewMode}
+        currentDate={currentDate}
+        rangeStart={classroom.start_date}
+        rangeEnd={classroom.end_date}
+        onPrev={() => {
+          if (viewMode === 'week') {
+            handleDateChange(subWeeks(currentDate, 1))
+          } else if (viewMode === 'month') {
+            handleDateChange(subMonths(currentDate, 1))
+          }
+        }}
+        onNext={() => {
+          if (viewMode === 'week') {
+            handleDateChange(addWeeks(currentDate, 1))
+          } else if (viewMode === 'month') {
+            handleDateChange(addMonths(currentDate, 1))
+          }
+        }}
+        onToday={() => handleDateChange(new Date())}
+        onViewModeChange={handleViewModeChange}
+      />
+      <PageContent className="pt-2">
+        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <LessonCalendar
+            classroom={classroom}
+            lessonPlans={lessonPlans}
+            assignments={assignments}
+            announcements={announcements}
+            classDays={classDays}
+            viewMode={viewMode}
+            currentDate={currentDate}
+            editable={false}
+            showHeader={false}
+            onDateChange={handleDateChange}
+            onViewModeChange={handleViewModeChange}
+            onAssignmentClick={handleAssignmentClick}
+            onAnnouncementClick={handleAnnouncementClick}
+          />
+        </div>
       </PageContent>
     </PageLayout>
   )

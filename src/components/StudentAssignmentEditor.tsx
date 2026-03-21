@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, ContentDialog, FormField, Input, Tooltip } from '@/ui'
+import { Card } from '@/ui/Card'
+import { EmptyState } from '@/ui/EmptyState'
 import { History } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
@@ -468,11 +470,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   if (loading) {
     if (isEmbedded) {
       return (
-        <div className="bg-surface rounded-lg shadow-sm border border-border">
-          <div className="p-6 flex justify-center">
+        <Card tone="panel" padding="lg">
+          <div className="flex justify-center">
             <Spinner size="lg" />
           </div>
-        </div>
+        </Card>
       )
     }
     return (
@@ -486,27 +488,28 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     const exit = onExit ?? (() => router.push(`/classrooms/${classroomId}?tab=assignments`))
     if (isEmbedded) {
       return (
-        <div className="bg-surface rounded-lg shadow-sm border border-border p-8 text-center">
-          <p className="text-danger mb-4">{error}</p>
-          <button
-            onClick={exit}
-            className="text-primary hover:text-primary-hover"
-          >
-            Back to assignments
-          </button>
-        </div>
+        <EmptyState
+          title="Assignment unavailable"
+          description={<span className="text-danger">{error}</span>}
+          action={
+            <button onClick={exit} className="text-primary hover:text-primary-hover">
+              Back to assignments
+            </button>
+          }
+          tone="muted"
+        />
       )
     }
     return (
-      <div className="bg-surface rounded-lg shadow-sm p-8 text-center">
-        <p className="text-danger mb-4">{error}</p>
-        <button
-          onClick={() => router.back()}
-          className="text-primary hover:text-primary-hover"
-        >
-          Go back
-        </button>
-      </div>
+      <EmptyState
+        title="Assignment unavailable"
+        description={<span className="text-danger">{error}</span>}
+        action={
+          <button onClick={() => router.back()} className="text-primary hover:text-primary-hover">
+            Go back
+          </button>
+        }
+      />
     )
   }
 
@@ -542,7 +545,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     <div className="flex flex-col gap-6 h-full min-h-0">
       {/* Instructions */}
       {!isEmbedded && (assignment.instructions_markdown || assignment.rich_instructions || assignment.description) && (
-        <div className="bg-page border border-border rounded-lg p-4">
+        <Card tone="muted" padding="md">
           {assignment.instructions_markdown ? (
             <LimitedMarkdown content={assignment.instructions_markdown} />
           ) : assignment.rich_instructions ? (
@@ -550,11 +553,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
           ) : (
             <p className="text-text-muted whitespace-pre-wrap">{assignment.description}</p>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Editor with History Column */}
-      <div className="bg-surface rounded-lg shadow-sm border border-border flex flex-col min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col rounded-card border border-border bg-surface-panel shadow-elevated">
         {/* Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between gap-3">

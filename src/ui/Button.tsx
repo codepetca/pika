@@ -4,18 +4,21 @@ import { ButtonHTMLAttributes, forwardRef } from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from './utils'
 
-const buttonVariants = cva(
-  'inline-flex items-center justify-center font-medium rounded-control transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+export const buttonVariants = cva(
+  'inline-flex items-center justify-center gap-2 rounded-control border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
   {
     variants: {
       variant: {
-        primary: 'bg-primary hover:bg-primary-hover text-text-inverse',
-        secondary: 'bg-surface-2 hover:bg-surface-hover text-text-default',
-        danger: 'bg-danger hover:bg-danger-hover text-text-inverse',
-        success: 'bg-success hover:bg-success-hover text-text-inverse',
-        ghost: 'bg-transparent hover:bg-surface-hover text-text-muted',
+        primary: 'border-transparent bg-primary text-text-inverse hover:bg-primary-hover',
+        secondary: 'border-border bg-surface-2 hover:bg-surface-hover text-text-default',
+        surface: 'border-border bg-surface hover:bg-surface-hover text-text-default',
+        subtle: 'border-primary bg-info-bg hover:bg-info-bg-hover text-text-default',
+        danger: 'border-transparent bg-danger hover:bg-danger-hover text-text-inverse',
+        success: 'border-transparent bg-success hover:bg-success-hover text-text-inverse',
+        ghost: 'border-transparent bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-default',
       },
       size: {
+        xs: 'px-2.5 py-1.5 text-xs',
         sm: 'px-3 py-1.5 text-sm',
         md: 'px-4 py-2 text-base',
         lg: 'px-6 py-3 text-lg',

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { Card, EmptyState } from '@/ui'
 import type { AssignmentDocHistoryEntry, Classroom } from '@/types'
 import { HistoryGraph } from '@/components/HistoryGraph'
 
@@ -50,10 +51,13 @@ export function UiGallery({ role }: Props) {
       title: c.title,
       links: [
         { label: 'Attendance', href: `/classrooms/${c.id}?tab=attendance` },
-        { label: 'Logs', href: `/classrooms/${c.id}?tab=logs` },
         { label: 'Assignments', href: `/classrooms/${c.id}?tab=assignments` },
+        { label: 'Quizzes', href: `/classrooms/${c.id}?tab=quizzes` },
+        { label: 'Tests', href: `/classrooms/${c.id}?tab=tests` },
+        { label: 'Gradebook', href: `/classrooms/${c.id}?tab=gradebook` },
         { label: 'Roster', href: `/classrooms/${c.id}?tab=roster` },
         { label: 'Calendar', href: `/classrooms/${c.id}?tab=calendar` },
+        { label: 'Resources', href: `/classrooms/${c.id}?tab=resources` },
         { label: 'Settings', href: `/classrooms/${c.id}?tab=settings` },
       ],
     }))
@@ -66,6 +70,10 @@ export function UiGallery({ role }: Props) {
       links: [
         { label: 'Today', href: `/classrooms/${c.id}?tab=today` },
         { label: 'Assignments', href: `/classrooms/${c.id}?tab=assignments` },
+        { label: 'Quizzes', href: `/classrooms/${c.id}?tab=quizzes` },
+        { label: 'Tests', href: `/classrooms/${c.id}?tab=tests` },
+        { label: 'Calendar', href: `/classrooms/${c.id}?tab=calendar` },
+        { label: 'Resources', href: `/classrooms/${c.id}?tab=resources` },
       ],
     }))
   }, [classrooms])
@@ -79,7 +87,7 @@ export function UiGallery({ role }: Props) {
         </p>
       </div>
 
-      <div className="bg-surface rounded-lg shadow-sm p-4">
+      <Card tone="panel" padding="md">
         <h2 className="text-lg font-semibold text-text-default">Common</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/classrooms">
@@ -92,9 +100,9 @@ export function UiGallery({ role }: Props) {
             Logout
           </Link>
         </div>
-      </div>
+      </Card>
 
-      <div className="bg-surface rounded-lg shadow-sm p-4">
+      <Card tone="panel" padding="md">
         <h2 className="text-lg font-semibold text-text-default">Logged-out (open in a private window)</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link className="px-3 py-2 rounded-md border border-border text-sm hover:bg-surface-hover" href="/login">
@@ -107,9 +115,9 @@ export function UiGallery({ role }: Props) {
             Forgot password
           </Link>
         </div>
-      </div>
+      </Card>
 
-      <div className="bg-surface rounded-lg shadow-sm p-4">
+      <Card tone="panel" padding="md">
         <h2 className="text-lg font-semibold text-text-default">
           {role === 'teacher' ? 'Teacher' : 'Student'} Views
         </h2>
@@ -119,11 +127,13 @@ export function UiGallery({ role }: Props) {
         ) : error ? (
           <div className="mt-3 text-sm text-danger">{error}</div>
         ) : classrooms.length === 0 ? (
-          <div className="mt-3 text-sm text-text-muted">No classrooms found.</div>
+          <div className="mt-3">
+            <EmptyState title="No classrooms found." tone="muted" />
+          </div>
         ) : (
           <div className="mt-4 space-y-4">
             {(role === 'teacher' ? teacherLinks : studentLinks).map((group) => (
-              <div key={group.id} className="border border-border rounded-lg p-4">
+              <Card key={group.id} tone="muted" padding="md">
                 <div className="text-sm font-semibold text-text-default">{group.title}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {group.links.map((l) => (
@@ -136,11 +146,11 @@ export function UiGallery({ role }: Props) {
                     </Link>
                   ))}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       <HistoryGraphGallery />
     </div>

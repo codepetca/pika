@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pencil } from 'lucide-react'
-import { Button, ContentDialog, RefreshingIndicator } from '@/ui'
+import { Button, Card, ContentDialog, EmptyState, RefreshingIndicator } from '@/ui'
 import { Spinner } from '@/components/Spinner'
-import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import {
   formatDueDate,
   formatRelativeDueDate,
@@ -183,15 +183,11 @@ export function StudentAssignmentsTab({
 
   return (
     <PageLayout className="h-full flex flex-col">
-      <PageActionBar
-        primary={
-          selectedAssignment && (
+      {selectedAssignment ? (
+        <PageActionBar
+          primary={
             <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setShowInstructions(true)}
-              >
+              <Button size="sm" variant="secondary" onClick={() => setShowInstructions(true)}>
                 Instructions
               </Button>
               <Button
@@ -203,10 +199,8 @@ export function StudentAssignmentsTab({
                 Repo
               </Button>
             </div>
-          )
-        }
-        trailing={
-          selectedAssignment ? (
+          }
+          trailing={
             <Button
               size="sm"
               variant={editorState.isSubmitted ? 'secondary' : 'primary'}
@@ -217,69 +211,64 @@ export function StudentAssignmentsTab({
                 ? (editorState.isSubmitted ? 'Unsubmitting...' : 'Submitting...')
                 : (editorState.isSubmitted ? 'Unsubmit' : 'Submit')}
             </Button>
-          ) : (
-            <div />
-          )
-        }
-      />
+          }
+        />
+      ) : null}
       <PageContent className="flex-1 min-h-0">
         <div className="min-w-0 h-full flex flex-col">
           {refreshing && (
             <RefreshingIndicator className="mb-2 px-0 py-0" />
           )}
           {showBlockingSpinner ? (
-              <div className="bg-surface rounded-lg shadow-sm">
-                <div className="p-4">
-                  <div className="flex justify-center py-8">
-                    <Spinner />
-                  </div>
+              <Card tone="panel" padding="lg">
+                <div className="flex justify-center py-8">
+                  <Spinner />
                 </div>
-              </div>
+              </Card>
             ) : view === 'summary' ? (
-              <div className="bg-surface rounded-lg shadow-sm">
-                <div className="p-4">
-                  {assignments.length === 0 ? (
-                    <div className="text-center py-8 text-text-muted">No assignments yet</div>
-                  ) : (
-                    <div className="space-y-3">
-                      {assignments.map((assignment) => (
-                        <button
-                          key={assignment.id}
-                          type="button"
-                          data-testid="assignment-card"
-                          onClick={() => navigate({ assignmentId: assignment.id })}
-                          className="w-full text-left block p-4 border border-border rounded-lg hover:border-primary hover:bg-info-bg transition"
+              assignments.length === 0 ? (
+                <EmptyState
+                  title="No assignments yet"
+                  description="When your teacher posts work, it will show up here with due dates and submission status."
+                />
+              ) : (
+                <PageStack>
+                  {assignments.map((assignment) => (
+                    <button
+                      key={assignment.id}
+                      type="button"
+                      data-testid="assignment-card"
+                      onClick={() => navigate({ assignmentId: assignment.id })}
+                      className="block w-full rounded-card border border-border bg-surface-panel px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <h3 className="truncate text-base font-semibold text-text-default">
+                            {assignment.title}
+                          </h3>
+                          <p className="mt-1 text-sm text-text-muted">
+                            {formatDueDate(assignment.due_at)}
+                          </p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.16em] text-text-muted">
+                            {formatRelativeDueDate(assignment.due_at)}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getAssignmentStatusBadgeClass(assignment.status)}`}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <h3 className="font-medium text-text-default truncate">
-                                {assignment.title}
-                              </h3>
-                              <p className="text-sm text-text-muted mt-1">
-                                {formatDueDate(assignment.due_at)}
-                              </p>
-                              <p className="text-xs text-text-muted mt-1">
-                                {formatRelativeDueDate(assignment.due_at)}
-                              </p>
-                            </div>
-                            <span
-                              className={`px-2 py-1 rounded text-xs font-medium ${getAssignmentStatusBadgeClass(assignment.status)}`}
-                            >
-                              {getAssignmentStatusLabel(assignment.status)}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+                          {getAssignmentStatusLabel(assignment.status)}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </PageStack>
+              )
             ) : !selectedAssignment ? (
-              <div className="bg-surface rounded-lg shadow-sm">
-                <div className="p-6 text-sm text-text-muted">
-                  That assignment is no longer available.
-                </div>
-              </div>
+              <EmptyState
+                title="Assignment unavailable"
+                description="That assignment is no longer available."
+                tone="muted"
+              />
             ) : (
               <StudentAssignmentEditor
                 ref={editorRef}

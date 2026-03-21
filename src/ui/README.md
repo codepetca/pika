@@ -29,8 +29,8 @@ import { Button, Input, Select, FormField, AlertDialog, ConfirmDialog, Card, Too
 
 ```typescript
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'ghost'
-  size?: 'sm' | 'md' | 'lg'
+  variant?: 'primary' | 'secondary' | 'surface' | 'subtle' | 'danger' | 'success' | 'ghost'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   loading?: boolean
   fullWidth?: boolean
 }
@@ -103,8 +103,23 @@ interface ConfirmDialogProps {
 ```typescript
 interface CardProps {
   children: ReactNode
+  tone?: 'default' | 'muted' | 'panel' | 'accent' | 'selected'
   padding?: 'none' | 'sm' | 'md' | 'lg'
+  interactive?: boolean
   className?: string
+}
+```
+
+### EmptyState
+
+```typescript
+interface EmptyStateProps {
+  title: string
+  description?: ReactNode
+  action?: ReactNode
+  icon?: ReactNode
+  className?: string
+  tone?: 'default' | 'muted' | 'panel' | 'accent'
 }
 ```
 
@@ -191,6 +206,19 @@ const buttonVariants = cva('...', {
 | `rounded-card` | 0.5rem (8px) | Cards, panels |
 | `rounded-dialog` | 0.5rem (8px) | Modals |
 | `rounded-badge` | 9999px | Pill shapes |
+
+### Surface Tones
+
+Use these semantic surfaces in app code and component variants:
+
+| Token | Usage |
+|-------|-------|
+| `bg-surface` | Standard content card |
+| `bg-surface-2` | Muted nested panel |
+| `bg-surface-3` | Dense muted surfaces |
+| `bg-surface-panel` | Page shell panels and elevated wrappers |
+| `bg-surface-accent` | Quiet hover/accent backgrounds |
+| `bg-surface-selected` | Selected rows/cards |
 
 ### Spacing
 

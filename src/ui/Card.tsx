@@ -6,21 +6,32 @@ import { cn } from './utils'
 
 const cardVariants = cva(
   [
-    'bg-surface',
-    'border border-border',
-    'rounded-card shadow-elevated',
+    'rounded-card border shadow-elevated',
   ],
   {
     variants: {
+      tone: {
+        default: 'bg-surface border-border',
+        muted: 'bg-surface-2 border-border',
+        panel: 'bg-surface-panel border-border',
+        accent: 'bg-info-bg border-primary/40',
+        selected: 'bg-surface-selected border-primary',
+      },
       padding: {
         none: '',
-        sm: 'p-4',
+        sm: 'p-card-compact',
         md: 'p-card',
-        lg: 'p-6',
+        lg: 'p-card-cozy',
+      },
+      interactive: {
+        true: 'transition-colors hover:border-border-strong hover:bg-surface-hover',
+        false: '',
       },
     },
     defaultVariants: {
+      tone: 'default',
       padding: 'md',
+      interactive: false,
     },
   }
 )
@@ -44,9 +55,9 @@ export interface CardProps extends VariantProps<typeof cardVariants> {
  *   <form>...</form>
  * </Card>
  */
-export function Card({ children, padding, className }: CardProps) {
+export function Card({ children, tone, padding, interactive, className }: CardProps) {
   return (
-    <div className={cn(cardVariants({ padding }), className)}>
+    <div className={cn(cardVariants({ tone, padding, interactive }), className)}>
       {children}
     </div>
   )

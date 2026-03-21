@@ -30,9 +30,7 @@ import {
   useRightSidebar,
 } from '@/components/layout'
 import { DESKTOP_BREAKPOINT, getRouteKeyFromTab } from '@/lib/layout-config'
-import { useGradebookData } from '@/hooks/useGradebookData'
 import { RichTextViewer } from '@/components/editor'
-import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { Spinner } from '@/components/Spinner'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -46,8 +44,9 @@ import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
-import { ConfirmDialog, TabContentTransition } from '@/ui'
-import { prefetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
+import { ConfirmDialog, EmptyState, TabContentTransition } from '@/ui'
+import { PageDensityProvider } from '@/components/PageLayout'
+import { prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import type {
   Classroom,
@@ -439,30 +438,16 @@ function ClassroomPageContent({
     isSaving: false,
     status: 'idle',
   })
-  const {
-    selectedGradebookStudent,
-    gradebookStudentDetail,
-    gradebookClassSummary,
-    gradebookStudentDetailLoading,
-    gradebookStudentDetailError,
-    handleSelectGradebookStudent,
-    handleGradebookClassSummaryChange,
-  } = useGradebookData({
-    classroomId: classroom.id,
-    isTeacher,
-    activeTab,
-    openRight,
-    setRightSidebarOpen,
-  })
+  const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
+  const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
+  const [gradebookClassSummary, setGradebookClassSummary] = useState<GradebookClassSummary | null>(null)
+  const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
+  const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
   const [testsSidebarClickToken, setTestsSidebarClickToken] = useState(0)
   const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
 
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
     setSelectedQuiz(quiz)
-  }, [])
-
-  const handleTestGradingDataRefresh = useCallback(() => {
-    setTestGradingPanelRefreshToken((prev) => prev + 1)
   }, [])
 
   useEffect(() => {
@@ -483,6 +468,14 @@ function ClassroomPageContent({
       new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
     )
   }, [classroom.id])
+
+  const handleTestGradingDataRefresh = useCallback(() => {
+    setTestGradingPanelRefreshToken((prev) => prev + 1)
+  }, [])
+
+  const handleSelectGradebookStudent = useCallback((student: GradebookStudentSummary | null) => {
+    setSelectedGradebookStudent(student)
+  }, [])
 
   // State for markdown mode (teacher assignments tab - summary view only)
   const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
@@ -707,6 +700,61 @@ function ClassroomPageContent({
     }
   }, [activeTab, setRightSidebarOpen])
 
+  useEffect(() => {
+    if (activeTab !== 'gradebook') {
+      setSelectedGradebookStudent(null)
+      setGradebookStudentDetail(null)
+      setGradebookClassSummary(null)
+      setGradebookStudentDetailError('')
+      setGradebookStudentDetailLoading(false)
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!isTeacher || activeTab !== 'gradebook' || !selectedGradebookStudent) return
+    const selectedStudentId = selectedGradebookStudent.student_id
+
+    if (window.innerWidth < DESKTOP_BREAKPOINT) {
+      openRight()
+    } else {
+      setRightSidebarOpen(true)
+    }
+
+    let cancelled = false
+
+    async function loadStudentDetail() {
+      setGradebookStudentDetailLoading(true)
+      setGradebookStudentDetailError('')
+      try {
+        const response = await fetch(
+          `/api/teacher/gradebook?classroom_id=${classroom.id}&student_id=${selectedStudentId}`
+        )
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load gradebook details')
+        }
+
+        if (!cancelled) {
+          setGradebookStudentDetail((data.selected_student as GradebookStudentDetail | null) || null)
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setGradebookStudentDetail(null)
+          setGradebookStudentDetailError(err.message || 'Failed to load gradebook details')
+        }
+      } finally {
+        if (!cancelled) {
+          setGradebookStudentDetailLoading(false)
+        }
+      }
+    }
+
+    loadStudentDetail()
+    return () => {
+      cancelled = true
+    }
+  }, [isTeacher, activeTab, selectedGradebookStudent, classroom.id, setRightSidebarOpen, openRight])
+
   const prefetchTabData = useCallback((tab: string) => {
     const now = Date.now()
     const lastIntentAt = lastTabIntentRef.current[tab] || 0
@@ -730,30 +778,6 @@ function ClassroomPageContent({
             `student-assignments:${classroom.id}`,
             async () => {
               const response = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
-              if (!response.ok) throw new Error('Prefetch failed')
-              return response.json()
-            },
-            20_000,
-          )
-        }
-      }
-
-      if (tab === 'quizzes') {
-        if (isTeacher) {
-          prefetchJSON(
-            `teacher-quizzes:${classroom.id}`,
-            async () => {
-              const response = await fetch(`/api/teacher/quizzes?classroom_id=${classroom.id}`)
-              if (!response.ok) throw new Error('Prefetch failed')
-              return response.json()
-            },
-            20_000,
-          )
-        } else {
-          prefetchJSON(
-            `student-quizzes:${classroom.id}`,
-            async () => {
-              const response = await fetch(`/api/student/quizzes?classroom_id=${classroom.id}`)
               if (!response.ok) throw new Error('Prefetch failed')
               return response.json()
             },
@@ -815,7 +839,6 @@ function ClassroomPageContent({
         () => {
           prefetchTabData('assignments')
           prefetchTabData('resources')
-          prefetchTabData('quizzes')
         },
         { timeout: 1200 },
       )
@@ -828,7 +851,6 @@ function ClassroomPageContent({
     const timer = window.setTimeout(() => {
       prefetchTabData('assignments')
       prefetchTabData('resources')
-      prefetchTabData('quizzes')
     }, 350)
     return () => window.clearTimeout(timer)
   }, [prefetchTabData])
@@ -892,6 +914,13 @@ function ClassroomPageContent({
     activeTab === 'tests'
       ? (testGradingContext.testId || selectedQuiz?.id || null)
       : null
+  const pageDensity = isTeacher ? 'teacher' : 'student'
+  const mainContentClassName =
+    activeTab === 'calendar'
+      ? 'px-0 pt-0 pb-0'
+      : activeTab === 'tests'
+        ? 'pb-0'
+        : ''
 
   async function handleRequestAssessmentDelete() {
     if (!selectedQuiz) return
@@ -978,189 +1007,193 @@ function ClassroomPageContent({
           </LeftSidebar>
         )}
 
-        <MainContent className={activeTab === 'calendar' ? 'px-0 pt-0 pb-0' : ''}>
-          {isArchived && (
-            <div className="mb-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-              This classroom is archived. You can view content, but changes are
-              disabled until it is restored.
-            </div>
-          )}
+        <MainContent density={pageDensity} className={mainContentClassName}>
+          <PageDensityProvider density={pageDensity}>
+            {isArchived && (
+              <div className="mb-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+                This classroom is archived. You can view content, but changes are
+                disabled until it is restored.
+              </div>
+            )}
 
-          {isTeacher ? (
-            <>
-              {mountedTabs.attendance && (
-                <TabContentTransition isActive={activeTab === 'attendance'}>
-                  <TeacherAttendanceTab
-                    ref={attendanceTabRef}
-                    classroom={classroom}
-                    onSelectEntry={handleSelectEntry}
-                    onDateChange={setAttendanceDate}
-                    isActive={activeTab === 'attendance'}
-                  />
-                </TabContentTransition>
-              )}
-              {mountedTabs.gradebook && (
-                <TabContentTransition isActive={activeTab === 'gradebook'}>
+            <div className="flex min-h-0 flex-1 flex-col">
+              {isTeacher ? (
+                <>
+                  {mountedTabs.attendance && (
+                    <TabContentTransition isActive={activeTab === 'attendance'}>
+                      <TeacherAttendanceTab
+                        ref={attendanceTabRef}
+                        classroom={classroom}
+                        onSelectEntry={handleSelectEntry}
+                        onDateChange={setAttendanceDate}
+                        isActive={activeTab === 'attendance'}
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.gradebook && (
+                    <TabContentTransition isActive={activeTab === 'gradebook'}>
                   <TeacherGradebookTab
                     classroom={classroom}
                     selectedStudentId={selectedGradebookStudent?.student_id ?? null}
                     onSelectStudent={handleSelectGradebookStudent}
-                    onClassSummaryChange={handleGradebookClassSummaryChange}
+                    onClassSummaryChange={setGradebookClassSummary}
                   />
-                </TabContentTransition>
-              )}
-              {mountedTabs.assignments && (
-                <TabContentTransition isActive={activeTab === 'assignments'}>
-                  <TeacherClassroomView
-                    classroom={classroom}
-                    onSelectAssignment={handleSelectAssignment}
-                    onSelectStudent={handleSelectStudent}
-                    onViewModeChange={handleViewModeChange}
-                    isActive={activeTab === 'assignments'}
-                  />
-                </TabContentTransition>
-              )}
-              {mountedTabs.quizzes && (
-                <TabContentTransition isActive={activeTab === 'quizzes'}>
-                  <TeacherQuizzesTab
-                    classroom={classroom}
-                    assessmentType="quiz"
-                    onSelectQuiz={handleSelectQuiz}
-                  />
-                </TabContentTransition>
-              )}
-              {mountedTabs.tests && (
-                <TabContentTransition isActive={activeTab === 'tests'}>
-                  <TeacherQuizzesTab
-                    classroom={classroom}
-                    assessmentType="test"
-                    onSelectQuiz={handleSelectQuiz}
-                    testsSidebarClickToken={testsSidebarClickToken}
-                    onTestGradingDataRefresh={handleTestGradingDataRefresh}
-                    onTestGradingContextChange={setTestGradingContext}
-                  />
-                </TabContentTransition>
-              )}
-              {mountedTabs.calendar && (
-                <TabContentTransition isActive={activeTab === 'calendar'}>
-                  <TeacherLessonCalendarTab
-                    classroom={classroom}
-                    onSidebarStateChange={setCalendarSidebarState}
-                    onNavigateToAssignments={() => handleTabChange('assignments')}
-                    onNavigateToAnnouncements={() =>
-                      navigateInClassroom((params) => {
-                        params.set('tab', 'resources')
-                        params.set('section', 'announcements')
-                        params.delete('assignmentId')
-                      })
-                    }
-                  />
-                </TabContentTransition>
-              )}
-              {mountedTabs.resources && (
-                <TabContentTransition isActive={activeTab === 'resources'}>
-                  <TeacherResourcesTab
-                    classroom={classroom}
-                    sectionParam={sectionParam}
-                    onSectionChange={(section) =>
-                      navigateInClassroom((params) => {
-                        params.set('tab', 'resources')
-                        params.set('section', section)
-                      })
-                    }
-                  />
-                </TabContentTransition>
-              )}
-              {mountedTabs.roster && (
-                <TabContentTransition isActive={activeTab === 'roster'}>
-                  <TeacherRosterTab classroom={classroom} />
-                </TabContentTransition>
-              )}
-              {mountedTabs.settings && (
-                <TabContentTransition isActive={activeTab === 'settings'}>
-                  <TeacherSettingsTab
-                    classroom={classroom}
-                    sectionParam={sectionParam}
-                    onSectionChange={(section) =>
-                      navigateInClassroom((params) => {
-                        params.set('tab', 'settings')
-                        params.set('section', section)
-                      })
-                    }
-                  />
-                </TabContentTransition>
-              )}
-            </>
-          ) : (
-            <>
-              {mountedTabs.today && (
-                <TabContentTransition isActive={activeTab === 'today'}>
-                  <StudentTodayTab
-                    classroom={classroom}
-                    onLessonPlanLoad={handleSetLessonPlan}
-                  />
-                </TabContentTransition>
-              )}
-              {mountedTabs.assignments && (
-                <TabContentTransition isActive={activeTab === 'assignments'}>
-                  <StudentAssignmentsTab
-                    classroom={classroom}
-                    selectedAssignmentId={assignmentIdParam}
-                    isActive={activeTab === 'assignments'}
-                    updateSearchParams={navigateInClassroom}
-                  />
-                </TabContentTransition>
-              )}
-              {mountedTabs.quizzes && (
-                <TabContentTransition isActive={activeTab === 'quizzes'}>
-                  <StudentQuizzesTab classroom={classroom} assessmentType="quiz" isActive={activeTab === 'quizzes'} />
-                </TabContentTransition>
-              )}
-              {mountedTabs.tests && (
-                <TabContentTransition isActive={activeTab === 'tests'}>
-                  <StudentQuizzesTab classroom={classroom} assessmentType="test" isActive={activeTab === 'tests'} />
-                </TabContentTransition>
-              )}
-              {mountedTabs.calendar && (
-                <TabContentTransition isActive={activeTab === 'calendar'}>
-                  <StudentLessonCalendarTab
-                    classroom={classroom}
-                    onNavigateToAssignments={(assignmentId) =>
-                      navigateInClassroom((params) => {
-                        params.set('tab', 'assignments')
-                        if (assignmentId) {
-                          params.set('assignmentId', assignmentId)
-                        } else {
-                          params.delete('assignmentId')
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.assignments && (
+                    <TabContentTransition isActive={activeTab === 'assignments'}>
+                      <TeacherClassroomView
+                        classroom={classroom}
+                        onSelectAssignment={handleSelectAssignment}
+                        onSelectStudent={handleSelectStudent}
+                        onViewModeChange={handleViewModeChange}
+                        isActive={activeTab === 'assignments'}
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.quizzes && (
+                    <TabContentTransition isActive={activeTab === 'quizzes'}>
+                      <TeacherQuizzesTab
+                        classroom={classroom}
+                        assessmentType="quiz"
+                        onSelectQuiz={handleSelectQuiz}
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.tests && (
+                    <TabContentTransition isActive={activeTab === 'tests'}>
+                      <TeacherQuizzesTab
+                        classroom={classroom}
+                        assessmentType="test"
+                        onSelectQuiz={handleSelectQuiz}
+                        testsSidebarClickToken={testsSidebarClickToken}
+                        onTestGradingDataRefresh={handleTestGradingDataRefresh}
+                        onTestGradingContextChange={setTestGradingContext}
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.calendar && (
+                    <TabContentTransition isActive={activeTab === 'calendar'}>
+                      <TeacherLessonCalendarTab
+                        classroom={classroom}
+                        onSidebarStateChange={setCalendarSidebarState}
+                        onNavigateToAssignments={() => handleTabChange('assignments')}
+                        onNavigateToAnnouncements={() =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'resources')
+                            params.set('section', 'announcements')
+                            params.delete('assignmentId')
+                          })
                         }
-                      })
-                    }
-                    onNavigateToAnnouncements={() =>
-                      navigateInClassroom((params) => {
-                        params.set('tab', 'resources')
-                        params.set('section', 'announcements')
-                        params.delete('assignmentId')
-                      })
-                    }
-                  />
-                </TabContentTransition>
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.resources && (
+                    <TabContentTransition isActive={activeTab === 'resources'}>
+                      <TeacherResourcesTab
+                        classroom={classroom}
+                        sectionParam={sectionParam}
+                        onSectionChange={(section) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'resources')
+                            params.set('section', section)
+                          })
+                        }
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.roster && (
+                    <TabContentTransition isActive={activeTab === 'roster'}>
+                      <TeacherRosterTab classroom={classroom} />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.settings && (
+                    <TabContentTransition isActive={activeTab === 'settings'}>
+                      <TeacherSettingsTab
+                        classroom={classroom}
+                        sectionParam={sectionParam}
+                        onSectionChange={(section) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'settings')
+                            params.set('section', section)
+                          })
+                        }
+                      />
+                    </TabContentTransition>
+                  )}
+                </>
+              ) : (
+                <>
+                  {mountedTabs.today && (
+                    <TabContentTransition isActive={activeTab === 'today'}>
+                      <StudentTodayTab
+                        classroom={classroom}
+                        onLessonPlanLoad={handleSetLessonPlan}
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.assignments && (
+                    <TabContentTransition isActive={activeTab === 'assignments'}>
+                      <StudentAssignmentsTab
+                        classroom={classroom}
+                        selectedAssignmentId={assignmentIdParam}
+                        isActive={activeTab === 'assignments'}
+                        updateSearchParams={navigateInClassroom}
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.quizzes && (
+                    <TabContentTransition isActive={activeTab === 'quizzes'}>
+                      <StudentQuizzesTab classroom={classroom} assessmentType="quiz" isActive={activeTab === 'quizzes'} />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.tests && (
+                    <TabContentTransition isActive={activeTab === 'tests'}>
+                      <StudentQuizzesTab classroom={classroom} assessmentType="test" isActive={activeTab === 'tests'} />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.calendar && (
+                    <TabContentTransition isActive={activeTab === 'calendar'}>
+                      <StudentLessonCalendarTab
+                        classroom={classroom}
+                        onNavigateToAssignments={(assignmentId) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'assignments')
+                            if (assignmentId) {
+                              params.set('assignmentId', assignmentId)
+                            } else {
+                              params.delete('assignmentId')
+                            }
+                          })
+                        }
+                        onNavigateToAnnouncements={() =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'resources')
+                            params.set('section', 'announcements')
+                            params.delete('assignmentId')
+                          })
+                        }
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.resources && (
+                    <TabContentTransition isActive={activeTab === 'resources'}>
+                      <StudentResourcesTab
+                        classroom={classroom}
+                        sectionParam={sectionParam}
+                        onSectionChange={(section) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'resources')
+                            params.set('section', section)
+                          })
+                        }
+                      />
+                    </TabContentTransition>
+                  )}
+                </>
               )}
-              {mountedTabs.resources && (
-                <TabContentTransition isActive={activeTab === 'resources'}>
-                  <StudentResourcesTab
-                    classroom={classroom}
-                    sectionParam={sectionParam}
-                    onSectionChange={(section) =>
-                      navigateInClassroom((params) => {
-                        params.set('tab', 'resources')
-                        params.set('section', section)
-                      })
-                    }
-                  />
-                </TabContentTransition>
-              )}
-            </>
-          )}
+            </div>
+          </PageDensityProvider>
         </MainContent>
 
         <RightSidebar
@@ -1191,16 +1224,7 @@ function ClassroomPageContent({
               : isTeacher && isAssessmentTab
               ? ''
               : isTeacher && activeTab === 'assignments' && selectedStudent
-              ? (
-                <span className="relative flex w-full items-center">
-                  <span className="truncate pr-2 text-sm font-semibold text-text-default">
-                    {selectedStudent.studentName}
-                  </span>
-                  <span className="pointer-events-none absolute left-1/2 max-w-[65%] -translate-x-1/2 truncate text-center text-xs text-text-muted">
-                    {selectedStudent.assignmentTitle}
-                  </span>
-                </span>
-              )
+              ? selectedStudent.assignmentTitle
               : isTeacher && activeTab === 'assignments'
               ? ''
               : activeTab === 'assignments'
@@ -1344,10 +1368,17 @@ function ClassroomPageContent({
               }
             />
           ) : isTeacher && isAssessmentTab ? (
-            <div className="p-4">
-              <p className="text-sm text-text-muted">
-                Select a {assessmentLabel} to view details.
-              </p>
+            <div className="flex h-full min-h-0 items-center p-4">
+              <EmptyState
+                title={`Select a ${assessmentLabel}`}
+                description={
+                  activeTab === 'tests'
+                    ? 'Choose a test to review settings, questions, and grading details.'
+                    : 'Choose a quiz to review settings, questions, and response details.'
+                }
+                className="w-full"
+                tone="muted"
+              />
             </div>
           ) : isTeacher && activeTab === 'gradebook' && selectedGradebookStudent ? (
             <div className="space-y-4 p-4">
@@ -1528,7 +1559,9 @@ function ClassroomPageContent({
               {selectedAssignment ? (
                 selectedAssignment.instructions ? (
                   typeof selectedAssignment.instructions === 'string' ? (
-                    <LimitedMarkdown content={selectedAssignment.instructions} />
+                    <p className="text-sm text-text-default whitespace-pre-wrap">
+                      {selectedAssignment.instructions}
+                    </p>
                   ) : (
                     <RichTextViewer content={selectedAssignment.instructions} />
                   )

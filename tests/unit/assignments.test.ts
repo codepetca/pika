@@ -797,6 +797,26 @@ describe('assignment utilities', () => {
       expect(result.returned_at).toBeNull()
     })
 
+    it('should preserve feedback when feedback_returned_at is set before returned_at', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: 8,
+        score_thinking: 7,
+        score_workflow: 9,
+        feedback: 'Keep this visible to the student',
+        feedback_returned_at: '2024-10-21T12:00:00Z',
+        graded_at: '2024-10-21T10:00:00Z',
+        returned_at: null,
+      })
+
+      const result = sanitizeDocForStudent(doc)
+
+      expect(result.score_completion).toBeNull()
+      expect(result.score_thinking).toBeNull()
+      expect(result.score_workflow).toBeNull()
+      expect(result.feedback).toBe('Keep this visible to the student')
+      expect(result.feedback_returned_at).toBe('2024-10-21T12:00:00Z')
+    })
+
     it('should handle falsy doc gracefully', () => {
       const result = sanitizeDocForStudent(null as any)
       expect(result).toBeNull()

@@ -24,6 +24,10 @@
   --color-page: #f9fafb;
   --color-surface: #ffffff;
   --color-surface-2: #f9fafb;
+  --color-surface-3: #f3f4f6;
+  --color-surface-panel: #ffffff;
+  --color-surface-accent: #f3f4f6;
+  --color-surface-selected: #dbeafe;
   --color-surface-hover: #f3f4f6;
 
   /* Border colors */
@@ -57,14 +61,18 @@
 
   /* Shadows */
   --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-panel: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.08);
   --shadow-dialog: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 
   /* Spacing */
   --space-dialog: 1.25rem;
   --space-card: 1.25rem;
+  --space-card-compact: 0.875rem;
+  --space-card-cozy: 1.5rem;
   --space-section: 1.5rem;
   --space-field: 0.75rem;
   --space-control: 0.5rem;
+  --space-header-compact: 0.125rem;
 
   /* Border radius */
   --radius-control: 0.5rem;
@@ -78,6 +86,10 @@
   --color-page: #030712;
   --color-surface: #111827;
   --color-surface-2: #1f2937;
+  --color-surface-3: #1f2937;
+  --color-surface-panel: #111827;
+  --color-surface-accent: #1f2937;
+  --color-surface-selected: rgba(37, 99, 235, 0.58);
   --color-surface-hover: #1f2937;
 
   /* Border colors - dark mode */
@@ -111,5 +123,6 @@
 
   /* Shadows - dark mode */
   --shadow-elevated: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-panel: 0 4px 12px -2px rgb(0 0 0 / 0.32), 0 2px 4px -2px rgb(0 0 0 / 0.24);
   --shadow-dialog: 0 25px 50px -12px rgb(0 0 0 / 0.5);
 }

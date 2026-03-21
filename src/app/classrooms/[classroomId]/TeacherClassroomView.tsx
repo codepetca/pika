@@ -40,6 +40,7 @@ import {
   PageActionBar,
   PageContent,
   PageLayout,
+  PageStack,
 } from '@/components/PageLayout'
 import { useRightSidebar, useMobileDrawer, useLeftSidebar, RightSidebarToggle } from '@/components/layout'
 import {
@@ -997,7 +998,7 @@ export function TeacherClassroomView({
                 items={assignments.map((a) => a.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <div className="space-y-2">
+                <PageStack>
                   {assignments.map((assignment) => (
                     <SortableAssignmentCard
                       key={assignment.id}
@@ -1016,7 +1017,7 @@ export function TeacherClassroomView({
                       onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
                     />
                   ))}
-                </div>
+                </PageStack>
               </SortableContext>
             </DndContext>
           )}

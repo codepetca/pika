@@ -29,7 +29,7 @@ export function ThreePanelShell({ children, className, leftWidthOverride }: Thre
   return (
     <div
       className={[
-        'min-h-[calc(100vh-3rem)]', // Full height minus 48px header
+        'h-full min-h-0',
         'bg-page',
         // Mobile: single column
         'grid grid-cols-1',
