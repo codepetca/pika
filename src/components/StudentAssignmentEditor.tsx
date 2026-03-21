@@ -350,7 +350,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     } finally {
       setSubmitting(false)
     }
-  }, [assignmentId])
+  }, [assignmentId, githubUsername, repoUrl])
 
   function updatePreview(entry: AssignmentDocHistoryEntry): boolean {
     if (!draftBeforePreviewRef.current) {
