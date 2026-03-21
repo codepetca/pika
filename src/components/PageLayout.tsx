@@ -43,19 +43,23 @@ export const ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME = cn(
 export function PageLayout({
   children,
   className = '',
+  bleedX = true,
 }: {
   children: ReactNode
   className?: string
+  bleedX?: boolean
 }) {
   const density = useContext(PageDensityContext)
   const frameClass =
-    density === 'teacher'
-      ? '-mx-3'
-      : density === 'student'
-        ? '-mx-4'
-        : '-mx-4'
+    !bleedX
+      ? ''
+      : density === 'teacher'
+        ? '-mx-3'
+        : density === 'student'
+          ? '-mx-4'
+          : '-mx-4'
 
-  return <div className={['w-auto flex flex-col', frameClass, className].join(' ')}>{children}</div>
+  return <div className={cn('w-auto flex flex-col', frameClass, className)}>{children}</div>
 }
 
 export function PageDensityProvider({
@@ -87,7 +91,7 @@ export function PageContent({
         ? 'px-4 pt-4'
         : 'px-4 pt-2'
 
-  return <div className={[spacingClass, className].join(' ')}>{children}</div>
+  return <div className={cn(spacingClass, className)}>{children}</div>
 }
 
 export function PageStack({
@@ -101,7 +105,7 @@ export function PageStack({
   const spacingClass =
     density === 'teacher' ? 'space-y-3' : density === 'student' ? 'space-y-4' : 'space-y-4'
 
-  return <div className={[spacingClass, className].join(' ')}>{children}</div>
+  return <div className={cn(spacingClass, className)}>{children}</div>
 }
 
 function ActionBarMenu({ items }: { items: ActionBarItem[] }) {

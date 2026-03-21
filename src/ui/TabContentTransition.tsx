@@ -18,7 +18,7 @@ export function TabContentTransition({
       aria-hidden={!isActive}
       className={[
         'transition-opacity duration-150 motion-reduce:transition-none',
-        isActive ? 'opacity-100' : 'hidden opacity-0',
+        isActive ? 'flex min-h-0 flex-1 flex-col opacity-100' : 'hidden opacity-0',
         className,
       ]
         .filter(Boolean)

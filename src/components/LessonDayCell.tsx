@@ -206,6 +206,17 @@ export const LessonDayCell = memo(function LessonDayCell({
   }, [applyShortcut])
 
   const hasContent = markdown.trim().length > 0
+  const plainText = useMemo(() => {
+    if (!plainTextOnly || !hasContent) return ''
+    return markdown
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/^\s*[-*]\s+/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  }, [plainTextOnly, hasContent, markdown])
   const previewClassName = compact || plainTextOnly
     ? 'space-y-1 text-[10px] leading-tight [&_p]:text-[10px] [&_p]:leading-tight [&_ul]:text-[10px] [&_ol]:text-[10px] [&_blockquote]:text-[10px] [&_h1]:text-xs [&_h2]:text-[11px] [&_h3]:text-[10px]'
     : 'space-y-2 text-sm leading-snug [&_p]:text-sm [&_ul]:text-sm [&_ol]:text-sm [&_blockquote]:text-sm [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm'
@@ -373,11 +384,17 @@ export const LessonDayCell = memo(function LessonDayCell({
             className={`w-full text-left ${editable ? 'cursor-text' : 'cursor-default'}`}
           >
             {hasContent ? (
-              <LimitedMarkdown
-                content={markdown}
-                className={`${previewClassName} text-text-muted`.trim()}
-                emptyPlaceholder={null}
-              />
+              plainTextOnly ? (
+                <div className="text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap">
+                  {plainText}
+                </div>
+              ) : (
+                <LimitedMarkdown
+                  content={markdown}
+                  className={`${previewClassName} text-text-muted`.trim()}
+                  emptyPlaceholder={null}
+                />
+              )
             ) : null}
           </button>
         )}

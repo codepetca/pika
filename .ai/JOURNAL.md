@@ -7189,3 +7189,26 @@
 - `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom attendance tab|classroom today tab" --update-snapshots` (pass)
 - `pnpm lint --file src/components/PageLayout.tsx --file src/components/layout/MainContent.tsx --file e2e/ui-snapshots.spec.ts` (pass)
 - `pnpm exec playwright test e2e/ui-snapshots.spec.ts --grep "classroom attendance tab|assignment editor" --update-snapshots` (pass)
+
+## 2026-03-18 [AI - GPT-5 Codex]
+**Goal:** Extend full-height pane behavior to additional classroom tabs, especially student tests and calendar-style panels.
+**Completed:**
+- Reworked the classroom shell height chain so authenticated pages use a true `min-h-dvh -> flex-1/min-h-0 -> h-full/min-h-0` flow in `src/components/AppShell.tsx`, `src/components/layout/ThreePanelShell.tsx`, `src/components/layout/MainContent.tsx`, `src/ui/TabContentTransition.tsx`, and `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`.
+- Updated `src/components/PageLayout.tsx` and `src/components/layout/MainContent.tsx` to merge override spacing classes correctly via `cn`, so tab-specific `pt-0`, `pt-1`, and `pb-0` overrides actually win over density defaults.
+- Converted student tests and both teacher/student calendar tabs to fill their available pane height using flex-based wrappers instead of viewport math in `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`, `src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx`, and `src/components/LessonCalendar.tsx`.
+- Added screenshots from the worktree dev server for student tests, student calendar, teacher tests, and teacher calendar under `/tmp/pika-worktree-*.png`.
+
+**Validation:**
+- `pnpm lint --file src/components/PageLayout.tsx --file src/components/layout/MainContent.tsx --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx' --file 'src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx' --file 'src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx' --file 'src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx' --file src/components/AppShell.tsx --file src/components/LessonCalendar.tsx --file src/components/layout/ThreePanelShell.tsx --file src/ui/TabContentTransition.tsx` (pass)
+- Manual Playwright screenshots captured from the worktree server on port `3005`
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Rebase `codex/ui-system-centralization` onto `origin/main`, preserve the markdown migration changes, and restore the in-progress UI/UX work so implementation can continue.
+**Completed:**
+- Rebased the worktree branch onto `origin/main` and resolved conflicts between the branch’s shared UI-system work and `main`’s markdown migration in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`, `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx`, `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx`, `src/components/StudentAssignmentEditor.tsx`, and `tests/components/StudentAssignmentEditor.feedback-card.test.tsx`.
+- Restored the pre-rebase local UI work from stash, resolved the follow-up conflicts in `src/app/classrooms/[classroomId]/ClassroomPageClient.tsx` and `src/components/LessonDayCell.tsx`, and returned the worktree to an unstaged working state for continued UI iteration.
+- Audited `supabase/migrations` against `origin/main`; no new migration files were added on this branch and no duplicate migration prefixes were present, so no resequencing was needed.
+
+**Validation:**
+- `git -C "$PIKA_WORKTREE" diff --name-only --diff-filter=A origin/main -- supabase/migrations` (no output)
+- duplicate migration prefix check across `supabase/migrations` (no output)

@@ -42,7 +42,8 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const GRID_COLUMNS_7 = '0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 // Grid with month column: 24px for month, then same proportions
 const GRID_COLUMNS_8 = '24px 0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
-
+const MONTH_ROW_MIN_HEIGHT = '4.5rem'
+const MONTH_ROW_EXPANDED_MIN_HEIGHT = '9rem'
 // Determine which month a week belongs to (month with 3+ days wins)
 function getWeekMonth(week: Date[]): { key: string; name: string } {
   const monthCounts = new Map<string, { count: number; date: Date }>()
@@ -313,7 +314,7 @@ export function LessonCalendar({
   }, [viewMode, currentDate, classroom.start_date, classroom.end_date])
 
   return (
-    <div className="flex flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Header with navigation, view mode selector, and actions */}
       {showHeader && (
         <div className="grid grid-cols-3 items-center border-b border-border bg-surface px-4 py-1.5">
@@ -437,8 +438,13 @@ export function LessonCalendar({
 
       {/* Scrollable container for all mode */}
       <div
-        className={viewMode === 'all' ? 'overflow-y-auto' : ''}
-        style={viewMode === 'all' ? { maxHeight: `calc(100vh - 120px)` } : undefined}
+        className={
+          viewMode === 'all'
+            ? 'min-h-0 flex-1 overflow-y-auto'
+            : viewMode === 'month'
+              ? 'min-h-0 flex-1'
+              : ''
+        }
       >
         {/* Calendar grid - in all mode, includes header row */}
         <div
@@ -452,11 +458,10 @@ export function LessonCalendar({
                 ? `auto ${weeks.map(() => 'auto').join(' ')}`
                 : weeks.map((_, idx) => {
                     const isExpanded = expandedWeekIdx === idx
-                    if (isExpanded) return 'minmax(60px, 1.5fr)'
-                    return 'minmax(0, 1fr)'
+                    if (isExpanded) return `minmax(${MONTH_ROW_EXPANDED_MIN_HEIGHT}, auto)`
+                    return `minmax(${MONTH_ROW_MIN_HEIGHT}, auto)`
                   }).join(' '),
-            // In month view (not all), calculate height to fit all weeks
-            height: viewMode === 'week' ? 'auto' : viewMode === 'all' ? undefined : `calc(100vh - 120px)`,
+            height: viewMode === 'week' ? 'auto' : undefined,
             minHeight: viewMode === 'week' ? '200px' : undefined,
           }}
         >

@@ -4,6 +4,7 @@ import { type ReactNode } from 'react'
 import { useThreePanel } from './ThreePanelProvider'
 import { MAIN_CONTENT_MAX_WIDTHS } from '@/lib/layout-config'
 import type { PageDensity } from '@/components/PageLayout'
+import { cn } from '@/ui/utils'
 
 export interface MainContentProps {
   children: ReactNode
@@ -30,14 +31,12 @@ export function MainContent({ children, className, maxWidth, density = 'default'
 
   return (
     <main
-      className={[
+      className={cn(
         'flex-1 min-w-0 min-h-0',
         spacingClass,
         'flex flex-col',
         className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      )}
     >
       <div
         className={[

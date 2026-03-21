@@ -98,7 +98,7 @@ export function StudentLessonCalendarTab({
 
   if (loading && lessonPlans.length === 0) {
     return (
-      <PageLayout>
+      <PageLayout bleedX={false}>
         <PageContent>
           <div className="flex items-center justify-center h-64">
             <Spinner />
@@ -109,7 +109,7 @@ export function StudentLessonCalendarTab({
   }
 
   return (
-    <PageLayout>
+    <PageLayout bleedX={false}>
       <CalendarActionBar
         viewMode={viewMode}
         currentDate={currentDate}
