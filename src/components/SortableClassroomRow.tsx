@@ -109,6 +109,7 @@ export function SortableClassroomRow({
     <div
       ref={setNodeRef}
       style={style}
+      data-testid="classroom-card"
       className={[
         'bg-surface',
         isDragging ? 'opacity-40' : '',
