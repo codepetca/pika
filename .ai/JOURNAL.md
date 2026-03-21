@@ -7212,3 +7212,17 @@
 **Validation:**
 - `git -C "$PIKA_WORKTREE" diff --name-only --diff-filter=A origin/main -- supabase/migrations` (no output)
 - duplicate migration prefix check across `supabase/migrations` (no output)
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Finish the remaining student-side classroom UI polish before re-pushing the centralized UI-system PR.
+**Completed:**
+- Restored the standard top inset in `src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx` so the first assignment card no longer sits flush against the top of the content pane in summary mode.
+- Wrapped the student calendar in the same rounded bordered surface as the teacher calendar in `src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx` so both roles share the same framed weekday/header treatment.
+- Hardened `src/components/LessonCalendar.tsx` against horizontal overflow with `min-w-0` and `overflow-x-hidden` on the shared calendar wrappers so the student calendar no longer shows a horizontal scrollbar.
+
+**Validation:**
+- `pnpm lint --file 'src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx'` (pass)
+- `pnpm lint --file 'src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx'` (pass)
+- `pnpm lint --file src/components/LessonCalendar.tsx` (pass)
+- Visual verification screenshots: `/tmp/student-assignments-final.png`, `/tmp/student-calendar-final.png`, `/tmp/teacher-calendar-final.png`
+- `bash scripts/verify-env.sh` (fails on existing issues in `tests/components/calendar-view-persistence.test.tsx` and `tests/api/teacher/assignments-id-return.test.ts`)

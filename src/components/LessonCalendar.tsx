@@ -314,7 +314,7 @@ export function LessonCalendar({
   }, [viewMode, currentDate, classroom.start_date, classroom.end_date])
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden">
       {/* Header with navigation, view mode selector, and actions */}
       {showHeader && (
         <div className="grid grid-cols-3 items-center border-b border-border bg-surface px-4 py-1.5">
@@ -440,10 +440,10 @@ export function LessonCalendar({
       <div
         className={
           viewMode === 'all'
-            ? 'min-h-0 flex-1 overflow-y-auto'
+            ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto'
             : viewMode === 'month'
-              ? 'min-h-0 flex-1'
-              : ''
+              ? 'min-h-0 flex-1 overflow-x-hidden'
+              : 'overflow-x-hidden'
         }
       >
         {/* Calendar grid - in all mode, includes header row */}

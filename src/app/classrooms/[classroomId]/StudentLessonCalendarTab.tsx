@@ -133,21 +133,23 @@ export function StudentLessonCalendarTab({
         onViewModeChange={handleViewModeChange}
       />
       <PageContent className="pt-0">
-        <LessonCalendar
-          classroom={classroom}
-          lessonPlans={lessonPlans}
-          assignments={assignments}
-          announcements={announcements}
-          classDays={classDays}
-          viewMode={viewMode}
-          currentDate={currentDate}
-          editable={false}
-          showHeader={false}
-          onDateChange={handleDateChange}
-          onViewModeChange={handleViewModeChange}
-          onAssignmentClick={handleAssignmentClick}
-          onAnnouncementClick={handleAnnouncementClick}
-        />
+        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <LessonCalendar
+            classroom={classroom}
+            lessonPlans={lessonPlans}
+            assignments={assignments}
+            announcements={announcements}
+            classDays={classDays}
+            viewMode={viewMode}
+            currentDate={currentDate}
+            editable={false}
+            showHeader={false}
+            onDateChange={handleDateChange}
+            onViewModeChange={handleViewModeChange}
+            onAssignmentClick={handleAssignmentClick}
+            onAnnouncementClick={handleAnnouncementClick}
+          />
+        </div>
       </PageContent>
     </PageLayout>
   )

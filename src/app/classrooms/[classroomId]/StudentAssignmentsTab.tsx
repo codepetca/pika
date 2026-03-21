@@ -214,7 +214,7 @@ export function StudentAssignmentsTab({
           }
         />
       ) : null}
-      <PageContent className={selectedAssignment ? 'flex-1 min-h-0' : 'pt-0 flex-1 min-h-0'}>
+      <PageContent className="flex-1 min-h-0">
         <div className="min-w-0 h-full flex flex-col">
           {refreshing && (
             <RefreshingIndicator className="mb-2 px-0 py-0" />
