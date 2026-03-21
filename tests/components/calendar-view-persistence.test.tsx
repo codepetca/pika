@@ -54,6 +54,14 @@ function Wrapper({ children }: { children: ReactNode }) {
   return <TooltipProvider>{children}</TooltipProvider>
 }
 
+function getCalendarViewButtons(name: 'week' | 'month' | 'all') {
+  return screen.getAllByRole('button', { name: new RegExp(`^${name}$`, 'i') })
+}
+
+function expectCalendarViewSelected(name: 'week' | 'month' | 'all') {
+  expect(getCalendarViewButtons(name).some((button) => button.className.includes('font-medium'))).toBe(true)
+}
+
 describe('Calendar view mode persistence', () => {
   let readCookieSpy: ReturnType<typeof vi.spyOn>
   let writeCookieSpy: ReturnType<typeof vi.spyOn>
@@ -90,8 +98,7 @@ describe('Calendar view mode persistence', () => {
       render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        const weekButton = screen.getByRole('button', { name: /week/i })
-        expect(weekButton).toHaveClass('font-medium')
+        expectCalendarViewSelected('week')
       })
     })
 
@@ -101,8 +108,7 @@ describe('Calendar view mode persistence', () => {
       render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        const monthButton = screen.getByRole('button', { name: /month/i })
-        expect(monthButton).toHaveClass('font-medium')
+        expectCalendarViewSelected('month')
       })
     })
 
@@ -112,8 +118,7 @@ describe('Calendar view mode persistence', () => {
       render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        const allButton = screen.getByRole('button', { name: /all/i })
-        expect(allButton).toHaveClass('font-medium')
+        expectCalendarViewSelected('all')
       })
     })
 
@@ -123,10 +128,10 @@ describe('Calendar view mode persistence', () => {
       render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /week/i })).toBeInTheDocument()
+        expect(getCalendarViewButtons('week').length).toBeGreaterThan(0)
       })
 
-      fireEvent.click(screen.getByRole('button', { name: /all/i }))
+      fireEvent.click(getCalendarViewButtons('all')[0])
 
       expect(writeCookieSpy).toHaveBeenCalledWith('calendarViewMode:cls-123', 'all')
     })
@@ -137,8 +142,7 @@ describe('Calendar view mode persistence', () => {
       render(<TeacherLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        const weekButton = screen.getByRole('button', { name: /week/i })
-        expect(weekButton).toHaveClass('font-medium')
+        expectCalendarViewSelected('week')
       })
     })
 
@@ -160,8 +164,7 @@ describe('Calendar view mode persistence', () => {
       render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        const weekButton = screen.getByRole('button', { name: /week/i })
-        expect(weekButton).toHaveClass('font-medium')
+        expectCalendarViewSelected('week')
       })
     })
 
@@ -171,8 +174,7 @@ describe('Calendar view mode persistence', () => {
       render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        const monthButton = screen.getByRole('button', { name: /month/i })
-        expect(monthButton).toHaveClass('font-medium')
+        expectCalendarViewSelected('month')
       })
     })
 
@@ -182,10 +184,10 @@ describe('Calendar view mode persistence', () => {
       render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /week/i })).toBeInTheDocument()
+        expect(getCalendarViewButtons('week').length).toBeGreaterThan(0)
       })
 
-      fireEvent.click(screen.getByRole('button', { name: /month/i }))
+      fireEvent.click(getCalendarViewButtons('month')[0])
 
       expect(writeCookieSpy).toHaveBeenCalledWith('calendarViewMode:cls-123', 'month')
     })
@@ -196,8 +198,7 @@ describe('Calendar view mode persistence', () => {
       render(<StudentLessonCalendarTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
       await waitFor(() => {
-        const weekButton = screen.getByRole('button', { name: /week/i })
-        expect(weekButton).toHaveClass('font-medium')
+        expectCalendarViewSelected('week')
       })
     })
   })

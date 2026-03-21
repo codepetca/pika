@@ -7236,3 +7236,15 @@
 **Validation:**
 - `pnpm lint --file 'src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx' --file 'src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx'` (pass)
 - Visual verification screenshots: `/tmp/teacher-calendar-toggle-neutral.png`, `/tmp/student-calendar-gap.png`, `/tmp/teacher-calendar-gap.png`
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Repair the failing CI checks on PR #408 so the branch is merge-ready.
+**Completed:**
+- Updated `tests/components/calendar-view-persistence.test.tsx` to account for the intentionally duplicated desktop/mobile calendar view-mode controls rendered by `CalendarActionBar`.
+- Rewrote `tests/api/teacher/assignments-id-return.test.ts` to match the current route implementation in `src/app/api/teacher/assignments/[id]/return/route.ts`, which now works directly against `assignment_docs` instead of the old RPC path.
+- Added the missing branch coverage case in `tests/unit/assignments.test.ts` for `sanitizeDocForStudent` when `feedback_returned_at` is set but `returned_at` is still null, restoring the strict 100% branch threshold for `src/lib/assignments.ts`.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/calendar-view-persistence.test.tsx tests/api/teacher/assignments-id-return.test.ts` (pass)
+- `pnpm run test:coverage` (pass)
+- `pnpm build` (pass with existing hook-dependency warnings in `src/components/AssignmentModal.tsx` and `src/components/StudentAssignmentEditor.tsx`)
