@@ -31,18 +31,18 @@ function ClassroomRowFrame({
   return (
     <div
       className={[
-        'grid grid-cols-[min-content,minmax(0,1fr),1.5rem] items-center gap-2.5 px-4 py-4 sm:grid-cols-[min-content,minmax(0,1fr),1.75rem] sm:gap-4 sm:px-5',
+        'grid w-full grid-cols-[auto,minmax(0,1fr),auto] grid-rows-1 items-center gap-2.5 py-4 pr-4 sm:gap-4 sm:pr-5',
         className,
       ].join(' ')}
     >
-      <div className="flex h-full items-center justify-center">
+      <div className="col-start-1 row-start-1 flex h-full items-center justify-center pl-1">
         {dragHandle}
       </div>
 
       <button
         type="button"
         onClick={onOpen}
-        className="min-w-0 rounded-control -m-1.5 p-1.5 text-left transition-colors hover:bg-surface-accent"
+        className="col-start-2 row-start-1 min-w-0 rounded-control -m-1.5 ml-1 p-1.5 text-left transition-colors hover:bg-surface-accent sm:ml-2"
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <div className="min-w-0 text-base font-semibold text-text-default">
@@ -57,7 +57,7 @@ function ClassroomRowFrame({
         </div>
       </button>
 
-      <div className="flex items-center justify-end">
+      <div className="col-start-3 row-start-1 flex items-center justify-end">
         {action}
       </div>
     </div>
@@ -138,7 +138,7 @@ export function SortableClassroomRow({
           <button
             type="button"
             onClick={onArchive}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-control text-text-muted transition-colors hover:text-text-default"
+            className="inline-flex h-6 w-6 -mr-1 items-center justify-center rounded-control text-text-muted transition-colors hover:text-text-default"
             aria-label={`Archive ${classroom.title}`}
             title={`Archive ${classroom.title}`}
           >
