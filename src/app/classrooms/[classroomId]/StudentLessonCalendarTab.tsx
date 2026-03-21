@@ -132,7 +132,7 @@ export function StudentLessonCalendarTab({
         onToday={() => handleDateChange(new Date())}
         onViewModeChange={handleViewModeChange}
       />
-      <PageContent className="pt-0">
+      <PageContent className="pt-2">
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <LessonCalendar
             classroom={classroom}

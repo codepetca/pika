@@ -7226,3 +7226,13 @@
 - `pnpm lint --file src/components/LessonCalendar.tsx` (pass)
 - Visual verification screenshots: `/tmp/student-assignments-final.png`, `/tmp/student-calendar-final.png`, `/tmp/teacher-calendar-final.png`
 - `bash scripts/verify-env.sh` (fails on existing issues in `tests/components/calendar-view-persistence.test.tsx` and `tests/api/teacher/assignments-id-return.test.ts`)
+
+## 2026-03-20 [AI - GPT-5 Codex]
+**Goal:** Polish remaining calendar action-bar spacing and control styling after review feedback.
+**Completed:**
+- Updated the teacher calendar sidebar toggle in `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx` from the blue `subtle` variant to the neutral `ghost` variant so it matches the assignment-tab header controls.
+- Added a small top gap between the calendar action bar and the calendar surface in both `src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx` and `src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx`.
+
+**Validation:**
+- `pnpm lint --file 'src/app/classrooms/[classroomId]/TeacherLessonCalendarTab.tsx' --file 'src/app/classrooms/[classroomId]/StudentLessonCalendarTab.tsx'` (pass)
+- Visual verification screenshots: `/tmp/teacher-calendar-toggle-neutral.png`, `/tmp/student-calendar-gap.png`, `/tmp/teacher-calendar-gap.png`

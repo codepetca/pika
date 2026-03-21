@@ -505,7 +505,7 @@ export function TeacherLessonCalendarTab({
             {saving && <span className="text-sm text-text-muted">Saving...</span>}
             <Button
               type="button"
-              variant="subtle"
+              variant="ghost"
               size="sm"
               className="h-9 w-9 px-0"
               onClick={handleMarkdownToggle}
@@ -520,7 +520,7 @@ export function TeacherLessonCalendarTab({
           </div>
         }
       />
-      <PageContent className="pt-0">
+      <PageContent className="pt-2">
         <div className="overflow-hidden rounded-lg border border-border bg-surface">
           <LessonCalendar
             classroom={classroom}
