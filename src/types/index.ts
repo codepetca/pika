@@ -43,6 +43,7 @@ export interface Classroom {
   teacher_id: string
   title: string
   class_code: string
+  position?: number
   term_label: string | null
   allow_enrollment: boolean
   start_date: string | null // YYYY-MM-DD, inclusive
