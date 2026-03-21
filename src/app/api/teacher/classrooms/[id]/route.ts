@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { getNextTeacherClassroomPosition } from '@/lib/server/classroom-order'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -14,7 +15,6 @@ export const GET = withErrorHandler('GetClassroomById', async (_request, context
 
   const supabase = getServiceRoleClient()
 
-  // Fetch classroom
   const { data: classroom, error: fetchError } = await supabase
     .from('classrooms')
     .select('*')
@@ -28,7 +28,6 @@ export const GET = withErrorHandler('GetClassroomById', async (_request, context
     )
   }
 
-  // Verify ownership
   if (classroom.teacher_id !== user.id) {
     return NextResponse.json(
       { error: 'Forbidden' },
@@ -44,11 +43,9 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
 
-  // Parse request body
   const body = await request.json()
   const { title, classCode, termLabel, allowEnrollment, archived, lessonPlanVisibility } = body
 
-  // Validate: at least one field must be provided
   if (
     title === undefined &&
     classCode === undefined &&
@@ -63,7 +60,6 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     )
   }
 
-  // Validate lessonPlanVisibility if provided
   const validVisibilityValues = ['current_week', 'one_week_ahead', 'all']
   if (lessonPlanVisibility !== undefined && !validVisibilityValues.includes(lessonPlanVisibility)) {
     return NextResponse.json(
@@ -112,7 +108,6 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     )
   }
 
-  // Update classroom
   const updates: any = {}
   if (title !== undefined) updates.title = title
   if (classCode !== undefined) updates.class_code = classCode
@@ -131,6 +126,12 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
         { error: 'Classroom is not archived' },
         { status: 400 }
       )
+    }
+    if (!archived) {
+      const nextPosition = await getNextTeacherClassroomPosition(supabase, user.id)
+      if (nextPosition !== null) {
+        updates.position = nextPosition
+      }
     }
     updates.archived_at = archived ? new Date().toISOString() : null
   }
@@ -175,7 +176,6 @@ export const DELETE = withErrorHandler('DeleteClassroom', async (_request, conte
     )
   }
 
-  // Delete classroom (cascades to enrollments, class_days, entries)
   const { error: deleteError } = await supabase
     .from('classrooms')
     .delete()

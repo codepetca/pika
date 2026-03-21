@@ -1,12 +1,30 @@
 'use client'
 
 import { useCallback, useMemo, useState, useEffect, useRef } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  type DragStartEvent,
+  type DragEndEvent,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 import { useRouter, usePathname } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { Button, Card, ConfirmDialog, EmptyState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ACTIONBAR_BUTTON_PRIMARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
 
 interface Props {
@@ -30,11 +48,19 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLoadingArchived, setIsLoadingArchived] = useState(false)
+  const [isReordering, setIsReordering] = useState(false)
+  const [draggingClassroomId, setDraggingClassroomId] = useState<string | null>(null)
   const [error, setError] = useState('')
-
-  const sortedActive = useMemo(() => {
-    return [...activeClassrooms].sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-  }, [activeClassrooms])
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   const sortedArchived = useMemo(() => {
     return [...archivedClassrooms].sort((a, b) => {
@@ -44,7 +70,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     })
   }, [archivedClassrooms])
 
-  const visibleClassrooms = view === 'active' ? sortedActive : sortedArchived
+  const visibleClassrooms = view === 'active' ? activeClassrooms : sortedArchived
+  const draggingClassroom = useMemo(
+    () => activeClassrooms.find((classroom) => classroom.id === draggingClassroomId) ?? null,
+    [activeClassrooms, draggingClassroomId]
+  )
 
   const loadArchived = useCallback(async () => {
     setIsLoadingArchived(true)
@@ -63,7 +93,6 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     }
   }, [])
 
-  // Fetch fresh classroom data to handle stale router cache
   const refreshActiveClassrooms = useCallback(async () => {
     try {
       const res = await fetch('/api/teacher/classrooms')
@@ -72,16 +101,63 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         setActiveClassrooms(data.classrooms)
       }
     } catch {
-      // Silently fail - we still have initialClassrooms
+      // Ignore; the page still has server-rendered data.
     }
   }, [])
 
-  // Sync from server-provided data when it changes
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    if (view !== 'active' || isReordering) return
+
+    const { active, over } = event
+    if (!over || active.id === over.id) {
+      setDraggingClassroomId(null)
+      return
+    }
+
+    const oldIndex = activeClassrooms.findIndex((classroom) => classroom.id === active.id)
+    const newIndex = activeClassrooms.findIndex((classroom) => classroom.id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) {
+      setDraggingClassroomId(null)
+      return
+    }
+
+    const reordered = arrayMove(activeClassrooms, oldIndex, newIndex)
+    setActiveClassrooms(reordered)
+    setError('')
+    setIsReordering(true)
+
+    try {
+      const res = await fetch('/api/teacher/classrooms/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroom_ids: reordered.map((classroom) => classroom.id) }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save classroom order')
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to save classroom order')
+      refreshActiveClassrooms()
+    } finally {
+      setIsReordering(false)
+      setDraggingClassroomId(null)
+    }
+  }, [activeClassrooms, isReordering, refreshActiveClassrooms, view])
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setDraggingClassroomId(String(event.active.id))
+  }, [])
+
+  const handleDragCancel = useCallback(() => {
+    setDraggingClassroomId(null)
+  }, [])
+
   useEffect(() => {
     setActiveClassrooms(initialClassrooms)
   }, [initialClassrooms])
 
-  // Refetch when navigating back to this page (not on initial mount — server data is fresh)
   useEffect(() => {
     if (pathname === '/classrooms' && lastPathRef.current !== '/classrooms') {
       refreshActiveClassrooms()
@@ -98,13 +174,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     setIsProcessing(true)
     setError('')
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ archived: true }),
-        }
-      )
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         throw new Error(data.error || 'Failed to archive classroom')
@@ -124,13 +198,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     setIsProcessing(true)
     setError('')
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ archived: false }),
-        }
-      )
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: false }),
+      })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         throw new Error(data.error || 'Failed to restore classroom')
@@ -220,7 +292,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const dialogVariant = pendingAction?.mode === 'delete' ? 'danger' : 'default'
 
   return (
-    <PageLayout className="max-w-5xl mx-auto">
+    <PageLayout className="mx-auto max-w-6xl">
       <PageActionBar
         primary={
           <div className="space-y-2">
@@ -263,6 +335,13 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           </div>
         )}
 
+        {view === 'active' && visibleClassrooms.length > 1 && (
+          <p className="mb-3 text-sm text-text-muted">
+            Drag the grip to reorder your classrooms.
+            {isReordering ? ' Saving…' : ''}
+          </p>
+        )}
+
         {view === 'archived' && isLoadingArchived ? (
           <div className="flex justify-center py-12">
             <Spinner size="lg" />
@@ -286,54 +365,78 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           />
         ) : (
           <Card tone="panel" padding="none" className="overflow-hidden">
-            {visibleClassrooms.map((c) => (
-              <div key={c.id} className="flex items-center gap-4 border-b border-border px-5 py-4 last:border-b-0">
-                <button
-                  type="button"
-                  data-testid="classroom-card"
-                  onClick={() => router.push(`/classrooms/${c.id}?tab=attendance`)}
-                  className="-m-2 flex-1 rounded-control p-2 text-left transition-colors hover:bg-surface-accent"
+            {view === 'active' ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragCancel={handleDragCancel}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={activeClassrooms.map((classroom) => classroom.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  <div className="text-base font-semibold text-text-default">{c.title}</div>
-                  <div className="mt-1 text-sm leading-6 text-text-muted">
-                    Code: <span className="font-mono">{c.class_code}</span>
-                    {c.term_label ? ` • ${c.term_label}` : ''}
-                  </div>
-                </button>
-                <div className="flex items-center gap-2">
-                  {view === 'active' ? (
+                  {activeClassrooms.map((classroom) => (
+                    <SortableClassroomRow
+                      key={classroom.id}
+                      classroom={classroom}
+                      isDragDisabled={isReordering}
+                      onOpen={() => router.push(`/classrooms/${classroom.id}?tab=attendance`)}
+                      onArchive={() => setPendingAction({ mode: 'archive', classroom })}
+                    />
+                  ))}
+                </SortableContext>
+                <DragOverlay>
+                  {draggingClassroom ? (
+                    <ClassroomRowGhost classroom={draggingClassroom} />
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            ) : (
+              sortedArchived.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex flex-col gap-3 border-b border-border px-5 py-4 last:border-b-0 lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
+                >
+                  <button
+                    type="button"
+                    data-testid="classroom-card"
+                    onClick={() => router.push(`/classrooms/${c.id}?tab=attendance`)}
+                    className="-m-1.5 min-w-0 rounded-control p-1.5 text-left transition-colors hover:bg-surface-accent"
+                  >
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <div className="text-base font-semibold text-text-default">{c.title}</div>
+                      {c.term_label && (
+                        <div className="text-sm text-text-muted">{c.term_label}</div>
+                      )}
+                    </div>
+                    <div className="mt-1 text-sm text-text-muted">
+                      Code: <span className="font-mono tracking-[0.18em]">{c.class_code}</span>
+                    </div>
+                  </button>
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                     <Button
                       type="button"
                       variant="surface"
                       size="xs"
-                      onClick={() => setPendingAction({ mode: 'archive', classroom: c })}
+                      onClick={() => setPendingAction({ mode: 'restore', classroom: c })}
                     >
-                      Archive
+                      Restore
                     </Button>
-                  ) : (
-                    <>
-                      <Button
-                        type="button"
-                        variant="surface"
-                        size="xs"
-                        onClick={() => setPendingAction({ mode: 'restore', classroom: c })}
-                      >
-                        Restore
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => setPendingAction({ mode: 'delete', classroom: c })}
-                        className="text-danger hover:bg-danger-bg"
-                      >
-                        Delete
-                      </Button>
-                    </>
-                  )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => setPendingAction({ mode: 'delete', classroom: c })}
+                      className="text-danger hover:bg-danger-bg"
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </Card>
         )}
       </PageContent>

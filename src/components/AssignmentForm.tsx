@@ -236,8 +236,8 @@ export function AssignmentForm({
               {markdownWarning}
             </div>
           )}
-          <div className="grid min-h-[260px] gap-0 md:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)]">
-            <div className="border-b border-border md:border-b-0 md:border-r md:border-border">
+          <div className="grid min-h-[260px] gap-0 md:grid-cols-2">
+            <div className="flex h-full min-h-0 flex-col border-b border-border md:border-b-0 md:border-r md:border-border">
               <div className="flex flex-wrap gap-1 border-b border-border bg-surface px-2 py-2">
                 <Button type="button" variant="ghost" size="sm" onClick={onInstructionsUndo} disabled={disabled || !canUndoInstructions} className="h-8 w-8 px-0" aria-label="Undo" title="Undo">
                   <Undo2Icon className="h-4 w-4" aria-hidden="true" />
@@ -273,7 +273,7 @@ export function AssignmentForm({
                 placeholder="Assignment instructions"
                 disabled={disabled}
                 spellCheck={false}
-                className="min-h-[220px] w-full resize-y border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0"
+                className="h-full min-h-[220px] w-full flex-1 resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0"
               />
             </div>
             <div className="bg-page">

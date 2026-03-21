@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, PATCH, DELETE } from '@/app/api/teacher/classrooms/[id]/route'
+import { getNextTeacherClassroomPosition } from '@/lib/server/classroom-order'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
@@ -13,6 +14,9 @@ vi.mock('@/lib/server/classrooms', () => ({
     ok: true,
     classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
   })),
+}))
+vi.mock('@/lib/server/classroom-order', () => ({
+  getNextTeacherClassroomPosition: vi.fn(),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -104,18 +108,19 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
     expect(data.classroom.archived_at).toBeTruthy()
   })
 
-  it('should unarchive classroom when archived: false', async () => {
+  it('should unarchive classroom when archived: false and assign a fresh top position', async () => {
     const { assertTeacherOwnsClassroom } = await import('@/lib/server/classrooms')
     ;(assertTeacherOwnsClassroom as any).mockResolvedValueOnce({
       ok: true,
       classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: '2024-01-10T10:00:00Z' },
     })
+    ;(getNextTeacherClassroomPosition as any).mockResolvedValueOnce(-2)
 
     const mockUpdate = vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({
-            data: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
+            data: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null, position: -2 },
             error: null,
           }),
         }),
@@ -133,6 +138,10 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
 
     const data = await response.json()
     expect(data.classroom.archived_at).toBeNull()
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      archived_at: null,
+      position: -2,
+    }))
   })
 
   it('should return 400 when trying to archive already archived classroom', async () => {

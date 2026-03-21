@@ -28,9 +28,14 @@ import '@/components/tiptap-templates/simple/simple-editor.scss'
 export interface RichTextViewerProps {
   content: TiptapContent
   showPlainText?: boolean
+  fillHeight?: boolean
 }
 
-export function RichTextViewer({ content, showPlainText = false }: RichTextViewerProps) {
+export function RichTextViewer({
+  content,
+  showPlainText = false,
+  fillHeight = false,
+}: RichTextViewerProps) {
   const editor = useEditor({
     immediatelyRender: false,
     editable: false,
@@ -87,17 +92,28 @@ export function RichTextViewer({ content, showPlainText = false }: RichTextViewe
 
   if (showPlainText) {
     return (
-      <pre className="whitespace-pre-wrap font-mono text-sm text-text-default bg-page p-4 rounded-none border border-border h-full overflow-y-auto">
+      <pre
+        className={[
+          'whitespace-pre-wrap font-mono text-sm text-text-default bg-page p-4 rounded-none border border-border',
+          fillHeight ? 'h-full overflow-y-auto' : 'overflow-x-auto',
+        ].join(' ')}
+      >
         {editor.getText()}
       </pre>
     )
   }
 
   return (
-    <div className="simple-editor-wrapper bg-surface-2 p-4 rounded-none border border-border flex flex-col min-h-0 h-full">
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <EditorContent editor={editor} />
-      </div>
+    <div
+      className={[
+        fillHeight ? 'simple-editor-wrapper simple-editor-wrapper--fill-height' : 'simple-viewer-wrapper',
+        'bg-surface-2 rounded-none border border-border',
+      ].join(' ')}
+    >
+      <EditorContent
+        editor={editor}
+        className={fillHeight ? 'simple-editor-content' : 'simple-viewer-content'}
+      />
     </div>
   )
 }
