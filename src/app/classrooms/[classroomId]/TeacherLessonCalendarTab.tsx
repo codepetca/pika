@@ -1,22 +1,25 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { addMonths, addWeeks, endOfMonth, format, startOfMonth, subMonths, subWeeks } from 'date-fns'
+import { PanelRight, PanelRightClose } from 'lucide-react'
+import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { Spinner } from '@/components/Spinner'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useRightSidebar } from '@/components/layout'
-import { lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
-import { isEmpty as isEmptyTiptapContent } from '@/lib/tiptap-content'
+import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDays } from '@/hooks/useClassDays'
+import { Button } from '@/ui'
 import type { Classroom, LessonPlan, TiptapContent, Assignment, Announcement } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
+import { normalizeLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 
 /**
- * Returns true if the content change is just Tiptap normalizing stored content
- * on editor mount (e.g. the Markdown extension restructuring nodes). Compares
- * against a mutable map of last-seen stringified content per date.
+ * Returns true if the content change is identical to the last value emitted
+ * for this date. Markdown editing no longer needs Tiptap normalization guards,
+ * but duplicate-change suppression still avoids unnecessary autosave churn.
  */
 export function isNormalizationNoise(
   lastSeen: Map<string, string>,
@@ -24,15 +27,9 @@ export function isNormalizationNoise(
   date: string,
   contentStr: string
 ): boolean {
+  void lessonPlans
   const prev = lastSeen.get(date)
-  // Exact duplicate of last emission
-  if (prev === contentStr) return true
-  // First emission for a date with no stored plan — skip if empty handled by caller
-  if (prev === undefined) return false
-  // First divergence from stored content with no pending user edit — normalization
-  const existing = lessonPlans.find((p) => p.date === date)
-  if (existing && prev === JSON.stringify(existing.content)) return true
-  return false
+  return prev === contentStr
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
@@ -63,8 +60,7 @@ export function TeacherLessonCalendarTab({
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const lessonPlansRef = useRef(lessonPlans)
   lessonPlansRef.current = lessonPlans
-  // Track the last content seen per date to suppress Tiptap normalization noise.
-  // Populated from fetched plans and updated on each onChange call.
+  // Track last-seen markdown per date to suppress duplicate autosave emissions.
   const lastSeenContentRef = useRef<Map<string, string>>(new Map())
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
@@ -88,13 +84,51 @@ export function TeacherLessonCalendarTab({
   const { toggle: toggleSidebar, isOpen: isSidebarOpen, setOpen: setSidebarOpen } = useRightSidebar()
 
   // Auto-save tracking
-  const pendingChangesRef = useRef<Map<string, TiptapContent>>(new Map())
+  const pendingChangesRef = useRef<Map<string, string>>(new Map())
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAtRef = useRef<number>(0)
   const prevSidebarOpenRef = useRef(false)
   const needsRefreshRef = useRef(true) // Force refresh on first open or after save
   const markdownContentRef = useRef('') // Ref to avoid stale closure in save handler
   const markdownSyncTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const applyLocalLessonPlanChange = useCallback((date: string, contentMarkdown: string) => {
+    const normalized = normalizeLessonPlanMarkdown(contentMarkdown)
+    const now = new Date().toISOString()
+
+    setLessonPlans((prev) => {
+      const existing = prev.find((plan) => plan.date === date)
+
+      if (normalized.trim().length === 0) {
+        return existing ? prev.filter((plan) => plan.date !== date) : prev
+      }
+
+      if (existing) {
+        return prev.map((plan) => (
+          plan.date === date
+            ? {
+                ...plan,
+                content_markdown: normalized,
+                updated_at: now,
+              }
+            : plan
+        ))
+      }
+
+      return [
+        ...prev,
+        {
+          id: `local-${date}`,
+          classroom_id: classroom.id,
+          date,
+          content: { type: 'doc', content: [] },
+          content_markdown: normalized,
+          created_at: now,
+          updated_at: now,
+        },
+      ]
+    })
+  }, [classroom.id])
 
   // Always fetch the full term - switching views is then instant
   const fetchRange = useMemo(() => {
@@ -116,7 +150,7 @@ export function TeacherLessonCalendarTab({
         // Seed last-seen content so Tiptap normalization doesn't trigger saves
         lastSeenContentRef.current.clear()
         for (const plan of plans) {
-          lastSeenContentRef.current.set(plan.date, JSON.stringify(plan.content))
+          lastSeenContentRef.current.set(plan.date, plan.content_markdown ?? '')
         }
         setLessonPlans(plans)
       } catch (err) {
@@ -170,17 +204,20 @@ export function TeacherLessonCalendarTab({
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(
-    async (date: string, content: TiptapContent) => {
+    async (date: string, contentMarkdown: string) => {
       try {
         const res = await fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/${date}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({ content_markdown: contentMarkdown }),
         })
         if (res.ok) {
           const data = await res.json()
-          // Update local state
           setLessonPlans((prev) => {
+            if (!data.lesson_plan) {
+              return prev.filter((plan) => plan.date !== date)
+            }
+
             const existing = prev.findIndex((p) => p.date === date)
             if (existing >= 0) {
               const updated = [...prev]
@@ -226,23 +263,19 @@ export function TeacherLessonCalendarTab({
 
   // Handle content change from calendar
   const handleContentChange = useCallback(
-    (date: string, content: TiptapContent) => {
+    (date: string, contentMarkdown: string) => {
       if (loading) return
-      const contentStr = JSON.stringify(content)
+      const contentStr = contentMarkdown
       if (isNormalizationNoise(lastSeenContentRef.current, lessonPlansRef.current, date, contentStr)) {
-        // Record normalized version so future real edits are compared against it
-        lastSeenContentRef.current.set(date, contentStr)
-        return
-      }
-      if (!lastSeenContentRef.current.has(date) && isEmptyTiptapContent(content)) {
         lastSeenContentRef.current.set(date, contentStr)
         return
       }
       lastSeenContentRef.current.set(date, contentStr)
-      pendingChangesRef.current.set(date, content)
+      applyLocalLessonPlanChange(date, contentMarkdown)
+      pendingChangesRef.current.set(date, contentMarkdown)
       scheduleSave()
     },
-    [loading, scheduleSave]
+    [applyLocalLessonPlanChange, loading, scheduleSave]
   )
 
   // Flush on unmount and handle page close
@@ -251,11 +284,11 @@ export function TeacherLessonCalendarTab({
       // Synchronously save any pending changes before page unload
       if (pendingChangesRef.current.size > 0) {
         const entries = Array.from(pendingChangesRef.current.entries())
-        for (const [date, content] of entries) {
+        for (const [date, contentMarkdown] of entries) {
           // Use sendBeacon for reliable delivery during page unload
           navigator.sendBeacon(
             `/api/teacher/classrooms/${classroom.id}/lesson-plans/${date}`,
-            new Blob([JSON.stringify({ content })], { type: 'application/json' })
+            new Blob([JSON.stringify({ content_markdown: contentMarkdown })], { type: 'application/json' })
           )
         }
         pendingChangesRef.current.clear()
@@ -303,7 +336,7 @@ export function TeacherLessonCalendarTab({
         }
       }
       const data = await res.json()
-      const plans = data.lesson_plans || []
+      const plans = applyPendingLessonPlanChanges(data.lesson_plans || [], pendingChangesRef.current, classroom.id)
       const markdown = lessonPlansToMarkdown(classroom, plans, start, end)
       setMarkdownContent(markdown)
       markdownContentRef.current = markdown
@@ -352,7 +385,6 @@ export function TeacherLessonCalendarTab({
     setBulkSaving(true)
 
     try {
-      // Use ref to get latest content (avoids stale closure)
       const result = markdownToLessonPlans(markdownContentRef.current, classroom)
 
       if (result.errors.length > 0) {
@@ -361,8 +393,7 @@ export function TeacherLessonCalendarTab({
         return
       }
 
-      // If no plans with content, just close (nothing to save)
-      if (result.plans.length === 0) {
+      if (result.plans.length === 0 && result.clearedDates.length === 0) {
         needsRefreshRef.current = true
         setSidebarOpen(false)
         setRefreshKey((k) => k + 1)
@@ -373,7 +404,7 @@ export function TeacherLessonCalendarTab({
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}/lesson-plans/bulk`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plans: result.plans }),
+        body: JSON.stringify({ plans: result.plans, cleared_dates: result.clearedDates }),
       })
 
       if (!res.ok) {
@@ -436,7 +467,7 @@ export function TeacherLessonCalendarTab({
 
   if (loading && lessonPlans.length === 0) {
     return (
-      <PageLayout>
+      <PageLayout bleedX={false}>
         <PageContent>
           <div className="flex items-center justify-center h-64">
             <Spinner />
@@ -447,26 +478,67 @@ export function TeacherLessonCalendarTab({
   }
 
   return (
-    <PageLayout>
-      <PageContent className="-mt-[8px]">
-        <LessonCalendar
-          classroom={classroom}
-          lessonPlans={lessonPlans}
-          assignments={assignments}
-          announcements={announcements}
-          classDays={classDays}
-          viewMode={viewMode}
-          currentDate={currentDate}
-          editable={!classroom.archived_at}
-          saving={saving}
-          onDateChange={setCurrentDate}
-          onViewModeChange={handleViewModeChange}
-          onContentChange={handleContentChange}
-          onAssignmentClick={handleAssignmentClick}
-          onAnnouncementClick={handleAnnouncementClick}
-          onMarkdownToggle={handleMarkdownToggle}
-          isSidebarOpen={isSidebarOpen}
-        />
+    <PageLayout bleedX={false}>
+      <CalendarActionBar
+        viewMode={viewMode}
+        currentDate={currentDate}
+        rangeStart={classroom.start_date}
+        rangeEnd={classroom.end_date}
+        onPrev={() => {
+          if (viewMode === 'week') {
+            setCurrentDate((prev) => subWeeks(prev, 1))
+          } else if (viewMode === 'month') {
+            setCurrentDate((prev) => subMonths(prev, 1))
+          }
+        }}
+        onNext={() => {
+          if (viewMode === 'week') {
+            setCurrentDate((prev) => addWeeks(prev, 1))
+          } else if (viewMode === 'month') {
+            setCurrentDate((prev) => addMonths(prev, 1))
+          }
+        }}
+        onToday={() => setCurrentDate(new Date())}
+        onViewModeChange={handleViewModeChange}
+        trailing={
+          <div className="flex items-center gap-2">
+            {saving && <span className="text-sm text-text-muted">Saving...</span>}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-9 w-9 px-0"
+              onClick={handleMarkdownToggle}
+              aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
+            >
+              {isSidebarOpen ? (
+                <PanelRightClose className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <PanelRight className="h-4 w-4" aria-hidden="true" />
+              )}
+            </Button>
+          </div>
+        }
+      />
+      <PageContent className="pt-2">
+        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <LessonCalendar
+            classroom={classroom}
+            lessonPlans={lessonPlans}
+            assignments={assignments}
+            announcements={announcements}
+            classDays={classDays}
+            viewMode={viewMode}
+            currentDate={currentDate}
+            editable={!classroom.archived_at}
+            showHeader={false}
+            onDateChange={setCurrentDate}
+            onViewModeChange={handleViewModeChange}
+            onContentChange={handleContentChange}
+            onAssignmentClick={handleAssignmentClick}
+            onAnnouncementClick={handleAnnouncementClick}
+          />
+        </div>
       </PageContent>
     </PageLayout>
   )

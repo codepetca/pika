@@ -63,6 +63,8 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
           title: 'Seed Test',
           show_results: false,
           questions: [],
+          source_format: 'markdown',
+          source_markdown: 'Title: Seed Test',
         },
         version: 3,
         created_by: 'teacher-1',
@@ -79,6 +81,8 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         title: 'Updated Test',
         show_results: true,
         questions: [],
+        source_format: 'markdown',
+        source_markdown: 'Title: Updated Test',
       },
     } as any)
 
@@ -92,6 +96,8 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
           title: 'Updated Test',
           show_results: true,
           questions: [],
+          source_format: 'markdown',
+          source_markdown: 'Title: Updated Test',
         },
         version: 4,
         created_by: 'teacher-1',
@@ -149,6 +155,16 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
         title: 'Updated Test',
         show_results: true,
         documents,
+      })
+    )
+    expect(updateAssessmentDraft).toHaveBeenCalledWith(
+      mockSupabaseClient,
+      'draft-1',
+      4,
+      'teacher-1',
+      expect.objectContaining({
+        source_format: 'markdown',
+        source_markdown: 'Title: Updated Test',
       })
     )
     expect(data.draft.content.title).toBe('Updated Test')

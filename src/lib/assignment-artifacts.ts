@@ -1,10 +1,14 @@
 import type { TiptapContent, TiptapMark, TiptapNode } from '@/types'
+import { parseGitHubRepoReference } from '@/lib/github-repos'
 
-export type AssignmentArtifactType = 'image' | 'link'
+export type AssignmentArtifactType = 'image' | 'link' | 'repo'
 
 export interface AssignmentArtifact {
   type: AssignmentArtifactType
   url: string
+  repo_owner?: string
+  repo_name?: string
+  normalized_url?: string
 }
 
 const HTTP_PROTOCOLS = new Set(['http:', 'https:'])
@@ -137,23 +141,34 @@ function parseUnknownContent(content: unknown): TiptapContent | null {
 export function extractAssignmentArtifactsFromContent(
   content: TiptapContent
 ): AssignmentArtifact[] {
-  const byUrl = new Map<string, AssignmentArtifactType>()
+  const byUrl = new Map<string, AssignmentArtifact>()
 
   const pushUrl = (url: string, source: ArtifactSource) => {
-    const nextType: AssignmentArtifactType =
-      source === 'image' || isLikelyImageUrl(url) ? 'image' : 'link'
+    const parsedRepo = source === 'image' || isLikelyImageUrl(url) ? null : parseGitHubRepoReference(url)
+    const nextArtifact: AssignmentArtifact =
+      source === 'image' || isLikelyImageUrl(url)
+        ? { type: 'image', url }
+        : parsedRepo
+          ? {
+              type: 'repo',
+              url,
+              repo_owner: parsedRepo.owner,
+              repo_name: parsedRepo.name,
+              normalized_url: parsedRepo.normalizedUrl,
+            }
+          : { type: 'link', url }
     const previous = byUrl.get(url)
 
     // If the same URL appears as both link and image, keep image.
-    if (previous === 'image' || nextType === previous) return
-    byUrl.set(url, nextType)
+    if (previous?.type === 'image' || previous?.type === nextArtifact.type) return
+    byUrl.set(url, nextArtifact)
   }
 
   for (const node of content.content || []) {
     walkNode(node, pushUrl)
   }
 
-  return Array.from(byUrl.entries()).map(([url, type]) => ({ type, url }))
+  return Array.from(byUrl.values())
 }
 
 export function extractAssignmentArtifacts(content: unknown): AssignmentArtifact[] {
@@ -172,4 +187,3 @@ export function summarizeArtifactUrl(url: string): string {
     return url
   }
 }
-

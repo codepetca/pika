@@ -58,6 +58,7 @@ export interface LessonPlan {
   classroom_id: string
   date: string // YYYY-MM-DD
   content: TiptapContent
+  content_markdown: string | null
   created_at: string
   updated_at: string
 }
@@ -147,12 +148,12 @@ export interface TiptapMark {
   attrs?: Record<string, any>
 }
 
-// Assignment types
 export interface Assignment {
   id: string
   classroom_id: string
   title: string
   description: string
+  instructions_markdown: string | null  // Canonical teacher-authored markdown instructions
   rich_instructions: TiptapContent | null  // Rich text instructions
   due_at: string  // ISO 8601 timestamp
   position: number
@@ -179,6 +180,8 @@ export interface AssignmentDoc {
   assignment_id: string
   student_id: string
   content: TiptapContent  // Rich text content (JSONB)
+  repo_url: string | null
+  github_username: string | null
   is_submitted: boolean
   submitted_at: string | null
   viewed_at: string | null
@@ -186,6 +189,12 @@ export interface AssignmentDoc {
   score_thinking: number | null
   score_workflow: number | null
   feedback: string | null
+  teacher_feedback_draft: string | null
+  teacher_feedback_draft_updated_at: string | null
+  feedback_returned_at: string | null
+  ai_feedback_suggestion: string | null
+  ai_feedback_suggested_at: string | null
+  ai_feedback_model: string | null
   graded_at: string | null
   graded_by: string | null
   returned_at: string | null
@@ -241,6 +250,155 @@ export interface AssignmentStats {
   late: number
 }
 
+export type AssignmentFeedbackEntryKind = 'teacher_feedback' | 'grading_feedback'
+
+export interface AssignmentFeedbackEntry {
+  id: string
+  assignment_id: string
+  student_id: string
+  entry_kind: AssignmentFeedbackEntryKind
+  author_type: 'teacher' | 'ai'
+  body: string
+  returned_at: string
+  created_at: string
+  created_by: string | null
+}
+
+export type RepoReviewProvider = 'github'
+export type RepoReviewRunStatus = 'queued' | 'running' | 'completed' | 'failed'
+export type AssignmentRepoTargetSelectionMode = 'auto' | 'teacher_override'
+export type AssignmentRepoTargetValidationStatus =
+  | 'missing'
+  | 'ambiguous'
+  | 'valid'
+  | 'invalid'
+  | 'private'
+  | 'inaccessible'
+export type RepoReviewSemanticCategory =
+  | 'feature'
+  | 'bugfix'
+  | 'test'
+  | 'refactor'
+  | 'docs'
+  | 'styling'
+  | 'config'
+  | 'generated'
+
+export interface AssignmentRepoReviewConfig {
+  assignment_id: string
+  provider: RepoReviewProvider
+  repo_owner: string
+  repo_name: string
+  default_branch: string
+  review_start_at: string | null
+  review_end_at: string | null
+  include_pr_reviews: boolean
+  config_json: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface UserGitHubIdentity {
+  id: string
+  user_id: string
+  github_login: string | null
+  commit_emails: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface AssignmentRepoTarget {
+  id: string
+  assignment_id: string
+  student_id: string
+  selected_repo_url: string | null
+  override_github_username: string | null
+  repo_owner: string | null
+  repo_name: string | null
+  selection_mode: AssignmentRepoTargetSelectionMode
+  validation_status: AssignmentRepoTargetValidationStatus
+  validation_message: string | null
+  validated_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface RepoReviewWarning {
+  code: string
+  message: string
+  student_id?: string
+  github_login?: string
+}
+
+export interface AssignmentRepoReviewRun {
+  id: string
+  assignment_id: string
+  repo_owner: string | null
+  repo_name: string | null
+  status: RepoReviewRunStatus
+  triggered_by: string
+  started_at: string
+  completed_at: string | null
+  source_ref: string | null
+  metrics_version: string
+  prompt_version: string
+  model: string | null
+  warnings_json: RepoReviewWarning[]
+  created_at: string
+}
+
+export interface RepoReviewTimelinePoint {
+  date: string
+  weighted_contribution: number
+  commit_count: number
+}
+
+export interface RepoReviewEvidenceItem {
+  type: 'commit' | 'pull_request' | 'review' | 'issue'
+  id: string
+  title: string
+  url?: string
+  authored_at?: string
+  summary?: string
+  category?: RepoReviewSemanticCategory
+}
+
+export interface RepoReviewSemanticBreakdown {
+  feature: number
+  bugfix: number
+  test: number
+  refactor: number
+  docs: number
+  styling: number
+  config: number
+  generated: number
+}
+
+export interface AssignmentRepoReviewResult {
+  id: string
+  run_id: string
+  assignment_id: string
+  student_id: string
+  github_login: string | null
+  commit_count: number
+  active_days: number
+  session_count: number
+  burst_ratio: number
+  weighted_contribution: number
+  relative_contribution_share: number
+  spread_score: number
+  iteration_score: number
+  semantic_breakdown_json: Partial<RepoReviewSemanticBreakdown>
+  timeline_json: RepoReviewTimelinePoint[]
+  evidence_json: RepoReviewEvidenceItem[]
+  draft_score_completion: number | null
+  draft_score_thinking: number | null
+  draft_score_workflow: number | null
+  draft_feedback: string | null
+  confidence: number
+  created_at: string
+}
+
 /**
  * Info about a selected student in teacher assignments view.
  * Used to display student work in the right sidebar.
@@ -249,6 +407,7 @@ export interface SelectedStudentInfo {
   assignmentId: string
   assignmentTitle: string
   studentId: string
+  studentName: string
   canGoPrev: boolean
   canGoNext: boolean
   onGoPrev: () => void

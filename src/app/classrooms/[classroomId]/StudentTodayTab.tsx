@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { Button, Tooltip } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
-import { ACTIONBAR_ICON_BUTTON_CLASSNAME, PageContent, PageLayout } from '@/components/PageLayout'
+import { ACTIONBAR_ICON_BUTTON_CLASSNAME, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import { getTodayInToronto } from '@/lib/timezone'
 import { isClassDayOnDate } from '@/lib/class-days'
 import { useClassDaysContext } from '@/hooks/useClassDays'
@@ -388,8 +388,8 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
   return (
     <PageLayout>
       <PageContent>
-        <div className="space-y-6">
-          <div className="bg-surface rounded-lg shadow-sm p-6">
+        <PageStack>
+          <div className="bg-surface rounded-lg border border-border p-6">
             {!isClassDay ? (
               <div className="bg-page border border-border rounded-lg p-4 text-center">
                 <p className="text-text-muted">No class today</p>
@@ -442,7 +442,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
             )}
           </div>
 
-          <div className="bg-surface border border-border rounded-lg shadow-sm">
+          <div className="bg-surface border border-border rounded-lg">
             <div className="px-4 py-3 border-b border-border flex items-center justify-end">
               <Tooltip content="History">
                 <button
@@ -483,7 +483,7 @@ export function StudentTodayTab({ classroom, onLessonPlanLoad }: StudentTodayTab
               </div>
             )}
           </div>
-        </div>
+        </PageStack>
       </PageContent>
     </PageLayout>
   )

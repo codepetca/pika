@@ -48,4 +48,21 @@ describe('AssignmentArtifactsCell', () => {
     expect(screen.getByText('Link Preview')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', 'https://example.com/docs')
   })
+
+  it('labels repo artifacts distinctly', () => {
+    const artifacts: AssignmentArtifact[] = [
+      {
+        type: 'repo',
+        url: 'https://github.com/codepetca/pika',
+        repo_owner: 'codepetca',
+        repo_name: 'pika',
+        normalized_url: 'https://github.com/codepetca/pika',
+      },
+    ]
+
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact={false} />)
+    fireEvent.click(screen.getByRole('button', { name: /preview repo/i }))
+    expect(screen.getByText('Repo Preview')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', 'https://github.com/codepetca/pika')
+  })
 })

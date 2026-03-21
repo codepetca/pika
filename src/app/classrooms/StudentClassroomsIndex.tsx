@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/ui'
+import { Button, Card, EmptyState } from '@/ui'
 import { PageActionBar, PageContent, PageLayout, type ActionBarItem } from '@/components/PageLayout'
 import type { Classroom } from '@/types'
 
@@ -37,31 +37,28 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
 
       <PageContent>
         {sorted.length === 0 ? (
-          <div className="bg-surface rounded-lg shadow-sm border border-border p-10 text-center">
-            <h2 className="text-lg font-semibold text-text-default">No classrooms yet</h2>
-            <div className="mt-6">
-              <Button onClick={() => router.push('/join')}>
-                Join classroom
-              </Button>
-            </div>
-          </div>
+          <EmptyState
+            title="No classrooms yet"
+            description="Join a classroom to get your lessons, assignments, and daily work in one place."
+            action={<Button onClick={() => router.push('/join')}>Join classroom</Button>}
+          />
         ) : (
-          <div className="bg-surface rounded-lg shadow-sm border border-border divide-y divide-border">
+          <Card tone="panel" padding="none" className="overflow-hidden">
             {sorted.map((c) => (
               <button
                 key={c.id}
                 data-testid="classroom-card"
                 onClick={() => router.push(`/classrooms/${c.id}?tab=today`)}
-                className="w-full p-4 text-left hover:bg-surface-hover transition-colors cursor-pointer"
+                className="w-full cursor-pointer border-b border-border px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-surface-accent"
               >
-                <div className="text-sm font-semibold text-text-default">{c.title}</div>
-                <div className="mt-1 text-sm text-text-muted">
+                <div className="text-base font-semibold text-text-default">{c.title}</div>
+                <div className="mt-1 text-sm leading-6 text-text-muted">
                   Code: <span className="font-mono">{c.class_code}</span>
                   {c.term_label ? ` • ${c.term_label}` : ''}
                 </div>
               </button>
             ))}
-          </div>
+          </Card>
         )}
       </PageContent>
     </PageLayout>

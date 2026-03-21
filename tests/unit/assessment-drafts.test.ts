@@ -70,6 +70,8 @@ describe('assessment drafts', () => {
         {
           title: 'Draft Test',
           show_results: false,
+          source_format: 'markdown',
+          source_markdown: 'Title: Draft Test\r\n\r\n## Questions',
           questions: [
             {
               id: TEST_ID_1,
@@ -87,6 +89,8 @@ describe('assessment drafts', () => {
       value: {
         title: 'Draft Test',
         show_results: false,
+        source_format: 'markdown',
+        source_markdown: 'Title: Draft Test\n\n## Questions',
         questions: [
           {
             id: TEST_ID_1,
@@ -100,6 +104,39 @@ describe('assessment drafts', () => {
             response_monospace: false,
           },
         ],
+      },
+    })
+  })
+
+  it('preserves markdown metadata when applying a full test draft update', () => {
+    const result = buildNextDraftContent(
+      {
+        title: 'Current Test',
+        show_results: false,
+        questions: [],
+        source_format: 'markdown' as const,
+        source_markdown: 'Title: Current Test',
+      },
+      {
+        content: {
+          title: 'Updated Test',
+          show_results: true,
+          questions: [],
+          source_format: 'markdown',
+          source_markdown: 'Title: Updated Test',
+        },
+      },
+      validateTestDraftContent
+    )
+
+    expect(result).toEqual({
+      ok: true,
+      content: {
+        title: 'Updated Test',
+        show_results: true,
+        questions: [],
+        source_format: 'markdown',
+        source_markdown: 'Title: Updated Test',
       },
     })
   })
@@ -200,6 +237,7 @@ describe('assessment drafts', () => {
     ).toEqual({
       title: 'Test',
       show_results: false,
+      source_format: 'markdown',
       questions: [
         {
           id: TEST_ID_1,

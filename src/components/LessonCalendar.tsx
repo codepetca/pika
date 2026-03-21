@@ -5,10 +5,11 @@ import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, 
 import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
-import { extractTextFromTiptap } from '@/lib/lesson-plan-markdown'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { DialogPanel, Tooltip } from '@/ui'
-import type { ClassDay, LessonPlan, TiptapContent, Classroom, Assignment, Announcement } from '@/types'
+import type { Announcement, Assignment, ClassDay, Classroom, LessonPlan } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
 
@@ -27,7 +28,7 @@ interface LessonCalendarProps {
   showHeader?: boolean
   onDateChange: (date: Date) => void
   onViewModeChange: (mode: CalendarViewMode) => void
-  onContentChange?: (date: string, content: TiptapContent) => void
+  onContentChange?: (date: string, contentMarkdown: string) => void
   onAssignmentClick?: (assignment: Assignment) => void
   onAnnouncementClick?: () => void
   onMarkdownToggle?: () => void
@@ -41,7 +42,8 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const GRID_COLUMNS_7 = '0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
 // Grid with month column: 24px for month, then same proportions
 const GRID_COLUMNS_8 = '24px 0.5fr 2fr 2fr 2fr 2fr 2fr 0.5fr'
-
+const MONTH_ROW_MIN_HEIGHT = '4.5rem'
+const MONTH_ROW_EXPANDED_MIN_HEIGHT = '9rem'
 // Determine which month a week belongs to (month with 3+ days wins)
 function getWeekMonth(week: Date[]): { key: string; name: string } {
   const monthCounts = new Map<string, { count: number; date: Date }>()
@@ -282,15 +284,13 @@ export function LessonCalendar({
     const dateString = format(presentedDay, 'yyyy-MM-dd')
     const isWeekendDay = isWeekend(presentedDay)
     const lessonPlan = plansByDate.get(dateString) || null
-    const lessonText = lessonPlan?.content?.content?.length
-      ? extractTextFromTiptap(lessonPlan.content)
-      : ''
+    const lessonMarkdown = lessonPlan ? getLessonPlanMarkdown(lessonPlan).markdown : ''
 
     return {
       day: presentedDay,
       dateString,
       lessonPlan,
-      lessonText,
+      lessonMarkdown,
       assignments: assignmentsByDate.get(dateString) || [],
       announcements: announcementsByDate.get(dateString) || [],
       isWeekend: isWeekendDay,
@@ -314,7 +314,7 @@ export function LessonCalendar({
   }, [viewMode, currentDate, classroom.start_date, classroom.end_date])
 
   return (
-    <div className="flex flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden">
       {/* Header with navigation, view mode selector, and actions */}
       {showHeader && (
         <div className="grid grid-cols-3 items-center border-b border-border bg-surface px-4 py-1.5">
@@ -438,8 +438,13 @@ export function LessonCalendar({
 
       {/* Scrollable container for all mode */}
       <div
-        className={viewMode === 'all' ? 'overflow-y-auto' : ''}
-        style={viewMode === 'all' ? { maxHeight: `calc(100vh - 120px)` } : undefined}
+        className={
+          viewMode === 'all'
+            ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto'
+            : viewMode === 'month'
+              ? 'min-h-0 flex-1 overflow-x-hidden'
+              : 'overflow-x-hidden'
+        }
       >
         {/* Calendar grid - in all mode, includes header row */}
         <div
@@ -453,11 +458,10 @@ export function LessonCalendar({
                 ? `auto ${weeks.map(() => 'auto').join(' ')}`
                 : weeks.map((_, idx) => {
                     const isExpanded = expandedWeekIdx === idx
-                    if (isExpanded) return 'minmax(60px, 1.5fr)'
-                    return 'minmax(0, 1fr)'
+                    if (isExpanded) return `minmax(${MONTH_ROW_EXPANDED_MIN_HEIGHT}, auto)`
+                    return `minmax(${MONTH_ROW_MIN_HEIGHT}, auto)`
                   }).join(' '),
-            // In month view (not all), calculate height to fit all weeks
-            height: viewMode === 'week' ? 'auto' : viewMode === 'all' ? undefined : `calc(100vh - 120px)`,
+            height: viewMode === 'week' ? 'auto' : undefined,
             minHeight: viewMode === 'week' ? '200px' : undefined,
           }}
         >
@@ -544,7 +548,7 @@ export function LessonCalendar({
                   isWeekend={isWeekendDay}
                   isToday={isToday}
                   isClassDay={isClassDay}
-                  editable={editable && !isWeekendDay && viewMode !== 'all'}
+                  editable={editable && !isWeekendDay}
                   compact={viewMode !== 'week' && !isExpanded}
                   plainTextOnly={viewMode === 'all'}
                   onContentChange={onContentChange}
@@ -575,10 +579,12 @@ export function LessonCalendar({
             </h2>
 
             <div className="mt-8 flex-1 overflow-y-auto">
-              {presentedDayDetails.lessonText ? (
-                <div className="whitespace-pre-wrap text-2xl leading-relaxed text-text-default sm:text-3xl">
-                  {presentedDayDetails.lessonText}
-                </div>
+              {presentedDayDetails.lessonMarkdown ? (
+                <LimitedMarkdown
+                  content={presentedDayDetails.lessonMarkdown}
+                  className="space-y-4 text-2xl leading-relaxed sm:text-3xl [&_p]:text-2xl [&_p]:leading-relaxed [&_ul]:text-2xl [&_ol]:text-2xl [&_blockquote]:text-2xl [&_h1]:text-3xl [&_h2]:text-3xl [&_h3]:text-2xl sm:[&_p]:text-3xl sm:[&_ul]:text-3xl sm:[&_ol]:text-3xl sm:[&_blockquote]:text-3xl sm:[&_h1]:text-4xl sm:[&_h2]:text-4xl sm:[&_h3]:text-3xl"
+                  emptyPlaceholder={null}
+                />
               ) : (
                 <div className="text-2xl leading-relaxed text-text-muted sm:text-3xl">
                   No lesson content for this day.

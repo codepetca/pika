@@ -11,4 +11,3 @@ export function isAssignmentVisibleToStudents(
   if (!assignment.released_at) return true
   return new Date(assignment.released_at).getTime() <= now.getTime()
 }
-

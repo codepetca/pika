@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { forwardRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle } from 'react'
 import { StudentAssignmentsTab } from '@/app/classrooms/[classroomId]/StudentAssignmentsTab'
 import type { Classroom, AssignmentWithStatus } from '@/types'
 
@@ -22,9 +22,20 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/StudentAssignmentEditor', () => ({
-  StudentAssignmentEditor: forwardRef((_props, _ref) => (
-    <div data-testid="student-editor">Editor</div>
-  )),
+  StudentAssignmentEditor: forwardRef((props: any, ref) => {
+    useImperativeHandle(ref, () => ({
+      submit: vi.fn(),
+      unsubmit: vi.fn(),
+      openRepoDialog: vi.fn(),
+      isSubmitted: false,
+      canSubmit: false,
+      submitting: false,
+    }))
+    useEffect(() => {
+      props.onStateChange?.({ isSubmitted: false, canSubmit: false, submitting: false, hasRepoMetadata: false })
+    }, [props.onStateChange])
+    return <div data-testid="student-editor">Editor</div>
+  }),
 }))
 
 vi.mock('@/components/editor', () => ({
@@ -54,6 +65,7 @@ function makeAssignment(overrides: Partial<AssignmentWithStatus> = {}): Assignme
     classroom_id: 'cls-1',
     title: 'Essay Assignment',
     description: 'Write an essay',
+    instructions_markdown: 'Write an essay',
     rich_instructions: null,
     due_at: '2025-06-01T00:00:00Z',
     created_at: '2024-01-01T00:00:00Z',
@@ -172,6 +184,35 @@ describe('StudentAssignmentsTab', () => {
     // Modal should be gone
     await waitFor(() => {
       expect(screen.queryByText('Write an essay')).not.toBeInTheDocument()
+    })
+  })
+
+  it('shows Repo action when editing an assignment', async () => {
+    const viewed = makeAssignment({
+      doc: {
+        id: 'doc-1',
+        assignment_id: 'asgn-1',
+        student_id: 'stu-1',
+        content: { type: 'doc', content: [] },
+        is_submitted: false,
+        submitted_at: null,
+        viewed_at: '2024-06-01T00:00:00Z',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      } as any,
+    })
+    searchParamsMap.set('assignmentId', 'asgn-1')
+    mockFetchAssignments([viewed])
+
+    render(
+      <StudentAssignmentsTab
+        classroom={classroom}
+        selectedAssignmentId={searchParamsMap.get('assignmentId') ?? null}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Repo' })).toBeInTheDocument()
     })
   })
 })

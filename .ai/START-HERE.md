@@ -2,9 +2,11 @@
 
 **CRITICAL:** Follow this checklist at the start of **every** AI session.
 
+**Automated alternative:** Run `/session-start` (Claude Code) or paste `.codex/prompts/session-start.md` (Codex).
+
 ---
 
-## Quick Checklist (2 min)
+## Quick Checklist
 
 ```
 [ ] Verify worktree: echo $PIKA_WORKTREE (must NOT be $HOME/Repos/pika)
@@ -14,152 +16,35 @@
 [ ] Read: docs/ai-instructions.md (then follow its reading order)
 [ ] Identify task: GitHub issue, features.json, or ask user
 [ ] Plan before coding: state task, propose approach, wait for approval
-[ ] If landing to main: use squash/linear history (no merge commits)
-[ ] If merging into production: use PR flow (direct push is blocked)
-```
-
----
-
-## 0) Worktree Workflow (MANDATORY)
-
-Never do branch work inside `$HOME/Repos/pika/` (the hub checkout).
-
-If you need a branch/PR, create and use a dedicated worktree under `$HOME/Repos/.worktrees/pika/`.
-
-**Quick start (existing worktree):**
-```bash
-pika ls
-pika claude <worktree>
-# or
-pika codex <worktree>
-```
-
-**Creating a new worktree:** Follow `docs/dev-workflow.md` (authoritative).
-It covers `git worktree add` and the `.env.local` symlink to `$HOME/Repos/.env/pika/.env.local`.
-
-See: `docs/dev-workflow.md` and `docs/ai-instructions.md` (authoritative source)
-
-### Worktree Rules (Mandatory)
-
-- This repo uses git worktrees.
-- Each agent session is bound to exactly ONE worktree.
-- The active worktree path is in $PIKA_WORKTREE.
-
-Rules:
-- NEVER assume the shell cwd.
-- ALL git commands MUST use: git -C "$PIKA_WORKTREE".
-- ALL file paths MUST be absolute or prefixed with "$PIKA_WORKTREE".
-
-If you need to run hub-level git commands (add/remove worktrees), set:
-- `export PIKA_WORKTREE="$HOME/Repos/pika"`
-
-If unsure which worktree to use:
-- Ask the user to run `pika ls`.
-
-### Main Branch Merge Rule (MANDATORY)
-
-- `main` rejects merge commits.
-- Do not use `git merge --no-ff` when preparing changes for `main`.
-- Land work using one of:
-  - GitHub PR **Squash and merge**
-  - Linear local flow (rebase/cherry-pick/squash) that produces non-merge commits
-
----
-
-## 1) Verify the Environment (1–2 min)
-
-```bash
-bash "$PIKA_WORKTREE/scripts/verify-env.sh"
-```
-
-Optional (slower):
-```bash
-bash "$PIKA_WORKTREE/scripts/verify-env.sh" --full
 ```
 
 Do not start coding if verification fails.
 
 ---
 
-## 2) Recover Context (2–3 min)
+## Worktree Rules (MANDATORY)
 
-```bash
-# Read the last few journal entries
-tail -80 "$PIKA_WORKTREE/.ai/JOURNAL.md"
+All agents are bound to exactly ONE worktree via `$PIKA_WORKTREE`.
 
-# Review recent code changes
-git -C "$PIKA_WORKTREE" log --oneline -10
-git -C "$PIKA_WORKTREE" status
-
-# Optional: recent GitHub activity
-gh pr list --state closed --limit 5
-gh issue list --state closed --limit 5
-```
-
----
-
-## 3) Load Documentation (MANDATORY)
-
-`docs/ai-instructions.md` is the **single source of truth** for:
-- Required reading order (7 core docs)
-- Critical constraints (MANDATORY/PROHIBITED)
-- Common workflows
-- Agent selection
-
-**Read `docs/ai-instructions.md` and follow its reading order.** If instructions conflict, `docs/ai-instructions.md` wins.
-
-Only after completing the reading order should you inspect or modify source code.
-
----
-
-## 4) Check Feature Inventory (1 min)
-
-```bash
-node "$PIKA_WORKTREE/scripts/features.mjs" summary
-node "$PIKA_WORKTREE/scripts/features.mjs" next
-```
-
----
-
-## 5) Identify the Task (1 min)
-
-Priority order:
-1. If you’re working a GitHub issue → follow `docs/issue-worker.md`.
-2. Otherwise → pick the next failing, unblocked feature in `.ai/features.json`.
-3. If nothing is clear → ask the user what to do next.
-
----
-
-## 6) Plan Before Coding (MANDATORY)
-
-Before writing code:
-- State what you think the task is.
-- Reference any relevant docs/architecture constraints.
-- Propose an implementation plan and a testing plan.
-- **Wait for user approval.**
-
----
-
-## During Work
-
-- Prefer TDD for core logic (see `docs/core/tests.md`).
-- Keep UI thin; move business logic into utilities/server actions.
-- Do not add dependencies unless explicitly approved.
-- Do not commit secrets or `.env.local`.
-- **UI Verification**: After UI changes, take screenshots with `npx playwright screenshot` (see `docs/guides/ai-ui-testing.md`).
+- NEVER assume the shell cwd.
+- ALL git commands MUST use: `git -C "$PIKA_WORKTREE"`.
+- ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`.
+- Never do branch work in `$HOME/Repos/pika/` (the hub). Use worktrees under `$HOME/Repos/.worktrees/pika/`.
+- For hub-level git commands (add/remove worktrees): `export PIKA_WORKTREE="$HOME/Repos/pika"`
+- Creating worktrees: see `docs/dev-workflow.md`
 
 ---
 
 ## End of Session (MANDATORY)
 
 1. Append a session entry to `$PIKA_WORKTREE/.ai/JOURNAL.md`.
-2. Update `.ai/features.json` status if anything changed:
+2. Update `.ai/features.json` if anything changed:
    ```bash
    node "$PIKA_WORKTREE/scripts/features.mjs" pass <feature-id>
    node "$PIKA_WORKTREE/scripts/features.mjs" fail <feature-id>
    ```
 3. Commit and push the journal + feature changes.
-4. If the work was merged, remove the worktree and delete the local branch:
+4. If work was merged, clean up:
    ```bash
    export PIKA_WORKTREE="$HOME/Repos/pika"
    git -C "$PIKA_WORKTREE" worktree remove "$HOME/Repos/.worktrees/pika/<branch-name>"
@@ -170,12 +55,12 @@ Before writing code:
 
 ## Document Hierarchy (When Conflicts Arise)
 
-If sources contradict, trust in this order:
-1. `.ai/features.json` — what is “done” / what is next (status authority)
+Trust in this order:
+1. `.ai/features.json` — status authority
 2. `docs/core/architecture.md` — architecture and invariants
 3. `docs/core/tests.md` — testing requirements
 4. `docs/core/design.md` — UI/UX rules
 5. `docs/core/project-context.md` — setup and commands
-6. `docs/core/roadmap.md` — phase strategy (human-facing)
+6. `docs/core/roadmap.md` — phase strategy
 7. `docs/core/decision-log.md` — historical rationale
 8. `.ai/JOURNAL.md` — session history

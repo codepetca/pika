@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button, Tooltip } from '@/ui'
+import { Button, ContentDialog, FormField, Input, Tooltip } from '@/ui'
+import { Card } from '@/ui/Card'
+import { EmptyState } from '@/ui/EmptyState'
 import { History } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { ACTIONBAR_BUTTON_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import {
   formatDueDate,
@@ -19,11 +22,12 @@ import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
-import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
+import type { Assignment, AssignmentDoc, AssignmentDocHistoryEntry, AssignmentFeedbackEntry, TiptapContent } from '@/types'
 
 export interface StudentAssignmentEditorHandle {
   submit: () => Promise<void>
   unsubmit: () => Promise<void>
+  openRepoDialog: () => void
   isSubmitted: boolean
   canSubmit: boolean
   submitting: boolean
@@ -34,7 +38,7 @@ interface Props {
   assignmentId: string
   variant?: 'standalone' | 'embedded'
   onExit?: () => void
-  onStateChange?: (state: { isSubmitted: boolean; canSubmit: boolean; submitting: boolean }) => void
+  onStateChange?: (state: { isSubmitted: boolean; canSubmit: boolean; submitting: boolean; hasRepoMetadata: boolean }) => void
 }
 
 export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle, Props>(function StudentAssignmentEditor({
@@ -53,7 +57,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [doc, setDoc] = useState<AssignmentDoc | null>(null)
+  const [feedbackEntries, setFeedbackEntries] = useState<AssignmentFeedbackEntry[]>([])
   const [content, setContent] = useState<TiptapContent>({ type: 'doc', content: [] })
+  const [repoUrl, setRepoUrl] = useState('')
+  const [githubUsername, setGithubUsername] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
@@ -65,12 +72,15 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const [isHistoryOpen, setIsHistoryOpen] = useState(true)
   const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [restoringId, setRestoringId] = useState<string | null>(null)
+  const [showRepoDialog, setShowRepoDialog] = useState(false)
 
   // Save state
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [submitting, setSubmitting] = useState(false)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSavedContentRef = useRef('')
+  const lastSavedRepoUrlRef = useRef('')
+  const lastSavedGitHubUsernameRef = useRef('')
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
   const pendingContentRef = useRef<TiptapContent | null>(null)
@@ -93,8 +103,15 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
       setAssignment(data.assignment)
       setDoc(data.doc)
+      setFeedbackEntries(data.feedback_entries || [])
       setContent(data.doc?.content || { type: 'doc', content: [] })
+      const nextRepoUrl = data.doc?.repo_url || ''
+      const nextGithubUsername = data.doc?.github_username || ''
+      setRepoUrl(nextRepoUrl)
+      setGithubUsername(nextGithubUsername)
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
+      lastSavedRepoUrlRef.current = nextRepoUrl
+      lastSavedGitHubUsernameRef.current = nextGithubUsername
 
       // Decrement notification count only if this was the first view (server confirmed)
       if (data.wasFirstView) {
@@ -141,10 +158,16 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   // Autosave with debouncing
   const saveContent = useCallback(async (
     newContent: TiptapContent,
+    newRepoUrl: string,
+    newGitHubUsername: string,
     options?: { trigger?: 'autosave' | 'blur' }
   ) => {
     const newContentStr = JSON.stringify(newContent)
-    if (newContentStr === lastSavedContentRef.current) {
+    if (
+      newContentStr === lastSavedContentRef.current
+      && newRepoUrl === lastSavedRepoUrlRef.current
+      && newGitHubUsername === lastSavedGitHubUsernameRef.current
+    ) {
       setSaveStatus('saved')
       return
     }
@@ -158,6 +181,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: newContent,
+          repo_url: newRepoUrl,
+          github_username: newGitHubUsername,
           trigger: options?.trigger ?? 'autosave',
           paste_word_count: pasteWordCountRef.current,
           keystroke_count: keystrokeCountRef.current,
@@ -187,6 +212,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         setPreviewEntry(prev => (prev?.id === historyEntry.id ? historyEntry : prev))
       }
       lastSavedContentRef.current = newContentStr
+      lastSavedRepoUrlRef.current = newRepoUrl
+      lastSavedGitHubUsernameRef.current = newGitHubUsername
       pasteWordCountRef.current = 0
       keystrokeCountRef.current = 0
       setSaveStatus('saved')
@@ -211,7 +238,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
 
     if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
-      void saveContent(newContent, { trigger: options?.trigger })
+      void saveContent(newContent, repoUrl, githubUsername, { trigger: options?.trigger })
       return
     }
 
@@ -220,10 +247,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       throttledSaveTimeoutRef.current = null
       const latest = pendingContentRef.current
       if (latest) {
-        void saveContent(latest, { trigger: options?.trigger })
+        void saveContent(latest, repoUrl, githubUsername, { trigger: options?.trigger })
       }
     }, waitMs)
-  }, [AUTOSAVE_MIN_INTERVAL_MS, saveContent])
+  }, [AUTOSAVE_MIN_INTERVAL_MS, githubUsername, repoUrl, saveContent])
 
   function handleContentChange(newContent: TiptapContent) {
     if (previewEntry) return
@@ -242,15 +269,35 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   }
 
   function flushAutosave() {
-    if (saveStatus === 'unsaved' && pendingContentRef.current) {
-      scheduleSave(pendingContentRef.current, { force: true, trigger: 'blur' })
+    if (saveStatus === 'unsaved') {
+      scheduleSave(pendingContentRef.current ?? content, { force: true, trigger: 'blur' })
     }
   }
+
+  function handleRepoFieldChange(field: 'repo_url' | 'github_username', value: string) {
+    if (field === 'repo_url') setRepoUrl(value)
+    if (field === 'github_username') setGithubUsername(value)
+    pendingContentRef.current = content
+    setSaveStatus('unsaved')
+  }
+
+  const openRepoDialog = useCallback(() => {
+    setShowRepoDialog(true)
+  }, [])
+
+  const closeRepoDialog = useCallback(() => {
+    setShowRepoDialog(false)
+  }, [])
+
+  const handleRepoDialogDone = useCallback(async () => {
+    await saveContent(content, repoUrl, githubUsername, { trigger: 'blur' })
+    setShowRepoDialog(false)
+  }, [content, githubUsername, repoUrl, saveContent])
 
   const handleSubmit = useCallback(async () => {
     // Save first if there are unsaved changes
     if (JSON.stringify(content) !== lastSavedContentRef.current) {
-      await saveContent(content, { trigger: 'autosave' })
+      await saveContent(content, repoUrl, githubUsername, { trigger: 'autosave' })
     }
 
     setSubmitting(true)
@@ -269,6 +316,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       setDoc(data.doc)
       // Update lastSavedContentRef to match the current content after successful submit
       lastSavedContentRef.current = JSON.stringify(content)
+      lastSavedRepoUrlRef.current = repoUrl
+      lastSavedGitHubUsernameRef.current = githubUsername
       setSaveStatus('saved')
     } catch (err: any) {
       console.error('Error submitting:', err)
@@ -276,7 +325,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     } finally {
       setSubmitting(false)
     }
-  }, [assignmentId, content, saveContent])
+  }, [assignmentId, content, githubUsername, repoUrl, saveContent])
 
   const handleUnsubmit = useCallback(async () => {
     setSubmitting(true)
@@ -293,6 +342,8 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       }
 
       setDoc(data.doc)
+      lastSavedRepoUrlRef.current = data.doc?.repo_url || repoUrl
+      lastSavedGitHubUsernameRef.current = data.doc?.github_username || githubUsername
     } catch (err: any) {
       console.error('Error unsubmitting:', err)
       setError(err.message || 'Failed to unsubmit')
@@ -380,7 +431,11 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       }
       setDoc(data.doc)
       setContent(data.doc?.content || { type: 'doc', content: [] })
+      setRepoUrl(data.doc?.repo_url || '')
+      setGithubUsername(data.doc?.github_username || '')
       lastSavedContentRef.current = JSON.stringify(data.doc?.content || { type: 'doc', content: [] })
+      lastSavedRepoUrlRef.current = data.doc?.repo_url || ''
+      lastSavedGitHubUsernameRef.current = data.doc?.github_username || ''
       setSaveStatus('saved')
       await loadHistory()
       handleExitPreview({ restoreDraft: false })
@@ -394,30 +449,32 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   // Compute state for imperative handle (before early returns)
   const isSubmitted = doc?.is_submitted || false
-  const canSubmit = !isEmpty(content) && !previewEntry
+  const canSubmit = (!isEmpty(content) || !!repoUrl.trim() || !!githubUsername.trim()) && !previewEntry
+  const hasRepoMetadata = !!repoUrl.trim() || !!githubUsername.trim()
 
   // Expose imperative handle for parent components
   useImperativeHandle(ref, () => ({
     submit: handleSubmit,
     unsubmit: handleUnsubmit,
+    openRepoDialog,
     isSubmitted,
     canSubmit,
     submitting,
-  }), [handleSubmit, handleUnsubmit, isSubmitted, canSubmit, submitting])
+  }), [handleSubmit, handleUnsubmit, openRepoDialog, isSubmitted, canSubmit, submitting])
 
   // Notify parent of state changes
   useEffect(() => {
-    onStateChange?.({ isSubmitted, canSubmit, submitting })
-  }, [isSubmitted, canSubmit, submitting, onStateChange])
+    onStateChange?.({ isSubmitted, canSubmit, submitting, hasRepoMetadata })
+  }, [isSubmitted, canSubmit, submitting, hasRepoMetadata, onStateChange])
 
   if (loading) {
     if (isEmbedded) {
       return (
-        <div className="bg-surface rounded-lg shadow-sm border border-border">
-          <div className="p-6 flex justify-center">
+        <Card tone="panel" padding="lg">
+          <div className="flex justify-center">
             <Spinner size="lg" />
           </div>
-        </div>
+        </Card>
       )
     }
     return (
@@ -431,27 +488,28 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     const exit = onExit ?? (() => router.push(`/classrooms/${classroomId}?tab=assignments`))
     if (isEmbedded) {
       return (
-        <div className="bg-surface rounded-lg shadow-sm border border-border p-8 text-center">
-          <p className="text-danger mb-4">{error}</p>
-          <button
-            onClick={exit}
-            className="text-primary hover:text-primary-hover"
-          >
-            Back to assignments
-          </button>
-        </div>
+        <EmptyState
+          title="Assignment unavailable"
+          description={<span className="text-danger">{error}</span>}
+          action={
+            <button onClick={exit} className="text-primary hover:text-primary-hover">
+              Back to assignments
+            </button>
+          }
+          tone="muted"
+        />
       )
     }
     return (
-      <div className="bg-surface rounded-lg shadow-sm p-8 text-center">
-        <p className="text-danger mb-4">{error}</p>
-        <button
-          onClick={() => router.back()}
-          className="text-primary hover:text-primary-hover"
-        >
-          Go back
-        </button>
-      </div>
+      <EmptyState
+        title="Assignment unavailable"
+        description={<span className="text-danger">{error}</span>}
+        action={
+          <button onClick={() => router.back()} className="text-primary hover:text-primary-hover">
+            Go back
+          </button>
+        }
+      />
     )
   }
 
@@ -461,28 +519,45 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
 
   const status = calculateAssignmentStatus(assignment, doc)
   const isPreviewLocked = lockedEntryId !== null
-  const hasFeedback = Boolean(doc?.feedback?.trim())
   const hasCompletionScore = doc?.score_completion != null
   const hasThinkingScore = doc?.score_thinking != null
   const hasWorkflowScore = doc?.score_workflow != null
   const hasAnyScore = hasCompletionScore || hasThinkingScore || hasWorkflowScore
   const hasFullScoreSet = hasCompletionScore && hasThinkingScore && hasWorkflowScore
+  const feedbackVisible = Boolean(doc?.feedback_returned_at || doc?.returned_at || feedbackEntries.length > 0)
+  const displayedFeedbackEntries = feedbackEntries.length > 0
+    ? feedbackEntries
+    : (doc?.feedback?.trim() && doc.feedback_returned_at
+        ? [{
+            id: 'latest-feedback',
+            assignment_id: assignmentId,
+            student_id: doc.student_id,
+            entry_kind: doc.returned_at ? 'grading_feedback' : 'teacher_feedback',
+            author_type: 'teacher' as const,
+            body: doc.feedback.trim(),
+            returned_at: doc.feedback_returned_at,
+            created_at: doc.feedback_returned_at,
+            created_by: null,
+          }]
+        : [])
 
   const editorContent = (
     <div className="flex flex-col gap-6 h-full min-h-0">
       {/* Instructions */}
-      {!isEmbedded && (assignment.rich_instructions || assignment.description) && (
-        <div className="bg-page border border-border rounded-lg p-4">
-          {assignment.rich_instructions ? (
+      {!isEmbedded && (assignment.instructions_markdown || assignment.rich_instructions || assignment.description) && (
+        <Card tone="muted" padding="md">
+          {assignment.instructions_markdown ? (
+            <LimitedMarkdown content={assignment.instructions_markdown} />
+          ) : assignment.rich_instructions ? (
             <RichTextViewer content={assignment.rich_instructions} />
           ) : (
             <p className="text-text-muted whitespace-pre-wrap">{assignment.description}</p>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Editor with History Column */}
-      <div className="bg-surface rounded-lg shadow-sm border border-border flex flex-col min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col rounded-card border border-border bg-surface-panel shadow-elevated">
         {/* Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between gap-3">
@@ -490,6 +565,30 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
               <div className="text-sm font-medium text-text-muted truncate">
                 {assignment.title}
               </div>
+              {hasRepoMetadata && (
+                <div className="mt-1 min-w-0 space-y-0.5">
+                  <div className="truncate text-sm text-text-default">
+                    <span className="text-text-muted">Repo </span>
+                    {repoUrl.trim() ? (
+                      <a
+                        href={repoUrl.trim()}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {repoUrl.trim()}
+                      </a>
+                    ) : (
+                      '—'
+                    )}
+                  </div>
+                  <div className="truncate text-sm text-text-muted">
+                    <span className="font-medium text-text-default">
+                      {githubUsername.trim() ? `@${githubUsername.trim()}` : '—'}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
             <div
               className={`text-xs ${
@@ -671,13 +770,53 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         </div>
       )}
 
-      {/* Grade panel (shown when work has been returned) */}
-      {doc?.returned_at && (hasFeedback || hasAnyScore) && (
+      <ContentDialog
+        isOpen={showRepoDialog}
+        onClose={closeRepoDialog}
+        title="Add GitHub Repository"
+        maxWidth="max-w-md"
+        showHeaderClose={false}
+        showFooterClose={false}
+      >
+        <div className="space-y-4">
+          <FormField label="GitHub Repo Link">
+            <Input
+              value={repoUrl}
+              onChange={(event) => handleRepoFieldChange('repo_url', event.target.value)}
+              onBlur={flushAutosave}
+              placeholder="https://github.com/owner/repo"
+              disabled={submitting || !!previewEntry || isSubmitted}
+            />
+          </FormField>
+          <FormField label="GitHub Username">
+            <Input
+              value={githubUsername}
+              onChange={(event) => handleRepoFieldChange('github_username', event.target.value)}
+              onBlur={flushAutosave}
+              placeholder="github username"
+              disabled={submitting || !!previewEntry || isSubmitted}
+            />
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={closeRepoDialog}>
+              Cancel
+            </Button>
+            {!isSubmitted && (
+              <Button onClick={() => { void handleRepoDialogDone() }}>
+                Done
+              </Button>
+            )}
+          </div>
+        </div>
+      </ContentDialog>
+
+      {/* Feedback panel */}
+      {feedbackVisible && (
         <div className="bg-surface rounded-lg shadow-sm border border-border p-4 space-y-3">
           <h3 className="text-sm font-semibold text-text-default">Feedback</h3>
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <div className="space-y-2 text-sm md:pr-4 md:border-r md:border-border">
-              {hasCompletionScore && (
+              {doc?.returned_at && hasCompletionScore && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-text-muted">Completion</span>
                   <span className="inline-flex items-center gap-1 font-medium">
@@ -688,7 +827,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </span>
                 </div>
               )}
-              {hasThinkingScore && (
+              {doc?.returned_at && hasThinkingScore && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-text-muted">Thinking</span>
                   <span className="inline-flex items-center gap-1 font-medium">
@@ -699,7 +838,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </span>
                 </div>
               )}
-              {hasWorkflowScore && (
+              {doc?.returned_at && hasWorkflowScore && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-text-muted">Workflow</span>
                   <span className="inline-flex items-center gap-1 font-medium">
@@ -710,7 +849,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </span>
                 </div>
               )}
-              {hasFullScoreSet && (
+              {doc?.returned_at && hasFullScoreSet && (
                 <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 pt-1">
                   <span className="text-text-default font-medium">Total</span>
                   <div className="flex justify-center">
@@ -726,14 +865,32 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   </span>
                 </div>
               )}
-              {!hasAnyScore && (
-                <div className="text-xs text-text-muted">No score assigned.</div>
+              {doc?.returned_at ? (
+                !hasAnyScore && (
+                  <div className="text-xs text-text-muted">No score assigned.</div>
+                )
+              ) : (
+                <div className="text-xs text-text-muted">Grades will appear after your teacher returns them.</div>
               )}
             </div>
-            <div>
-              <div className="text-sm text-text-default whitespace-pre-wrap">
-                {doc.feedback?.trim() || 'No feedback provided yet.'}
-              </div>
+            <div className="space-y-3">
+              {displayedFeedbackEntries.length > 0 ? (
+                displayedFeedbackEntries.map((entry) => (
+                  <div key={entry.id} className="rounded-md border border-border bg-page px-3 py-2">
+                    <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-text-muted">
+                      {entry.entry_kind === 'grading_feedback' ? 'Grade Return' : 'Returned Feedback'} . {' '}
+                      {formatInTimeZone(new Date(entry.returned_at), 'America/Toronto', 'MMM d, h:mm a')}
+                    </div>
+                    <div className="text-sm text-text-default whitespace-pre-wrap">
+                      {entry.body}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-text-default whitespace-pre-wrap">
+                  {doc?.feedback?.trim() || 'No feedback provided yet.'}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -786,7 +943,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
                   {submitting ? 'Unsubmitting...' : 'Unsubmit'}
                 </Button>
               ) : (
-                <Button size="sm" onClick={handleSubmit} disabled={submitting || isEmpty(content) || !!previewEntry}>
+                <Button size="sm" onClick={handleSubmit} disabled={submitting || !canSubmit}>
                   {submitting ? 'Submitting...' : 'Submit'}
                 </Button>
               )}

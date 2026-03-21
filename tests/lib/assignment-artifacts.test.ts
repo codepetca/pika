@@ -30,7 +30,13 @@ describe('extractAssignmentArtifacts', () => {
 
     expect(extractAssignmentArtifacts(content)).toEqual([
       { type: 'link', url: 'https://example.com/docs' },
-      { type: 'link', url: 'https://github.com/codepetca/pika' },
+      {
+        type: 'repo',
+        url: 'https://github.com/codepetca/pika',
+        repo_owner: 'codepetca',
+        repo_name: 'pika',
+        normalized_url: 'https://github.com/codepetca/pika',
+      },
     ])
   })
 
@@ -106,6 +112,40 @@ describe('extractAssignmentArtifacts', () => {
       { type: 'link', url: 'https://example.com/a' },
     ])
   })
+
+  it('classifies supported GitHub repo links as repo artifacts', () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'text',
+              text: 'Repo https://github.com/codepetca/pika/issues/1 and root https://github.com/openai/openai-node.git',
+            },
+          ],
+        },
+      ],
+    }
+
+    expect(extractAssignmentArtifacts(content)).toEqual([
+      {
+        type: 'repo',
+        url: 'https://github.com/codepetca/pika/issues/1',
+        repo_owner: 'codepetca',
+        repo_name: 'pika',
+        normalized_url: 'https://github.com/codepetca/pika',
+      },
+      {
+        type: 'repo',
+        url: 'https://github.com/openai/openai-node.git',
+        repo_owner: 'openai',
+        repo_name: 'openai-node',
+        normalized_url: 'https://github.com/openai/openai-node',
+      },
+    ])
+  })
 })
 
 describe('summarizeArtifactUrl', () => {
@@ -115,4 +155,3 @@ describe('summarizeArtifactUrl', () => {
     ).toBe('github.com/codepetca/pika')
   })
 })
-

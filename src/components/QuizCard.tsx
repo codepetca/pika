@@ -212,19 +212,19 @@ export function QuizCard({
     <>
       <div
         className={[
-          'w-full text-left p-3 border rounded-lg',
+          'w-full rounded-card border p-3.5 text-left shadow-elevated',
           isDraft
             ? 'border-border-strong bg-surface-2'
             : isScheduled
               ? 'border-warning bg-warning-bg'
-              : 'border-border bg-surface',
+              : 'border-border bg-surface-panel',
           isSelected
-            ? 'bg-info-bg border-primary'
+            ? 'border-primary bg-surface-selected shadow-panel'
             : isDraft
-              ? 'transition hover:border-border-strong hover:bg-surface-hover'
+              ? 'transition hover:border-border-strong hover:bg-surface-3'
               : isScheduled
                 ? 'transition hover:border-warning hover:bg-warning-bg'
-                : 'transition hover:border-primary hover:bg-info-bg',
+                : 'transition hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel',
         ].join(' ')}
       >
         <div className="grid grid-cols-[1fr_auto] items-center gap-3">
@@ -243,7 +243,7 @@ export function QuizCard({
             <div className="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
               <span>{quiz.stats.responded}/{quiz.stats.total_students} responded</span>
               <span
-                className={`inline-flex items-center shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass}`}
+                className={`inline-flex shrink-0 items-center rounded-badge px-2.5 py-1 text-xs font-semibold ${statusBadgeClass}`}
               >
                 {statusLabel}
               </span>
@@ -315,13 +315,13 @@ export function QuizCard({
             {isScheduled && (
               <>
                 <Tooltip content="Open now">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1.5 text-success"
-                    aria-label={`Open ${assessmentLabel} now`}
-                    disabled={isReadOnly || updating}
-                    onClick={(e) => {
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-1.5 text-success hover:bg-success-bg-muted"
+                  aria-label={`Open ${assessmentLabel} now`}
+                  disabled={isReadOnly || updating}
+                  onClick={(e) => {
                       e.stopPropagation()
                       handleOpenNow()
                     }}
@@ -330,13 +330,13 @@ export function QuizCard({
                   </Button>
                 </Tooltip>
                 <Tooltip content="Cancel schedule (back to draft)">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-1.5"
-                    aria-label="Cancel scheduled open"
-                    disabled={isReadOnly || updating}
-                    onClick={(e) => {
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-1.5 hover:bg-surface-accent"
+                  aria-label="Cancel scheduled open"
+                  disabled={isReadOnly || updating}
+                  onClick={(e) => {
                       e.stopPropagation()
                       setShowCancelScheduleConfirm(true)
                     }}
@@ -368,7 +368,7 @@ export function QuizCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="p-1.5"
+                  className="p-1.5 hover:bg-surface-accent"
                   aria-label={isScheduled ? 'Reschedule quiz open' : 'Schedule quiz open'}
                   disabled={isReadOnly || updating || (quiz.status === 'draft' && !activation.valid)}
                   onClick={(e) => {
@@ -386,7 +386,7 @@ export function QuizCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`p-1.5 ${quiz.show_results ? 'text-primary' : ''}`}
+                  className={`p-1.5 hover:bg-surface-accent ${quiz.show_results ? 'text-primary' : ''}`}
                   aria-label={quiz.show_results ? 'Hide results from students' : 'Show results to students'}
                   disabled={isReadOnly || updating}
                   onClick={handleToggleShowResults}

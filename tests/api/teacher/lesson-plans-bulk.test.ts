@@ -30,7 +30,7 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.error).toContain('plans array is required')
+    expect(data.error).toContain('plans or cleared_dates is required')
   })
 
   it('should return 400 when plans array is empty', async () => {
@@ -44,7 +44,7 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.error).toContain('plans array is required')
+    expect(data.error).toContain('plans or cleared_dates is required')
   })
 
   it('should return 400 when plans exceed max limit (250)', async () => {
@@ -146,8 +146,8 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
 
   it('should bulk upsert lesson plans successfully', async () => {
     const mockResults = [
-      { id: 'lp-1', classroom_id: 'c-1', date: '2025-01-06', content: { type: 'doc', content: [] } },
-      { id: 'lp-2', classroom_id: 'c-1', date: '2025-01-07', content: { type: 'doc', content: [] } },
+      { id: 'lp-1', classroom_id: 'c-1', date: '2025-01-06', content: { type: 'doc', content: [] }, content_markdown: 'Plan 1' },
+      { id: 'lp-2', classroom_id: 'c-1', date: '2025-01-07', content: { type: 'doc', content: [] }, content_markdown: 'Plan 2' },
     ]
 
     const mockFrom = vi.fn(() => ({
@@ -175,6 +175,7 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
     const data = await response.json()
     expect(data.updated).toBe(2)
     expect(data.lesson_plans).toHaveLength(2)
+    expect(data.lesson_plans[0].content_markdown).toBe('Plan 1')
   })
 
   it('should return 401 when not authenticated', async () => {
@@ -219,5 +220,32 @@ describe('PUT /api/teacher/classrooms/[id]/lesson-plans/bulk', () => {
     )
     const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
     expect(response.status).toBe(500)
+  })
+
+  it('should delete cleared dates even when no plans are provided', async () => {
+    const deleteChain = {
+      eq: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({ error: null }),
+    }
+    const mockFrom = vi.fn(() => ({
+      delete: vi.fn(() => deleteChain),
+    }))
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest(
+      'http://localhost:3000/api/teacher/classrooms/c-1/lesson-plans/bulk',
+      {
+        method: 'PUT',
+        body: JSON.stringify({ cleared_dates: ['2025-01-06'] }),
+      }
+    )
+    const response = await PUT(request, { params: Promise.resolve({ id: 'c-1' }) })
+
+    expect(response.status).toBe(200)
+    const data = await response.json()
+    expect(data.cleared).toBe(1)
+    expect(mockFrom).toHaveBeenCalledWith('lesson_plans')
+    expect(deleteChain.eq).toHaveBeenCalledWith('classroom_id', 'c-1')
+    expect(deleteChain.in).toHaveBeenCalledWith('date', ['2025-01-06'])
   })
 })
