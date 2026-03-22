@@ -292,7 +292,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         }
       }}
       className={`
-        relative h-full min-w-0 overflow-hidden
+        relative h-full min-w-0 overflow-hidden flex flex-col
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         ${isNonClassDay ? 'bg-surface-2/50' : ''}
         ${!editable && !hasContent && !isNonClassDay ? 'bg-surface-2/50' : ''}
@@ -367,7 +367,7 @@ export const LessonDayCell = memo(function LessonDayCell({
       )}
 
       {/* Content area */}
-      <div className={`calendar-day-text ${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
+      <div className={`calendar-day-text flex-1 min-h-0 ${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
         {isEditing ? (
           <textarea
             ref={textareaRef}
@@ -375,7 +375,7 @@ export const LessonDayCell = memo(function LessonDayCell({
             onChange={(event) => handleMarkdownChange(event.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={() => setIsEditing(false)}
-            className={`w-full resize-none border-none bg-transparent font-mono text-text-default focus:outline-none ${compact ? 'min-h-[4.5rem] text-[10px] leading-tight' : 'min-h-[6rem] text-sm leading-snug'}`}
+            className={`w-full h-full resize-none border-none bg-transparent font-mono text-text-default focus:outline-none ${compact ? 'text-[10px] leading-tight' : 'text-sm leading-snug'}`}
           />
         ) : (
           <button
