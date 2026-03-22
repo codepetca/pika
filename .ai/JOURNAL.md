@@ -7248,3 +7248,50 @@
 - `pnpm exec vitest run tests/components/calendar-view-persistence.test.tsx tests/api/teacher/assignments-id-return.test.ts` (pass)
 - `pnpm run test:coverage` (pass)
 - `pnpm build` (pass with existing hook-dependency warnings in `src/components/AssignmentModal.tsx` and `src/components/StudentAssignmentEditor.tsx`)
+
+---
+## 2026-03-21 [AI - Codex]
+**Goal:** Reduce horizontal crowding on `/classrooms` and add drag-drop classroom reordering
+**Completed:**
+- Added migration `022_classroom_position.sql` with a teacher-scoped `position` column for classrooms and a backfill based on the previous `updated_at` ordering
+- Added server helpers for ordered classroom fetches and top-position assignment with graceful fallback when the new column is not available yet
+- Updated teacher classroom loading, creation, and restore flows to use persisted ordering semantics
+- Added `POST /api/teacher/classrooms/reorder` to persist drag-drop ordering for the active classroom list
+- Reworked the teacher classrooms index to use `@dnd-kit` drag handles, optimistic reordering, and a wider row layout with more horizontal breathing room
+- Loosened the student classrooms list layout so title/term/code have clearer spacing on smaller screens
+- Added API tests for classroom ordering fetch/create, restore positioning, and reorder persistence
+- Installed `node_modules` in this worktree so local tests and Playwright verification could run against the modified code
+**Status:** completed
+**Artifacts:**
+- Branch: issue/147-drag-order-the-list-of-classrooms
+- Worktree: /Users/stew/Repos/.worktrees/pika/issue/147-drag-order-the-list-of-classrooms
+- Files:
+  - supabase/migrations/022_classroom_position.sql
+  - src/lib/server/classroom-order.ts
+  - src/app/api/teacher/classrooms/route.ts
+  - src/app/api/teacher/classrooms/[id]/route.ts
+  - src/app/api/teacher/classrooms/reorder/route.ts
+  - src/app/classrooms/page.tsx
+  - src/app/classrooms/TeacherClassroomsIndex.tsx
+  - src/app/classrooms/StudentClassroomsIndex.tsx
+  - src/components/SortableClassroomRow.tsx
+  - src/types/index.ts
+  - tests/api/teacher/classrooms.test.ts
+  - tests/api/teacher/classrooms-id.test.ts
+  - tests/api/teacher/classrooms-reorder.test.ts
+**Tests:** `pnpm exec vitest run tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/teacher/classrooms-reorder.test.ts`, `pnpm exec tsc --noEmit`, `pnpm run lint` (passes with pre-existing warnings in unrelated files)
+**UI Verify:** Captured and reviewed `/tmp/pika-classrooms-teacher.png` (teacher desktop) and `/tmp/pika-classrooms-student.png` (student mobile)
+**Migration:** Not applied here. Human still needs to apply `022_classroom_position.sql` before persisted classroom reordering works against a database.
+**Blockers:** None
+
+---
+## 2026-03-21 [AI - Codex]
+**Goal:** Rebase `issue/147-drag-order-the-list-of-classrooms` onto current `main` and resequence the classroom ordering migration
+**Completed:**
+- Stashed local work, rebased the worktree branch cleanly onto `origin/main`, and restored the in-progress changes
+- Resolved stash-pop conflicts by keeping current `main` route patterns (`withErrorHandler`, validation, display-info fetches, semantic UI primitives) and reapplying the classroom ordering changes on top
+- Renamed the classroom ordering migration from `022_classroom_position.sql` to `050_classroom_position.sql` to follow current `main`
+- Verified there are no duplicate migration number prefixes after resequencing
+**Tests:** `pnpm exec vitest run tests/api/teacher/classrooms.test.ts tests/api/teacher/classrooms-id.test.ts tests/api/teacher/classrooms-reorder.test.ts`, `pnpm exec tsc --noEmit`, `pnpm run lint` (passes with unrelated pre-existing warnings in assignment editor/modal files)
+**Migration:** Final branch migration filename is `supabase/migrations/050_classroom_position.sql`
+**Blockers:** None

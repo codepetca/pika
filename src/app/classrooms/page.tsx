@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getUserDisplayInfo } from '@/lib/user-profile'
+import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomsIndex } from './TeacherClassroomsIndex'
 import { StudentClassroomsIndex } from './StudentClassroomsIndex'
@@ -19,14 +20,8 @@ export default async function ClassroomsIndexPage() {
   const supabase = getServiceRoleClient()
 
   if (user.role === 'teacher') {
-    // Parallel fetch: classrooms + display info
     const [{ data: classrooms }, displayInfo] = await Promise.all([
-      supabase
-        .from('classrooms')
-        .select('*')
-        .eq('teacher_id', user.id)
-        .is('archived_at', null)
-        .order('updated_at', { ascending: false }),
+      listActiveTeacherClassrooms(supabase, user.id),
       getUserDisplayInfo(user, supabase),
     ])
 
@@ -37,7 +32,6 @@ export default async function ClassroomsIndexPage() {
     )
   }
 
-  // Student: parallel fetch enrollments + display info
   const [{ data: enrollments }, displayInfo] = await Promise.all([
     supabase
       .from('classroom_enrollments')
@@ -49,7 +43,6 @@ export default async function ClassroomsIndexPage() {
   const classroomIds = enrollments?.map(e => e.classroom_id) || []
 
   if (classroomIds.length === 0) {
-    // No enrollments, show empty state
     return (
       <AppShell user={{ email: user.email, role: user.role, ...displayInfo }}>
         <StudentClassroomsIndex initialClassrooms={[]} />

@@ -19,7 +19,7 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
   }, [classrooms])
 
   return (
-    <PageLayout className="max-w-5xl mx-auto">
+    <PageLayout className="mx-auto max-w-6xl">
       <PageActionBar
         primary={
           <h1 className="text-2xl font-bold text-text-default">Classrooms</h1>
@@ -51,10 +51,14 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
                 onClick={() => router.push(`/classrooms/${c.id}?tab=today`)}
                 className="w-full cursor-pointer border-b border-border px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-surface-accent"
               >
-                <div className="text-base font-semibold text-text-default">{c.title}</div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <div className="text-base font-semibold text-text-default">{c.title}</div>
+                  {c.term_label && (
+                    <div className="text-sm text-text-muted">{c.term_label}</div>
+                  )}
+                </div>
                 <div className="mt-1 text-sm leading-6 text-text-muted">
-                  Code: <span className="font-mono">{c.class_code}</span>
-                  {c.term_label ? ` • ${c.term_label}` : ''}
+                  Code: <span className="font-mono tracking-[0.18em]">{c.class_code}</span>
                 </div>
               </button>
             ))}

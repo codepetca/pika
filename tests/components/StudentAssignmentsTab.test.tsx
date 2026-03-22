@@ -145,7 +145,7 @@ describe('StudentAssignmentsTab', () => {
     })
 
     // Modal can be opened by default; close it first.
-    const closeButton = screen.getAllByRole('button', { name: 'Close' })[0]
+    const closeButton = screen.getByRole('button', { name: 'Close' })
     fireEvent.click(closeButton)
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Instructions' })).not.toBeInTheDocument()
@@ -176,10 +176,8 @@ describe('StudentAssignmentsTab', () => {
       expect(screen.getByText('Write an essay')).toBeInTheDocument()
     })
 
-    // Click the Close button
-    const closeButtons = screen.getAllByRole('button', { name: 'Close' })
-    const modalCloseButton = closeButtons.find((btn) => btn.textContent === 'Close')!
-    fireEvent.click(modalCloseButton)
+    // Close via the dialog header button
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     // Modal should be gone
     await waitFor(() => {

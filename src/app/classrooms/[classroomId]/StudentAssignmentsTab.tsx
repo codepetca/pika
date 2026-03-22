@@ -287,6 +287,7 @@ export function StudentAssignmentsTab({
         title="Instructions"
         subtitle={selectedAssignment?.title}
         maxWidth="max-w-4xl"
+        showFooterClose={false}
       >
         {selectedAssignment?.instructions_markdown ? (
           <LimitedMarkdown content={selectedAssignment.instructions_markdown} />
