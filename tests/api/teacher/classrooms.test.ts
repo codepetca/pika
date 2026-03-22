@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from '@/app/api/teacher/classrooms/route'
+import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({
@@ -18,41 +19,30 @@ vi.mock('@/lib/auth', () => ({
     throw new Error('Unauthorized')
   }),
 }))
+vi.mock('@/lib/server/classroom-order', () => ({
+  listActiveTeacherClassrooms: vi.fn(),
+  getNextTeacherClassroomPosition: vi.fn(),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
 describe('GET /api/teacher/classrooms', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    ;(listActiveTeacherClassrooms as any).mockResolvedValue({
+      data: [{ id: 'classroom-1', title: 'Math 101' }],
+      error: null,
+    })
   })
 
   it('should return list of active teacher classrooms', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          is: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({
-              data: [{ id: 'classroom-1', title: 'Math 101' }],
-              error: null,
-            }),
-          })),
-          not: vi.fn(() => ({
-            order: vi.fn().mockResolvedValue({
-              data: [{ id: 'classroom-archived', title: 'History 101' }],
-              error: null,
-            }),
-          })),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms')
     const response = await GET(request)
     const data = await response.json()
 
     expect(response.status).toBe(200)
     expect(data.classrooms).toHaveLength(1)
+    expect(listActiveTeacherClassrooms).toHaveBeenCalled()
   })
 
   it('should return archived classrooms when requested', async () => {
@@ -88,6 +78,7 @@ describe('GET /api/teacher/classrooms', () => {
 describe('POST /api/teacher/classrooms', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    ;(getNextTeacherClassroomPosition as any).mockResolvedValue(-1)
   })
 
   it('should return 400 when title is missing', async () => {
@@ -124,5 +115,10 @@ describe('POST /api/teacher/classrooms', () => {
 
     const response = await POST(request)
     expect(response.status).toBe(201)
+    expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Math 101',
+      term_label: 'Fall 2024',
+      position: -1,
+    }))
   })
 })

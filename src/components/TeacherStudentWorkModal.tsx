@@ -274,6 +274,7 @@ export function TeacherStudentWorkModal({
                           <RichTextViewer
                             content={previewContent || data.doc.content}
                             showPlainText={showPlainText}
+                            fillHeight
                           />
                         </div>
                         <div className="mt-2 text-xs text-text-muted">

@@ -584,7 +584,7 @@ export function TeacherStudentWorkPanel({
           )}
           {displayContent && !isEmpty(displayContent) ? (
             <div className="p-4">
-              <RichTextViewer content={displayContent} />
+              <RichTextViewer content={displayContent} fillHeight />
               <div className="mt-4 text-center text-xs text-text-muted">
                 {countCharacters(displayContent)} characters
               </div>

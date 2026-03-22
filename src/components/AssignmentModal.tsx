@@ -95,16 +95,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     instructionsHistoryIndexRef.current = nextHistory.length - 1
   }, [])
 
-  const applyInstructionsHistoryValue = useCallback((value: string) => {
-    isApplyingInstructionsHistoryRef.current = true
-    setInstructionsMarkdown(value)
-    setMarkdownWarning(null)
-    scheduleAutosave({ title, instructionsMarkdown: value, dueAt })
-    requestAnimationFrame(() => {
-      isApplyingInstructionsHistoryRef.current = false
-    })
-  }, [dueAt, title])
-
   const scheduling = useAssignmentScheduling({
     currentAssignment,
     isCreateMode,
@@ -212,10 +202,21 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
         throttledSaveTimeoutRef.current = null
       }
     }
-  }, [assignment, isOpen, setDueAt, setError, defaultDueAt])
+  }, [
+    assignment,
+    defaultDueAt,
+    isOpen,
+    resetForAssignment,
+    resetInstructionsHistory,
+    setDueAt,
+    setError,
+    setPrimaryAction,
+    setScheduleDate,
+    setScheduleTime,
+  ])
 
   // Get only the fields that changed compared to last saved values
-  function getChangedFields(values: AssignmentEditorValues) {
+  const getChangedFields = useCallback((values: AssignmentEditorValues) => {
     const saved = lastSavedValuesRef.current
     if (!saved) return null
 
@@ -227,7 +228,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
 
     return Object.keys(changes).length > 0 ? changes : null
-  }
+  }, [])
 
   // Create a new assignment
   const createAssignment = useCallback(async (
@@ -303,7 +304,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }
 
     void createDraft()
-  }, [creating, createAssignment, defaultDueAt, setDueAt, onClose])
+  }, [creating, createAssignment, defaultDueAt, onClose, resetInstructionsHistory, setDueAt])
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
@@ -418,8 +419,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     }, waitMs)
   }, [saveChanges])
 
-  // Schedule autosave after a debounce period
-  function scheduleAutosave(values: AssignmentEditorValues) {
+  const scheduleAutosave = useCallback((values: AssignmentEditorValues) => {
     pendingValuesRef.current = values
     setSaveStatus('unsaved')
 
@@ -430,7 +430,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, classDays, on
     saveTimeoutRef.current = setTimeout(() => {
       scheduleSave(values)
     }, AUTOSAVE_DEBOUNCE_MS)
-  }
+  }, [scheduleSave])
+
+  const applyInstructionsHistoryValue = useCallback((value: string) => {
+    isApplyingInstructionsHistoryRef.current = true
+    setInstructionsMarkdown(value)
+    setMarkdownWarning(null)
+    scheduleAutosave({ title, instructionsMarkdown: value, dueAt })
+    requestAnimationFrame(() => {
+      isApplyingInstructionsHistoryRef.current = false
+    })
+  }, [dueAt, scheduleAutosave, title])
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)

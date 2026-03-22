@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { createClassroomSchema } from '@/lib/validations/teacher'
+import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -24,18 +25,23 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
   const { searchParams } = new URL(request.url)
   const archivedParam = searchParams.get('archived')
 
-  let query = supabase
-    .from('classrooms')
-    .select('*')
-    .eq('teacher_id', user.id)
+  let classrooms
+  let error
 
   if (archivedParam === 'true') {
-    query = query.not('archived_at', 'is', null).order('archived_at', { ascending: false })
+    const result = await supabase
+      .from('classrooms')
+      .select('*')
+      .eq('teacher_id', user.id)
+      .not('archived_at', 'is', null)
+      .order('archived_at', { ascending: false })
+    classrooms = result.data
+    error = result.error
   } else {
-    query = query.is('archived_at', null).order('updated_at', { ascending: false })
+    const result = await listActiveTeacherClassrooms(supabase, user.id)
+    classrooms = result.data
+    error = result.error
   }
-
-  const { data: classrooms, error } = await query
 
   if (error) {
     console.error('Error fetching classrooms:', error)
@@ -52,17 +58,22 @@ export const POST = withErrorHandler('CreateClassroom', async (request: NextRequ
 
   const supabase = getServiceRoleClient()
 
-  // Generate class code if not provided
   const finalClassCode = classCode || generateClassCode()
+  const nextPosition = await getNextTeacherClassroomPosition(supabase, user.id)
+  const insertBody: Record<string, any> = {
+    teacher_id: user.id,
+    title,
+    class_code: finalClassCode,
+    term_label: termLabel || null,
+  }
+
+  if (nextPosition !== null) {
+    insertBody.position = nextPosition
+  }
 
   const { data: classroom, error } = await supabase
     .from('classrooms')
-    .insert({
-      teacher_id: user.id,
-      title,
-      class_code: finalClassCode,
-      term_label: termLabel || null,
-    })
+    .insert(insertBody)
     .select()
     .single()
 
