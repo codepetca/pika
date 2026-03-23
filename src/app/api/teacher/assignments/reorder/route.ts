@@ -49,8 +49,12 @@ export const POST = withErrorHandler('PostTeacherAssignmentsReorder', async (req
     return NextResponse.json({ error: 'One or more assignments not found in classroom' }, { status: 400 })
   }
 
-  const updates = uniqueIds.map((id, index) => ({ id, position: index }))
-  const { error: updateError } = await supabase.from('assignments').upsert(updates, { onConflict: 'id' })
+  const results = await Promise.all(
+    uniqueIds.map((id, index) =>
+      supabase.from('assignments').update({ position: index }).eq('id', id)
+    )
+  )
+  const updateError = results.find((r) => r.error)?.error ?? null
 
   if (updateError) {
     console.error('Error reordering assignments:', updateError)

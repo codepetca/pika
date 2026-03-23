@@ -49,18 +49,22 @@ describe('POST /api/teacher/classrooms/reorder', () => {
   it('should persist the submitted classroom order', async () => {
     ;(getNextTeacherClassroomPosition as any).mockResolvedValueOnce(0)
 
-    const mockUpsert = vi.fn().mockResolvedValue({ error: null })
-    ;(mockSupabaseClient.from as any) = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          is: vi.fn().mockResolvedValue({
-            data: [{ id: 'c-1' }, { id: 'c-2' }],
-            error: null,
-          }),
-        })),
-      })),
-      upsert: mockUpsert,
-    }))
+    const mockUpdate = vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) }))
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              is: vi.fn().mockResolvedValue({
+                data: [{ id: 'c-1' }, { id: 'c-2' }],
+                error: null,
+              }),
+            })),
+          })),
+          update: mockUpdate,
+        }
+      }
+    })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/reorder', {
       method: 'POST',
@@ -70,9 +74,7 @@ describe('POST /api/teacher/classrooms/reorder', () => {
     const response = await POST(request)
 
     expect(response.status).toBe(200)
-    expect(mockUpsert).toHaveBeenCalledWith([
-      { id: 'c-2', position: 0 },
-      { id: 'c-1', position: 1 },
-    ], { onConflict: 'id' })
+    expect(mockUpdate).toHaveBeenCalledWith({ position: 0 })
+    expect(mockUpdate).toHaveBeenCalledWith({ position: 1 })
   })
 })

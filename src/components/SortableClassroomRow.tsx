@@ -111,7 +111,7 @@ export function SortableClassroomRow({
       style={style}
       data-testid="classroom-card"
       className={[
-        'bg-surface',
+        'rounded-card border border-border bg-surface shadow-elevated overflow-hidden',
         isDragging ? 'opacity-40' : '',
       ].join(' ')}
     >
