@@ -55,10 +55,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const updates = uniqueIds.map((id, index) => ({ id, position: index }))
-    const { error: updateError } = await supabase
-      .from('classrooms')
-      .upsert(updates, { onConflict: 'id' })
+    const results = await Promise.all(
+      uniqueIds.map((id, index) =>
+        supabase.from('classrooms').update({ position: index }).eq('id', id)
+      )
+    )
+    const updateError = results.find((r) => r.error)?.error ?? null
 
     if (updateError) {
       console.error('Error reordering classrooms:', updateError)
