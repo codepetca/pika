@@ -21,7 +21,7 @@ import {
 import { useRouter, usePathname } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
-import { Button, Card, ConfirmDialog, EmptyState } from '@/ui'
+import { Button, ConfirmDialog, EmptyState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { ACTIONBAR_BUTTON_PRIMARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
@@ -335,11 +335,8 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           </div>
         )}
 
-        {view === 'active' && visibleClassrooms.length > 1 && (
-          <p className="mb-3 text-sm text-text-muted">
-            Drag the grip to reorder your classrooms.
-            {isReordering ? ' Saving…' : ''}
-          </p>
+        {view === 'active' && visibleClassrooms.length > 1 && isReordering && (
+          <p className="mb-3 text-sm text-text-muted">Saving…</p>
         )}
 
         {view === 'archived' && isLoadingArchived ? (
@@ -364,7 +361,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             }
           />
         ) : (
-          <Card tone="panel" padding="none" className="overflow-hidden">
+          <div className="flex flex-col gap-2">
             {view === 'active' ? (
               <DndContext
                 sensors={sensors}
@@ -397,7 +394,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               sortedArchived.map((c) => (
                 <div
                   key={c.id}
-                  className="flex flex-col gap-3 border-b border-border px-5 py-4 last:border-b-0 lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
+                  className="flex flex-col gap-3 rounded-card border border-border bg-surface px-5 py-4 shadow-elevated lg:grid lg:grid-cols-[minmax(0,1fr),auto] lg:items-center lg:gap-5"
                 >
                   <button
                     type="button"
@@ -437,7 +434,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                 </div>
               ))
             )}
-          </Card>
+          </div>
         )}
       </PageContent>
 
