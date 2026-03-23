@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend } from 'date-fns'
+import { useMemo, useState, useEffect, useCallback } from 'react'
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend, addDays } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
@@ -91,6 +91,25 @@ export function LessonCalendar({
   const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [])
   const [expandedWeekIdx, setExpandedWeekIdx] = useState<number | null>(null)
   const [presentedDay, setPresentedDay] = useState<Date | null>(null)
+
+  const handlePresentedDayPrev = useCallback(() => {
+    setPresentedDay((d) => (d ? addDays(d, -1) : d))
+  }, [])
+
+  const handlePresentedDayNext = useCallback(() => {
+    setPresentedDay((d) => (d ? addDays(d, 1) : d))
+  }, [])
+
+  useEffect(() => {
+    if (!presentedDay) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'ArrowLeft') handlePresentedDayPrev()
+      if (e.key === 'ArrowRight') handlePresentedDayNext()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [presentedDay, handlePresentedDayPrev, handlePresentedDayNext])
+
   const { rightPanel: shortcutHint } = useKeyboardShortcutHint()
 
   // Build a map of date -> lesson plan for quick lookup
@@ -571,12 +590,32 @@ export function LessonCalendar({
       >
         {presentedDayDetails && (
           <div className="flex min-h-[76vh] flex-col">
-            <h2
-              id="calendar-day-presentation-title"
-              className="text-4xl font-semibold tracking-tight text-text-default sm:text-5xl"
-            >
-              {format(presentedDayDetails.day, 'EEEE, MMMM d, yyyy')}
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2
+                id="calendar-day-presentation-title"
+                className="text-4xl font-semibold tracking-tight text-text-default sm:text-5xl"
+              >
+                {format(presentedDayDetails.day, 'EEEE, MMMM d, yyyy')}
+              </h2>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handlePresentedDayPrev}
+                  className="rounded p-1 hover:bg-surface-hover"
+                  aria-label="Previous day"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePresentedDayNext}
+                  className="rounded p-1 hover:bg-surface-hover"
+                  aria-label="Next day"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
 
             <div className="mt-8 flex-1 overflow-y-auto">
               {presentedDayDetails.lessonMarkdown ? (
