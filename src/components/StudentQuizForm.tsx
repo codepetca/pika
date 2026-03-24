@@ -465,6 +465,7 @@ export function StudentQuizForm({
             }
           }}
           disabled={isInteractionLocked || !allAnswered || submitting}
+          className="w-full"
         >
           Submit
         </Button>
