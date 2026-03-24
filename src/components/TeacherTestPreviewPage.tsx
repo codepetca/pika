@@ -214,7 +214,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
   const iframeDocs = allowedDocs.filter((doc) => doc.source !== 'text' && Boolean(doc.url))
 
   return (
-    <div className="min-h-screen bg-page">
+    <div className="h-dvh overflow-hidden flex flex-col bg-page">
       {showNotMaximizedWarning && (
         <div
           aria-hidden="true"
@@ -248,7 +248,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-none px-3 py-3 sm:px-4">
+      <div className="flex-shrink-0 mx-auto w-full max-w-none px-3 pt-3 sm:px-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <Button type="button" variant="secondary" size="sm" className="gap-1.5" onClick={handleClosePreview}>
             <X className="h-4 w-4" />
@@ -258,15 +258,17 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
             Preview Mode
           </span>
         </div>
+      </div>
 
+      <div className="flex-1 min-h-0 mx-auto w-full max-w-none px-3 pb-3 sm:px-4">
         <div
-          className={`grid grid-cols-1 gap-2 ${
+          className={`grid grid-cols-1 gap-2 h-full grid-rows-[1fr] ${
             showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
-          } lg:min-h-[calc(100dvh-6rem)] lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)]`}
+          } lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)]`}
         >
           <section
-            className={`rounded-xl border border-border bg-surface lg:h-full ${
-              showDocPanel ? 'relative overflow-hidden p-0' : 'p-3 sm:p-4'
+            className={`rounded-xl border border-border bg-surface h-full ${
+              showDocPanel ? 'relative overflow-hidden p-0' : 'p-3 sm:p-4 overflow-y-auto scrollbar-hover'
             }`}
           >
             {showDocPanel ? (
@@ -351,7 +353,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
           </section>
 
           <section
-            className={`rounded-xl border border-border bg-surface p-3 sm:p-4 lg:h-full ${
+            className={`rounded-xl border border-border bg-surface p-3 sm:p-4 h-full overflow-y-auto scrollbar-hover ${
               showNotMaximizedWarning ? 'border-warning bg-warning-bg/20' : ''
             }`}
           >
