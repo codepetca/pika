@@ -320,14 +320,12 @@ export function StudentQuizForm({
   function handleScrollToNextFlagged(currentQuestionId: string | null) {
     const nextId = getNextFlaggedQuestion(quizId, currentQuestionId)
     if (nextId) {
-      const element = document.querySelector(`[data-question-id="${nextId}"]`) as HTMLElement | null
-      if (element) {
-        // Scroll with a small offset to ensure the question title is clearly visible
-        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        // Add slight timeout to ensure scroll completes before any visual feedback
-        setTimeout(() => {
-          element.focus()
-        }, 300)
+      // Target the title row directly so the star and question text are at the top of the viewport
+      const titleEl = document.querySelector(
+        `[data-question-title-id="${nextId}"]`
+      ) as HTMLElement | null
+      if (titleEl) {
+        titleEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
     }
   }
@@ -347,6 +345,7 @@ export function StudentQuizForm({
             return (
               <>
                 <div
+                  data-question-title-id={question.id}
                   className={`group relative space-y-1 cursor-pointer rounded-lg px-3 py-2 transition-colors ${
                     isFlagged ? 'bg-info-bg' : 'hover:bg-surface-hover'
                   } ${isInteractionLocked ? 'cursor-not-allowed opacity-50' : ''}`}
