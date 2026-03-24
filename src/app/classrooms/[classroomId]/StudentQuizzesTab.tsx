@@ -759,8 +759,8 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
           </div>
         )}
 
-        <PageContent className="flex-1 min-h-0 pt-1">
-          <div className="mx-auto h-full w-full max-w-none">
+        <PageContent className={`flex-1 min-h-0 pt-1${showCurrentTestInfoPanel ? ' overflow-hidden' : ''}`}>
+          <div className={`mx-auto h-full w-full max-w-none${showCurrentTestInfoPanel ? ' min-h-0 overflow-hidden' : ''}`}>
             <div
               data-testid="student-test-split-container"
               className={`grid grid-cols-1 gap-2 ${
@@ -771,7 +771,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                     : 'lg:grid-cols-[50%_50%]'
               } ${
                 showCurrentTestInfoPanel
-                  ? 'lg:h-full lg:min-h-0 lg:overflow-hidden'
+                  ? 'lg:h-full lg:min-h-0 lg:overflow-hidden lg:grid-rows-[1fr]'
                   : 'lg:h-full lg:min-h-0'
               } lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
             >
