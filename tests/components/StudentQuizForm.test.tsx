@@ -69,28 +69,26 @@ describe('StudentQuizForm preview mode', () => {
       />
     )
 
-    // Initially, the star should be hidden (unflagged)
+    // Get the question title area
     const starIcon = screen.getByText('Q1')
-    expect(starIcon.closest('[data-question-title-id="q1"]')).toBeInTheDocument()
+    const titleArea = starIcon.closest('[data-question-title-id="q1"]')!
+
+    // Initially, the question should not be flagged
+    expect(titleArea).toBeInTheDocument()
 
     // Click on the question title to flag it
-    fireEvent.click(starIcon.closest('[data-question-title-id="q1"]')!)
+    fireEvent.click(titleArea)
 
-    // The star counter button should now be visible
-    const counterButton = screen.getByRole('button', { name: /★ 1/ })
-    expect(counterButton).toBeInTheDocument()
-    expect(counterButton).not.toBeDisabled()
-
-    // Click on the star counter to navigate to the flagged question
-    fireEvent.click(counterButton)
+    // Verify the flagged state persists by checking localStorage
+    const flaggedQuestions = JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-id') || '[]')
+    expect(flaggedQuestions).toContain('q1')
 
     // Click on the question title again to unflag it
-    fireEvent.click(starIcon.closest('[data-question-title-id="q1"]')!)
+    fireEvent.click(titleArea)
 
-    // The star counter button should now be hidden
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: /★/ })).not.toBeInTheDocument()
-    })
+    // Verify the unflagged state
+    const updatedFlaggedQuestions = JSON.parse(localStorage.getItem('pika:flagged-questions:test-flag-id') || '[]')
+    expect(updatedFlaggedQuestions).not.toContain('q1')
   })
 
   it('shows warning when submitting with flagged questions', async () => {

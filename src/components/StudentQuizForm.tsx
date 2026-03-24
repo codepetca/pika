@@ -12,7 +12,6 @@ import { applyTextareaIndent } from '@/lib/textarea-indent'
 import {
   clearFlaggedQuestions,
   getFlaggedQuestions,
-  getNextFlaggedQuestion,
   isQuestionFlagged,
   toggleFlaggedQuestion,
 } from '@/lib/flag-questions'
@@ -317,21 +316,6 @@ export function StudentQuizForm({
     setFlaggedQuestions(updated)
   }
 
-  function handleScrollToNextFlagged(currentQuestionId: string | null) {
-    const nextId = getNextFlaggedQuestion(quizId, currentQuestionId)
-    if (!nextId) return
-
-    const titleEl = document.querySelector(
-      `[data-question-title-id="${nextId}"]`
-    ) as HTMLElement | null
-    if (!titleEl) return
-
-    // Simple, reliable scroll using scrollIntoView with smooth behavior
-    if (titleEl.scrollIntoView) {
-      titleEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
-
   return (
     <div className="mt-4 space-y-6">
       {questions.map((question, index) => (
@@ -472,31 +456,18 @@ export function StudentQuizForm({
       )}
 
       <div className="pt-4 space-y-3">
-        <div className="flex gap-3">
-          <Button
-            onClick={() => {
-              if (flaggedQuestions.length > 0) {
-                setShowFlaggedWarning(true)
-              } else {
-                setShowConfirm(true)
-              }
-            }}
-            disabled={isInteractionLocked || !allAnswered || submitting}
-            className="flex-1"
-          >
-            Submit
-          </Button>
-          {flaggedQuestions.length > 0 && (
-            <Button
-              onClick={() => handleScrollToNextFlagged(null)}
-              disabled={false}
-              variant="secondary"
-              title="Jump to next flagged question"
-            >
-              ★ {flaggedQuestions.length}
-            </Button>
-          )}
-        </div>
+        <Button
+          onClick={() => {
+            if (flaggedQuestions.length > 0) {
+              setShowFlaggedWarning(true)
+            } else {
+              setShowConfirm(true)
+            }
+          }}
+          disabled={isInteractionLocked || !allAnswered || submitting}
+        >
+          Submit
+        </Button>
         {!allAnswered && (
           <p className="text-sm text-text-muted text-center">
             Answer all questions to submit
