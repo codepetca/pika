@@ -46,7 +46,7 @@ export function AppShell({
   examModeHeader,
 }: AppShellProps) {
   return (
-    <div className="flex min-h-dvh flex-col bg-page">
+    <div className={`flex min-h-dvh flex-col bg-page${examModeHeader ? ' lg:h-dvh lg:overflow-hidden' : ''}`}>
       {showHeader && (
         <AppHeader
           user={user}
