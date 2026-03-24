@@ -326,25 +326,8 @@ export function StudentQuizForm({
     ) as HTMLElement | null
     if (!titleEl) return
 
-    // Find the nearest scrollable ancestor
-    let scrollContainer: HTMLElement | null = titleEl.parentElement
-    while (scrollContainer) {
-      const { overflowY } = getComputedStyle(scrollContainer)
-      if (overflowY === 'auto' || overflowY === 'scroll') break
-      scrollContainer = scrollContainer.parentElement
-    }
-
-    const TOP_MARGIN = 16 // px of breathing room above the title
-    if (scrollContainer) {
-      const containerTop = scrollContainer.getBoundingClientRect().top
-      const titleTop = titleEl.getBoundingClientRect().top
-      const offset = titleTop - containerTop + scrollContainer.scrollTop - TOP_MARGIN
-      scrollContainer.scrollTo({ top: offset, behavior: 'smooth' })
-    } else {
-      // Fallback: page-level scroll
-      const titleTop = titleEl.getBoundingClientRect().top + window.scrollY - TOP_MARGIN
-      window.scrollTo({ top: titleTop, behavior: 'smooth' })
-    }
+    // Simple, reliable scroll using scrollIntoView with smooth behavior
+    titleEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
   return (
@@ -504,6 +487,7 @@ export function StudentQuizForm({
           {flaggedQuestions.length > 0 && (
             <Button
               onClick={() => handleScrollToNextFlagged(null)}
+              disabled={false}
               variant="secondary"
               title="Jump to next flagged question"
             >
