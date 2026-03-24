@@ -327,7 +327,9 @@ export function StudentQuizForm({
     if (!titleEl) return
 
     // Simple, reliable scroll using scrollIntoView with smooth behavior
-    titleEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (titleEl.scrollIntoView) {
+      titleEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
   }
 
   return (
