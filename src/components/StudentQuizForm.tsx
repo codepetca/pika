@@ -8,7 +8,7 @@ import {
   normalizeTestResponses,
   type TestResponses,
 } from '@/lib/test-attempts'
-import { applyTextareaIndent } from '@/lib/textarea-indent'
+import { applyTextareaIndent, applyBracketIndent } from '@/lib/textarea-indent'
 import type { QuizAssessmentType, QuizQuestion, TestResponseDraftValue } from '@/types'
 
 interface Props {
@@ -34,7 +34,7 @@ export function StudentQuizForm({
   apiBasePath = '/api/student/quizzes',
   onSubmitted,
 }: Props) {
-  const OPEN_RESPONSE_TAB_INDENT = '    '
+  const OPEN_RESPONSE_TAB_INDENT = '\t'
   const OPEN_RESPONSE_TAB_SIZE = 4
   const AUTOSAVE_DEBOUNCE_MS = 5000
   const AUTOSAVE_MIN_INTERVAL_MS = 15000
@@ -213,36 +213,102 @@ export function StudentQuizForm({
     })
   }
 
-  function handleOpenResponseTabKeyDown(
+  function handleOpenResponseKeyDown(
     event: React.KeyboardEvent<HTMLTextAreaElement>,
     questionId: string,
     maxChars: number
   ) {
     if (isInteractionLocked) return
-    if (event.key !== 'Tab') return
-    event.preventDefault()
 
     const target = event.currentTarget
-    const next = applyTextareaIndent({
-      value: target.value,
-      selectionStart: target.selectionStart,
-      selectionEnd: target.selectionEnd,
-      shiftKey: event.shiftKey,
-      indent: OPEN_RESPONSE_TAB_INDENT,
-    })
 
-    if (!next.changed) return
+    if (event.key === 'Tab') {
+      event.preventDefault()
 
-    const limitedValue = next.value.slice(0, maxChars)
-    const limitedSelectionStart = Math.min(next.selectionStart, limitedValue.length)
-    const limitedSelectionEnd = Math.min(next.selectionEnd, limitedValue.length)
+      const next = applyTextareaIndent({
+        value: target.value,
+        selectionStart: target.selectionStart,
+        selectionEnd: target.selectionEnd,
+        shiftKey: event.shiftKey,
+        indent: OPEN_RESPONSE_TAB_INDENT,
+      })
 
-    handleOpenResponseChange(questionId, limitedValue, maxChars)
+      if (!next.changed) return
 
-    requestAnimationFrame(() => {
-      target.selectionStart = limitedSelectionStart
-      target.selectionEnd = limitedSelectionEnd
-    })
+      const limitedValue = next.value.slice(0, maxChars)
+      const limitedSelectionStart = Math.min(next.selectionStart, limitedValue.length)
+      const limitedSelectionEnd = Math.min(next.selectionEnd, limitedValue.length)
+
+      handleOpenResponseChange(questionId, limitedValue, maxChars)
+
+      requestAnimationFrame(() => {
+        target.selectionStart = limitedSelectionStart
+        target.selectionEnd = limitedSelectionEnd
+      })
+    } else if (event.key === 'Enter') {
+      // Check if we should apply smart bracket indentation
+      const currentCaret = target.selectionStart
+      const before = target.value.slice(0, currentCaret)
+      const after = target.value.slice(currentCaret)
+
+      // Insert newline and check bracket indentation
+      const valueWithNewline = before + '\n' + after
+      const newCaret = currentCaret + 1
+
+      const bracketIndentResult = applyBracketIndent({
+        value: valueWithNewline,
+        selectionStart: newCaret,
+        selectionEnd: newCaret,
+        indent: OPEN_RESPONSE_TAB_INDENT,
+      })
+
+      if (bracketIndentResult.changed) {
+        event.preventDefault()
+
+        const limitedValue = bracketIndentResult.value.slice(0, maxChars)
+        const limitedCaret = Math.min(bracketIndentResult.selectionStart, limitedValue.length)
+
+        handleOpenResponseChange(questionId, limitedValue, maxChars)
+
+        requestAnimationFrame(() => {
+          target.selectionStart = limitedCaret
+          target.selectionEnd = limitedCaret
+        })
+      }
+    } else if (event.key === '}') {
+      // Auto-dedent closing brace when it's the first non-whitespace character on the line
+      const currentCaret = target.selectionStart
+      const lineStart = target.value.lastIndexOf('\n', currentCaret - 1) + 1
+      const beforeBrace = target.value.slice(lineStart, currentCaret)
+
+      // Only dedent if the brace will be the only non-whitespace character typed so far
+      if (beforeBrace.trim() === '') {
+        // Simulate the brace being typed and check for dedenting
+        const valueWithBrace = target.value.slice(0, currentCaret) + '}' + target.value.slice(currentCaret)
+
+        const bracketIndentResult = applyBracketIndent({
+          value: valueWithBrace,
+          selectionStart: currentCaret,
+          selectionEnd: currentCaret,
+          indent: OPEN_RESPONSE_TAB_INDENT,
+        })
+
+        if (bracketIndentResult.changed) {
+          event.preventDefault()
+
+          const limitedValue = bracketIndentResult.value.slice(0, maxChars)
+          // +1 to position cursor after the `}` we inserted
+          const limitedCaret = Math.min(bracketIndentResult.selectionStart + 1, limitedValue.length)
+
+          handleOpenResponseChange(questionId, limitedValue, maxChars)
+
+          requestAnimationFrame(() => {
+            target.selectionStart = limitedCaret
+            target.selectionEnd = limitedCaret
+          })
+        }
+      }
+    }
   }
 
   async function handleSubmit() {
@@ -313,7 +379,7 @@ export function StudentQuizForm({
                         )
                       }
                       onKeyDown={(event) =>
-                        handleOpenResponseTabKeyDown(
+                        handleOpenResponseKeyDown(
                           event,
                           question.id,
                           Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)
