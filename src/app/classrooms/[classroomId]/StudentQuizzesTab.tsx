@@ -777,14 +777,14 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
             >
               <section
                 className={`rounded-xl border border-border bg-surface lg:h-full lg:min-h-0 ${
-                  showCurrentTestInfoPanel ? 'relative p-0 flex flex-col' : 'p-3 sm:p-4'
+                  showCurrentTestInfoPanel ? 'relative p-0 overflow-y-auto scrollbar-hover' : 'p-3 sm:p-4'
                 }`}
               >
                 {showCurrentTestInfoPanel ? (
                   <>
                     <div
                       aria-hidden={showDocPanel}
-                      className={`scrollbar-hover flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 transition-all duration-200 ease-out motion-reduce:transition-none ${
+                      className={`p-3 sm:p-4 transition-all duration-200 ease-out motion-reduce:transition-none ${
                         showDocPanel
                           ? 'pointer-events-none translate-x-2 opacity-0'
                           : 'translate-x-0 opacity-100'
