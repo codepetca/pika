@@ -504,7 +504,6 @@ export function StudentQuizForm({
           {flaggedQuestions.length > 0 && (
             <Button
               onClick={() => handleScrollToNextFlagged(null)}
-              disabled={isInteractionLocked || submitting}
               variant="secondary"
               title="Jump to next flagged question"
             >
