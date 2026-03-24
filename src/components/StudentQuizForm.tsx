@@ -347,7 +347,7 @@ export function StudentQuizForm({
             return (
               <>
                 <div
-                  className={`relative space-y-1 cursor-pointer rounded-lg px-3 py-2 transition-colors ${
+                  className={`group relative space-y-1 cursor-pointer rounded-lg px-3 py-2 transition-colors ${
                     isFlagged ? 'bg-info-bg' : 'hover:bg-surface-hover'
                   } ${isInteractionLocked ? 'cursor-not-allowed opacity-50' : ''}`}
                   onClick={() => !isInteractionLocked && handleToggleFlagged(question.id)}
@@ -370,7 +370,11 @@ export function StudentQuizForm({
                       </p>
                       <QuestionMarkdown content={question.question_text} />
                     </div>
-                    <div className="text-2xl leading-none transition-colors flex-shrink-0 pt-1">
+                    <div
+                      className={`text-2xl leading-none flex-shrink-0 pt-1 transition-opacity ${
+                        isFlagged ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
                       {isFlagged ? '★' : '☆'}
                     </div>
                   </div>
