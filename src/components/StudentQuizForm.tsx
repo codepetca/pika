@@ -320,8 +320,15 @@ export function StudentQuizForm({
   function handleScrollToNextFlagged(currentQuestionId: string | null) {
     const nextId = getNextFlaggedQuestion(quizId, currentQuestionId)
     if (nextId) {
-      const element = document.querySelector(`[data-question-id="${nextId}"]`)
-      element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const element = document.querySelector(`[data-question-id="${nextId}"]`) as HTMLElement | null
+      if (element) {
+        // Scroll with a small offset to ensure the question title is clearly visible
+        element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        // Add slight timeout to ensure scroll completes before any visual feedback
+        setTimeout(() => {
+          element.focus()
+        }, 300)
+      }
     }
   }
 
@@ -339,21 +346,34 @@ export function StudentQuizForm({
 
             return (
               <>
-                <div className="relative space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                    Q{index + 1}
-                    {isTestMode && typeof question.points === 'number' ? ` · ${question.points} pts` : ''}
-                  </p>
-                  <QuestionMarkdown content={question.question_text} />
-                  <button
-                    onClick={() => handleToggleFlagged(question.id)}
-                    disabled={isInteractionLocked}
-                    className="absolute top-0 right-0 text-2xl leading-none transition-colors hover:opacity-70 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={isFlagged ? 'Unflag question' : 'Flag for review'}
-                    aria-label={isFlagged ? 'Unflag question' : 'Flag for review'}
-                  >
-                    {isFlagged ? '★' : '☆'}
-                  </button>
+                <div
+                  className={`relative space-y-1 cursor-pointer rounded-lg px-3 py-2 transition-colors ${
+                    isFlagged ? 'bg-info-bg' : 'hover:bg-surface-hover'
+                  } ${isInteractionLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+                  onClick={() => !isInteractionLocked && handleToggleFlagged(question.id)}
+                  title={isFlagged ? 'Unflag question' : 'Flag for review'}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && !isInteractionLocked) {
+                      handleToggleFlagged(question.id)
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                        Q{index + 1}
+                        {isTestMode && typeof question.points === 'number'
+                          ? ` · ${question.points} pts`
+                          : ''}
+                      </p>
+                      <QuestionMarkdown content={question.question_text} />
+                    </div>
+                    <div className="text-2xl leading-none transition-colors flex-shrink-0 pt-1">
+                      {isFlagged ? '★' : '☆'}
+                    </div>
+                  </div>
                 </div>
                 {question.question_type === 'open_response' ? (
                   <div className="space-y-2">
