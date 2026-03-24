@@ -9,6 +9,12 @@ import {
   type TestResponses,
 } from '@/lib/test-attempts'
 import { applyTextareaIndent, applyBracketIndent } from '@/lib/textarea-indent'
+import {
+  clearFlaggedQuestions,
+  getFlaggedQuestions,
+  isQuestionFlagged,
+  toggleFlaggedQuestion,
+} from '@/lib/flag-questions'
 import type { QuizAssessmentType, QuizQuestion, TestResponseDraftValue } from '@/types'
 
 interface Props {
@@ -52,6 +58,8 @@ export function StudentQuizForm({
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [previewSubmitMessage, setPreviewSubmitMessage] = useState('')
+  const [flaggedQuestions, setFlaggedQuestions] = useState<string[]>([])
+  const [showFlaggedWarning, setShowFlaggedWarning] = useState(false)
   const shouldAutosave = enableDraftAutosave && !previewMode
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -77,6 +85,24 @@ export function StudentQuizForm({
     lastSavedResponsesRef.current = JSON.stringify(normalized)
     setSaveStatus('saved')
   }, [initialResponses, quizId])
+
+  // Load and monitor flagged questions from localStorage
+  useEffect(() => {
+    const loadFlaggedQuestions = () => {
+      const flagged = getFlaggedQuestions(quizId)
+      setFlaggedQuestions(flagged)
+    }
+    loadFlaggedQuestions()
+
+    // Set up storage event listener for changes in other tabs
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `pika:flagged-questions:${quizId}`) {
+        loadFlaggedQuestions()
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [quizId])
 
   const saveDraft = useCallback(async (
     draftResponses: TestResponses,
@@ -337,34 +363,72 @@ export function StudentQuizForm({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to submit response')
       }
+      // Clear flagged questions on successful submission
+      clearFlaggedQuestions(quizId)
+      setFlaggedQuestions([])
       onSubmitted()
     } catch (err: any) {
       setError(err.message || 'Failed to submit response')
     } finally {
       setSubmitting(false)
       setShowConfirm(false)
+      setShowFlaggedWarning(false)
     }
+  }
+
+  function handleToggleFlagged(questionId: string) {
+    const newState = toggleFlaggedQuestion(quizId, questionId)
+    const updated = getFlaggedQuestions(quizId)
+    setFlaggedQuestions(updated)
   }
 
   return (
     <div className="mt-4 space-y-6">
       {questions.map((question, index) => (
-        <div key={question.id} className="space-y-2">
+        <div key={question.id} data-question-id={question.id} className="space-y-2">
           {(() => {
             const response = responses[question.id]
             const openResponseText =
               response?.question_type === 'open_response' ? response.response_text : ''
             const selectedOption =
               response?.question_type === 'multiple_choice' ? response.selected_option : null
+            const isFlagged = isQuestionFlagged(quizId, question.id)
 
             return (
               <>
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                    Q{index + 1}
-                    {isTestMode && typeof question.points === 'number' ? ` · ${question.points} pts` : ''}
-                  </p>
-                  <QuestionMarkdown content={question.question_text} />
+                <div
+                  data-question-title-id={question.id}
+                  className={`group relative space-y-1 cursor-pointer rounded-lg px-3 py-2 transition-colors ${
+                    isFlagged ? 'bg-info-bg' : 'hover:bg-surface-hover'
+                  } ${isInteractionLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+                  onClick={() => !isInteractionLocked && handleToggleFlagged(question.id)}
+                  title={isFlagged ? 'Unflag question' : 'Flag for review'}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && !isInteractionLocked) {
+                      handleToggleFlagged(question.id)
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                        Q{index + 1}
+                        {isTestMode && typeof question.points === 'number'
+                          ? ` · ${question.points} pts`
+                          : ''}
+                      </p>
+                      <QuestionMarkdown content={question.question_text} />
+                    </div>
+                    <div
+                      className={`text-2xl leading-none flex-shrink-0 pt-1 transition-opacity ${
+                        isFlagged ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      {isFlagged ? '★' : '☆'}
+                    </div>
+                  </div>
                 </div>
                 {question.question_type === 'open_response' ? (
                   <div className="space-y-2">
@@ -457,23 +521,46 @@ export function StudentQuizForm({
         </div>
       )}
 
-      <div className="pt-4">
+      <div className="pt-4 space-y-3">
         <Button
-          onClick={() => setShowConfirm(true)}
+          onClick={() => {
+            if (flaggedQuestions.length > 0) {
+              setShowFlaggedWarning(true)
+            } else {
+              setShowConfirm(true)
+            }
+          }}
           disabled={isInteractionLocked || !allAnswered || submitting}
           className="w-full"
         >
           Submit
         </Button>
         {!allAnswered && (
-          <p className="text-sm text-text-muted text-center mt-2">
+          <p className="text-sm text-text-muted text-center">
             Answer all questions to submit
           </p>
         )}
       </div>
 
       <ConfirmDialog
-        isOpen={showConfirm}
+        isOpen={showFlaggedWarning}
+        title="Questions flagged for review"
+        description={`You have ${flaggedQuestions.length} question${flaggedQuestions.length === 1 ? '' : 's'} flagged for review. Are you sure you want to submit?`}
+        confirmLabel="Submit Anyway"
+        cancelLabel="Cancel"
+        isConfirmDisabled={submitting}
+        isCancelDisabled={submitting}
+        onCancel={() => {
+          setShowFlaggedWarning(false)
+        }}
+        onConfirm={() => {
+          setShowFlaggedWarning(false)
+          setShowConfirm(true)
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={showConfirm && !showFlaggedWarning}
         title={previewMode ? 'Simulate submit?' : 'Submit your answers?'}
         description={
           previewMode
