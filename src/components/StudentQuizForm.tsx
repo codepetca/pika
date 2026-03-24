@@ -319,14 +319,31 @@ export function StudentQuizForm({
 
   function handleScrollToNextFlagged(currentQuestionId: string | null) {
     const nextId = getNextFlaggedQuestion(quizId, currentQuestionId)
-    if (nextId) {
-      // Target the title row directly so the star and question text are at the top of the viewport
-      const titleEl = document.querySelector(
-        `[data-question-title-id="${nextId}"]`
-      ) as HTMLElement | null
-      if (titleEl) {
-        titleEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
+    if (!nextId) return
+
+    const titleEl = document.querySelector(
+      `[data-question-title-id="${nextId}"]`
+    ) as HTMLElement | null
+    if (!titleEl) return
+
+    // Find the nearest scrollable ancestor
+    let scrollContainer: HTMLElement | null = titleEl.parentElement
+    while (scrollContainer) {
+      const { overflowY } = getComputedStyle(scrollContainer)
+      if (overflowY === 'auto' || overflowY === 'scroll') break
+      scrollContainer = scrollContainer.parentElement
+    }
+
+    const TOP_MARGIN = 16 // px of breathing room above the title
+    if (scrollContainer) {
+      const containerTop = scrollContainer.getBoundingClientRect().top
+      const titleTop = titleEl.getBoundingClientRect().top
+      const offset = titleTop - containerTop + scrollContainer.scrollTop - TOP_MARGIN
+      scrollContainer.scrollTo({ top: offset, behavior: 'smooth' })
+    } else {
+      // Fallback: page-level scroll
+      const titleTop = titleEl.getBoundingClientRect().top + window.scrollY - TOP_MARGIN
+      window.scrollTo({ top: titleTop, behavior: 'smooth' })
     }
   }
 
