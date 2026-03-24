@@ -759,8 +759,8 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
           </div>
         )}
 
-        <PageContent className={`flex-1 min-h-0 pt-1${showCurrentTestInfoPanel ? ' overflow-hidden' : ''}`}>
-          <div className={`mx-auto h-full w-full max-w-none${showCurrentTestInfoPanel ? ' min-h-0 overflow-hidden' : ''}`}>
+        <PageContent className="flex-1 min-h-0 pt-1">
+          <div className="mx-auto h-full w-full max-w-none">
             <div
               data-testid="student-test-split-container"
               className={`grid grid-cols-1 gap-2 ${
@@ -769,15 +769,13 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                   : showCurrentTestInfoPanel || isViewingResults
                     ? 'lg:grid-cols-[30%_70%]'
                     : 'lg:grid-cols-[50%_50%]'
-              } ${
-                showCurrentTestInfoPanel
-                  ? 'lg:h-full lg:min-h-0 lg:overflow-hidden lg:grid-rows-[1fr]'
-                  : 'lg:h-full lg:min-h-0'
-              } lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
+              } lg:h-full lg:min-h-0 lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
             >
               <section
-                className={`rounded-xl border border-border bg-surface lg:h-full lg:min-h-0 ${
-                  showCurrentTestInfoPanel ? 'relative p-0 overflow-y-auto scrollbar-hover' : 'p-3 sm:p-4'
+                className={`rounded-xl border border-border bg-surface ${
+                  showCurrentTestInfoPanel
+                    ? 'relative p-0 overflow-y-auto scrollbar-hover lg:sticky lg:top-12 lg:h-[calc(100dvh-3rem)]'
+                    : 'lg:h-full lg:min-h-0 p-3 sm:p-4'
                 }`}
               >
                 {showCurrentTestInfoPanel ? (
@@ -913,8 +911,10 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
               </section>
 
               <section
-                className={`rounded-xl border border-border bg-surface p-3 sm:p-4 lg:h-full ${
-                  showCurrentTestInfoPanel ? 'lg:min-h-0 lg:overflow-y-auto scrollbar-hover' : ''
+                className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${
+                  showCurrentTestInfoPanel
+                    ? 'overflow-y-auto scrollbar-hover lg:sticky lg:top-12 lg:h-[calc(100dvh-3rem)]'
+                    : 'lg:h-full'
                 } ${
                   showNotMaximizedWarning ? 'border-warning bg-warning-bg/20' : ''
                 }`}
