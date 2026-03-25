@@ -559,10 +559,12 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(splitContainerExamMode.className).not.toContain('lg:grid-cols-[50%_50%]')
     expect(splitContainerExamMode.className).toContain('lg:h-full')
     expect(splitContainerExamMode.className).toContain('lg:min-h-0')
-    expect(splitContainerExamMode.className).toContain('lg:overflow-hidden')
 
     const paneSections = splitContainerExamMode.querySelectorAll('section')
-    expect(paneSections[1]?.className || '').toContain('lg:overflow-y-auto')
+    expect(paneSections[0]?.className || '').toContain('lg:sticky')
+    expect(paneSections[0]?.className || '').toContain('lg:h-[calc(100dvh-3rem)]')
+    expect(paneSections[1]?.className || '').toContain('lg:sticky')
+    expect(paneSections[1]?.className || '').toContain('overflow-y-auto')
 
     const docsHeading = screen.getByRole('heading', { name: 'Documents' })
     const leftPaneScroller = docsHeading.closest('.scrollbar-hover')

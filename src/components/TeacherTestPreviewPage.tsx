@@ -125,6 +125,16 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
     setIsFullscreen(fullscreenNow)
   }, [])
 
+  // Lock body scroll so the page-level container never scrolls in preview mode.
+  // The root layout sets body.min-h-screen which allows body growth; this overrides it.
+  useEffect(() => {
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [])
+
   useEffect(() => {
     if (loading || error) return
     maximizePreviewWindow()
@@ -214,7 +224,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
   const iframeDocs = allowedDocs.filter((doc) => doc.source !== 'text' && Boolean(doc.url))
 
   return (
-    <div className="min-h-screen bg-page">
+    <div className="h-dvh overflow-hidden flex flex-col bg-page">
       {showNotMaximizedWarning && (
         <div
           aria-hidden="true"
@@ -248,7 +258,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
         </div>
       )}
 
-      <div className="mx-auto w-full max-w-none px-3 py-3 sm:px-4">
+      <div className="flex-shrink-0 mx-auto w-full max-w-none px-3 pt-3 sm:px-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <Button type="button" variant="secondary" size="sm" className="gap-1.5" onClick={handleClosePreview}>
             <X className="h-4 w-4" />
@@ -258,18 +268,55 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
             Preview Mode
           </span>
         </div>
+      </div>
 
+      <div className="flex-1 min-h-0 mx-auto w-full max-w-none px-3 pb-3 sm:px-4">
         <div
-          className={`grid grid-cols-1 gap-2 ${
+          className={`grid grid-cols-1 gap-2 h-full grid-rows-[1fr] ${
             showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
-          } lg:min-h-[calc(100dvh-6rem)] lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)]`}
+          } lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)]`}
         >
-          <section
-            className={`rounded-xl border border-border bg-surface lg:h-full ${
-              showDocPanel ? 'relative overflow-hidden p-0' : 'p-3 sm:p-4'
-            }`}
-          >
-            {showDocPanel ? (
+          <section className="rounded-xl border border-border bg-surface h-full relative overflow-hidden">
+            {/* Doc list — always in DOM so switching back is instant */}
+            <div
+              aria-hidden={showDocPanel}
+              className={`p-3 sm:p-4 overflow-y-auto scrollbar-hover h-full transition-all duration-200 ease-out motion-reduce:transition-none ${
+                showDocPanel
+                  ? 'pointer-events-none translate-x-2 opacity-0'
+                  : 'translate-x-0 opacity-100'
+              }`}
+            >
+              <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
+              {allowedDocs.length > 0 ? (
+                <div className="space-y-2">
+                  {allowedDocs.map((doc) => (
+                    <Button
+                      key={doc.id}
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => setActiveDoc(doc)}
+                      tabIndex={showDocPanel ? -1 : 0}
+                    >
+                      {doc.title}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-text-muted">No documents provided for this test.</p>
+              )}
+            </div>
+
+            {/* Doc viewer — always in DOM so iframes preload before user opens them */}
+            <div
+              aria-hidden={!showDocPanel}
+              className={`absolute inset-0 transition-all duration-300 ease-out motion-reduce:transition-none ${
+                showDocPanel
+                  ? 'pointer-events-auto translate-x-0 opacity-100'
+                  : 'pointer-events-none -translate-x-2 opacity-0'
+              }`}
+            >
               <div className="flex h-full flex-col bg-surface">
                 <div className="grid h-10 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-surface-2 px-3">
                   <button
@@ -277,6 +324,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
                     onClick={() => setActiveDoc(null)}
                     aria-label="Back to documents list"
                     className="inline-flex items-center gap-1 justify-self-start whitespace-nowrap rounded-md bg-info-bg px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-info-bg-hover"
+                    tabIndex={showDocPanel ? 0 : -1}
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                     <span>Back</span>
@@ -325,33 +373,11 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
                   </div>
                 )}
               </div>
-            ) : (
-              <>
-                <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
-                {allowedDocs.length > 0 ? (
-                  <div className="space-y-2">
-                    {allowedDocs.map((doc) => (
-                      <Button
-                        key={doc.id}
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="w-full justify-start"
-                        onClick={() => setActiveDoc(doc)}
-                      >
-                        {doc.title}
-                      </Button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-text-muted">No documents provided for this test.</p>
-                )}
-              </>
-            )}
+            </div>
           </section>
 
           <section
-            className={`rounded-xl border border-border bg-surface p-3 sm:p-4 lg:h-full ${
+            className={`rounded-xl border border-border bg-surface p-3 sm:p-4 h-full overflow-y-auto scrollbar-hover ${
               showNotMaximizedWarning ? 'border-warning bg-warning-bg/20' : ''
             }`}
           >
