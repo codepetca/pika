@@ -276,12 +276,47 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
             showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
           } lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)]`}
         >
-          <section
-            className={`rounded-xl border border-border bg-surface h-full ${
-              showDocPanel ? 'relative overflow-hidden p-0' : 'p-3 sm:p-4 overflow-y-auto scrollbar-hover'
-            }`}
-          >
-            {showDocPanel ? (
+          <section className="rounded-xl border border-border bg-surface h-full relative overflow-hidden">
+            {/* Doc list — always in DOM so switching back is instant */}
+            <div
+              aria-hidden={showDocPanel}
+              className={`p-3 sm:p-4 overflow-y-auto scrollbar-hover h-full transition-all duration-200 ease-out motion-reduce:transition-none ${
+                showDocPanel
+                  ? 'pointer-events-none translate-x-2 opacity-0'
+                  : 'translate-x-0 opacity-100'
+              }`}
+            >
+              <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
+              {allowedDocs.length > 0 ? (
+                <div className="space-y-2">
+                  {allowedDocs.map((doc) => (
+                    <Button
+                      key={doc.id}
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => setActiveDoc(doc)}
+                      tabIndex={showDocPanel ? -1 : 0}
+                    >
+                      {doc.title}
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-text-muted">No documents provided for this test.</p>
+              )}
+            </div>
+
+            {/* Doc viewer — always in DOM so iframes preload before user opens them */}
+            <div
+              aria-hidden={!showDocPanel}
+              className={`absolute inset-0 transition-all duration-300 ease-out motion-reduce:transition-none ${
+                showDocPanel
+                  ? 'pointer-events-auto translate-x-0 opacity-100'
+                  : 'pointer-events-none -translate-x-2 opacity-0'
+              }`}
+            >
               <div className="flex h-full flex-col bg-surface">
                 <div className="grid h-10 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-surface-2 px-3">
                   <button
@@ -289,6 +324,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
                     onClick={() => setActiveDoc(null)}
                     aria-label="Back to documents list"
                     className="inline-flex items-center gap-1 justify-self-start whitespace-nowrap rounded-md bg-info-bg px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-info-bg-hover"
+                    tabIndex={showDocPanel ? 0 : -1}
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                     <span>Back</span>
@@ -337,29 +373,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
                   </div>
                 )}
               </div>
-            ) : (
-              <>
-                <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
-                {allowedDocs.length > 0 ? (
-                  <div className="space-y-2">
-                    {allowedDocs.map((doc) => (
-                      <Button
-                        key={doc.id}
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="w-full justify-start"
-                        onClick={() => setActiveDoc(doc)}
-                      >
-                        {doc.title}
-                      </Button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-text-muted">No documents provided for this test.</p>
-                )}
-              </>
-            )}
+            </div>
           </section>
 
           <section
