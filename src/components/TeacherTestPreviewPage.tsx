@@ -125,6 +125,16 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
     setIsFullscreen(fullscreenNow)
   }, [])
 
+  // Lock body scroll so the page-level container never scrolls in preview mode.
+  // The root layout sets body.min-h-screen which allows body growth; this overrides it.
+  useEffect(() => {
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [])
+
   useEffect(() => {
     if (loading || error) return
     maximizePreviewWindow()
