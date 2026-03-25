@@ -769,7 +769,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                   : showCurrentTestInfoPanel || isViewingResults
                     ? 'lg:grid-cols-[30%_70%]'
                     : 'lg:grid-cols-[50%_50%]'
-              } lg:h-full lg:min-h-0 lg:overflow-hidden lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
+              } lg:h-full lg:min-h-0 lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
             >
               <section
                 className={`rounded-xl border border-border bg-surface ${
