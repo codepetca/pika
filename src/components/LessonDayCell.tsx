@@ -13,6 +13,18 @@ function isScheduled(announcement: Announcement): boolean {
   return new Date(announcement.scheduled_for) > new Date()
 }
 
+function AnnouncementTooltipContent({ announcements }: { announcements: Announcement[] }) {
+  return (
+    <div className="w-[min(14rem,calc(100vw-2rem))] text-left text-sm leading-5 whitespace-pre-wrap break-words">
+      {announcements.map((announcement, index) => (
+        <p key={announcement.id} className={index > 0 ? 'mt-3' : undefined}>
+          {announcement.content}
+        </p>
+      ))}
+    </div>
+  )
+}
+
 interface LessonDayCellProps {
   date: string // YYYY-MM-DD
   day: Date
@@ -260,7 +272,11 @@ export const LessonDayCell = memo(function LessonDayCell({
         {/* Weekend announcement pill - no text, tooltip on hover */}
         {announcementCount > 0 && (
           <div className="px-0.5 mt-0.5 flex items-start justify-center">
-            <Tooltip content={`${announcementCount} announcement${announcementCount > 1 ? 's' : ''}`} side="right">
+            <Tooltip
+              content={<AnnouncementTooltipContent announcements={announcements} />}
+              side="right"
+              align="start"
+            >
               <button
                 type="button"
                 onClick={(e) => {
@@ -338,12 +354,13 @@ export const LessonDayCell = memo(function LessonDayCell({
         <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
           {announcements.map((announcement) => {
             const scheduled = isScheduled(announcement)
-            const tooltipText = scheduled
-              ? `(Scheduled) ${announcement.content.slice(0, 80)}${announcement.content.length > 80 ? '...' : ''}`
-              : announcement.content.slice(0, 100) + (announcement.content.length > 100 ? '...' : '')
 
             return (
-              <Tooltip key={announcement.id} content={tooltipText}>
+              <Tooltip
+                key={announcement.id}
+                content={<AnnouncementTooltipContent announcements={[announcement]} />}
+                align="start"
+              >
                 <button
                   type="button"
                   onClick={(e) => {
