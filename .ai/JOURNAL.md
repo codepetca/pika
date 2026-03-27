@@ -7338,3 +7338,25 @@
 
 **Status:** Feature implementation complete and tested. Flagging feature is production-ready.
 
+## 2026-03-27 [AI - Codex]
+
+**Goal:** Improve calendar announcement tooltip readability without adding extra visual chrome.
+
+**Completed:**
+- Updated `src/components/LessonDayCell.tsx`
+  - Replaced the old clipped single-line announcement tooltip with a narrower wrapped text layout
+  - Removed the richer announcement card treatment after visual review and simplified the tooltip content to plain multi-line text
+- Updated `src/ui/Tooltip.tsx`
+  - Kept the stronger shared tooltip surface/border/shadow styling so announcement text remains readable against the calendar
+- Updated `tests/components/LessonDayCell.test.tsx`
+  - Verified full announcement text appears in the tooltip
+  - Verified long announcement text is not truncated with ellipsis in the final design
+
+**Validation:**
+- `pnpm test tests/components/LessonDayCell.test.tsx`
+- `pnpm test tests/components/LessonCalendar.test.tsx`
+
+**Blockers/Notes:**
+- Live authenticated teacher/student screenshot verification was attempted, but full route-level tooltip capture was not completed during this session
+
+**Status:** Simplified calendar announcement tooltip landed on `main` locally and passed focused tests.

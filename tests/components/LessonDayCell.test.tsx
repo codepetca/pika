@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { applyMarkdownShortcut, LessonDayCell } from '@/components/LessonDayCell'
-import type { LessonPlan, TiptapContent } from '@/types'
+import { TooltipProvider } from '@/ui'
+import type { Announcement, LessonPlan, TiptapContent } from '@/types'
 
 const content: TiptapContent = {
   type: 'doc',
@@ -17,6 +19,26 @@ const lessonPlan: LessonPlan = {
   content_markdown: 'Lesson text',
   created_at: '2026-03-13T00:00:00.000Z',
   updated_at: '2026-03-13T00:00:00.000Z',
+}
+
+const longAnnouncement: Announcement = {
+  id: 'announcement-1',
+  classroom_id: 'class-1',
+  content: 'Long announcement text that should remain fully visible in the tooltip instead of being clipped to a single short preview line for the calendar.',
+  created_by: 'teacher-1',
+  scheduled_for: null,
+  created_at: '2026-03-13T00:00:00.000Z',
+  updated_at: '2026-03-13T00:00:00.000Z',
+}
+
+const multiLineAnnouncement: Announcement = {
+  ...longAnnouncement,
+  id: 'announcement-2',
+  content: `${'This announcement keeps going so the tooltip has enough text to wrap onto multiple lines in a narrower tooltip. '.repeat(3)}Final sentence should still be visible.`,
+}
+
+function renderWithTooltip(ui: ReactElement) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>)
 }
 
 describe('LessonDayCell', () => {
@@ -53,7 +75,7 @@ describe('LessonDayCell', () => {
   }
 
   it('enters inline markdown edit mode when the preview is clicked', () => {
-    const { container } = render(
+    const { container } = renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
         day={new Date('2026-03-13T12:00:00.000Z')}
@@ -71,7 +93,7 @@ describe('LessonDayCell', () => {
   })
 
   it('does not render default add-lesson-plan prompt text for empty editable cells', () => {
-    render(
+    renderWithTooltip(
       <LessonDayCell
         date="2026-03-14"
         day={new Date('2026-03-14T12:00:00.000Z')}
@@ -91,7 +113,7 @@ describe('LessonDayCell', () => {
   })
 
   it('enters inline markdown edit mode when the date header is clicked', () => {
-    const { container } = render(
+    const { container } = renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
         day={new Date('2026-03-13T12:00:00.000Z')}
@@ -110,7 +132,7 @@ describe('LessonDayCell', () => {
   })
 
   it('keeps the edited markdown visible after blur when parent state updates optimistically', () => {
-    render(<Harness />)
+    renderWithTooltip(<Harness />)
 
     fireEvent.click(screen.getByRole('button'))
     const textarea = screen.getByDisplayValue('Lesson text')
@@ -121,7 +143,7 @@ describe('LessonDayCell', () => {
   })
 
   it('keeps the edited markdown visible after pressing escape', () => {
-    render(<Harness />)
+    renderWithTooltip(<Harness />)
 
     fireEvent.click(screen.getByRole('button'))
     const textarea = screen.getByDisplayValue('Lesson text')
@@ -132,7 +154,7 @@ describe('LessonDayCell', () => {
   })
 
   it('renders markdown preview inside the shared calendar text wrapper', () => {
-    render(
+    renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
         day={new Date('2026-03-13T12:00:00.000Z')}
@@ -156,5 +178,48 @@ describe('LessonDayCell', () => {
   it('toggles list prefix for the selected lines', () => {
     const result = applyMarkdownShortcut('item one\nitem two', 0, 'item one\nitem two'.length, 'unordered-list')
     expect(result.value).toBe('- item one\n- item two')
+  })
+
+  it('shows the full announcement content inside the tooltip', async () => {
+    renderWithTooltip(
+      <LessonDayCell
+        date="2026-03-13"
+        day={new Date('2026-03-13T12:00:00.000Z')}
+        lessonPlan={null}
+        announcements={[longAnnouncement]}
+        isWeekend={false}
+        isToday={false}
+        editable={false}
+        compact={false}
+      />
+    )
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Announcement' }))
+
+    const tooltip = await screen.findByRole('tooltip')
+    expect(within(tooltip).getByText(longAnnouncement.content)).toBeInTheDocument()
+  })
+
+  it('shows long announcement content without truncating it', async () => {
+    renderWithTooltip(
+      <LessonDayCell
+        date="2026-03-13"
+        day={new Date('2026-03-13T12:00:00.000Z')}
+        lessonPlan={null}
+        announcements={[multiLineAnnouncement]}
+        isWeekend={false}
+        isToday={false}
+        editable={false}
+        compact={false}
+      />
+    )
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Announcement' }))
+
+    const tooltip = await screen.findByRole('tooltip')
+    const tooltipText = tooltip.textContent ?? ''
+
+    expect(tooltipText).toContain('Final sentence should still be visible.')
+    expect(tooltipText).not.toContain('...')
   })
 })

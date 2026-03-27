@@ -3,13 +3,14 @@
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { type ReactNode } from 'react'
 import { cva } from 'class-variance-authority'
+import { cn } from './utils'
 
 // Tooltip content styles with CVA
 const tooltipContentStyles = cva([
-  'z-50 rounded px-2 py-1 text-[11px] leading-tight pointer-events-none',
-  'bg-surface-2',
+  'z-50 max-w-[min(20rem,calc(100vw-1rem))] rounded-lg border px-3 py-2 text-xs leading-relaxed pointer-events-none',
+  'bg-surface',
   'text-text-default',
-  'shadow-sm border border-border',
+  'shadow-lg border-border-strong',
 ])
 
 export interface TooltipProps {
@@ -23,6 +24,8 @@ export interface TooltipProps {
   side?: 'top' | 'right' | 'bottom' | 'left'
   /** Alignment of tooltip relative to trigger (default: 'center') */
   align?: 'start' | 'center' | 'end'
+  /** Optional Tailwind classes for the tooltip content wrapper */
+  className?: string
 }
 
 /**
@@ -40,6 +43,7 @@ export function Tooltip({
   delayDuration = 100,
   side = 'bottom',
   align = 'center',
+  className,
 }: TooltipProps) {
   return (
     <TooltipPrimitive.Root delayDuration={delayDuration}>
@@ -49,7 +53,7 @@ export function Tooltip({
           side={side}
           align={align}
           sideOffset={4}
-          className={tooltipContentStyles()}
+          className={cn(tooltipContentStyles(), className)}
         >
           {content}
         </TooltipPrimitive.Content>
