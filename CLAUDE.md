@@ -18,11 +18,7 @@ Full instructions: [`docs/ai-instructions.md`](docs/ai-instructions.md)
 ### Never
 - Run `supabase db push` or any migration command — human applies migrations manually
 - Commit `.env.local` — it is a symlink, not a real file
-- Work directly in `$HOME/Repos/pika` — always use a worktree
-
-### Worktree
-- All git commands: `git -C "$PIKA_WORKTREE"`
-- All paths: absolute or `$PIKA_WORKTREE`-prefixed
+- Work in the hub repo (`$HOME/Repos/pika`) — your session is bound to a worktree
 
 ---
 

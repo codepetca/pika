@@ -167,21 +167,16 @@ UI changes **must** be visually verified before committing. See `docs/guides/ai-
 
 ## Git & Worktrees
 
-Worktree rules are in `.ai/START-HERE.md`. Key points:
-- All git commands: `git -C "$PIKA_WORKTREE"`
-- All file paths: absolute or `$PIKA_WORKTREE`-prefixed
-- Setup details: `docs/dev-workflow.md`
+Your session is bound to its worktree directory. Use `git` and relative paths directly — no `-C` flags or path prefixes needed.
+
+- **Never work in the hub** (`$HOME/Repos/pika`). Hub-level commands (worktree add/remove): `git -C "$HOME/Repos/pika" <command>`.
+- **`.env.local` missing?** Run `bash scripts/setup-worktree.sh` once.
+- **Setup details:** `docs/dev-workflow.md`
 
 ### Merge Policies (MANDATORY)
 
 - **`main`**: No merge commits. Use PR **Squash and merge** (preferred) or linear rebase/cherry-pick.
 - **`production`**: Direct push blocked. Use `/merge-main-into-production` command.
-
-### Environment (.env.local)
-
-- Never commit `.env.local` — it's symlinked from `$HOME/Repos/.env/pika/.env.local`
-- Each worktree needs: `ln -sf $HOME/Repos/.env/pika/.env.local <worktree>/.env.local`
-- See `docs/dev-workflow.md` for setup
 
 ---
 
@@ -221,7 +216,7 @@ See [/docs/core/agents.md](/docs/core/agents.md) for details. For complex featur
 - Over-engineer or add unnecessary abstractions
 
 **Recovery:**
-- Worked in hub by mistake? `git stash`, create worktree, `git stash pop` in worktree
+- Worked in hub by mistake? `git stash` in hub, `git worktree add .claude/worktrees/<name> <branch>`, `git stash pop` in worktree
 - Committed to wrong branch? `git reset --soft HEAD~1`, switch branches, recommit
 - Need to update features.json? Use the script, not manual edits
 - Added manual try/catch to a route? Run `/migrate-error-handler` on that file

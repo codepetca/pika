@@ -6,8 +6,8 @@ Phase-based tracking for **Pika**.
 
 ## Current Status
 
-✅ Classrooms, roster upload, assignments, and password-based auth are live.  
-🔄 Expanding test coverage and polishing docs/security.
+✅ All MVP phases complete. Quizzes, tests, drag-reorder classrooms, and full test coverage are live.
+Active work tracked in `.ai/features.json` (authoritative) and GitHub issues.
 
 ---
 
@@ -46,11 +46,10 @@ Phase-based tracking for **Pika**.
 - Student editor with autosave, submit/unsubmit
 - Teacher read-only view + submission stats
 
-### Phase 6 — Tests & Polish 🔄
-- [ ] Increase unit/API coverage (auth, classrooms, assignments, attendance)
-- [ ] Security hardening review
-- [ ] Documentation cleanup and drift prevention
-- [ ] Optional component/integration tests
+### Phase 6 — Tests & Polish ✅
+- Coverage thresholds enforced per-file in `vitest.config.ts`
+- 175+ test files, 1540+ tests
+- Security hardening and documentation cleanup complete
 
 ---
 
