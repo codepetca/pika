@@ -1,9 +1,10 @@
 # Pika Project Journal
 
 **Rules:**
-- Append-only. Never delete entries.
+- Append-only. Never delete entries (archival to `JOURNAL-ARCHIVE.md` is permitted via `node scripts/archive-journal.mjs`).
 - Both humans and AI log significant actions.
 - Log GitHub PR events as `[GITHUB-EVENT]` (automated).
+- When this file exceeds ~300 entries, run the archive script to keep it lean.
 
 **Actor types:**
 - `[HUMAN]`

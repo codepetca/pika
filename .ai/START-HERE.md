@@ -11,7 +11,7 @@
 ```
 [ ] Verify worktree: echo $PIKA_WORKTREE (must NOT be $HOME/Repos/pika)
 [ ] Run: bash "$PIKA_WORKTREE/scripts/verify-env.sh"
-[ ] Check journal: tail -40 "$PIKA_WORKTREE/.ai/JOURNAL.md"
+[ ] Check recent sessions: cat "$PIKA_WORKTREE/.ai/SESSION-LOG.md"
 [ ] Check status: git -C "$PIKA_WORKTREE" status
 [ ] Read: docs/ai-instructions.md (then follow its reading order)
 [ ] Identify task: GitHub issue, features.json, or ask user
@@ -37,13 +37,17 @@ All agents are bound to exactly ONE worktree via `$PIKA_WORKTREE`.
 
 ## End of Session (MANDATORY)
 
-1. Append a session entry to `$PIKA_WORKTREE/.ai/JOURNAL.md`.
+1. Append a session entry to `$PIKA_WORKTREE/.ai/SESSION-LOG.md`, then trim:
+   ```bash
+   node "$PIKA_WORKTREE/scripts/trim-session-log.mjs"
+   ```
+   This keeps the log at 10 entries automatically.
 2. Update `.ai/features.json` if anything changed:
    ```bash
    node "$PIKA_WORKTREE/scripts/features.mjs" pass <feature-id>
    node "$PIKA_WORKTREE/scripts/features.mjs" fail <feature-id>
    ```
-3. Commit and push the journal + feature changes.
+3. Commit and push the session log + feature changes.
 4. If work was merged, clean up:
    ```bash
    export PIKA_WORKTREE="$HOME/Repos/pika"
@@ -63,4 +67,4 @@ Trust in this order:
 5. `docs/core/project-context.md` — setup and commands
 6. `docs/core/roadmap.md` — phase strategy
 7. `docs/core/decision-log.md` — historical rationale
-8. `.ai/JOURNAL.md` — session history
+8. `.ai/SESSION-LOG.md` — recent session context

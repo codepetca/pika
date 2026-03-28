@@ -2,7 +2,7 @@
 
 This is your **primary entry point** for working on the Pika project.
 
-If you are starting a new session, **first read** `.ai/START-HERE.md` (environment check + journal + workflow), then come back here.
+If you are starting a new session, **first read** `.ai/START-HERE.md` (environment check + session log + workflow), then come back here.
 
 ---
 
@@ -92,24 +92,6 @@ const data = await fetchJSONWithCache(
 import { parseContentField } from '@/lib/tiptap-content'
 const content = parseContentField(doc.content)  // handles string or object
 ```
-
-### Architecture Rules (PROHIBITED)
-
-❌ **DO NOT**:
-- Mix business logic with UI components
-- Store plaintext login codes (always hash with bcrypt)
-- Skip TDD workflow for core utilities
-- Modify architecture without reading design docs first
-- Use component libraries (Tailwind only)
-- Implement features without tests for core logic
-- Make changes to unrelated files
-- Over-engineer or add unnecessary abstractions
-- **Use `dark:` classes in app code** (use semantic tokens instead)
-- **Import UI primitives from `@/components`** (use `@/ui`)
-- **Run or apply database migrations** (human applies migrations manually)
-- **Write manual try/catch error handling in API routes** (use `withErrorHandler`)
-- **Define `parseContentField` locally** (import from `@/lib/tiptap-content`)
-- **Make raw `fetch()` calls in components for repeated data** (use `fetchJSONWithCache`)
 
 ### Database Migrations (MANDATORY)
 
@@ -231,6 +213,12 @@ See [/docs/core/agents.md](/docs/core/agents.md) for details. For complex featur
 - Make raw `fetch()` in components — use `fetchJSONWithCache` for repeated reads
 - Use `dark:` Tailwind classes in app code — use semantic tokens (`bg-surface`, etc.)
 - Import from `@/components` for UI primitives — use `@/ui`
+- Mix business logic into UI components — put it in utilities
+- Store plaintext login codes — always hash with bcrypt before storing
+- Skip TDD for core utilities — tests first
+- Use component libraries — Tailwind only
+- Make changes to unrelated files
+- Over-engineer or add unnecessary abstractions
 
 **Recovery:**
 - Worked in hub by mistake? `git stash`, create worktree, `git stash pop` in worktree

@@ -1,5 +1,7 @@
 # UI/UX Design Guidelines
 
+> **Canonical design reference.** The old `docs/design-system.md` has been removed — it used outdated raw Tailwind classes that violate current semantic token rules. This file + `src/ui/README.md` are the sources of truth.
+
 This document defines UI/UX patterns, visual design standards, and component guidelines for **Pika**.
 
 ---

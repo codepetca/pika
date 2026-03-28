@@ -123,20 +123,7 @@ pika codex my-worktree -- --max-output-tokens 1200
 
 ## Mandatory agent rules
 
-Agents **must** follow these rules:
-
-- NEVER assume the shell cwd
-- ALL git commands MUST use:
-  ```bash
-  git -C "$PIKA_WORKTREE"
-  ```
-- ALL file paths must be absolute or prefixed with:
-  ```bash
-  $PIKA_WORKTREE
-  ```
-
-If unsure which worktree to use:
-- Ask the user to run `pika ls`
+See `.ai/START-HERE.md` → "Worktree Rules" for the full list. Key rule: all git commands use `git -C "$PIKA_WORKTREE"` and all paths are absolute or `$PIKA_WORKTREE`-prefixed.
 
 ---
 
