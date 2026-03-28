@@ -13,26 +13,32 @@ echo ""
 
 # ── 1. Verify worktree ──────────────────────────────
 echo "── 1. Worktree check"
-if [[ -z "${PIKA_WORKTREE:-}" ]]; then
-  echo -e "${FAIL} PIKA_WORKTREE is not set."
-  echo "   Run: pika codex <worktree>"
+WORKTREE_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+
+if [[ -z "$WORKTREE_ROOT" ]]; then
+  echo -e "${FAIL} Not inside a git repository."
   exit 1
 fi
 
 HUB="${HOME}/Repos/pika"
-if [[ "$PIKA_WORKTREE" == "$HUB" ]]; then
-  echo -e "${FAIL} PIKA_WORKTREE is the hub ($HUB). Do not work in the hub."
-  echo "   Run: pika codex <worktree>"
+if [[ "$WORKTREE_ROOT" == "$HUB" ]]; then
+  echo -e "${FAIL} Working in hub ($HUB). Sessions must run inside a worktree."
+  echo "   Create one: git -C \"\$HOME/Repos/pika\" worktree add .claude/worktrees/<name> -b <branch>"
   exit 1
 fi
 
-echo -e "${PASS} PIKA_WORKTREE = $PIKA_WORKTREE"
+if [[ "$WORKTREE_ROOT" != *".claude/worktrees/"* ]]; then
+  echo -e "${FAIL} Worktree path does not contain .claude/worktrees/ — unexpected location: $WORKTREE_ROOT"
+  exit 1
+fi
+
+echo -e "${PASS} Worktree: $WORKTREE_ROOT"
 
 # ── 2. Verify environment ───────────────────────────
 echo ""
 echo "── 2. Environment check"
-if [[ -f "$PIKA_WORKTREE/scripts/verify-env.sh" ]]; then
-  bash "$PIKA_WORKTREE/scripts/verify-env.sh" && \
+if [[ -f "$WORKTREE_ROOT/scripts/verify-env.sh" ]]; then
+  bash "$WORKTREE_ROOT/scripts/verify-env.sh" && \
     echo -e "${PASS} verify-env.sh passed" || \
     { echo -e "${FAIL} verify-env.sh failed. Fix before proceeding."; exit 1; }
 else
@@ -42,27 +48,27 @@ fi
 # ── 3. Git context ──────────────────────────────────
 echo ""
 echo "── 3. Git context"
-BRANCH=$(git -C "$PIKA_WORKTREE" branch --show-current)
+BRANCH=$(git branch --show-current)
 echo -e "${INFO} Branch: $BRANCH"
 echo ""
-git -C "$PIKA_WORKTREE" log --oneline -8
+git log --oneline -8
 echo ""
-git -C "$PIKA_WORKTREE" status -sb
+git status -sb
 
-# ── 4. Recent journal ───────────────────────────────
+# ── 4. Recent session log ────────────────────────────
 echo ""
-echo "── 4. Recent journal (last 40 lines)"
-JOURNAL="$PIKA_WORKTREE/.ai/JOURNAL.md"
-if [[ -f "$JOURNAL" ]]; then
-  tail -40 "$JOURNAL"
+echo "── 4. Recent session log"
+SESSION_LOG="$WORKTREE_ROOT/.ai/SESSION-LOG.md"
+if [[ -f "$SESSION_LOG" ]]; then
+  cat "$SESSION_LOG"
 else
-  echo -e "${INFO} No journal found at $JOURNAL"
+  echo -e "${INFO} No session log found at $SESSION_LOG"
 fi
 
 # ── 5. Feature inventory ────────────────────────────
 echo ""
 echo "── 5. Feature inventory"
-FEATURES_SCRIPT="$PIKA_WORKTREE/scripts/features.mjs"
+FEATURES_SCRIPT="$WORKTREE_ROOT/scripts/features.mjs"
 if [[ -f "$FEATURES_SCRIPT" ]]; then
   node "$FEATURES_SCRIPT" summary 2>/dev/null || echo "(features.mjs summary unavailable)"
   echo ""

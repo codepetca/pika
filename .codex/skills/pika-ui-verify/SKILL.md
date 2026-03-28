@@ -12,9 +12,9 @@ Takes Playwright screenshots of a given Pika page from both teacher and student 
 ## Workflow
 
 1. Ensure the dev server is running (`pnpm dev`).
-2. Run the UI verify script with the page path:
+2. Run the UI verify script with the page path from the worktree root:
    ```bash
-   bash "$PIKA_WORKTREE/.codex/skills/pika-ui-verify/scripts/ui_verify.sh" "classrooms/abc123"
+   bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/abc123"
    ```
 3. Review screenshots in `/tmp/pika-*.png`.
 4. If issues found: fix code and re-run.

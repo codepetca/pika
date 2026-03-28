@@ -16,8 +16,8 @@ Execute a deterministic `main` -> `production` merge flow that respects Pika wor
    - `bash .codex/skills/pika-main-to-production-merge/scripts/merge_main_into_production.sh`
 3. If the script reports a created PR URL, share it.
 4. Merge the PR (manually or with `gh pr merge`) and then sync local `production`:
-   - `git -C /Users/stew/Repos/.worktrees/pika/production fetch origin production`
-   - `git -C /Users/stew/Repos/.worktrees/pika/production merge --ff-only origin/production`
+   - `git -C "$HOME/Repos/pika/.claude/worktrees/production" fetch origin production`
+   - `git -C "$HOME/Repos/pika/.claude/worktrees/production" merge --ff-only origin/production`
 5. Report final `origin/production` commit SHA.
 
 ## Conflict Handling
