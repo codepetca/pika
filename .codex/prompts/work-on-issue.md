@@ -17,9 +17,9 @@ Steps:
    REPO="$HOME/Repos/pika"
    git -C "$REPO" fetch origin
    git -C "$REPO" worktree add \
-     "$REPO/.claude/worktrees/issue-$ARGUMENTS-<slug>" \
+     "$REPO/.codex/worktrees/issue-$ARGUMENTS-<slug>" \
      -b "issue/$ARGUMENTS-<slug>" origin/main
-   cd "$REPO/.claude/worktrees/issue-$ARGUMENTS-<slug>"
+   cd "$REPO/.codex/worktrees/issue-$ARGUMENTS-<slug>"
    bash scripts/setup-worktree.sh
    ```
 7) Open the new worktree in Codex/Claude and begin implementation.

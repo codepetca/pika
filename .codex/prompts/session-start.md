@@ -1,7 +1,7 @@
 Start a new AI session: validate environment, load context, identify next task.
 
 Steps:
-1) Confirm worktree: `git rev-parse --show-toplevel` — must contain `.claude/worktrees/`.
+1) Confirm worktree: `git rev-parse --show-toplevel` — must contain `.codex/worktrees/` (or `.claude/worktrees/`).
    If it shows `$HOME/Repos/pika`, STOP — you are in the hub. Ask user to open session from a worktree.
 2) Run: `bash scripts/verify-env.sh`
 3) Recover context: `git log --oneline -10` and `cat .ai/SESSION-LOG.md`

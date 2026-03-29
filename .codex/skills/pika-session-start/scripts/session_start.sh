@@ -23,12 +23,12 @@ fi
 HUB="${HOME}/Repos/pika"
 if [[ "$WORKTREE_ROOT" == "$HUB" ]]; then
   echo -e "${FAIL} Working in hub ($HUB). Sessions must run inside a worktree."
-  echo "   Create one: git -C \"\$HOME/Repos/pika\" worktree add .claude/worktrees/<name> -b <branch>"
+  echo "   Create one: git -C \"\$HOME/Repos/pika\" worktree add .codex/worktrees/<name> -b <branch>"
   exit 1
 fi
 
-if [[ "$WORKTREE_ROOT" != *".claude/worktrees/"* ]]; then
-  echo -e "${FAIL} Worktree path does not contain .claude/worktrees/ — unexpected location: $WORKTREE_ROOT"
+if [[ "$WORKTREE_ROOT" != *".codex/worktrees/"* && "$WORKTREE_ROOT" != *".claude/worktrees/"* ]]; then
+  echo -e "${FAIL} Worktree path does not contain .codex/worktrees/ or .claude/worktrees/ — unexpected location: $WORKTREE_ROOT"
   exit 1
 fi
 

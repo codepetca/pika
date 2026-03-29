@@ -1,7 +1,7 @@
 STOP and re-read the workflow docs before continuing.
 
 Steps:
-1) Confirm worktree: `git rev-parse --show-toplevel` — must contain `.claude/worktrees/`
+1) Confirm worktree: `git rev-parse --show-toplevel` — must contain `.codex/worktrees/` (or `.claude/worktrees/`)
 2) Read: `.ai/START-HERE.md`
 3) Read: `docs/dev-workflow.md`
 

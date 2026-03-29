@@ -1,48 +1,46 @@
-Merge `main` into `production` via a PR branch.
-(Vercel production deploys from `production`.)
-
-This is a **hub-level operation** — it must run from the hub repo, not a worktree.
-
-Note: Hub path is assumed to be `$HOME/Repos/pika`.
+Merge `main` into `production` via the protected PR flow.
 
 Rules:
-- Run all commands directly (do not output copy-pasteable commands).
-- ALL git commands MUST use: `git -C "$HOME/Repos/pika"`
-- Never force-push.
-- Never rewrite `main` or `production`.
-- If conflicts occur, stop and ask for help resolving them.
+- Direct pushes to `production` are rejected by branch protection (`GH013`) — always use a PR.
+- If merge conflicts occur, stop and ask for resolution direction.
 
 Steps:
 
-1) Verify hub environment
-   - Verify this is the hub: `echo $PIKA_WORKTREE`
-   - If `$PIKA_WORKTREE` is set to a worktree path (not `$HOME/Repos/pika`), stop and tell me to run this from the hub instead.
-   - Run: `git -C "$HOME/Repos/pika" remote -v`, `git -C "$HOME/Repos/pika" status -sb`
-   - If `origin` doesn't point to the expected repo, stop and tell me what to fix.
+1) Preflight (run from hub):
+   ```bash
+   REPO="$HOME/Repos/pika"
+   git -C "$REPO" fetch origin
+   git -C "$REPO" worktree prune
+   if [ ! -d "$REPO/.claude/worktrees/production" ]; then
+     git -C "$REPO" worktree add "$REPO/.claude/worktrees/production" production
+   fi
+   ```
 
-2) Update branches
-   - `git -C "$HOME/Repos/pika" fetch --all --prune`
-   - `git -C "$HOME/Repos/pika" switch main && git -C "$HOME/Repos/pika" pull --ff-only origin main`
-   - `git -C "$HOME/Repos/pika" switch production && git -C "$HOME/Repos/pika" pull --ff-only origin production`
+2) Merge in production worktree:
+   ```bash
+   PROD="$HOME/Repos/pika/.claude/worktrees/production"
+   git -C "$PROD" fetch origin main production
+   git -C "$PROD" merge --ff-only origin/production
+   git -C "$PROD" merge origin/main
+   ```
 
-3) Create PR branch + merge
-   - Branch name: `merge/main-to-production-YYYYMMDD` (use today's date)
-   - `git -C "$HOME/Repos/pika" switch production`
-   - `git -C "$HOME/Repos/pika" switch -c merge/main-to-production-YYYYMMDD`
-   - `git -C "$HOME/Repos/pika" merge --no-ff main`
-   - If conflicts occur, run `git -C "$HOME/Repos/pika" status`, stop, and ask me for help.
+3) Open PR:
+   ```bash
+   MERGE_BRANCH="merge-main-into-production-$(date +%Y%m%d)"
+   git -C "$PROD" push origin HEAD:"refs/heads/$MERGE_BRANCH"
+   gh pr create \
+     --repo codepetca/pika \
+     --base production \
+     --head "$MERGE_BRANCH" \
+     --title "Merge main into production ($(date +%Y-%m-%d))" \
+     --body 'Merge latest main into production.'
+   ```
 
-4) Sanity check + push
-   - Show: `git -C "$HOME/Repos/pika" diff --stat origin/production...HEAD`
-   - `git -C "$HOME/Repos/pika" push -u origin merge/main-to-production-YYYYMMDD`
+4) After merge, sync:
+   ```bash
+   gh pr merge <pr-number> --repo codepetca/pika --merge
+   git -C "$PROD" fetch origin production
+   git -C "$PROD" merge --ff-only origin/production
+   ```
 
-5) Create PR with `gh pr create`
-   - Title: `Merge main into production (YYYY-MM-DD)`
-   - Body: Purpose is to deploy to Vercel production. Include summary of changes from diff stat.
-   - Recommend merging with a **merge commit** (not squash).
-
-6) Post-merge cleanup (tell me to run this after PR is merged)
-   - `git -C "$HOME/Repos/pika" switch production`
-   - `git -C "$HOME/Repos/pika" pull --ff-only origin production`
-   - `git -C "$HOME/Repos/pika" branch -d merge/main-to-production-YYYYMMDD`
-   - `git -C "$HOME/Repos/pika" push origin --delete merge/main-to-production-YYYYMMDD`
+5) Report final `origin/production` commit SHA.

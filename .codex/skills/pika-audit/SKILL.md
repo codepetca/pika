@@ -11,7 +11,7 @@ Scan changed TypeScript files for codebase violations before committing. Catches
 
 ## Workflow
 
-1. Confirm you are in a Pika worktree (`git rev-parse --show-toplevel` contains `.claude/worktrees/`).
+1. Confirm you are in a Pika worktree (`git rev-parse --show-toplevel` contains `.codex/worktrees/` or `.claude/worktrees/`).
 2. Run the audit script from the worktree root:
    ```bash
    bash .codex/skills/pika-audit/scripts/audit.sh

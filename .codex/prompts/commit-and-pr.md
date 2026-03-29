@@ -8,7 +8,7 @@ Rules:
 Steps:
 
 1) Verify environment
-   - Confirm worktree: `git rev-parse --show-toplevel` (must contain `.claude/worktrees/`)
+   - Confirm worktree: `git rev-parse --show-toplevel` (must contain `.codex/worktrees/` or `.claude/worktrees/`)
    - Run: `git status -sb`, `git branch --show-current`
    - If on `main` or `production`, stop and ask for a feature branch.
    - If no changes, stop and say so.
