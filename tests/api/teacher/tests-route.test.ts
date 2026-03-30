@@ -32,6 +32,79 @@ describe('GET /api/teacher/tests', () => {
     vi.clearAllMocks()
   })
 
+  it('requests tests in descending position order with a descending created_at tie-breaker', async () => {
+    const orderCalls: Array<{ column: string; ascending: boolean | undefined }> = []
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        const builder: any = {
+          select: vi.fn(() => builder),
+          eq: vi.fn(() => builder),
+          order: vi.fn((column: string, options?: { ascending?: boolean }) => {
+            orderCalls.push({ column, ascending: options?.ascending })
+            return builder
+          }),
+          then: vi.fn((resolve: any) =>
+            resolve({
+              data: [
+                { id: 'test-2', classroom_id: 'classroom-1', title: 'Newest', position: 2, created_at: '2026-03-02T00:00:00.000Z' },
+                { id: 'test-1', classroom_id: 'classroom-1', title: 'Older', position: 1, created_at: '2026-03-01T00:00:00.000Z' },
+              ],
+              error: null,
+            })
+          ),
+        }
+        return builder
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [], count: 0, error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1')
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(orderCalls).toEqual([
+      { column: 'position', ascending: false },
+      { column: 'created_at', ascending: false },
+    ])
+    expect((data.quizzes as Array<{ id: string }>).map((quiz) => quiz.id)).toEqual(['test-2', 'test-1'])
+  })
+
   it('returns 500 when reading test responses fails', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'tests') {
