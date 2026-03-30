@@ -211,7 +211,7 @@ describe('TeacherQuizzesTab', () => {
     expect(screen.getByText('New Test')).toBeInTheDocument()
   })
 
-  it('shows open tests first and hides closed tests behind a collapsed archive', async () => {
+  it('renders tests in newest-first order without a closed-tests archive', async () => {
     mockQuizzesResponse([
       makeQuiz({ id: 'active-new', title: 'Newest Active Test', assessment_type: 'test', status: 'active', position: 4 }),
       makeQuiz({ id: 'draft-old', title: 'Older Draft Test', assessment_type: 'test', status: 'draft', position: 3 }),
@@ -225,21 +225,7 @@ describe('TeacherQuizzesTab', () => {
       expect(screen.getByText('Newest Active Test')).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('button', { name: /Closed tests \(2\)/i })).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText('Newest Closed Test')).not.toBeInTheDocument()
-    expect(screen.queryByText('Older Closed Test')).not.toBeInTheDocument()
-    expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
-      'Newest Active Test',
-      'Older Draft Test',
-    ])
-
-    fireEvent.click(screen.getByRole('button', { name: /Closed tests \(2\)/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Newest Closed Test')).toBeInTheDocument()
-    })
-
-    expect(screen.getByRole('button', { name: /Closed tests \(2\)/i })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.queryByRole('button', { name: /Closed tests \(\d+\)/i })).not.toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
       'Newest Active Test',
       'Older Draft Test',
@@ -248,7 +234,7 @@ describe('TeacherQuizzesTab', () => {
     ])
   })
 
-  it('prefers the first open test when grading mode auto-selects a test', async () => {
+  it('auto-selects the first test in the newest-first list when grading mode opens', async () => {
     const onSelectQuiz = vi.fn()
     const onTestGradingContextChange = vi.fn()
 
@@ -278,12 +264,12 @@ describe('TeacherQuizzesTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     await waitFor(() => {
-      expect(onSelectQuiz).toHaveBeenCalledWith(expect.objectContaining({ id: 'active-next' }))
+      expect(onSelectQuiz).toHaveBeenCalledWith(expect.objectContaining({ id: 'closed-top' }))
     })
     await waitFor(() => {
       expect(onTestGradingContextChange).toHaveBeenCalledWith({
         mode: 'grading',
-        testId: 'active-next',
+        testId: 'closed-top',
         studentId: null,
         studentName: null,
       })

@@ -7491,3 +7491,22 @@
 - The `pika-ui-verify` helper script misclassifies a running local server as down because it probes `/api/auth/me` without auth and treats the expected `401` as failure. Screenshots were captured manually with Playwright instead.
 
 **Status:** Issue #418 implemented, validated, and ready to publish.
+
+## 2026-03-30 [AI - Codex follow-up]
+
+**Goal:** Remove the teacher closed-tests archive after visual review showed the UX was not an improvement.
+
+**Completed:**
+- Removed the teacher-only `Closed tests` collapsible section from the tests authoring list.
+- Restored a single flat teacher test list while preserving newest-first ordering by descending `position`.
+- Updated the teacher component tests to assert the flat-list behavior and newest-first grading auto-selection.
+
+**Validation:**
+- `pnpm test` (179 test files, 1597 tests passed)
+- `pnpm lint`
+- Manual Playwright screenshots verified for:
+  - teacher desktop flat list
+  - teacher mobile flat list
+  - student mobile tests view
+
+**Status:** Archive UX reverted. Newest-first ordering remains in place.
