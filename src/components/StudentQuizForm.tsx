@@ -26,7 +26,18 @@ interface Props {
   isInteractionLocked?: boolean
   assessmentType?: QuizAssessmentType
   apiBasePath?: string
+  onAvailabilityLoss?: () => void
   onSubmitted: () => void
+}
+
+function isAssessmentAvailabilityError(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return (
+    normalized.includes('not active') ||
+    normalized.includes('not found') ||
+    normalized.includes('submitted test') ||
+    normalized.includes('already responded')
+  )
 }
 
 export function StudentQuizForm({
@@ -38,6 +49,7 @@ export function StudentQuizForm({
   isInteractionLocked = false,
   assessmentType,
   apiBasePath = '/api/student/quizzes',
+  onAvailabilityLoss,
   onSubmitted,
 }: Props) {
   const OPEN_RESPONSE_TAB_INDENT = '\t'
@@ -137,9 +149,13 @@ export function StudentQuizForm({
       setSaveStatus('saved')
     } catch (saveError) {
       console.error('Error saving test draft:', saveError)
+      const message = saveError instanceof Error ? saveError.message : 'Failed to save draft'
+      if (isAssessmentAvailabilityError(message)) {
+        onAvailabilityLoss?.()
+      }
       setSaveStatus('unsaved')
     }
-  }, [apiBasePath, quizId, shouldAutosave])
+  }, [apiBasePath, onAvailabilityLoss, quizId, shouldAutosave])
 
   useEffect(() => {
     return () => {
@@ -368,7 +384,11 @@ export function StudentQuizForm({
       setFlaggedQuestions([])
       onSubmitted()
     } catch (err: any) {
-      setError(err.message || 'Failed to submit response')
+      const message = err?.message || 'Failed to submit response'
+      if (isAssessmentAvailabilityError(message)) {
+        onAvailabilityLoss?.()
+      }
+      setError(message)
     } finally {
       setSubmitting(false)
       setShowConfirm(false)
