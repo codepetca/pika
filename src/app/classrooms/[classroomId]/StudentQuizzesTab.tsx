@@ -5,7 +5,11 @@ import { ChevronLeft, ClockAlert, LogOut, Maximize2 } from 'lucide-react'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
-import { getQuizExitCount, getQuizStatusBadgeClass } from '@/lib/quizzes'
+import {
+  getQuizExitCount,
+  getQuizStatusBadgeClass,
+  QUIZ_EXIT_BURST_WINDOW_MS,
+} from '@/lib/quizzes'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
 import { StudentQuizResults } from '@/components/StudentQuizResults'
 import { Button, ConfirmDialog } from '@/ui'
@@ -33,7 +37,6 @@ interface RouteExitAttemptDetail {
   classroomId?: string
   source?: string
   metadata?: Record<string, unknown> | null
-  dedupe?: boolean
 }
 
 interface AllowedDocItem {
@@ -110,8 +113,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const awayStartedAtRef = useRef<number | null>(null)
   const focusEnabledRef = useRef(false)
   const fullscreenActiveRef = useRef(false)
-  const lastRouteExitRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
-  const lastWindowSignalRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
+  const lastExitSignalAtRef = useRef<number | null>(null)
+  const findIntentUntilRef = useRef(0)
+  const findSuppressionUntilRef = useRef(0)
   const isTestsView = assessmentType === 'test'
   const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
   const focusEnabled = useMemo(() => {
@@ -146,6 +150,11 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
 
   useEffect(() => {
     focusEnabledRef.current = focusEnabled
+    if (!focusEnabled) {
+      lastExitSignalAtRef.current = null
+      findIntentUntilRef.current = 0
+      findSuppressionUntilRef.current = 0
+    }
   }, [focusEnabled])
 
   useEffect(() => {
@@ -178,8 +187,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     setActiveDoc(null)
     focusSessionIdRef.current = createFocusSessionId()
     awayStartedAtRef.current = null
-    lastRouteExitRef.current = null
-    lastWindowSignalRef.current = null
+    lastExitSignalAtRef.current = null
+    findIntentUntilRef.current = 0
+    findSuppressionUntilRef.current = 0
 
     try {
       const res = await fetch(`${apiBasePath}/${quizId}`)
@@ -236,24 +246,40 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     }
   }, [apiBasePath])
 
+  const isWithinExitBurstWindow = useCallback((eventAtMs: number) => (
+    lastExitSignalAtRef.current !== null &&
+    eventAtMs - lastExitSignalAtRef.current < QUIZ_EXIT_BURST_WINDOW_MS
+  ), [])
+
+  const registerExitSignal = useCallback((eventAtMs: number) => {
+    lastExitSignalAtRef.current = eventAtMs
+  }, [])
+
+  const shouldSuppressForBrowserFind = useCallback(() => {
+    const now = Date.now()
+    if (now <= findSuppressionUntilRef.current) {
+      return true
+    }
+    if (now <= findIntentUntilRef.current) {
+      findIntentUntilRef.current = 0
+      findSuppressionUntilRef.current = now + 500
+      return true
+    }
+    return false
+  }, [])
+
   const logRouteExitAttempt = useCallback((
     source: string,
     metadata?: Record<string, unknown>,
     options?: {
-      dedupe?: boolean
       updateSummary?: boolean
     }
   ) => {
     const now = Date.now()
-    if (
-      options?.dedupe &&
-      lastRouteExitRef.current &&
-      lastRouteExitRef.current.source === source &&
-      now - lastRouteExitRef.current.loggedAtMs < 1200
-    ) {
+    if (isWithinExitBurstWindow(now)) {
       return
     }
-    lastRouteExitRef.current = { source, loggedAtMs: now }
+    registerExitSignal(now)
     void postFocusEvent(
       'route_exit_attempt',
       {
@@ -262,28 +288,24 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       },
       { updateSummary: options?.updateSummary }
     )
-  }, [postFocusEvent])
+  }, [isWithinExitBurstWindow, postFocusEvent, registerExitSignal])
 
   const logWindowUnmaximizeAttempt = useCallback((
     source: string,
     metadata?: Record<string, unknown>,
     options?: {
-      dedupe?: boolean
-      dedupeWindowMs?: number
+      suppressDuringFind?: boolean
       updateSummary?: boolean
     }
   ) => {
     const now = Date.now()
-    const dedupeWindowMs = options?.dedupeWindowMs ?? 1200
-    if (
-      options?.dedupe &&
-      lastWindowSignalRef.current &&
-      lastWindowSignalRef.current.source === source &&
-      now - lastWindowSignalRef.current.loggedAtMs < dedupeWindowMs
-    ) {
+    if (options?.suppressDuringFind && shouldSuppressForBrowserFind()) {
       return
     }
-    lastWindowSignalRef.current = { source, loggedAtMs: now }
+    if (isWithinExitBurstWindow(now)) {
+      return
+    }
+    registerExitSignal(now)
     void postFocusEvent(
       'window_unmaximize_attempt',
       {
@@ -292,7 +314,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       },
       { updateSummary: options?.updateSummary }
     )
-  }, [postFocusEvent])
+  }, [isWithinExitBurstWindow, postFocusEvent, registerExitSignal, shouldSuppressForBrowserFind])
 
   const requestExamFullscreen = useCallback(async (
     source: string,
@@ -308,7 +330,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         logWindowUnmaximizeAttempt(
           'fullscreen_not_supported',
           { request_source: source },
-          { dedupe: true, updateSummary: false }
+          { updateSummary: false }
         )
       }
       return
@@ -336,7 +358,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
             request_source: source,
             error_name: error instanceof Error ? error.name : 'unknown_error',
           },
-          { dedupe: true, updateSummary: true }
+          { updateSummary: true }
         )
       }
     }
@@ -355,7 +377,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     setIsFullscreen(fullscreenNow)
     focusSessionIdRef.current = null
     awayStartedAtRef.current = null
-    lastWindowSignalRef.current = null
+    lastExitSignalAtRef.current = null
+    findIntentUntilRef.current = 0
+    findSuppressionUntilRef.current = 0
     loadQuizzes() // Refresh list to get updated status
   }, [loadQuizzes])
 
@@ -395,8 +419,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     setStartedTestId(quizId)
     focusSessionIdRef.current = createFocusSessionId()
     awayStartedAtRef.current = null
-    lastRouteExitRef.current = null
-    lastWindowSignalRef.current = null
+    lastExitSignalAtRef.current = null
+    findIntentUntilRef.current = 0
+    findSuppressionUntilRef.current = 0
     void requestExamFullscreen('start_test_confirm')
     if (selectedQuizIdRef.current !== quizId || !selectedQuiz) {
       void handleSelectQuiz(quizId)
@@ -446,8 +471,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       if (detail?.classroomId && detail.classroomId !== classroom.id) return
       logRouteExitAttempt(
         detail?.source || 'in_app_navigation',
-        detail?.metadata || undefined,
-        { dedupe: detail?.dedupe === true }
+        detail?.metadata || undefined
       )
     }
 
@@ -464,7 +488,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       logRouteExitAttempt(
         'beforeunload',
         { blocked: true },
-        { dedupe: true, updateSummary: false }
+        { updateSummary: false }
       )
       event.preventDefault()
       event.returnValue = ''
@@ -474,7 +498,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       logRouteExitAttempt(
         'pagehide',
         undefined,
-        { dedupe: true, updateSummary: false }
+        { updateSummary: false }
       )
     }
 
@@ -510,7 +534,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         logWindowUnmaximizeAttempt(
           'fullscreen_exit',
           { trigger: 'fullscreenchange' },
-          { dedupe: true, updateSummary: true }
+          { suppressDuringFind: true, updateSummary: true }
         )
       }
     }
@@ -534,7 +558,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
           avail_width: availWidth,
           avail_height: availHeight,
         },
-        { dedupe: true, dedupeWindowMs: 3000, updateSummary: true }
+        { suppressDuringFind: true, updateSummary: true }
       )
     }
 
@@ -549,9 +573,28 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   useEffect(() => {
     if (!focusEnabled) return
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
+        findIntentUntilRef.current = Date.now() + QUIZ_EXIT_BURST_WINDOW_MS
+        findSuppressionUntilRef.current = 0
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true)
+    }
+  }, [focusEnabled])
+
+  useEffect(() => {
+    if (!focusEnabled) return
+
     const startAway = (source: 'visibility' | 'blur') => {
       if (awayStartedAtRef.current !== null) return
-      awayStartedAtRef.current = Date.now()
+      if (shouldSuppressForBrowserFind()) return
+      const now = Date.now()
+      awayStartedAtRef.current = now
+      registerExitSignal(now)
       void postFocusEvent('away_start', { source })
     }
 
@@ -589,7 +632,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         void postFocusEvent('away_end', { source: 'cleanup' })
       }
     }
-  }, [focusEnabled, postFocusEvent])
+  }, [focusEnabled, postFocusEvent, registerExitSignal, shouldSuppressForBrowserFind])
 
   useEffect(() => {
     return () => {
@@ -597,7 +640,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       logRouteExitAttempt(
         'component_unmount',
         undefined,
-        { dedupe: true, updateSummary: false }
+        { updateSummary: false }
       )
     }
   }, [logRouteExitAttempt])

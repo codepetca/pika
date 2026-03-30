@@ -158,6 +158,7 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
+    expect(data.focus_summary.exit_count).toBe(1)
     expect(data.focus_summary.away_count).toBe(1)
     expect(data.focus_summary.window_unmaximize_attempts).toBe(0)
   })
@@ -210,6 +211,7 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
+    expect(data.focus_summary.exit_count).toBe(1)
     expect(data.focus_summary.window_unmaximize_attempts).toBe(1)
   })
 })
