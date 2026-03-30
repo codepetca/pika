@@ -7450,3 +7450,20 @@
 - `pnpm test tests/unit/quizzes.test.ts tests/components/StudentQuizzesTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/student/tests-focus-events.test.ts`
 
 **Status:** Review follow-up fixes applied and ready to push to PR #436.
+
+## 2026-03-30 [AI - Codex]
+
+**Goal:** Normalize the student-facing away-time label to compact lowercase units.
+
+**Completed:**
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - Changed the student away-time formatter from `m:ss` to compact lowercase units (`s`, `m`, `h`)
+- Updated `src/components/AppHeader.tsx`
+  - Changed the exam-mode header away-time formatter from uppercase units to lowercase units
+- Updated `tests/components/StudentQuizzesTab.test.tsx`
+  - Adjusted the student away-time assertion from `0:13` to `13s`
+
+**Validation:**
+- `pnpm test tests/components/StudentQuizzesTab.test.tsx`
+
+**Status:** Student away-time labels now use compact lowercase units in the PR worktree.

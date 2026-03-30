@@ -316,7 +316,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
 
     expect(screen.getByLabelText(/Exits 4\./)).toBeInTheDocument()
-    expect(screen.getByLabelText('Away time 0:13.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Away time 13s.')).toBeInTheDocument()
     expect(screen.getAllByText('Window must be maximized in exam mode.').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: /Maximize/i })).toBeInTheDocument()
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()

@@ -54,9 +54,9 @@ type FullscreenCapableElement = HTMLElement & {
 
 function formatDuration(totalSeconds: number): string {
   const safe = Math.max(0, Math.round(totalSeconds))
-  const minutes = Math.floor(safe / 60)
-  const seconds = safe % 60
-  return `${minutes}:${String(seconds).padStart(2, '0')}`
+  if (safe < 60) return `${safe}s`
+  if (safe < 3600) return `${Math.floor(safe / 60)}m`
+  return `${Math.floor(safe / 3600)}h`
 }
 
 function createFocusSessionId(): string {
