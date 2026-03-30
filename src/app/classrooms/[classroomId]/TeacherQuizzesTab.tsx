@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Circle, ClockAlert, LogOut, Plus, Send } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, Circle, ClockAlert, LogOut, Plus, Send } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Button, ConfirmDialog, DialogPanel, FormField, SplitButton, Tooltip } from '@/ui'
@@ -168,6 +168,7 @@ export function TeacherQuizzesTab({
   const [showPromptGuidelineModal, setShowPromptGuidelineModal] = useState(false)
   const [batchPromptGuideline, setBatchPromptGuideline] = useState(DEFAULT_TEST_AI_PROMPT_GUIDELINE)
   const [batchPromptGuidelineDraft, setBatchPromptGuidelineDraft] = useState(DEFAULT_TEST_AI_PROMPT_GUIDELINE)
+  const [showClosedTests, setShowClosedTests] = useState(false)
 
   const { setOpen: setRightSidebarOpen } = useRightSidebar()
 
@@ -175,7 +176,18 @@ export function TeacherQuizzesTab({
   const isTestsView = assessmentType === 'test'
   const apiBasePath = isTestsView ? '/api/teacher/tests' : '/api/teacher/quizzes'
 
-  const sortedQuizzes = useMemo(() => [...quizzes].sort((a, b) => a.position - b.position), [quizzes])
+  const openAuthoringTests = useMemo(
+    () => (isTestsView ? quizzes.filter((quiz) => quiz.status !== 'closed') : []),
+    [isTestsView, quizzes]
+  )
+  const closedAuthoringTests = useMemo(
+    () => (isTestsView ? quizzes.filter((quiz) => quiz.status === 'closed') : []),
+    [isTestsView, quizzes]
+  )
+  const gradingDefaultTest = useMemo(() => {
+    if (!isTestsView) return null
+    return openAuthoringTests[0] ?? closedAuthoringTests[0] ?? null
+  }, [closedAuthoringTests, isTestsView, openAuthoringTests])
   const sortedGradingStudents = useMemo(
     () =>
       [...gradingStudents].sort((a, b) => {
@@ -280,9 +292,9 @@ export function TeacherQuizzesTab({
   }, [pendingCreatedQuizId, quizzes, setRightSidebarOpen])
 
   useEffect(() => {
-    if (!isTestsView || testsMode !== 'grading' || selectedQuizId || sortedQuizzes.length === 0) return
-    setSelectedQuizId(sortedQuizzes[0].id)
-  }, [isTestsView, testsMode, selectedQuizId, sortedQuizzes])
+    if (!isTestsView || testsMode !== 'grading' || selectedQuizId || !gradingDefaultTest) return
+    setSelectedQuizId(gradingDefaultTest.id)
+  }, [gradingDefaultTest, isTestsView, testsMode, selectedQuizId])
 
   useEffect(() => {
     if (!isTestsView) return
@@ -527,7 +539,7 @@ export function TeacherQuizzesTab({
   }
 
   const assessmentLabelPlural = isTestsView ? 'Tests' : 'Quizzes'
-  const selectedTest = sortedQuizzes.find((quiz) => quiz.id === selectedQuizId) || null
+  const selectedTest = quizzes.find((quiz) => quiz.id === selectedQuizId) || null
   const selectedTestTitle = selectedTest?.title || 'No test selected'
   const returnWillCloseActiveTest = isTestsView && testsMode === 'grading' && selectedTest?.status === 'active'
 
@@ -677,7 +689,7 @@ export function TeacherQuizzesTab({
           <div className="flex justify-center py-12">
             <Spinner size="lg" />
           </div>
-        ) : sortedQuizzes.length === 0 ? (
+        ) : quizzes.length === 0 ? (
           <p className="text-text-muted text-center py-8">
             No {assessmentLabelPlural.toLowerCase()} yet. Create one to get started.
           </p>
@@ -868,7 +880,7 @@ export function TeacherQuizzesTab({
           </div>
         ) : (
           <div className="space-y-3">
-            {sortedQuizzes.map((quiz) => (
+            {(isTestsView ? openAuthoringTests : quizzes).map((quiz) => (
               <QuizCard
                 key={quiz.id}
                 quiz={quiz}
@@ -879,6 +891,38 @@ export function TeacherQuizzesTab({
                 onQuizUpdate={loadQuizzes}
               />
             ))}
+            {isTestsView && closedAuthoringTests.length > 0 ? (
+              <div className="rounded-card border border-border bg-surface-2">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-text-default"
+                  aria-expanded={showClosedTests}
+                  onClick={() => setShowClosedTests((prev) => !prev)}
+                >
+                  <span>Closed tests ({closedAuthoringTests.length})</span>
+                  {showClosedTests ? (
+                    <ChevronDown className="h-4 w-4 text-text-muted" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-text-muted" />
+                  )}
+                </button>
+                {showClosedTests ? (
+                  <div className="space-y-3 border-t border-border px-3 py-3">
+                    {closedAuthoringTests.map((quiz) => (
+                      <QuizCard
+                        key={quiz.id}
+                        quiz={quiz}
+                        apiBasePath={apiBasePath}
+                        isSelected={selectedQuizId === quiz.id}
+                        isReadOnly={isReadOnly}
+                        onSelect={() => handleCardSelect(quiz)}
+                        onQuizUpdate={loadQuizzes}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         )}
       </PageContent>

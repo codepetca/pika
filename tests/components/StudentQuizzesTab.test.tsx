@@ -765,6 +765,55 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(screen.queryByText('View Results')).not.toBeInTheDocument()
   })
 
+  it('renders active tests before returned tests and preserves newest-first order within each bucket', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        quizzes: [
+          {
+            id: 'test-active-new',
+            title: 'Newest Active Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 4,
+            student_status: 'not_started',
+          },
+          {
+            id: 'test-active-old',
+            title: 'Older Active Test',
+            assessment_type: 'test',
+            status: 'active',
+            show_results: false,
+            position: 2,
+            student_status: 'responded',
+          },
+          {
+            id: 'test-returned-new',
+            title: 'Newest Returned Test',
+            assessment_type: 'test',
+            status: 'closed',
+            show_results: false,
+            position: 5,
+            student_status: 'can_view_results',
+          },
+        ],
+      }),
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Newest Active Test')).toBeInTheDocument()
+    })
+
+    expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'Newest Active Test',
+      'Older Active Test',
+      'Newest Returned Test',
+    ])
+  })
+
   it('renders text documents inline in the left doc panel', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {

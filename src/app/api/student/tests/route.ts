@@ -35,7 +35,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
       .select('*')
       .eq('classroom_id', classroomId)
       .eq('status', status)
-      .order('position', { ascending: true })
+      .order('position', { ascending: false })
   }
 
   const { data: activeTests, error: activeError } = await fetchByStatus('active')

@@ -211,6 +211,85 @@ describe('TeacherQuizzesTab', () => {
     expect(screen.getByText('New Test')).toBeInTheDocument()
   })
 
+  it('shows open tests first and hides closed tests behind a collapsed archive', async () => {
+    mockQuizzesResponse([
+      makeQuiz({ id: 'active-new', title: 'Newest Active Test', assessment_type: 'test', status: 'active', position: 4 }),
+      makeQuiz({ id: 'draft-old', title: 'Older Draft Test', assessment_type: 'test', status: 'draft', position: 3 }),
+      makeQuiz({ id: 'closed-new', title: 'Newest Closed Test', assessment_type: 'test', status: 'closed', position: 2 }),
+      makeQuiz({ id: 'closed-old', title: 'Older Closed Test', assessment_type: 'test', status: 'closed', position: 1 }),
+    ])
+
+    renderTab('test')
+
+    await waitFor(() => {
+      expect(screen.getByText('Newest Active Test')).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('button', { name: /Closed tests \(2\)/i })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Newest Closed Test')).not.toBeInTheDocument()
+    expect(screen.queryByText('Older Closed Test')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'Newest Active Test',
+      'Older Draft Test',
+    ])
+
+    fireEvent.click(screen.getByRole('button', { name: /Closed tests \(2\)/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Newest Closed Test')).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('button', { name: /Closed tests \(2\)/i })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'Newest Active Test',
+      'Older Draft Test',
+      'Newest Closed Test',
+      'Older Closed Test',
+    ])
+  })
+
+  it('prefers the first open test when grading mode auto-selects a test', async () => {
+    const onSelectQuiz = vi.fn()
+    const onTestGradingContextChange = vi.fn()
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quizzes: [
+            makeQuiz({ id: 'closed-top', title: 'Closed Top Test', assessment_type: 'test', status: 'closed', position: 5 }),
+            makeQuiz({ id: 'active-next', title: 'Active Next Test', assessment_type: 'test', status: 'active', position: 4 }),
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: { id: 'active-next', title: 'Active Next Test', grading_finalized_at: null },
+          questions: [],
+          stats: { open_questions_count: 0, graded_open_responses: 0, ungraded_open_responses: 0, grading_finalized: false },
+          students: [],
+        }),
+      })
+
+    renderTab('test', { onSelectQuiz, onTestGradingContextChange })
+    await screen.findByText('Active Next Test')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+
+    await waitFor(() => {
+      expect(onSelectQuiz).toHaveBeenCalledWith(expect.objectContaining({ id: 'active-next' }))
+    })
+    await waitFor(() => {
+      expect(onTestGradingContextChange).toHaveBeenCalledWith({
+        mode: 'grading',
+        testId: 'active-next',
+        studentId: null,
+        studentName: null,
+      })
+    })
+  })
+
   it('auto-selects newly created test and keeps tests in authoring mode', async () => {
     const existing = makeQuiz({ id: 'existing-test', title: 'Existing Test', assessment_type: 'test' })
     const created = makeQuiz({ id: 'created-test-id', title: 'Created Test', assessment_type: 'test', position: 1 })

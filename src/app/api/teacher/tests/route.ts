@@ -41,8 +41,8 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     .from('tests')
     .select('*')
     .eq('classroom_id', classroomId)
-    .order('position', { ascending: true })
-    .order('created_at', { ascending: true })
+    .order('position', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (testsError) {
     if (testsError.code === 'PGRST205') {

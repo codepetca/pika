@@ -7467,3 +7467,27 @@
 - `pnpm test tests/components/StudentQuizzesTab.test.tsx`
 
 **Status:** Student away-time labels now use compact lowercase units in the PR worktree.
+## 2026-03-30 [AI - Codex]
+
+**Goal:** Implement Issue #418 to reverse default test ordering and hide closed teacher tests behind an archive section.
+
+**Completed:**
+- Changed teacher and student test list queries to request tests in descending `position`, keeping the existing position-based ordering model while showing newer tests first.
+- Updated the teacher tests authoring list to keep `draft` and `active` tests visible and move `closed` tests into a collapsed `Closed tests (N)` section.
+- Updated grading-mode default selection to prefer the first open test before falling back to a closed one.
+- Added API coverage for teacher and student test ordering behavior.
+- Added component coverage for the teacher closed-tests archive and student-facing ordering expectations.
+
+**Validation:**
+- `pnpm test` (179 test files, 1597 tests passed)
+- `pnpm lint`
+- Manual Playwright screenshots verified:
+  - teacher desktop collapsed archive
+  - teacher desktop expanded archive
+  - teacher mobile collapsed archive
+  - student mobile test ordering
+
+**Notes:**
+- The `pika-ui-verify` helper script misclassifies a running local server as down because it probes `/api/auth/me` without auth and treats the expected `401` as failure. Screenshots were captured manually with Playwright instead.
+
+**Status:** Issue #418 implemented, validated, and ready to publish.
