@@ -23,6 +23,7 @@ import type {
   QuizAssessmentType,
   QuizFocusSummary,
   QuizQuestion,
+  StudentQuizStatus,
   StudentQuizView,
   TestResponseDraftValue,
 } from '@/types'
@@ -46,6 +47,25 @@ interface AllowedDocItem {
   source: 'link' | 'upload' | 'text'
   url?: string
   content?: string
+}
+
+interface RemoteClosureNotice {
+  title: string
+  description: string
+}
+
+interface StudentTestSessionStatusResponse {
+  quiz: {
+    id: string
+    status: 'draft' | 'active' | 'closed'
+    assessment_type: 'test'
+    student_status: StudentQuizStatus
+    returned_at: string | null
+  }
+  student_status: StudentQuizStatus
+  returned_at: string | null
+  can_continue: boolean
+  message: string | null
 }
 
 type FullscreenCapableElement = HTMLElement & {
@@ -99,6 +119,20 @@ function extractAllowedDocLinks(questions: QuizQuestion[]): AllowedDocItem[] {
   return Array.from(linksByUrl.values())
 }
 
+function getRemoteClosureDescription(
+  studentStatus: StudentQuizStatus | 'unavailable',
+  message?: string | null
+): string {
+  if (message?.trim()) return message
+  if (studentStatus === 'can_view_results') {
+    return 'Your current work has been submitted. Results are now available from the tests list.'
+  }
+  if (studentStatus === 'responded') {
+    return 'Your current work has been submitted.'
+  }
+  return 'This test is no longer available.'
+}
+
 export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }: Props) {
   const notifications = useStudentNotifications()
   const [quizzes, setQuizzes] = useState<StudentQuizView[]>([])
@@ -116,6 +150,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const [pendingStartTestId, setPendingStartTestId] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
+  const [remoteClosureNotice, setRemoteClosureNotice] = useState<RemoteClosureNotice | null>(null)
   const selectedQuizIdRef = useRef<string | null>(null)
   const focusSessionIdRef = useRef<string | null>(null)
   const awayStartedAtRef = useRef<number | null>(null)
@@ -126,6 +161,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const findIntentUntilRef = useRef(0)
   const findSuppressionUntilRef = useRef(0)
   const docsInteractionSuppressionUntilRef = useRef(0)
+  const sessionStatusInFlightRef = useRef(false)
   const isTestsView = assessmentType === 'test'
   const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
   const focusEnabled = useMemo(() => {
@@ -200,10 +236,41 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     loadQuizzes()
   }, [loadQuizzes])
 
+  const handleRemoteTestClosure = useCallback((options?: {
+    studentStatus?: StudentQuizStatus
+    message?: string | null
+  }) => {
+    const nextStudentStatus = options?.studentStatus ?? 'responded'
+    setSelectedQuiz((current) => {
+      if (!current) return current
+      return {
+        ...current,
+        quiz: {
+          ...current.quiz,
+          status: 'closed',
+          student_status: nextStudentStatus,
+        },
+      }
+    })
+    setStartedTestId(null)
+    setShowStartTestConfirm(false)
+    setPendingStartTestId(null)
+    setActiveDoc(null)
+    setRemoteClosureNotice({
+      title: 'This test was closed by your teacher.',
+      description: getRemoteClosureDescription(nextStudentStatus, options?.message),
+    })
+    focusSessionIdRef.current = null
+    awayStartedAtRef.current = null
+    lastRouteExitRef.current = null
+    lastWindowSignalRef.current = null
+  }, [])
+
   async function handleSelectQuiz(quizId: string) {
     setSelectedQuizId(quizId)
     setLoadingQuiz(true)
     setActiveDoc(null)
+    setRemoteClosureNotice(null)
     focusSessionIdRef.current = createFocusSessionId()
     awayStartedAtRef.current = null
     lastRouteExitRef.current = null
@@ -229,6 +296,46 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       setLoadingQuiz(false)
     }
   }
+
+  const revalidateActiveTestSession = useCallback(async () => {
+    if (!isTestsView || !focusEnabledRef.current) return
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+
+    const quizId = selectedQuizIdRef.current
+    if (!quizId || sessionStatusInFlightRef.current) return
+
+    sessionStatusInFlightRef.current = true
+    try {
+      const res = await fetch(`${apiBasePath}/${quizId}/session-status`, {
+        cache: 'no-store',
+      })
+      const data = await res.json().catch(() => ({}))
+
+      if (selectedQuizIdRef.current !== quizId) return
+
+      if (res.status === 404) {
+        handleRemoteTestClosure({ message: 'This test is no longer available.' })
+        return
+      }
+
+      if (!res.ok) {
+        console.error('Error checking student test session status:', data?.error || res.status)
+        return
+      }
+
+      const sessionStatus = data as StudentTestSessionStatusResponse
+      if (sessionStatus.can_continue) return
+
+      handleRemoteTestClosure({
+        studentStatus: sessionStatus.student_status,
+        message: sessionStatus.message,
+      })
+    } catch (err) {
+      console.error('Error checking student test session status:', err)
+    } finally {
+      sessionStatusInFlightRef.current = false
+    }
+  }, [apiBasePath, handleRemoteTestClosure, isTestsView])
 
   const postFocusEvent = useCallback(async (
     eventType: 'away_start' | 'away_end' | 'route_exit_attempt' | 'window_unmaximize_attempt',
@@ -422,6 +529,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     setShowStartTestConfirm(false)
     setPendingStartTestId(null)
     setActiveDoc(null)
+    setRemoteClosureNotice(null)
     const fullscreenNow = isFullscreenActive()
     fullscreenActiveRef.current = fullscreenNow
     setIsFullscreen(fullscreenNow)
@@ -440,6 +548,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   }
 
   function handleQuizSubmitted() {
+    setRemoteClosureNotice(null)
     if (isTestsView) {
       notifications?.clearActiveTestsCount()
     } else {
@@ -539,6 +648,20 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   useEffect(() => {
     if (!focusEnabled) return
 
+    const intervalId = window.setInterval(() => {
+      void revalidateActiveTestSession()
+    }, 30_000)
+
+    const handleSessionVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void revalidateActiveTestSession()
+      }
+    }
+
+    const handleSessionFocus = () => {
+      void revalidateActiveTestSession()
+    }
+
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       logRouteExitAttempt(
         'beforeunload',
@@ -557,13 +680,18 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       )
     }
 
+    document.addEventListener('visibilitychange', handleSessionVisibility)
+    window.addEventListener('focus', handleSessionFocus)
     window.addEventListener('beforeunload', handleBeforeUnload)
     window.addEventListener('pagehide', handlePageHide)
     return () => {
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleSessionVisibility)
+      window.removeEventListener('focus', handleSessionFocus)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('pagehide', handlePageHide)
     }
-  }, [focusEnabled, logRouteExitAttempt])
+  }, [focusEnabled, logRouteExitAttempt, revalidateActiveTestSession])
 
   useEffect(() => {
     if (!focusEnabled) {
@@ -1046,7 +1174,25 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                   <div className="space-y-4">
                     <h2 className="text-xl font-bold text-text-default">{selectedTestPanelTitle}</h2>
 
-                    {requiresStart ? (
+                    {remoteClosureNotice ? (
+                      <div className="rounded-xl border border-warning bg-warning-bg/20 p-4">
+                        <div className="space-y-3">
+                          <p className="text-base font-semibold text-text-default">
+                            {remoteClosureNotice.title}
+                          </p>
+                          <p className="text-sm text-text-muted">
+                            {remoteClosureNotice.description}
+                          </p>
+                          <Button
+                            type="button"
+                            className="w-full sm:w-auto"
+                            onClick={performBackToAssessmentList}
+                          >
+                            Return to tests
+                          </Button>
+                        </div>
+                      </div>
+                    ) : requiresStart ? (
                       <Button
                         type="button"
                         className="w-full sm:w-auto"
@@ -1084,6 +1230,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                         isInteractionLocked={showNotMaximizedWarning}
                         assessmentType={assessmentType}
                         apiBasePath={apiBasePath}
+                        onAvailabilityLoss={() => {
+                          void revalidateActiveTestSession()
+                        }}
                         onSubmitted={handleQuizSubmitted}
                       />
                     )}

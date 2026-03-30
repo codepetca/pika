@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
 import { createMockQuizQuestion } from '../helpers/mocks'
 
@@ -126,5 +126,46 @@ describe('StudentQuizForm preview mode', () => {
     await waitFor(() => {
       expect(screen.getByText(/You have 1 question flagged/)).toBeInTheDocument()
     })
+  })
+
+  it('notifies the parent when a submit fails because the test is no longer active', async () => {
+    const onSubmitted = vi.fn()
+    const onAvailabilityLoss = vi.fn()
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ error: 'Test is not active' }),
+    })
+
+    render(
+      <StudentQuizForm
+        quizId="test-closed-id"
+        questions={[
+          createMockQuizQuestion({
+            id: 'q1',
+            question_text: 'Which option is correct?',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        assessmentType="test"
+        apiBasePath="/api/student/tests"
+        onAvailabilityLoss={onAvailabilityLoss}
+        onSubmitted={onSubmitted}
+      />
+    )
+
+    fireEvent.click(screen.getByText('A'))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    const confirmDialog = screen.getByRole('dialog')
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(onAvailabilityLoss).toHaveBeenCalledTimes(1)
+    })
+
+    expect(onSubmitted).not.toHaveBeenCalled()
+    expect(screen.getByText('Test is not active')).toBeInTheDocument()
   })
 })

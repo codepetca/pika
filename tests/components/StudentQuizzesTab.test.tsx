@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { StudentQuizzesTab } from '@/app/classrooms/[classroomId]/StudentQuizzesTab'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -18,6 +18,7 @@ describe('StudentQuizzesTab exam mode', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     cleanup()
     vi.useRealTimers()
     Object.defineProperty(window, 'innerWidth', {
@@ -257,6 +258,128 @@ describe('StudentQuizzesTab exam mode', () => {
 
     await waitFor(() => {
       expect(requestFullscreen).toHaveBeenCalled()
+    })
+  })
+
+  it('shows a closure notice when an active test is closed remotely and returns to the tests list after acknowledgment', async () => {
+    let listReads = 0
+    const setIntervalSpy = vi.spyOn(window, 'setInterval')
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        listReads += 1
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: listReads === 1 ? 'active' : 'closed',
+              show_results: false,
+              position: 0,
+              student_status: listReads === 1 ? 'not_started' : 'responded',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: null,
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1/session-status')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              status: 'closed',
+              assessment_type: 'test',
+              student_status: 'responded',
+              returned_at: null,
+            },
+            student_status: 'responded',
+            returned_at: null,
+            can_continue: false,
+            message: 'Your current work has been submitted.',
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    const requestFullscreen = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    })
+
+    expect(setIntervalSpy.mock.calls.some(([, delay]) => delay === 30_000)).toBe(true)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('This test was closed by your teacher.')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Your current work has been submitted.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Return to tests' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('This test was closed by your teacher.')).not.toBeInTheDocument()
+      expect(screen.getByText('This test is closed')).toBeInTheDocument()
     })
   })
 
