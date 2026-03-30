@@ -7360,3 +7360,39 @@
 - Live authenticated teacher/student screenshot verification was attempted, but full route-level tooltip capture was not completed during this session
 
 **Status:** Simplified calendar announcement tooltip landed on `main` locally and passed focused tests.
+**Goal:** Fix unclear JSON parse failures during Java practice test auto-grading.
+
+**Completed:**
+- Confirmed blank or missing student submissions are already handled in the teacher test auto-grade flow:
+  - students without submitted attempts are skipped
+  - submitted-but-blank open responses are graded as `Unanswered` with `0`
+- Patched `src/lib/ai-test-grading.ts` so OpenAI response parsing now reports a clear upstream error when the body is plain text or otherwise invalid JSON
+- Preserved the existing route behavior so auto-grade still returns structured JSON to the UI instead of leaking a raw parser exception
+- Added a regression test covering an `ok: true` OpenAI response whose body is non-JSON text beginning with `An error occurred...`
+
+**Validation:**
+- `bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"` (179 test files, 1592 tests passing)
+- `pnpm test tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts` (17 tests passing)
+
+**Notes:**
+- This change improves the reported failure from a raw `Unexpected token 'A'...` parse error to a clearer upstream-service error message with status and content type
+- No `.ai/features.json` update was needed because this is a targeted bug fix, not a feature-epic status change
+
+## 2026-03-30 [AI - Codex]
+
+**Goal:** Harden teacher-facing test autograding failures and publish the fix.
+
+**Completed:**
+- Sanitized upstream AI-service failures in `src/app/api/teacher/tests/[id]/auto-grade/route.ts` so the route no longer returns raw OpenAI parser/service errors to teachers
+- Added structured server logging for per-response autograde failures with `testId`, `studentId`, and `responseId`
+- Hardened `src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx` to collapse repeated batch autograde failures into one readable summary and preserve that summary after the grading rows reload
+- Added regression coverage for:
+  - sanitized route error messages when OpenAI returns invalid JSON
+  - teacher UI aggregation of repeated autograde failures without exposing raw student-id-prefixed error strings
+
+**Validation:**
+- `pnpm test tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/components/TeacherQuizzesTab.test.tsx` (31 tests passing)
+
+**Notes:**
+- Blank or missing student submissions are still handled separately by the route; this hardening specifically targets upstream AI-service failures and how they surface in the teacher UI
+- No `.ai/features.json` update was needed because this remains a scoped bug-fix pass rather than an epic-level feature change
