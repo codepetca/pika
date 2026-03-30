@@ -269,6 +269,7 @@ describe('TeacherQuizzesTab', () => {
               graded_open_responses: 0,
               ungraded_open_responses: 1,
               focus_summary: {
+                exit_count: 4,
                 away_total_seconds: 13,
                 away_count: 4,
                 route_exit_attempts: 2,
@@ -285,7 +286,7 @@ describe('TeacherQuizzesTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
 
     const awaySignal = await screen.findByText('0:13')
-    const exitSignal = await screen.findByText('9')
+    const exitSignal = await screen.findByText('4')
     const statusIcon = await screen.findByLabelText('Submitted')
     const lastTimeCell = await screen.findByText('6:07')
 

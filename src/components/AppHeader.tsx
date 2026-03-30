@@ -35,9 +35,9 @@ interface AppHeaderProps {
 
 function formatDuration(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds))
-  if (safe < 60) return `${safe}S`
-  if (safe < 3600) return `${Math.floor(safe / 60)}M`
-  return `${Math.floor(safe / 3600)}H`
+  if (safe < 60) return `${safe}s`
+  if (safe < 3600) return `${Math.floor(safe / 60)}m`
+  return `${Math.floor(safe / 3600)}h`
 }
 
 /**

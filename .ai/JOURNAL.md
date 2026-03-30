@@ -7396,3 +7396,74 @@
 **Notes:**
 - Blank or missing student submissions are still handled separately by the route; this hardening specifically targets upstream AI-service failures and how they surface in the teacher UI
 - No `.ai/features.json` update was needed because this remains a scoped bug-fix pass rather than an epic-level feature change
+
+## 2026-03-30 [AI - Codex]
+
+**Goal:** Fix exam mode exit telemetry so browser find (`Cmd/Ctrl+F`) does not count as an exit, while other interruption bursts still count once.
+
+**Completed:**
+- Updated `src/lib/quizzes.ts` and `src/types/index.ts`
+  - Added deduped `exit_count` to `QuizFocusSummary`
+  - Added shared `QUIZ_EXIT_BURST_WINDOW_MS` constant
+  - Changed summary logic to merge `away_start`, `route_exit_attempt`, and `window_unmaximize_attempt` events within one 2s burst into a single exit
+  - Kept legacy fallback in `getQuizExitCount()` for summaries without `exit_count`
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - Added short-lived browser-find suppression for the next blur/visibility/fullscreen/resize chain after `Cmd/Ctrl+F`
+  - Reworked client-side exit burst dedupe so repeated non-find signals inside one burst do not post duplicate exit telemetry
+  - Preserved away start/end telemetry for real interruptions and away duration tracking
+- Updated tests
+  - Added summary/unit coverage for deduped `exit_count`
+  - Added API assertions for `exit_count`
+  - Added component coverage for browser-find suppression, notification-style interruption dedupe, swipe-away tracking, and non-find route exits
+  - Updated teacher/student display assertions to use deduped exit counts
+
+**Validation:**
+- `pnpm test tests/unit/quizzes.test.ts tests/api/student/tests-focus-events.test.ts tests/components/StudentQuizzesTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm test` (all 1602 tests pass)
+- Visual verification:
+  - Student desktop exam mode: `/tmp/pika-430-student-exam-mode.png`
+  - Student mobile exam mode: `/tmp/pika-430-student-exam-mode-mobile.png`
+  - Teacher desktop grading: `/tmp/pika-430-teacher-grading.png`
+  - Teacher mobile grading: `/tmp/pika-430-teacher-grading-mobile.png`
+
+**Blockers/Notes:**
+- Fullscreen is not active in headless Playwright, so screenshots reflect the post-start exam UI with zero exits rather than a fullscreen-only state.
+- The teacher verification uses the seeded open demo test in grading view, where both students still show zero exits as expected.
+
+**Status:** Issue 430 implementation complete in the worktree and verified by tests plus authenticated UI screenshots.
+
+## 2026-03-30 [AI - Codex]
+
+**Goal:** Address post-review issues in PR #436 around exit-burst semantics and raw telemetry preservation.
+
+**Completed:**
+- Updated `src/lib/quizzes.ts`
+  - Reset the burst window on `away_end` so a fast return-then-leave counts as a new exit
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - Restored raw `route_exit_attempt` and `window_unmaximize_attempt` posts
+  - Kept browser-find suppression and same-source client dedupe
+- Updated tests
+  - Added unit coverage for rapid re-exit after return and the exact 2s burst boundary
+  - Tightened component assertions so notification bursts and route exits preserve raw signal counts while keeping deduped exit summaries
+
+**Validation:**
+- `pnpm test tests/unit/quizzes.test.ts tests/components/StudentQuizzesTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/student/tests-focus-events.test.ts`
+
+**Status:** Review follow-up fixes applied and ready to push to PR #436.
+
+## 2026-03-30 [AI - Codex]
+
+**Goal:** Normalize the student-facing away-time label to compact lowercase units.
+
+**Completed:**
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - Changed the student away-time formatter from `m:ss` to compact lowercase units (`s`, `m`, `h`)
+- Updated `src/components/AppHeader.tsx`
+  - Changed the exam-mode header away-time formatter from uppercase units to lowercase units
+- Updated `tests/components/StudentQuizzesTab.test.tsx`
+  - Adjusted the student away-time assertion from `0:13` to `13s`
+
+**Validation:**
+- `pnpm test tests/components/StudentQuizzesTab.test.tsx`
+
+**Status:** Student away-time labels now use compact lowercase units in the PR worktree.

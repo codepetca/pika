@@ -379,7 +379,18 @@ describe('quiz utilities', () => {
       expect(getQuizExitCount(undefined)).toBe(0)
     })
 
-    it('returns combined exits from away, route exit, and window attempts', () => {
+    it('returns exit_count when the summary provides a deduped incident count', () => {
+      expect(
+        getQuizExitCount({
+          exit_count: 3,
+          away_count: 4,
+          route_exit_attempts: 2,
+          window_unmaximize_attempts: 3,
+        })
+      ).toBe(3)
+    })
+
+    it('falls back to combined exits when exit_count is missing', () => {
       expect(
         getQuizExitCount({
           away_count: 4,
@@ -408,6 +419,7 @@ describe('quiz utilities', () => {
       ])
 
       expect(result.away_count).toBe(2)
+      expect(result.exit_count).toBe(2)
       expect(result.away_total_seconds).toBe(75)
       expect(result.route_exit_attempts).toBe(0)
       expect(result.window_unmaximize_attempts).toBe(0)
@@ -422,6 +434,7 @@ describe('quiz utilities', () => {
       ])
 
       expect(result.route_exit_attempts).toBe(2)
+      expect(result.exit_count).toBe(2)
       expect(result.window_unmaximize_attempts).toBe(0)
       expect(result.away_count).toBe(0)
       expect(result.away_total_seconds).toBe(0)
@@ -434,9 +447,71 @@ describe('quiz utilities', () => {
       ])
 
       expect(result.window_unmaximize_attempts).toBe(2)
+      expect(result.exit_count).toBe(2)
       expect(result.route_exit_attempts).toBe(0)
       expect(result.away_count).toBe(0)
       expect(result.away_total_seconds).toBe(0)
+    })
+
+    it('dedupes mixed exit-like events inside one interruption burst', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
+        { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:00:01.000Z' },
+        { event_type: 'route_exit_attempt', occurred_at: '2026-02-01T10:00:01.500Z' },
+        { event_type: 'away_end', occurred_at: '2026-02-01T10:00:05.000Z' },
+      ])
+
+      expect(result.exit_count).toBe(1)
+      expect(result.away_count).toBe(1)
+      expect(result.away_total_seconds).toBe(5)
+      expect(result.route_exit_attempts).toBe(1)
+      expect(result.window_unmaximize_attempts).toBe(1)
+    })
+
+    it('starts a new exit after the burst window elapses', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
+        { event_type: 'away_end', occurred_at: '2026-02-01T10:00:02.000Z' },
+        { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:00:03.500Z' },
+      ])
+
+      expect(result.exit_count).toBe(2)
+      expect(result.away_count).toBe(1)
+      expect(result.window_unmaximize_attempts).toBe(1)
+    })
+
+    it('counts a rapid second away_start after the student returns', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
+        { event_type: 'away_end', occurred_at: '2026-02-01T10:00:01.000Z' },
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:01.500Z' },
+        { event_type: 'away_end', occurred_at: '2026-02-01T10:00:02.500Z' },
+      ])
+
+      expect(result.exit_count).toBe(2)
+      expect(result.away_count).toBe(2)
+      expect(result.away_total_seconds).toBe(2)
+    })
+
+    it('treats events exactly on the burst boundary as one exit', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
+        { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:00:02.000Z' },
+      ])
+
+      expect(result.exit_count).toBe(1)
+      expect(result.away_count).toBe(1)
+      expect(result.window_unmaximize_attempts).toBe(1)
+    })
+
+    it('does not increase exit_count on away_end alone', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
+        { event_type: 'away_end', occurred_at: '2026-02-01T10:00:05.000Z' },
+      ])
+
+      expect(result.exit_count).toBe(1)
+      expect(result.away_total_seconds).toBe(5)
     })
   })
 })

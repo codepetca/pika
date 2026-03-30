@@ -5,7 +5,11 @@ import { ChevronLeft, ClockAlert, LogOut, Maximize2 } from 'lucide-react'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
-import { getQuizExitCount, getQuizStatusBadgeClass } from '@/lib/quizzes'
+import {
+  getQuizExitCount,
+  getQuizStatusBadgeClass,
+  QUIZ_EXIT_BURST_WINDOW_MS,
+} from '@/lib/quizzes'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
 import { StudentQuizResults } from '@/components/StudentQuizResults'
 import { Button, ConfirmDialog } from '@/ui'
@@ -50,9 +54,9 @@ type FullscreenCapableElement = HTMLElement & {
 
 function formatDuration(totalSeconds: number): string {
   const safe = Math.max(0, Math.round(totalSeconds))
-  const minutes = Math.floor(safe / 60)
-  const seconds = safe % 60
-  return `${minutes}:${String(seconds).padStart(2, '0')}`
+  if (safe < 60) return `${safe}s`
+  if (safe < 3600) return `${Math.floor(safe / 60)}m`
+  return `${Math.floor(safe / 3600)}h`
 }
 
 function createFocusSessionId(): string {
@@ -112,6 +116,8 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const fullscreenActiveRef = useRef(false)
   const lastRouteExitRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
   const lastWindowSignalRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
+  const findIntentUntilRef = useRef(0)
+  const findSuppressionUntilRef = useRef(0)
   const isTestsView = assessmentType === 'test'
   const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
   const focusEnabled = useMemo(() => {
@@ -146,6 +152,12 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
 
   useEffect(() => {
     focusEnabledRef.current = focusEnabled
+    if (!focusEnabled) {
+      lastRouteExitRef.current = null
+      lastWindowSignalRef.current = null
+      findIntentUntilRef.current = 0
+      findSuppressionUntilRef.current = 0
+    }
   }, [focusEnabled])
 
   useEffect(() => {
@@ -180,6 +192,8 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     awayStartedAtRef.current = null
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
+    findIntentUntilRef.current = 0
+    findSuppressionUntilRef.current = 0
 
     try {
       const res = await fetch(`${apiBasePath}/${quizId}`)
@@ -236,6 +250,19 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     }
   }, [apiBasePath])
 
+  const shouldSuppressForBrowserFind = useCallback(() => {
+    const now = Date.now()
+    if (now <= findSuppressionUntilRef.current) {
+      return true
+    }
+    if (now <= findIntentUntilRef.current) {
+      findIntentUntilRef.current = 0
+      findSuppressionUntilRef.current = now + 500
+      return true
+    }
+    return false
+  }, [])
+
   const logRouteExitAttempt = useCallback((
     source: string,
     metadata?: Record<string, unknown>,
@@ -270,10 +297,14 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     options?: {
       dedupe?: boolean
       dedupeWindowMs?: number
+      suppressDuringFind?: boolean
       updateSummary?: boolean
     }
   ) => {
     const now = Date.now()
+    if (options?.suppressDuringFind && shouldSuppressForBrowserFind()) {
+      return
+    }
     const dedupeWindowMs = options?.dedupeWindowMs ?? 1200
     if (
       options?.dedupe &&
@@ -292,7 +323,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       },
       { updateSummary: options?.updateSummary }
     )
-  }, [postFocusEvent])
+  }, [postFocusEvent, shouldSuppressForBrowserFind])
 
   const requestExamFullscreen = useCallback(async (
     source: string,
@@ -308,7 +339,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         logWindowUnmaximizeAttempt(
           'fullscreen_not_supported',
           { request_source: source },
-          { dedupe: true, updateSummary: false }
+          { updateSummary: false }
         )
       }
       return
@@ -336,7 +367,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
             request_source: source,
             error_name: error instanceof Error ? error.name : 'unknown_error',
           },
-          { dedupe: true, updateSummary: true }
+          { updateSummary: true }
         )
       }
     }
@@ -355,7 +386,10 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     setIsFullscreen(fullscreenNow)
     focusSessionIdRef.current = null
     awayStartedAtRef.current = null
+    lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
+    findIntentUntilRef.current = 0
+    findSuppressionUntilRef.current = 0
     loadQuizzes() // Refresh list to get updated status
   }, [loadQuizzes])
 
@@ -397,6 +431,8 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     awayStartedAtRef.current = null
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
+    findIntentUntilRef.current = 0
+    findSuppressionUntilRef.current = 0
     void requestExamFullscreen('start_test_confirm')
     if (selectedQuizIdRef.current !== quizId || !selectedQuiz) {
       void handleSelectQuiz(quizId)
@@ -510,7 +546,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         logWindowUnmaximizeAttempt(
           'fullscreen_exit',
           { trigger: 'fullscreenchange' },
-          { dedupe: true, updateSummary: true }
+          { dedupe: true, suppressDuringFind: true, updateSummary: true }
         )
       }
     }
@@ -534,7 +570,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
           avail_width: availWidth,
           avail_height: availHeight,
         },
-        { dedupe: true, dedupeWindowMs: 3000, updateSummary: true }
+        { dedupe: true, dedupeWindowMs: 3000, suppressDuringFind: true, updateSummary: true }
       )
     }
 
@@ -549,8 +585,25 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   useEffect(() => {
     if (!focusEnabled) return
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f') {
+        findIntentUntilRef.current = Date.now() + QUIZ_EXIT_BURST_WINDOW_MS
+        findSuppressionUntilRef.current = 0
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true)
+    }
+  }, [focusEnabled])
+
+  useEffect(() => {
+    if (!focusEnabled) return
+
     const startAway = (source: 'visibility' | 'blur') => {
       if (awayStartedAtRef.current !== null) return
+      if (shouldSuppressForBrowserFind()) return
       awayStartedAtRef.current = Date.now()
       void postFocusEvent('away_start', { source })
     }
@@ -589,7 +642,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         void postFocusEvent('away_end', { source: 'cleanup' })
       }
     }
-  }, [focusEnabled, postFocusEvent])
+  }, [focusEnabled, postFocusEvent, shouldSuppressForBrowserFind])
 
   useEffect(() => {
     return () => {

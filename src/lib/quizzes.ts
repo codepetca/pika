@@ -190,13 +190,22 @@ type FocusEventLike = {
   occurred_at: string
 }
 
-type QuizExitSummaryLike = Pick<
+export const QUIZ_EXIT_BURST_WINDOW_MS = 2000
+
+type QuizExitSummaryLike = ({
+  exit_count?: number | null
+} & Pick<
   QuizFocusSummary,
   'away_count' | 'route_exit_attempts' | 'window_unmaximize_attempts'
-> | null | undefined
+>) | null | undefined
 
 export function getQuizExitCount(summary: QuizExitSummaryLike): number {
   if (!summary) return 0
+
+  const exitCount = Number(summary.exit_count)
+  if (Number.isFinite(exitCount) && exitCount >= 0) {
+    return Math.trunc(exitCount)
+  }
 
   const awayCount = Math.max(0, Math.trunc(Number(summary.away_count) || 0))
   const routeExitAttempts = Math.max(0, Math.trunc(Number(summary.route_exit_attempts) || 0))
@@ -210,6 +219,7 @@ export function getQuizExitCount(summary: QuizExitSummaryLike): number {
 
 export function emptyQuizFocusSummary(): QuizFocusSummary {
   return {
+    exit_count: 0,
     away_count: 0,
     away_total_seconds: 0,
     route_exit_attempts: 0,
@@ -228,18 +238,30 @@ export function summarizeQuizFocusEvents(events: FocusEventLike[]): QuizFocusSum
 
   const summary = emptyQuizFocusSummary()
   let activeAwayStartedAtMs: number | null = null
+  let lastExitAtMs: number | null = null
 
   for (const event of sorted) {
     const eventAtMs = new Date(event.occurred_at).getTime()
     if (Number.isNaN(eventAtMs)) continue
 
+    const shouldCountExit =
+      lastExitAtMs === null || eventAtMs - lastExitAtMs > QUIZ_EXIT_BURST_WINDOW_MS
+
     if (event.event_type === 'route_exit_attempt') {
       summary.route_exit_attempts += 1
+      if (shouldCountExit) {
+        summary.exit_count += 1
+      }
+      lastExitAtMs = eventAtMs
       continue
     }
 
     if (event.event_type === 'window_unmaximize_attempt') {
       summary.window_unmaximize_attempts += 1
+      if (shouldCountExit) {
+        summary.exit_count += 1
+      }
+      lastExitAtMs = eventAtMs
       continue
     }
 
@@ -247,6 +269,10 @@ export function summarizeQuizFocusEvents(events: FocusEventLike[]): QuizFocusSum
       if (activeAwayStartedAtMs === null) {
         activeAwayStartedAtMs = eventAtMs
         summary.away_count += 1
+        if (shouldCountExit) {
+          summary.exit_count += 1
+        }
+        lastExitAtMs = eventAtMs
       }
       summary.last_away_started_at = event.occurred_at
       continue
@@ -260,6 +286,7 @@ export function summarizeQuizFocusEvents(events: FocusEventLike[]): QuizFocusSum
         )
       }
       activeAwayStartedAtMs = null
+      lastExitAtMs = null
       summary.last_away_ended_at = event.occurred_at
     }
   }
