@@ -253,6 +253,33 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(systemPrompt).not.toContain('Output exactly in this format')
     expect(systemPrompt).not.toContain('Score:')
   })
+
+  it('surfaces a clear error when OpenAI returns a non-JSON body', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/plain; charset=utf-8' }),
+      json: async () => {
+        throw new SyntaxError(`Unexpected token 'A', "An error o"... is not valid JSON`)
+      },
+      clone: () => ({
+        text: async () => 'An error occurred while processing your request.',
+      }),
+    })
+
+    await expect(
+      suggestTestOpenResponseGrade({
+        testTitle: 'Java Practice Test',
+        questionText: 'Write a loop that prints numbers 1 to 10.',
+        responseText: 'for (int i = 1; i <= 10; i++) { println(i); }',
+        maxPoints: 5,
+        answerKey: 'Use a counted loop from 1 through 10 and print each value.',
+      })
+    ).rejects.toThrow(
+      'OpenAI returned invalid JSON (status 200, text/plain; charset=utf-8): An error occurred while processing your request.'
+    )
+  })
 })
 
 describe('open-response reference cache helpers', () => {

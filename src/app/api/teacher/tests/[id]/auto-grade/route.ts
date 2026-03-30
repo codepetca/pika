@@ -10,6 +10,30 @@ export const revalidate = 0
 
 const CONCURRENCY_LIMIT = 5
 
+function toTeacherAutoGradeErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.trim() : ''
+
+  if (!message) {
+    return 'Auto-grading failed for this response. Try again.'
+  }
+
+  if (message === 'OPENAI_API_KEY is not configured') {
+    return 'AI grading is not configured.'
+  }
+
+  if (
+    message.startsWith('OpenAI request failed') ||
+    message.startsWith('OpenAI returned invalid JSON') ||
+    message === 'OpenAI response missing output text' ||
+    message === 'Failed to parse AI grade suggestion' ||
+    message === 'Failed to parse AI reference answers'
+  ) {
+    return 'AI grading service failed for this response. Try again.'
+  }
+
+  return message
+}
+
 // POST /api/teacher/tests/[id]/auto-grade - AI grade open responses for selected students
 export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, context) => {
   const user = await requireRole('teacher')
@@ -348,7 +372,13 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
         )
       } catch (error: any) {
         failedStudentIds.add(task.studentId)
-        const message = error?.message || 'Failed to auto-grade response'
+        console.error('Error auto-grading test response:', {
+          testId,
+          studentId: task.studentId,
+          responseId: task.responseId,
+          error,
+        })
+        const message = toTeacherAutoGradeErrorMessage(error)
         errors.push(`${task.studentId}: ${message}`)
       }
     }

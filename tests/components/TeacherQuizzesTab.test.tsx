@@ -649,6 +649,92 @@ describe('TeacherQuizzesTab', () => {
     })
   })
 
+  it('summarizes repeated batch auto-grade failures without exposing student ids', async () => {
+    const quiz = makeQuiz({
+      id: 'test-ai-errors',
+      title: 'AI Errors Test',
+      assessment_type: 'test',
+      status: 'active',
+    })
+
+    const initialResultsPayload = {
+      quiz: { id: quiz.id, title: quiz.title, grading_finalized_at: null },
+      questions: [],
+      stats: { open_questions_count: 0, graded_open_responses: 0, ungraded_open_responses: 2, grading_finalized: false },
+      students: [
+        {
+          student_id: 'student-1',
+          name: 'Student One',
+          email: 'student1@example.com',
+          status: 'submitted',
+          submitted_at: '2026-02-25T15:06:00.000Z',
+          last_activity_at: '2026-02-25T23:07:00.000Z',
+          points_earned: 1,
+          points_possible: 6,
+          percent: 16.7,
+          graded_open_responses: 0,
+          ungraded_open_responses: 1,
+          focus_summary: null,
+        },
+        {
+          student_id: 'student-2',
+          name: 'Student Two',
+          email: 'student2@example.com',
+          status: 'submitted',
+          submitted_at: '2026-02-25T15:06:00.000Z',
+          last_activity_at: '2026-02-25T23:07:00.000Z',
+          points_earned: 2,
+          points_possible: 6,
+          percent: 33.3,
+          graded_open_responses: 0,
+          ungraded_open_responses: 1,
+          focus_summary: null,
+        },
+      ],
+    }
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ quizzes: [quiz] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => initialResultsPayload,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          graded_students: 0,
+          skipped_students: 2,
+          eligible_students: 2,
+          graded_responses: 0,
+          errors: [
+            'student-1: AI grading service failed for this response. Try again.',
+            'student-2: AI grading service failed for this response. Try again.',
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => initialResultsPayload,
+      })
+
+    renderTab('test')
+    await screen.findByText('AI Errors Test')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    await screen.findByText('Student One')
+
+    fireEvent.click(screen.getByLabelText('Select Student One'))
+    fireEvent.click(screen.getByLabelText('Select Student Two'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grade 2 selected' }))
+
+    expect(await screen.findByText('2 students: AI grading service failed for this response. Try again.')).toBeInTheDocument()
+    expect(screen.queryByText(/student-1:/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/student-2:/i)).not.toBeInTheDocument()
+  })
+
   it('clears selected open scores/feedback with confirmation', async () => {
     const onTestGradingDataRefresh = vi.fn()
     const quiz = makeQuiz({

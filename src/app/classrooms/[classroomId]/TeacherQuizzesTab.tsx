@@ -104,6 +104,30 @@ function formatPoints(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
+function summarizeBatchAutoGradeErrors(rawErrors: unknown): string {
+  if (!Array.isArray(rawErrors)) return ''
+
+  const counts = new Map<string, number>()
+  for (const rawError of rawErrors) {
+    if (typeof rawError !== 'string') continue
+    const trimmed = rawError.trim()
+    if (!trimmed) continue
+
+    const separatorIndex = trimmed.indexOf(': ')
+    const message = separatorIndex >= 0 ? trimmed.slice(separatorIndex + 2).trim() : trimmed
+    if (!message) continue
+
+    counts.set(message, (counts.get(message) || 0) + 1)
+  }
+
+  if (counts.size === 0) return ''
+
+  return Array.from(counts.entries())
+    .slice(0, 3)
+    .map(([message, count]) => (count > 1 ? `${count} students: ${message}` : message))
+    .join(' · ')
+}
+
 const STATUS_META: Record<
   TestGradingStudentRow['status'],
   { label: string; icon: typeof Circle; className: string }
@@ -392,16 +416,16 @@ export function TeacherQuizzesTab({
 
       const gradedStudents = Number(data.graded_students ?? 0)
       const skippedStudents = Number(data.skipped_students ?? 0)
+      const errorSummary = summarizeBatchAutoGradeErrors(data.errors)
       const summary = `AI graded ${gradedStudents} student${gradedStudents === 1 ? '' : 's'}${skippedStudents > 0 ? ` • ${skippedStudents} skipped` : ''}`
       setGradingInfo(summary)
-
-      if (Array.isArray(data.errors) && data.errors.length > 0) {
-        setGradingError(data.errors.slice(0, 3).join(' · '))
-      }
 
       clearBatchSelection()
       await loadGradingRows()
       onTestGradingDataRefresh?.()
+      if (errorSummary) {
+        setGradingError(errorSummary)
+      }
     } catch (err: any) {
       setGradingError(err.message || 'Auto-grade failed')
     } finally {

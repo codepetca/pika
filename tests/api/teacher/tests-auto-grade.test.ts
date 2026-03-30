@@ -285,4 +285,80 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
     // Zero OpenAI calls made
     expect(suggestTestOpenResponseGrade).not.toHaveBeenCalled()
   })
+
+  it('sanitizes upstream AI-service failures in the response errors array', async () => {
+    suggestTestOpenResponseGrade.mockRejectedValue(
+      new Error('OpenAI returned invalid JSON (status 200, text/plain): An error occurred while processing your request.')
+    )
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        const query = { eq: vi.fn().mockReturnThis() } as any
+        query.eq.mockImplementationOnce(() => query)
+        query.eq.mockImplementationOnce(async () => ({
+          data: [
+            {
+              id: 'q-open-1',
+              question_text: 'Write a Java loop.',
+              points: 5,
+              response_monospace: true,
+              answer_key: 'Use a counted for-loop and print each iteration value.',
+            },
+          ],
+          error: null,
+        }))
+        return { select: vi.fn(() => query) }
+      }
+
+      if (table === 'test_responses') {
+        const query = { eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis() } as any
+        query.in.mockImplementationOnce(() => query)
+        query.in.mockImplementationOnce(async () => ({
+          data: [
+            {
+              id: 'response-1',
+              student_id: 'student-1',
+              question_id: 'q-open-1',
+              response_text: 'for (int i = 0; i < 10; i++) { println(i); }',
+            },
+          ],
+          error: null,
+        }))
+        return {
+          select: vi.fn(() => query),
+          update: vi.fn(() => ({ eq: vi.fn().mockReturnThis() })),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [
+                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-1'] }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.graded_students).toBe(0)
+    expect(data.skipped_students).toBe(1)
+    expect(data.errors).toEqual([
+      'student-1: AI grading service failed for this response. Try again.',
+    ])
+  })
 })
