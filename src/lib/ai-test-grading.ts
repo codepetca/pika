@@ -5,6 +5,21 @@ import { DEFAULT_TEST_AI_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline
 const DEFAULT_MODEL = 'gpt-5-nano'
 const MAX_REFERENCE_ANSWERS = 3
 
+function summarizeResponseBody(bodyText: string): string {
+  const normalized = bodyText.replace(/\s+/g, ' ').trim()
+  if (!normalized) return ''
+  if (normalized.length <= 240) return normalized
+  return `${normalized.slice(0, 237)}...`
+}
+
+function buildInvalidJsonErrorMessage(res: Response, bodyText: string): string {
+  const contentType = res.headers.get('content-type')?.trim() || 'unknown content-type'
+  const summary = summarizeResponseBody(bodyText)
+  return summary
+    ? `OpenAI returned invalid JSON (status ${res.status}, ${contentType}): ${summary}`
+    : `OpenAI returned invalid JSON (status ${res.status}, ${contentType})`
+}
+
 function getOpenAIKey(): string | null {
   const key = process.env.OPENAI_API_KEY
   if (!key) return null
@@ -84,7 +99,18 @@ async function callOpenAIForJson(opts: {
     throw new Error(`OpenAI request failed (${res.status}): ${bodyText}`)
   }
 
-  const payload = await res.json()
+  const fallbackBodyTextPromise = typeof res.clone === 'function'
+    ? res.clone().text().catch(() => '')
+    : Promise.resolve('')
+
+  let payload: any
+  try {
+    payload = await res.json()
+  } catch {
+    const bodyText = await fallbackBodyTextPromise
+    throw new Error(buildInvalidJsonErrorMessage(res, bodyText))
+  }
+
   const outputText = extractOutputText(payload)
   if (!outputText) {
     throw new Error('OpenAI response missing output text')

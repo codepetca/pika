@@ -104,6 +104,30 @@ function formatPoints(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
+function summarizeBatchAutoGradeErrors(rawErrors: unknown): string {
+  if (!Array.isArray(rawErrors)) return ''
+
+  const counts = new Map<string, number>()
+  for (const rawError of rawErrors) {
+    if (typeof rawError !== 'string') continue
+    const trimmed = rawError.trim()
+    if (!trimmed) continue
+
+    const separatorIndex = trimmed.indexOf(': ')
+    const message = separatorIndex >= 0 ? trimmed.slice(separatorIndex + 2).trim() : trimmed
+    if (!message) continue
+
+    counts.set(message, (counts.get(message) || 0) + 1)
+  }
+
+  if (counts.size === 0) return ''
+
+  return Array.from(counts.entries())
+    .slice(0, 3)
+    .map(([message, count]) => (count > 1 ? `${count} students: ${message}` : message))
+    .join(' · ')
+}
+
 const STATUS_META: Record<
   TestGradingStudentRow['status'],
   { label: string; icon: typeof Circle; className: string }
@@ -151,7 +175,6 @@ export function TeacherQuizzesTab({
   const isTestsView = assessmentType === 'test'
   const apiBasePath = isTestsView ? '/api/teacher/tests' : '/api/teacher/quizzes'
 
-  const sortedQuizzes = useMemo(() => [...quizzes].sort((a, b) => a.position - b.position), [quizzes])
   const sortedGradingStudents = useMemo(
     () =>
       [...gradingStudents].sort((a, b) => {
@@ -256,9 +279,9 @@ export function TeacherQuizzesTab({
   }, [pendingCreatedQuizId, quizzes, setRightSidebarOpen])
 
   useEffect(() => {
-    if (!isTestsView || testsMode !== 'grading' || selectedQuizId || sortedQuizzes.length === 0) return
-    setSelectedQuizId(sortedQuizzes[0].id)
-  }, [isTestsView, testsMode, selectedQuizId, sortedQuizzes])
+    if (!isTestsView || testsMode !== 'grading' || selectedQuizId || quizzes.length === 0) return
+    setSelectedQuizId(quizzes[0].id)
+  }, [isTestsView, quizzes, testsMode, selectedQuizId])
 
   useEffect(() => {
     if (!isTestsView) return
@@ -392,16 +415,16 @@ export function TeacherQuizzesTab({
 
       const gradedStudents = Number(data.graded_students ?? 0)
       const skippedStudents = Number(data.skipped_students ?? 0)
+      const errorSummary = summarizeBatchAutoGradeErrors(data.errors)
       const summary = `AI graded ${gradedStudents} student${gradedStudents === 1 ? '' : 's'}${skippedStudents > 0 ? ` • ${skippedStudents} skipped` : ''}`
       setGradingInfo(summary)
-
-      if (Array.isArray(data.errors) && data.errors.length > 0) {
-        setGradingError(data.errors.slice(0, 3).join(' · '))
-      }
 
       clearBatchSelection()
       await loadGradingRows()
       onTestGradingDataRefresh?.()
+      if (errorSummary) {
+        setGradingError(errorSummary)
+      }
     } catch (err: any) {
       setGradingError(err.message || 'Auto-grade failed')
     } finally {
@@ -503,7 +526,7 @@ export function TeacherQuizzesTab({
   }
 
   const assessmentLabelPlural = isTestsView ? 'Tests' : 'Quizzes'
-  const selectedTest = sortedQuizzes.find((quiz) => quiz.id === selectedQuizId) || null
+  const selectedTest = quizzes.find((quiz) => quiz.id === selectedQuizId) || null
   const selectedTestTitle = selectedTest?.title || 'No test selected'
   const returnWillCloseActiveTest = isTestsView && testsMode === 'grading' && selectedTest?.status === 'active'
 
@@ -653,7 +676,7 @@ export function TeacherQuizzesTab({
           <div className="flex justify-center py-12">
             <Spinner size="lg" />
           </div>
-        ) : sortedQuizzes.length === 0 ? (
+        ) : quizzes.length === 0 ? (
           <p className="text-text-muted text-center py-8">
             No {assessmentLabelPlural.toLowerCase()} yet. Create one to get started.
           </p>
@@ -844,7 +867,7 @@ export function TeacherQuizzesTab({
           </div>
         ) : (
           <div className="space-y-3">
-            {sortedQuizzes.map((quiz) => (
+            {quizzes.map((quiz) => (
               <QuizCard
                 key={quiz.id}
                 quiz={quiz}

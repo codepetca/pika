@@ -444,6 +444,7 @@ export interface TestDocument {
 export type TestAiGradingBasis = 'teacher_key' | 'generated_reference'
 
 export interface QuizFocusSummary {
+  exit_count: number
   away_count: number
   away_total_seconds: number
   route_exit_attempts: number
