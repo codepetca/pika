@@ -1119,7 +1119,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(focusBodies).toEqual([])
   })
 
-  it('logs a notification-style interruption burst as one exit', async () => {
+  it('preserves raw window signals while counting one notification-style exit', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -1240,9 +1240,9 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent(window, new Event('focus'))
 
     await waitFor(() => {
-      const exitLikeBodies = focusBodies.filter((body) => body.event_type !== 'away_end')
-      expect(exitLikeBodies).toHaveLength(1)
-      expect(exitLikeBodies[0]?.event_type).toBe('away_start')
+      expect(focusBodies.filter((body) => body.event_type === 'away_start')).toHaveLength(1)
+      expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(1)
+      expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(1)
     })
   })
 
@@ -1355,7 +1355,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
   })
 
-  it('still logs non-find route exits once per burst', async () => {
+  it('preserves raw route exit signals while the summary stays deduped', async () => {
     const focusBodies: Array<Record<string, any>> = []
 
     fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
@@ -1411,13 +1411,16 @@ describe('StudentQuizzesTab exam mode', () => {
       if (url.includes('/api/student/tests/test-1/focus-events')) {
         const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
         focusBodies.push(parsedBody)
+        const routeExitAttempts = focusBodies.filter(
+          (body) => body.event_type === 'route_exit_attempt'
+        ).length
         return {
           ok: true,
           json: async () => ({
             success: true,
             focus_summary: makeFocusSummary({
-              exit_count: focusBodies.filter((body) => body.event_type === 'route_exit_attempt').length,
-              route_exit_attempts: focusBodies.filter((body) => body.event_type === 'route_exit_attempt').length,
+              exit_count: routeExitAttempts > 0 ? 1 : 0,
+              route_exit_attempts: routeExitAttempts,
             }),
           }),
         }
@@ -1454,7 +1457,7 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent(window, new Event('pagehide'))
 
     await waitFor(() => {
-      expect(focusBodies.filter((body) => body.event_type === 'route_exit_attempt')).toHaveLength(1)
+      expect(focusBodies.filter((body) => body.event_type === 'route_exit_attempt')).toHaveLength(2)
     })
   })
 

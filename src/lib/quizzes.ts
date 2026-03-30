@@ -286,6 +286,7 @@ export function summarizeQuizFocusEvents(events: FocusEventLike[]): QuizFocusSum
         )
       }
       activeAwayStartedAtMs = null
+      lastExitAtMs = null
       summary.last_away_ended_at = event.occurred_at
     }
   }

@@ -7431,3 +7431,22 @@
 - The teacher verification uses the seeded open demo test in grading view, where both students still show zero exits as expected.
 
 **Status:** Issue 430 implementation complete in the worktree and verified by tests plus authenticated UI screenshots.
+
+## 2026-03-30 [AI - Codex]
+
+**Goal:** Address post-review issues in PR #436 around exit-burst semantics and raw telemetry preservation.
+
+**Completed:**
+- Updated `src/lib/quizzes.ts`
+  - Reset the burst window on `away_end` so a fast return-then-leave counts as a new exit
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx`
+  - Restored raw `route_exit_attempt` and `window_unmaximize_attempt` posts
+  - Kept browser-find suppression and same-source client dedupe
+- Updated tests
+  - Added unit coverage for rapid re-exit after return and the exact 2s burst boundary
+  - Tightened component assertions so notification bursts and route exits preserve raw signal counts while keeping deduped exit summaries
+
+**Validation:**
+- `pnpm test tests/unit/quizzes.test.ts tests/components/StudentQuizzesTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/api/student/tests-focus-events.test.ts`
+
+**Status:** Review follow-up fixes applied and ready to push to PR #436.

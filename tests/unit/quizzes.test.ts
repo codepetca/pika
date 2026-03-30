@@ -480,6 +480,30 @@ describe('quiz utilities', () => {
       expect(result.window_unmaximize_attempts).toBe(1)
     })
 
+    it('counts a rapid second away_start after the student returns', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
+        { event_type: 'away_end', occurred_at: '2026-02-01T10:00:01.000Z' },
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:01.500Z' },
+        { event_type: 'away_end', occurred_at: '2026-02-01T10:00:02.500Z' },
+      ])
+
+      expect(result.exit_count).toBe(2)
+      expect(result.away_count).toBe(2)
+      expect(result.away_total_seconds).toBe(2)
+    })
+
+    it('treats events exactly on the burst boundary as one exit', () => {
+      const result = summarizeQuizFocusEvents([
+        { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
+        { event_type: 'window_unmaximize_attempt', occurred_at: '2026-02-01T10:00:02.000Z' },
+      ])
+
+      expect(result.exit_count).toBe(1)
+      expect(result.away_count).toBe(1)
+      expect(result.window_unmaximize_attempts).toBe(1)
+    })
+
     it('does not increase exit_count on away_end alone', () => {
       const result = summarizeQuizFocusEvents([
         { event_type: 'away_start', occurred_at: '2026-02-01T10:00:00.000Z' },
