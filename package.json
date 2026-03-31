@@ -15,6 +15,7 @@
     "test:watch": "vitest --watch",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "docs:sync:test-markdown": "tsx scripts/sync-test-markdown-docs.ts",
     "e2e:install": "playwright install",
     "e2e:auth": "playwright test e2e/auth.setup.ts",
     "e2e:verify": "tsx e2e/verify/run.ts",

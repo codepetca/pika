@@ -1,8 +1,11 @@
 import { validateTestDraftContent, type TestDraftContent, type TestDraftQuestion } from '@/lib/server/assessment-drafts'
 import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
+import { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown-schema'
 import { defaultPointsForQuestionType } from '@/lib/test-questions'
 import { validateTestDocumentsPayload } from '@/lib/test-documents'
 import type { TestDocument, TestQuestionType } from '@/types'
+
+export { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown-schema'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -72,34 +75,6 @@ export interface ParseTestMarkdownOptions {
   existingQuestions?: Array<{ id: string }>
   existingDocuments?: TestDocument[]
 }
-
-export const TEST_MARKDOWN_AI_SCHEMA = `# Test                            # [Optional]
-Title: <Test Title>               # [Required]
-Show Results: false               # [Optional]
-
-## Questions                      # [Required]
-### Question 1
-Type: multiple_choice             # [Optional]
-Points: 1                         # [Optional]
-Prompt:
-<Question prompt>                 # [Required]
-Options:
-- <Option 1>
-- <Option 2>
-Correct Option: 1                 # [Required for multiple_choice]
-
-### Question 2
-Type: open_response               # [Optional]
-Points: 5                         # [Optional]
-Code: false                       # [Optional for open_response]
-Max Chars: 5000                   # [Optional for open_response]
-Prompt:
-<Open response prompt>            # [Required]
-Answer Key:
-<Optional answer key>             # [Optional for open_response]
-
-## Documents                      # [Optional]
-_None_`
 
 function parseBoolean(value: string): boolean | null {
   const normalized = value.trim().toLowerCase()
