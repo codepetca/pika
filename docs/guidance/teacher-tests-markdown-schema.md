@@ -4,6 +4,7 @@ This schema defines the markdown format used by Pika's teacher test editor (`Mar
 
 ## Top-level Structure
 
+<!-- GENERATED:TEST_MARKDOWN_TOP_LEVEL_STRUCTURE:start -->
 ```md
 # Test                          # [Optional]
 Title: <non-empty string>       # [Required]
@@ -17,8 +18,10 @@ Show Results: <boolean>         # [Optional] true|false|yes|no|1|0
 ...
 
 ## Documents                    # [Optional]
-_None_
+### Document 1
+...
 ```
+<!-- GENERATED:TEST_MARKDOWN_TOP_LEVEL_STRUCTURE:end -->
 
 Rules:
 - `## Questions` is required.
@@ -88,6 +91,7 @@ Validation:
 
 ## Copy-Paste Template
 
+<!-- GENERATED:TEST_MARKDOWN_AI_SCHEMA:start -->
 ```md
 # Test                            # [Optional]
 Title: <Test Title>               # [Required]
@@ -115,8 +119,27 @@ Answer Key:
 <Optional answer key>             # [Optional for open_response]
 
 ## Documents                      # [Optional]
-_None_
+### Document 1                    # [Optional]
+Source: link                      # [Optional] link|upload|text
+Title: <Document Title>           # [Required]
+URL: https://example.com/doc      # [Required for link/upload]
+
+### Document 2                    # [Optional]
+Source: text                      # [Optional]
+Title: <Reference Notes>          # [Required]
+Content:
+<Paste reference text here>       # [Required for text]
+
+### Document 3                    # [Optional]
+Source: upload                    # [Optional]
+Title: <Uploaded File Title>      # [Required]
+URL: https://example.com/file.pdf # [Required for upload]
+
+# To clear all documents instead, use:
+# ## Documents
+# _None_
 ```
+<!-- GENERATED:TEST_MARKDOWN_AI_SCHEMA:end -->
 
 ## Valid Example
 

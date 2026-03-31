@@ -7510,3 +7510,37 @@
   - student mobile tests view
 
 **Status:** Archive UX reverted. Newest-first ordering remains in place.
+
+## 2026-03-31 [AI - Codex]
+
+**Goal:** Improve the teacher test markdown "Copy Schema" template so document blocks are self-explanatory.
+
+**Completed:**
+- Expanded `TEST_MARKDOWN_AI_SCHEMA` to show concrete `link`, `text`, and `upload` document examples instead of only `_None_`.
+- Kept explicit guidance for clearing all documents with `## Documents` plus `_None_`.
+- Updated the teacher tests markdown schema guide to mirror the richer copied template.
+- Added a regression test to keep document guidance in the copied schema template.
+
+**Validation:**
+- `pnpm test`
+- `pnpm vitest run tests/lib/test-markdown.test.ts tests/components/QuizDetailPanel.test.tsx`
+
+**Status:** Copy Schema now includes practical document examples for all supported document sources.
+
+## 2026-03-31 [AI - Codex follow-up]
+
+**Goal:** Eliminate schema drift risk between the copied test markdown template and the teacher-facing docs.
+
+**Completed:**
+- Moved the canonical test markdown schema strings into `src/lib/test-markdown-schema.ts`.
+- Updated `src/lib/test-markdown.ts` to re-export the canonical `TEST_MARKDOWN_AI_SCHEMA` instead of defining its own copy.
+- Added generated-section markers plus pure sync logic in `src/lib/test-markdown-schema-docs.ts` for the teacher schema guide.
+- Added `pnpm docs:sync:test-markdown` to rewrite the generated doc sections from the canonical schema source.
+- Added a parity test that fails when `docs/guidance/teacher-tests-markdown-schema.md` drifts from the generated output.
+
+**Validation:**
+- `pnpm docs:sync:test-markdown`
+- `pnpm vitest run tests/lib/test-markdown.test.ts tests/lib/test-markdown-schema-docs.test.ts tests/components/QuizDetailPanel.test.tsx`
+- `pnpm test`
+
+**Status:** The copied schema and the docs page now share a single canonical source with automated sync and test enforcement.
