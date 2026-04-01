@@ -146,8 +146,9 @@ describe('suggestTestOpenResponseGrade', () => {
 
     expect(systemPrompt).toContain('This is a coding response.')
     expect(systemPrompt).toContain('award high partial credit')
-    expect(systemPrompt).toContain('Penalize poor communication/readability')
-    expect(systemPrompt).toContain('missing indentation')
+    expect(systemPrompt).toContain('Forgive one small formatting/style issue.')
+    expect(systemPrompt).toContain('two or more minor formatting issues or one major formatting issue')
+    expect(systemPrompt).toContain('Cap any readability/style deduction at 2 points for this question.')
     expect(systemPrompt).toContain('CodeHS')
     expect(systemPrompt).toContain('ConsoleProgram')
     expect(systemPrompt).toContain('If score buckets are not provided, output one whole-number score only.')
@@ -156,6 +157,32 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(systemPrompt).toContain('sentence starting with "Strength:"')
     expect(systemPrompt).toContain('sentence starting with "Next Step:"')
     expect(systemPrompt).toContain('sentence starting with "Improve:"')
+  })
+
+  it('uses a capped one-point readability deduction on 5-point coding questions', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"score": 4, "feedback": "Strength: Correct logic. Next Step: improve indentation. Improve: Reformat nested blocks for full marks."}',
+      }),
+    })
+
+    await suggestTestOpenResponseGrade({
+      testTitle: 'Coding Test',
+      questionText: 'Write a method that counts vowels.',
+      responseText: 'public int countVowels(String s) { return 0; }',
+      maxPoints: 5,
+      answerKey: 'Loops through the string and counts vowels.',
+      responseMonospace: true,
+    })
+
+    const gradingRequest = fetchMock.mock.calls[0]?.[1]
+    const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
+    const systemPrompt = gradingBody.input?.[0]?.content?.[0]?.text as string
+
+    expect(systemPrompt).toContain('Cap any readability/style deduction at 1 point for this question.')
   })
 
   it('includes sample solutions as secondary grading context', async () => {

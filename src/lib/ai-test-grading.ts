@@ -191,6 +191,10 @@ function scoreToNearestBucket(score: number, buckets: number[]): number {
   return nearest
 }
 
+function getCodingReadabilityDeductionCap(maxPoints: number): number {
+  return Math.max(0, Math.floor(maxPoints * 0.2))
+}
+
 function getDefaultPromptGuideline(isCodingQuestion: boolean): string {
   return isCodingQuestion
     ? GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE
@@ -383,14 +387,28 @@ export async function prepareTestOpenResponseGradingContext(input: {
         }))
       : []
 
+  const readabilityDeductionCap = getCodingReadabilityDeductionCap(maxPoints)
+  const readabilityDeductionGuidance =
+    readabilityDeductionCap > 0
+      ? `- You may apply one readability/style deduction only after scoring correctness and required structure first.
+- Forgive one small formatting/style issue.
+- Apply the readability deduction only when formatting materially hurts readability, such as two or more minor formatting issues or one major formatting issue.
+- Minor issues include slightly uneven spacing, one missed indent level, or small brace-placement inconsistencies.
+- Major issues include most code written on one line, indentation missing across nested blocks, or formatting that makes control flow hard to follow.
+- Never stack style deductions per infraction; apply at most one readability deduction total.
+- Cap any readability/style deduction at ${readabilityDeductionCap} point${readabilityDeductionCap === 1 ? '' : 's'} for this question.
+- If readability is still acceptable overall, do not deduct for style.`
+      : `- Because this question is worth ${maxPoints} point${maxPoints === 1 ? '' : 's'}, do not apply a separate readability/style deduction here; keep grading focused on correctness and required structure.`
+
   const codingRubric = isCodingQuestion
     ? `
 - This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
 - If the approach is logically sound and clearly communicated but has minor implementation issues, award high partial credit (typically 80-95% of max points).
-- Penalize poor communication/readability: missing indentation, unclear variable or method names, and hard-to-follow structure should reduce marks.
+- Formatting/readability can affect the score only through the capped readability deduction below.
 - For Java/CodeHS classroom contexts, treat platform helper APIs (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid and do not penalize solely for using them.
 - If language is unspecified, infer likely language from prompt/context/response. If still ambiguous, evaluate logic language-agnostically and do not penalize language choice alone.
-- Avoid nitpicking minor stylistic preferences when clarity and logic are strong.`
+- Avoid nitpicking minor stylistic preferences when clarity and logic are strong.
+${readabilityDeductionGuidance}`
     : ''
 
   const promptGuidelineContext = promptGuideline
