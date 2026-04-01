@@ -28,6 +28,7 @@ type LocalQuestionState = {
   points: string
   response_monospace: boolean
   answer_key: string
+  sample_solution: string
 }
 
 function toLocalState(question: QuizQuestion): LocalQuestionState {
@@ -46,6 +47,10 @@ function toLocalState(question: QuizQuestion): LocalQuestionState {
       questionType === 'open_response' && typeof question.answer_key === 'string'
         ? question.answer_key
         : '',
+    sample_solution:
+      questionType === 'open_response' && typeof question.sample_solution === 'string'
+        ? question.sample_solution
+        : '',
   }
 }
 
@@ -56,6 +61,7 @@ function normalizeForComparison(state: LocalQuestionState) {
     options: state.options.map((option) => option.trim()),
     points: Number(state.points),
     answer_key: state.answer_key.trim(),
+    sample_solution: state.sample_solution.trim(),
   }
 }
 
@@ -164,6 +170,7 @@ export function TestQuestionEditor({
           options: nextOptions,
           correct_option: state.correct_option,
           answer_key: null,
+          sample_solution: null,
           points,
           response_monospace: false,
         },
@@ -181,6 +188,7 @@ export function TestQuestionEditor({
         options: [],
         correct_option: null,
         answer_key: state.answer_key.trim() ? state.answer_key.trim() : null,
+        sample_solution: state.sample_solution.trim() ? state.sample_solution.trim() : null,
         points,
         response_monospace: state.response_monospace,
       },
@@ -286,20 +294,30 @@ export function TestQuestionEditor({
                     className="w-full text-left text-xs font-semibold uppercase tracking-wide text-text-muted hover:text-text-default"
                   >
                     {isAnswerSectionOpen
-                      ? 'Hide Answer Key'
-                      : state.answer_key.trim()
-                      ? 'Answer Key Added'
-                      : 'Add Answer Key'}
+                      ? 'Hide Grading Notes'
+                      : state.answer_key.trim() || state.sample_solution.trim()
+                      ? 'Grading Notes Added'
+                      : 'Add Grading Notes'}
                   </button>
                   {isAnswerSectionOpen ? (
-                    <textarea
-                      value={state.answer_key}
-                      onChange={(event) => updateState({ answer_key: event.target.value })}
-                      onBlur={() => handleSave()}
-                      placeholder="Enter an optional answer key for AI-assisted grading..."
-                      rows={4}
-                      className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
+                    <div className="space-y-2">
+                      <textarea
+                        value={state.answer_key}
+                        onChange={(event) => updateState({ answer_key: event.target.value })}
+                        onBlur={() => handleSave()}
+                        placeholder="Enter an optional answer key for AI-assisted grading..."
+                        rows={4}
+                        className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <textarea
+                        value={state.sample_solution}
+                        onChange={(event) => updateState({ sample_solution: event.target.value })}
+                        onBlur={() => handleSave()}
+                        placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
+                        rows={6}
+                        className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
                   ) : null}
                 </div>
               )}

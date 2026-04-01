@@ -7510,3 +7510,217 @@
   - student mobile tests view
 
 **Status:** Archive UX reverted. Newest-first ordering remains in place.
+
+## 2026-03-31 [AI - Codex]
+
+**Goal:** Improve the teacher test markdown "Copy Schema" template so document blocks are self-explanatory.
+
+**Completed:**
+- Expanded `TEST_MARKDOWN_AI_SCHEMA` to show concrete `link`, `text`, and `upload` document examples instead of only `_None_`.
+- Kept explicit guidance for clearing all documents with `## Documents` plus `_None_`.
+- Updated the teacher tests markdown schema guide to mirror the richer copied template.
+- Added a regression test to keep document guidance in the copied schema template.
+
+**Validation:**
+- `pnpm test`
+- `pnpm vitest run tests/lib/test-markdown.test.ts tests/components/QuizDetailPanel.test.tsx`
+
+**Status:** Copy Schema now includes practical document examples for all supported document sources.
+
+## 2026-03-31 [AI - Codex follow-up]
+
+**Goal:** Eliminate schema drift risk between the copied test markdown template and the teacher-facing docs.
+
+**Completed:**
+- Moved the canonical test markdown schema strings into `src/lib/test-markdown-schema.ts`.
+- Updated `src/lib/test-markdown.ts` to re-export the canonical `TEST_MARKDOWN_AI_SCHEMA` instead of defining its own copy.
+- Added generated-section markers plus pure sync logic in `src/lib/test-markdown-schema-docs.ts` for the teacher schema guide.
+- Added `pnpm docs:sync:test-markdown` to rewrite the generated doc sections from the canonical schema source.
+- Added a parity test that fails when `docs/guidance/teacher-tests-markdown-schema.md` drifts from the generated output.
+
+**Validation:**
+- `pnpm docs:sync:test-markdown`
+- `pnpm vitest run tests/lib/test-markdown.test.ts tests/lib/test-markdown-schema-docs.test.ts tests/components/QuizDetailPanel.test.tsx`
+- `pnpm test`
+
+**Status:** The copied schema and the docs page now share a single canonical source with automated sync and test enforcement.
+
+## 2026-03-31 [AI - Codex]
+
+**Goal:** Improve test AI grading efficiency without changing the default grading model shape, and add an experimental aggressive batch option for comparison.
+
+**Completed:**
+- Refactored `src/lib/ai-test-grading.ts` to prepare a reusable per-question grading context and reuse generated reference answers across multiple student responses.
+- Added `suggestTestOpenResponseGradeWithContext` for the balanced default path and `suggestTestOpenResponseGradesBatch` as an experimental same-question batch grading helper.
+- Updated `src/app/api/teacher/tests/[id]/auto-grade/route.ts` to:
+  - accept `grading_strategy`
+  - default to balanced per-question context reuse
+  - keep aggressive batch grading opt-in
+  - include the chosen strategy in the response payload
+- Updated the teacher grading modal in `TeacherQuizzesTab` to expose a grading strategy selector alongside the existing AI prompt guideline editor.
+- Added regression coverage for:
+  - shared-context reuse
+  - aggressive batch grading
+  - route strategy validation/behavior
+  - teacher UI payload shape
+
+**Validation:**
+- `./node_modules/.bin/vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm test`
+- Visual verification:
+  - `/tmp/pika-teacher-tests.png`
+  - `/tmp/pika-teacher-grading-modal.png`
+  - `/tmp/pika-student-tests.png`
+
+**Status:** Balanced grading now reuses one question-level context by default. Aggressive same-question batching is available as an experimental testing option from the teacher UI.
+
+## 2026-03-31 [AI - Codex]
+
+**Goal:** Replace the old one-off 11CS prompt preset with a real grading-option toggle and make the new code prompt safe to use with the JSON grader contract.
+
+**Completed:**
+- Updated the teacher AI grading modal to add a `Grading option` selector with `Code` and `Regular`, defaulting to `Code`.
+- Switched the default grading guideline to the Grade 11 CS CodeHS coding rubric and kept the general rubric available under `Regular`.
+- Sanitized the prompt guideline before it reaches the OpenAI system prompt so UI-facing `Output format` instructions do not conflict with the JSON-only parser contract.
+- Updated component and unit coverage for the new prompt-option flow and the output-format sanitization path.
+
+**Validation:**
+- `./node_modules/.bin/vitest run tests/unit/ai-test-grading.test.ts tests/components/TeacherQuizzesTab.test.tsx`
+- `./node_modules/.bin/vitest run tests/api/teacher/tests-auto-grade.test.ts`
+- `pnpm test`
+- Visual verification:
+  - `/tmp/pika-teacher-tests.png`
+  - `/tmp/pika-teacher-grading-modal.png`
+  - `/tmp/pika-student-tests.png`
+
+**Status:** Teachers now get an explicit default `Code` grading mode in the AI prompt modal, while the grading backend still receives a JSON-safe guideline.
+
+## 2026-03-31 [AI - Codex]
+
+**Goal:** Make the teacher AI grading flow simpler and cheaper to use without adding schema-heavy persistence work to this patch.
+
+**Completed:**
+- Added a live AI grading preflight summary in the teacher grading view with:
+  - selected students
+  - ungraded open responses
+  - already graded open responses
+  - likely skip hints
+  - potential AI sends
+- Added a `Preview one selected` action to the grade split button so teachers can test the current grading setup on one student before running a larger batch.
+- Added the same grading-selection summary to the AI prompt modal so prompt/strategy changes can be reviewed against the current selection.
+- Filed follow-up issue `#443` for the deferred persistence/regrade work:
+  - durable grading metadata
+  - cross-run reference reuse
+  - prompt-aware skip/regrade logic
+  - question-scoped clear/regrade tools
+
+**Validation:**
+- `./node_modules/.bin/vitest run tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm test`
+- Attempted refreshed UI screenshots through Playwright after the new teacher-flow changes. The earlier teacher/student screenshots from this branch still rendered correctly, and the new flow was additionally validated through component tests.
+
+**Status:** Immediate teacher-facing workflow improvements are implemented in this branch, and the heavier persistence/regrade work is captured in GitHub issue `#443`.
+
+## 2026-03-31 [AI - Codex]
+
+**Goal:** Simplify the teacher AI grading flow further by removing the confusing preview action and replacing the persistent selection summary with a short confirm step.
+
+**Completed:**
+- Removed the `Preview one selected` action from the grading split-button menu.
+- Removed the persistent grading-selection summary from the teacher grading page and the AI prompt modal.
+- Added a concise AI grading confirmation dialog on `Grade` that summarizes:
+  - selected student count
+  - code vs regular open-response question counts
+  - potential AI sends
+  - existing graded responses that may be skipped
+- Kept the AI prompt editor itself focused on grading configuration only.
+
+**Validation:**
+- `./node_modules/.bin/vitest run tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm test`
+
+**Status:** The grading mental model is now simpler: whatever is selected gets graded, and the teacher gets one short confirmation step before AI grading starts.
+
+## 2026-03-31 [AI - Codex]
+
+**Goal:** Remove the grading dropdown entirely and move the related actions into the single grade modal.
+
+**Completed:**
+- Replaced the grading split-button/dropdown with a single `Grade` button in the teacher grading toolbar.
+- Changed that button to open an `AI Grading` dialog with:
+  - a concise selection summary
+  - `AI Prompt` action
+  - `Clear Open Scores/Feedback` action
+  - `Grade with AI` primary action
+- Kept the existing combined clear-open-grades behavior rather than splitting score/feedback clearing into separate actions.
+- Updated teacher grading component tests to cover the new modal-based flow.
+
+**Validation:**
+- `./node_modules/.bin/vitest run tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm test`
+
+**Status:** Grading now has one entry point: click `Grade`, review the short summary, then either grade, adjust the AI prompt, or clear open grades from the same modal.
+
+## 2026-04-01 [AI - Codex]
+
+**Goal:** Remove the manual code/regular prompt choice, auto-select the rubric per question, and simplify AI prompt customization.
+
+**Completed:**
+- Removed the teacher-facing `Code` / `Regular` grading option from the AI prompt modal.
+- Changed AI grading to auto-select the built-in rubric per question from `response_monospace`, so mixed tests now use coding rules for code-style questions and the regular rubric for other open responses in the same batch.
+- Kept the prompt modal as an advanced override, but narrowed it to optional additional instructions plus grading strategy.
+- Tightened skip behavior so already-AI-graded responses are not silently reused when a teacher supplies extra instructions for the run.
+- Updated unit, API, and component coverage for the new auto-rubric flow.
+
+**Validation:**
+- `pnpm exec tsc --noEmit`
+- `pnpm vitest run tests/unit/ai-test-grading.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/components/TeacherQuizzesTab.test.tsx`
+- `pnpm test`
+- Visual verification passed on `http://localhost:3002` with:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-ai-grade-modal.png`
+  - `/tmp/pika-teacher-ai-prompt-modal.png`
+
+**Status:** AI grading now chooses the right base rubric automatically per question and exposes only optional extra instructions in the UI.
+
+## 2026-04-01 [AI - Codex]
+
+**Goal:** Tighten the width of the teacher AI prompt modal.
+
+**Completed:**
+- Reduced the AI prompt modal from `max-w-2xl` to `max-w-xl` in the teacher tests grading flow.
+
+**Validation:**
+- `pnpm vitest run tests/components/TeacherQuizzesTab.test.tsx`
+
+**Status:** The advanced AI prompt modal is narrower and should read less like a full-width editor overlay.
+
+## 2026-04-01 [AI - Codex]
+
+**Goal:** Add optional test-question sample solutions, support them in markdown and AI grading, and show coding sample solutions to students after a returned test.
+
+**Completed:**
+- Added `sample_solution` plumbing across test question types, draft validation/sync, teacher test routes, and a new migration file: `supabase/migrations/051_test_sample_solution.sql`.
+- Extended teacher test markdown import/export and synced docs so `Sample Solution:` round-trips alongside `Answer Key:`.
+- Updated the open-response question editor to use a single `Grading Notes` drawer containing both the answer key and the optional sample solution textarea.
+- Included `sample_solution` as secondary AI grading context while keeping `answer_key` primary.
+- Updated returned student test results so coding open responses can include a sample solution block when present.
+- Added unit, API, component, and markdown coverage for the new field and student display behavior.
+
+**Validation:**
+- `pnpm exec tsc --noEmit`
+- `pnpm exec vitest run tests/lib/test-markdown.test.ts tests/unit/test-questions.test.ts tests/unit/assessment-drafts.test.ts tests/api/teacher/tests-ai-suggest.test.ts tests/api/teacher/tests-auto-grade.test.ts tests/unit/ai-test-grading.test.ts tests/api/student/tests-results.test.ts tests/components/StudentQuizResults.test.tsx`
+- `pnpm exec vitest run tests/components/QuizDetailPanel.test.tsx tests/hooks/useDraftMode.test.ts tests/api/teacher/tests-questions-id.test.ts tests/api/teacher/tests-id-route.test.ts tests/api/teacher/tests-questions-route.test.ts tests/api/student/tests-id.test.ts`
+- `pnpm docs:sync:test-markdown`
+- `pnpm test`
+- Visual verification on the worktree dev server at `http://localhost:3002`:
+  - teacher editor screenshot: `/tmp/pika-sample-solution-teacher.png`
+  - student results screenshot: `/tmp/pika-sample-solution-student.png`
+
+**Notes:**
+- The live teacher editor verified correctly.
+- The live student results route on `3002` currently errors with `Failed to fetch questions` because the new `sample_solution` DB column has not been applied yet. Per repo rules, I created the migration file but did not run/apply migrations.
+
+**Status:** Code and tests are complete; live student verification needs migration `051_test_sample_solution.sql` to be applied before the returned-results UI can exercise the new sample-solution block end-to-end.

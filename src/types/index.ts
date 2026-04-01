@@ -481,6 +481,7 @@ export interface QuizQuestion {
   response_max_chars?: number
   response_monospace?: boolean
   answer_key?: string | null
+  sample_solution?: string | null
   correct_option?: number | null
   created_at: string
   updated_at: string
@@ -503,6 +504,7 @@ export interface TestQuestion {
   options: string[]
   correct_option: number | null
   answer_key: string | null
+  sample_solution: string | null
   points: number
   response_max_chars: number
   response_monospace: boolean

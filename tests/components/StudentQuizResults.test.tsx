@@ -276,4 +276,54 @@ describe('StudentQuizResults', () => {
     expect(screen.queryByText(/Individual Responses/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Responded/)).not.toBeInTheDocument()
   })
+
+  it('shows coding sample solutions on returned test open responses', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        question_results: [
+          {
+            question_id: 'q-open-1',
+            question_type: 'open_response',
+            question_text: 'Write a loop.',
+            options: [],
+            points: 5,
+            response_max_chars: 5000,
+            response_monospace: true,
+            sample_solution: 'for (int i = 0; i < 5; i++) {\n  println(i);\n}',
+            correct_option: null,
+            selected_option: null,
+            response_text: 'for(int i=0;i<5;i++){println(i);}',
+            score: 4,
+            feedback: 'Strength: Good loop. Next Step: format it more clearly. Improve: Add braces and spacing for full marks.',
+            graded_at: '2026-03-06T10:00:00.000Z',
+            is_correct: null,
+          },
+        ],
+        summary: {
+          earned_points: 4,
+          possible_points: 5,
+          percent: 80,
+        },
+      }),
+    })
+
+    render(
+      <StudentQuizResults
+        quizId="quiz-1"
+        myResponses={{}}
+        assessmentType="test"
+        apiBasePath="/api/student/tests"
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Sample solution')).toBeInTheDocument()
+    })
+
+    expect(screen.getByText('Sample solution')).toBeInTheDocument()
+    expect(screen.getByText(/for \(int i = 0; i < 5; i\+\+\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Strength: Good loop/)).toBeInTheDocument()
+  })
 })

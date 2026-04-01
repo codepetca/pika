@@ -68,6 +68,8 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
                 response_monospace: true,
                 answer_key:
                   'Water moves across a semi-permeable membrane from low solute to high solute concentration.',
+                sample_solution:
+                  'public String explainOsmosis() {\n  return "Water moves across a semipermeable membrane.";\n}',
               },
             },
             error: null,
@@ -88,6 +90,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
     expect(suggestTestOpenResponseGrade).toHaveBeenCalledWith(
       expect.objectContaining({
         answerKey: expect.stringContaining('semi-permeable membrane'),
+        sampleSolution: expect.stringContaining('explainOsmosis'),
         responseMonospace: true,
       })
     )
