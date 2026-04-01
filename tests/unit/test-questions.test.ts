@@ -11,6 +11,7 @@ describe('test-questions validation', () => {
         options: ['3', '4'],
         correct_option: 1,
         answer_key: null,
+        sample_solution: null,
         points: 1,
         response_max_chars: 5000,
         response_monospace: false,
@@ -36,6 +37,7 @@ describe('test-questions validation', () => {
         options: [],
         correct_option: null,
         answer_key: null,
+        sample_solution: null,
         points: 5,
         response_max_chars: 5000,
         response_monospace: false,
@@ -50,6 +52,7 @@ describe('test-questions validation', () => {
         options: [],
         correct_option: null,
         answer_key: null,
+        sample_solution: null,
         points: 6,
         response_max_chars: 5000,
         response_monospace: true,
@@ -77,6 +80,7 @@ describe('test-questions validation', () => {
         options: ['Option 1', 'Option 2'],
         correct_option: 0,
         answer_key: null,
+        sample_solution: null,
         points: 1,
         response_max_chars: 5000,
         response_monospace: false,
@@ -93,6 +97,7 @@ describe('test-questions validation', () => {
         options: [],
         correct_option: null,
         answer_key: null,
+        sample_solution: null,
         points: 5,
         response_max_chars: 5000,
         response_monospace: false,
@@ -108,6 +113,7 @@ describe('test-questions validation', () => {
         options: [],
         correct_option: null,
         answer_key: null,
+        sample_solution: null,
         points: 5,
         response_max_chars: 5000,
         response_monospace: false,
@@ -131,6 +137,7 @@ describe('test-questions validation', () => {
         options: [],
         correct_option: null,
         answer_key: 'Mentions call stack and task queue.',
+        sample_solution: null,
         points: 5,
         response_max_chars: 5000,
         response_monospace: false,
@@ -156,9 +163,35 @@ describe('test-questions validation', () => {
         options: ['3', '4'],
         correct_option: 1,
         answer_key: null,
+        sample_solution: null,
         points: 1,
         response_max_chars: 5000,
         response_monospace: false,
+      },
+    })
+  })
+
+  it('accepts sample_solution for open-response questions', () => {
+    const result = validateTestQuestionCreate({
+      question_type: 'open_response',
+      question_text: 'Write a loop.',
+      points: 5,
+      response_monospace: true,
+      sample_solution: 'for (int i = 0; i < 5; i++) {\n    println(i);\n}',
+    })
+
+    expect(result).toEqual({
+      valid: true,
+      value: {
+        question_type: 'open_response',
+        question_text: 'Write a loop.',
+        options: [],
+        correct_option: null,
+        answer_key: null,
+        sample_solution: 'for (int i = 0; i < 5; i++) {\n    println(i);\n}',
+        points: 5,
+        response_max_chars: 5000,
+        response_monospace: true,
       },
     })
   })

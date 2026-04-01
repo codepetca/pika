@@ -23,6 +23,7 @@ export type TestDraftQuestion = {
   options: string[]
   correct_option: number | null
   answer_key: string | null
+  sample_solution: string | null
   points: number
   response_max_chars: number
   response_monospace: boolean
@@ -316,6 +317,7 @@ type TestQuestionRow = {
   options: unknown
   correct_option: number | null
   answer_key: string | null
+  sample_solution: string | null
   points: number | string | null
   response_max_chars: number | string | null
   response_monospace: boolean | null
@@ -341,6 +343,10 @@ export function buildTestDraftContentFromRows(
       answer_key:
         typeof question.answer_key === 'string' && question.answer_key.trim().length > 0
           ? question.answer_key.trim()
+          : null,
+      sample_solution:
+        typeof question.sample_solution === 'string' && question.sample_solution.trim().length > 0
+          ? question.sample_solution.trim()
           : null,
       points: Number(question.points ?? 1),
       response_max_chars: Number(question.response_max_chars ?? 5000),
@@ -534,6 +540,7 @@ export async function syncTestQuestionsFromDraft(
       options: question.options,
       correct_option: question.correct_option,
       answer_key: question.answer_key,
+      sample_solution: question.sample_solution,
       points: question.points,
       response_max_chars: question.response_max_chars,
       response_monospace: question.response_monospace,

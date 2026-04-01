@@ -32,7 +32,8 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
         question_text,
         points,
         response_monospace,
-        answer_key
+        answer_key,
+        sample_solution
       )
     `)
     .eq('id', responseId)
@@ -64,6 +65,7 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
     responseText,
     maxPoints: Number(question.points ?? 0),
     answerKey: typeof question.answer_key === 'string' ? question.answer_key : null,
+    sampleSolution: typeof question.sample_solution === 'string' ? question.sample_solution : null,
     responseMonospace: question.response_monospace === true,
   })
 

@@ -1,8 +1,11 @@
 import { validateTestDraftContent, type TestDraftContent, type TestDraftQuestion } from '@/lib/server/assessment-drafts'
 import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
+import { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown-schema'
 import { defaultPointsForQuestionType } from '@/lib/test-questions'
 import { validateTestDocumentsPayload } from '@/lib/test-documents'
 import type { TestDocument, TestQuestionType } from '@/types'
+
+export { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown-schema'
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -17,6 +20,7 @@ const FIELD_KEYS = new Set([
   'options',
   'correct option',
   'answer key',
+  'sample solution',
   'source',
   'title',
   'url',
@@ -31,6 +35,7 @@ type ParsedQuestion = {
   options?: string[]
   correct_option?: number | null
   answer_key?: string | null
+  sample_solution?: string | null
   points?: number
   response_max_chars?: number
   response_monospace?: boolean
@@ -54,6 +59,7 @@ export interface TestMarkdownSerializeInput {
     options: string[]
     correct_option?: number | null
     answer_key?: string | null
+    sample_solution?: string | null
     points?: number
     response_max_chars?: number
     response_monospace?: boolean
@@ -72,34 +78,6 @@ export interface ParseTestMarkdownOptions {
   existingQuestions?: Array<{ id: string }>
   existingDocuments?: TestDocument[]
 }
-
-export const TEST_MARKDOWN_AI_SCHEMA = `# Test                            # [Optional]
-Title: <Test Title>               # [Required]
-Show Results: false               # [Optional]
-
-## Questions                      # [Required]
-### Question 1
-Type: multiple_choice             # [Optional]
-Points: 1                         # [Optional]
-Prompt:
-<Question prompt>                 # [Required]
-Options:
-- <Option 1>
-- <Option 2>
-Correct Option: 1                 # [Required for multiple_choice]
-
-### Question 2
-Type: open_response               # [Optional]
-Points: 5                         # [Optional]
-Code: false                       # [Optional for open_response]
-Max Chars: 5000                   # [Optional for open_response]
-Prompt:
-<Open response prompt>            # [Required]
-Answer Key:
-<Optional answer key>             # [Optional for open_response]
-
-## Documents                      # [Optional]
-_None_`
 
 function parseBoolean(value: string): boolean | null {
   const normalized = value.trim().toLowerCase()
@@ -348,6 +326,12 @@ function parseQuestionBlock(
         lineIndex = block.nextIndex
         break
       }
+      case 'sample solution': {
+        const block = parseMultilineField(blockLines, lineIndex, field.value)
+        parsed.sample_solution = block.value || null
+        lineIndex = block.nextIndex
+        break
+      }
       default: {
         errors.push(`${questionLabel}: Unsupported field "${field.key}"`)
         lineIndex += 1
@@ -376,6 +360,7 @@ function parseQuestionBlock(
       options: parsed.options || [],
       correct_option: parsed.correct_option ?? 0,
       answer_key: null,
+      sample_solution: null,
       points,
       response_max_chars: DEFAULT_OPEN_RESPONSE_MAX_CHARS,
       response_monospace: false,
@@ -390,6 +375,7 @@ function parseQuestionBlock(
     options: [],
     correct_option: null,
     answer_key: parsed.answer_key ?? null,
+    sample_solution: parsed.sample_solution ?? null,
     points,
     response_max_chars: parsed.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS,
     response_monospace: parsed.response_monospace ?? false,
@@ -539,6 +525,10 @@ export function testToMarkdown(input: TestMarkdownSerializeInput): string {
       lines.push('Answer Key:')
       if (question.answer_key) {
         lines.push(...question.answer_key.split('\n'))
+      }
+      if (question.sample_solution) {
+        lines.push('Sample Solution:')
+        lines.push(...question.sample_solution.split('\n'))
       }
     }
 

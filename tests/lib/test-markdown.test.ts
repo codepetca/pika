@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { markdownToTest, testToMarkdown } from '@/lib/test-markdown'
+import { markdownToTest, testToMarkdown, TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown'
 
 const QUESTION_ID_1 = '11111111-1111-4111-8111-111111111111'
 const QUESTION_ID_2 = '22222222-2222-4222-8222-222222222222'
@@ -7,6 +7,17 @@ const DOCUMENT_ID_1 = '33333333-3333-4333-8333-333333333333'
 const DOCUMENT_ID_2 = '44444444-4444-4444-8444-444444444444'
 
 describe('testToMarkdown', () => {
+  it('includes document block guidance in the AI schema template', () => {
+    expect(TEST_MARKDOWN_AI_SCHEMA).toContain('### Document 1')
+    expect(TEST_MARKDOWN_AI_SCHEMA).toContain('Source: link')
+    expect(TEST_MARKDOWN_AI_SCHEMA).toContain('Source: text')
+    expect(TEST_MARKDOWN_AI_SCHEMA).toContain('Source: upload')
+    expect(TEST_MARKDOWN_AI_SCHEMA).toContain('URL: https://example.com/doc')
+    expect(TEST_MARKDOWN_AI_SCHEMA).toContain('URL: https://example.com/file.pdf')
+    expect(TEST_MARKDOWN_AI_SCHEMA).toContain('<Paste reference text here>')
+    expect(TEST_MARKDOWN_AI_SCHEMA).toContain('# _None_')
+  })
+
   it('serializes title, questions, and documents', () => {
     const markdown = testToMarkdown({
       title: 'Unit Test 1',
@@ -27,6 +38,7 @@ describe('testToMarkdown', () => {
           options: [],
           correct_option: null,
           answer_key: 'Any correct explanation is acceptable.',
+          sample_solution: 'public void describe(Animal a) {\n  a.speak();\n}',
           points: 5,
           response_max_chars: 3000,
           response_monospace: true,
@@ -57,6 +69,8 @@ describe('testToMarkdown', () => {
     expect(markdown).toContain('Type: open_response')
     expect(markdown).toContain('Code: true')
     expect(markdown).toContain('Max Chars: 3000')
+    expect(markdown).toContain('Sample Solution:')
+    expect(markdown).toContain('a.speak();')
     expect(markdown).toContain('## Documents')
     expect(markdown).toContain('Source: link')
     expect(markdown).toContain('Source: text')
@@ -92,6 +106,10 @@ Prompt:
 Explain polymorphism.
 Answer Key:
 Any correct explanation is acceptable.
+Sample Solution:
+public void describe(Animal a) {
+  a.speak();
+}
 
 ## Documents
 ### Document 1
@@ -126,6 +144,7 @@ distance = rate * time
       response_monospace: true,
       response_max_chars: 3000,
       points: 5,
+      sample_solution: 'public void describe(Animal a) {\n  a.speak();\n}',
     })
     expect(result.documents).toEqual([
       {
@@ -188,6 +207,7 @@ _None_
       points: 5,
       response_monospace: false,
       response_max_chars: 5000,
+      sample_solution: null,
     })
     expect(result.documents).toEqual([])
   })

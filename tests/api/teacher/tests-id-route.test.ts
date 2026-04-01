@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { PATCH } from '@/app/api/teacher/tests/[id]/route'
+import { GET, PATCH } from '@/app/api/teacher/tests/[id]/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { getAssessmentDraftByType } from '@/lib/server/assessment-drafts'
 import { finalizeUnsubmittedTestAttemptsOnClose } from '@/lib/server/finalize-test-attempts'
 
 vi.mock('@/lib/supabase', () => ({
@@ -36,6 +37,14 @@ vi.mock('@/lib/server/tests', () => ({
   })),
 }))
 
+vi.mock('@/lib/server/assessment-drafts', () => ({
+  getAssessmentDraftByType: vi.fn(async () => ({ draft: null, error: null })),
+  isMissingAssessmentDraftsError: vi.fn(() => false),
+  syncTestQuestionsFromDraft: vi.fn(async () => ({ ok: true })),
+  updateAssessmentDraft: vi.fn(async () => ({ draft: null, error: null })),
+  validateTestDraftContent: vi.fn((content: unknown) => ({ valid: true, value: content })),
+}))
+
 vi.mock('@/lib/server/finalize-test-attempts', () => ({
   finalizeUnsubmittedTestAttemptsOnClose: vi.fn(async () => ({
     ok: true,
@@ -49,6 +58,93 @@ const mockSupabaseClient = { from: vi.fn() }
 describe('PATCH /api/teacher/tests/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('returns canonical questions for closed tests even when a draft overlay exists', async () => {
+    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({
+      ok: true,
+      test: {
+        id: 'test-1',
+        title: 'Closed Test',
+        classroom_id: 'classroom-1',
+        status: 'closed',
+        show_results: false,
+        position: 0,
+        points_possible: null,
+        include_in_final: false,
+        created_by: 'teacher-1',
+        created_at: '2026-03-01T00:00:00.000Z',
+        updated_at: '2026-03-01T00:00:00.000Z',
+        classrooms: { archived_at: null },
+      } as any,
+    })
+    vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
+      draft: {
+        id: 'draft-1',
+        content: {
+          title: 'Stale Draft Title',
+          show_results: true,
+          questions: [
+            {
+              id: 'q-1',
+              question_type: 'open_response',
+              question_text: 'Draft question text',
+              options: [],
+              correct_option: null,
+              answer_key: null,
+              sample_solution: 'stale draft sample solution',
+              points: 5,
+              response_max_chars: 5000,
+              response_monospace: true,
+            },
+          ],
+        },
+      } as any,
+      error: null,
+    })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            order: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'q-1',
+                  test_id: 'test-1',
+                  question_type: 'open_response',
+                  question_text: 'Canonical question text',
+                  options: [],
+                  correct_option: null,
+                  answer_key: null,
+                  sample_solution: 'canonical sample solution',
+                  points: 5,
+                  response_max_chars: 5000,
+                  response_monospace: true,
+                  position: 0,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.quiz.title).toBe('Closed Test')
+    expect(data.quiz.show_results).toBe(false)
+    expect(data.questions[0].question_text).toBe('Canonical question text')
+    expect(data.questions[0].sample_solution).toBe('canonical sample solution')
   })
 
   it('returns 400 when activating with an incomplete question', async () => {

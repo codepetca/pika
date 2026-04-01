@@ -56,7 +56,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
     console.error('Error fetching test draft overlay:', draftError)
   }
 
-  if (draft) {
+  if (draft && test.status === 'draft') {
     const validated = validateTestDraftContent(draft.content, {
       allowEmptyQuestionText: true,
     })
@@ -71,6 +71,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
         options: question.options,
         correct_option: question.correct_option,
         answer_key: question.answer_key,
+        sample_solution: question.sample_solution,
         points: question.points,
         response_max_chars: question.response_max_chars,
         response_monospace: question.response_monospace,
