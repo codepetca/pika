@@ -7,7 +7,6 @@ import {
   TEACHER_QUIZZES_UPDATED_EVENT,
   TEACHER_TEST_GRADING_ROW_UPDATED_EVENT,
 } from '@/lib/events'
-import { GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizAssessmentType, QuizWithStats } from '@/types'
 
@@ -627,7 +626,7 @@ describe('TeacherQuizzesTab', () => {
     expect(returnedStatusIcon.querySelector('.lucide-send')).not.toBeNull()
   })
 
-  it('uses split grade button and sends edited AI prompt guideline', async () => {
+  it('uses automatic rubric selection and allows optional extra instructions plus grading strategy', async () => {
     const onTestGradingDataRefresh = vi.fn()
     const quiz = makeQuiz({
       id: 'test-ai-guideline',
@@ -638,7 +637,18 @@ describe('TeacherQuizzesTab', () => {
 
     const initialResultsPayload = {
       quiz: { id: quiz.id, title: quiz.title, grading_finalized_at: null },
-      questions: [],
+      questions: [
+        {
+          id: 'q-open-code',
+          question_type: 'open_response',
+          response_monospace: true,
+        },
+        {
+          id: 'q-open-regular',
+          question_type: 'open_response',
+          response_monospace: false,
+        },
+      ],
       stats: { open_questions_count: 0, graded_open_responses: 0, ungraded_open_responses: 1, grading_finalized: false },
       students: [
         {
@@ -689,14 +699,29 @@ describe('TeacherQuizzesTab', () => {
 
     fireEvent.click(screen.getByLabelText('Select Student One'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Grade options' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'AI prompt' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grade 1 selected' }))
+    expect(await screen.findByRole('heading', { name: 'AI Grading' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'AI Prompt' }))
 
-    expect(await screen.findByRole('heading', { name: 'AI Prompt Guideline' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '11CS Java' }))
+    expect(await screen.findByRole('heading', { name: 'AI Prompt' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Grading option')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Additional instructions (optional)')).toHaveValue('')
+    fireEvent.change(screen.getByLabelText('Grading strategy'), {
+      target: { value: 'aggressive_batch' },
+    })
+    fireEvent.change(screen.getByLabelText('Additional instructions (optional)'), {
+      target: { value: 'Focus on complete explanations.' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Grade 1 selected' }))
+    expect(await screen.findByRole('heading', { name: 'AI Grading' })).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'This will grade 1 selected student across 1 code question and 1 regular question. Up to 1 ungraded open response may be sent to AI.'
+      )
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Grade with AI' }))
 
     await waitFor(() => {
       const gradeCall = fetchMock.mock.calls.find(
@@ -706,7 +731,8 @@ describe('TeacherQuizzesTab', () => {
       const [, init] = gradeCall as [string, RequestInit]
       expect(JSON.parse(String(init.body))).toEqual({
         student_ids: ['student-1'],
-        prompt_guideline: GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE,
+        prompt_guideline: 'Focus on complete explanations.',
+        grading_strategy: 'aggressive_batch',
       })
     })
 
@@ -795,6 +821,7 @@ describe('TeacherQuizzesTab', () => {
     fireEvent.click(screen.getByLabelText('Select Student One'))
     fireEvent.click(screen.getByLabelText('Select Student Two'))
     fireEvent.click(screen.getByRole('button', { name: 'Grade 2 selected' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Grade with AI' }))
 
     expect(await screen.findByText('2 students: AI grading service failed for this response. Try again.')).toBeInTheDocument()
     expect(screen.queryByText(/student-1:/i)).not.toBeInTheDocument()
@@ -861,8 +888,8 @@ describe('TeacherQuizzesTab', () => {
     await screen.findByText('Student One')
 
     fireEvent.click(screen.getByLabelText('Select Student One'))
-    fireEvent.click(screen.getByRole('button', { name: 'Grade options' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Clear open scores/feedback' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Grade 1 selected' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear Open Scores/Feedback' }))
 
     expect(await screen.findByText('Clear open scores and feedback for 1 selected student(s)?')).toBeInTheDocument()
     expect(screen.getByText('This removes all open-response scores and feedback (including AI grading metadata) for the selected students.')).toBeInTheDocument()

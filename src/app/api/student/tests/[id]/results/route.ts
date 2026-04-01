@@ -81,7 +81,7 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
 
   const { data: questions, error: questionsError } = await supabase
     .from('test_questions')
-    .select('id, question_type, question_text, options, correct_option, points, response_max_chars, response_monospace, position')
+    .select('id, question_type, question_text, options, correct_option, points, response_max_chars, response_monospace, sample_solution, position')
     .eq('test_id', testId)
     .order('position', { ascending: true })
 
@@ -152,6 +152,13 @@ export const GET = withErrorHandler('GetStudentTestResults', async (request, con
       points: Number(question.points ?? 0),
       response_max_chars: Number(question.response_max_chars ?? 5000),
       response_monospace: question.response_monospace === true,
+      sample_solution:
+        question.question_type === 'open_response' &&
+        question.response_monospace === true &&
+        typeof question.sample_solution === 'string' &&
+        question.sample_solution.trim().length > 0
+          ? question.sample_solution.trim()
+          : null,
       correct_option: question.correct_option,
       selected_option: response?.selected_option ?? null,
       response_text: response?.response_text ?? null,

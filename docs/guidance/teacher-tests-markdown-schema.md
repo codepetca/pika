@@ -117,6 +117,8 @@ Prompt:
 <Open response prompt>            # [Required]
 Answer Key:
 <Optional answer key>             # [Optional for open_response]
+Sample Solution:
+<Optional sample solution>        # [Optional for open_response]
 
 ## Documents                      # [Optional]
 ### Document 1                    # [Optional]

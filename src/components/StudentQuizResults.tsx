@@ -16,6 +16,8 @@ interface TestQuestionResult {
   options: string[]
   points: number
   response_max_chars: number
+  response_monospace?: boolean
+  sample_solution?: string | null
   correct_option: number | null
   selected_option: number | null
   response_text: string | null
@@ -197,9 +199,21 @@ export function StudentQuizResults({
                     </div>
                   </div>
                 ) : (
-                  <p className="whitespace-pre-wrap rounded-md bg-surface-2 px-3 py-2 text-sm text-text-default">
-                    {result.response_text || '—'}
-                  </p>
+                  <div className="space-y-2">
+                    <p className="whitespace-pre-wrap rounded-md bg-surface-2 px-3 py-2 text-sm text-text-default">
+                      {result.response_text || '—'}
+                    </p>
+                    {result.response_monospace && result.sample_solution ? (
+                      <div className="rounded-md bg-surface-2 px-3 py-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                          Sample solution
+                        </p>
+                        <pre className="mt-2 whitespace-pre-wrap font-mono text-sm leading-6 text-text-default">
+                          {result.sample_solution}
+                        </pre>
+                      </div>
+                    ) : null}
+                  </div>
                 )}
 
                 <p className="text-sm text-text-default">

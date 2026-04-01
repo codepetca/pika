@@ -38,6 +38,7 @@ describe('testToMarkdown', () => {
           options: [],
           correct_option: null,
           answer_key: 'Any correct explanation is acceptable.',
+          sample_solution: 'public void describe(Animal a) {\n  a.speak();\n}',
           points: 5,
           response_max_chars: 3000,
           response_monospace: true,
@@ -68,6 +69,8 @@ describe('testToMarkdown', () => {
     expect(markdown).toContain('Type: open_response')
     expect(markdown).toContain('Code: true')
     expect(markdown).toContain('Max Chars: 3000')
+    expect(markdown).toContain('Sample Solution:')
+    expect(markdown).toContain('a.speak();')
     expect(markdown).toContain('## Documents')
     expect(markdown).toContain('Source: link')
     expect(markdown).toContain('Source: text')
@@ -103,6 +106,10 @@ Prompt:
 Explain polymorphism.
 Answer Key:
 Any correct explanation is acceptable.
+Sample Solution:
+public void describe(Animal a) {
+  a.speak();
+}
 
 ## Documents
 ### Document 1
@@ -137,6 +144,7 @@ distance = rate * time
       response_monospace: true,
       response_max_chars: 3000,
       points: 5,
+      sample_solution: 'public void describe(Animal a) {\n  a.speak();\n}',
     })
     expect(result.documents).toEqual([
       {
@@ -199,6 +207,7 @@ _None_
       points: 5,
       response_monospace: false,
       response_max_chars: 5000,
+      sample_solution: null,
     })
     expect(result.documents).toEqual([])
   })

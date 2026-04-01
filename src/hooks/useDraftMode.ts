@@ -148,6 +148,10 @@ export function useDraftMode({
             typeof question.answer_key === 'string' && question.answer_key.trim().length > 0
               ? question.answer_key.trim()
               : null,
+          sample_solution:
+            typeof question.sample_solution === 'string' && question.sample_solution.trim().length > 0
+              ? question.sample_solution.trim()
+              : null,
           position: index,
           created_at: String(question.created_at || new Date().toISOString()),
           updated_at: String(question.updated_at || new Date().toISOString()),
