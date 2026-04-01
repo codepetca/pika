@@ -39,3 +39,7 @@ supabase/.temp/
 /test-results/
 /artifacts/
 /.auth/
+
+# AI worktrees (contents are separate git repos — excluded from indexing)
+.claude/worktrees/
+.codex/worktrees/
