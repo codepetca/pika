@@ -141,6 +141,10 @@ export function QuizDetailPanel({
             typeof question.answer_key === 'string' && question.answer_key.trim().length > 0
               ? question.answer_key.trim()
               : null,
+          sample_solution:
+            typeof question.sample_solution === 'string' && question.sample_solution.trim().length > 0
+              ? question.sample_solution.trim()
+              : null,
           position: index,
           created_at: String(question.created_at || new Date().toISOString()),
           updated_at: String(question.updated_at || new Date().toISOString()),
@@ -570,6 +574,7 @@ export function QuizDetailPanel({
             options: [],
             correct_option: null,
             answer_key: null,
+            sample_solution: null,
             points: DEFAULT_OPEN_RESPONSE_POINTS,
             response_max_chars: 5000,
             response_monospace: false,
@@ -585,6 +590,7 @@ export function QuizDetailPanel({
             options: ['Option 1', 'Option 2'],
             correct_option: 0,
             answer_key: null,
+            sample_solution: null,
             points: DEFAULT_MULTIPLE_CHOICE_POINTS,
             response_max_chars: 5000,
             response_monospace: false,
@@ -735,6 +741,7 @@ export function QuizDetailPanel({
           options: question.options,
           correct_option: question.correct_option,
           answer_key: question.answer_key,
+          sample_solution: question.sample_solution,
           points: question.points,
           response_max_chars: question.response_max_chars,
           response_monospace: question.response_monospace,

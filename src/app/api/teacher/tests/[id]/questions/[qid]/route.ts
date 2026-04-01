@@ -43,6 +43,10 @@ export const PATCH = withErrorHandler('UpdateTeacherTestQuestion', async (reques
       typeof existingQuestion.answer_key === 'string' && existingQuestion.answer_key.trim().length > 0
         ? existingQuestion.answer_key.trim()
         : null,
+    sample_solution:
+      typeof existingQuestion.sample_solution === 'string' && existingQuestion.sample_solution.trim().length > 0
+        ? existingQuestion.sample_solution.trim()
+        : null,
     points: Number(existingQuestion.points ?? 1),
     response_max_chars: Number(existingQuestion.response_max_chars ?? 5000),
     response_monospace: existingQuestion.response_monospace === true,
@@ -61,6 +65,9 @@ export const PATCH = withErrorHandler('UpdateTeacherTestQuestion', async (reques
   if (JSON.stringify(nextQuestion.options) !== JSON.stringify(currentQuestion.options)) updates.options = nextQuestion.options
   if (nextQuestion.correct_option !== currentQuestion.correct_option) updates.correct_option = nextQuestion.correct_option
   if (nextQuestion.answer_key !== currentQuestion.answer_key) updates.answer_key = nextQuestion.answer_key
+  if (nextQuestion.sample_solution !== currentQuestion.sample_solution) {
+    updates.sample_solution = nextQuestion.sample_solution
+  }
   if (nextQuestion.points !== currentQuestion.points) updates.points = nextQuestion.points
   if (nextQuestion.response_max_chars !== currentQuestion.response_max_chars) {
     updates.response_max_chars = nextQuestion.response_max_chars

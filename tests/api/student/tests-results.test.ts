@@ -166,12 +166,14 @@ describe('GET /api/student/tests/[id]/results', () => {
               data: [
                 {
                   id: 'question-1',
-                  question_type: 'multiple_choice',
-                  question_text: '2 + 2 = ?',
-                  options: ['4', '5'],
-                  correct_option: 0,
-                  points: 1,
+                  question_type: 'open_response',
+                  question_text: 'Write a loop.',
+                  options: [],
+                  correct_option: null,
+                  points: 5,
                   response_max_chars: 5000,
+                  response_monospace: true,
+                  sample_solution: 'for (int i = 0; i < 5; i++) {\n  println(i);\n}',
                   position: 0,
                 },
               ],
@@ -194,11 +196,11 @@ describe('GET /api/student/tests/[id]/results', () => {
                       test_id: 'test-1',
                       question_id: 'question-1',
                       student_id: 'student-1',
-                      selected_option: 0,
-                      response_text: null,
-                      score: 1,
-                      feedback: null,
-                      graded_at: null,
+                      selected_option: null,
+                      response_text: 'for (int i = 0; i < 5; i++) println(i);',
+                      score: 4,
+                      feedback: 'Good start',
+                      graded_at: '2026-03-06T12:00:00.000Z',
                       submitted_at: '2026-01-01T00:00:00.000Z',
                     },
                   ],
@@ -213,11 +215,11 @@ describe('GET /api/student/tests/[id]/results', () => {
                     {
                       id: 'response-1',
                       question_id: 'question-1',
-                      selected_option: 0,
-                      response_text: null,
-                      score: 1,
-                      feedback: null,
-                      graded_at: null,
+                      selected_option: null,
+                      response_text: 'for (int i = 0; i < 5; i++) println(i);',
+                      score: 4,
+                      feedback: 'Good start',
+                      graded_at: '2026-03-06T12:00:00.000Z',
                     },
                   ],
                   error: null,
@@ -228,8 +230,8 @@ describe('GET /api/student/tests/[id]/results', () => {
               resolve({
                 data: [
                   {
-                    selected_option: 0,
-                    response_text: null,
+                    selected_option: null,
+                    response_text: 'for (int i = 0; i < 5; i++) println(i);',
                   },
                 ],
                 error: null,
@@ -251,6 +253,7 @@ describe('GET /api/student/tests/[id]/results', () => {
     expect(response.status).toBe(200)
     expect(data.quiz.id).toBe('test-1')
     expect(data.quiz.returned_at).toBe('2026-03-05T11:00:00.000Z')
-    expect(data.summary.earned_points).toBe(1)
+    expect(data.summary.earned_points).toBe(4)
+    expect(data.question_results[0].sample_solution).toContain('println')
   })
 })

@@ -2,13 +2,20 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
-import { suggestTestOpenResponseGrade, getTestOpenResponseGradingModel } from '@/lib/ai-test-grading'
+import {
+  getTestOpenResponseGradingModel,
+  prepareTestOpenResponseGradingContext,
+  suggestTestOpenResponseGradeWithContext,
+  suggestTestOpenResponseGradesBatch,
+} from '@/lib/ai-test-grading'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const CONCURRENCY_LIMIT = 5
+const VALID_GRADING_STRATEGIES = ['balanced', 'aggressive_batch'] as const
+type TestAiGradingStrategy = (typeof VALID_GRADING_STRATEGIES)[number]
 
 function toTeacherAutoGradeErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message.trim() : ''
@@ -40,6 +47,7 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
   const { id: testId } = await context.params
   const body = await request.json()
   let promptGuidelineOverride: string | null | undefined = undefined
+  let gradingStrategy: TestAiGradingStrategy = 'balanced'
 
   if (!Array.isArray(body?.student_ids) || body.student_ids.length === 0) {
     return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })
@@ -49,6 +57,18 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
       return NextResponse.json({ error: 'prompt_guideline must be a string' }, { status: 400 })
     }
     promptGuidelineOverride = body.prompt_guideline
+  }
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'grading_strategy')) {
+    if (typeof body.grading_strategy !== 'string') {
+      return NextResponse.json({ error: 'grading_strategy must be a string' }, { status: 400 })
+    }
+    if (!VALID_GRADING_STRATEGIES.includes(body.grading_strategy as TestAiGradingStrategy)) {
+      return NextResponse.json(
+        { error: `grading_strategy must be one of: ${VALID_GRADING_STRATEGIES.join(', ')}` },
+        { status: 400 }
+      )
+    }
+    gradingStrategy = body.grading_strategy as TestAiGradingStrategy
   }
 
   const studentIds: string[] = Array.from(
@@ -66,6 +86,9 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
     return NextResponse.json({ error: 'Cannot auto-grade more than 100 students at once' }, { status: 400 })
   }
 
+  const hasCustomPromptGuideline =
+    typeof promptGuidelineOverride === 'string' && promptGuidelineOverride.trim().length > 0
+
   const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
@@ -76,7 +99,7 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
   const supabase = getServiceRoleClient()
   const { data: openQuestionRows, error: openQuestionError } = await supabase
     .from('test_questions')
-    .select('id, question_text, points, response_monospace, answer_key')
+    .select('id, question_text, points, response_monospace, answer_key, sample_solution')
     .eq('test_id', testId)
     .eq('question_type', 'open_response')
 
@@ -94,6 +117,7 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
         maxPoints: Number(row.points ?? 0),
         responseMonospace: row.response_monospace === true,
         answerKey: typeof row.answer_key === 'string' ? row.answer_key : null,
+        sampleSolution: typeof row.sample_solution === 'string' ? row.sample_solution : null,
       },
     ])
   )
@@ -147,14 +171,16 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
   type GradeTask = {
     responseId: string
     studentId: string
+    questionId: string
     questionText: string
     responseText: string
     maxPoints: number
     responseMonospace: boolean
     answerKey: string | null
+    sampleSolution: string | null
   }
 
-  const tasksByStudent = new Map<string, GradeTask[]>()
+  const tasksByQuestion = new Map<string, GradeTask[]>()
   const responseByStudentQuestion = new Map<string, {
     id: string
     student_id: string
@@ -260,6 +286,7 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
       // always write ai_score without touching teacher_score, and this check can
       // simply compare ai_model to avoid re-calling the same model twice.
       const alreadyAiGraded =
+        !hasCustomPromptGuideline &&
         existing.ai_model === currentModel &&
         existing.graded_at != null &&
         existing.score != null
@@ -275,15 +302,17 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
       const task: GradeTask = {
         responseId: existing.id,
         studentId,
+        questionId,
         questionText: questionMeta.questionText,
         responseText,
         maxPoints: questionMeta.maxPoints,
         responseMonospace: questionMeta.responseMonospace,
         answerKey: questionMeta.answerKey,
+        sampleSolution: questionMeta.sampleSolution,
       }
-      const current = tasksByStudent.get(studentId) || []
+      const current = tasksByQuestion.get(questionId) || []
       current.push(task)
-      tasksByStudent.set(studentId, current)
+      tasksByQuestion.set(questionId, current)
     }
   }
 
@@ -319,11 +348,6 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
     }
   }
 
-  const queue: GradeTask[] = []
-  for (const studentId of studentIds) {
-    queue.push(...(tasksByStudent.get(studentId) || []))
-  }
-
   const eligibleStudentIds = new Set(
     studentIds.filter((studentId) => submittedAtByStudent.has(studentId))
   )
@@ -331,61 +355,114 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
   let gradedResponses = unansweredRowsToInsert.length + unansweredResponseIdsToGrade.size + cachedGradeCount
   const errors: string[] = []
 
+  async function persistSuggestion(task: GradeTask, suggestion: {
+    score: number
+    feedback: string
+    model: string
+    grading_basis: 'teacher_key' | 'generated_reference'
+    reference_answers: string[]
+  }) {
+    const { error: updateError } = await supabase
+      .from('test_responses')
+      .update({
+        score: suggestion.score,
+        feedback: suggestion.feedback,
+        graded_at: new Date().toISOString(),
+        graded_by: user.id,
+        ai_model: suggestion.model,
+        ai_grading_basis: suggestion.grading_basis,
+        ai_reference_answers: suggestion.reference_answers,
+      })
+      .eq('id', task.responseId)
+      .eq('test_id', testId)
+
+    if (updateError) {
+      throw new Error(updateError.message || 'Failed to save AI grade')
+    }
+
+    gradedResponses += 1
+    completedQuestionsByStudent.set(
+      task.studentId,
+      (completedQuestionsByStudent.get(task.studentId) || 0) + 1
+    )
+  }
+
+  const questionQueue = Array.from(tasksByQuestion.values())
+
   async function runWorker() {
-    while (queue.length > 0) {
-      const task = queue.shift()
-      if (!task) return
+    while (questionQueue.length > 0) {
+      const tasks = questionQueue.shift()
+      if (!tasks || tasks.length === 0) return
+      const [firstTask] = tasks
 
       try {
-        const suggestion = await suggestTestOpenResponseGrade({
+        const prepared = await prepareTestOpenResponseGradingContext({
           testTitle,
-          questionText: task.questionText,
-          responseText: task.responseText,
-          maxPoints: task.maxPoints,
-          responseMonospace: task.responseMonospace,
-          answerKey: task.answerKey,
+          questionText: firstTask.questionText,
+          maxPoints: firstTask.maxPoints,
+          responseMonospace: firstTask.responseMonospace,
+          answerKey: firstTask.answerKey,
+          sampleSolution: firstTask.sampleSolution,
           promptGuidelineOverride,
         })
 
-        const { error: updateError } = await supabase
-          .from('test_responses')
-          .update({
-            score: suggestion.score,
-            feedback: suggestion.feedback,
-            graded_at: new Date().toISOString(),
-            graded_by: user.id,
-            ai_model: suggestion.model,
-            ai_grading_basis: suggestion.grading_basis,
-            ai_reference_answers: suggestion.reference_answers,
+        if (gradingStrategy === 'aggressive_batch') {
+          const suggestions = await suggestTestOpenResponseGradesBatch({
+            testTitle,
+            questionText: firstTask.questionText,
+            maxPoints: firstTask.maxPoints,
+            responseMonospace: firstTask.responseMonospace,
+            answerKey: firstTask.answerKey,
+            sampleSolution: firstTask.sampleSolution,
+            promptGuidelineOverride,
+            referenceAnswers:
+              prepared.grading_basis === 'generated_reference'
+                ? prepared.reference_answers
+                : undefined,
+            responses: tasks.map((task) => ({
+              responseId: task.responseId,
+              responseText: task.responseText,
+            })),
           })
-          .eq('id', task.responseId)
-          .eq('test_id', testId)
 
-        if (updateError) {
-          throw new Error(updateError.message || 'Failed to save AI grade')
+          const suggestionById = new Map(suggestions.map((suggestion) => [suggestion.responseId, suggestion]))
+          for (const task of tasks) {
+            const suggestion = suggestionById.get(task.responseId)
+            if (!suggestion) {
+              throw new Error(`Failed to find AI grade for response ${task.responseId}`)
+            }
+            await persistSuggestion(task, suggestion)
+          }
+          continue
         }
 
-        gradedResponses += 1
-        completedQuestionsByStudent.set(
-          task.studentId,
-          (completedQuestionsByStudent.get(task.studentId) || 0) + 1
-        )
+        for (const task of tasks) {
+          const suggestion = await suggestTestOpenResponseGradeWithContext(
+            prepared,
+            task.responseText
+          )
+          await persistSuggestion(task, suggestion)
+        }
       } catch (error: any) {
-        failedStudentIds.add(task.studentId)
-        console.error('Error auto-grading test response:', {
-          testId,
-          studentId: task.studentId,
-          responseId: task.responseId,
-          error,
-        })
         const message = toTeacherAutoGradeErrorMessage(error)
-        errors.push(`${task.studentId}: ${message}`)
+        for (const task of tasks) {
+          failedStudentIds.add(task.studentId)
+          console.error('Error auto-grading test response:', {
+            testId,
+            studentId: task.studentId,
+            responseId: task.responseId,
+            questionId: task.questionId,
+            gradingStrategy,
+            error,
+          })
+          errors.push(`${task.studentId}: ${message}`)
+        }
       }
     }
   }
 
   const workers = Array.from(
-    { length: Math.min(CONCURRENCY_LIMIT, queue.length || 1) },
+    { length: Math.min(CONCURRENCY_LIMIT, questionQueue.length || 1) },
     () => runWorker()
   )
   await Promise.all(workers)
@@ -403,6 +480,7 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
     skipped_students: skippedStudents,
     eligible_students: eligibleStudentIds.size,
     graded_responses: gradedResponses,
+    grading_strategy: gradingStrategy,
     errors: errors.length > 0 ? errors.slice(0, 20) : undefined,
   })
 })

@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto'
 import type { TestAiGradingBasis } from '@/types'
-import { DEFAULT_TEST_AI_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline'
+import {
+  DEFAULT_TEST_AI_PROMPT_GUIDELINE,
+  GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE,
+} from '@/lib/test-ai-prompt-guideline'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
 const MAX_REFERENCE_ANSWERS = 3
@@ -126,6 +129,13 @@ function normalizeAnswerKey(raw: string | null | undefined): string | null {
   return trimmed
 }
 
+function normalizeSampleSolution(raw: string | null | undefined): string | null {
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  return trimmed
+}
+
 function normalizeReferenceAnswers(raw: unknown): string[] {
   if (!Array.isArray(raw)) {
     throw new Error('AI grading references must be an array')
@@ -181,9 +191,39 @@ function scoreToNearestBucket(score: number, buckets: number[]): number {
   return nearest
 }
 
-function resolvePromptGuideline(raw: string | null | undefined): string {
-  if (raw == null) return DEFAULT_TEST_AI_PROMPT_GUIDELINE
-  return raw.trim()
+function getCodingReadabilityDeductionCap(maxPoints: number): number {
+  return Math.max(0, Math.floor(maxPoints * 0.2))
+}
+
+function getDefaultPromptGuideline(isCodingQuestion: boolean): string {
+  return isCodingQuestion
+    ? GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE
+    : DEFAULT_TEST_AI_PROMPT_GUIDELINE
+}
+
+function resolvePromptGuideline(
+  raw: string | null | undefined,
+  isCodingQuestion: boolean
+): string {
+  const baseGuideline = getDefaultPromptGuideline(isCodingQuestion)
+  if (raw == null) return sanitizePromptGuidelineForJsonOutput(baseGuideline)
+
+  const sanitizedExtraGuideline = sanitizePromptGuidelineForJsonOutput(raw)
+  if (!sanitizedExtraGuideline) {
+    return sanitizePromptGuidelineForJsonOutput(baseGuideline)
+  }
+
+  return `${sanitizePromptGuidelineForJsonOutput(baseGuideline)}
+
+Additional teacher instructions:
+${sanitizedExtraGuideline}`
+}
+
+function sanitizePromptGuidelineForJsonOutput(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return ''
+
+  return trimmed.replace(/\n*Output format[\s\S]*$/i, '').trim()
 }
 
 export function normalizeTestOpenResponseReferenceAnswers(raw: unknown): string[] {
@@ -258,6 +298,27 @@ export interface TestOpenResponseReferences {
   model: string
 }
 
+export interface TestOpenResponsePreparedContext {
+  model: string
+  maxPoints: number
+  grading_basis: TestAiGradingBasis
+  reference_answers: string[]
+  answerKey: string | null
+  sampleSolution: string | null
+  scoreBuckets: number[] | null
+  systemPrompt: string
+  userPromptPrefix: string
+}
+
+export interface TestOpenResponseBatchRequest {
+  responseId: string
+  responseText: string
+}
+
+export interface TestOpenResponseBatchSuggestion extends TestOpenResponseSuggestion {
+  responseId: string
+}
+
 export async function generateTestOpenResponseReferences(input: {
   testTitle: string
   questionText: string
@@ -286,17 +347,17 @@ export async function generateTestOpenResponseReferences(input: {
   }
 }
 
-export async function suggestTestOpenResponseGrade(input: {
+export async function prepareTestOpenResponseGradingContext(input: {
   testTitle: string
   questionText: string
-  responseText: string
   maxPoints: number
   answerKey?: string | null
+  sampleSolution?: string | null
   referenceAnswers?: string[] | null
   responseMonospace?: boolean
   scoreBuckets?: number[] | null
   promptGuidelineOverride?: string | null
-}): Promise<TestOpenResponseSuggestion> {
+}): Promise<TestOpenResponsePreparedContext> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured')
@@ -304,10 +365,11 @@ export async function suggestTestOpenResponseGrade(input: {
 
   const model = getTestOpenResponseGradingModel()
   const maxPoints = Math.max(0, input.maxPoints)
-  const promptGuideline = resolvePromptGuideline(input.promptGuidelineOverride)
-  const scoreBuckets = normalizeScoreBuckets(input.scoreBuckets, maxPoints)
   const isCodingQuestion = input.responseMonospace === true
+  const promptGuideline = resolvePromptGuideline(input.promptGuidelineOverride, isCodingQuestion)
+  const scoreBuckets = normalizeScoreBuckets(input.scoreBuckets, maxPoints)
   const answerKey = normalizeAnswerKey(input.answerKey)
+  const sampleSolution = normalizeSampleSolution(input.sampleSolution)
   const providedReferenceAnswers = !answerKey && input.referenceAnswers != null
     ? normalizeReferenceAnswers(input.referenceAnswers)
     : null
@@ -325,14 +387,28 @@ export async function suggestTestOpenResponseGrade(input: {
         }))
       : []
 
+  const readabilityDeductionCap = getCodingReadabilityDeductionCap(maxPoints)
+  const readabilityDeductionGuidance =
+    readabilityDeductionCap > 0
+      ? `- You may apply one readability/style deduction only after scoring correctness and required structure first.
+- Forgive one small formatting/style issue.
+- Apply the readability deduction only when formatting materially hurts readability, such as two or more minor formatting issues or one major formatting issue.
+- Minor issues include slightly uneven spacing, one missed indent level, or small brace-placement inconsistencies.
+- Major issues include most code written on one line, indentation missing across nested blocks, or formatting that makes control flow hard to follow.
+- Never stack style deductions per infraction; apply at most one readability deduction total.
+- Cap any readability/style deduction at ${readabilityDeductionCap} point${readabilityDeductionCap === 1 ? '' : 's'} for this question.
+- If readability is still acceptable overall, do not deduct for style.`
+      : `- Because this question is worth ${maxPoints} point${maxPoints === 1 ? '' : 's'}, do not apply a separate readability/style deduction here; keep grading focused on correctness and required structure.`
+
   const codingRubric = isCodingQuestion
     ? `
 - This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
 - If the approach is logically sound and clearly communicated but has minor implementation issues, award high partial credit (typically 80-95% of max points).
-- Penalize poor communication/readability: missing indentation, unclear variable or method names, and hard-to-follow structure should reduce marks.
+- Formatting/readability can affect the score only through the capped readability deduction below.
 - For Java/CodeHS classroom contexts, treat platform helper APIs (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid and do not penalize solely for using them.
 - If language is unspecified, infer likely language from prompt/context/response. If still ambiguous, evaluate logic language-agnostically and do not penalize language choice alone.
-- Avoid nitpicking minor stylistic preferences when clarity and logic are strong.`
+- Avoid nitpicking minor stylistic preferences when clarity and logic are strong.
+${readabilityDeductionGuidance}`
     : ''
 
   const promptGuidelineContext = promptGuideline
@@ -360,25 +436,70 @@ ${referenceAnswers.map((answer, index) => `${index + 1}. ${answer}`).join('\n')}
 
 Students may use different correct wording. Award credit for equivalent ideas.`
 
+  const sampleSolutionContext = sampleSolution
+    ? `
+
+Sample solution (one valid approach, not a required exact match):
+${sampleSolution}`
+    : ''
+
   const scoreBucketContext = scoreBuckets && scoreBuckets.length > 0
     ? `Score buckets: ${scoreBuckets.join(', ')}
 Choose the nearest bucket for the score.`
     : 'No explicit score buckets were provided.'
 
-  const parsed = await callOpenAIForJson({
-    apiKey,
+  return {
     model,
+    maxPoints,
+    grading_basis: gradingBasis,
+    reference_answers: referenceAnswers,
+    answerKey,
+    sampleSolution,
+    scoreBuckets,
     systemPrompt,
-    userPrompt: `Test: ${input.testTitle}
+    userPromptPrefix: `Test: ${input.testTitle}
 Question:
 ${input.questionText}
 
 ${gradingContext}
+${sampleSolutionContext}
 
-${scoreBucketContext}
+${scoreBucketContext}`,
+  }
+}
+
+function normalizeSuggestedScore(
+  rawScore: number,
+  maxPoints: number,
+  scoreBuckets: number[] | null
+): number {
+  const clampedScore = Math.min(maxPoints, Math.max(0, rawScore))
+  const roundedScore = scoreBuckets && scoreBuckets.length > 0
+    ? scoreToNearestBucket(clampedScore, scoreBuckets)
+    : Math.round(clampedScore)
+  const integerMaxScore = Math.max(0, Math.floor(maxPoints))
+  return scoreBuckets && scoreBuckets.length > 0
+    ? roundedScore
+    : Math.min(integerMaxScore, Math.max(0, roundedScore))
+}
+
+export async function suggestTestOpenResponseGradeWithContext(
+  prepared: TestOpenResponsePreparedContext,
+  responseText: string
+): Promise<TestOpenResponseSuggestion> {
+  const apiKey = getOpenAIKey()
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is not configured')
+  }
+
+  const parsed = await callOpenAIForJson({
+    apiKey,
+    model: prepared.model,
+    systemPrompt: prepared.systemPrompt,
+    userPrompt: `${prepared.userPromptPrefix}
 
 Student response:
-${input.responseText}`,
+${responseText}`,
     parseErrorMessage: 'Failed to parse AI grade suggestion',
   })
 
@@ -386,15 +507,7 @@ ${input.responseText}`,
   if (!Number.isFinite(rawScore)) {
     throw new Error('AI grade suggestion did not include a numeric score')
   }
-  const clampedScore = Math.min(maxPoints, Math.max(0, rawScore))
-  const roundedScore = scoreBuckets && scoreBuckets.length > 0
-    ? scoreToNearestBucket(clampedScore, scoreBuckets)
-    : Math.round(clampedScore)
-  const integerMaxScore = Math.max(0, Math.floor(maxPoints))
-  const score =
-    scoreBuckets && scoreBuckets.length > 0
-      ? roundedScore
-      : Math.min(integerMaxScore, Math.max(0, roundedScore))
+  const score = normalizeSuggestedScore(rawScore, prepared.maxPoints, prepared.scoreBuckets)
 
   const feedback = String(parsed?.feedback || '').trim()
   if (!feedback) {
@@ -404,8 +517,102 @@ ${input.responseText}`,
   return {
     score,
     feedback,
-    model,
-    grading_basis: gradingBasis,
-    reference_answers: referenceAnswers,
+    model: prepared.model,
+    grading_basis: prepared.grading_basis,
+    reference_answers: prepared.reference_answers,
   }
+}
+
+export async function suggestTestOpenResponseGrade(input: {
+  testTitle: string
+  questionText: string
+  responseText: string
+  maxPoints: number
+  answerKey?: string | null
+  sampleSolution?: string | null
+  referenceAnswers?: string[] | null
+  responseMonospace?: boolean
+  scoreBuckets?: number[] | null
+  promptGuidelineOverride?: string | null
+}): Promise<TestOpenResponseSuggestion> {
+  const prepared = await prepareTestOpenResponseGradingContext(input)
+  return suggestTestOpenResponseGradeWithContext(prepared, input.responseText)
+}
+
+export async function suggestTestOpenResponseGradesBatch(input: {
+  testTitle: string
+  questionText: string
+  maxPoints: number
+  answerKey?: string | null
+  sampleSolution?: string | null
+  referenceAnswers?: string[] | null
+  responseMonospace?: boolean
+  scoreBuckets?: number[] | null
+  promptGuidelineOverride?: string | null
+  responses: TestOpenResponseBatchRequest[]
+}): Promise<TestOpenResponseBatchSuggestion[]> {
+  const apiKey = getOpenAIKey()
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is not configured')
+  }
+
+  const prepared = await prepareTestOpenResponseGradingContext(input)
+  if (input.responses.length === 0) return []
+
+  const parsed = await callOpenAIForJson({
+    apiKey,
+    model: prepared.model,
+    systemPrompt: `${prepared.systemPrompt}
+
+Grade each response independently. Do not compare students against each other.
+Return ONLY valid JSON with this shape:
+{"results":[{"response_id":"string","score":number,"feedback":"string"}]}`,
+    userPrompt: `${prepared.userPromptPrefix}
+
+Student responses:
+${input.responses
+  .map(
+    (response, index) =>
+      `${index + 1}. response_id=${response.responseId}
+${response.responseText}`
+  )
+  .join('\n\n')}`,
+    parseErrorMessage: 'Failed to parse AI batch grade suggestions',
+  })
+
+  if (!Array.isArray(parsed?.results)) {
+    throw new Error('AI batch grade suggestion did not include results')
+  }
+
+  const resultsById = new Map<string, { score: number; feedback: string }>()
+  for (const row of parsed.results) {
+    const responseId = typeof row?.response_id === 'string' ? row.response_id.trim() : ''
+    const rawScore = Number(row?.score)
+    const feedback = typeof row?.feedback === 'string' ? row.feedback.trim() : ''
+
+    if (!responseId || !Number.isFinite(rawScore) || !feedback) {
+      throw new Error('AI batch grade suggestion returned an invalid result row')
+    }
+
+    resultsById.set(responseId, {
+      score: normalizeSuggestedScore(rawScore, prepared.maxPoints, prepared.scoreBuckets),
+      feedback,
+    })
+  }
+
+  return input.responses.map((response) => {
+    const result = resultsById.get(response.responseId)
+    if (!result) {
+      throw new Error(`AI batch grade suggestion omitted response ${response.responseId}`)
+    }
+
+    return {
+      responseId: response.responseId,
+      score: result.score,
+      feedback: result.feedback,
+      model: prepared.model,
+      grading_basis: prepared.grading_basis,
+      reference_answers: prepared.reference_answers,
+    }
+  })
 }

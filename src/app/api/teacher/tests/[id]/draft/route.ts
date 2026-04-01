@@ -24,7 +24,7 @@ const TEST_DRAFT_CONFIG = {
   questionsTable: 'test_questions',
   questionsForeignKey: 'test_id',
   questionsSelect:
-    'id, question_type, question_text, options, correct_option, answer_key, points, response_max_chars, response_monospace',
+    'id, question_type, question_text, options, correct_option, answer_key, sample_solution, points, response_max_chars, response_monospace',
   validateContent: validateTestDraftContent,
   validateOptions: { allowEmptyQuestionText: true },
   buildFromRows: buildTestDraftContentFromRows,

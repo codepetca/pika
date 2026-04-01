@@ -20,6 +20,7 @@ const FIELD_KEYS = new Set([
   'options',
   'correct option',
   'answer key',
+  'sample solution',
   'source',
   'title',
   'url',
@@ -34,6 +35,7 @@ type ParsedQuestion = {
   options?: string[]
   correct_option?: number | null
   answer_key?: string | null
+  sample_solution?: string | null
   points?: number
   response_max_chars?: number
   response_monospace?: boolean
@@ -57,6 +59,7 @@ export interface TestMarkdownSerializeInput {
     options: string[]
     correct_option?: number | null
     answer_key?: string | null
+    sample_solution?: string | null
     points?: number
     response_max_chars?: number
     response_monospace?: boolean
@@ -323,6 +326,12 @@ function parseQuestionBlock(
         lineIndex = block.nextIndex
         break
       }
+      case 'sample solution': {
+        const block = parseMultilineField(blockLines, lineIndex, field.value)
+        parsed.sample_solution = block.value || null
+        lineIndex = block.nextIndex
+        break
+      }
       default: {
         errors.push(`${questionLabel}: Unsupported field "${field.key}"`)
         lineIndex += 1
@@ -351,6 +360,7 @@ function parseQuestionBlock(
       options: parsed.options || [],
       correct_option: parsed.correct_option ?? 0,
       answer_key: null,
+      sample_solution: null,
       points,
       response_max_chars: DEFAULT_OPEN_RESPONSE_MAX_CHARS,
       response_monospace: false,
@@ -365,6 +375,7 @@ function parseQuestionBlock(
     options: [],
     correct_option: null,
     answer_key: parsed.answer_key ?? null,
+    sample_solution: parsed.sample_solution ?? null,
     points,
     response_max_chars: parsed.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS,
     response_monospace: parsed.response_monospace ?? false,
@@ -514,6 +525,10 @@ export function testToMarkdown(input: TestMarkdownSerializeInput): string {
       lines.push('Answer Key:')
       if (question.answer_key) {
         lines.push(...question.answer_key.split('\n'))
+      }
+      if (question.sample_solution) {
+        lines.push('Sample Solution:')
+        lines.push(...question.sample_solution.split('\n'))
       }
     }
 
