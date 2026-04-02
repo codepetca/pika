@@ -7724,3 +7724,25 @@
 - The live student results route on `3002` currently errors with `Failed to fetch questions` because the new `sample_solution` DB column has not been applied yet. Per repo rules, I created the migration file but did not run/apply migrations.
 
 **Status:** Code and tests are complete; live student verification needs migration `051_test_sample_solution.sql` to be applied before the returned-results UI can exercise the new sample-solution block end-to-end.
+
+## 2026-04-02 [AI - Codex]
+
+**Goal:** Fix false exam-mode exits caused by allowed test-doc interactions in the student tests view.
+
+**Completed:**
+- Added a docs-interaction suppression window in the student test exam flow so allowed docs-pane activity does not log `away_start`, `route_exit_attempt`, or `window_unmaximize_attempt` telemetry.
+- Wired suppression markers for docs list clicks, text-doc selection, iframe focus/pointer entry, pane pointer and wheel activity, and the in-panel back action.
+- Kept real classroom navigation sources unsuppressed and left teacher-facing focus summaries unchanged.
+- Reworked the inline iframe docs panel to remove the old hover-reveal width trick, then refined the pane edge treatment to hide the iframe scrollbar cleanly without leaving a visible divider gutter.
+- Removed the outer horizontal padding from the student test split layout so the left and right panes sit flush against the viewport edges.
+- Added focused regression coverage for iframe-triggered fullscreen/resize noise, text-doc blur/visibility noise, returning from an open doc to the docs list, and real exits after the suppression window.
+
+**Validation:**
+- `npm test -- tests/components/StudentQuizzesTab.test.tsx`
+- `npm test -- tests/components/TeacherQuizzesTab.test.tsx tests/unit/quizzes.test.ts`
+- `npm run lint -- --file 'src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx' --file 'tests/components/StudentQuizzesTab.test.tsx'`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - student docs-open screenshot: `/tmp/pika-issue-441-seed-doc-open-edges.png`
+  - teacher tests screenshot: `/tmp/pika-issue-441-teacher-tests-clean.png`
+
+**Status:** The docs pane no longer produces false exam exits during allowed interaction, and the split layout now renders cleanly at both the divider and the outer edges.

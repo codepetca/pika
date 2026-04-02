@@ -19,6 +19,25 @@ describe('StudentQuizzesTab exam mode', () => {
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 1024,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 768,
+    })
+    Object.defineProperty(window.screen, 'availWidth', {
+      configurable: true,
+      value: 1024,
+    })
+    Object.defineProperty(window.screen, 'availHeight', {
+      configurable: true,
+      value: 768,
+    })
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -581,6 +600,12 @@ describe('StudentQuizzesTab exam mode', () => {
       expect(screen.getByRole('button', { name: 'Back to documents list' })).toBeInTheDocument()
     })
     expect(screen.queryByRole('button', { name: 'Open in new tab' })).not.toBeInTheDocument()
+    const activeIframe = container.querySelector('iframe[title="Node.js API"]')
+    expect(activeIframe).toBeInTheDocument()
+    expect(activeIframe?.className || '').toContain('w-[calc(100%+10px)]')
+    expect(activeIframe?.className || '').not.toContain('group-hover:w-full')
+    expect(activeIframe?.className || '').not.toContain('group-focus-within:w-full')
+    expect(container.querySelector('.z-\\[1\\].w-3.bg-white')).not.toBeInTheDocument()
     const splitContainerDocOpen = getSplitContainer(container)
     expect(splitContainerDocOpen.className).toContain('lg:grid-cols-[50%_50%]')
     expect(splitContainerDocOpen.className).not.toContain('lg:grid-cols-[30%_70%]')
@@ -592,6 +617,384 @@ describe('StudentQuizzesTab exam mode', () => {
     })
     const splitContainerBack = getSplitContainer(container)
     expect(splitContainerBack.className).toContain('lg:grid-cols-[30%_70%]')
+  })
+
+  it('suppresses iframe doc-triggered fullscreen and resize exits', async () => {
+    const focusBodies: Array<Record<string, any>> = []
+    let fullscreenElement: Element | null = null
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockImplementation(async () => {
+        fullscreenElement = document.documentElement
+      }),
+    })
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 700,
+    })
+    Object.defineProperty(window.screen, 'availWidth', {
+      configurable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window.screen, 'availHeight', {
+      configurable: true,
+      value: 900,
+    })
+
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              documents: [
+                {
+                  id: 'doc-1',
+                  title: 'Node.js API',
+                  url: 'https://nodejs.org/api/fs.html',
+                  source: 'link',
+                },
+              ],
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: 'Use documentation for this question.',
+                options: ['A', 'B'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
+        focusBodies.push(parsedBody)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    const { container } = render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
+      expect(fullscreenElement).toBe(document.documentElement)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Node.js API' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Back to documents list' })).toBeInTheDocument()
+    })
+
+    const iframe = container.querySelector('iframe[title="Node.js API"]')
+    expect(iframe).toBeInTheDocument()
+    fireEvent.pointerEnter(iframe!)
+    fullscreenElement = null
+    fireEvent(document, new Event('fullscreenchange'))
+    fireEvent(window, new Event('resize'))
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(focusBodies).toEqual([])
+  })
+
+  it('suppresses blur and visibility exits after text doc interaction', async () => {
+    const focusBodies: Array<Record<string, any>> = []
+    let visibilityState: DocumentVisibilityState = 'visible'
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    })
+    Object.defineProperty(window, 'getSelection', {
+      configurable: true,
+      value: vi.fn(() => ({
+        toString: () => 'Selected reference text',
+      })),
+    })
+
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              documents: [
+                {
+                  id: 'doc-1',
+                  title: 'Formula Sheet',
+                  content: 'Solve using the quadratic formula.',
+                  source: 'text',
+                },
+              ],
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: 'Use the formula sheet.',
+                options: ['A', 'B'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
+        focusBodies.push(parsedBody)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Formula Sheet' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Formula Sheet' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Back to documents list' })).toBeInTheDocument()
+    })
+
+    fireEvent.mouseUp(screen.getByText('Solve using the quadratic formula.'))
+    fireEvent(window, new Event('blur'))
+    visibilityState = 'hidden'
+    fireEvent(document, new Event('visibilitychange'))
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(focusBodies).toEqual([])
+  })
+
+  it('does not log exit telemetry when returning from an open doc to the docs list', async () => {
+    const focusBodies: Array<Record<string, any>> = []
+
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              documents: [
+                {
+                  id: 'doc-1',
+                  title: 'Node.js API',
+                  url: 'https://nodejs.org/api/fs.html',
+                  source: 'link',
+                },
+              ],
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: 'Use documentation for this question.',
+                options: ['A', 'B'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
+        focusBodies.push(parsedBody)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Node.js API' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Back to documents list' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
+
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(focusBodies).toEqual([])
   })
 
   it('uses 30/70 split when student is viewing returned test results', async () => {
@@ -1497,6 +1900,131 @@ describe('StudentQuizzesTab exam mode', () => {
     await waitFor(() => {
       expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
     })
+
+    window.dispatchEvent(
+      new CustomEvent(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, {
+        detail: { classroomId: classroom.id, source: 'in_app_navigation' },
+      })
+    )
+    fireEvent(window, new Event('pagehide'))
+
+    await waitFor(() => {
+      expect(focusBodies.filter((body) => body.event_type === 'route_exit_attempt')).toHaveLength(2)
+    })
+  })
+
+  it('logs real route and page exits after the docs suppression window elapses', async () => {
+    const focusBodies: Array<Record<string, any>> = []
+
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              documents: [
+                {
+                  id: 'doc-1',
+                  title: 'Node.js API',
+                  url: 'https://nodejs.org/api/fs.html',
+                  source: 'link',
+                },
+              ],
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: 'Use documentation for this question.',
+                options: ['A', 'B'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: null,
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
+        focusBodies.push(parsedBody)
+        const routeExitAttempts = focusBodies.filter(
+          (body) => body.event_type === 'route_exit_attempt'
+        ).length
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary({
+              exit_count: routeExitAttempts > 0 ? 1 : 0,
+              route_exit_attempts: routeExitAttempts,
+            }),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Node.js API' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Back to documents list' })).toBeInTheDocument()
+    })
+
+    const iframe = document.querySelector('iframe[title="Node.js API"]')
+    expect(iframe).toBeInTheDocument()
+    fireEvent.pointerEnter(iframe!)
+    await new Promise((resolve) => setTimeout(resolve, 1250))
 
     window.dispatchEvent(
       new CustomEvent(STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT, {
