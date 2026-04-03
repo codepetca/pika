@@ -330,7 +330,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
             {/* Doc list — always in DOM so switching back is instant */}
             <div
               aria-hidden={showDocPanel}
-              className={`p-3 sm:p-4 overflow-y-auto scrollbar-hover h-full transition-all duration-200 ease-out motion-reduce:transition-none ${
+              className={`p-3 sm:p-4 overflow-x-hidden overflow-y-auto scrollbar-hover h-full transition-all duration-200 ease-out motion-reduce:transition-none ${
                 showDocPanel
                   ? 'pointer-events-none translate-x-2 opacity-0'
                   : 'translate-x-0 opacity-100'
@@ -392,7 +392,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
                 </div>
 
                 {activeDoc?.source === 'text' ? (
-                  <div className="scrollbar-hover min-h-0 flex-1 overflow-auto bg-surface-2 p-3">
+                  <div className="scrollbar-hover min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-surface-2 p-3">
                     <pre className="whitespace-pre-wrap break-words text-sm text-text-default">
                       {activeDoc.content || ''}
                     </pre>

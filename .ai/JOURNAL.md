@@ -7790,3 +7790,23 @@
 - `pnpm exec next lint --file 'src/components/QuizDetailPanel.tsx' --file 'src/components/TeacherTestPreviewPage.tsx' --file 'src/components/TestDocumentsEditor.tsx' --file 'src/lib/test-documents.ts' --file 'src/lib/server/test-document-snapshots.ts' --file 'tests/unit/test-documents.test.ts' --file 'tests/components/QuizDetailPanel.test.tsx'`
 
 **Status:** Teachers now auto-refresh stale link snapshots on open with a `24h` threshold, and HTML snapshot syncs are unblocked once migration `052` is applied.
+
+## 2026-04-03 [AI - Codex]
+
+**Goal:** Remove the unnecessary horizontal scrollbar that appeared in the left docs pane when the pane became active.
+
+**Completed:**
+- Hid horizontal overflow on the student exam docs pane container so the clipped iframe edge no longer produces a hover-triggered horizontal scrollbar.
+- Applied the same horizontal overflow clamp to the teacher preview docs pane and both text-document scroll containers for consistency.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec next lint --file 'src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx' --file 'src/components/TeacherTestPreviewPage.tsx'`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - student exam docs pane: `/tmp/pika-issue-441-student-docs-no-hscroll.png`
+  - teacher preview docs pane: `/tmp/pika-issue-441-teacher-preview-no-hscroll.png`
+
+**Notes:**
+- For visual verification only, I temporarily restored the local seeded test snapshot metadata and removed it again after screenshots.
+
+**Status:** The left docs pane no longer shows an unnecessary horizontal scrollbar when activated.

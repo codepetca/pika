@@ -871,7 +871,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
               <section
                 className={`rounded-xl border border-border bg-surface ${
                   showCurrentTestInfoPanel
-                    ? 'relative p-0 overflow-y-auto scrollbar-hover lg:sticky lg:top-12 lg:h-[calc(100dvh-3rem)]'
+                    ? 'relative p-0 overflow-x-hidden overflow-y-auto scrollbar-hover lg:sticky lg:top-12 lg:h-[calc(100dvh-3rem)]'
                     : 'lg:h-full lg:min-h-0 p-3 sm:p-4'
                 }`}
               >
@@ -976,7 +976,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
 
                         {activeDoc?.source === 'text' ? (
                           <div
-                            className="scrollbar-hover min-h-0 flex-1 overflow-auto bg-surface-2 p-3"
+                            className="scrollbar-hover min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-surface-2 p-3"
                             onMouseUp={handleTextDocPointerUp}
                             onKeyUp={handleTextDocPointerUp}
                           >
