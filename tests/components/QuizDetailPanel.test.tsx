@@ -981,59 +981,67 @@ Prompt:
 
     it('adds a link document and sends documents payload to tests PATCH endpoint', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-      fetchMock
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            draft: {
-              version: 1,
-              content: {
-                title: 'Doc Save Test',
-                show_results: true,
-                questions: sampleQuestions,
+      fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+        if (url.includes('/draft')) {
+          return {
+            ok: true,
+            json: async () => ({
+              draft: {
+                version: 1,
+                content: {
+                  title: 'Doc Save Test',
+                  show_results: true,
+                  questions: sampleQuestions,
+                },
               },
-            },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            quiz: { documents: [] },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            quiz: {
-              documents: [
-                { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
-              ],
-            },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            draft: {
-              version: 2,
-              content: {
-                title: 'Doc Save Test',
-                show_results: true,
-                questions: sampleQuestions,
+            }),
+          }
+        }
+
+        if (url === '/api/teacher/tests/quiz-1' && (!options?.method || options.method === 'GET')) {
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: { documents: [] },
+            }),
+          }
+        }
+
+        if (url === '/api/teacher/tests/quiz-1' && options?.method === 'PATCH') {
+          const body = JSON.parse(String(options.body))
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: {
+                documents: body.documents,
               },
-            },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            quiz: {
-              documents: [
-                { id: 'doc-1', title: 'Java API', url: 'https://docs.oracle.com', source: 'link' },
-              ],
-            },
-          }),
-        })
+            }),
+          }
+        }
+
+        if (url.match(/\/api\/teacher\/tests\/quiz-1\/documents\/.+\/sync$/) && options?.method === 'POST') {
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: {
+                documents: [
+                  {
+                    id: JSON.parse(String(fetchMock.mock.calls.find((call: any[]) => call[1]?.method === 'PATCH')?.[1]?.body)).documents[0].id,
+                    title: 'Java API',
+                    url: 'https://docs.oracle.com',
+                    source: 'link',
+                    snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                    snapshot_content_type: 'text/html',
+                    synced_at: '2026-04-02T12:00:00.000Z',
+                  },
+                ],
+              },
+            }),
+          }
+        }
+
+        throw new Error(`Unexpected fetch call: ${url}`)
+      })
 
       const testQuiz = makeQuizWithStats({
         assessment_type: 'test',
@@ -1051,10 +1059,10 @@ Prompt:
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /Documents/ })).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
+      fireEvent.click(screen.getByRole('button', { name: /Documents/ }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
       fireEvent.click(screen.getByRole('menuitem', { name: 'Link' }))
       fireEvent.change(screen.getByPlaceholderText('Title'), {
@@ -1077,6 +1085,210 @@ Prompt:
             source: 'link',
           },
         ])
+      })
+
+      await waitFor(() => {
+        expect(
+          fetchMock.mock.calls.some(
+            (call: any[]) => String(call[0]).includes('/documents/') && call[1]?.method === 'POST'
+          )
+        ).toBe(true)
+      })
+    })
+
+    it('shows compact sync age and refreshes existing link documents', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+        if (url.includes('/draft')) {
+          return {
+            ok: true,
+            json: async () => ({
+              draft: {
+                version: 1,
+                content: {
+                  title: 'Doc Refresh Test',
+                  show_results: true,
+                  questions: sampleQuestions,
+                },
+              },
+            }),
+          }
+        }
+
+        if (url === '/api/teacher/tests/quiz-1' && (!options?.method || options.method === 'GET')) {
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: {
+                documents: [
+                  {
+                    id: 'doc-1',
+                    title: 'Java API',
+                    url: 'https://docs.oracle.com',
+                    source: 'link',
+                    snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                    snapshot_content_type: 'text/html',
+                    synced_at: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
+                  },
+                ],
+              },
+            }),
+          }
+        }
+
+        if (url === '/api/teacher/tests/quiz-1/documents/doc-1/sync' && options?.method === 'POST') {
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: {
+                documents: [
+                  {
+                    id: 'doc-1',
+                    title: 'Java API',
+                    url: 'https://docs.oracle.com',
+                    source: 'link',
+                    snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                    snapshot_content_type: 'text/html',
+                    synced_at: '2026-04-02T12:00:00.000Z',
+                  },
+                ],
+              },
+            }),
+          }
+        }
+
+        throw new Error(`Unexpected fetch call: ${url}`)
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Doc Refresh Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Documents/ })).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: /Documents/ }))
+
+      await waitFor(() => {
+        expect(screen.getByText('4m')).toBeInTheDocument()
+      })
+
+      expect(
+        fetchMock.mock.calls.some(
+          (call: any[]) => call[0] === '/api/teacher/tests/quiz-1/documents/doc-1/sync' && call[1]?.method === 'POST'
+        )
+      ).toBe(false)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh Java API' }))
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/teacher/tests/quiz-1/documents/doc-1/sync',
+          expect.objectContaining({ method: 'POST' })
+        )
+      })
+    })
+
+    it('auto-syncs stale link documents when a teacher opens the test', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+        if (url.includes('/draft')) {
+          return {
+            ok: true,
+            json: async () => ({
+              draft: {
+                version: 1,
+                content: {
+                  title: 'Doc Auto Sync Test',
+                  show_results: true,
+                  questions: sampleQuestions,
+                },
+              },
+            }),
+          }
+        }
+
+        if (url === '/api/teacher/tests/quiz-1' && (!options?.method || options.method === 'GET')) {
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: {
+                documents: [
+                  {
+                    id: 'doc-1',
+                    title: 'Java API',
+                    url: 'https://docs.oracle.com',
+                    source: 'link',
+                    snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                    snapshot_content_type: 'text/html',
+                    synced_at: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+                  },
+                ],
+              },
+            }),
+          }
+        }
+
+        if (url === '/api/teacher/tests/quiz-1/documents/doc-1/sync' && options?.method === 'POST') {
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: {
+                documents: [
+                  {
+                    id: 'doc-1',
+                    title: 'Java API',
+                    url: 'https://docs.oracle.com',
+                    source: 'link',
+                    snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                    snapshot_content_type: 'text/html',
+                    synced_at: new Date().toISOString(),
+                  },
+                ],
+              },
+            }),
+          }
+        }
+
+        throw new Error(`Unexpected fetch call: ${url}`)
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Doc Auto Sync Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Documents/ })).toBeInTheDocument()
+      })
+
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledWith(
+          '/api/teacher/tests/quiz-1/documents/doc-1/sync',
+          expect.objectContaining({ method: 'POST' })
+        )
       })
     })
 

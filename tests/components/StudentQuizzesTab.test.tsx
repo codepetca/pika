@@ -265,6 +265,9 @@ describe('StudentQuizzesTab exam mode', () => {
                   title: 'Node.js API',
                   url: 'https://nodejs.org/api/fs.html',
                   source: 'link',
+                  snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                  snapshot_content_type: 'text/html',
+                  synced_at: '2026-04-02T12:00:00.000Z',
                 },
               ],
               position: 0,
@@ -380,6 +383,9 @@ describe('StudentQuizzesTab exam mode', () => {
                   title: 'Node.js API',
                   url: 'https://nodejs.org/api/fs.html',
                   source: 'link',
+                  snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                  snapshot_content_type: 'text/html',
+                  synced_at: '2026-04-02T12:00:00.000Z',
                 },
               ],
               position: 0,
@@ -505,6 +511,9 @@ describe('StudentQuizzesTab exam mode', () => {
                   title: 'Node.js API',
                   url: 'https://nodejs.org/api/fs.html',
                   source: 'link',
+                  snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                  snapshot_content_type: 'text/html',
+                  synced_at: '2026-04-02T12:00:00.000Z',
                 },
               ],
               position: 0,
@@ -602,6 +611,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(screen.queryByRole('button', { name: 'Open in new tab' })).not.toBeInTheDocument()
     const activeIframe = container.querySelector('iframe[title="Node.js API"]')
     expect(activeIframe).toBeInTheDocument()
+    expect(activeIframe?.getAttribute('src')).toBe('/api/student/tests/test-1/documents/doc-1/snapshot')
     expect(activeIframe?.className || '').toContain('w-[calc(100%+10px)]')
     expect(activeIframe?.className || '').not.toContain('group-hover:w-full')
     expect(activeIframe?.className || '').not.toContain('group-focus-within:w-full')
@@ -686,6 +696,9 @@ describe('StudentQuizzesTab exam mode', () => {
                   title: 'Node.js API',
                   url: 'https://nodejs.org/api/fs.html',
                   source: 'link',
+                  snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                  snapshot_content_type: 'text/html',
+                  synced_at: '2026-04-02T12:00:00.000Z',
                 },
               ],
               position: 0,
@@ -925,6 +938,9 @@ describe('StudentQuizzesTab exam mode', () => {
                   title: 'Node.js API',
                   url: 'https://nodejs.org/api/fs.html',
                   source: 'link',
+                  snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                  snapshot_content_type: 'text/html',
+                  synced_at: '2026-04-02T12:00:00.000Z',
                 },
               ],
               position: 0,
@@ -995,6 +1011,107 @@ describe('StudentQuizzesTab exam mode', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(focusBodies).toEqual([])
+  })
+
+  it('shows an unavailable state for unsynced link docs', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              documents: [
+                {
+                  id: 'doc-1',
+                  title: 'Node.js API',
+                  url: 'https://nodejs.org/api/fs.html',
+                  source: 'link',
+                },
+              ],
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: 'Use documentation for this question.',
+                options: ['A', 'B'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Node.js API' })).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Node.js API' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('This document is unavailable.')).toBeInTheDocument()
+    })
+
+    expect(document.querySelector('iframe[title="Node.js API"]')).not.toBeInTheDocument()
   })
 
   it('uses 30/70 split when student is viewing returned test results', async () => {
@@ -1950,6 +2067,9 @@ describe('StudentQuizzesTab exam mode', () => {
                   title: 'Node.js API',
                   url: 'https://nodejs.org/api/fs.html',
                   source: 'link',
+                  snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshot',
+                  snapshot_content_type: 'text/html',
+                  synced_at: '2026-04-02T12:00:00.000Z',
                 },
               ],
               position: 0,

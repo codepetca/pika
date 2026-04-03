@@ -5,7 +5,7 @@ import { ChevronLeft, Maximize2, X } from 'lucide-react'
 import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
-import { normalizeTestDocuments } from '@/lib/test-documents'
+import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import type { QuizQuestion, TestDocument } from '@/types'
 
 interface Props {
@@ -59,18 +59,24 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
   const fullscreenActiveRef = useRef(false)
+  const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
 
   const allowedDocs = useMemo(() => {
     const teacherManagedDocs = normalizeTestDocuments(documents).map((doc) => ({
       id: doc.id,
       title: doc.title,
       source: doc.source,
-      url: doc.url,
+      url:
+        doc.source === 'link'
+          ? doc.snapshot_path
+            ? `/api/teacher/tests/${testId}/documents/${doc.id}/snapshot`
+            : undefined
+          : doc.url,
       content: doc.content,
     }))
     if (teacherManagedDocs.length > 0) return teacherManagedDocs
     return extractAllowedDocLinks(questions)
-  }, [documents, questions])
+  }, [documents, questions, testId])
 
   useEffect(() => {
     setActiveDoc((previous) => {
@@ -187,6 +193,50 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
       isCancelled = true
     }
   }, [testId])
+
+  useEffect(() => {
+    autoSyncAttemptedRef.current.clear()
+  }, [testId])
+
+  useEffect(() => {
+    const staleDoc = normalizeTestDocuments(documents).find((doc) => {
+      if (!isLinkDocumentSnapshotStale(doc)) return false
+      const attemptKey = `${doc.id}:${doc.url || ''}:${doc.synced_at || ''}:${doc.snapshot_path || ''}`
+      return !autoSyncAttemptedRef.current.has(attemptKey)
+    })
+
+    if (!staleDoc) return
+
+    const attemptKey = `${staleDoc.id}:${staleDoc.url || ''}:${staleDoc.synced_at || ''}:${staleDoc.snapshot_path || ''}`
+    autoSyncAttemptedRef.current.add(attemptKey)
+
+    let isCancelled = false
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/teacher/tests/${testId}/documents/${staleDoc.id}/sync`, {
+          method: 'POST',
+        })
+        const data = await response.json()
+        if (!response.ok || isCancelled) {
+          if (!response.ok) {
+            console.error(`Auto-sync failed for ${staleDoc.title}:`, data?.error || 'Unknown error')
+          }
+          return
+        }
+
+        setDocuments(normalizeTestDocuments(data?.quiz?.documents))
+      } catch (error) {
+        if (!isCancelled) {
+          console.error(`Auto-sync failed for ${staleDoc.title}:`, error)
+        }
+      }
+    })()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [documents, testId])
 
   function handleClosePreview() {
     window.close()
@@ -348,7 +398,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
                     </pre>
                   </div>
                 ) : iframeDocs.length > 0 ? (
-                  <div className="group relative min-h-0 flex-1 overflow-hidden bg-white">
+                  <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
                     {iframeDocs.map((doc) => {
                       const isVisible = activeDoc?.id === doc.id
                       return (
@@ -356,10 +406,10 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
                           key={doc.id}
                           src={doc.url}
                           title={doc.title || 'Documentation'}
-                          className={`absolute inset-y-0 left-0 h-full transition-[opacity,width] duration-150 motion-reduce:transition-none ${
+                          className={`absolute inset-y-0 left-0 h-full w-[calc(100%+10px)] transition-opacity duration-150 motion-reduce:transition-none ${
                             isVisible
-                              ? 'w-[calc(100%+12px)] opacity-100 group-hover:w-full group-focus-within:w-full'
-                              : 'pointer-events-none w-full opacity-0'
+                              ? 'opacity-100'
+                              : 'pointer-events-none opacity-0'
                           }`}
                           sandbox="allow-same-origin allow-scripts allow-forms"
                           loading="eager"

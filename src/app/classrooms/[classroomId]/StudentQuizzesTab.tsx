@@ -135,16 +135,23 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     return isTestsView && isActive && !hasSubmitted && hasStarted
   }, [isActive, isTestsView, selectedQuiz, startedTestId])
   const allowedDocs = useMemo(() => {
-    const teacherManagedDocs = normalizeTestDocuments(selectedQuiz?.quiz?.documents).map((doc) => ({
-      id: doc.id,
-      title: doc.title,
-      source: doc.source,
-      url: doc.url,
-      content: doc.content,
-    }))
+    const teacherManagedDocs = normalizeTestDocuments(selectedQuiz?.quiz?.documents).map((doc) => {
+      const snapshotUrl =
+        doc.source === 'link' && selectedQuiz?.quiz?.id && doc.snapshot_path
+          ? `/api/student/tests/${selectedQuiz.quiz.id}/documents/${doc.id}/snapshot`
+          : undefined
+
+      return {
+        id: doc.id,
+        title: doc.title,
+        source: doc.source,
+        url: doc.source === 'link' ? snapshotUrl : doc.url,
+        content: doc.content,
+      }
+    })
     if (teacherManagedDocs.length > 0) return teacherManagedDocs
     return extractAllowedDocLinks(selectedQuiz?.questions || [])
-  }, [selectedQuiz?.questions, selectedQuiz?.quiz?.documents])
+  }, [selectedQuiz?.questions, selectedQuiz?.quiz?.documents, selectedQuiz?.quiz?.id])
 
   useEffect(() => {
     if (!isTestsView) return

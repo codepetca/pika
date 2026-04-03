@@ -440,6 +440,9 @@ export interface TestDocument {
   source: TestDocumentSource
   url?: string
   content?: string
+  snapshot_path?: string
+  snapshot_content_type?: string
+  synced_at?: string | null
 }
 export type TestAiGradingBasis = 'teacher_key' | 'generated_reference'
 
