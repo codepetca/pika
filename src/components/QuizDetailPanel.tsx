@@ -27,7 +27,7 @@ import { QuizResultsView } from '@/components/QuizResultsView'
 import { QuizIndividualResponses } from '@/components/QuizIndividualResponses'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
-import { normalizeTestDocuments } from '@/lib/test-documents'
+import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { markdownToTest, testToMarkdown, TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown'
 import type {
@@ -102,6 +102,7 @@ export function QuizDetailPanel({
   const markdownDirtyRef = useRef(false)
   const savedMarkdownRef = useRef('')
   const documentsRef = useRef(documents)
+  const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
 
   const normalizeQuestionPositions = useCallback((nextQuestions: QuizQuestion[]): QuizQuestion[] => {
     return nextQuestions.map((question, index) => ({ ...question, position: index }))
@@ -219,6 +220,10 @@ export function QuizDetailPanel({
   useEffect(() => {
     setDocuments(normalizeTestDocuments((quiz as { documents?: unknown }).documents))
   }, [quiz])
+
+  useEffect(() => {
+    autoSyncAttemptedRef.current.clear()
+  }, [quiz.id])
 
   useEffect(() => {
     documentsRef.current = documents
@@ -473,6 +478,48 @@ export function QuizDetailPanel({
   useEffect(() => {
     loadQuizDetails()
   }, [loadQuizDetails])
+
+  useEffect(() => {
+    if (!isTestsView) return
+
+    const staleDoc = normalizeTestDocuments(documents).find((doc) => {
+      if (!isLinkDocumentSnapshotStale(doc)) return false
+      const attemptKey = `${doc.id}:${doc.url || ''}:${doc.synced_at || ''}:${doc.snapshot_path || ''}`
+      return !autoSyncAttemptedRef.current.has(attemptKey)
+    })
+
+    if (!staleDoc) return
+
+    const attemptKey = `${staleDoc.id}:${staleDoc.url || ''}:${staleDoc.synced_at || ''}:${staleDoc.snapshot_path || ''}`
+    autoSyncAttemptedRef.current.add(attemptKey)
+
+    let isCancelled = false
+
+    void (async () => {
+      try {
+        const response = await fetch(`${apiBasePath}/${quiz.id}/documents/${staleDoc.id}/sync`, {
+          method: 'POST',
+        })
+        const data = await response.json()
+        if (!response.ok || isCancelled) {
+          if (!response.ok) {
+            console.error(`Auto-sync failed for ${staleDoc.title}:`, data?.error || 'Unknown error')
+          }
+          return
+        }
+
+        setDocuments(normalizeTestDocuments(data?.quiz?.documents))
+      } catch (error) {
+        if (!isCancelled) {
+          console.error(`Auto-sync failed for ${staleDoc.title}:`, error)
+        }
+      }
+    })()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [apiBasePath, documents, isTestsView, quiz.id])
 
   useEffect(() => {
     if (!isTestsView) return

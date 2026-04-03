@@ -7724,3 +7724,89 @@
 - The live student results route on `3002` currently errors with `Failed to fetch questions` because the new `sample_solution` DB column has not been applied yet. Per repo rules, I created the migration file but did not run/apply migrations.
 
 **Status:** Code and tests are complete; live student verification needs migration `051_test_sample_solution.sql` to be applied before the returned-results UI can exercise the new sample-solution block end-to-end.
+
+## 2026-04-02 [AI - Codex]
+
+**Goal:** Fix false exam-mode exits caused by allowed test-doc interactions in the student tests view.
+
+**Completed:**
+- Added a docs-interaction suppression window in the student test exam flow so allowed docs-pane activity does not log `away_start`, `route_exit_attempt`, or `window_unmaximize_attempt` telemetry.
+- Wired suppression markers for docs list clicks, text-doc selection, iframe focus/pointer entry, pane pointer and wheel activity, and the in-panel back action.
+- Kept real classroom navigation sources unsuppressed and left teacher-facing focus summaries unchanged.
+- Reworked the inline iframe docs panel to remove the old hover-reveal width trick, then refined the pane edge treatment to hide the iframe scrollbar cleanly without leaving a visible divider gutter.
+- Removed the outer horizontal padding from the student test split layout so the left and right panes sit flush against the viewport edges.
+- Added focused regression coverage for iframe-triggered fullscreen/resize noise, text-doc blur/visibility noise, returning from an open doc to the docs list, and real exits after the suppression window.
+
+**Validation:**
+- `npm test -- tests/components/StudentQuizzesTab.test.tsx`
+- `npm test -- tests/components/TeacherQuizzesTab.test.tsx tests/unit/quizzes.test.ts`
+- `npm run lint -- --file 'src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx' --file 'tests/components/StudentQuizzesTab.test.tsx'`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - student docs-open screenshot: `/tmp/pika-issue-441-seed-doc-open-edges.png`
+  - teacher tests screenshot: `/tmp/pika-issue-441-teacher-tests-clean.png`
+
+**Status:** The docs pane no longer produces false exam exits during allowed interaction, and the split layout now renders cleanly at both the divider and the outer edges.
+
+## 2026-04-02 [AI - Codex]
+
+**Goal:** Replace live external test-doc rendering with manually synced same-origin snapshots while keeping teacher authoring as simple URL input plus refresh.
+
+**Completed:**
+- Extended link test documents with optional snapshot metadata (`snapshot_path`, `snapshot_content_type`, `synced_at`) and preserved it through normalization.
+- Added snapshot helpers for supported link content types, compact relative-age formatting, HTML sanitization, and snapshot clearing on URL changes.
+- Implemented server-side link snapshot sync plus same-origin teacher/student snapshot routes backed by Supabase Storage.
+- Updated the teacher document editor so new and edited link docs auto-sync, failed syncs fall back to unsynced saved docs, and synced docs show a minimal refresh icon plus compact age label.
+- Updated teacher preview and student exam-mode rendering to load synced link docs through app-hosted snapshot routes instead of live external URLs, with unsynced link docs falling back to the unavailable state.
+- Added unit, API, and component coverage for metadata preservation, age formatting, HTML sanitization, sync success/failure, snapshot streaming, auto-sync-on-save, manual refresh, and synced versus unsynced student rendering.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/test-documents.test.ts tests/api/teacher/tests-documents-sync.test.ts tests/api/teacher/tests-documents-snapshot.test.ts tests/api/student/tests-documents-snapshot.test.ts tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec next lint --file 'src/components/TestDocumentsEditor.tsx' --file 'src/components/TeacherTestPreviewPage.tsx' --file 'src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx' --file 'src/lib/test-documents.ts' --file 'src/lib/server/test-document-snapshots.ts' --file 'src/app/api/teacher/tests/[id]/documents/[docId]/sync/route.ts' --file 'src/app/api/teacher/tests/[id]/documents/[docId]/snapshot/route.ts' --file 'src/app/api/student/tests/[id]/documents/[docId]/snapshot/route.ts' --file 'tests/unit/test-documents.test.ts' --file 'tests/api/teacher/tests-documents-sync.test.ts' --file 'tests/api/teacher/tests-documents-snapshot.test.ts' --file 'tests/api/student/tests-documents-snapshot.test.ts' --file 'tests/components/QuizDetailPanel.test.tsx' --file 'tests/components/StudentQuizzesTab.test.tsx'`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher documents editor row: `/tmp/pika-issue-441-teacher-documents-tab-synced.png`
+  - teacher preview route: `/tmp/pika-issue-441-teacher-preview-snapshot.png`
+  - student exam docs pane: `/tmp/pika-issue-441-student-docs-snapshot.png`
+  - student mobile exam view: `/tmp/pika-issue-441-student-mobile-tests.png`
+
+**Notes:**
+- For visual verification only, I temporarily injected snapshot metadata and a plain-text snapshot into the local seeded test document, then removed both after screenshots so the dev database returned to its prior state.
+
+**Status:** Snapshot-backed external link docs are implemented, covered, visually verified, and the temporary local verification data has been cleaned up.
+
+## 2026-04-03 [AI - Codex]
+
+**Goal:** Add teacher-view auto-sync for stale external link docs without making every view trigger a refresh.
+
+**Completed:**
+- Added a reusable `24h` stale-snapshot threshold helper for link test docs.
+- Moved background auto-sync to the teacher test-detail load path so stale link docs refresh as soon as a teacher opens a test, even before visiting the `Documents` tab.
+- Added the same silent stale-doc auto-sync behavior to the teacher preview route.
+- Kept manual refresh in the documents editor unchanged as an immediate override.
+- Added migration `052_allow_html_test_document_snapshots.sql` after confirming the existing `test-documents` bucket does not permit `text/html`, which would otherwise block sanitized HTML snapshots from syncing.
+- Updated sync error handling to surface the missing HTML-bucket migration clearly.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/test-documents.test.ts tests/api/teacher/tests-documents-sync.test.ts tests/api/teacher/tests-documents-snapshot.test.ts tests/api/student/tests-documents-snapshot.test.ts tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec next lint --file 'src/components/QuizDetailPanel.tsx' --file 'src/components/TeacherTestPreviewPage.tsx' --file 'src/components/TestDocumentsEditor.tsx' --file 'src/lib/test-documents.ts' --file 'src/lib/server/test-document-snapshots.ts' --file 'tests/unit/test-documents.test.ts' --file 'tests/components/QuizDetailPanel.test.tsx'`
+
+**Status:** Teachers now auto-refresh stale link snapshots on open with a `24h` threshold, and HTML snapshot syncs are unblocked once migration `052` is applied.
+
+## 2026-04-03 [AI - Codex]
+
+**Goal:** Remove the unnecessary horizontal scrollbar that appeared in the left docs pane when the pane became active.
+
+**Completed:**
+- Hid horizontal overflow on the student exam docs pane container so the clipped iframe edge no longer produces a hover-triggered horizontal scrollbar.
+- Applied the same horizontal overflow clamp to the teacher preview docs pane and both text-document scroll containers for consistency.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec next lint --file 'src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx' --file 'src/components/TeacherTestPreviewPage.tsx'`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - student exam docs pane: `/tmp/pika-issue-441-student-docs-no-hscroll.png`
+  - teacher preview docs pane: `/tmp/pika-issue-441-teacher-preview-no-hscroll.png`
+
+**Notes:**
+- For visual verification only, I temporarily restored the local seeded test snapshot metadata and removed it again after screenshots.
+
+**Status:** The left docs pane no longer shows an unnecessary horizontal scrollbar when activated.
