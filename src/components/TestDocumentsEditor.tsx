@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ExternalLink, FileText, Link2, Pencil, Trash2, Upload } from 'lucide-react'
+import { ChevronDown, ExternalLink, FileText, Link2, Pencil, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { Button, DialogPanel, Input } from '@/ui'
 import {
   MAX_TEST_DOCUMENT_TEXT_LENGTH,
   TEST_DOCUMENT_ACCEPT,
+  clearTestDocumentSnapshot,
+  formatCompactRelativeAge,
   normalizeTestDocuments,
   isValidHttpUrl,
 } from '@/lib/test-documents'
@@ -43,8 +45,10 @@ export function TestDocumentsEditor({
   const [activeModal, setActiveModal] = useState<AddDocumentModal | 'edit'>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [syncingDocId, setSyncingDocId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const addMenuId = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const addMenuRef = useRef<HTMLDivElement>(null)
@@ -53,6 +57,15 @@ export function TestDocumentsEditor({
     const normalized = normalizeTestDocuments(documents)
     setLocalDocs(normalized)
   }, [documents])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNowMs(Date.now())
+    }, 30_000)
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [])
 
   const editingDoc = useMemo(
     () => localDocs.find((doc) => doc.id === editingDocId) ?? null,
@@ -149,12 +162,54 @@ export function TestDocumentsEditor({
       setLocalDocs(normalized)
       setSuccess('Documents saved')
       onUpdated()
-      return true
+      return normalized
     } catch (err: any) {
       setError(err.message || 'Failed to save documents')
-      return false
+      return null
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function syncLinkDocument(
+    docId: string,
+    options?: {
+      successMessage?: string
+      failurePrefix?: string
+      silent?: boolean
+    }
+  ) {
+    setSyncingDocId(docId)
+    if (!options?.silent) {
+      setError('')
+      setSuccess('')
+    }
+    try {
+      const res = await fetch(`${apiBasePath}/${testId}/documents/${docId}/sync`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to sync document')
+      }
+
+      const normalized = normalizeTestDocuments(data.quiz?.documents || localDocs)
+      setLocalDocs(normalized)
+      if (!options?.silent) {
+        setSuccess(options?.successMessage || 'Document synced')
+      }
+      onUpdated()
+      return normalized
+    } catch (err: any) {
+      const prefix = options?.failurePrefix || 'Failed to sync document'
+      if (!options?.silent) {
+        setError(`${prefix}: ${err.message || 'Unknown error'}`)
+      } else {
+        console.error(`${prefix}:`, err)
+      }
+      return null
+    } finally {
+      setSyncingDocId(null)
     }
   }
 
@@ -177,7 +232,9 @@ export function TestDocumentsEditor({
       return
     }
 
-    const nextDocBase: TestDocument = {
+    const urlChanged = editingDoc.source === 'link' && editUrl.trim() !== (editingDoc.url || '')
+
+    let nextDocBase: TestDocument = {
       ...editingDoc,
       title: title.slice(0, 120),
     }
@@ -199,10 +256,20 @@ export function TestDocumentsEditor({
       nextDocBase.content = editContent.slice(0, MAX_TEST_DOCUMENT_TEXT_LENGTH)
     }
 
+    if (urlChanged) {
+      nextDocBase = clearTestDocumentSnapshot(nextDocBase)
+    }
+
     const nextDocs = localDocs.map((doc) => (doc.id === editingDoc.id ? nextDocBase : doc))
-    const persisted = await persistDocuments(nextDocs)
-    if (persisted) {
+    const persistedDocs = await persistDocuments(nextDocs)
+    if (persistedDocs) {
       closeAddModal()
+      if (urlChanged) {
+        void syncLinkDocument(editingDoc.id, {
+          successMessage: 'Link saved and synced',
+          failurePrefix: 'Link saved, but sync failed',
+        })
+      }
     }
   }
 
@@ -219,19 +286,25 @@ export function TestDocumentsEditor({
       return
     }
 
+    const nextLinkDoc: TestDocument = {
+      id: crypto.randomUUID(),
+      title: title.slice(0, 120),
+      url,
+      source: 'link' as const,
+    }
+
     const nextDocs = [
       ...localDocs,
-      {
-        id: crypto.randomUUID(),
-        title: title.slice(0, 120),
-        url,
-        source: 'link' as const,
-      },
+      nextLinkDoc,
     ]
-    const persisted = await persistDocuments(nextDocs)
-    if (persisted) {
+    const persistedDocs = await persistDocuments(nextDocs)
+    if (persistedDocs) {
       clearModalFields('link')
       closeAddModal()
+      void syncLinkDocument(nextLinkDoc.id, {
+        successMessage: 'Link saved and synced',
+        failurePrefix: 'Link saved, but sync failed',
+      })
     }
   }
 
@@ -257,8 +330,8 @@ export function TestDocumentsEditor({
         content: content.slice(0, MAX_TEST_DOCUMENT_TEXT_LENGTH),
       },
     ]
-    const persisted = await persistDocuments(nextDocs)
-    if (persisted) {
+    const persistedDocs = await persistDocuments(nextDocs)
+    if (persistedDocs) {
       clearModalFields('text')
       closeAddModal()
     }
@@ -292,8 +365,8 @@ export function TestDocumentsEditor({
         },
       ]
 
-      const persisted = await persistDocuments(nextDocs)
-      if (persisted) {
+      const persistedDocs = await persistDocuments(nextDocs)
+      if (persistedDocs) {
         clearModalFields('upload')
         closeAddModal()
       }
@@ -335,6 +408,28 @@ export function TestDocumentsEditor({
                   <p className="truncate text-sm font-medium text-text-default">{doc.title}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {doc.source === 'link' && (
+                    <>
+                      {doc.synced_at ? (
+                        <span className="text-xs text-text-muted" aria-label={`Synced ${formatCompactRelativeAge(doc.synced_at, nowMs)} ago`}>
+                          {formatCompactRelativeAge(doc.synced_at, nowMs)}
+                        </span>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="px-2"
+                        onClick={() => {
+                          void syncLinkDocument(doc.id)
+                        }}
+                        disabled={!isEditable || saving || uploading || syncingDocId === doc.id}
+                        aria-label={`Refresh ${doc.title}`}
+                      >
+                        <RefreshCw className={`h-4 w-4 ${syncingDocId === doc.id ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </>
+                  )}
                   <Button
                     type="button"
                     variant="secondary"

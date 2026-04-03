@@ -67,6 +67,13 @@ function isFullscreenActive(): boolean {
   return typeof document !== 'undefined' && Boolean(document.fullscreenElement)
 }
 
+const DOCS_EXIT_SUPPRESSION_WINDOW_MS = 1200
+const UNSUPPRESSED_ROUTE_EXIT_SOURCES = new Set([
+  'tab_navigation',
+  'home_navigation',
+  'classroom_switch',
+])
+
 function extractAllowedDocLinks(questions: QuizQuestion[]): AllowedDocItem[] {
   const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
   const plainUrlPattern = /\bhttps?:\/\/[^\s)]+/g
@@ -118,6 +125,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const lastWindowSignalRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
   const findIntentUntilRef = useRef(0)
   const findSuppressionUntilRef = useRef(0)
+  const docsInteractionSuppressionUntilRef = useRef(0)
   const isTestsView = assessmentType === 'test'
   const apiBasePath = isTestsView ? '/api/student/tests' : '/api/student/quizzes'
   const focusEnabled = useMemo(() => {
@@ -127,16 +135,23 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     return isTestsView && isActive && !hasSubmitted && hasStarted
   }, [isActive, isTestsView, selectedQuiz, startedTestId])
   const allowedDocs = useMemo(() => {
-    const teacherManagedDocs = normalizeTestDocuments(selectedQuiz?.quiz?.documents).map((doc) => ({
-      id: doc.id,
-      title: doc.title,
-      source: doc.source,
-      url: doc.url,
-      content: doc.content,
-    }))
+    const teacherManagedDocs = normalizeTestDocuments(selectedQuiz?.quiz?.documents).map((doc) => {
+      const snapshotUrl =
+        doc.source === 'link' && selectedQuiz?.quiz?.id && doc.snapshot_path
+          ? `/api/student/tests/${selectedQuiz.quiz.id}/documents/${doc.id}/snapshot`
+          : undefined
+
+      return {
+        id: doc.id,
+        title: doc.title,
+        source: doc.source,
+        url: doc.source === 'link' ? snapshotUrl : doc.url,
+        content: doc.content,
+      }
+    })
     if (teacherManagedDocs.length > 0) return teacherManagedDocs
     return extractAllowedDocLinks(selectedQuiz?.questions || [])
-  }, [selectedQuiz?.questions, selectedQuiz?.quiz?.documents])
+  }, [selectedQuiz?.questions, selectedQuiz?.quiz?.documents, selectedQuiz?.quiz?.id])
 
   useEffect(() => {
     if (!isTestsView) return
@@ -157,6 +172,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       lastWindowSignalRef.current = null
       findIntentUntilRef.current = 0
       findSuppressionUntilRef.current = 0
+      docsInteractionSuppressionUntilRef.current = 0
     }
   }, [focusEnabled])
 
@@ -194,6 +210,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     lastWindowSignalRef.current = null
     findIntentUntilRef.current = 0
     findSuppressionUntilRef.current = 0
+    docsInteractionSuppressionUntilRef.current = 0
 
     try {
       const res = await fetch(`${apiBasePath}/${quizId}`)
@@ -263,6 +280,24 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     return false
   }, [])
 
+  const markAllowedDocInteraction = useCallback(() => {
+    if (!focusEnabledRef.current || !isTestsView) return
+    docsInteractionSuppressionUntilRef.current = Date.now() + DOCS_EXIT_SUPPRESSION_WINDOW_MS
+  }, [isTestsView])
+
+  const shouldSuppressForDocInteraction = useCallback((source?: string) => {
+    if (!focusEnabledRef.current || !isTestsView) return false
+    if (source && UNSUPPRESSED_ROUTE_EXIT_SOURCES.has(source)) return false
+    return Date.now() <= docsInteractionSuppressionUntilRef.current
+  }, [isTestsView])
+
+  const handleTextDocPointerUp = useCallback(() => {
+    const selectedText = window.getSelection?.()?.toString().trim()
+    if (selectedText) {
+      markAllowedDocInteraction()
+    }
+  }, [markAllowedDocInteraction])
+
   const logRouteExitAttempt = useCallback((
     source: string,
     metadata?: Record<string, unknown>,
@@ -271,6 +306,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       updateSummary?: boolean
     }
   ) => {
+    if (shouldSuppressForDocInteraction(source)) {
+      return
+    }
     const now = Date.now()
     if (
       options?.dedupe &&
@@ -289,7 +327,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       },
       { updateSummary: options?.updateSummary }
     )
-  }, [postFocusEvent])
+  }, [postFocusEvent, shouldSuppressForDocInteraction])
 
   const logWindowUnmaximizeAttempt = useCallback((
     source: string,
@@ -301,6 +339,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       updateSummary?: boolean
     }
   ) => {
+    if (shouldSuppressForDocInteraction()) {
+      return
+    }
     const now = Date.now()
     if (options?.suppressDuringFind && shouldSuppressForBrowserFind()) {
       return
@@ -323,7 +364,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       },
       { updateSummary: options?.updateSummary }
     )
-  }, [postFocusEvent, shouldSuppressForBrowserFind])
+  }, [postFocusEvent, shouldSuppressForBrowserFind, shouldSuppressForDocInteraction])
 
   const requestExamFullscreen = useCallback(async (
     source: string,
@@ -390,6 +431,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     lastWindowSignalRef.current = null
     findIntentUntilRef.current = 0
     findSuppressionUntilRef.current = 0
+    docsInteractionSuppressionUntilRef.current = 0
     loadQuizzes() // Refresh list to get updated status
   }, [loadQuizzes])
 
@@ -433,6 +475,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     lastWindowSignalRef.current = null
     findIntentUntilRef.current = 0
     findSuppressionUntilRef.current = 0
+    docsInteractionSuppressionUntilRef.current = 0
     void requestExamFullscreen('start_test_confirm')
     if (selectedQuizIdRef.current !== quizId || !selectedQuiz) {
       void handleSelectQuiz(quizId)
@@ -604,6 +647,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     const startAway = (source: 'visibility' | 'blur') => {
       if (awayStartedAtRef.current !== null) return
       if (shouldSuppressForBrowserFind()) return
+      if (shouldSuppressForDocInteraction()) return
       awayStartedAtRef.current = Date.now()
       void postFocusEvent('away_start', { source })
     }
@@ -642,7 +686,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         void postFocusEvent('away_end', { source: 'cleanup' })
       }
     }
-  }, [focusEnabled, postFocusEvent, shouldSuppressForBrowserFind])
+  }, [focusEnabled, postFocusEvent, shouldSuppressForBrowserFind, shouldSuppressForDocInteraction])
 
   useEffect(() => {
     return () => {
@@ -812,7 +856,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
           </div>
         )}
 
-        <PageContent className="flex-1 min-h-0 pt-1">
+        <PageContent className="flex-1 min-h-0 px-0 pt-1">
           <div className="mx-auto h-full w-full max-w-none">
             <div
               data-testid="student-test-split-container"
@@ -827,7 +871,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
               <section
                 className={`rounded-xl border border-border bg-surface ${
                   showCurrentTestInfoPanel
-                    ? 'relative p-0 overflow-y-auto scrollbar-hover lg:sticky lg:top-12 lg:h-[calc(100dvh-3rem)]'
+                    ? 'relative p-0 overflow-x-hidden overflow-y-auto scrollbar-hover lg:sticky lg:top-12 lg:h-[calc(100dvh-3rem)]'
                     : 'lg:h-full lg:min-h-0 p-3 sm:p-4'
                 }`}
               >
@@ -859,7 +903,10 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                                 variant="secondary"
                                 size="sm"
                                 className="w-full justify-start"
-                                onClick={() => setActiveDoc(doc)}
+                                onClick={() => {
+                                  markAllowedDocInteraction()
+                                  setActiveDoc(doc)
+                                }}
                                 tabIndex={showDocPanel ? -1 : 0}
                               >
                                 {doc.title}
@@ -889,11 +936,14 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                       </div>
                     </div>
 
-                    <div
-                      aria-hidden={!showDocPanel}
-                      className={`absolute inset-0 transition-all duration-300 ease-out motion-reduce:transition-none ${
-                        showDocPanel
-                          ? 'pointer-events-auto translate-x-0 opacity-100'
+                      <div
+                        aria-hidden={!showDocPanel}
+                        onPointerDown={markAllowedDocInteraction}
+                        onPointerMove={markAllowedDocInteraction}
+                        onWheel={markAllowedDocInteraction}
+                        className={`absolute inset-0 transition-all duration-300 ease-out motion-reduce:transition-none ${
+                          showDocPanel
+                            ? 'pointer-events-auto translate-x-0 opacity-100'
                           : 'pointer-events-none -translate-x-2 opacity-0'
                       }`}
                     >
@@ -901,7 +951,10 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                         <div className="grid h-10 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-surface-2 px-3">
                           <button
                             type="button"
-                            onClick={() => setActiveDoc(null)}
+                            onClick={() => {
+                              markAllowedDocInteraction()
+                              setActiveDoc(null)
+                            }}
                             aria-label="Back to documents list"
                             className="inline-flex items-center gap-1 justify-self-start whitespace-nowrap rounded-md bg-info-bg px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-info-bg-hover"
                             tabIndex={showDocPanel ? 0 : -1}
@@ -922,13 +975,17 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                         </div>
 
                         {activeDoc?.source === 'text' ? (
-                          <div className="scrollbar-hover min-h-0 flex-1 overflow-auto bg-surface-2 p-3">
+                          <div
+                            className="scrollbar-hover min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-surface-2 p-3"
+                            onMouseUp={handleTextDocPointerUp}
+                            onKeyUp={handleTextDocPointerUp}
+                          >
                             <pre className="whitespace-pre-wrap break-words text-sm text-text-default">
                               {activeDoc.content || ''}
                             </pre>
                           </div>
                         ) : iframeDocs.length > 0 ? (
-                          <div className="group relative min-h-0 flex-1 overflow-hidden bg-white">
+                          <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
                             {iframeDocs.map((doc) => {
                               const isVisible = activeDoc?.id === doc.id
                               return (
@@ -936,10 +993,12 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                                   key={doc.id}
                                   src={doc.url}
                                   title={doc.title || 'Documentation'}
-                                  className={`absolute inset-y-0 left-0 h-full transition-[opacity,width] duration-150 motion-reduce:transition-none ${
+                                  onFocus={markAllowedDocInteraction}
+                                  onPointerEnter={markAllowedDocInteraction}
+                                  className={`absolute inset-y-0 left-0 h-full w-[calc(100%+10px)] transition-opacity duration-150 motion-reduce:transition-none ${
                                     isVisible
-                                      ? 'w-[calc(100%+12px)] opacity-100 group-hover:w-full group-focus-within:w-full'
-                                      : 'pointer-events-none w-full opacity-0'
+                                      ? 'opacity-100'
+                                      : 'pointer-events-none opacity-0'
                                   }`}
                                   sandbox="allow-same-origin allow-scripts allow-forms"
                                   loading="eager"
