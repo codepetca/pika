@@ -2,8 +2,7 @@
 set -euo pipefail
 
 HUB_REPO="${PIKA_HUB_REPO:-$HOME/Repos/pika}"
-WORKTREE_ROOT="${PIKA_WORKTREE_ROOT:-$HOME/Repos/.worktrees/pika}"
-PROD_WT="$WORKTREE_ROOT/production"
+PROD_WT="$HUB_REPO/.claude/worktrees/production"
 DATE_TAG="$(date +%Y%m%d)"
 BRANCH_NAME="codex/merge-main-into-production-${DATE_TAG}"
 TITLE="Merge main into production ($(date +%Y-%m-%d))"
@@ -19,8 +18,7 @@ usage() {
 Usage: $0 [--dry-run]
 
 Env overrides:
-  PIKA_HUB_REPO       Hub checkout path (default: $HOME/Repos/pika)
-  PIKA_WORKTREE_ROOT  Worktree root (default: $HOME/Repos/.worktrees/pika)
+  PIKA_HUB_REPO   Hub checkout path (default: $HOME/Repos/pika)
 USAGE
 }
 

@@ -1,127 +1,101 @@
 # Repository Agent Guidelines (Pika)
 
-## Start Here (MANDATORY)
-- Read `.ai/START-HERE.md` at the start of every session.
-- **`docs/ai-instructions.md` is the authoritative source** for repository layout, worktree usage, and environment file handling.
-- Follow the required reading order in `docs/ai-instructions.md` before modifying code.
+**Start here:** Read `.ai/START-HERE.md` before doing anything.
 
-## UI/UX Changes: MUST Verify Visually (MANDATORY)
+Full instructions: `docs/ai-instructions.md`
 
-**After ANY UI/UX change, you MUST:**
+---
 
-1. Take a screenshot and visually verify the change
-2. Check BOTH teacher AND student views (if applicable)
-3. Iterate on aesthetics/styling until it looks good
+## Critical Rules (enforced by CI/ESLint)
 
+### Always
+- **API routes**: `export const GET = withErrorHandler('Name', async (req, ctx) => { ... })` — never manual try/catch
+- **Client fetches**: `fetchJSONWithCache(key, fetcher, ttlMs)` from `@/lib/request-cache` — never raw `fetch()` in components
+- **Tiptap content**: `import { parseContentField } from '@/lib/tiptap-content'` — never define it locally
+- **UI colors**: semantic tokens (`bg-surface`, `text-text-default`, `border-border`) — never `dark:` classes or raw colors
+- **UI imports**: `import { Button, Input, ... } from '@/ui'` — never from `@/components`
+
+### Never
+- Run `supabase db push` or any migration command — human applies migrations manually
+- Commit `.env.local` — it is a symlink, not a real file
+- Work in the hub repo (`$HOME/Repos/pika`) — your session is bound to a worktree under `.codex/worktrees/`
+
+---
+
+## Worktrees
+
+Your session runs inside a worktree at `$HOME/Repos/pika/.codex/worktrees/<name>`. Use plain `git` commands (no `-C` flags needed — your CWD is the worktree).
+
+**Safety check** — verify at session start:
 ```bash
-# 1. Ensure dev server is running
-pnpm dev
-
-# 2. Refresh auth if needed (uses teacher@example.com / student1@example.com)
-pnpm e2e:auth
-
-# 3. Take screenshot as teacher
-npx playwright screenshot http://localhost:3000/classrooms /tmp/teacher-view.png \
-  --load-storage .auth/teacher.json --viewport-size 1440,900
-
-# 4. Take screenshot as student
-npx playwright screenshot http://localhost:3000/classrooms /tmp/student-view.png \
-  --load-storage .auth/student.json --viewport-size 1440,900
-
-# 5. View the screenshot (use Read tool on the image file)
+git rev-parse --show-toplevel   # must contain .codex/worktrees/ or .claude/worktrees/
 ```
 
-**Iterate until satisfied:** If something looks off, fix the code and take another screenshot.
-
-See: `docs/guides/ai-ui-testing.md` for detailed usage.
-
-## Git Worktrees (Required Workflow)
-
-**Core Principle:** Never switch branches in an existing working directory. For any non-trivial task, ALWAYS create a git worktree.
-
-**Rules:**
-- One worktree == one branch
-- Treat branch switching as directory switching
-- Main repo lives at: `$HOME/Repos/pika` (hub checkout, stays on `main`)
-- Worktrees live under: `$HOME/Repos/.worktrees/pika/<branch-name>`
-
-**Quick start (existing worktree):**
+**Create a new worktree:**
 ```bash
-pika ls
-pika claude <worktree>
-# or
-pika codex <worktree>
+git -C "$HOME/Repos/pika" worktree add .codex/worktrees/<name> -b <branch>
+cd "$HOME/Repos/pika/.codex/worktrees/<name>"
+bash scripts/setup-worktree.sh   # links .env.local
 ```
 
-**Creating a new worktree:**
-- Follow `docs/dev-workflow.md` (authoritative)
+**Never work in the hub** (`$HOME/Repos/pika` itself).
 
-**Cleanup:**
-- After PR is merged, remove the worktree and delete the local branch.
-- Use the safe patterns in `docs/dev-workflow.md` (all git commands via `git -C "$PIKA_WORKTREE"`).
+---
 
-**Legacy Helper Script (avoid):**
-- `bash scripts/wt-add.sh <branch-name>` (superseded by `docs/dev-workflow.md`)
+## Environment Files
 
-## Environment Files (.env.local)
-
-**Core Principle:** All worktrees share a single canonical `.env.local` file to avoid duplication and drift.
-
-**Canonical Location:**
+All worktrees share a single canonical `.env.local`:
 ```
 $HOME/Repos/.env/pika/.env.local
 ```
+Each worktree symlinks to it. If `.env.local` is missing: `bash scripts/setup-worktree.sh`.
 
-**Symlink Setup:**
-Each worktree must symlink `.env.local` to the canonical file:
+---
+
+## Session Log
+
+`.ai/SESSION-LOG.md` — rolling 10-entry log. Append a summary at the end of each session, then trim:
 ```bash
-ln -sf $HOME/Repos/.env/pika/.env.local <worktree>/.env.local
+node scripts/trim-session-log.mjs
 ```
 
-**Why Symlinks:**
-- Worktrees do not share gitignored files
-- Symlinks avoid duplication and drift across branches
-- `-s` = symbolic link, `-f` = force/replace existing file
+---
 
-**Workflow Reference:**
-- See `docs/dev-workflow.md` for the recommended setup flow
+## UI/UX Changes: MUST Verify Visually (MANDATORY)
 
-### When Branch-Specific Envs Are Allowed (Exceptions Only)
+After ANY UI/UX change:
+1. Ensure dev server is running: `pnpm dev`
+2. Refresh auth if needed: `pnpm e2e:auth`
+3. Take screenshots:
+```bash
+npx playwright screenshot http://localhost:3000/classrooms /tmp/teacher-view.png \
+  --load-storage .auth/teacher.json --viewport-size 1440,900
 
-Use separate `.env.local` files ONLY in these cases:
-- Running multiple Supabase/backend instances in parallel
-- Destructive DB schema or migration experiments
-- Different external API keys, models, or cost profiles
+npx playwright screenshot http://localhost:3000/classrooms /tmp/student-view.png \
+  --load-storage .auth/student.json --viewport-size 1440,900
+```
+4. Iterate until verified. See `docs/guides/ai-ui-testing.md` for patterns.
 
-**Otherwise, shared `.env.local` is mandatory.**
+---
 
 ## Project Overview
 - Next.js 14+ (App Router) + TypeScript
 - Supabase (PostgreSQL) for data/storage
-- Auth: email verification codes (signup/reset) + password login + `iron-session` cookies
+- Auth: email verification codes + password login + `iron-session` cookies
 - Styling: Tailwind CSS (no component libraries)
 - Testing: Vitest + React Testing Library
 
 ## Core Commands
-- Verify: `bash scripts/verify-env.sh` (optional: `--full`)
-- Tests: `npm test` (watch: `npm run test:watch`)
-- Lint: `npm run lint`
-- Build: `npm run build`
+- Verify env: `bash scripts/verify-env.sh`
+- Tests: `pnpm test` (watch: `pnpm test:watch`)
+- Lint: `pnpm lint`
+- Build: `pnpm build`
 
-## AI Continuity Rules
-- `.ai/JOURNAL.md` is append-only. Log meaningful work each session.
-- `.ai/features.json` is append-only. Track **big epics only** and update status with `node scripts/features.mjs`.
-
-## Non-Negotiable Constraints
-- Keep business logic out of UI components; prefer `src/lib/*` and server-side code for logic.
-- All deadline calculations use `America/Toronto` timezone.
-- Do not introduce new dependencies unless explicitly approved.
-- Do not commit secrets (`.env.local`, Supabase keys, session secrets).
-
-## When Docs Conflict
+## When Docs Conflict (priority order)
 1. `.ai/features.json` (status authority)
 2. `docs/core/architecture.md` (architecture invariants)
 3. `docs/core/tests.md` (testing requirements)
 4. `docs/core/design.md` (UI/UX rules)
 5. `docs/core/project-context.md` (setup and commands)
-6. `.ai/JOURNAL.md` + `docs/core/decision-log.md` (history/rationale)
+6. `docs/core/decision-log.md` (historical rationale)
+7. `.ai/SESSION-LOG.md` (recent session context)

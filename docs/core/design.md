@@ -1,5 +1,7 @@
 # UI/UX Design Guidelines
 
+> **Canonical design reference.** The old `docs/design-system.md` has been removed — it used outdated raw Tailwind classes that violate current semantic token rules. This file + `src/ui/README.md` are the sources of truth.
+
 This document defines UI/UX patterns, visual design standards, and component guidelines for **Pika**.
 
 ---
@@ -47,7 +49,11 @@ This document defines UI/UX patterns, visual design standards, and component gui
 ### Import Pattern
 ```tsx
 // CORRECT - import from @/ui
-import { Button, Input, Select, FormField, AlertDialog, ConfirmDialog, Card, Tooltip } from '@/ui'
+import {
+  Button, Input, Select, FormField, Card, Tooltip, SplitButton,
+  AlertDialog, ConfirmDialog, ContentDialog, DialogPanel,
+  EmptyState, RefreshingIndicator, TabContentTransition,
+} from '@/ui'
 
 // WRONG - direct imports are blocked by ESLint
 import { Button } from '@/components/Button'  // ❌ Blocked
@@ -70,20 +76,35 @@ The `/ui` layer handles dark mode internally via CVA. App code uses semantic cla
 
 ### Available Semantic Tokens
 
-| Token | Light Value | Dark Value | Usage |
-|-------|-------------|------------|-------|
-| `bg-page` | gray-50 | gray-950 | App background |
-| `bg-surface` | white | gray-900 | Cards, panels |
-| `bg-surface-2` | gray-50 | gray-800 | Nested surfaces |
-| `bg-surface-hover` | gray-100 | gray-700 | Hover states |
-| `border-border` | gray-200 | gray-700 | Default borders |
-| `border-border-strong` | gray-300 | gray-600 | Emphasized borders |
-| `text-text-default` | gray-900 | gray-100 | Primary text |
-| `text-text-muted` | gray-500 | gray-400 | Secondary text |
-| `text-text-inverse` | white | gray-900 | Text on colored backgrounds |
-| `text-primary` | blue-600 | blue-400 | Links, primary actions |
-| `text-danger` | red-600 | red-400 | Error text |
-| `text-success` | green-600 | green-400 | Success text |
+**Background / surface:**
+
+| Token | Usage |
+|-------|-------|
+| `bg-page` | App background |
+| `bg-surface` | Cards, primary panels |
+| `bg-surface-2` | Nested surfaces, table rows |
+| `bg-surface-3` | Deeply nested or alt surfaces |
+| `bg-surface-panel` | Sidebar / drawer panels |
+| `bg-surface-accent` | Subtle accent areas |
+| `bg-surface-selected` | Selected row/item highlight |
+| `bg-surface-hover` | Hover states |
+
+**Border:**
+
+| Token | Usage |
+|-------|-------|
+| `border-border` | Default borders |
+| `border-border-strong` | Emphasized borders |
+
+**Text:**
+
+| Token | Usage |
+|-------|-------|
+| `text-text-default` | Primary text |
+| `text-text-muted` | Secondary / helper text |
+| `text-text-inverse` | Text on colored backgrounds |
+
+> **Status colors** (`bg-primary`, `bg-success`, `bg-danger`, `bg-warning`, `bg-info` and their `-hover`/`-bg` variants) are defined in `tailwind.config.ts` and used on Badge/status elements — use the `Button` and component variant props rather than applying status colors directly to text.
 
 ### When to Use `dark:` Classes
 
@@ -308,10 +329,10 @@ import { Card } from '@/ui'
 #### Simple List
 ```tsx
 <ul className="space-y-2">
-  <li className="py-2 px-3 hover:bg-gray-50 rounded-md cursor-pointer">
+  <li className="py-2 px-3 hover:bg-surface-hover rounded-md cursor-pointer">
     Item 1
   </li>
-  <li className="py-2 px-3 hover:bg-gray-50 rounded-md cursor-pointer">
+  <li className="py-2 px-3 hover:bg-surface-hover rounded-md cursor-pointer">
     Item 2
   </li>
 </ul>
@@ -330,20 +351,17 @@ import { Card } from '@/ui'
 
 #### Top Navigation
 ```tsx
-<nav className="bg-white border-b border-gray-200">
+<nav className="bg-surface border-b border-border">
   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div className="flex justify-between h-16">
       <div className="flex items-center">
-        <h1 className="text-xl font-bold">Pika</h1>
+        <h1 className="text-xl font-bold text-text-default">Pika</h1>
       </div>
       <div className="flex items-center space-x-4">
-        <a href="/classrooms" className="text-gray-700 hover:text-blue-600">
+        <a href="/classrooms" className="text-text-muted hover:text-text-default">
           Classrooms
         </a>
-        <a href="/student/history" className="text-gray-700 hover:text-blue-600">
-          History
-        </a>
-        <a href="/logout" className="text-gray-700 hover:text-blue-600">
+        <a href="/logout" className="text-text-muted hover:text-text-default">
           Logout
         </a>
       </div>
@@ -354,7 +372,7 @@ import { Card } from '@/ui'
 
 #### Mobile Navigation (Hamburger)
 ```tsx
-<nav className="bg-white border-b border-gray-200">
+<nav className="bg-surface border-b border-border">
   <div className="px-4">
     <div className="flex justify-between items-center h-16">
       <h1 className="text-xl font-bold">Pika</h1>
@@ -549,32 +567,7 @@ This `Tue Dec 16` format applies throughout the app (calendar selectors, assignm
 - Character count
 - Submit button (primary, full-width on smaller widths)
 
-**Example**:
-```tsx
-<div className="min-h-screen bg-gray-50">
-  <nav>{/* Navigation */}</nav>
-
-  <main className="max-w-2xl mx-auto px-4 py-8">
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold mb-2">GLD2O — Learning Strategies</h2>
-      <p className="text-sm text-gray-600 mb-6">Tue Dec 16</p>
-
-      <textarea
-        className="w-full px-3 py-2 border border-gray-300 rounded-md
-                   focus:outline-none focus:ring-2 focus:ring-blue-500
-                   resize-none"
-        rows={10}
-        placeholder="Write your journal entry..."
-      />
-
-      <button className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600
-                         text-white font-medium px-6 py-2 rounded-md mt-4">
-        Submit Entry
-      </button>
-    </div>
-  </main>
-</div>
-```
+**Implementation**: Lives inside `ClassroomPageClient` as `StudentTodayTab`. Uses `PageLayout` + `PageContent` from `src/components/PageLayout.tsx` — not a standalone page. Use `Input`/`Button` from `@/ui`; never raw `textarea`/`button` or hardcoded colors.
 
 #### History Page (Past Entries)
 **Layout**:
@@ -605,41 +598,7 @@ This `Tue Dec 16` format applies throughout the app (calendar selectors, assignm
 - Attendance status cells (🟢 present, 🔴 absent)
 - Click cell to view entry modal
 
-**Example**:
-```tsx
-<div className="overflow-x-auto">
-  <table className="min-w-full">
-    <thead className="bg-gray-50 sticky top-0">
-      <tr>
-        <th className="sticky left-0 bg-gray-50 px-4 py-3 text-left">
-          Student
-        </th>
-        <th className="px-4 py-3">Jan 15</th>
-        <th className="px-4 py-3">Jan 16</th>
-        <th className="px-4 py-3">Jan 17</th>
-        {/* More dates... */}
-      </tr>
-    </thead>
-    <tbody>
-      <tr className="border-b hover:bg-gray-50">
-        <td className="sticky left-0 bg-white px-4 py-3 font-medium">
-          John Doe
-        </td>
-        <td className="px-4 py-3 text-center cursor-pointer">🟢</td>
-        <td className="px-4 py-3 text-center cursor-pointer">🔴</td>
-        <td className="px-4 py-3 text-center cursor-pointer">🟢</td>
-        {/* More dates... */}
-      </tr>
-      {/* More students... */}
-    </tbody>
-  </table>
-</div>
-```
-
-**Responsive Strategy**:
-- Desktop: Full table with horizontal scroll
-- Tablet: Same as desktop
-- Mobile: Consider list view instead of table
+**Implementation**: Uses `DataTable`, `DataTableHead`, `DataTableBody`, `DataTableRow`, `DataTableHeaderCell`, `DataTableCell` from `src/components/DataTable/`. Use `bg-surface` / `bg-surface-2` / `bg-surface-hover` for row backgrounds — never `bg-white` or `bg-gray-50`.
 
 ### Classroom & Assignments (Shared)
 
@@ -773,7 +732,7 @@ Use Tailwind's default breakpoints:
 ### Subtle Transitions
 ```tsx
 /* Hover effects */
-className="transition-colors duration-200 hover:bg-blue-600"
+className="transition-colors duration-200 hover:bg-surface-hover"
 
 /* Transform */
 className="transition-transform duration-200 hover:scale-105"

@@ -66,7 +66,7 @@ See `docs/guides/ai-ui-testing.md` for detailed patterns.
 
 ## 7) Update AI Continuity Layer
 Before ending a session:
-- Append to `.ai/JOURNAL.md` (append-only).
+- Append to `.ai/SESSION-LOG.md`, then run `node scripts/trim-session-log.mjs`.
 - Update `.ai/features.json` if feature status changed:
   ```bash
   node scripts/features.mjs pass <feature-id>
@@ -77,5 +77,5 @@ Before ending a session:
 - Run: `pnpm test`
 - If relevant: `pnpm lint`, `pnpm build`
 - Confirm acceptance criteria are met and documented in the PR.
-- If you grep for path conventions, exclude `.ai/JOURNAL.md` (append-only).
-  Example: `rg -n "\\$HOME/repos/|/Users/stew/" --glob "!**/.ai/JOURNAL.md" docs/ .ai/ scripts/`
+- If you grep for path conventions, exclude `.ai/SESSION-LOG.md` and `.ai/JOURNAL-ARCHIVE.md`.
+  Example: `rg -n "\\$HOME/repos/|/Users/stew/" --glob "!**/.ai/SESSION-LOG.md" --glob "!**/.ai/JOURNAL-ARCHIVE.md" docs/ .ai/ scripts/`

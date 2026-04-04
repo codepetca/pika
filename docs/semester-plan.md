@@ -278,18 +278,9 @@ UI: Checklist-style rubric that auto-calculates total.
 | `docs/core/pilot-mvp.md` | Archive to `docs/archive/` | Historical; pilot decisions made |
 | `docs/issues/archive/*` | Keep | Already archived properly |
 
-### JOURNAL.md Management
+### Session Log
 
-Add to `.ai/START-HERE.md`:
-
-```markdown
-### Journal Maintenance
-
-When JOURNAL.md exceeds 1500 lines:
-1. Create `.ai/archive/JOURNAL-YYYY-MM.md`
-2. Move entries older than 30 days to archive
-3. Keep last 50 entries in active journal
-```
+`.ai/JOURNAL.md` has been retired and replaced with `.ai/SESSION-LOG.md` — a rolling 10-entry log auto-trimmed by `scripts/trim-session-log.mjs`. Full history preserved in `.ai/JOURNAL-ARCHIVE.md`.
 
 ### Documentation Line Targets
 
@@ -298,7 +289,7 @@ When JOURNAL.md exceeds 1500 lines:
 | `ai-instructions.md` | 350 | 300 | Remove workflow duplication |
 | `architecture.md` | 210 | 200 | Already tight |
 | `design.md` | 715 | 400 | Move component examples to storybook/gallery |
-| `JOURNAL.md` | 1374 | 500 | Archive older entries |
+| `SESSION-LOG.md` | ~183 | ~183 | Rolling 10 entries — self-maintaining |
 | **Total** | ~7200 | ~4000 | 44% reduction |
 
 ---

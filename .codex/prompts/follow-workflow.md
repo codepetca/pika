@@ -1,22 +1,16 @@
 STOP and re-read the workflow docs before continuing.
 
-You may have drifted from the required workflow. Follow these steps:
+Steps:
+1) Confirm worktree: `git rev-parse --show-toplevel` — must contain `.codex/worktrees/` (or `.claude/worktrees/`)
+2) Read: `.ai/START-HERE.md`
+3) Read: `docs/dev-workflow.md`
 
-1) Check environment first: `echo $PIKA_WORKTREE`
-2) Read the workflow docs:
-   - Read `$PIKA_WORKTREE/.ai/START-HERE.md`
-   - Read `$PIKA_WORKTREE/docs/dev-workflow.md`
-   (If $PIKA_WORKTREE is unset, use `$HOME/Repos/pika`)
-
-Key rules to remember:
-
-- NEVER assume the shell cwd
-- ALL git commands MUST use: `git -C "$PIKA_WORKTREE"`
-- ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`
-- Verify `$PIKA_WORKTREE` is set before running commands
-- Hub (`$HOME/Repos/pika`) is for managing worktrees, NOT feature development
+Key rules:
+- Your session CWD is the worktree — use `git` and relative paths directly
+- Never navigate to or work in `$HOME/Repos/pika` (the hub)
+- Hub-level git operations: `git -C "$HOME/Repos/pika" <command>`
 
 After reading, confirm:
-1. What is `$PIKA_WORKTREE` set to?
-2. What branch are you on?
+1. What directory are you in (`git rev-parse --show-toplevel`)?
+2. What branch are you on (`git branch --show-current`)?
 3. What task are you working on?

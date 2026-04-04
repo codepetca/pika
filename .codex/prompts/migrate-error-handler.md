@@ -1,11 +1,8 @@
 Migrate an API route from manual try/catch error handling to `withErrorHandler`.
 
-Takes the file path to migrate as an argument (relative to `$PIKA_WORKTREE` or absolute).
-
-This command operates on the bound worktree (`$PIKA_WORKTREE`).
+Takes the file path as $ARGUMENTS (relative to repo root).
 
 Rules:
-- ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`.
 - Preserve all existing business logic exactly.
 - Do NOT change response shapes, status codes, or behavior.
 - Only refactor the error handling wrapper.
@@ -22,9 +19,6 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     if (error.name === 'AuthenticationError') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    if (error.name === 'AuthorizationError') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     console.error('...', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -46,9 +40,9 @@ Steps:
 2) For each exported handler (GET, POST, PATCH, PUT, DELETE):
    - Remove the outer try/catch block.
    - Keep the happy-path body unchanged.
-   - Change `export async function X(...)` to `export const X = withErrorHandler(...)`.
+   - Change `export async function X(...)` to `export const X = withErrorHandler(...)`
    - Ensure handler signature includes `context` param.
    - Derive route name from file path in PascalCase.
 3) Add `import { withErrorHandler } from '@/lib/api-handler'` if not present.
-4) If catch block has custom error handling beyond auth/500, convert to `ApiError` or `apiErrors` inline.
-5) Verify with `pnpm tsc --noEmit` and run any existing tests.
+4) If catch block has custom error handling beyond auth/500, convert to `ApiError` inline.
+5) Verify: `pnpm tsc --noEmit` and run any existing tests.

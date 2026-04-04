@@ -49,10 +49,10 @@ src/
 │   ├── student/                   # student today/history dashboards
 │   ├── teacher/                   # teacher dashboard
 │   └── classrooms/[classroomId]/  # classroom detail page with ~19 tabs
-│       └── ClassroomPageClient.tsx # ~1500 LOC god component (gradual decomposition ongoing)
+│       └── ClassroomPageClient.tsx # ~2000 LOC god component (gradual decomposition ongoing)
 ├── components/                    # Feature components and modals
-│   ├── QuizDetailPanel.tsx        # Quiz editor/viewer (~900 LOC, draft mode)
-│   ├── AssignmentModal.tsx        # Assignment editor (~900 LOC, scheduling)
+│   ├── QuizDetailPanel.tsx        # Quiz editor/viewer (~1200 LOC, draft mode)
+│   ├── AssignmentModal.tsx        # Assignment editor (~800 LOC, scheduling)
 │   ├── TestStudentGradingPanel.tsx # Per-student test grading
 │   └── ...
 ├── hooks/                         # Custom React hooks (extracted from components)
@@ -71,7 +71,7 @@ src/
 └── ui/                            # Design-system primitives (import from @/ui NOT @/components)
     ├── Button, Input, FormField, Select, AlertDialog, ConfirmDialog, Card, Tooltip, SplitButton
 
-supabase/migrations/               # 001–045+ schema + RLS
+supabase/migrations/               # 001–050+ schema + RLS
 tests/                             # Vitest unit + API suites
 .claude/commands/                  # Claude Code slash commands
 .codex/prompts/                    # Codex CLI prompt mirrors
@@ -336,7 +336,7 @@ Existing indexes (migration 038):
 
 ---
 
-## Database Schema (Migrations 001–045+)
+## Database Schema (Migrations 001–050+)
 
 ### Core
 - `users` — `id`, `email`, `role`, `email_verified_at`, `password_hash`, timestamps

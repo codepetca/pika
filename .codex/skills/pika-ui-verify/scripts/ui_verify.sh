@@ -3,7 +3,7 @@
 set -euo pipefail
 
 PAGE="${1:-}"
-WORKTREE="${PIKA_WORKTREE:-$PWD}"
+WORKTREE="$PWD"
 BASE_URL="http://localhost:3000"
 AUTH_DIR="$WORKTREE/.auth"
 OUT_DIR="/tmp"

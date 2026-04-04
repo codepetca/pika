@@ -2,7 +2,7 @@
 
 This is your **primary entry point** for working on the Pika project.
 
-If you are starting a new session, **first read** `.ai/START-HERE.md` (environment check + journal + workflow), then come back here.
+If you are starting a new session, **first read** `.ai/START-HERE.md` (environment check + session log + workflow), then come back here.
 
 ---
 
@@ -93,24 +93,6 @@ import { parseContentField } from '@/lib/tiptap-content'
 const content = parseContentField(doc.content)  // handles string or object
 ```
 
-### Architecture Rules (PROHIBITED)
-
-❌ **DO NOT**:
-- Mix business logic with UI components
-- Store plaintext login codes (always hash with bcrypt)
-- Skip TDD workflow for core utilities
-- Modify architecture without reading design docs first
-- Use component libraries (Tailwind only)
-- Implement features without tests for core logic
-- Make changes to unrelated files
-- Over-engineer or add unnecessary abstractions
-- **Use `dark:` classes in app code** (use semantic tokens instead)
-- **Import UI primitives from `@/components`** (use `@/ui`)
-- **Run or apply database migrations** (human applies migrations manually)
-- **Write manual try/catch error handling in API routes** (use `withErrorHandler`)
-- **Define `parseContentField` locally** (import from `@/lib/tiptap-content`)
-- **Make raw `fetch()` calls in components for repeated data** (use `fetchJSONWithCache`)
-
 ### Database Migrations (MANDATORY)
 
 🗄️ **AI may**:
@@ -185,21 +167,16 @@ UI changes **must** be visually verified before committing. See `docs/guides/ai-
 
 ## Git & Worktrees
 
-Worktree rules are in `.ai/START-HERE.md`. Key points:
-- All git commands: `git -C "$PIKA_WORKTREE"`
-- All file paths: absolute or `$PIKA_WORKTREE`-prefixed
-- Setup details: `docs/dev-workflow.md`
+Your session is bound to its worktree directory. Use `git` and relative paths directly — no `-C` flags or path prefixes needed.
+
+- **Never work in the hub** (`$HOME/Repos/pika`). Hub-level commands (worktree add/remove): `git -C "$HOME/Repos/pika" <command>`.
+- **`.env.local` missing?** Run `bash scripts/setup-worktree.sh` once.
+- **Setup details:** `docs/dev-workflow.md`
 
 ### Merge Policies (MANDATORY)
 
 - **`main`**: No merge commits. Use PR **Squash and merge** (preferred) or linear rebase/cherry-pick.
 - **`production`**: Direct push blocked. Use `/merge-main-into-production` command.
-
-### Environment (.env.local)
-
-- Never commit `.env.local` — it's symlinked from `$HOME/Repos/.env/pika/.env.local`
-- Each worktree needs: `ln -sf $HOME/Repos/.env/pika/.env.local <worktree>/.env.local`
-- See `docs/dev-workflow.md` for setup
 
 ---
 
@@ -231,9 +208,15 @@ See [/docs/core/agents.md](/docs/core/agents.md) for details. For complex featur
 - Make raw `fetch()` in components — use `fetchJSONWithCache` for repeated reads
 - Use `dark:` Tailwind classes in app code — use semantic tokens (`bg-surface`, etc.)
 - Import from `@/components` for UI primitives — use `@/ui`
+- Mix business logic into UI components — put it in utilities
+- Store plaintext login codes — always hash with bcrypt before storing
+- Skip TDD for core utilities — tests first
+- Use component libraries — Tailwind only
+- Make changes to unrelated files
+- Over-engineer or add unnecessary abstractions
 
 **Recovery:**
-- Worked in hub by mistake? `git stash`, create worktree, `git stash pop` in worktree
+- Worked in hub by mistake? `git stash` in hub, `git worktree add .claude/worktrees/<name> <branch>`, `git stash pop` in worktree
 - Committed to wrong branch? `git reset --soft HEAD~1`, switch branches, recommit
 - Need to update features.json? Use the script, not manual edits
 - Added manual try/catch to a route? Run `/migrate-error-handler` on that file
