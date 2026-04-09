@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
@@ -59,7 +59,17 @@ function makeResultsPayload(score: number | null, feedback: string | null) {
   }
 }
 
-function makeMixedResultsPayload(mcScore: number, openScore: number | null, feedback: string | null) {
+function makeMixedResultsPayload(
+  mcScore: number,
+  openScore: number | null,
+  feedback: string | null,
+  options: {
+    selectedOption?: number
+    correctOption?: number | null
+  } = {}
+) {
+  const selectedOption = options.selectedOption ?? 1
+  const correctOption = options.correctOption ?? 1
   return {
     quiz: { id: 'test-1', title: 'Unit Test' },
     questions: [
@@ -68,6 +78,7 @@ function makeMixedResultsPayload(mcScore: number, openScore: number | null, feed
         question_text: 'What is 2 + 2?',
         question_type: 'multiple_choice' as const,
         options: ['3', '4', '5'],
+        correct_option: correctOption,
         points: 2,
       },
       {
@@ -75,6 +86,7 @@ function makeMixedResultsPayload(mcScore: number, openScore: number | null, feed
         question_text: 'Explain osmosis.',
         question_type: 'open_response' as const,
         options: [],
+        correct_option: null,
         points: 5,
       },
     ],
@@ -95,7 +107,7 @@ function makeMixedResultsPayload(mcScore: number, openScore: number | null, feed
           'q-mc-1': {
             response_id: 'response-mc-1',
             question_type: 'multiple_choice' as const,
-            selected_option: 1,
+            selected_option: selectedOption,
             response_text: null,
             score: mcScore,
             feedback: null,
@@ -309,6 +321,81 @@ describe('TestStudentGradingPanel save-all grading', () => {
       url: expect.stringContaining('/responses/response-mc-1'),
       body: { score: 1 },
     })
+  })
+
+  it('highlights incorrect MC answers and shows the correct answer', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/api/teacher/tests/test-1/results')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeMixedResultsPayload(0, null, null, { correctOption: 2 }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    render(
+      <TestStudentGradingPanel
+        testId="test-1"
+        selectedStudentId="student-1"
+      />
+    )
+
+    await screen.findByText('Student answer')
+
+    const studentAnswerLabel = screen.getByText('Student answer')
+    const studentAnswerBlock = studentAnswerLabel.closest('div')
+    const correctAnswerLabel = screen.getByText('Correct answer')
+    const correctAnswerBlock = correctAnswerLabel.closest('div')
+
+    expect(studentAnswerLabel.className).toContain('text-warning')
+    expect(studentAnswerBlock).not.toBeNull()
+    expect(correctAnswerBlock).not.toBeNull()
+    expect(within(studentAnswerBlock!).getByText('4').className).toContain('text-warning')
+    expect(correctAnswerLabel).toBeInTheDocument()
+    expect(within(correctAnswerBlock!).getByText('5')).toBeInTheDocument()
+  })
+
+  it('does not highlight correct MC answers', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/api/teacher/tests/test-1/results')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeMixedResultsPayload(2, null, null),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    render(
+      <TestStudentGradingPanel
+        testId="test-1"
+        selectedStudentId="student-1"
+      />
+    )
+
+    await screen.findByText('Student answer')
+
+    const studentAnswerLabel = screen.getByText('Student answer')
+    const studentAnswerBlock = studentAnswerLabel.closest('div')
+    const correctAnswerLabel = screen.getByText('Correct answer')
+    const correctAnswerBlock = correctAnswerLabel.closest('div')
+
+    expect(studentAnswerLabel.className).not.toContain('text-warning')
+    expect(studentAnswerBlock).not.toBeNull()
+    expect(correctAnswerBlock).not.toBeNull()
+    expect(within(studentAnswerBlock!).getByText('4').className).not.toContain('text-warning')
+    expect(within(correctAnswerBlock!).getByText('4')).toBeInTheDocument()
   })
 
   it('saves cleared score/feedback as clear_grade through save-all handler', async () => {
