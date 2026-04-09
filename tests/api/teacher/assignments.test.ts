@@ -67,6 +67,174 @@ describe('GET /api/teacher/assignments', () => {
     const response = await GET(request)
     expect(response.status).toBe(200)
   })
+
+  it('counts only submissions that still need to be returned', async () => {
+    const docs = [
+      {
+        is_submitted: true,
+        submitted_at: '2026-03-13T10:00:00.000Z',
+        returned_at: null,
+        teacher_cleared_at: null,
+      },
+      {
+        is_submitted: true,
+        submitted_at: '2026-03-13T11:00:00.000Z',
+        returned_at: null,
+        teacher_cleared_at: '2026-03-13T12:00:00.000Z',
+      },
+      {
+        is_submitted: true,
+        submitted_at: '2026-03-15T10:00:00.000Z',
+        returned_at: null,
+        teacher_cleared_at: '2026-03-14T08:00:00.000Z',
+      },
+      {
+        is_submitted: false,
+        submitted_at: '2026-03-16T10:00:00.000Z',
+        returned_at: '2026-03-17T08:00:00.000Z',
+        teacher_cleared_at: '2026-03-17T08:00:00.000Z',
+      },
+    ]
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        const assignmentRows = [
+          {
+            id: 'assignment-1',
+            classroom_id: 'c1',
+            title: 'Essay Draft',
+            description: '',
+            instructions_markdown: null,
+            rich_instructions: null,
+            due_at: '2026-03-14T23:59:59.000Z',
+          },
+        ]
+        const builder: any = {}
+        builder.order = vi
+          .fn()
+          .mockImplementationOnce(() => builder)
+          .mockResolvedValue({ data: assignmentRows, error: null })
+
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: builder.order,
+            })),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ count: 31, error: null }),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: docs, error: null }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1')
+    const response = await GET(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.assignments).toHaveLength(1)
+    expect(data.assignments[0].stats).toEqual({
+      total_students: 31,
+      submitted: 2,
+      late: 2,
+    })
+  })
+
+  it('falls back only to returned_at when teacher_cleared_at is missing', async () => {
+    const docs = [
+      {
+        is_submitted: true,
+        submitted_at: '2026-03-23T16:27:46.54+00:00',
+        returned_at: '2026-03-25T16:27:46.54+00:00',
+      },
+      {
+        is_submitted: true,
+        submitted_at: '2026-03-25T16:27:46.54+00:00',
+        returned_at: null,
+        feedback_returned_at: '2026-03-26T16:27:46.54+00:00',
+      },
+    ]
+
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        const assignmentRows = [
+          {
+            id: 'assignment-1',
+            classroom_id: 'c1',
+            title: 'Essay Draft',
+            description: '',
+            instructions_markdown: null,
+            rich_instructions: null,
+            due_at: '2026-03-24T23:59:59.000Z',
+          },
+        ]
+        const builder: any = {}
+        builder.order = vi
+          .fn()
+          .mockImplementationOnce(() => builder)
+          .mockResolvedValue({ data: assignmentRows, error: null })
+
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: builder.order,
+            })),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ count: 2, error: null }),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn((columns: string) => ({
+            eq: vi.fn().mockResolvedValue(
+              columns.includes('teacher_cleared_at')
+                ? { data: null, error: { code: '42703', message: "column assignment_docs.teacher_cleared_at does not exist" } }
+                : { data: docs, error: null }
+            ),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    ;(mockSupabaseClient.from as any) = mockFrom
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1')
+    const response = await GET(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.assignments[0].stats).toEqual({
+      total_students: 2,
+      submitted: 1,
+      late: 1,
+    })
+  })
 })
 
 describe('POST /api/teacher/assignments', () => {

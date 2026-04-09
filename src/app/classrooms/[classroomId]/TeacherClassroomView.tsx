@@ -238,6 +238,17 @@ function StatusIcon({
   return icon
 }
 
+function getTeacherAssignmentStatusTooltipLabel(status: AssignmentStatus, wasLate: boolean): string {
+  const baseLabel = getAssignmentStatusLabel(status)
+  if (!wasLate) return baseLabel
+
+  if (status === 'graded' || status === 'returned' || status === 'resubmitted') {
+    return `${baseLabel} (late)`
+  }
+
+  return baseLabel
+}
+
 export function TeacherClassroomView({
   classroom,
   onSelectAssignment,
@@ -699,8 +710,11 @@ export function TeacherClassroomView({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Return failed')
       const returnedCount = Number(data.returned_count ?? 0)
-      const skippedCount = Number(data.skipped_count ?? 0)
-      setInfo(`Returned ${returnedCount} graded work item(s)${skippedCount > 0 ? ` • ${skippedCount} ungraded skipped` : ''}`)
+      const clearedCount = Number(data.cleared_count ?? returnedCount)
+      const missingCount = Number(data.missing_count ?? 0)
+      setInfo(
+        `Cleared ${clearedCount} mailbox item(s)${returnedCount > 0 ? ` • ${returnedCount} returned with grades` : ''}${missingCount > 0 ? ` • ${missingCount} no work yet` : ''}`
+      )
       batchClearSelection()
       setShowReturnConfirm(false)
       // Reload assignment data to refresh statuses/grades
@@ -1148,8 +1162,8 @@ export function TeacherClassroomView({
                         ) : '—'}
                       </DataTableCell>
                       <DataTableCell className="w-[5.75rem]">
-                        <Tooltip content={getAssignmentStatusLabel(student.status)}>
-                          <span className="inline-flex" role="img" aria-label={getAssignmentStatusLabel(student.status)}>
+                        <Tooltip content={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
+                          <span className="inline-flex" role="img" aria-label={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
                             <StatusIcon
                               status={student.status}
                               wasLate={wasLate}
@@ -1207,7 +1221,7 @@ export function TeacherClassroomView({
       <ConfirmDialog
         isOpen={showReturnConfirm}
         title={`Return work to ${batchSelectedCount} selected student(s)?`}
-        description={`Eligible to return now: ${batchSelectedGradedCount} ready (graded or draft-scored)${batchSelectedUngradedCount > 0 ? ` • ${batchSelectedUngradedCount} incomplete will be skipped` : ''}`}
+        description={`This clears the assignment mailbox for the selected students. ${batchSelectedGradedCount} ready item(s) will also be returned to students now.${batchSelectedUngradedCount > 0 ? ` ${batchSelectedUngradedCount} not-yet-graded item(s) will be cleared from the mailbox only.` : ''}`}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
         isConfirmDisabled={isReturning}

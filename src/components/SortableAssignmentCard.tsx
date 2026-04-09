@@ -135,11 +135,6 @@ export function SortableAssignmentCard({
           ) : (
             <span className="text-sm text-text-muted">
               {assignment.stats.submitted}/{assignment.stats.total_students}
-              {assignment.stats.late > 0 && (
-                <span className="text-warning ml-1">
-                  ({assignment.stats.late} late)
-                </span>
-              )}
             </span>
           )}
         </div>

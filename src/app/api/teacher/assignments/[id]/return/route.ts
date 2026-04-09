@@ -3,9 +3,26 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { appendAssignmentFeedbackEntry } from '@/lib/server/assignment-feedback'
 import { withErrorHandler } from '@/lib/api-handler'
+import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/assignments'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+async function updateAssignmentDocsForStudents(opts: {
+  supabase: ReturnType<typeof getServiceRoleClient>
+  assignmentId: string
+  studentIds: string[]
+  values: Record<string, unknown>
+}) {
+  const { supabase, assignmentId, studentIds, values } = opts
+  const { error } = await supabase
+    .from('assignment_docs')
+    .update(values)
+    .eq('assignment_id', assignmentId)
+    .in('student_id', studentIds)
+
+  return error
+}
 
 // POST /api/teacher/assignments/[id]/return - Return graded work to students
 export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (request, context) => {
@@ -50,22 +67,44 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
     return NextResponse.json({ error: 'Failed to load docs for return' }, { status: 500 })
   }
 
-  const eligibleDocs = (docs || []).filter((doc) =>
+  const clearableDocs = (docs || []).filter((doc) => doc.is_submitted)
+  const eligibleDocs = clearableDocs.filter((doc) =>
     doc.score_completion != null
     && doc.score_thinking != null
     && doc.score_workflow != null
   )
+  const eligibleDocIds = new Set(eligibleDocs.map((doc) => doc.id))
+  const ungradedDocs = clearableDocs.filter((doc) => !eligibleDocIds.has(doc.id))
 
   const now = new Date().toISOString()
+  let mailboxTrackingAvailable = true
+
   if (eligibleDocs.length > 0) {
-    const { error: updateError } = await supabase
-      .from('assignment_docs')
-      .update({
+    let updateError = await updateAssignmentDocsForStudents({
+      supabase,
+      assignmentId: id,
+      studentIds: eligibleDocs.map((doc) => doc.student_id),
+      values: {
+        is_submitted: false,
+        teacher_cleared_at: now,
         returned_at: now,
         feedback_returned_at: now,
+      },
+    })
+
+    if (isMissingAssignmentTeacherClearedAtColumnError(updateError)) {
+      mailboxTrackingAvailable = false
+      updateError = await updateAssignmentDocsForStudents({
+        supabase,
+        assignmentId: id,
+        studentIds: eligibleDocs.map((doc) => doc.student_id),
+        values: {
+          is_submitted: false,
+          returned_at: now,
+          feedback_returned_at: now,
+        },
       })
-      .eq('assignment_id', id)
-      .in('student_id', eligibleDocs.map((doc) => doc.student_id))
+    }
 
     if (updateError) {
       console.error('Error returning assignment docs:', updateError)
@@ -101,11 +140,43 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
     )
   }
 
+  if (ungradedDocs.length > 0) {
+    let reopenError = await updateAssignmentDocsForStudents({
+      supabase,
+      assignmentId: id,
+      studentIds: ungradedDocs.map((doc) => doc.student_id),
+      values: {
+        is_submitted: false,
+        ...(mailboxTrackingAvailable ? { teacher_cleared_at: now } : {}),
+      },
+    })
+
+    if (isMissingAssignmentTeacherClearedAtColumnError(reopenError)) {
+      mailboxTrackingAvailable = false
+      reopenError = await updateAssignmentDocsForStudents({
+        supabase,
+        assignmentId: id,
+        studentIds: ungradedDocs.map((doc) => doc.student_id),
+        values: {
+          is_submitted: false,
+        },
+      })
+    }
+
+    if (reopenError) {
+      console.error('Error reopening ungraded assignment docs:', reopenError)
+      return NextResponse.json({ error: 'Failed to clear assignment mailbox' }, { status: 500 })
+    }
+  }
+
   const returnedCount = eligibleDocs.length
-  const skippedCount = Math.max(student_ids.length - returnedCount, 0)
+  const clearedCount = clearableDocs.length
+  const missingCount = Math.max(student_ids.length - clearableDocs.length, 0)
 
   return NextResponse.json({
     returned_count: returnedCount,
-    skipped_count: skippedCount,
+    cleared_count: clearedCount,
+    missing_count: missingCount,
+    mailbox_tracking_available: mailboxTrackingAvailable,
   })
 })

@@ -196,6 +196,7 @@ export interface AssignmentDoc {
   ai_feedback_suggestion: string | null
   ai_feedback_suggested_at: string | null
   ai_feedback_model: string | null
+  teacher_cleared_at: string | null
   graded_at: string | null
   graded_by: string | null
   returned_at: string | null

@@ -134,20 +134,23 @@ export async function seedAssignmentReviewFixtures(opts: {
     await supabase
       .from('assignment_docs')
       .update({
-        score_completion: null,
-        score_thinking: null,
-        score_workflow: null,
+        score_completion: 6,
+        score_thinking: 7,
+        score_workflow: 6,
         feedback: 'You found a clear moment to write about, but this still needs more detail and revision before it is ready to grade.',
-        teacher_feedback_draft: 'You found a clear moment to write about, but this still needs more detail and revision before it is ready to return.',
+        teacher_feedback_draft: 'You found a clear moment to write about, and the revision added stronger detail. Keep developing the reflection so the ending feels more complete.',
         teacher_feedback_draft_updated_at: oneDayAgoIso,
         feedback_returned_at: oneDayAgoIso,
+        graded_at: oneDayAgoIso,
+        graded_by: 'teacher',
+        returned_at: oneDayAgoIso,
         ai_feedback_suggestion: 'Add more sensory detail and extend the reflection at the end.',
         ai_feedback_suggested_at: twoDaysAgoIso,
         ai_feedback_model: 'seed-fixture',
       })
       .eq('assignment_id', assignments.narrative.id)
       .eq('student_id', student2.id),
-    'Update feedback-only narrative doc'
+    'Update returned narrative doc'
   )
 
   ensureOk(
@@ -220,6 +223,15 @@ export async function seedAssignmentReviewFixtures(opts: {
           entry_kind: 'teacher_feedback',
           author_type: 'teacher',
           body: 'You found a clear moment to write about, but this still needs more detail and revision before it is ready to grade.',
+          returned_at: oneDayAgoIso,
+          created_by: teacherId,
+        },
+        {
+          assignment_id: assignments.narrative.id,
+          student_id: student2.id,
+          entry_kind: 'grading_feedback',
+          author_type: 'teacher',
+          body: 'You found a clear moment to write about, and the revision added stronger detail. Keep developing the reflection so the ending feels more complete.',
           returned_at: oneDayAgoIso,
           created_by: teacherId,
         },

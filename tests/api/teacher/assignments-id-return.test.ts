@@ -27,34 +27,46 @@ const mockSupabaseClient = { from: vi.fn() }
 function buildAssignmentDocsTable(options?: {
   docs?: any[]
   selectError?: any
+  clearUpdateError?: any
   returnUpdateError?: any
   feedbackUpdateError?: any
 }) {
   const docs = options?.docs ?? []
+  const update = vi.fn((payload: Record<string, unknown>) => ({
+    eq: vi.fn(() => {
+      if ('returned_at' in payload) {
+        return {
+          in: vi.fn().mockResolvedValue({
+            error: options?.returnUpdateError ?? null,
+          }),
+        }
+      }
+      if ('teacher_cleared_at' in payload || payload.is_submitted === false) {
+        return {
+          in: vi.fn().mockResolvedValue({
+            error: options?.clearUpdateError ?? null,
+          }),
+        }
+      }
+      return Promise.resolve({
+        error: options?.feedbackUpdateError ?? null,
+      })
+    }),
+  }))
 
   return {
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        in: vi.fn().mockResolvedValue({
-          data: docs,
-          error: options?.selectError ?? null,
-        }),
+    table: {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          in: vi.fn().mockResolvedValue({
+            data: docs,
+            error: options?.selectError ?? null,
+          }),
+        })),
       })),
-    })),
-    update: vi.fn((payload: Record<string, unknown>) => ({
-      eq: vi.fn(() => {
-        if ('returned_at' in payload) {
-          return {
-            in: vi.fn().mockResolvedValue({
-              error: options?.returnUpdateError ?? null,
-            }),
-          }
-        }
-        return Promise.resolve({
-          error: options?.feedbackUpdateError ?? null,
-        })
-      }),
-    })),
+      update,
+    },
+    update,
   }
 }
 
@@ -78,11 +90,12 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     expect(data.error).toBe('student_ids array is required')
   })
 
-  it('auto-finalizes draft-scored docs when returning', async () => {
+  it('clears submitted docs and fully returns only graded ones', async () => {
     const docs = [
       {
         id: 'doc-1',
         student_id: 'student-1',
+        is_submitted: true,
         score_completion: 4,
         score_thinking: 4,
         score_workflow: 4,
@@ -91,7 +104,8 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       {
         id: 'doc-2',
         student_id: 'student-2',
-        score_completion: 3,
+        is_submitted: true,
+        score_completion: null,
         score_thinking: 3,
         score_workflow: 3,
         teacher_feedback_draft: '',
@@ -99,12 +113,15 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       {
         id: 'doc-3',
         student_id: 'student-3',
+        is_submitted: false,
         score_completion: null,
         score_thinking: 3,
         score_workflow: 3,
         teacher_feedback_draft: 'Missing completion score',
       },
     ]
+
+    const assignmentDocsTable = buildAssignmentDocsTable({ docs })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'assignments') {
@@ -125,7 +142,7 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       }
 
       if (table === 'assignment_docs') {
-        return buildAssignmentDocsTable({ docs })
+        return assignmentDocsTable.table
       }
 
       throw new Error(`Unexpected table in test: ${table}`)
@@ -142,8 +159,29 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(2)
-    expect(data.skipped_count).toBe(1)
+    expect(data.returned_count).toBe(1)
+    expect(data.cleared_count).toBe(2)
+    expect(data.missing_count).toBe(1)
+
+    const payloads = assignmentDocsTable.update.mock.calls.map(([payload]) => payload)
+    expect(payloads).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        teacher_cleared_at: expect.any(String),
+      }),
+      expect.objectContaining({
+        is_submitted: false,
+        returned_at: expect.any(String),
+        feedback_returned_at: expect.any(String),
+      }),
+    ]))
+    expect(
+      payloads.some((payload: any) =>
+        payload.is_submitted === false
+        && typeof payload.teacher_cleared_at === 'string'
+        && !('returned_at' in payload)
+        && !('feedback_returned_at' in payload)
+      )
+    ).toBe(true)
 
     expect(appendAssignmentFeedbackEntry).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -156,6 +194,21 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
   })
 
   it('returns 500 when returning docs update fails', async () => {
+    const assignmentDocsTable = buildAssignmentDocsTable({
+      docs: [
+        {
+          id: 'doc-1',
+          student_id: 'student-1',
+          is_submitted: true,
+          score_completion: 4,
+          score_thinking: 4,
+          score_workflow: 4,
+          teacher_feedback_draft: '',
+        },
+      ],
+      returnUpdateError: { message: 'boom' },
+    })
+
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'assignments') {
         return {
@@ -175,19 +228,7 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       }
 
       if (table === 'assignment_docs') {
-        return buildAssignmentDocsTable({
-          docs: [
-            {
-              id: 'doc-1',
-              student_id: 'student-1',
-              score_completion: 4,
-              score_thinking: 4,
-              score_workflow: 4,
-              teacher_feedback_draft: '',
-            },
-          ],
-          returnUpdateError: { message: 'boom' },
-        })
+        return assignmentDocsTable.table
       }
 
       throw new Error(`Unexpected table in test: ${table}`)
@@ -204,5 +245,60 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     const data = await response.json()
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to return docs')
+  })
+
+  it('returns 500 when mailbox clear update fails for reasons other than missing column', async () => {
+    const assignmentDocsTable = buildAssignmentDocsTable({
+      docs: [
+        {
+          id: 'doc-1',
+          student_id: 'student-1',
+          is_submitted: true,
+          score_completion: null,
+          score_thinking: null,
+          score_workflow: null,
+          teacher_feedback_draft: '',
+        },
+      ],
+      clearUpdateError: { code: '23505', message: 'boom' },
+    })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assignment-1',
+                  classroom_id: 'classroom-1',
+                  classrooms: { teacher_id: 'teacher-1' },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return assignmentDocsTable.table
+      }
+
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1'],
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(data.error).toBe('Failed to clear assignment mailbox')
   })
 })
