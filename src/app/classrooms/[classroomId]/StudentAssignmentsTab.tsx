@@ -160,6 +160,7 @@ export function StudentAssignmentsTab({
                 ai_feedback_suggestion: null,
                 ai_feedback_suggested_at: null,
                 ai_feedback_model: null,
+                teacher_cleared_at: null,
                 graded_at: null,
                 graded_by: null,
                 returned_at: null,
