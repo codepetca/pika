@@ -7810,3 +7810,71 @@
 - For visual verification only, I temporarily restored the local seeded test snapshot metadata and removed it again after screenshots.
 
 **Status:** The left docs pane no longer shows an unnecessary horizontal scrollbar when activated.
+
+## 2026-04-08 [AI - Codex]
+
+**Goal:** Fix assignment-list return counts so returned work stops counting as still submitted, and make the teacher list label clearly describe the metric.
+
+**Completed:**
+- Added shared assignment stat helpers so teacher assignment list counts only docs that still need to be returned.
+- Updated the teacher assignments API to exclude already returned docs unless they were resubmitted after the last return timestamp.
+- Fixed the assignment return route to clear `is_submitted` when work is returned, which reopens the doc for legitimate student resubmission.
+- Updated the teacher assignment card copy from a bare fraction to `To return x/y` for clearer meaning.
+- Added regression coverage for pending-return stats and the return-route state change.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/assignments.test.ts tests/api/teacher/assignments.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm exec next lint --file src/lib/assignments.ts --file src/app/api/teacher/assignments/route.ts --file 'src/app/api/teacher/assignments/[id]/return/route.ts' --file src/components/SortableAssignmentCard.tsx --file tests/unit/assignments.test.ts --file tests/api/teacher/assignments.test.ts --file tests/api/teacher/assignments-id-return.test.ts`
+- Visual verification on local dev server for `classrooms/f03e8d8e-e797-49ec-a567-e3bb9140df03?tab=assignments`:
+  - teacher desktop: `/tmp/pika-assignment-teacher.png`
+  - student mobile: `/tmp/pika-assignment-student.png`
+  - teacher mobile: `/tmp/pika-assignment-teacher-mobile.png`
+
+**Status:** Returned assignment docs no longer remain counted as pending return, and resubmissions will reappear as pending return again after the student submits new work.
+
+## 2026-04-08 [AI - Codex]
+
+**Goal:** Align assignment-list counts with mailbox semantics: bare `x/y` fraction, clear selected rows from the mailbox even when they are not grade-returnable yet, and only let new submissions bring the count back up.
+
+**Completed:**
+- Added `teacher_cleared_at` mailbox tracking for assignment docs via migration `053_assignment_mailbox_clear_tracking.sql`, including backfill from historical `returned_at`.
+- Updated assignment stats to count only docs whose latest submission is newer than the last teacher clear timestamp, with fallback to `returned_at` until migration `053` is applied.
+- Updated the teacher return route to clear mailbox state for all selected existing docs while still only marking graded work as student-visible returned work.
+- Restored the list card text to the bare mailbox fraction (`x/y`) and updated the return confirmation/info copy to describe mailbox clearing more accurately.
+- Extended regression tests to cover mailbox-clear tracking, fallback behavior before migration, and mailbox clear failures.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/assignments.test.ts tests/api/teacher/assignments.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm exec next lint --file src/lib/assignments.ts --file src/lib/server/assignments.ts --file src/app/api/teacher/assignments/route.ts --file 'src/app/api/teacher/assignments/[id]/return/route.ts' --file src/components/SortableAssignmentCard.tsx --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file src/types/index.ts --file tests/helpers/mocks.ts --file tests/unit/assignments.test.ts --file tests/api/teacher/assignments.test.ts --file tests/api/teacher/assignments-id-return.test.ts`
+- Visual verification on local dev server for `classrooms/f03e8d8e-e797-49ec-a567-e3bb9140df03?tab=assignments`:
+  - teacher desktop: `/tmp/pika-assignment-teacher-v2.png`
+  - student mobile: `/tmp/pika-assignment-student-v2.png`
+  - teacher mobile: `/tmp/pika-assignment-teacher-mobile-v2.png`
+
+**Status:** The list now behaves like a mailbox in code, but full mailbox-clear behavior for ungraded selections requires migration `053` to be applied manually.
+
+**Follow-up:**
+- Verified the seeded `Personal Narrative Essay` edge case against live local DB rows: one doc had `returned_at`, the other only had `feedback_returned_at`. Updated mailbox fallback logic to treat either teacher-return timestamp as a clear signal before migration `053` exists, which brings that seeded overview case to `0/2`.
+
+## 2026-04-08 [AI - Codex]
+
+**Goal:** Finish the assignment mailbox semantics so only full returns clear mailbox state, feedback-only returns do not create `returned` or `resubmitted`, and late counts remain visible even after mailbox clear.
+
+**Completed:**
+- Reworked `calculateAssignmentStatus` and assignment mailbox helpers so only `teacher_cleared_at` or legacy `returned_at` count as a full return signal; `feedback_returned_at` no longer clears mailbox state or produces `returned`/`resubmitted`.
+- Updated the teacher assignments list API to compute mailbox counts from full-return semantics while keeping the late badge based on submission history across all docs, not just current mailbox items.
+- Tightened the teacher batch-return route so only currently submitted docs are cleared, only graded docs get `returned_at`, and ungraded submitted docs are reopened without being marked returned.
+- Added feedback-return route coverage to lock in that feedback-only return does not mutate mailbox-clear fields.
+- Corrected the seeded `Personal Narrative Essay` fixture so both students are truly fully returned, including grading feedback history for the second student.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/assignments.test.ts tests/api/teacher/assignments.test.ts tests/api/teacher/assignments-id-return.test.ts tests/api/teacher/assignments-id-feedback-return.test.ts`
+- `pnpm exec next lint --file src/lib/assignments.ts --file src/app/api/teacher/assignments/route.ts --file 'src/app/api/teacher/assignments/[id]/return/route.ts' --file scripts/seed-assignment-review-fixtures.ts --file tests/unit/assignments.test.ts --file tests/api/teacher/assignments.test.ts --file tests/api/teacher/assignments-id-return.test.ts --file tests/api/teacher/assignments-id-feedback-return.test.ts`
+- `pnpm seed`
+- Teacher desktop visual verification on local dev server for `/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=assignments` via `/tmp/pika-mailbox-teacher-assignments.png`, confirming `Personal Narrative Essay` renders as `0/2 (1 late)`.
+
+**Status:** Mailbox count and late badge semantics now match the agreed behavior in code, tests, and the refreshed local seed. Migration `053_assignment_mailbox_clear_tracking.sql` still needs to be applied manually for persistent `teacher_cleared_at` tracking outside the legacy `returned_at` fallback path.
+
+**Follow-up:**
+- Removed the assignment-list late badge so overview cards show mailbox count only.
+- Re-verified that late state is still represented inside the assignment drill-down by the status icon logic: late statuses and late-derived downstream statuses append a clock indicator.
