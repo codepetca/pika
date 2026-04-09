@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   calculateAssignmentStatus,
+  calculateAssignmentStats,
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
   getAssignmentStatusIconClass,
@@ -224,6 +225,20 @@ describe('assignment utilities', () => {
       expect(calculateAssignmentStatus(assignment, doc)).toBe('returned')
     })
 
+    it('should keep feedback-only returns in submitted status', () => {
+      vi.setSystemTime(new Date('2024-10-22T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-18T20:00:00Z',
+        feedback_returned_at: '2024-10-21T14:00:00Z',
+      })
+
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('submitted_on_time')
+    })
+
     it('should return "resubmitted" when returned and student submitted again after return', () => {
       vi.setSystemTime(new Date('2024-10-23T12:00:00Z'))
       const assignment = createMockAssignment({
@@ -239,6 +254,36 @@ describe('assignment utilities', () => {
       expect(calculateAssignmentStatus(assignment, doc)).toBe('resubmitted')
     })
 
+    it('should return "resubmitted" when mailbox was fully cleared without returned_at and student submits again', () => {
+      vi.setSystemTime(new Date('2024-10-23T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-22T10:00:00Z',
+        teacher_cleared_at: '2024-10-21T14:00:00Z',
+        returned_at: null,
+      })
+
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('resubmitted')
+    })
+
+    it('should use the latest full-return timestamp when teacher_cleared_at is newer than returned_at', () => {
+      vi.setSystemTime(new Date('2024-10-23T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-22T10:00:00Z',
+        returned_at: '2024-10-21T14:00:00Z',
+        teacher_cleared_at: '2024-10-21T16:00:00Z',
+      })
+
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('resubmitted')
+    })
+
     it('should return "returned" when returned and submitted_at is before returned_at', () => {
       vi.setSystemTime(new Date('2024-10-23T12:00:00Z'))
       const assignment = createMockAssignment({
@@ -249,6 +294,21 @@ describe('assignment utilities', () => {
         submitted_at: '2024-10-18T20:00:00Z', // Before returned_at
         graded_at: '2024-10-21T10:00:00Z',
         returned_at: '2024-10-21T14:00:00Z',
+      })
+
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('returned')
+    })
+
+    it('should use the latest full-return timestamp when returned_at is newer than teacher_cleared_at', () => {
+      vi.setSystemTime(new Date('2024-10-23T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: true,
+        submitted_at: '2024-10-21T15:00:00Z',
+        returned_at: '2024-10-21T17:00:00Z',
+        teacher_cleared_at: '2024-10-21T14:00:00Z',
       })
 
       expect(calculateAssignmentStatus(assignment, doc)).toBe('returned')
@@ -271,6 +331,21 @@ describe('assignment utilities', () => {
 
       // resubmitted takes priority over graded because returned_at is set + submitted after
       expect(calculateAssignmentStatus(assignment, doc)).toBe('resubmitted')
+    })
+
+    it('should show reopened ungraded work as in progress after a full return clear', () => {
+      vi.setSystemTime(new Date('2024-10-22T12:00:00Z'))
+      const assignment = createMockAssignment({
+        due_at: '2024-10-20T23:59:59-04:00',
+      })
+      const doc = createMockAssignmentDoc({
+        is_submitted: false,
+        submitted_at: '2024-10-21T10:00:00Z',
+        teacher_cleared_at: '2024-10-21T14:00:00Z',
+        returned_at: null,
+      })
+
+      expect(calculateAssignmentStatus(assignment, doc)).toBe('in_progress_late')
     })
 
     it('should return "graded" over "submitted" statuses', () => {
@@ -317,6 +392,143 @@ describe('assignment utilities', () => {
       const status = calculateAssignmentStatus(assignment, doc)
 
       expect(status).toBe('in_progress')
+    })
+  })
+
+  describe('calculateAssignmentStats', () => {
+    it('counts only docs that still need to be returned', () => {
+      const stats = calculateAssignmentStats(
+        '2026-03-14T23:59:59.000Z',
+        [
+          {
+            is_submitted: true,
+            submitted_at: '2026-03-13T10:00:00.000Z',
+            returned_at: null,
+            teacher_cleared_at: null,
+          },
+          {
+            is_submitted: true,
+            submitted_at: '2026-03-13T11:00:00.000Z',
+            returned_at: null,
+            teacher_cleared_at: '2026-03-13T12:00:00.000Z',
+          },
+          {
+            is_submitted: true,
+            submitted_at: '2026-03-15T10:00:00.000Z',
+            returned_at: null,
+            teacher_cleared_at: '2026-03-14T08:00:00.000Z',
+          },
+          {
+            is_submitted: false,
+            submitted_at: '2026-03-12T10:00:00.000Z',
+            returned_at: '2026-03-13T09:00:00.000Z',
+            teacher_cleared_at: '2026-03-13T09:00:00.000Z',
+          },
+        ],
+        31
+      )
+
+      expect(stats).toEqual({
+        total_students: 31,
+        submitted: 2,
+        late: 1,
+      })
+    })
+
+    it('treats submitted docs without submitted_at as awaiting return but not late', () => {
+      const stats = calculateAssignmentStats(
+        '2026-03-14T23:59:59.000Z',
+        [
+          {
+            is_submitted: true,
+            submitted_at: null,
+            returned_at: null,
+            teacher_cleared_at: null,
+          },
+        ],
+        5
+      )
+
+      expect(stats).toEqual({
+        total_students: 5,
+        submitted: 1,
+        late: 0,
+      })
+    })
+
+    it('falls back to returned_at when mailbox clear tracking is not available yet', () => {
+      const stats = calculateAssignmentStats(
+        '2026-03-14T23:59:59.000Z',
+        [
+          {
+            is_submitted: true,
+            submitted_at: '2026-03-13T11:00:00.000Z',
+            returned_at: null,
+            teacher_cleared_at: null,
+          },
+          {
+            is_submitted: true,
+            submitted_at: '2026-03-15T10:00:00.000Z',
+            returned_at: '2026-03-14T08:00:00.000Z',
+            teacher_cleared_at: null,
+          },
+        ],
+        25
+      )
+
+      expect(stats).toEqual({
+        total_students: 25,
+        submitted: 2,
+        late: 1,
+      })
+    })
+
+    it('does not treat feedback_returned_at as a clear signal before migration 053 is applied', () => {
+      const stats = calculateAssignmentStats(
+        '2026-03-24T23:59:59.000Z',
+        [
+          {
+            is_submitted: true,
+            submitted_at: '2026-03-23T16:27:46.54+00:00',
+            returned_at: '2026-03-25T16:27:46.54+00:00',
+            teacher_cleared_at: null,
+          },
+          {
+            is_submitted: true,
+            submitted_at: '2026-03-25T16:27:46.54+00:00',
+            returned_at: null,
+            teacher_cleared_at: null,
+          },
+        ],
+        2
+      )
+
+      expect(stats).toEqual({
+        total_students: 2,
+        submitted: 1,
+        late: 1,
+      })
+    })
+
+    it('keeps late counts after work has been fully returned', () => {
+      const stats = calculateAssignmentStats(
+        '2026-03-24T23:59:59.000Z',
+        [
+          {
+            is_submitted: false,
+            submitted_at: '2026-03-25T16:27:46.54+00:00',
+            returned_at: '2026-03-26T16:27:46.54+00:00',
+            teacher_cleared_at: '2026-03-26T16:27:46.54+00:00',
+          },
+        ],
+        2
+      )
+
+      expect(stats).toEqual({
+        total_students: 2,
+        submitted: 0,
+        late: 1,
+      })
     })
   })
 

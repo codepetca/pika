@@ -1,13 +1,25 @@
-import { Assignment, AssignmentDoc, AssignmentStatus } from '@/types'
+import { Assignment, AssignmentDoc, AssignmentStatus, AssignmentStats } from '@/types'
 import { formatInTimeZone } from 'date-fns-tz'
+
+type AssignmentStatDoc = Pick<AssignmentDoc, 'is_submitted' | 'submitted_at' | 'returned_at' | 'teacher_cleared_at'>
+
+function getAssignmentFullReturnAt(
+  doc: Pick<AssignmentDoc, 'teacher_cleared_at' | 'returned_at'>
+): string | null {
+  const timestamps = [doc.teacher_cleared_at, doc.returned_at].filter((value): value is string => typeof value === 'string')
+  if (timestamps.length === 0) return null
+
+  return timestamps.reduce((latest, current) =>
+    new Date(current).getTime() > new Date(latest).getTime() ? current : latest
+  )
+}
 
 /**
  * Calculate the status of an assignment for a student
  *
  * Status logic (checked in order):
  * - no assignment_docs row: "not_started"
- * - returned_at set AND is_submitted AND submitted_at > returned_at: "resubmitted"
- * - feedback_returned_at set: "returned"
+ * - full return set AND is_submitted AND submitted_at > full return: "resubmitted"
  * - returned_at set: "returned"
  * - graded_at set (returned_at null): "graded"
  * - is_submitted = false && now <= due_at: "in_progress"
@@ -27,20 +39,18 @@ export function calculateAssignmentStatus(
     return 'not_started'
   }
 
-  // Resubmitted: returned, then student submitted again
-  if (doc.returned_at && doc.is_submitted && doc.submitted_at) {
+  const fullReturnAt = getAssignmentFullReturnAt(doc)
+
+  // Resubmitted: fully returned, then student submitted again
+  if (fullReturnAt && doc.is_submitted && doc.submitted_at) {
     const submittedAt = new Date(doc.submitted_at)
-    const returnedAt = new Date(doc.returned_at)
+    const returnedAt = new Date(fullReturnAt)
     if (submittedAt > returnedAt) {
       return 'resubmitted'
     }
   }
 
-  if (doc.feedback_returned_at) {
-    return 'returned'
-  }
-
-  // Returned
+  // Returned with final grades/results visible
   if (doc.returned_at) {
     return 'returned'
   }
@@ -63,6 +73,38 @@ export function calculateAssignmentStatus(
 
   // Fallback (shouldn't happen - submitted but no submitted_at)
   return 'submitted_on_time'
+}
+
+export function isAssignmentAwaitingReturn(doc: AssignmentStatDoc): boolean {
+  if (!doc.is_submitted) return false
+  if (!doc.submitted_at) return true
+  const clearedAt = getAssignmentFullReturnAt(doc)
+  if (!clearedAt) return true
+  return new Date(doc.submitted_at).getTime() > new Date(clearedAt).getTime()
+}
+
+export function calculateAssignmentStats(
+  dueAtIso: string,
+  docs: AssignmentStatDoc[],
+  totalStudents: number
+): AssignmentStats {
+  const dueAtMs = new Date(dueAtIso).getTime()
+  let submitted = 0
+  let late = 0
+
+  for (const doc of docs) {
+    if (doc.submitted_at && new Date(doc.submitted_at).getTime() > dueAtMs) {
+      late += 1
+    }
+    if (!isAssignmentAwaitingReturn(doc)) continue
+    submitted += 1
+  }
+
+  return {
+    total_students: totalStudents,
+    submitted,
+    late,
+  }
 }
 
 /**

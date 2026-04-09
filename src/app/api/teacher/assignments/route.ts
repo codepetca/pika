@@ -3,7 +3,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
+import { calculateAssignmentStats } from '@/lib/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
+import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/assignments'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -63,24 +65,32 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
 
   const assignmentsWithStats = await Promise.all(
     (assignments || []).map(async (assignment) => {
-      const { data: docs } = await supabase
+      const withMailboxTracking = await supabase
         .from('assignment_docs')
-        .select('is_submitted, submitted_at')
+        .select('is_submitted, submitted_at, returned_at, teacher_cleared_at')
         .eq('assignment_id', assignment.id)
-        .eq('is_submitted', true)
 
-      const submitted = docs?.length || 0
-      const dueAt = new Date(assignment.due_at)
-      const late = docs?.filter((doc) => doc.submitted_at && new Date(doc.submitted_at) > dueAt).length || 0
+      const docs =
+        withMailboxTracking.error && isMissingAssignmentTeacherClearedAtColumnError(withMailboxTracking.error)
+          ? (
+              (
+                await supabase
+                  .from('assignment_docs')
+                  .select('is_submitted, submitted_at, returned_at')
+                  .eq('assignment_id', assignment.id)
+              ).data || []
+            ).map((doc) => ({
+              ...doc,
+              teacher_cleared_at: null,
+            }))
+          : withMailboxTracking.data || []
+
+      const stats = calculateAssignmentStats(assignment.due_at, docs, totalStudents || 0)
 
       return {
         ...assignment,
         instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown,
-        stats: {
-          total_students: totalStudents || 0,
-          submitted,
-          late,
-        },
+        stats,
       }
     })
   )
