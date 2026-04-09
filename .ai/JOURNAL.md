@@ -7878,3 +7878,24 @@
 **Follow-up:**
 - Removed the assignment-list late badge so overview cards show mailbox count only.
 - Re-verified that late state is still represented inside the assignment drill-down by the status icon logic: late statuses and late-derived downstream statuses append a clock indicator.
+
+## 2026-04-09 [AI - Codex]
+
+**Goal:** Fix issue #444 so the teacher test grading panel highlights incorrect multiple-choice answers and shows the correct answer.
+
+**Completed:**
+- Extended the teacher test grading panel to read `correct_option` for multiple-choice questions.
+- Replaced the plain `Answer: ...` line with separate `Student answer` and `Correct answer` blocks in the teacher grading view.
+- Styled incorrect student multiple-choice answers with warning text to match the student returned-results treatment.
+- Added component coverage for incorrect-answer highlighting, correct-answer display, and the non-highlighted correct-answer case while preserving the existing MC score override coverage.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TestStudentGradingPanel.test.tsx`
+- `corepack pnpm exec next lint --file src/components/TestStudentGradingPanel.tsx --file tests/components/TestStudentGradingPanel.test.tsx`
+- `corepack pnpm exec vitest run tests/components/TestStudentGradingPanel.test.tsx tests/components/StudentQuizResults.test.tsx`
+- Visual verification on local dev server for `/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=tests`:
+  - teacher desktop grading view: `/tmp/pika-issue-444-teacher-desktop.png`
+  - teacher mobile grading table: `/tmp/pika-issue-444-teacher-mobile.png`
+  - student mobile tests tab: `/tmp/pika-issue-444-student-mobile.png`
+
+**Status:** The teacher grading panel now calls out wrong MC answers clearly and shows the correct answer alongside them. Desktop verification confirmed the changed UI on the seeded closed test (`Seed Test - AI Grading Demo`, `Student2 Test`).
