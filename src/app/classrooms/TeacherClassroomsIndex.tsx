@@ -21,9 +21,9 @@ import {
 import { useRouter, usePathname } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
-import { Button, ConfirmDialog, EmptyState } from '@/ui'
+import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
-import { ACTIONBAR_BUTTON_PRIMARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
+import { PageContent, PageLayout } from '@/components/PageLayout'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
 
@@ -253,18 +253,6 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     await deleteClassroom(classroom)
   }
 
-  const newClassroomButton = (
-    <button
-      type="button"
-      className={`${ACTIONBAR_BUTTON_PRIMARY_CLASSNAME} flex items-center gap-1`}
-      onClick={() => setShowCreate(true)}
-      aria-label="New classroom"
-    >
-      <Plus className="h-5 w-5" aria-hidden="true" />
-      <span>New</span>
-    </button>
-  )
-
   const dialogTitle = pendingAction
     ? pendingAction.mode === 'archive'
       ? `Archive ${pendingAction.classroom.title}?`
@@ -291,44 +279,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
 
   const dialogVariant = pendingAction?.mode === 'delete' ? 'danger' : 'default'
 
-  return (
-    <PageLayout className="mx-auto max-w-6xl">
-      <PageActionBar
-        primary={
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-text-default">Classrooms</h1>
-            <div className="inline-flex rounded-control border border-border bg-surface shadow-sm">
-              <button
-                type="button"
-                onClick={() => setView('active')}
-                className={[
-                  'rounded-l-control px-3 py-1.5 text-sm font-medium transition-colors',
-                  view === 'active'
-                    ? 'bg-surface-selected text-text-default'
-                    : 'text-text-muted hover:bg-surface-accent',
-                ].join(' ')}
-              >
-                Active
-              </button>
-              <button
-                type="button"
-                onClick={() => setView('archived')}
-                className={[
-                  'rounded-r-control px-3 py-1.5 text-sm font-medium transition-colors',
-                  view === 'archived'
-                    ? 'bg-surface-selected text-text-default'
-                    : 'text-text-muted hover:bg-surface-accent',
-                ].join(' ')}
-              >
-                Archived
-              </button>
-            </div>
-          </div>
-        }
-        trailing={newClassroomButton}
-      />
+  const hasActiveClassrooms = activeClassrooms.length > 0
 
-      <PageContent>
+  return (
+    <PageLayout className="mx-auto max-w-2xl">
+      <PageContent className="pb-36">
         {error && (
           <div className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
@@ -344,22 +299,27 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
             <Spinner size="lg" />
           </div>
         ) : visibleClassrooms.length === 0 ? (
-          <EmptyState
-            title={view === 'active' ? 'No classrooms yet' : 'No archived classrooms'}
-            description={
-              view === 'active'
-                ? 'Create your first classroom to start managing students, assignments, and attendance.'
-                : 'Archived classrooms will appear here so you can restore or permanently remove them later.'
-            }
-            action={
-              view === 'active' ? (
-                <Button onClick={() => setShowCreate(true)}>
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  <span>New classroom</span>
-                </Button>
-              ) : undefined
-            }
-          />
+          view === 'active' ? (
+            /* Empty active: center the CTA on screen */
+            <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100dvh - 12rem)' }}>
+              <p className="mb-4 text-sm text-text-muted">Create your first classroom</p>
+              <button
+                type="button"
+                onClick={() => setShowCreate(true)}
+                className="inline-flex items-center gap-2 rounded-control bg-primary px-6 py-3 text-sm font-semibold text-text-inverse shadow-sm transition-colors hover:bg-primary-hover"
+              >
+                <Plus className="h-5 w-5" aria-hidden="true" />
+                New classroom
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-sm font-medium text-text-default">No archived classrooms</p>
+              <p className="mt-1 text-sm text-text-muted">
+                Archived classrooms will appear here so you can restore or permanently remove them later.
+              </p>
+            </div>
+          )
         ) : (
           <div className="flex flex-col gap-2">
             {view === 'active' ? (
@@ -437,6 +397,48 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           </div>
         )}
       </PageContent>
+
+      {/* Fixed bottom bar: + New button (when classrooms exist) + Active/Archive toggle */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 flex flex-col items-center gap-2 border-t border-border bg-page/90 pb-4 pt-3 backdrop-blur-sm">
+        {hasActiveClassrooms && (
+          <div className="w-full max-w-2xl px-4">
+            <button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-control bg-primary py-3 text-sm font-semibold text-text-inverse shadow-sm transition-colors hover:bg-primary-hover"
+            >
+              <Plus className="h-5 w-5" aria-hidden="true" />
+              New classroom
+            </button>
+          </div>
+        )}
+        <div className="inline-flex rounded-control border border-border bg-surface shadow-sm">
+          <button
+            type="button"
+            onClick={() => setView('active')}
+            className={[
+              'rounded-l-control px-4 py-1.5 text-sm font-medium transition-colors',
+              view === 'active'
+                ? 'bg-surface-selected text-text-default'
+                : 'text-text-muted hover:bg-surface-accent',
+            ].join(' ')}
+          >
+            Active
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('archived')}
+            className={[
+              'rounded-r-control px-4 py-1.5 text-sm font-medium transition-colors',
+              view === 'archived'
+                ? 'bg-surface-selected text-text-default'
+                : 'text-text-muted hover:bg-surface-accent',
+            ].join(' ')}
+          >
+            Archived
+          </button>
+        </div>
+      </div>
 
       <CreateClassroomModal
         isOpen={showCreate}
