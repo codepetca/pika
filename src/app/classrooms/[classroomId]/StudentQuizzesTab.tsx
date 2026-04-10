@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ClockAlert, LogOut, Maximize2 } from 'lucide-react'
+import { ChevronLeft, ClockAlert, LogOut, Maximize } from 'lucide-react'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout } from '@/components/PageLayout'
@@ -849,7 +849,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                   void requestExamFullscreen('center_overlay_maximize', { logFailures: true })
                 }}
               >
-                <Maximize2 className="h-5 w-5" />
+                <Maximize className="h-5 w-5" />
                 <span>Maximize Window</span>
               </Button>
             </div>
