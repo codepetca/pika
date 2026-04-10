@@ -1,13 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { ClockAlert, LogOut, Menu } from 'lucide-react'
+import { ClockAlert, LogOut, Maximize, Menu, Minimize } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { ClassroomDropdown } from './ClassroomDropdown'
 import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
 import { Tooltip } from '@/ui'
+import { useFullscreen } from '@/hooks/use-fullscreen'
+import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 
 interface AppHeaderProps {
   user?: {
@@ -54,11 +56,31 @@ export function AppHeader({
   examModeHeader,
 }: AppHeaderProps) {
   const [now, setNow] = useState(() => new Date())
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
+  const hints = useKeyboardShortcutHint()
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000)
     return () => window.clearInterval(id)
   }, [])
+
+  const isExamMode = Boolean(examModeHeader)
+
+  useEffect(() => {
+    if (isExamMode) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'f') {
+        const target = e.target as HTMLElement
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+          return
+        }
+        e.preventDefault()
+        void toggleFullscreen()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [toggleFullscreen, isExamMode])
 
   return (
     <header className="sticky top-0 z-50 h-12 bg-surface border-b border-border grid grid-cols-[1fr_minmax(0,1fr)_1fr] items-center px-4">
@@ -128,6 +150,18 @@ export function AppHeader({
 
       {/* Right section */}
       <div className="flex items-center justify-end gap-0">
+        {!isExamMode && (
+          <Tooltip content={`${isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} (${hints.fullscreen})`}>
+            <button
+              type="button"
+              onClick={() => void toggleFullscreen()}
+              className="p-2 rounded-md text-text-muted hover:text-text-default hover:bg-surface-hover transition-colors"
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            >
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+            </button>
+          </Tooltip>
+        )}
         <span className="mr-2 whitespace-nowrap text-base font-semibold tabular-nums text-text-default">
           <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
           <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
