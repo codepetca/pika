@@ -33,6 +33,7 @@ interface AppHeaderProps {
     exitsCount: number
     awayTotalSeconds: number
   } | null
+  pageTitle?: string
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -54,6 +55,7 @@ export function AppHeader({
   onNavigateHome,
   onNavigateClassroom,
   examModeHeader,
+  pageTitle,
 }: AppHeaderProps) {
   const [now, setNow] = useState(() => new Date())
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
@@ -129,8 +131,8 @@ export function AppHeader({
         )}
       </div>
 
-      {/* Center section - contextual status (exam mode only) */}
-      <div className="min-w-0 px-2">
+      {/* Center section - page title or exam mode status */}
+      <div className="min-w-0 px-2 flex items-center justify-center">
         {examModeHeader ? (
           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-6 text-sm text-text-default">
             <span className="truncate font-semibold">{examModeHeader.testTitle}</span>
@@ -145,6 +147,8 @@ export function AppHeader({
               </span>
             </div>
           </div>
+        ) : pageTitle ? (
+          <h1 className="truncate text-sm font-semibold text-text-default">{pageTitle}</h1>
         ) : null}
       </div>
 

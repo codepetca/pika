@@ -26,6 +26,7 @@ interface AppShellProps {
     exitsCount: number
     awayTotalSeconds: number
   } | null
+  pageTitle?: string
 }
 
 /**
@@ -44,6 +45,7 @@ export function AppShell({
   onNavigateClassroom,
   mainClassName,
   examModeHeader,
+  pageTitle,
 }: AppShellProps) {
   return (
     <div className={`flex min-h-dvh flex-col bg-page${examModeHeader ? ' lg:h-dvh lg:overflow-hidden' : ''}`}>
@@ -57,6 +59,7 @@ export function AppShell({
           onNavigateHome={onNavigateHome}
           onNavigateClassroom={onNavigateClassroom}
           examModeHeader={examModeHeader}
+          pageTitle={pageTitle}
         />
       )}
       <main
