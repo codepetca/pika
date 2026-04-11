@@ -22,12 +22,20 @@ function densityPadding(density: DataTableDensity) {
 export function TableCard({
   children,
   overflowX = false,
+  chrome = 'default',
 }: {
   children: ReactNode
   overflowX?: boolean
+  chrome?: 'default' | 'flush'
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface">
+    <div
+      className={
+        chrome === 'flush'
+          ? 'overflow-hidden'
+          : 'overflow-hidden rounded-lg border border-border bg-surface'
+      }
+    >
       <div className={overflowX ? 'overflow-x-auto' : undefined}>{children}</div>
     </div>
   )

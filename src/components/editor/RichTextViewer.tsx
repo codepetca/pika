@@ -29,12 +29,14 @@ export interface RichTextViewerProps {
   content: TiptapContent
   showPlainText?: boolean
   fillHeight?: boolean
+  chrome?: 'default' | 'flush'
 }
 
 export function RichTextViewer({
   content,
   showPlainText = false,
   fillHeight = false,
+  chrome = 'default',
 }: RichTextViewerProps) {
   const editor = useEditor({
     immediatelyRender: false,
@@ -107,7 +109,9 @@ export function RichTextViewer({
     <div
       className={[
         fillHeight ? 'simple-editor-wrapper simple-editor-wrapper--fill-height' : 'simple-viewer-wrapper',
-        'bg-surface-2 rounded-none border border-border',
+        chrome === 'flush'
+          ? 'bg-transparent border-transparent rounded-none'
+          : 'bg-surface-2 rounded-none border border-border',
       ].join(' ')}
     >
       <EditorContent
