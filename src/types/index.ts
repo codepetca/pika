@@ -401,21 +401,6 @@ export interface AssignmentRepoReviewResult {
   created_at: string
 }
 
-/**
- * Info about a selected student in teacher assignments view.
- * Used to display student work in the right sidebar.
- */
-export interface SelectedStudentInfo {
-  assignmentId: string
-  assignmentTitle: string
-  studentId: string
-  studentName: string
-  canGoPrev: boolean
-  canGoNext: boolean
-  onGoPrev: () => void
-  onGoNext: () => void
-}
-
 export interface ClassroomResources {
   id: string
   classroom_id: string
