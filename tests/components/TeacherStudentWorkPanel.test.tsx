@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { countCharacters } from '@/lib/tiptap-content'
@@ -17,7 +17,9 @@ vi.mock('@/components/editor', () => ({
 }))
 
 vi.mock('@/components/HistoryList', () => ({
-  HistoryList: () => <div data-testid="history-list" />,
+  HistoryList: ({ entries }: any) => (
+    <div data-testid="history-list">{entries.map((entry: any) => entry.id).join(',')}</div>
+  ),
 }))
 
 vi.mock('@/ui', () => ({
@@ -42,7 +44,16 @@ vi.mock('@/ui', () => ({
 
 function makeStudentWork(
   studentId: string,
-  opts: { graded: boolean; repoUrl?: string | null; githubUsername?: string | null; aiFeedbackSuggestion?: string | null; teacherFeedbackDraft?: string | null },
+  opts: {
+    graded: boolean
+    repoUrl?: string | null
+    githubUsername?: string | null
+    aiFeedbackSuggestion?: string | null
+    teacherFeedbackDraft?: string | null
+    feedbackEntries?: Array<{ id: string; body: string; returned_at: string }>
+    repoReviewResult?: Record<string, any> | null
+    authenticityScore?: number | null
+  },
 ) {
   const doc = {
     id: `doc-${studentId}`,
@@ -83,7 +94,7 @@ function makeStudentWork(
     graded_at: opts.graded ? '2026-02-20T13:00:00Z' : null,
     graded_by: opts.graded ? 'teacher@example.com' : null,
     returned_at: null,
-    authenticity_score: null,
+    authenticity_score: opts.authenticityScore ?? null,
     authenticity_flags: [],
     created_at: '2026-02-20T12:00:00Z',
     updated_at: '2026-02-20T12:00:00Z',
@@ -109,7 +120,7 @@ function makeStudentWork(
     student: { id: studentId, email: `${studentId}@example.com`, name: studentId },
     doc,
     status: 'submitted_on_time',
-    feedback_entries: [],
+    feedback_entries: opts.feedbackEntries || [],
     repo_target: {
       target: null,
       submittedRepoUrl: opts.repoUrl ?? null,
@@ -121,7 +132,7 @@ function makeStudentWork(
       selectionMode: 'auto',
       validationStatus: 'missing',
       validationMessage: 'No GitHub repo link detected in the submission.',
-      latest_result: null,
+      latest_result: opts.repoReviewResult ?? null,
     },
   }
 }
@@ -134,7 +145,21 @@ function createDeferred<T>() {
   return { promise, resolve }
 }
 
-function mockFetchByStudent(studentMap: Record<string, { graded: boolean }>) {
+function mockFetchByStudent(
+  studentMap: Record<
+    string,
+    {
+      graded: boolean
+      repoUrl?: string | null
+      githubUsername?: string | null
+      aiFeedbackSuggestion?: string | null
+      teacherFeedbackDraft?: string | null
+      feedbackEntries?: Array<{ id: string; body: string; returned_at: string }>
+      repoReviewResult?: Record<string, any> | null
+      authenticityScore?: number | null
+    }
+  >,
+) {
   ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
     const url = String(input)
 
@@ -158,7 +183,7 @@ function mockFetchByStudent(studentMap: Record<string, { graded: boolean }>) {
     if (url.includes('/api/assignment-docs/') && url.includes('/history')) {
       return Promise.resolve({
         ok: true,
-        json: async () => ({ history: [] }),
+        json: async () => ({ history: [{ id: 'history-1' }] }),
       })
     }
 
@@ -169,8 +194,13 @@ function mockFetchByStudent(studentMap: Record<string, { graded: boolean }>) {
   })
 }
 
-function clearRightTabCookie() {
-  document.cookie = 'pika_teacher_student_work_tab%3Aclassroom-1=; Path=/; Max-Age=0; SameSite=Lax'
+function clearInspectorSectionsCookies() {
+  document.cookie = 'pika_teacher_student_work_sections%3Aclassroom-1=; Path=/; Max-Age=0; SameSite=Lax'
+  document.cookie = 'pika_teacher_student_work_sections%3Aclassroom-2=; Path=/; Max-Age=0; SameSite=Lax'
+}
+
+function writeInspectorSectionsCookie(classroomId: string, value: string) {
+  document.cookie = `pika_teacher_student_work_sections%3A${encodeURIComponent(classroomId)}=${encodeURIComponent(value)}; Path=/; SameSite=Lax`
 }
 
 function mockVisualViewport(width: number, height = 900) {
@@ -191,17 +221,64 @@ function mockVisualViewport(width: number, height = 900) {
 describe('TeacherStudentWorkPanel', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
-    clearRightTabCookie()
+    clearInspectorSectionsCookies()
     mockVisualViewport(1440)
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
-    clearRightTabCookie()
+    clearInspectorSectionsCookies()
   })
 
-  it('keeps grading tab selected when switching students in details mode', async () => {
+  it('renders the new inspector sections in order with sticky footer actions', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false, authenticityScore: 64 },
+    })
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    await screen.findByTestId('grading-inspector-pane')
+
+    const sectionIds = Array.from(
+      document.querySelectorAll('[data-testid^="inspector-section-"]'),
+    ).map((element) => element.getAttribute('data-testid'))
+    expect(sectionIds).toEqual([
+      'inspector-section-history',
+      'inspector-section-repo',
+      'inspector-section-grades',
+      'inspector-section-comments',
+    ])
+
+    const gradesSection = screen.getByTestId('inspector-section-grades')
+    expect(screen.getByText('Authenticity 64%')).toBeInTheDocument()
+    expect(screen.getByText('No repo linked')).toBeInTheDocument()
+    expect(within(gradesSection).getByText('0%')).toBeInTheDocument()
+    expect(within(gradesSection).getByText('0 / 30')).toBeInTheDocument()
+    expect(screen.getByText('No returned feedback')).toBeInTheDocument()
+    expect(screen.getByText('No draft')).toBeInTheDocument()
+
+    expect(screen.getByLabelText('Completion score')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Teacher feedback draft')).toBeInTheDocument()
+    expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
+    expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
+
+    expect(screen.getByRole('button', { name: 'AI grade' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Return Feedback' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+  })
+
+  it('persists expanded and collapsed sections per classroom when switching students', async () => {
     mockFetchByStudent({
       'student-1': { graded: false },
       'student-2': { graded: false },
@@ -220,8 +297,11 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    await user.click(await screen.findByRole('button', { name: 'Grading' }))
-    expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'History' }))
+    await user.click(screen.getByRole('button', { name: 'Grades' }))
+
+    expect(await screen.findByTestId('history-list')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
 
     rerender(
       <TeacherStudentWorkPanel
@@ -239,10 +319,12 @@ describe('TeacherStudentWorkPanel', () => {
       expect(global.fetch).toHaveBeenCalledWith('/api/teacher/assignments/assignment-1/students/student-2')
     })
 
-    expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
+    expect(await screen.findByTestId('history-list')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
   })
 
-  it('renders details mode without the old shared header and keeps content flush', async () => {
+  it('falls back to the default expanded sections when the cookie is invalid', async () => {
+    writeInspectorSectionsCookie('classroom-1', 'nope,grades')
     mockFetchByStudent({
       'student-1': { graded: false },
     })
@@ -259,21 +341,111 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    expect(await screen.findByTestId('rich-text-viewer')).toHaveAttribute('data-chrome', 'flush')
-    expect(screen.queryByTestId('grading-workspace-header')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /show student table only/i })).not.toBeInTheDocument()
-    expect(screen.getByTestId('individual-content-header')).toHaveTextContent('student-1')
-    const expectedCharacters = countCharacters({
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [{ type: 'text', text: 'Work for student-1' }],
-        },
-      ],
+    expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Teacher feedback draft')).toBeInTheDocument()
+    expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
+    expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
+  })
+
+  it('keeps classroom-specific section state isolated', async () => {
+    writeInspectorSectionsCookie('classroom-2', 'history,repo')
+    mockFetchByStudent({
+      'student-1': { graded: false },
     })
-    expect(screen.getByLabelText(`${expectedCharacters} characters`)).toHaveTextContent(`${expectedCharacters} chars`)
-    expect(screen.queryByText(new RegExp(`${expectedCharacters} characters$`))).not.toBeInTheDocument()
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Teacher feedback draft')).toBeInTheDocument()
+    expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
+  })
+
+  it('reveals repo metrics only when the repo section is expanded and keeps Analyze Repo there', async () => {
+    mockFetchByStudent({
+      'student-1': {
+        graded: false,
+        repoUrl: 'https://github.com/example/student-1-repo',
+        githubUsername: 'student1',
+        repoReviewResult: {
+          github_login: 'student1',
+          relative_contribution_share: 0.8,
+          spread_score: 0.7,
+          iteration_score: 0.6,
+        },
+      },
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    const repoSection = await screen.findByTestId('inspector-section-repo')
+    expect(within(repoSection).getByRole('button', { name: 'Analyze Repo' })).toBeInTheDocument()
+    expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Repo' }))
+
+    expect(within(repoSection).getByText('Contribution')).toBeInTheDocument()
+    expect(within(repoSection).getByText('Consistency')).toBeInTheDocument()
+    expect(within(repoSection).getByText('Iteration')).toBeInTheDocument()
+  })
+
+  it('shows collapsed comments status and expanded returned feedback details', async () => {
+    mockFetchByStudent({
+      'student-1': {
+        graded: false,
+        teacherFeedbackDraft: 'Teacher draft',
+        feedbackEntries: [
+          {
+            id: 'feedback-1',
+            body: 'Returned feedback body',
+            returned_at: '2026-02-20T14:00:00Z',
+          },
+        ],
+      },
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    expect(await screen.findByText('Draft present')).toBeInTheDocument()
+    expect(screen.getByText('1 returned')).toBeInTheDocument()
+    expect(screen.getByText('Returned feedback body')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
+
+    expect(screen.queryByPlaceholderText('Teacher feedback draft')).not.toBeInTheDocument()
+    expect(screen.getByText('Draft present')).toBeInTheDocument()
+    expect(screen.getByText('1 returned')).toBeInTheDocument()
   })
 
   it('prepends AI feedback suggestion into the feedback draft and marks it as an AI draft until focus', async () => {
@@ -317,14 +489,11 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Grading' }))
     const draft = await screen.findByPlaceholderText('Teacher feedback draft')
     expect(draft).toHaveValue('AI feedback suggestion\n\nTeacher note')
     expect(draft).toHaveClass('border-primary')
     expect(draft).toHaveClass('bg-info-bg')
     expect(screen.getByText('AI draft')).toBeInTheDocument()
-    expect(screen.queryByText('AI Suggestion')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Use' })).not.toBeInTheDocument()
 
     await userEvent.setup().click(draft)
 
@@ -389,7 +558,6 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    await user.click(await screen.findByRole('button', { name: 'Grading' }))
     const draft = await screen.findByPlaceholderText('Teacher feedback draft')
     await user.clear(draft)
     await user.type(draft, 'Teacher note')
@@ -421,7 +589,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    expect(await screen.findByText('History')).toBeInTheDocument()
+    expect(await screen.findByTestId('grading-inspector-pane')).toBeInTheDocument()
     expect(screen.queryByTestId('rich-text-viewer')).not.toBeInTheDocument()
   })
 
@@ -492,12 +660,46 @@ describe('TeacherStudentWorkPanel', () => {
     })
 
     expect(screen.getByText(/Work for student-1/)).toBeInTheDocument()
-    expect(screen.queryByText('Refreshing history...')).not.toBeInTheDocument()
     expect(loadingStateSpy).toHaveBeenCalledWith(true)
 
     deferredStudent2.resolve(makeStudentWork('student-2', { graded: false }))
 
     expect(await screen.findByText(/Work for student-2/)).toBeInTheDocument()
+  })
+
+  it('renders details mode without the old shared header and keeps content flush', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    expect(await screen.findByTestId('rich-text-viewer')).toHaveAttribute('data-chrome', 'flush')
+    expect(screen.queryByTestId('grading-workspace-header')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /show student table only/i })).not.toBeInTheDocument()
+    expect(screen.getByTestId('individual-content-header')).toHaveTextContent('student-1')
+    const expectedCharacters = countCharacters({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Work for student-1' }],
+        },
+      ],
+    })
+    expect(screen.getByLabelText(`${expectedCharacters} characters`)).toHaveTextContent(
+      `${expectedCharacters} chars`,
+    )
   })
 
   it('renders the individual content header with student name first and repo metadata after it', async () => {
@@ -523,7 +725,11 @@ describe('TeacherStudentWorkPanel', () => {
 
     const header = await screen.findByTestId('individual-content-header')
     expect(header).toHaveTextContent('student-1')
-    expect(header).toHaveTextContent('https://github.com/example/student-1-repo')
+    expect(header).toHaveTextContent('Repo')
+    expect(within(header).getByRole('link')).toHaveAttribute(
+      'href',
+      'https://github.com/example/student-1-repo',
+    )
     expect(header).toHaveTextContent('@student1')
   })
 })

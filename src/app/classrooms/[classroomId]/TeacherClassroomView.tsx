@@ -766,6 +766,8 @@ export function TeacherClassroomView({
   }, [classroom.id, currentStudentRows, selectedStudentId, selection])
 
   const handleSwitchWorkspaceMode = useCallback((nextMode: AssignmentWorkspaceMode) => {
+    if (nextMode === assignmentWorkspaceMode) return
+
     if (nextMode === 'details') {
       const nextStudentId = resolveDetailsStudentId()
       if (nextStudentId) {
@@ -773,8 +775,14 @@ export function TeacherClassroomView({
       }
     }
 
+    updateModeLayout(nextMode, assignmentGradingLayout[assignmentWorkspaceMode])
     setAssignmentWorkspaceMode(nextMode)
-  }, [resolveDetailsStudentId])
+  }, [
+    assignmentGradingLayout,
+    assignmentWorkspaceMode,
+    resolveDetailsStudentId,
+    updateModeLayout,
+  ])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
@@ -1221,14 +1229,20 @@ export function TeacherClassroomView({
   const showMobileToggle = selection.mode === 'summary'
 
   return (
-    <PageLayout>
+    <PageLayout className="flex h-full min-h-0 flex-col">
       <PageActionBar
         primary={primaryButtons}
         actions={[]}
         trailing={showMobileToggle ? <RightSidebarToggle /> : undefined}
       />
 
-      <PageContent className={selection.mode === 'summary' ? 'space-y-3' : 'space-y-3 pt-0'}>
+      <PageContent
+        className={
+          selection.mode === 'summary'
+            ? 'flex flex-col gap-3'
+            : 'flex min-h-0 flex-1 flex-col gap-3 pt-0'
+        }
+      >
         {error && (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {error}
@@ -1284,8 +1298,11 @@ export function TeacherClassroomView({
             )}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-b-lg border border-border bg-surface">
-            <div ref={workspaceContainerRef} className="flex min-h-[65vh] flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 overflow-hidden rounded-b-lg border border-border bg-surface">
+            <div
+              ref={workspaceContainerRef}
+              className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
+            >
               {assignmentWorkspaceMode === 'details' ? (
                 selectedStudentId ? (
                   <TeacherStudentWorkPanel
@@ -1313,7 +1330,7 @@ export function TeacherClassroomView({
                   </div>
                 )
               ) : showOverviewInspector ? (
-                <div className="flex min-h-[65vh] flex-col lg:flex-row">
+                <div className="flex h-full min-h-0 flex-col lg:flex-row">
                   <div className="min-h-0 flex-1 overflow-hidden">
                     {studentTable}
                   </div>
