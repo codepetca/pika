@@ -270,7 +270,7 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
       ref={ref}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="rounded-card outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+      className="rounded-card outline-none"
     >
       {children}
     </div>

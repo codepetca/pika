@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useRef } from 'react'
+import { formatInTimeZone } from 'date-fns-tz'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
@@ -279,6 +280,16 @@ export function TeacherStudentWorkPanel({
               <span>{characterCount} chars</span>
             </div>
           </div>
+          {previewEntry && (
+            <div className="mt-1 text-xs font-medium text-primary">
+              Previewing save from{' '}
+              {formatInTimeZone(
+                new Date(previewEntry.created_at),
+                'America/Toronto',
+                'MMM d, h:mm a',
+              )}
+            </div>
+          )}
         </div>
         {displayContent && !isEmpty(displayContent) ? (
           <div className="min-h-0 flex-1 overflow-auto">
@@ -296,9 +307,11 @@ export function TeacherStudentWorkPanel({
           role="separator"
           aria-orientation="vertical"
           aria-label="Resize content and grading panes"
-          className="hidden w-2 shrink-0 cursor-col-resize border-l border-r border-border bg-surface-2 lg:block"
+          className="relative hidden w-3 shrink-0 cursor-col-resize bg-transparent lg:block"
           onPointerDown={handleInspectorResizeStart}
-        />
+        >
+          <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+        </div>
       )}
 
       {!layout.inspectorCollapsed && (

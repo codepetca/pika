@@ -17,8 +17,19 @@ vi.mock('@/components/editor', () => ({
 }))
 
 vi.mock('@/components/HistoryList', () => ({
-  HistoryList: ({ entries }: any) => (
-    <div data-testid="history-list">{entries.map((entry: any) => entry.id).join(',')}</div>
+  HistoryList: ({ entries, onEntryClick, onEntryHover }: any) => (
+    <div data-testid="history-list">
+      {entries.map((entry: any) => (
+        <button
+          key={entry.id}
+          type="button"
+          onMouseEnter={() => onEntryHover?.(entry)}
+          onClick={() => onEntryClick(entry)}
+        >
+          {entry.id}
+        </button>
+      ))}
+    </div>
   ),
 }))
 
@@ -157,6 +168,7 @@ function mockFetchByStudent(
       feedbackEntries?: Array<{ id: string; body: string; returned_at: string }>
       repoReviewResult?: Record<string, any> | null
       authenticityScore?: number | null
+      historyEntries?: Array<Record<string, any>>
     }
   >,
 ) {
@@ -181,9 +193,12 @@ function mockFetchByStudent(
     }
 
     if (url.includes('/api/assignment-docs/') && url.includes('/history')) {
+      const match = url.match(/student_id=([^&]+)/)
+      const studentId = match?.[1] || ''
+      const config = studentMap[studentId]
       return Promise.resolve({
         ok: true,
-        json: async () => ({ history: [{ id: 'history-1' }] }),
+        json: async () => ({ history: config?.historyEntries || [{ id: 'history-1' }] }),
       })
     }
 
@@ -264,18 +279,21 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.getByText('Authenticity 64%')).toBeInTheDocument()
     expect(screen.getByText('No repo linked')).toBeInTheDocument()
     expect(within(gradesSection).getByText('0%')).toBeInTheDocument()
-    expect(within(gradesSection).getByText('0 / 30')).toBeInTheDocument()
-    expect(screen.getByText('No returned feedback')).toBeInTheDocument()
-    expect(screen.getByText('No draft')).toBeInTheDocument()
+    expect(within(gradesSection).getByText('Total')).toBeInTheDocument()
+    expect(within(gradesSection).getByText('30')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Feedback' })).toBeInTheDocument()
+    expect(screen.queryByText('No draft')).not.toBeInTheDocument()
 
     expect(screen.getByLabelText('Completion score')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Teacher feedback draft')).toBeInTheDocument()
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Analyze Repo' })).not.toBeInTheDocument()
 
-    expect(screen.getByRole('button', { name: 'AI grade' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Return Feedback' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    expect(within(gradesSection).getByRole('button', { name: 'AI grade' })).toBeInTheDocument()
+    expect(within(gradesSection).getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    const feedbackSection = screen.getByTestId('inspector-section-comments')
+    expect(within(feedbackSection).getByRole('button', { name: 'Return Feedback' })).toBeInTheDocument()
   })
 
   it('persists expanded and collapsed sections per classroom when switching students', async () => {
@@ -298,7 +316,7 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     await user.click(await screen.findByRole('button', { name: 'History' }))
-    await user.click(screen.getByRole('button', { name: 'Grades' }))
+    await user.click(screen.getByRole('button', { name: 'Grade' }))
 
     expect(await screen.findByTestId('history-list')).toBeInTheDocument()
     expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
@@ -399,17 +417,90 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     const repoSection = await screen.findByTestId('inspector-section-repo')
-    expect(within(repoSection).getByRole('button', { name: 'Analyze Repo' })).toBeInTheDocument()
+    expect(within(repoSection).queryByRole('button', { name: 'Analyze Repo' })).not.toBeInTheDocument()
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Repo' }))
 
+    expect(within(repoSection).getByRole('button', { name: 'Analyze Repo' })).toBeInTheDocument()
     expect(within(repoSection).getByText('Contribution')).toBeInTheDocument()
     expect(within(repoSection).getByText('Consistency')).toBeInTheDocument()
     expect(within(repoSection).getByText('Iteration')).toBeInTheDocument()
   })
 
-  it('shows collapsed comments status and expanded returned feedback details', async () => {
+  it('updates the individual-mode preview when hovering a history entry', async () => {
+    mockFetchByStudent({
+      'student-1': {
+        graded: false,
+        historyEntries: [
+          {
+            id: 'history-older',
+            assignment_doc_id: 'doc-student-1',
+            patch: null,
+            snapshot: {
+              type: 'doc',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'Older saved work' }],
+                },
+              ],
+            },
+            word_count: 3,
+            char_count: 16,
+            paste_word_count: 0,
+            keystroke_count: 10,
+            trigger: 'save',
+            created_at: '2026-02-20T11:00:00Z',
+          },
+          {
+            id: 'history-newer',
+            assignment_doc_id: 'doc-student-1',
+            patch: null,
+            snapshot: {
+              type: 'doc',
+              content: [
+                {
+                  type: 'paragraph',
+                  content: [{ type: 'text', text: 'Newer saved work' }],
+                },
+              ],
+            },
+            word_count: 3,
+            char_count: 16,
+            paste_word_count: 0,
+            keystroke_count: 10,
+            trigger: 'save',
+            created_at: '2026-02-20T12:00:00Z',
+          },
+        ],
+      },
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'History' }))
+
+    expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Work for student-1')
+
+    await user.hover(screen.getByRole('button', { name: 'history-older' }))
+
+    expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Older saved work')
+    expect(screen.getByText('Previewing save from Feb 20, 6:00 AM')).toBeInTheDocument()
+  })
+
+  it('shows no comments summary pills when collapsed and keeps expanded returned feedback details', async () => {
     mockFetchByStudent({
       'student-1': {
         graded: false,
@@ -437,15 +528,14 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    expect(await screen.findByText('Draft present')).toBeInTheDocument()
-    expect(screen.getByText('1 returned')).toBeInTheDocument()
+    expect(await screen.findByText('Returned feedback body')).toBeInTheDocument()
     expect(screen.getByText('Returned feedback body')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Comments' }))
+    await user.click(screen.getByRole('button', { name: 'Feedback' }))
 
     expect(screen.queryByPlaceholderText('Teacher feedback draft')).not.toBeInTheDocument()
-    expect(screen.getByText('Draft present')).toBeInTheDocument()
-    expect(screen.getByText('1 returned')).toBeInTheDocument()
+    expect(screen.queryByText('Draft present')).not.toBeInTheDocument()
+    expect(screen.queryByText('1 returned')).not.toBeInTheDocument()
   })
 
   it('prepends AI feedback suggestion into the feedback draft and marks it as an AI draft until focus', async () => {

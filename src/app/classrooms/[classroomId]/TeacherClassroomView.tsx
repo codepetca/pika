@@ -134,7 +134,7 @@ function isScheduledAssignment(assignment: Assignment): boolean {
 
 function getRowClassName(isSelected: boolean): string {
   if (isSelected) {
-    return 'cursor-pointer bg-info-bg border-l-2 border-l-blue-500'
+    return 'cursor-pointer border-l-2 border-l-primary bg-surface-selected shadow-sm'
   }
   return 'cursor-pointer hover:bg-surface-hover'
 }
@@ -1339,9 +1339,11 @@ export function TeacherClassroomView({
                       role="separator"
                       aria-orientation="vertical"
                       aria-label="Resize table and grading panes"
-                      className="hidden w-2 shrink-0 cursor-col-resize border-l border-r border-border bg-surface-2 lg:block"
+                      className="relative hidden w-3 shrink-0 cursor-col-resize bg-transparent lg:block"
                       onPointerDown={handleOverviewInspectorResizeStart}
-                    />
+                    >
+                      <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+                    </div>
                   )}
                   <div
                     className="min-h-0 border-t border-border bg-surface lg:border-t-0"
