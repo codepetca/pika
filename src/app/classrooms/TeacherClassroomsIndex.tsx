@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useRouter, usePathname } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Archive, CircleDot, Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
@@ -280,6 +280,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const dialogVariant = pendingAction?.mode === 'delete' ? 'danger' : 'default'
 
   const hasActiveClassrooms = activeClassrooms.length > 0
+  const showBottomCreateButton = hasActiveClassrooms || view === 'archived'
 
   return (
     <PageLayout className="mx-auto max-w-2xl">
@@ -398,45 +399,49 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         )}
       </PageContent>
 
-      {/* Fixed bottom bar: + New button (when classrooms exist) + Active/Archive toggle */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 flex flex-col items-center gap-2 border-t border-border bg-page/90 pb-4 pt-3 backdrop-blur-sm">
-        {hasActiveClassrooms && (
-          <div className="w-full max-w-2xl px-4">
+      {/* Fixed bottom bar: Active/Archived toggle with inline create CTA */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-page/90 pb-4 pt-3 backdrop-blur-sm">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-center px-4">
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-stretch rounded-full border border-border bg-surface-2 p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setView('active')}
+                className={[
+                  'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
+                  view === 'active'
+                    ? 'bg-surface text-text-default shadow-sm'
+                    : 'text-text-muted hover:bg-surface-accent',
+                ].join(' ')}
+              >
+                <CircleDot className="h-3.5 w-3.5" aria-hidden="true" />
+                Active
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('archived')}
+                className={[
+                  'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
+                  view === 'archived'
+                    ? 'bg-surface text-text-default shadow-sm'
+                    : 'text-text-muted hover:bg-surface-accent',
+                ].join(' ')}
+              >
+                <Archive className="h-3.5 w-3.5" aria-hidden="true" />
+                Archived
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => setShowCreate(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-control bg-primary py-3 text-sm font-semibold text-text-inverse shadow-sm transition-colors hover:bg-primary-hover"
+              className={[
+                'rounded-control bg-primary px-4 py-1.5 text-sm font-semibold text-text-inverse shadow-sm transition-colors hover:bg-primary-hover',
+                showBottomCreateButton ? 'inline-flex items-center' : 'hidden',
+              ].join(' ')}
             >
-              <Plus className="h-5 w-5" aria-hidden="true" />
-              New classroom
+              + New
             </button>
           </div>
-        )}
-        <div className="inline-flex rounded-control border border-border bg-surface shadow-sm">
-          <button
-            type="button"
-            onClick={() => setView('active')}
-            className={[
-              'rounded-l-control px-4 py-1.5 text-sm font-medium transition-colors',
-              view === 'active'
-                ? 'bg-surface-selected text-text-default'
-                : 'text-text-muted hover:bg-surface-accent',
-            ].join(' ')}
-          >
-            Active
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('archived')}
-            className={[
-              'rounded-r-control px-4 py-1.5 text-sm font-medium transition-colors',
-              view === 'archived'
-                ? 'bg-surface-selected text-text-default'
-                : 'text-text-muted hover:bg-surface-accent',
-            ].join(' ')}
-          >
-            Archived
-          </button>
         </div>
       </div>
 
