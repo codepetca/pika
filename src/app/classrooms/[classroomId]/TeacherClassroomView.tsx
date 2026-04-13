@@ -29,7 +29,7 @@ import {
   RotateCcw,
   Send,
 } from 'lucide-react'
-import { ConfirmDialog, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, SplitButton, Tooltip } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -39,7 +39,7 @@ import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import {
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
-  ACTIONBAR_ICON_BUTTON_CLASSNAME,
+  ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME,
   PageActionBar,
   PageContent,
   PageLayout,
@@ -141,7 +141,6 @@ function getRowClassName(isSelected: boolean): string {
 
 const STATUS_ICON_CLASS = 'h-4 w-4'
 const LATE_CLOCK_CLASS = 'h-3 w-3'
-const WORKSPACE_TAB_BASE_CLASSNAME = 'rounded-t-lg border px-3 py-1.5 text-sm font-medium transition-colors'
 
 function MetricBar({ value }: { value: number }) {
   const percentage = Math.max(0, Math.min(100, Math.round(value * 100)))
@@ -915,163 +914,232 @@ export function TeacherClassroomView({
     window.addEventListener('pointerup', handlePointerUp)
   }
 
-  const studentTable = (
-    <KeyboardNavigableTable
-      ref={tableContainerRef}
-      rowKeys={currentStudentRows.map((student) => student.student_id)}
-      selectedKey={selectedStudentId}
-      onSelectKey={setSelectedStudentId}
-      onDeselect={() => setSelectedStudentId(null)}
-    >
-      <TableCard chrome="flush">
-        {selectedAssignmentLoading ? (
-          <div className="flex justify-center py-10">
-            <Spinner />
-          </div>
-        ) : selectedAssignmentError || !selectedAssignmentData ? (
-          <div className="p-4 text-sm text-danger">
-            {selectedAssignmentError || 'Failed to load assignment'}
-          </div>
-        ) : (
-          <div className="relative">
-            {(isAutoGrading || isArtifactRepoAnalyzing || isReturning) && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-surface/70">
-                <div className="flex items-center gap-2 text-sm text-text-muted">
-                  <Spinner />
-                  <span>
-                    {isAutoGrading
-                      ? `Grading ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-                      : isArtifactRepoAnalyzing
-                        ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-                        : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
-                  </span>
-                </div>
-              </div>
-            )}
-            <DataTable density={showOverviewInspector ? 'tight' : 'compact'}>
-              <DataTableHead>
-                <DataTableRow>
-                  <DataTableHeaderCell className="w-10">
-                    <input
-                      type="checkbox"
-                      checked={batchAllSelected}
-                      onChange={batchToggleSelectAll}
-                      onClick={(e) => e.stopPropagation()}
-                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                      aria-label="Select all students"
-                    />
-                  </DataTableHeaderCell>
-                  <SortableHeaderCell
-                    label="First Name"
-                    isActive={sortColumn === 'first'}
-                    direction={sortDirection}
-                    onClick={() => toggleSort('first')}
-                    className="w-[7rem]"
-                  />
-                  <SortableHeaderCell
-                    label="Last Name"
-                    isActive={sortColumn === 'last'}
-                    direction={sortDirection}
-                    onClick={() => toggleSort('last')}
-                    className="w-[7rem]"
-                  />
-                  <SortableHeaderCell
-                    label="Status"
-                    isActive={sortColumn === 'status'}
-                    direction={sortDirection}
-                    onClick={() => toggleSort('status')}
-                    className="w-[4.5rem]"
-                  />
-                  <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
-                  <DataTableHeaderCell className="w-[11rem]">Artifacts</DataTableHeaderCell>
-                </DataTableRow>
-              </DataTableHead>
-              <DataTableBody>
-                {sortedStudents.map((student) => {
-                  const isSelected = selectedStudentId === student.student_id
-                  const totalScore =
-                    student.doc?.score_completion != null &&
-                    student.doc?.score_thinking != null &&
-                    student.doc?.score_workflow != null
-                      ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
-                      : null
-                  const hasDraftGrade = hasDraftSavedGrade(student.doc ? {
-                    graded_at: student.doc.graded_at ?? null,
-                    score_completion: student.doc.score_completion ?? null,
-                    score_thinking: student.doc.score_thinking ?? null,
-                    score_workflow: student.doc.score_workflow ?? null,
-                  } : null)
-                  const wasLate = !!(
-                    student.doc?.submitted_at &&
-                    dueAtMs &&
-                    new Date(student.doc.submitted_at).getTime() > dueAtMs
-                  )
+  function handleOverviewInspectorResizeReset() {
+    updateModeLayout('overview', (current) => ({
+      ...current,
+      inspectorCollapsed: false,
+      inspectorWidth: 50,
+    }))
+  }
 
-                  return (
-                    <DataTableRow
-                      key={student.student_id}
-                      className={getRowClassName(isSelected)}
-                      onClick={() => {
-                        setSelectedStudentId(isSelected ? null : student.student_id)
-                        setAssignmentWorkspaceMode('overview')
-                      }}
-                    >
-                      <DataTableCell>
-                        <input
-                          type="checkbox"
-                          checked={batchSelectedIds.has(student.student_id)}
-                          onChange={() => batchToggleSelect(student.student_id)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                          aria-label={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
-                        />
-                      </DataTableCell>
-                      <DataTableCell className="w-[7rem] max-w-[7rem] truncate">
-                        {student.student_first_name ? (
-                          <Tooltip content={`${student.student_first_name} ${student.student_last_name ?? ''}`}>
-                            <span>{student.student_first_name}</span>
-                          </Tooltip>
-                        ) : '—'}
-                      </DataTableCell>
-                      <DataTableCell className="w-[7rem] max-w-[7rem] truncate">
-                        {student.student_last_name ? (
-                          <Tooltip content={student.student_last_name}>
-                            <span>{student.student_last_name}</span>
-                          </Tooltip>
-                        ) : '—'}
-                      </DataTableCell>
-                      <DataTableCell className="w-[4.5rem]">
-                        <Tooltip content={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
-                          <span className="inline-flex" role="img" aria-label={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
-                            <StatusIcon
-                              status={student.status}
-                              wasLate={wasLate}
-                              hasDraftGrade={hasDraftGrade}
-                            />
-                          </span>
-                        </Tooltip>
-                      </DataTableCell>
-                      <DataTableCell className="w-[4.75rem] whitespace-nowrap text-text-muted">
-                        {totalScore !== null ? `${Math.round((totalScore / 30) * 100)}` : '—'}
-                      </DataTableCell>
-                      <DataTableCell className="w-[11rem] max-w-[11rem] align-top">
-                        <AssignmentArtifactsCell
-                          artifacts={student.artifacts || []}
-                          isCompact={showOverviewInspector}
-                        />
-                      </DataTableCell>
-                    </DataTableRow>
-                  )
-                })}
-                {sortedStudents.length === 0 && (
-                  <EmptyStateRow colSpan={6} message="No students enrolled" />
-                )}
-              </DataTableBody>
-            </DataTable>
+  const studentTable = (
+    <div className="flex h-full min-h-0 flex-col">
+      {assignmentWorkspaceMode === 'overview' && (
+        <div className="border-b border-border bg-surface px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
+              <SplitButton
+                label={
+                  <span className="inline-flex items-center gap-2">
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                    <span>AI Grade</span>
+                  </span>
+                }
+                onPrimaryClick={() => {
+                  void handleBatchAutoGrade()
+                }}
+                options={[
+                  {
+                    id: 'repo-analysis',
+                    label: (
+                      <span className="inline-flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                        <span>Repo analysis</span>
+                      </span>
+                    ),
+                    onSelect: () => {
+                      void handleBatchArtifactRepoAnalyze()
+                    },
+                    disabled: isArtifactRepoAnalyzing || isReadOnly || batchSelectedCount === 0,
+                  },
+                ]}
+                disabled={isAutoGrading || isReadOnly || batchSelectedCount === 0}
+                className="inline-flex"
+                toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
+                menuPlacement="down"
+                primaryButtonProps={{
+                  'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
+                }}
+              />
+            </Tooltip>
+
+            <Tooltip content={`Send${workspaceActionLabelSuffix}`}>
+              <Button
+                type="button"
+                variant="subtle"
+                size="sm"
+                className="px-4"
+                onClick={() => {
+                  setShowReturnConfirm(true)
+                }}
+                disabled={isReturning || isReadOnly || batchSelectedCount === 0}
+                aria-label={`Send${workspaceActionLabelSuffix}`}
+              >
+                <Send className="h-4 w-4" aria-hidden="true" />
+                <span>Send</span>
+              </Button>
+            </Tooltip>
           </div>
-        )}
-      </TableCard>
-    </KeyboardNavigableTable>
+        </div>
+      )}
+
+      <KeyboardNavigableTable
+        ref={tableContainerRef}
+        rowKeys={currentStudentRows.map((student) => student.student_id)}
+        selectedKey={selectedStudentId}
+        onSelectKey={setSelectedStudentId}
+        onDeselect={() => setSelectedStudentId(null)}
+      >
+        <TableCard chrome="flush">
+          {selectedAssignmentLoading ? (
+            <div className="flex justify-center py-10">
+              <Spinner />
+            </div>
+          ) : selectedAssignmentError || !selectedAssignmentData ? (
+            <div className="p-4 text-sm text-danger">
+              {selectedAssignmentError || 'Failed to load assignment'}
+            </div>
+          ) : (
+            <div className="relative">
+              {(isAutoGrading || isArtifactRepoAnalyzing || isReturning) && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-surface/70">
+                  <div className="flex items-center gap-2 text-sm text-text-muted">
+                    <Spinner />
+                    <span>
+                      {isAutoGrading
+                        ? `Grading ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+                        : isArtifactRepoAnalyzing
+                          ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+                          : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <DataTable density={showOverviewInspector ? 'tight' : 'compact'}>
+                <DataTableHead>
+                  <DataTableRow>
+                    <DataTableHeaderCell className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={batchAllSelected}
+                        onChange={batchToggleSelectAll}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                        aria-label="Select all students"
+                      />
+                    </DataTableHeaderCell>
+                    <SortableHeaderCell
+                      label="First Name"
+                      isActive={sortColumn === 'first'}
+                      direction={sortDirection}
+                      onClick={() => toggleSort('first')}
+                      className="w-[7rem]"
+                    />
+                    <SortableHeaderCell
+                      label="Last Name"
+                      isActive={sortColumn === 'last'}
+                      direction={sortDirection}
+                      onClick={() => toggleSort('last')}
+                      className="w-[7rem]"
+                    />
+                    <SortableHeaderCell
+                      label="Status"
+                      isActive={sortColumn === 'status'}
+                      direction={sortDirection}
+                      onClick={() => toggleSort('status')}
+                      className="w-[4.5rem]"
+                    />
+                    <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
+                    <DataTableHeaderCell className="w-[11rem]">Artifacts</DataTableHeaderCell>
+                  </DataTableRow>
+                </DataTableHead>
+                <DataTableBody>
+                  {sortedStudents.map((student) => {
+                    const isSelected = selectedStudentId === student.student_id
+                    const totalScore =
+                      student.doc?.score_completion != null &&
+                      student.doc?.score_thinking != null &&
+                      student.doc?.score_workflow != null
+                        ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
+                        : null
+                    const hasDraftGrade = hasDraftSavedGrade(student.doc ? {
+                      graded_at: student.doc.graded_at ?? null,
+                      score_completion: student.doc.score_completion ?? null,
+                      score_thinking: student.doc.score_thinking ?? null,
+                      score_workflow: student.doc.score_workflow ?? null,
+                    } : null)
+                    const wasLate = !!(
+                      student.doc?.submitted_at &&
+                      dueAtMs &&
+                      new Date(student.doc.submitted_at).getTime() > dueAtMs
+                    )
+
+                    return (
+                      <DataTableRow
+                        key={student.student_id}
+                        className={getRowClassName(isSelected)}
+                        onClick={() => {
+                          setSelectedStudentId(isSelected ? null : student.student_id)
+                          setAssignmentWorkspaceMode('overview')
+                        }}
+                      >
+                        <DataTableCell>
+                          <input
+                            type="checkbox"
+                            checked={batchSelectedIds.has(student.student_id)}
+                            onChange={() => batchToggleSelect(student.student_id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                            aria-label={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
+                          />
+                        </DataTableCell>
+                        <DataTableCell className="w-[7rem] max-w-[7rem] truncate">
+                          {student.student_first_name ? (
+                            <Tooltip content={`${student.student_first_name} ${student.student_last_name ?? ''}`}>
+                              <span>{student.student_first_name}</span>
+                            </Tooltip>
+                          ) : '—'}
+                        </DataTableCell>
+                        <DataTableCell className="w-[7rem] max-w-[7rem] truncate">
+                          {student.student_last_name ? (
+                            <Tooltip content={student.student_last_name}>
+                              <span>{student.student_last_name}</span>
+                            </Tooltip>
+                          ) : '—'}
+                        </DataTableCell>
+                        <DataTableCell className="w-[4.5rem]">
+                          <Tooltip content={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
+                            <span className="inline-flex" role="img" aria-label={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
+                              <StatusIcon
+                                status={student.status}
+                                wasLate={wasLate}
+                                hasDraftGrade={hasDraftGrade}
+                              />
+                            </span>
+                          </Tooltip>
+                        </DataTableCell>
+                        <DataTableCell className="w-[4.75rem] whitespace-nowrap text-text-muted">
+                          {totalScore !== null ? `${Math.round((totalScore / 30) * 100)}` : '—'}
+                        </DataTableCell>
+                        <DataTableCell className="w-[11rem] max-w-[11rem] align-top">
+                          <AssignmentArtifactsCell
+                            artifacts={student.artifacts || []}
+                            isCompact={showOverviewInspector}
+                          />
+                        </DataTableCell>
+                      </DataTableRow>
+                    )
+                  })}
+                  {sortedStudents.length === 0 && (
+                    <EmptyStateRow colSpan={6} message="No students enrolled" />
+                  )}
+                </DataTableBody>
+              </DataTable>
+            </div>
+          )}
+        </TableCard>
+      </KeyboardNavigableTable>
+    </div>
   )
 
   const primaryButtons =
@@ -1088,14 +1156,14 @@ export function TeacherClassroomView({
       </button>
     ) : (
       <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:min-h-[2.75rem]">
-        <div className="relative z-10 inline-flex items-end gap-1 self-end">
+        <div className="mb-[-1px] flex border-b border-border self-end">
           <button
             type="button"
             className={[
-              WORKSPACE_TAB_BASE_CLASSNAME,
               assignmentWorkspaceMode === 'overview'
-                ? '-mb-px border-border border-b-transparent bg-surface text-text-default shadow-sm'
-                : 'border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:border-border hover:text-text-default',
+              'border-b-2 -mb-px px-4 py-2 text-sm font-medium transition-colors',
             ].join(' ')}
             onClick={() => handleSwitchWorkspaceMode('overview')}
             aria-pressed={assignmentWorkspaceMode === 'overview'}
@@ -1105,11 +1173,11 @@ export function TeacherClassroomView({
           <button
             type="button"
             className={[
-              WORKSPACE_TAB_BASE_CLASSNAME,
               assignmentWorkspaceMode === 'details'
-                ? '-mb-px border-border border-b-transparent bg-surface text-text-default shadow-sm'
-                : 'border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
-              !canOpenDetails ? 'cursor-not-allowed opacity-50 hover:bg-surface-2 hover:text-text-muted' : '',
+                ? 'border-primary text-primary'
+                : 'border-transparent text-text-muted hover:border-border hover:text-text-default',
+              !canOpenDetails ? 'cursor-not-allowed opacity-50 hover:border-transparent hover:text-text-muted' : '',
+              'border-b-2 -mb-px px-4 py-2 text-sm font-medium transition-colors',
             ].join(' ')}
             onClick={() => handleSwitchWorkspaceMode('details')}
             aria-pressed={assignmentWorkspaceMode === 'details'}
@@ -1120,15 +1188,6 @@ export function TeacherClassroomView({
         </div>
 
         <div className="flex min-w-0 flex-1 items-center gap-3 self-center">
-          <div className="flex min-w-0 shrink items-center gap-2 sm:max-w-[28rem]">
-            <span
-              className="truncate text-sm font-semibold text-text-default"
-              title={selectedAssignmentTitle}
-            >
-              {selectedAssignmentTitle}
-            </span>
-          </div>
-
           {workspaceLoading && (
             <div aria-live="polite" className="inline-flex items-center gap-1 text-xs text-text-muted">
               <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
@@ -1141,7 +1200,7 @@ export function TeacherClassroomView({
           <Tooltip content="Edit assignment">
             <button
               type="button"
-              className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+              className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex max-w-[22rem] items-center gap-2`}
               onClick={() => {
                 if (selectedAssignmentData) {
                   setEditAssignment(selectedAssignmentData.assignment)
@@ -1149,79 +1208,12 @@ export function TeacherClassroomView({
               }}
               disabled={!canEditAssignment}
               aria-label="Edit assignment"
+              title={selectedAssignmentTitle}
             >
-              <Pencil className="h-4 w-4" aria-hidden="true" />
+              <span className="truncate">{selectedAssignmentTitle}</span>
+              <Pencil className="h-4 w-4 shrink-0" aria-hidden="true" />
             </button>
           </Tooltip>
-
-          <Tooltip content={`Repo analysis${workspaceActionLabelSuffix}`}>
-            <button
-              type="button"
-              className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-              onClick={() => {
-                void handleBatchArtifactRepoAnalyze()
-              }}
-              disabled={isArtifactRepoAnalyzing || isReadOnly || batchSelectedCount === 0}
-              aria-label={`Repo analysis${workspaceActionLabelSuffix}`}
-            >
-              <BarChart3 className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content={`Grading${workspaceActionLabelSuffix}`}>
-            <button
-              type="button"
-              className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-              onClick={() => {
-                void handleBatchAutoGrade()
-              }}
-              disabled={isAutoGrading || isReadOnly || batchSelectedCount === 0}
-              aria-label={`Grading${workspaceActionLabelSuffix}`}
-            >
-              <Check className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </Tooltip>
-
-          <Tooltip content={`Send${workspaceActionLabelSuffix}`}>
-            <button
-              type="button"
-              className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-              onClick={() => {
-                setShowReturnConfirm(true)
-              }}
-              disabled={isReturning || isReadOnly || batchSelectedCount === 0}
-              aria-label={`Send${workspaceActionLabelSuffix}`}
-            >
-              <Send className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </Tooltip>
-
-          {selectedStudentId && (
-            <>
-              <Tooltip content="Previous student">
-                <button
-                  type="button"
-                  className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-                  onClick={handleGoPrevStudent}
-                  disabled={!canGoPrevStudent}
-                  aria-label="Previous student"
-                >
-                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </Tooltip>
-              <Tooltip content="Next student">
-                <button
-                  type="button"
-                  className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-                  onClick={handleGoNextStudent}
-                  disabled={!canGoNextStudent}
-                  aria-label="Next student"
-                >
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </Tooltip>
-            </>
-          )}
         </div>
       </div>
     )
@@ -1315,6 +1307,10 @@ export function TeacherClassroomView({
                     totalWidth={workspaceWidth}
                     onLayoutChange={(next) => updateModeLayout('details', next)}
                     onLoadingStateChange={setWorkspaceLoading}
+                    onGoPrevStudent={handleGoPrevStudent}
+                    onGoNextStudent={handleGoNextStudent}
+                    canGoPrevStudent={canGoPrevStudent}
+                    canGoNextStudent={canGoNextStudent}
                   />
                 ) : selectedAssignmentLoading ? (
                   <div className="flex flex-1 items-center justify-center py-12">
@@ -1341,6 +1337,7 @@ export function TeacherClassroomView({
                       aria-label="Resize table and grading panes"
                       className="relative hidden w-3 shrink-0 cursor-col-resize bg-transparent lg:block"
                       onPointerDown={handleOverviewInspectorResizeStart}
+                      onDoubleClick={handleOverviewInspectorResizeReset}
                     >
                       <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
                     </div>

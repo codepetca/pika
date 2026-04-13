@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useRouter, usePathname } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Archive, CircleDot, Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
@@ -402,29 +402,31 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-page/90 pb-4 pt-3 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-center px-4">
           <div className="flex items-center gap-2">
-            <div className="inline-flex items-stretch rounded-control border border-border bg-surface shadow-sm">
+            <div className="inline-flex items-stretch rounded-full border border-border bg-surface-2 p-0.5 shadow-sm">
               <button
                 type="button"
                 onClick={() => setView('active')}
                 className={[
-                  'rounded-l-control px-4 py-1.5 text-sm font-medium transition-colors',
+                  'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
                   view === 'active'
-                    ? 'bg-surface-selected text-text-default'
+                    ? 'bg-surface text-text-default shadow-sm'
                     : 'text-text-muted hover:bg-surface-accent',
                 ].join(' ')}
               >
+                <CircleDot className="h-3.5 w-3.5" aria-hidden="true" />
                 Active
               </button>
               <button
                 type="button"
                 onClick={() => setView('archived')}
                 className={[
-                  'rounded-r-control px-4 py-1.5 text-sm font-medium transition-colors',
+                  'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
                   view === 'archived'
-                    ? 'bg-surface-selected text-text-default'
+                    ? 'bg-surface text-text-default shadow-sm'
                     : 'text-text-muted hover:bg-surface-accent',
                 ].join(' ')}
               >
+                <Archive className="h-3.5 w-3.5" aria-hidden="true" />
                 Archived
               </button>
             </div>

@@ -1,11 +1,11 @@
 'use client'
 
-import { Fragment, type ReactNode } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { ChevronDown, ChevronRight, Send } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { HistoryList } from '@/components/HistoryList'
 import { Spinner } from '@/components/Spinner'
-import { Button, SplitButton, Tooltip } from '@/ui'
+import { Button, Tooltip } from '@/ui'
 import type {
   AssignmentDocHistoryEntry,
   AssignmentFeedbackEntry,
@@ -15,6 +15,15 @@ import type {
 import type { InspectorSectionId, StudentWorkData } from './types'
 
 type GradeSaveMode = 'draft' | 'graded'
+const INSPECTOR_SECTION_TRANSITION_MS = 180
+
+function autoResizeTextarea(textarea: HTMLTextAreaElement | null, minHeightPx: number) {
+  if (!textarea) return
+  textarea.style.height = `${minHeightPx}px`
+  const measuredHeight = textarea.scrollHeight
+  const nextHeight = measuredHeight > minHeightPx + 2 ? measuredHeight : minHeightPx
+  textarea.style.height = `${nextHeight}px`
+}
 
 function AuthenticityGauge({ score, flags }: { score: number | null; flags: AuthenticityFlag[] }) {
   const hasScore = score !== null
@@ -182,10 +191,10 @@ function InspectorSection({
       data-testid={`inspector-section-${id}`}
       className="overflow-hidden rounded-lg border border-border bg-surface"
     >
-      <div className="flex items-start gap-3 p-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,19rem)] items-center gap-3 p-3">
         <button
           type="button"
-          className="min-w-0 flex-1 text-left"
+          className="min-w-0 text-left"
           aria-label={title}
           aria-expanded={expanded}
           aria-controls={contentId}
@@ -198,17 +207,105 @@ function InspectorSection({
               <ChevronRight className="h-4 w-4 text-text-muted" aria-hidden="true" />
             )}
             <span className="shrink-0 text-sm font-semibold text-text-default">{title}</span>
-            {summary ? <div className="min-w-0 flex-1">{summary}</div> : null}
           </div>
         </button>
-        {expanded && action ? <div className="shrink-0">{action}</div> : null}
-      </div>
-      {expanded && (
-        <div id={contentId} className="px-3 pb-3">
-          {children}
+        <div className="min-w-0">
+          {(summary || (expanded && action)) ? (
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+              <div className="min-w-0">{summary}</div>
+              {expanded && action ? <div className="shrink-0">{action}</div> : null}
+            </div>
+          ) : null}
         </div>
-      )}
+      </div>
+      <AnimatedSectionContent id={contentId} expanded={expanded}>
+        {children}
+      </AnimatedSectionContent>
     </section>
+  )
+}
+
+function AnimatedSectionContent({
+  id,
+  expanded,
+  children,
+}: {
+  id: string
+  expanded: boolean
+  children?: ReactNode
+}) {
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const [shouldRender, setShouldRender] = useState(expanded)
+  const [maxHeight, setMaxHeight] = useState(expanded ? 'none' : '0px')
+  const [opacity, setOpacity] = useState(expanded ? 1 : 0)
+  const [translateY, setTranslateY] = useState(expanded ? 0 : -6)
+
+  useEffect(() => {
+    let frameId = 0
+    let frameIdTwo = 0
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+    if (expanded) {
+      setShouldRender(true)
+      setMaxHeight('0px')
+      setOpacity(0)
+      setTranslateY(-6)
+
+      frameId = window.requestAnimationFrame(() => {
+        const nextHeight = contentRef.current?.scrollHeight ?? 0
+        setMaxHeight(`${nextHeight}px`)
+        setOpacity(1)
+        setTranslateY(0)
+
+        timeoutId = window.setTimeout(() => {
+          setMaxHeight('none')
+        }, INSPECTOR_SECTION_TRANSITION_MS)
+      })
+    } else if (shouldRender) {
+      const currentHeight = contentRef.current?.scrollHeight ?? 0
+      setMaxHeight(`${currentHeight}px`)
+      setOpacity(1)
+      setTranslateY(0)
+
+      frameId = window.requestAnimationFrame(() => {
+        frameIdTwo = window.requestAnimationFrame(() => {
+          setMaxHeight('0px')
+          setOpacity(0)
+          setTranslateY(-6)
+        })
+      })
+
+      timeoutId = window.setTimeout(() => {
+        setShouldRender(false)
+      }, INSPECTOR_SECTION_TRANSITION_MS)
+    }
+
+    return () => {
+      if (frameId) window.cancelAnimationFrame(frameId)
+      if (frameIdTwo) window.cancelAnimationFrame(frameIdTwo)
+      if (timeoutId) window.clearTimeout(timeoutId)
+    }
+  }, [expanded, shouldRender])
+
+  if (!shouldRender) return null
+
+  return (
+    <div
+      id={id}
+      aria-hidden={!expanded}
+      className={expanded ? '' : 'pointer-events-none'}
+      style={{
+        maxHeight,
+        opacity,
+        overflow: 'hidden',
+        transform: `translateY(${translateY}px)`,
+        transition: `max-height ${INSPECTOR_SECTION_TRANSITION_MS}ms ease, opacity ${INSPECTOR_SECTION_TRANSITION_MS}ms ease, transform ${INSPECTOR_SECTION_TRANSITION_MS}ms ease`,
+      }}
+    >
+      <div ref={contentRef} className="px-3 pb-3">
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -238,14 +335,46 @@ function RepoSummary({
 
 function ScoreTotalBox({ value, total }: { value: number; total: number }) {
   return (
-    <div className="grid h-8 grid-cols-[1fr_auto] overflow-hidden rounded border border-border bg-surface">
-      <div className="flex min-w-[2.75rem] items-center justify-center px-2 text-sm font-semibold text-text-default">
+    <div className="grid h-8 grid-cols-[1fr_auto] overflow-hidden rounded border border-border bg-surface-2">
+      <div className="flex min-w-[2.75rem] items-center justify-center px-2 text-sm font-semibold tabular-nums text-text-muted">
         {value}
       </div>
-      <div className="flex min-w-[2rem] items-center justify-center border-l border-border bg-surface-2 px-1.5 text-xs font-medium text-text-muted">
+      <div className="flex min-w-[2rem] items-center justify-center border-l border-border bg-surface-hover px-1.5 text-xs font-medium tabular-nums text-text-muted">
         {total}
       </div>
     </div>
+  )
+}
+
+function AutoGrowFeedbackTextarea({
+  value,
+  onChange,
+  onFocus,
+  hasFreshAIDraft,
+}: {
+  value: string
+  onChange: (value: string) => void
+  onFocus: () => void
+  hasFreshAIDraft: boolean
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+
+  useEffect(() => {
+    autoResizeTextarea(textareaRef.current, 160)
+  }, [value])
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      onFocus={onFocus}
+      className={[
+        'min-h-[10rem] w-full overflow-hidden rounded border px-2 py-1 text-sm text-text-default',
+        hasFreshAIDraft ? 'border-primary bg-info-bg' : 'border-border bg-surface',
+      ].join(' ')}
+      placeholder="Teacher feedback draft"
+    />
   )
 }
 
@@ -298,16 +427,15 @@ export function TeacherWorkInspector({
   hasFreshAIDraft,
   setFeedbackDraft,
   onAIDraftAcknowledge,
+  gradeMode,
   gradeError,
-  autoGrading,
   feedbackReturning,
   gradeSaving,
   repoAnalyzing,
   expandedSections,
   onToggleSection,
-  handleAutoGrade,
   handleReturnFeedback,
-  handleSaveGrade,
+  handleSetGradeMode,
   handleAnalyzeRepo,
 }: {
   data: StudentWorkData
@@ -334,21 +462,37 @@ export function TeacherWorkInspector({
   hasFreshAIDraft: boolean
   setFeedbackDraft: (value: string) => void
   onAIDraftAcknowledge: () => void
+  gradeMode: GradeSaveMode
   gradeError: string
-  autoGrading: boolean
   feedbackReturning: boolean
   gradeSaving: boolean
   repoAnalyzing: boolean
   expandedSections: InspectorSectionId[]
   onToggleSection: (section: InspectorSectionId) => void
-  handleAutoGrade: () => Promise<void>
   handleReturnFeedback: () => Promise<void>
-  handleSaveGrade: (mode: GradeSaveMode) => Promise<void>
+  handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
   handleAnalyzeRepo: () => Promise<void>
 }) {
   const hasRepoConnection = !!(
     data.repo_target.effectiveRepoUrl || data.repo_target.effectiveGitHubUsername
   )
+  const hasSavedDraftContent = !!(
+    data.doc?.teacher_feedback_draft?.trim()
+    || data.doc?.score_completion !== null
+    || data.doc?.score_thinking !== null
+    || data.doc?.score_workflow !== null
+  )
+  const gradeStatusLabel = gradeSaving
+    ? `Saving ${gradeMode === 'graded' ? 'graded' : 'draft'}...`
+    : data.doc?.graded_at
+      ? `Graded ${formatInTimeZone(
+          new Date(data.doc.graded_at),
+          'America/Toronto',
+          'MMM d, h:mm a',
+        )}`
+      : hasSavedDraftContent
+        ? 'Draft autosaved'
+        : null
 
   const sections: Array<{
     id: InspectorSectionId
@@ -405,24 +549,24 @@ export function TeacherWorkInspector({
           hasRepoConnection={hasRepoConnection}
         />
       ),
-      action: (
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            void handleAnalyzeRepo()
-          }}
-          disabled={
-            repoAnalyzing ||
-            !data.repo_target.effectiveRepoUrl ||
-            !data.repo_target.effectiveGitHubUsername
-          }
-        >
-          {repoAnalyzing ? 'Analyzing...' : 'Analyze Repo'}
-        </Button>
-      ),
       content: repoReviewResult ? (
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                void handleAnalyzeRepo()
+              }}
+              disabled={
+                repoAnalyzing ||
+                !data.repo_target.effectiveRepoUrl ||
+                !data.repo_target.effectiveGitHubUsername
+              }
+            >
+              {repoAnalyzing ? 'Analyzing...' : 'Analyze Repo'}
+            </Button>
+          </div>
           <RepoMetricBar
             label="Contribution"
             value={repoReviewResult.relative_contribution_share || 0}
@@ -437,49 +581,35 @@ export function TeacherWorkInspector({
           />
         </div>
       ) : (
-        <p className="text-sm text-text-muted">
-          {hasRepoConnection
-            ? 'Run repo analysis to see contribution, consistency, and iteration details.'
-            : 'No repository metadata is available for this submission yet.'}
-        </p>
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                void handleAnalyzeRepo()
+              }}
+              disabled={
+                repoAnalyzing ||
+                !data.repo_target.effectiveRepoUrl ||
+                !data.repo_target.effectiveGitHubUsername
+              }
+            >
+              {repoAnalyzing ? 'Analyzing...' : 'Analyze Repo'}
+            </Button>
+          </div>
+          <p className="text-sm text-text-muted">
+            {hasRepoConnection
+              ? 'Run repo analysis to see contribution, consistency, and iteration details.'
+              : 'No repository metadata is available for this submission yet.'}
+          </p>
+        </div>
       ),
     },
     {
       id: 'grades',
       title: 'Grade',
       summary: <GradeSummary totalPercent={totalPercent} />,
-      action: (
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              void handleAutoGrade()
-            }}
-            disabled={autoGrading}
-          >
-            {autoGrading ? 'Grading...' : 'AI grade'}
-          </Button>
-          <SplitButton
-            label={gradeSaving ? 'Saving...' : 'Save'}
-            onPrimaryClick={() => {
-              void handleSaveGrade('graded')
-            }}
-            options={[
-              {
-                id: 'draft',
-                label: 'Draft',
-                onSelect: () => {
-                  void handleSaveGrade('draft')
-                },
-              },
-            ]}
-            size="sm"
-            disabled={gradeSaving}
-            toggleAriaLabel="Choose save mode"
-          />
-        </div>
-      ),
       content: (
         <div className="space-y-3">
           <ScoreInput label="Completion" value={scoreCompletion} onChange={setScoreCompletion} />
@@ -490,6 +620,46 @@ export function TeacherWorkInspector({
             <div />
             <ScoreTotalBox value={totalScore} total={30} />
           </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 text-xs text-text-muted">{gradeStatusLabel ?? ''}</div>
+            <div
+              data-testid="grade-mode-toggle"
+              className="inline-flex rounded-full border border-border bg-surface-2 p-0.5"
+            >
+              <button
+                type="button"
+                className={[
+                  'inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-medium transition-colors',
+                  gradeMode === 'draft'
+                    ? 'bg-surface text-text-default shadow-sm'
+                    : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-default',
+                ].join(' ')}
+                aria-pressed={gradeMode === 'draft'}
+                onClick={() => {
+                  void handleSetGradeMode('draft')
+                }}
+                disabled={gradeSaving}
+              >
+                Draft
+              </button>
+              <button
+                type="button"
+                className={[
+                  'inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-medium transition-colors',
+                  gradeMode === 'graded'
+                    ? 'bg-surface text-text-default shadow-sm'
+                    : 'bg-transparent text-text-muted hover:bg-surface-hover hover:text-text-default',
+                ].join(' ')}
+                aria-pressed={gradeMode === 'graded'}
+                onClick={() => {
+                  void handleSetGradeMode('graded')
+                }}
+                disabled={gradeSaving}
+              >
+                Final
+              </button>
+            </div>
+          </div>
         </div>
       ),
     },
@@ -499,26 +669,19 @@ export function TeacherWorkInspector({
       content: (
         <div className="space-y-3">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                Feedback Draft
-              </div>
-              {hasFreshAIDraft && (
+            <AutoGrowFeedbackTextarea
+              value={feedbackDraft}
+              onChange={setFeedbackDraft}
+              onFocus={onAIDraftAcknowledge}
+              hasFreshAIDraft={hasFreshAIDraft}
+            />
+            {hasFreshAIDraft && (
+              <div className="flex justify-start">
                 <span className="rounded-full border border-primary/40 bg-info-bg px-2 py-0.5 text-[11px] font-medium text-primary">
                   AI draft
                 </span>
-              )}
-            </div>
-            <textarea
-              value={feedbackDraft}
-              onChange={(event) => setFeedbackDraft(event.target.value)}
-              onFocus={onAIDraftAcknowledge}
-              className={[
-                'min-h-[10rem] w-full resize-y rounded border px-2 py-1 text-sm text-text-default',
-                hasFreshAIDraft ? 'border-primary bg-info-bg' : 'border-border bg-surface',
-              ].join(' ')}
-              placeholder="Teacher feedback draft"
-            />
+              </div>
+            )}
             <div className="flex justify-end">
               <Button
                 size="sm"
@@ -528,16 +691,23 @@ export function TeacherWorkInspector({
                 }}
                 disabled={feedbackReturning || !feedbackDraft.trim()}
               >
-                {feedbackReturning ? 'Returning...' : 'Return Feedback'}
+                {feedbackReturning ? (
+                  'Sending...'
+                ) : (
+                  <>
+                    <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Send feedback</span>
+                  </>
+                )}
               </Button>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="text-xs font-medium uppercase tracking-wide text-text-muted">
-              Returned Feedback
-            </div>
-            {feedbackEntries.length > 0 ? (
+          {feedbackEntries.length > 0 ? (
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                Feedback Sent
+              </div>
               <div className="rounded border border-border bg-surface p-3">
                 <div className="space-y-3">
                   {feedbackEntries.map((entry) => (
@@ -556,10 +726,8 @@ export function TeacherWorkInspector({
                   ))}
                 </div>
               </div>
-            ) : (
-              <p className="text-sm text-text-muted">No returned feedback yet.</p>
-            )}
-          </div>
+            </div>
+          ) : null}
         </div>
       ),
     },
@@ -588,27 +756,10 @@ export function TeacherWorkInspector({
         </div>
       </div>
 
-      {(gradeError || data.doc?.graded_at) && (
+      {gradeError && (
         <div className="border-t border-border bg-surface px-3 py-3">
-          <div className="space-y-3">
-            {gradeError && (
-              <div className="rounded border border-danger bg-danger-bg px-2 py-1.5 text-xs text-danger">
-                {gradeError}
-              </div>
-            )}
-
-            {data.doc?.graded_at && (
-              <div className="text-xs text-text-muted">
-                Graded{' '}
-                {formatInTimeZone(
-                  new Date(data.doc.graded_at),
-                  'America/Toronto',
-                  'MMM d, h:mm a',
-                )}
-                {data.doc.graded_by &&
-                  ` by ${data.doc.graded_by.startsWith('ai:') ? 'AI' : data.doc.graded_by}`}
-              </div>
-            )}
+          <div className="rounded border border-danger bg-danger-bg px-2 py-1.5 text-xs text-danger">
+            {gradeError}
           </div>
         </div>
       )}

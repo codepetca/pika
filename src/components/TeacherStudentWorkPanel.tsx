@@ -2,10 +2,12 @@
 
 import { useCallback, useMemo, useRef } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
 import { useTeacherStudentWorkController } from '@/components/assignment-workspace/useTeacherStudentWorkController'
+import { ACTIONBAR_ICON_BUTTON_CLASSNAME } from '@/components/PageLayout'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
   clampAssignmentWorkspacePaneLayout,
@@ -30,6 +32,10 @@ interface TeacherStudentWorkPanelProps {
       | ((current: AssignmentWorkspacePaneLayout) => AssignmentWorkspacePaneLayout),
   ) => void
   onLoadingStateChange?: (loading: boolean) => void
+  onGoPrevStudent?: () => void
+  onGoNextStudent?: () => void
+  canGoPrevStudent?: boolean
+  canGoNextStudent?: boolean
 }
 
 export function TeacherStudentWorkPanel({
@@ -42,6 +48,10 @@ export function TeacherStudentWorkPanel({
   totalWidth = 0,
   onLayoutChange,
   onLoadingStateChange,
+  onGoPrevStudent,
+  onGoNextStudent,
+  canGoPrevStudent = false,
+  canGoNextStudent = false,
 }: TeacherStudentWorkPanelProps) {
   const workspaceRef = useRef<HTMLDivElement | null>(null)
   const {
@@ -59,9 +69,9 @@ export function TeacherStudentWorkPanel({
     scoreWorkflow,
     feedbackDraft,
     hasFreshAIDraft,
+    gradeMode,
     gradeSaving,
     gradeError,
-    autoGrading,
     feedbackReturning,
     repoAnalyzing,
     feedbackEntries,
@@ -79,9 +89,8 @@ export function TeacherStudentWorkPanel({
     handleHistoryMouseLeave,
     handleAIDraftAcknowledge,
     toggleSection,
-    handleAutoGrade,
     handleReturnFeedback,
-    handleSaveGrade,
+    handleSetGradeMode,
     handleAnalyzeRepo,
   } = useTeacherStudentWorkController({
     classroomId,
@@ -142,6 +151,14 @@ export function TeacherStudentWorkPanel({
     },
     [updateLayout],
   )
+
+  const handleInspectorResizeReset = useCallback(() => {
+    updateLayout((current) => ({
+      ...current,
+      inspectorCollapsed: false,
+      inspectorWidth: 50,
+    }))
+  }, [updateLayout])
 
   if (showInitialSpinner) {
     return (
@@ -208,16 +225,15 @@ export function TeacherStudentWorkPanel({
       hasFreshAIDraft={hasFreshAIDraft}
       setFeedbackDraft={setFeedbackDraft}
       onAIDraftAcknowledge={handleAIDraftAcknowledge}
+      gradeMode={gradeMode}
       gradeError={gradeError}
-      autoGrading={autoGrading}
       feedbackReturning={feedbackReturning}
       gradeSaving={gradeSaving}
       repoAnalyzing={repoAnalyzing}
       expandedSections={expandedSections}
       onToggleSection={toggleSection}
-      handleAutoGrade={handleAutoGrade}
       handleReturnFeedback={handleReturnFeedback}
-      handleSaveGrade={handleSaveGrade}
+      handleSetGradeMode={handleSetGradeMode}
       handleAnalyzeRepo={handleAnalyzeRepo}
     />
   )
@@ -237,48 +253,74 @@ export function TeacherStudentWorkPanel({
           data-testid="individual-content-header"
           className="border-b border-border bg-surface px-4 py-3 text-sm"
         >
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
             <div
-              className="min-w-0 truncate font-medium text-text-default"
-              title={studentDisplayName}
+              className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
             >
-              {studentDisplayName}
-            </div>
-            {(repoDisplayUrl || repoDisplayGitHubUsername) && (
-              <>
-                <span className="text-text-muted" aria-hidden="true">
-                  /
-                </span>
-                <div className="min-w-0 truncate text-text-muted">
-                  <span className="text-text-muted">Repo </span>
-                  {repoDisplayUrl ? (
-                    <a
-                      href={repoDisplayUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-primary hover:underline"
-                    >
-                      {repoDisplayUrl}
-                    </a>
-                  ) : (
-                    '—'
-                  )}
-                </div>
-                {repoDisplayGitHubUsername && (
-                  <div className="truncate text-text-muted">
-                    <span className="font-medium text-text-default">
-                      @{repoDisplayGitHubUsername}
-                    </span>
+              <div
+                className="min-w-0 truncate font-medium text-text-default"
+                title={studentDisplayName}
+              >
+                {studentDisplayName}
+              </div>
+              {(repoDisplayUrl || repoDisplayGitHubUsername) && (
+                <>
+                  <span className="text-text-muted" aria-hidden="true">
+                    /
+                  </span>
+                  <div className="min-w-0 truncate text-text-muted">
+                    <span className="text-text-muted">Repo </span>
+                    {repoDisplayUrl ? (
+                      <a
+                        href={repoDisplayUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {repoDisplayUrl}
+                      </a>
+                    ) : (
+                      '—'
+                    )}
                   </div>
-                )}
-              </>
-            )}
+                  {repoDisplayGitHubUsername && (
+                    <div className="truncate text-text-muted">
+                      <span className="font-medium text-text-default">
+                        @{repoDisplayGitHubUsername}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
             <div
-              className="inline-flex shrink-0 items-center text-xs text-text-muted sm:ml-auto"
+              className="inline-flex shrink-0 items-center justify-center text-xs text-text-muted sm:justify-self-center"
               aria-label={`${characterCount} characters`}
             >
               <span>{characterCount} chars</span>
             </div>
+            {(onGoPrevStudent || onGoNextStudent) && (
+              <div className="flex items-center gap-1 sm:justify-self-end">
+                <button
+                  type="button"
+                  className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+                  onClick={onGoPrevStudent}
+                  disabled={!onGoPrevStudent || !canGoPrevStudent}
+                  aria-label="Previous student"
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+                  onClick={onGoNextStudent}
+                  disabled={!onGoNextStudent || !canGoNextStudent}
+                  aria-label="Next student"
+                >
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            )}
           </div>
           {previewEntry && (
             <div className="mt-1 text-xs font-medium text-primary">
@@ -309,6 +351,7 @@ export function TeacherStudentWorkPanel({
           aria-label="Resize content and grading panes"
           className="relative hidden w-3 shrink-0 cursor-col-resize bg-transparent lg:block"
           onPointerDown={handleInspectorResizeStart}
+          onDoubleClick={handleInspectorResizeReset}
         >
           <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
         </div>

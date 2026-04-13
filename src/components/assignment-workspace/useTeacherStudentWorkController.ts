@@ -19,6 +19,7 @@ type GradeSaveMode = 'draft' | 'graded'
 const SECTION_ORDER: InspectorSectionId[] = ['history', 'repo', 'grades', 'comments']
 const DEFAULT_EXPANDED_SECTIONS: InspectorSectionId[] = ['grades', 'comments']
 const INSPECTOR_SECTIONS_COOKIE_PREFIX = 'pika_teacher_student_work_sections'
+const GRADE_AUTOSAVE_DELAY_MS = 900
 
 function getInspectorSectionsCookieName(classroomId: string) {
   return `${INSPECTOR_SECTIONS_COOKIE_PREFIX}:${classroomId}`
@@ -65,6 +66,54 @@ function mergeFeedbackDraft(baseDraft: string | null | undefined, aiSuggestion: 
   return { value: `${suggestion}\n\n${base}`, hasFreshAI: true }
 }
 
+function getGradeSaveMode(doc: AssignmentDoc | null | undefined): GradeSaveMode {
+  return doc?.graded_at ? 'graded' : 'draft'
+}
+
+function buildGradeSnapshot({
+  scoreCompletion,
+  scoreThinking,
+  scoreWorkflow,
+  feedbackDraft,
+  mode,
+}: {
+  scoreCompletion: string
+  scoreThinking: string
+  scoreWorkflow: string
+  feedbackDraft: string
+  mode: GradeSaveMode
+}) {
+  return JSON.stringify({
+    scoreCompletion,
+    scoreThinking,
+    scoreWorkflow,
+    feedbackDraft,
+    mode,
+  })
+}
+
+function parseGradeInputs({
+  scoreCompletion,
+  scoreThinking,
+  scoreWorkflow,
+}: {
+  scoreCompletion: string
+  scoreThinking: string
+  scoreWorkflow: string
+}) {
+  const sc = Number(scoreCompletion)
+  const st = Number(scoreThinking)
+  const sw = Number(scoreWorkflow)
+  const values = [sc, st, sw]
+
+  return {
+    isValid: values.every((value) => Number.isInteger(value) && value >= 0 && value <= 10),
+    scoreCompletion: sc,
+    scoreThinking: st,
+    scoreWorkflow: sw,
+  }
+}
+
 export interface TeacherStudentWorkController {
   data: StudentWorkData | null
   error: string
@@ -81,6 +130,7 @@ export interface TeacherStudentWorkController {
   scoreWorkflow: string
   feedbackDraft: string
   hasFreshAIDraft: boolean
+  gradeMode: GradeSaveMode
   gradeSaving: boolean
   gradeError: string
   autoGrading: boolean
@@ -103,7 +153,7 @@ export interface TeacherStudentWorkController {
   toggleSection: (section: InspectorSectionId) => void
   handleAutoGrade: () => Promise<void>
   handleReturnFeedback: () => Promise<void>
-  handleSaveGrade: (mode: GradeSaveMode) => Promise<void>
+  handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
   handleAnalyzeRepo: () => Promise<void>
 }
 
@@ -120,6 +170,7 @@ export function useTeacherStudentWorkController({
 }): TeacherStudentWorkController {
   const studentLoadRequestIdRef = useRef(0)
   const historyLoadRequestIdRef = useRef(0)
+  const lastSavedGradeSnapshotRef = useRef('')
   const [data, setData] = useState<StudentWorkData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -237,17 +288,34 @@ export function useTeacherStudentWorkController({
       setScoreWorkflow('')
       setFeedbackDraft('')
       setHasFreshAIDraft(false)
+      lastSavedGradeSnapshotRef.current = buildGradeSnapshot({
+        scoreCompletion: '',
+        scoreThinking: '',
+        scoreWorkflow: '',
+        feedbackDraft: '',
+        mode: 'draft',
+      })
       return
     }
 
-    setScoreCompletion(doc.score_completion?.toString() ?? '')
-    setScoreThinking(doc.score_thinking?.toString() ?? '')
-    setScoreWorkflow(doc.score_workflow?.toString() ?? '')
-
+    const nextScoreCompletion = doc.score_completion?.toString() ?? ''
+    const nextScoreThinking = doc.score_thinking?.toString() ?? ''
+    const nextScoreWorkflow = doc.score_workflow?.toString() ?? ''
     const baseDraft = mergeBaseDraft ?? doc.teacher_feedback_draft ?? doc.feedback ?? ''
     const mergedDraft = mergeFeedbackDraft(baseDraft, doc.ai_feedback_suggestion)
+
+    setScoreCompletion(nextScoreCompletion)
+    setScoreThinking(nextScoreThinking)
+    setScoreWorkflow(nextScoreWorkflow)
     setFeedbackDraft(mergedDraft.value)
     setHasFreshAIDraft(mergedDraft.hasFreshAI)
+    lastSavedGradeSnapshotRef.current = buildGradeSnapshot({
+      scoreCompletion: nextScoreCompletion,
+      scoreThinking: nextScoreThinking,
+      scoreWorkflow: nextScoreWorkflow,
+      feedbackDraft: mergedDraft.value,
+      mode: getGradeSaveMode(doc),
+    })
   }, [])
 
   const loadStudentWork = useCallback(
@@ -329,18 +397,34 @@ export function useTeacherStudentWorkController({
     }
   }, [onLoadingStateChange])
 
-  const handleSaveGrade = useCallback(
-    async (selectedSaveMode: GradeSaveMode) => {
+  const persistGrade = useCallback(
+    async (selectedSaveMode: GradeSaveMode, options?: { source?: 'autosave' | 'manual' }) => {
       if (!data) return
 
-      const sc = Number(scoreCompletion)
-      const st = Number(scoreThinking)
-      const sw = Number(scoreWorkflow)
+      const parsedScores = parseGradeInputs({
+        scoreCompletion,
+        scoreThinking,
+        scoreWorkflow,
+      })
 
-      if ([sc, st, sw].some((value) => !Number.isInteger(value) || value < 0 || value > 10)) {
-        setGradeError('Scores must be integers 0–10')
+      if (!parsedScores.isValid) {
+        if (options?.source !== 'autosave') {
+          setGradeError('Scores must be integers 0–10')
+        }
         return
       }
+
+      const sc = parsedScores.scoreCompletion
+      const st = parsedScores.scoreThinking
+      const sw = parsedScores.scoreWorkflow
+      const nextSnapshot = buildGradeSnapshot({
+        scoreCompletion,
+        scoreThinking,
+        scoreWorkflow,
+        feedbackDraft,
+        mode: selectedSaveMode,
+      })
+      const previousSavedSnapshot = lastSavedGradeSnapshotRef.current
 
       setGradeSaving(true)
       setGradeError('')
@@ -407,9 +491,11 @@ export function useTeacherStudentWorkController({
         })
         const result = await response.json()
         if (!response.ok) throw new Error(result.error || 'Failed to save grade')
+        lastSavedGradeSnapshotRef.current = nextSnapshot
         setData((current) => (current ? { ...current, doc: result.doc } : current))
         dispatchGradeUpdated(result.doc)
       } catch (err: any) {
+        lastSavedGradeSnapshotRef.current = previousSavedSnapshot
         setData((current) => (current ? { ...current, doc: previousDoc } : current))
         setGradeError(err.message || 'Failed to save grade')
       } finally {
@@ -426,6 +512,68 @@ export function useTeacherStudentWorkController({
       scoreWorkflow,
       studentId,
     ],
+  )
+
+  useEffect(() => {
+    if (!data || gradeSaving) return
+
+    const selectedSaveMode = getGradeSaveMode(data.doc)
+    const nextSnapshot = buildGradeSnapshot({
+      scoreCompletion,
+      scoreThinking,
+      scoreWorkflow,
+      feedbackDraft,
+      mode: selectedSaveMode,
+    })
+
+    if (nextSnapshot === lastSavedGradeSnapshotRef.current) {
+      return
+    }
+
+    const parsedScores = parseGradeInputs({
+      scoreCompletion,
+      scoreThinking,
+      scoreWorkflow,
+    })
+
+    if (!parsedScores.isValid) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void persistGrade(selectedSaveMode, { source: 'autosave' })
+    }, GRADE_AUTOSAVE_DELAY_MS)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [data, feedbackDraft, gradeSaving, persistGrade, scoreCompletion, scoreThinking, scoreWorkflow])
+
+  const updateScoreCompletion = useCallback((value: string) => {
+    setGradeError('')
+    setScoreCompletion(value)
+  }, [])
+
+  const updateScoreThinking = useCallback((value: string) => {
+    setGradeError('')
+    setScoreThinking(value)
+  }, [])
+
+  const updateScoreWorkflow = useCallback((value: string) => {
+    setGradeError('')
+    setScoreWorkflow(value)
+  }, [])
+
+  const updateFeedbackDraft = useCallback((value: string) => {
+    setGradeError('')
+    setFeedbackDraft(value)
+  }, [])
+
+  const handleSetGradeMode = useCallback(
+    async (selectedSaveMode: GradeSaveMode) => {
+      await persistGrade(selectedSaveMode, { source: 'manual' })
+    },
+    [persistGrade],
   )
 
   const handleAutoGrade = useCallback(async () => {
@@ -547,6 +695,7 @@ export function useTeacherStudentWorkController({
   }, [scoreCompletion, scoreThinking, scoreWorkflow])
 
   const totalPercent = useMemo(() => Math.round((totalScore / 30) * 100), [totalScore])
+  const gradeMode = getGradeSaveMode(data?.doc)
 
   return {
     data,
@@ -564,6 +713,7 @@ export function useTeacherStudentWorkController({
     scoreWorkflow,
     feedbackDraft,
     hasFreshAIDraft,
+    gradeMode,
     gradeSaving,
     gradeError,
     autoGrading,
@@ -574,10 +724,10 @@ export function useTeacherStudentWorkController({
     totalScore,
     totalPercent,
     expandedSections,
-    setScoreCompletion,
-    setScoreThinking,
-    setScoreWorkflow,
-    setFeedbackDraft,
+    setScoreCompletion: updateScoreCompletion,
+    setScoreThinking: updateScoreThinking,
+    setScoreWorkflow: updateScoreWorkflow,
+    setFeedbackDraft: updateFeedbackDraft,
     handlePreviewHover,
     handlePreviewLock,
     handleExitPreview,
@@ -586,7 +736,7 @@ export function useTeacherStudentWorkController({
     toggleSection,
     handleAutoGrade,
     handleReturnFeedback,
-    handleSaveGrade,
+    handleSetGradeMode,
     handleAnalyzeRepo,
   }
 }

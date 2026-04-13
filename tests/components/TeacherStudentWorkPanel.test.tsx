@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { countCharacters } from '@/lib/tiptap-content'
@@ -35,21 +35,6 @@ vi.mock('@/components/HistoryList', () => ({
 
 vi.mock('@/ui', () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-  SplitButton: ({ label, onPrimaryClick, options, toggleAriaLabel, ...props }: any) => (
-    <div {...props}>
-      <button type="button" onClick={onPrimaryClick}>
-        {label}
-      </button>
-      <button type="button" aria-label={toggleAriaLabel || 'More actions'}>
-        Toggle
-      </button>
-      {options.map((option: { id: string; label: string; onSelect: () => void }) => (
-        <button key={option.id} type="button" onClick={option.onSelect}>
-          {option.label}
-        </button>
-      ))}
-    </div>
-  ),
   Tooltip: ({ children }: any) => <>{children}</>,
 }))
 
@@ -172,7 +157,7 @@ function mockFetchByStudent(
     }
   >,
 ) {
-  ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+  ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
 
     if (url.includes('/api/teacher/assignments/') && url.includes('/students/')) {
@@ -199,6 +184,35 @@ function mockFetchByStudent(
       return Promise.resolve({
         ok: true,
         json: async () => ({ history: config?.historyEntries || [{ id: 'history-1' }] }),
+      })
+    }
+
+    if (url.includes('/api/teacher/assignments/') && url.endsWith('/grade')) {
+      const body = JSON.parse(String(init?.body || '{}')) as {
+        student_id: string
+        score_completion: number
+        score_thinking: number
+        score_workflow: number
+        feedback: string
+        save_mode?: 'draft' | 'graded'
+      }
+      const config = studentMap[body.student_id]
+      const baseDoc = makeStudentWork(body.student_id, config || { graded: false }).doc
+
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          doc: {
+            ...baseDoc,
+            score_completion: body.score_completion,
+            score_thinking: body.score_thinking,
+            score_workflow: body.score_workflow,
+            teacher_feedback_draft: body.feedback,
+            teacher_feedback_draft_updated_at: '2026-02-20T13:05:00Z',
+            graded_at: body.save_mode === 'graded' ? '2026-02-20T13:05:00Z' : null,
+            graded_by: body.save_mode === 'graded' ? 'teacher@example.com' : null,
+          },
+        }),
       })
     }
 
@@ -246,7 +260,7 @@ describe('TeacherStudentWorkPanel', () => {
     clearInspectorSectionsCookies()
   })
 
-  it('renders the new inspector sections in order with sticky footer actions', async () => {
+  it('renders the new inspector sections in order with grade mode actions', async () => {
     mockFetchByStudent({
       'student-1': { graded: false, authenticityScore: 64 },
     })
@@ -290,10 +304,171 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Analyze Repo' })).not.toBeInTheDocument()
 
-    expect(within(gradesSection).getByRole('button', { name: 'AI grade' })).toBeInTheDocument()
-    expect(within(gradesSection).getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    expect(within(gradesSection).queryByRole('button', { name: 'AI grade' })).not.toBeInTheDocument()
+    const gradeModeToggle = within(gradesSection).getByTestId('grade-mode-toggle')
+    expect(within(gradeModeToggle).getByRole('button', { name: 'Draft' })).toBeInTheDocument()
+    expect(within(gradeModeToggle).getByRole('button', { name: 'Final' })).toBeInTheDocument()
+    expect(within(gradesSection).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     const feedbackSection = screen.getByTestId('inspector-section-comments')
-    expect(within(feedbackSection).getByRole('button', { name: 'Return Feedback' })).toBeInTheDocument()
+    expect(within(feedbackSection).getByRole('button', { name: 'Send feedback' })).toBeInTheDocument()
+  })
+
+  it('autosaves valid grading edits as draft without a save button', async () => {
+    const gradeBodies: Array<Record<string, unknown>> = []
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url.includes('/api/teacher/assignments/') && url.includes('/students/')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeStudentWork('student-1', { graded: false }),
+        })
+      }
+
+      if (url.includes('/api/assignment-docs/') && url.includes('/history')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ history: [] }),
+        })
+      }
+
+      if (url.includes('/api/teacher/assignments/') && url.endsWith('/grade')) {
+        const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+        gradeBodies.push(body)
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            doc: {
+              ...makeStudentWork('student-1', { graded: false }).doc,
+              score_completion: 6,
+              score_thinking: 7,
+              score_workflow: 8,
+              teacher_feedback_draft: 'Teacher note',
+              teacher_feedback_draft_updated_at: '2026-02-20T13:05:00Z',
+              graded_at: null,
+              graded_by: null,
+            },
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch in test: ${url}` }),
+      })
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    await screen.findByLabelText('Completion score')
+
+    await user.click(screen.getByRole('button', { name: 'Set Completion score to 6' }))
+    await user.click(screen.getByRole('button', { name: 'Set Thinking score to 7' }))
+    await user.click(screen.getByRole('button', { name: 'Set Workflow score to 8' }))
+    fireEvent.change(screen.getByPlaceholderText('Teacher feedback draft'), {
+      target: { value: 'Teacher note' },
+    })
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100))
+    })
+
+    await waitFor(() => {
+      expect(gradeBodies).toHaveLength(1)
+    })
+    expect(gradeBodies[0]).toMatchObject({
+      student_id: 'student-1',
+      score_completion: 6,
+      score_thinking: 7,
+      score_workflow: 8,
+      feedback: 'Teacher note',
+      save_mode: 'draft',
+    })
+    expect(screen.getByText('Draft autosaved')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+  })
+
+  it('marks the current grade as graded on demand', async () => {
+    const gradeBodies: Array<Record<string, unknown>> = []
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url.includes('/api/teacher/assignments/') && url.includes('/students/')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeStudentWork('student-1', { graded: false }),
+        })
+      }
+
+      if (url.includes('/api/assignment-docs/') && url.includes('/history')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ history: [] }),
+        })
+      }
+
+      if (url.includes('/api/teacher/assignments/') && url.endsWith('/grade')) {
+        const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+        gradeBodies.push(body)
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            doc: {
+              ...makeStudentWork('student-1', { graded: true }).doc,
+              score_completion: 7,
+              score_thinking: 8,
+              score_workflow: 9,
+              teacher_feedback_draft: 'Nice work',
+              teacher_feedback_draft_updated_at: '2026-02-20T13:05:00Z',
+              graded_at: '2026-02-20T13:05:00Z',
+              graded_by: 'teacher@example.com',
+            },
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch in test: ${url}` }),
+      })
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    await screen.findByLabelText('Completion score')
+    await user.click(screen.getByRole('button', { name: 'Set Completion score to 7' }))
+    await user.click(screen.getByRole('button', { name: 'Set Thinking score to 8' }))
+    await user.click(screen.getByRole('button', { name: 'Set Workflow score to 9' }))
+    await user.click(screen.getByRole('button', { name: 'Final' }))
+
+    await waitFor(() => {
+      expect(gradeBodies.at(-1)).toMatchObject({ save_mode: 'graded' })
+    })
+    expect(screen.getByText('Graded Feb 20, 8:05 AM')).toBeInTheDocument()
   })
 
   it('persists expanded and collapsed sections per classroom when switching students', async () => {
@@ -319,7 +494,9 @@ describe('TeacherStudentWorkPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Grade' }))
 
     expect(await screen.findByTestId('history-list')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
+    })
 
     rerender(
       <TeacherStudentWorkPanel
@@ -338,7 +515,9 @@ describe('TeacherStudentWorkPanel', () => {
     })
 
     expect(await screen.findByTestId('history-list')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
+    })
   })
 
   it('falls back to the default expanded sections when the cookie is invalid', async () => {
@@ -533,7 +712,9 @@ describe('TeacherStudentWorkPanel', () => {
 
     await user.click(screen.getByRole('button', { name: 'Feedback' }))
 
-    expect(screen.queryByPlaceholderText('Teacher feedback draft')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('Teacher feedback draft')).not.toBeInTheDocument()
+    })
     expect(screen.queryByText('Draft present')).not.toBeInTheDocument()
     expect(screen.queryByText('1 returned')).not.toBeInTheDocument()
   })
@@ -591,75 +772,6 @@ describe('TeacherStudentWorkPanel', () => {
     expect(draft).not.toHaveClass('border-primary')
     expect(draft).not.toHaveClass('bg-info-bg')
     expect(screen.queryByText('AI draft')).not.toBeInTheDocument()
-  })
-
-  it('prepends new AI feedback to the current unsaved draft after auto-grade', async () => {
-    const user = userEvent.setup()
-    let studentFetchCount = 0
-
-    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-
-      if (url.includes('/api/teacher/assignments/') && url.includes('/students/')) {
-        studentFetchCount += 1
-
-        return Promise.resolve({
-          ok: true,
-          json: async () =>
-            makeStudentWork('student-1', {
-              graded: false,
-              teacherFeedbackDraft: studentFetchCount > 1 ? null : '',
-              aiFeedbackSuggestion: studentFetchCount > 1 ? 'AI feedback suggestion' : null,
-            }),
-        })
-      }
-
-      if (url.includes('/api/teacher/assignments/') && url.includes('/auto-grade')) {
-        expect(init?.method).toBe('POST')
-
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ graded_count: 1 }),
-        })
-      }
-
-      if (url.includes('/api/assignment-docs/') && url.includes('/history')) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ history: [] }),
-        })
-      }
-
-      return Promise.resolve({
-        ok: false,
-        json: async () => ({ error: `Unhandled fetch in test: ${url}` }),
-      })
-    })
-
-    render(
-      <TeacherStudentWorkPanel
-        classroomId="classroom-1"
-        assignmentId="assignment-1"
-        studentId="student-1"
-        mode="details"
-        inspectorCollapsed={false}
-        inspectorWidth={40}
-        totalWidth={1200}
-      />,
-    )
-
-    const draft = await screen.findByPlaceholderText('Teacher feedback draft')
-    await user.clear(draft)
-    await user.type(draft, 'Teacher note')
-    await user.click(screen.getByRole('button', { name: 'AI grade' }))
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText('Teacher feedback draft')).toHaveValue(
-        'AI feedback suggestion\n\nTeacher note',
-      )
-    })
-
-    expect(screen.getByText('AI draft')).toBeInTheDocument()
   })
 
   it('renders overview mode as inspector-only without submission content', async () => {
@@ -821,5 +933,40 @@ describe('TeacherStudentWorkPanel', () => {
       'https://github.com/example/student-1-repo',
     )
     expect(header).toHaveTextContent('@student1')
+  })
+
+  it('resets the individual pane split to 50/50 on separator double click', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+
+    const onLayoutChange = vi.fn()
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+        onLayoutChange={onLayoutChange}
+      />,
+    )
+
+    await screen.findByTestId('individual-content-header')
+
+    fireEvent.doubleClick(screen.getByRole('separator', { name: 'Resize content and grading panes' }))
+
+    expect(onLayoutChange).toHaveBeenCalledTimes(1)
+    expect(onLayoutChange.mock.calls[0]?.[0]).toEqual(expect.any(Function))
+    expect(onLayoutChange.mock.calls[0][0]({
+      inspectorCollapsed: false,
+      inspectorWidth: 40,
+    })).toEqual({
+      inspectorCollapsed: false,
+      inspectorWidth: 50,
+    })
   })
 })
