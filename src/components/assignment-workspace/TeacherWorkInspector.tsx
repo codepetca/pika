@@ -243,7 +243,7 @@ function AnimatedSectionContent({
   useEffect(() => {
     let frameId = 0
     let frameIdTwo = 0
-    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    let timeoutId: number | undefined
 
     if (expanded) {
       setShouldRender(true)
@@ -666,6 +666,7 @@ export function TeacherWorkInspector({
     {
       id: 'comments',
       title: 'Feedback',
+      summary: null,
       content: (
         <div className="space-y-3">
           <div className="space-y-1">

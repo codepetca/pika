@@ -114,6 +114,29 @@ function parseGradeInputs({
   }
 }
 
+function serializeDraftGradeInputs({
+  scoreCompletion,
+  scoreThinking,
+  scoreWorkflow,
+}: {
+  scoreCompletion: string
+  scoreThinking: string
+  scoreWorkflow: string
+}) {
+  const normalize = (value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const parsed = Number(trimmed)
+    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 10 ? parsed : null
+  }
+
+  return {
+    scoreCompletion: normalize(scoreCompletion),
+    scoreThinking: normalize(scoreThinking),
+    scoreWorkflow: normalize(scoreWorkflow),
+  }
+}
+
 export interface TeacherStudentWorkController {
   data: StudentWorkData | null
   error: string
@@ -406,17 +429,26 @@ export function useTeacherStudentWorkController({
         scoreThinking,
         scoreWorkflow,
       })
+      const serializedDraftScores = serializeDraftGradeInputs({
+        scoreCompletion,
+        scoreThinking,
+        scoreWorkflow,
+      })
+      const isValidForSelectedMode =
+        selectedSaveMode === 'draft'
+          ? true
+          : parsedScores.isValid
 
-      if (!parsedScores.isValid) {
+      if (!isValidForSelectedMode) {
         if (options?.source !== 'autosave') {
           setGradeError('Scores must be integers 0–10')
         }
         return
       }
 
-      const sc = parsedScores.scoreCompletion
-      const st = parsedScores.scoreThinking
-      const sw = parsedScores.scoreWorkflow
+      const sc = selectedSaveMode === 'draft' ? serializedDraftScores.scoreCompletion : parsedScores.scoreCompletion
+      const st = selectedSaveMode === 'draft' ? serializedDraftScores.scoreThinking : parsedScores.scoreThinking
+      const sw = selectedSaveMode === 'draft' ? serializedDraftScores.scoreWorkflow : parsedScores.scoreWorkflow
       const nextSnapshot = buildGradeSnapshot({
         scoreCompletion,
         scoreThinking,
@@ -481,9 +513,9 @@ export function useTeacherStudentWorkController({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            student_id: studentId,
-            score_completion: sc,
-            score_thinking: st,
+              student_id: studentId,
+              score_completion: sc,
+              score_thinking: st,
             score_workflow: sw,
             feedback: feedbackDraft,
             save_mode: selectedSaveMode,
@@ -530,13 +562,14 @@ export function useTeacherStudentWorkController({
       return
     }
 
-    const parsedScores = parseGradeInputs({
-      scoreCompletion,
-      scoreThinking,
-      scoreWorkflow,
-    })
-
-    if (!parsedScores.isValid) {
+    if (
+      selectedSaveMode === 'graded'
+      && !parseGradeInputs({
+        scoreCompletion,
+        scoreThinking,
+        scoreWorkflow,
+      }).isValid
+    ) {
       return
     }
 

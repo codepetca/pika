@@ -280,6 +280,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const dialogVariant = pendingAction?.mode === 'delete' ? 'danger' : 'default'
 
   const hasActiveClassrooms = activeClassrooms.length > 0
+  const showBottomCreateButton = hasActiveClassrooms || view === 'archived'
 
   return (
     <PageLayout className="mx-auto max-w-2xl">
@@ -435,7 +436,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
               onClick={() => setShowCreate(true)}
               className={[
                 'rounded-control bg-primary px-4 py-1.5 text-sm font-semibold text-text-inverse shadow-sm transition-colors hover:bg-primary-hover',
-                hasActiveClassrooms ? 'inline-flex items-center' : 'hidden',
+                showBottomCreateButton ? 'inline-flex items-center' : 'hidden',
               ].join(' ')}
             >
               + New

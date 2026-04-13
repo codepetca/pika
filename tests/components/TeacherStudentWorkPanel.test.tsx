@@ -400,6 +400,87 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
   })
 
+  it('autosaves feedback-only draft edits before scores are complete', async () => {
+    const gradeBodies: Array<Record<string, unknown>> = []
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url.includes('/api/teacher/assignments/') && url.includes('/students/')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeStudentWork('student-1', { graded: false }),
+        })
+      }
+
+      if (url.includes('/api/assignment-docs/') && url.includes('/history')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ history: [] }),
+        })
+      }
+
+      if (url.includes('/api/teacher/assignments/') && url.endsWith('/grade')) {
+        const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+        gradeBodies.push(body)
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            doc: {
+              ...makeStudentWork('student-1', { graded: false }).doc,
+              score_completion: null,
+              score_thinking: null,
+              score_workflow: null,
+              teacher_feedback_draft: 'Teacher note',
+              teacher_feedback_draft_updated_at: '2026-02-20T13:05:00Z',
+              graded_at: null,
+              graded_by: null,
+            },
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch in test: ${url}` }),
+      })
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    await screen.findByPlaceholderText('Teacher feedback draft')
+
+    await user.type(screen.getByPlaceholderText('Teacher feedback draft'), 'Teacher note')
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100))
+    })
+
+    await waitFor(() => {
+      expect(gradeBodies).toHaveLength(1)
+    })
+    expect(gradeBodies[0]).toMatchObject({
+      student_id: 'student-1',
+      score_completion: null,
+      score_thinking: null,
+      score_workflow: null,
+      feedback: 'Teacher note',
+      save_mode: 'draft',
+    })
+    expect(screen.getByText('Draft autosaved')).toBeInTheDocument()
+  })
+
   it('marks the current grade as graded on demand', async () => {
     const gradeBodies: Array<Record<string, unknown>> = []
 
