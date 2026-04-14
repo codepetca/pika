@@ -11,6 +11,7 @@ gh issue view <number> --json number,title,body,labels,comments
 1. Read `.ai/START-HERE.md`
 2. Read `docs/ai-instructions.md` and follow its required reading order.
 3. Check `.ai/features.json` for any referenced feature IDs.
+4. If the issue affects UI/UX, read `docs/guidance/ui/README.md` and `docs/guidance/ui/stable.md`.
 
 ## 3) Branch & PR Setup
 - Branch name pattern: `<issue-number>-<short-slug>` (example: `8-ai-effectiveness-layer`)
@@ -23,6 +24,13 @@ Produce a short plan:
 - Approach and edge cases
 - Testing plan (`pnpm test` + targeted tests)
 
+If the issue affects UI/UX, add a **UI guidance declaration**:
+- guidance read
+- stable guidance followed
+- experimental guidance introduced: yes/no
+- experimental draft file created or updated, if any
+- human promotion needed: yes/no
+
 Do not proceed until the user approves the plan.
 
 ## 5) Execute With Constraints
@@ -31,6 +39,10 @@ Do not proceed until the user approves the plan.
 - Preserve security patterns (sessions, role checks, Supabase usage).
 - Keep business logic out of UI components.
 - Do not add dependencies without explicit approval.
+- Stable UI guidance is the default for new UI work.
+- AI may create or update experimental UI guidance entries when a new pattern is introduced.
+- AI may add to legacy or open-question guidance when clearly justified.
+- AI must not silently edit stable UI guidance as part of ordinary feature work.
 
 ## 6) AI UI Verification (MANDATORY for UI Changes)
 

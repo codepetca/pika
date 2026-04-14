@@ -2,6 +2,8 @@
 
 This document defines UI/UX patterns, visual design standards, and component guidelines for **Pika**.
 
+For workflow-specific UI guidance and governed reuse decisions, use the UI canon in [`docs/guidance/ui/README.md`](/docs/guidance/ui/README.md). This file remains the high-level invariant layer; the UI canon handles stable, experimental, legacy, and open-question guidance for active workflows.
+
 ---
 
 ## Design Principles

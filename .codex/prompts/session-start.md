@@ -10,7 +10,17 @@ Steps:
 4) Read docs: `$PIKA_WORKTREE/docs/ai-instructions.md` and `$PIKA_WORKTREE/docs/core/architecture.md`
 5) Check features: `node "$PIKA_WORKTREE/scripts/features.mjs" next`
 6) If $ARGUMENTS is an issue number: `gh issue view $ARGUMENTS --json number,title,body,labels`
-7) State task clearly. Propose approach. Wait for approval before coding.
+7) If the task affects UI/UX, also read:
+   - `$PIKA_WORKTREE/docs/guidance/ui/README.md`
+   - `$PIKA_WORKTREE/docs/guidance/ui/stable.md`
+8) State task clearly. Propose approach. Wait for approval before coding.
+
+For UI/UX work, include a UI guidance declaration:
+- guidance read
+- stable guidance followed
+- experimental guidance introduced: yes/no
+- experimental draft file created or updated, if any
+- human promotion needed: yes/no
 
 Alternatively, run the session start script:
 ```bash

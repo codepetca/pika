@@ -2,6 +2,13 @@
 
 Design tokens and component guidelines for consistent, compact UI.
 
+> Historical reference only. This file is no longer a co-equal source of truth for new UI work.
+>
+> For active guidance, read:
+> - [`docs/core/design.md`](/docs/core/design.md)
+> - [`src/ui/README.md`](/src/ui/README.md)
+> - [`docs/guidance/ui/README.md`](/docs/guidance/ui/README.md)
+
 ---
 
 ## 🎨 Design Principles
