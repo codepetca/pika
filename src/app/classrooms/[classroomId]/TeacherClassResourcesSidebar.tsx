@@ -151,7 +151,7 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
           {!hasContent && !isArchived && (
             <div className="rounded-lg border border-border bg-surface-2 p-4">
               <p className="mb-2 text-sm text-text-muted">
-                Use this page to share static resources with your students:
+                Use this area to share static resources with your students:
               </p>
               <ul className="list-inside list-disc space-y-1 text-sm text-text-muted">
                 <li>Contact information and office hours</li>

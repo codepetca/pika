@@ -8464,3 +8464,17 @@
   - teacher mobile resources drawer: `/tmp/pika-resources-teacher-mobile-panel-v4.png`
 
 **Status:** The Resources page now presents as a cleaner split view with minimal chrome and the new-announcement action anchored at the bottom of the left pane.
+
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Adjust the empty-state helper copy in the right resources pane.
+
+**Completed:**
+- Changed the teacher resources empty-state text from `Use this page to share static resources with your students:` to `Use this area to share static resources with your students:`.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3001`:
+  - teacher desktop resources split view: `/tmp/pika-resources-copyfix.png`
+
+**Status:** The right-pane helper copy now matches the requested wording.
