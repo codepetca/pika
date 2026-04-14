@@ -28,6 +28,10 @@ When working on any task, read these files **in this exact order** to prevent ar
 6. **[/docs/core/tests.md](/docs/core/tests.md)** — TDD requirements
 7. **[/docs/core/roadmap.md](/docs/core/roadmap.md)** — Current status
 
+For **UI-affecting work**, immediately continue with:
+- **[/docs/guidance/ui/README.md](/docs/guidance/ui/README.md)** — UI canon entrypoint
+- **[/docs/guidance/ui/stable.md](/docs/guidance/ui/stable.md)** — Stable UI guidance for current governed workflows
+
 Then consult:
 - **[/docs/guidance/*.md](/docs/guidance/)** — Feature specifications (as needed)
 - **[/docs/workflow/handle-issue.md](/docs/workflow/handle-issue.md)** — Issue workflow (when working on issues)
@@ -303,4 +307,3 @@ gh issue view X          # View issue details
 /tdd <feature>           # Write tests first, then implement
 /ui-verify <page>        # Take Playwright screenshots to verify UI
 ```
-

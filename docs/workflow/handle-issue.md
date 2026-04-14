@@ -8,11 +8,18 @@ Use the automated command for the full workflow:
 
 1. `gh issue view <N> --json number,title,body,labels`
 2. Read `docs/ai-instructions.md` + relevant core docs
-3. Draft plan: branch name, files to change, tests to write first, migration needed?
-4. **Wait for user approval** before writing any code
-5. Create worktree: `issue/<N>-<slug>` (see `docs/dev-workflow.md`)
-6. Follow TDD: tests first → implement → refactor
-7. Create PR with "Closes #N"
+3. If the issue touches UI/UX, also read `docs/guidance/ui/README.md` and `docs/guidance/ui/stable.md`
+4. Draft plan: branch name, files to change, tests to write first, migration needed?
+5. For UI/UX work, include a UI guidance declaration:
+   - guidance read
+   - stable guidance followed
+   - experimental guidance introduced: yes/no
+   - experimental draft file created/updated, if any
+   - human promotion needed: yes/no
+6. **Wait for user approval** before writing any code
+7. Create worktree: `issue/<N>-<slug>` (see `docs/dev-workflow.md`)
+8. Follow TDD: tests first → implement → refactor
+9. Create PR with "Closes #N"
 
 ## Critical Rules
 
@@ -20,3 +27,5 @@ Use the automated command for the full workflow:
 - Make minimal, focused changes — do not modify unrelated files
 - Follow the reading order to prevent drift
 - Preserve existing patterns unless explicitly asked to change them
+- Stable UI guidance is the default for new UI work
+- AI may draft experimental UI guidance, but may not silently edit stable UI guidance during feature work
