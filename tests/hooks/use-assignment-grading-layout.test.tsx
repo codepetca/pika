@@ -62,7 +62,7 @@ describe('useAssignmentGradingLayout', () => {
       expect(document.cookie).toContain(savedValue)
     })
 
-    expect(document.cookie).not.toContain(encodeURIComponent('"inspectorWidth":40'))
+    expect(document.cookie).not.toContain(encodeURIComponent('"inspectorWidth":50'))
   })
 
   it('persists mode-specific layout updates and resets to defaults', async () => {
@@ -90,11 +90,11 @@ describe('useAssignmentGradingLayout', () => {
       expect(result.current.layout).toEqual({
         overview: {
           inspectorCollapsed: false,
-          inspectorWidth: 40,
+          inspectorWidth: 50,
         },
         details: {
           inspectorCollapsed: false,
-          inspectorWidth: 40,
+          inspectorWidth: 50,
         },
       })
     })

@@ -67,6 +67,10 @@ export function AppHeader({
   }, [])
 
   const isExamMode = Boolean(examModeHeader)
+  const pageTitleClassName =
+    pageTitle === 'Classrooms'
+      ? 'text-base sm:text-lg'
+      : 'text-sm'
 
   useEffect(() => {
     if (isExamMode) return
@@ -148,7 +152,7 @@ export function AppHeader({
             </div>
           </div>
         ) : pageTitle ? (
-          <h1 className="truncate text-sm font-semibold text-text-default">{pageTitle}</h1>
+          <h1 className={`truncate font-semibold text-text-default ${pageTitleClassName}`}>{pageTitle}</h1>
         ) : null}
       </div>
 
@@ -159,7 +163,7 @@ export function AppHeader({
             <button
               type="button"
               onClick={() => void toggleFullscreen()}
-              className="p-2 rounded-md text-text-muted hover:text-text-default hover:bg-surface-hover transition-colors"
+              className="mr-1 p-2 rounded-md text-text-muted hover:text-text-default hover:bg-surface-hover transition-colors"
               aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
             >
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}

@@ -17,11 +17,11 @@ describe('assignment grading layout helpers', () => {
     expect(getDefaultAssignmentGradingLayout()).toEqual({
       overview: {
         inspectorCollapsed: false,
-        inspectorWidth: 40,
+        inspectorWidth: 50,
       },
       details: {
         inspectorCollapsed: false,
-        inspectorWidth: 40,
+        inspectorWidth: 50,
       },
     })
   })
@@ -90,7 +90,7 @@ describe('assignment grading layout helpers', () => {
       ...layout,
       overview: {
         inspectorCollapsed: true,
-        inspectorWidth: 40,
+        inspectorWidth: 50,
       },
     })
   })

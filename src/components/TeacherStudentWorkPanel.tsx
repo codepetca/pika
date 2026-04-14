@@ -251,9 +251,9 @@ export function TeacherStudentWorkPanel({
       >
         <div
           data-testid="individual-content-header"
-          className="border-b border-border bg-surface px-4 py-3 text-sm"
+          className="border-b border-border bg-surface px-4 py-2 text-sm"
         >
-          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
+          <div className="flex flex-col gap-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
             <div
               className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
             >
@@ -345,15 +345,17 @@ export function TeacherStudentWorkPanel({
       </div>
 
       {!layout.inspectorCollapsed && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize content and grading panes"
-          className="relative hidden w-3 shrink-0 cursor-col-resize bg-transparent lg:block"
-          onPointerDown={handleInspectorResizeStart}
-          onDoubleClick={handleInspectorResizeReset}
-        >
-          <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+        <div className="relative hidden w-0 shrink-0 lg:block">
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize content and grading panes"
+            className="absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize bg-transparent"
+            onPointerDown={handleInspectorResizeStart}
+            onDoubleClick={handleInspectorResizeReset}
+          >
+            <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+          </div>
         </div>
       )}
 
