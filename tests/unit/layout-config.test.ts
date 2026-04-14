@@ -52,6 +52,21 @@ describe('getLayoutConfig', () => {
     expect(listConfig.rightSidebar.desktopAlwaysOpen).toBeUndefined()
     expect(viewingConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
   })
+
+  it('should use a persistent two-pane layout for resources tabs', () => {
+    const teacherConfig = getLayoutConfig('resources-teacher')
+    const studentConfig = getLayoutConfig('resources-student')
+
+    expect(teacherConfig.rightSidebar.enabled).toBe(true)
+    expect(teacherConfig.rightSidebar.defaultOpen).toBe(true)
+    expect(teacherConfig.rightSidebar.defaultWidth).toBe('50%')
+    expect(teacherConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
+
+    expect(studentConfig.rightSidebar.enabled).toBe(true)
+    expect(studentConfig.rightSidebar.defaultOpen).toBe(true)
+    expect(studentConfig.rightSidebar.defaultWidth).toBe('50%')
+    expect(studentConfig.rightSidebar.desktopAlwaysOpen).toBe(true)
+  })
 })
 
 describe('getRightSidebarCookieName', () => {

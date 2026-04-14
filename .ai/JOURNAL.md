@@ -8405,3 +8405,62 @@
 - `mise exec node@24 -- bash scripts/verify-env.sh`
 
 **Status:** The repo now consistently targets Node 24, the manifest matches the locked direct dependency baseline, and the full validation stack passes under Node 24.
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Rename the teacher classroom `Attendance` tab to `Daily`.
+
+**Completed:**
+- Updated the teacher classroom navigation item label from `Attendance` to `Daily` while keeping the existing `tab=attendance` route key unchanged.
+- Updated the UI gallery teacher quick link label to match the new wording.
+- Updated the nav component test assertion for the renamed teacher tab.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `corepack pnpm exec vitest run tests/components/NavItems.test.tsx`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop expanded sidebar: `/tmp/pika-daily-teacher-expanded.png`
+  - student mobile classroom view: `/tmp/pika-daily-student.png`
+  - teacher mobile full-page view: `/tmp/pika-daily-teacher-mobile-full.png`
+
+**Status:** The teacher tab label now reads `Daily`, and the classroom page still renders correctly in teacher and student views.
+
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Replace the Resources tab's internal `Announcements` / `Class Resources` sub-tabs with a two-pane layout.
+
+**Completed:**
+- Reworked the classroom Resources tab so announcements stay in the main pane and class resources live in the right sidebar for both teacher and student views.
+- Enabled a persistent desktop right sidebar for `resources-teacher` and `resources-student`, with the standard mobile panel toggle behavior.
+- Extracted dedicated teacher/student class-resources sidebar components and kept the teacher autosave editor behavior intact.
+- Updated announcements sections to support pane-friendly widths instead of always forcing a centered narrow column.
+- Added a focused Resources tab component test and expanded layout-config coverage for the new two-pane route behavior.
+- Polished empty-resource detection so blank Tiptap docs show the expected empty state instead of an empty box.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ResourcesTab.test.tsx tests/unit/layout-config.test.ts`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop split view: `/tmp/pika-resources-teacher-desktop.png`
+  - student desktop split view: `/tmp/pika-resources-student-desktop.png`
+  - teacher mobile resources drawer: `/tmp/pika-resources-teacher-mobile-panel.png`
+
+**Status:** Resources now behaves as a two-pane page with announcements on the left and class resources on the right, while still working on mobile via the standard panel drawer.
+
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Simplify the Resources split-view chrome and move the teacher new-announcement action to the bottom of the announcements pane.
+
+**Completed:**
+- Removed the left-pane `Announcements` heading and the desktop right-pane `Class Resources` header.
+- Removed the teacher resources save-status strip and its divider line.
+- Moved the teacher `New Announcement` action/form block to the bottom of the announcements pane.
+- Simplified the mobile resources drawer header to just the back control so the label and divider are gone there too.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ResourcesTab.test.tsx tests/unit/layout-config.test.ts`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3001`:
+  - teacher desktop split view: `/tmp/pika-resources-teacher-desktop-v4.png`
+  - teacher mobile resources drawer: `/tmp/pika-resources-teacher-mobile-panel-v4.png`
+
+**Status:** The Resources page now presents as a cleaner split view with minimal chrome and the new-announcement action anchored at the bottom of the left pane.

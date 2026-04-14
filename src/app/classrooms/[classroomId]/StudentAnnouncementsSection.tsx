@@ -6,12 +6,14 @@ import { Spinner } from '@/components/Spinner'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import type { Announcement, Classroom } from '@/types'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { cn } from '@/ui/utils'
 
 interface Props {
   classroom: Classroom
+  className?: string
 }
 
-export function StudentAnnouncementsSection({ classroom }: Props) {
+export function StudentAnnouncementsSection({ classroom, className }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [showAll, setShowAll] = useState(false)
@@ -84,14 +86,14 @@ export function StudentAnnouncementsSection({ classroom }: Props) {
 
   if (announcements.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto bg-surface rounded-lg border border-border p-8 text-center">
+      <div className={cn('bg-surface rounded-lg border border-border p-8 text-center', className ?? 'max-w-2xl mx-auto')}>
         <p className="text-text-muted">No announcements yet.</p>
       </div>
     )
   }
 
   return (
-    <div className="space-y-3 max-w-2xl mx-auto">
+    <div className={cn('space-y-3', className ?? 'max-w-2xl mx-auto')}>
       {(showAll ? announcements : announcements.slice(0, 5)).map((announcement) => (
         <div
           key={announcement.id}

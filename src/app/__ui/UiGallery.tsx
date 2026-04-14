@@ -50,7 +50,7 @@ export function UiGallery({ role }: Props) {
       id: c.id,
       title: c.title,
       links: [
-        { label: 'Attendance', href: `/classrooms/${c.id}?tab=attendance` },
+        { label: 'Daily', href: `/classrooms/${c.id}?tab=attendance` },
         { label: 'Assignments', href: `/classrooms/${c.id}?tab=assignments` },
         { label: 'Quizzes', href: `/classrooms/${c.id}?tab=quizzes` },
         { label: 'Tests', href: `/classrooms/${c.id}?tab=tests` },

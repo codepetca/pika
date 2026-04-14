@@ -7,6 +7,7 @@ import { Spinner } from '@/components/Spinner'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import type { Announcement, Classroom } from '@/types'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { cn } from '@/ui/utils'
 import {
   combineScheduleDateTimeToIso,
   DEFAULT_SCHEDULE_TIME,
@@ -17,6 +18,7 @@ import {
 
 interface Props {
   classroom: Classroom
+  className?: string
 }
 
 // Helper to check if announcement is scheduled (not yet published)
@@ -50,7 +52,7 @@ function parseDateTime(isoString: string): { date: string; time: string } {
   return parseScheduleIsoToParts(isoString)
 }
 
-export function TeacherAnnouncementsSection({ classroom }: Props) {
+export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [showAll, setShowAll] = useState(false)
@@ -332,122 +334,11 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
   }
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto">
+    <div className={cn('space-y-4', className ?? 'max-w-2xl mx-auto')}>
       {isReadOnly && (
         <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
           This classroom is archived. Announcements are read-only.
         </div>
-      )}
-
-      {/* New announcement form */}
-      {isCreating ? (
-        <div className="bg-surface rounded-lg border border-border p-4">
-          <textarea
-            ref={newTextareaRef}
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-            onKeyDown={handleNewKeyDown}
-            disabled={saving}
-            rows={3}
-            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
-            placeholder="Write an announcement..."
-          />
-          {/* Show scheduled date if set */}
-          {scheduleDateTime && (
-            <div className="flex items-center gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const { date, time } = parseDateTime(scheduleDateTime)
-                  setPendingScheduleDate(date)
-                  setPendingScheduleTime(time)
-                  setShowScheduleDropdown(true)
-                }}
-                className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
-              >
-                <Calendar className="h-4 w-4 flex-shrink-0" />
-                <span>{formatDate(scheduleDateTime)}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setScheduleDateTime('')}
-                className="text-xs text-text-muted hover:text-text-default"
-              >
-                Clear
-              </button>
-            </div>
-          )}
-          <div className="flex items-center justify-between mt-2">
-            <button
-              type="button"
-              onClick={() => {
-                setIsCreating(false)
-                setNewContent('')
-                setScheduleDateTime('')
-                setShowScheduleDropdown(false)
-              }}
-              className="text-sm text-text-muted hover:text-text-default"
-            >
-              Cancel
-            </button>
-            <div className="relative flex items-center" ref={dropdownRef}>
-              <Button
-                variant="primary"
-                size="sm"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => createAnnouncement(scheduleDateTime || undefined)}
-                disabled={saving || !newContent.trim()}
-                className={scheduleDateTime ? '' : 'rounded-r-none'}
-              >
-                {saving ? (scheduleDateTime ? 'Scheduling...' : 'Posting...') : (scheduleDateTime ? 'Schedule' : 'Post')}
-              </Button>
-              {!scheduleDateTime && (
-                <button
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setPendingScheduleDate(getTodayDate())
-                    setPendingScheduleTime(DEFAULT_SCHEDULE_TIME)
-                    setShowScheduleDropdown(!showScheduleDropdown)
-                  }}
-                  disabled={saving || !newContent.trim()}
-                  className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              )}
-
-              {/* Schedule dropdown */}
-              {showScheduleDropdown && (
-                <ScheduleDateTimePicker
-                  className="absolute right-0 top-full mt-1 z-10 min-w-[220px]"
-                  date={pendingScheduleDate}
-                  time={pendingScheduleTime}
-                  minDate={getTodayDate()}
-                  isFutureValid={!pendingScheduleDate ? false : isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
-                  onDateChange={setPendingScheduleDate}
-                  onTimeChange={setPendingScheduleTime}
-                  onCancel={() => setShowScheduleDropdown(false)}
-                  onConfirm={() => {
-                    if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
-                      setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
-                      setShowScheduleDropdown(false)
-                    }
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        !isReadOnly && (
-          <div className="flex justify-center">
-            <Button variant="primary" onClick={() => setIsCreating(true)}>
-              <Plus className="h-4 w-4 mr-1" aria-hidden="true" />
-              New Announcement
-            </Button>
-          </div>
-        )
       )}
 
       {/* Empty state */}
@@ -635,6 +526,115 @@ export function TeacherAnnouncementsSection({ classroom }: Props) {
         </div>
         )
       })()}
+
+      {/* New announcement form */}
+      {isCreating ? (
+        <div className="bg-surface rounded-lg border border-border p-4">
+          <textarea
+            ref={newTextareaRef}
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+            onKeyDown={handleNewKeyDown}
+            disabled={saving}
+            rows={3}
+            className="w-full rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
+            placeholder="Write an announcement..."
+          />
+          {scheduleDateTime && (
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const { date, time } = parseDateTime(scheduleDateTime)
+                  setPendingScheduleDate(date)
+                  setPendingScheduleTime(time)
+                  setShowScheduleDropdown(true)
+                }}
+                className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
+              >
+                <Calendar className="h-4 w-4 flex-shrink-0" />
+                <span>{formatDate(scheduleDateTime)}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setScheduleDateTime('')}
+                className="text-xs text-text-muted hover:text-text-default"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+          <div className="mt-2 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                setIsCreating(false)
+                setNewContent('')
+                setScheduleDateTime('')
+                setShowScheduleDropdown(false)
+              }}
+              className="text-sm text-text-muted hover:text-text-default"
+            >
+              Cancel
+            </button>
+            <div className="relative flex items-center" ref={dropdownRef}>
+              <Button
+                variant="primary"
+                size="sm"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => createAnnouncement(scheduleDateTime || undefined)}
+                disabled={saving || !newContent.trim()}
+                className={scheduleDateTime ? '' : 'rounded-r-none'}
+              >
+                {saving ? (scheduleDateTime ? 'Scheduling...' : 'Posting...') : (scheduleDateTime ? 'Schedule' : 'Post')}
+              </Button>
+              {!scheduleDateTime && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setPendingScheduleDate(getTodayDate())
+                    setPendingScheduleTime(DEFAULT_SCHEDULE_TIME)
+                    setShowScheduleDropdown(!showScheduleDropdown)
+                  }}
+                  disabled={saving || !newContent.trim()}
+                  className="inline-flex items-center justify-center h-8 px-2 bg-primary text-white rounded-r-md border-l border-primary-hover hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              )}
+
+              {showScheduleDropdown && (
+                <ScheduleDateTimePicker
+                  className="absolute right-0 top-full z-10 mt-1 min-w-[220px]"
+                  date={pendingScheduleDate}
+                  time={pendingScheduleTime}
+                  minDate={getTodayDate()}
+                  isFutureValid={!pendingScheduleDate ? false : isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
+                  onDateChange={setPendingScheduleDate}
+                  onTimeChange={setPendingScheduleTime}
+                  onCancel={() => setShowScheduleDropdown(false)}
+                  onConfirm={() => {
+                    if (pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
+                      setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
+                      setShowScheduleDropdown(false)
+                    }
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        !isReadOnly && (
+          <div className="flex justify-center pt-2">
+            <Button variant="primary" onClick={() => setIsCreating(true)}>
+              <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+              New Announcement
+            </Button>
+          </div>
+        )
+      )}
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog
