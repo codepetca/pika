@@ -273,6 +273,7 @@ export function TeacherClassroomView({
   const [info, setInfo] = useState('')
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const workspaceContainerRef = useRef<HTMLDivElement | null>(null)
+  const defaultedWorkspaceKeyRef = useRef<string | null>(null)
   const [workspaceWidth, setWorkspaceWidth] = useState(0)
 
   // Batch grading state
@@ -744,6 +745,11 @@ export function TeacherClassroomView({
     setSelectedStudentId(null)
   }, [currentStudentRows, selectedStudentId])
 
+  useEffect(() => {
+    if (selection.mode === 'assignment') return
+    defaultedWorkspaceKeyRef.current = null
+  }, [selection.mode])
+
   const resolveDetailsStudentId = useCallback(() => {
     if (selection.mode !== 'assignment') return null
 
@@ -785,14 +791,20 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
-    if (assignmentWorkspaceMode !== 'details') return
-    if (selectedStudentId) return
+    const workspaceKey = `${selection.assignmentId}:${assignmentWorkspaceMode}`
+    if (defaultedWorkspaceKeyRef.current === workspaceKey) return
+
+    if (selectedStudentId) {
+      defaultedWorkspaceKeyRef.current = workspaceKey
+      return
+    }
 
     const nextStudentId = resolveDetailsStudentId()
     if (nextStudentId) {
+      defaultedWorkspaceKeyRef.current = workspaceKey
       setSelectedStudentId(nextStudentId)
     }
-  }, [assignmentWorkspaceMode, resolveDetailsStudentId, selectedStudentId, selection.mode])
+  }, [assignmentWorkspaceMode, resolveDetailsStudentId, selectedStudentId, selection])
 
   // Escape key to deselect student
   useEffect(() => {
@@ -1226,13 +1238,14 @@ export function TeacherClassroomView({
         primary={primaryButtons}
         actions={[]}
         trailing={showMobileToggle ? <RightSidebarToggle /> : undefined}
+        className={selection.mode === 'summary' ? '' : 'pl-0 pr-2'}
       />
 
       <PageContent
         className={
           selection.mode === 'summary'
             ? 'flex flex-col gap-3'
-            : 'flex min-h-0 flex-1 flex-col gap-3 pt-0'
+            : 'px-0 flex min-h-0 flex-1 flex-col gap-3 pt-0'
         }
       >
         {error && (
@@ -1331,15 +1344,17 @@ export function TeacherClassroomView({
                     {studentTable}
                   </div>
                   {isDesktop && (
-                    <div
-                      role="separator"
-                      aria-orientation="vertical"
-                      aria-label="Resize table and grading panes"
-                      className="relative hidden w-3 shrink-0 cursor-col-resize bg-transparent lg:block"
-                      onPointerDown={handleOverviewInspectorResizeStart}
-                      onDoubleClick={handleOverviewInspectorResizeReset}
-                    >
-                      <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+                    <div className="relative hidden w-0 shrink-0 lg:block">
+                      <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label="Resize table and grading panes"
+                        className="absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize bg-transparent"
+                        onPointerDown={handleOverviewInspectorResizeStart}
+                        onDoubleClick={handleOverviewInspectorResizeReset}
+                      >
+                        <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+                      </div>
                     </div>
                   )}
                   <div

@@ -22,7 +22,7 @@ export function StudentClassroomsIndex({ initialClassrooms }: Props) {
     <PageLayout className="mx-auto max-w-6xl">
       <PageActionBar
         primary={
-          <h1 className="text-2xl font-bold text-text-default">Classrooms</h1>
+          <h1 className="text-3xl font-bold text-text-default">Classrooms</h1>
         }
         actions={
           [

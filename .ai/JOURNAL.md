@@ -8206,3 +8206,168 @@
   - student assignments sanity check: `/tmp/issue453-ai-draft-student.png`
 
 **Status:** Fresh AI grading feedback now appears first in the draft, is visibly marked as AI-generated until the teacher clicks into the field, and then becomes a normal draft textarea without altering the text.
+
+## 2026-04-14 (assignment grading panes default to 50/50)
+
+**Goal:** Make the assignment workspace left/right panes open at an even 50/50 split in both Class and Individual grading modes.
+
+**Completed:**
+- Updated the shared assignment grading layout default so both overview (`Class`) and details (`Individual`) modes start with a `50%` inspector width instead of `40%`.
+- Left the existing persisted-cookie behavior and separator double-click reset behavior intact.
+- Updated the layout helper and hook tests to reflect the new default split.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/unit/assignment-grading-layout.test.ts tests/hooks/use-assignment-grading-layout.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- Visual verification on the local dev server:
+  - teacher class grading view: `/tmp/pika-assignment-class-mode.png`
+  - teacher individual grading view: `/tmp/pika-assignment-individual-mode.png`
+  - student mobile classroom sanity check: `/tmp/pika-student-classrooms.png`
+
+**Status:** Assignment grading now defaults to a 50/50 workspace split in both class and individual modes, while saved user-resized layouts still persist as before.
+
+## 2026-04-14 (assignment grading divider gutter removed)
+
+**Goal:** Remove the small gutter before the right-hand grading cards in assignment Class and Individual modes without losing resize behavior.
+
+**Completed:**
+- Changed both assignment resize separators to use an overlay hit target instead of reserving visible layout width.
+- Kept the draggable divider and double-click reset behavior intact while letting the right panel start flush against the divider line.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx tests/hooks/use-assignment-grading-layout.test.tsx tests/unit/assignment-grading-layout.test.ts`
+- Visual verification on the local dev server:
+  - teacher class grading view: `/tmp/pika-assignment-class-mode-tight-divider.png`
+  - teacher individual grading view: `/tmp/pika-assignment-individual-mode-tight-divider.png`
+  - student mobile classroom sanity check: `/tmp/pika-student-classrooms-tight-divider.png`
+
+**Status:** Assignment right-panel cards now sit flush against the divider in both class and individual grading modes, with the resize handle still available as an invisible overlay.
+
+## 2026-04-14 (individual assignment header compacted)
+
+**Goal:** Make the individual-mode left-pane header more vertically compact without removing the student name, character count, or navigation controls.
+
+**Completed:**
+- Reduced the individual work header top/bottom padding from `py-3` to `py-2`.
+- Tightened the internal row gap from `gap-2` to `gap-1` so the student name row and controls sit closer together.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx`
+- Visual verification on the local dev server:
+  - teacher individual grading view: `/tmp/pika-assignment-individual-header-compact.png`
+
+**Status:** The individual-mode header is more vertically compact while preserving the same content and controls.
+
+## 2026-04-14 (classrooms landing title enlarged)
+
+**Goal:** Make the `Classrooms` title on the landing classrooms page feel larger and more prominent.
+
+**Completed:**
+- Increased the student landing page `Classrooms` heading from `text-2xl` to `text-3xl`.
+- Added a classrooms-only title size bump in the shared app header so the teacher landing page title renders larger without affecting other page titles.
+
+**Validation:**
+- Visual verification on the local dev server:
+  - teacher classrooms landing page: `/tmp/pika-classrooms-title-teacher.png`
+  - student classrooms landing page: `/tmp/pika-classrooms-title-student.png`
+
+**Status:** The landing `Classrooms` title is now more prominent for both teacher and student views.
+
+## 2026-04-14 (assignment summary gutters removed)
+
+**Goal:** Remove the extra left/right gutter around assignment summary lists while keeping the cards themselves readable.
+
+**Completed:**
+- Removed the generic `PageContent` horizontal padding from the teacher assignment summary view.
+- Removed the generic `PageContent` horizontal padding from the student assignment summary view only, leaving the edit/detail view spacing unchanged.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx' --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- `corepack pnpm exec vitest run tests/components/StudentAssignmentsTab.test.tsx`
+- Visual verification on the local dev server:
+  - teacher assignments summary: `/tmp/pika-assignments-teacher-summary-gutterless.png`
+  - student assignments summary: `/tmp/pika-assignments-student-summary-gutterless.png`
+
+**Status:** Assignment summary lists now sit flush to the available width in both teacher and student views, without changing the internal card padding.
+
+## 2026-04-14 (assignment gutter correction for class and individual modes)
+
+**Goal:** Revert the accidental assignment summary gutter removal and apply the gutter reduction only to the teacher assignment workspace modes.
+
+**Completed:**
+- Restored the original assignment summary padding for teacher and student summary views.
+- Moved the horizontal gutter reduction to the non-summary teacher assignment workspace wrapper, so it applies only in `Class` and `Individual` modes.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx' --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- `corepack pnpm exec vitest run tests/components/StudentAssignmentsTab.test.tsx`
+- Visual verification on the local dev server:
+  - teacher class workspace: `/tmp/pika-assignments-teacher-class-workspace-gutterless.png`
+  - teacher individual workspace: `/tmp/pika-assignments-teacher-individual-workspace-gutterless.png`
+  - student assignment summary sanity check: `/tmp/pika-assignments-student-summary-restored.png`
+
+**Status:** Assignment summary gutters are restored, and the reduced outer gutter now applies only to the teacher `Class` and `Individual` assignment workspaces.
+
+## 2026-04-14 (header fullscreen-to-datetime spacing)
+
+**Goal:** Add a bit more breathing room between the fullscreen toggle and the date/time in the app header.
+
+**Completed:**
+- Added a small right margin to the fullscreen toggle button in the shared app header.
+- Left the date/time and user menu spacing unchanged.
+
+**Validation:**
+- `corepack pnpm exec next lint --file src/components/AppHeader.tsx`
+- Visual verification on the local dev server:
+  - teacher header: `/tmp/pika-header-gap-teacher.png`
+  - student header: `/tmp/pika-header-gap-student.png`
+
+**Status:** The fullscreen button now has a small visual gap before the date/time in the shared app header.
+
+## 2026-04-14 (assignment workspace action bar gutter removed)
+
+**Goal:** Remove the action bar gutter in the teacher assignment workspace so it aligns with the gutterless `Class` and `Individual` panes.
+
+**Completed:**
+- Overrode the shared `PageActionBar` horizontal padding only for non-summary assignment workspace mode in `TeacherClassroomView`.
+- Left summary-mode action bars and other pages unchanged.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- Visual verification on the local dev server:
+  - teacher class workspace action bar: `/tmp/pika-assignments-class-actionbar-gutterless.png`
+  - teacher individual workspace action bar: `/tmp/pika-assignments-individual-actionbar-gutterless.png`
+
+**Status:** The teacher assignment workspace action bar is now flush with the `Class` and `Individual` workspace content.
+
+## 2026-04-14 (assignment workspace action bar right padding)
+
+**Goal:** Keep the teacher assignment workspace action bar flush on the left while adding a small amount of right padding.
+
+**Completed:**
+- Adjusted the non-summary assignment action bar override from full `px-0` to `pl-0 pr-2`.
+- Kept the `Class` and `Individual` workspace content alignment intact while giving the right-edge assignment title control a bit of breathing room.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- Visual verification on the local dev server:
+  - teacher class workspace action bar: `/tmp/pika-assignments-class-actionbar-rightpad.png`
+  - teacher individual workspace action bar: `/tmp/pika-assignments-individual-actionbar-rightpad.png`
+
+**Status:** The teacher assignment workspace action bar is flush on the left with a small right-edge inset.
+
+## 2026-04-14 (assignment class mode defaults to split workspace)
+
+**Goal:** Make teacher assignment `Class` mode open in the split-pane workspace by default instead of showing only the table pane.
+
+**Completed:**
+- Updated `TeacherClassroomView` to auto-select the first available student once when entering an assignment workspace, regardless of whether the active mode is `Class` or `Individual`.
+- Added a workspace-key guard so the default selection happens on entry, but manual deselection is not immediately overridden during the same workspace session.
+- Reset that guard when leaving assignment mode so reopening an assignment still defaults back to the split layout.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- Visual verification on the local dev server:
+  - teacher class workspace defaults split: `/tmp/pika-assignment-class-default-split.png`
+  - teacher individual workspace still split: `/tmp/pika-assignment-individual-still-split.png`
+
+**Status:** Teacher assignment `Class` mode now opens with the split workspace active by default.
