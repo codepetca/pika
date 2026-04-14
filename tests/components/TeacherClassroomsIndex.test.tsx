@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TeacherClassroomsIndex } from '@/app/classrooms/TeacherClassroomsIndex'
 import { createMockClassroom } from '../helpers/mocks'
 
@@ -35,5 +35,21 @@ describe('TeacherClassroomsIndex', () => {
       ([url]: [string]) => typeof url === 'string' && url === '/api/teacher/classrooms'
     )
     expect(classroomFetchCalls).toHaveLength(0)
+  })
+
+  it('keeps the bottom create button available in archived view when there are no active classrooms', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        classrooms: [createMockClassroom({ id: 'archived-1', title: 'Archived', archived_at: '2026-04-01T12:00:00Z' })],
+      }),
+    })
+
+    render(<TeacherClassroomsIndex initialClassrooms={[]} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Archived' }))
+
+    expect(await screen.findByText('Archived')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+ New' })).toBeInTheDocument()
   })
 })
