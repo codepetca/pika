@@ -8371,3 +8371,18 @@
   - teacher individual workspace still split: `/tmp/pika-assignment-individual-still-split.png`
 
 **Status:** Teacher assignment `Class` mode now opens with the split workspace active by default.
+
+## 2026-04-14 (review fix: assignment switch stale split pane)
+
+**Goal:** Address review feedback that switching between assignments could briefly bind the new class workspace to a stale student selection from the previous assignment.
+
+**Completed:**
+- Updated `TeacherClassroomView` so only assignment data whose `assignment.id` matches the current selection is treated as active for student rows, header/sidebar state, and split-pane rendering.
+- Tightened the default student auto-selection effect so it only treats a student as already selected if that student still exists in the current assignment roster.
+- Added a focused `TeacherClassroomView` regression test that switches from one assignment to another while the second roster fetch is still pending and verifies the old right pane disappears until the new assignment data arrives.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/hooks/use-assignment-grading-layout.test.tsx tests/unit/assignment-grading-layout.test.ts`
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file tests/components/TeacherClassroomView.test.tsx`
+
+**Status:** Assignment-to-assignment switching no longer reuses a stale student selection while the next roster is loading, and the regression is covered by an automated component test.

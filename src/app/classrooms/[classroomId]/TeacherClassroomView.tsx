@@ -486,18 +486,27 @@ export function TeacherClassroomView({
     }
   }, [selection])
 
+  const activeSelectedAssignmentData = useMemo(() => {
+    if (selection.mode !== 'assignment' || !selectedAssignmentData) return null
+    return selectedAssignmentData.assignment.id === selection.assignmentId
+      ? selectedAssignmentData
+      : null
+  }, [selectedAssignmentData, selection])
+
   // Notify parent about selected assignment for sidebar
   useEffect(() => {
     if (selection.mode === 'summary') {
       onSelectAssignment?.(null)
-    } else if (selectedAssignmentData) {
-      const { assignment } = selectedAssignmentData
+    } else if (activeSelectedAssignmentData) {
+      const { assignment } = activeSelectedAssignmentData
       onSelectAssignment?.({
         title: assignment.title,
         instructions: assignment.instructions_markdown || assignment.rich_instructions || assignment.description,
       })
+    } else {
+      onSelectAssignment?.(null)
     }
-  }, [selection.mode, selectedAssignmentData, onSelectAssignment])
+  }, [activeSelectedAssignmentData, onSelectAssignment, selection.mode])
 
   // Notify parent of view mode changes
   useEffect(() => {
@@ -569,10 +578,16 @@ export function TeacherClassroomView({
     return rows
   }, [selectedAssignmentData, sortColumn, sortDirection])
 
-  const currentStudentRows = sortedStudents
+  const currentStudentRows = useMemo(
+    () => (activeSelectedAssignmentData ? sortedStudents : []),
+    [activeSelectedAssignmentData, sortedStudents],
+  )
 
   const studentRowIds = useMemo(() => currentStudentRows.map((s) => s.student_id), [currentStudentRows])
-  const dueAtMs = useMemo(() => selectedAssignmentData ? new Date(selectedAssignmentData.assignment.due_at).getTime() : 0, [selectedAssignmentData])
+  const dueAtMs = useMemo(
+    () => (activeSelectedAssignmentData ? new Date(activeSelectedAssignmentData.assignment.due_at).getTime() : 0),
+    [activeSelectedAssignmentData],
+  )
   const selectedAssignmentKey =
     selection.mode === 'assignment' ? selection.assignmentId : null
   const {
@@ -720,6 +735,7 @@ export function TeacherClassroomView({
     if (!selectedStudentId) return null
     return currentStudentRows.find((student) => student.student_id === selectedStudentId) ?? null
   }, [currentStudentRows, selectedStudentId])
+  const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
 
   const handleGoPrevStudent = useCallback(() => {
     if (selectedStudentIndex <= 0) return
@@ -732,12 +748,12 @@ export function TeacherClassroomView({
   }, [currentStudentRows, selectedStudentIndex])
 
   useEffect(() => {
-    if (selection.mode !== 'assignment' || !selectedStudentId) return
+    if (selection.mode !== 'assignment' || !activeSelectedStudentId) return
     writeCookie(
       getAssignmentWorkspaceStudentCookieName(classroom.id, selection.assignmentId),
-      selectedStudentId,
+      activeSelectedStudentId,
     )
-  }, [classroom.id, selectedStudentId, selection])
+  }, [activeSelectedStudentId, classroom.id, selection])
 
   useEffect(() => {
     if (!selectedStudentId) return
@@ -791,10 +807,11 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
+    if (!activeSelectedAssignmentData || selectedAssignmentLoading) return
     const workspaceKey = `${selection.assignmentId}:${assignmentWorkspaceMode}`
     if (defaultedWorkspaceKeyRef.current === workspaceKey) return
 
-    if (selectedStudentId) {
+    if (activeSelectedStudentId) {
       defaultedWorkspaceKeyRef.current = workspaceKey
       return
     }
@@ -804,7 +821,14 @@ export function TeacherClassroomView({
       defaultedWorkspaceKeyRef.current = workspaceKey
       setSelectedStudentId(nextStudentId)
     }
-  }, [assignmentWorkspaceMode, resolveDetailsStudentId, selectedStudentId, selection])
+  }, [
+    activeSelectedAssignmentData,
+    activeSelectedStudentId,
+    assignmentWorkspaceMode,
+    resolveDetailsStudentId,
+    selectedAssignmentLoading,
+    selection,
+  ])
 
   // Escape key to deselect student
   useEffect(() => {
@@ -883,18 +907,18 @@ export function TeacherClassroomView({
   }
 
   const canEditAssignment =
-    selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
+    selection.mode === 'assignment' && !!activeSelectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
   const selectedAssignmentSummary = selection.mode === 'assignment'
     ? assignments.find((item) => item.id === selection.assignmentId) ?? null
     : null
   const selectedAssignmentTitle =
-    selectedAssignmentData?.assignment.title ??
+    activeSelectedAssignmentData?.assignment.title ??
     selectedAssignmentSummary?.title ??
     'Assignment'
   const activeWorkspaceLayout = assignmentGradingLayout[assignmentWorkspaceMode]
   const showOverviewInspector =
     assignmentWorkspaceMode === 'overview' &&
-    !!selectedStudentId
+    !!activeSelectedStudentId
   const canOpenDetails =
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
@@ -998,18 +1022,18 @@ export function TeacherClassroomView({
       <KeyboardNavigableTable
         ref={tableContainerRef}
         rowKeys={currentStudentRows.map((student) => student.student_id)}
-        selectedKey={selectedStudentId}
+        selectedKey={activeSelectedStudentId}
         onSelectKey={setSelectedStudentId}
         onDeselect={() => setSelectedStudentId(null)}
       >
         <TableCard chrome="flush">
-          {selectedAssignmentLoading ? (
+          {selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError) ? (
             <div className="flex justify-center py-10">
               <Spinner />
             </div>
-          ) : selectedAssignmentError || !selectedAssignmentData ? (
+          ) : selectedAssignmentError ? (
             <div className="p-4 text-sm text-danger">
-              {selectedAssignmentError || 'Failed to load assignment'}
+              {selectedAssignmentError}
             </div>
           ) : (
             <div className="relative">
@@ -1066,8 +1090,8 @@ export function TeacherClassroomView({
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
-                  {sortedStudents.map((student) => {
-                    const isSelected = selectedStudentId === student.student_id
+                  {currentStudentRows.map((student) => {
+                    const isSelected = activeSelectedStudentId === student.student_id
                     const totalScore =
                       student.doc?.score_completion != null &&
                       student.doc?.score_thinking != null &&
@@ -1214,8 +1238,8 @@ export function TeacherClassroomView({
               type="button"
               className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex max-w-[22rem] items-center gap-2`}
               onClick={() => {
-                if (selectedAssignmentData) {
-                  setEditAssignment(selectedAssignmentData.assignment)
+                if (activeSelectedAssignmentData) {
+                  setEditAssignment(activeSelectedAssignmentData.assignment)
                 }
               }}
               disabled={!canEditAssignment}
@@ -1309,11 +1333,11 @@ export function TeacherClassroomView({
               className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
             >
               {assignmentWorkspaceMode === 'details' ? (
-                selectedStudentId ? (
+                activeSelectedStudentId ? (
                   <TeacherStudentWorkPanel
                     classroomId={classroom.id}
                     assignmentId={selection.assignmentId}
-                    studentId={selectedStudentId}
+                    studentId={activeSelectedStudentId}
                     mode="details"
                     inspectorCollapsed={false}
                     inspectorWidth={activeWorkspaceLayout.inspectorWidth}
@@ -1325,13 +1349,13 @@ export function TeacherClassroomView({
                     canGoPrevStudent={canGoPrevStudent}
                     canGoNextStudent={canGoNextStudent}
                   />
-                ) : selectedAssignmentLoading ? (
+                ) : selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError) ? (
                   <div className="flex flex-1 items-center justify-center py-12">
                     <Spinner />
                   </div>
-                ) : selectedAssignmentError || !selectedAssignmentData ? (
+                ) : selectedAssignmentError ? (
                   <div className="flex flex-1 items-center justify-center p-4 text-sm text-danger">
-                    {selectedAssignmentError || 'Failed to load assignment'}
+                    {selectedAssignmentError}
                   </div>
                 ) : (
                   <div className="flex flex-1 items-center justify-center text-sm text-text-muted">
@@ -1371,7 +1395,7 @@ export function TeacherClassroomView({
                     <TeacherStudentWorkPanel
                       classroomId={classroom.id}
                       assignmentId={selection.assignmentId}
-                      studentId={selectedStudentId}
+                      studentId={activeSelectedStudentId}
                       mode="overview"
                       inspectorCollapsed={false}
                       inspectorWidth={activeWorkspaceLayout.inspectorWidth}
