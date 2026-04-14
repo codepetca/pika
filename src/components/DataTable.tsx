@@ -22,12 +22,20 @@ function densityPadding(density: DataTableDensity) {
 export function TableCard({
   children,
   overflowX = false,
+  chrome = 'default',
 }: {
   children: ReactNode
   overflowX?: boolean
+  chrome?: 'default' | 'flush'
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface">
+    <div
+      className={
+        chrome === 'flush'
+          ? 'overflow-hidden'
+          : 'overflow-hidden rounded-lg border border-border bg-surface'
+      }
+    >
       <div className={overflowX ? 'overflow-x-auto' : undefined}>{children}</div>
     </div>
   )
@@ -262,7 +270,7 @@ export const KeyboardNavigableTable = forwardRef(function KeyboardNavigableTable
       ref={ref}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="rounded-card outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+      className="rounded-card outline-none"
     >
       {children}
     </div>

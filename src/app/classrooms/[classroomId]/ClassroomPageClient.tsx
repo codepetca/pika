@@ -31,9 +31,7 @@ import {
 } from '@/components/layout'
 import { DESKTOP_BREAKPOINT, getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
-import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { Spinner } from '@/components/Spinner'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
@@ -53,7 +51,6 @@ import type {
   Entry,
   LessonPlan,
   TiptapContent,
-  SelectedStudentInfo,
   Assignment,
   QuizWithStats,
   GradebookStudentSummary,
@@ -402,9 +399,6 @@ function ClassroomPageContent({
   // State for selected assignment instructions (assignments tab)
   const [selectedAssignment, setSelectedAssignment] = useState<SelectedAssignmentInstructions | null>(null)
 
-  // State for selected student (teacher assignments tab - viewing student work)
-  const [selectedStudent, setSelectedStudent] = useState<SelectedStudentInfo | null>(null)
-
   // State for today's lesson plan (student today tab)
   const [todayLessonPlan, setTodayLessonPlan] = useState<LessonPlan | null>(null)
 
@@ -506,10 +500,6 @@ function ClassroomPageContent({
 
   const handleSelectAssignment = useCallback((assignment: SelectedAssignmentInstructions | null) => {
     setSelectedAssignment(assignment)
-  }, [])
-
-  const handleSelectStudent = useCallback((student: SelectedStudentInfo | null) => {
-    setSelectedStudent(student)
   }, [])
 
   const handleSetLessonPlan = useCallback((plan: LessonPlan | null) => {
@@ -666,9 +656,7 @@ function ClassroomPageContent({
   }, [])
 
   useEffect(() => {
-    if (isTeacher && activeTab === 'assignments' && selectedStudent) {
-      setRightSidebarWidth('75%')
-    } else if (isTeacher && activeTab === 'assignments') {
+    if (isTeacher && activeTab === 'assignments') {
       setRightSidebarWidth('50%')
     } else if (isTeacher && activeTab === 'quizzes') {
       setRightSidebarWidth('50%')
@@ -677,19 +665,21 @@ function ClassroomPageContent({
     } else if (isTeacher && activeTab === 'gradebook') {
       setRightSidebarWidth(420)
     }
-  }, [isTeacher, activeTab, selectedStudent, setRightSidebarWidth])
+  }, [
+    isTeacher,
+    activeTab,
+    setRightSidebarWidth,
+  ])
 
   useEffect(() => {
     if (!isTeacher || activeTab !== 'assignments') return
     if (assignmentViewMode !== 'assignment') return
-    if (selectedStudent) return
     setRightSidebarOpen(false)
     closeMobileDrawer()
   }, [
     isTeacher,
     activeTab,
     assignmentViewMode,
-    selectedStudent,
     setRightSidebarOpen,
     closeMobileDrawer,
   ])
@@ -1045,7 +1035,6 @@ function ClassroomPageContent({
                       <TeacherClassroomView
                         classroom={classroom}
                         onSelectAssignment={handleSelectAssignment}
-                        onSelectStudent={handleSelectStudent}
                         onViewModeChange={handleViewModeChange}
                         isActive={activeTab === 'assignments'}
                       />
@@ -1223,8 +1212,6 @@ function ClassroomPageContent({
               )
               : isTeacher && isAssessmentTab
               ? ''
-              : isTeacher && activeTab === 'assignments' && selectedStudent
-              ? selectedStudent.assignmentTitle
               : isTeacher && activeTab === 'assignments'
               ? ''
               : activeTab === 'assignments'
@@ -1300,27 +1287,6 @@ function ClassroomPageContent({
               >
                 Delete
               </button>
-            ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
-              <>
-                <button
-                  type="button"
-                  onClick={selectedStudent.onGoPrev}
-                  disabled={!selectedStudent.canGoPrev}
-                  className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Previous student"
-                >
-                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={selectedStudent.onGoNext}
-                  disabled={!selectedStudent.canGoNext}
-                  className="p-1.5 rounded-md border border-border text-text-muted hover:bg-surface-hover disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label="Next student"
-                >
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </>
             ) : undefined
           }
         >
@@ -1542,17 +1508,9 @@ function ClassroomPageContent({
             <LogSummary classroomId={classroom.id} date={attendanceDate} onStudentClick={handleSummaryStudentClick} />
           ) : isTeacher && activeTab === 'attendance' ? (
             null
-          ) : isTeacher && activeTab === 'assignments' && selectedStudent ? (
-            <TeacherStudentWorkPanel
-              classroomId={classroom.id}
-              assignmentId={selectedStudent.assignmentId}
-              studentId={selectedStudent.studentId}
-            />
           ) : isTeacher && activeTab === 'assignments' ? (
             <div className="p-4">
-              <p className="text-sm text-text-muted">
-                Select a student to view work.
-              </p>
+              <p className="text-sm text-text-muted">Use the assignment workspace to review student work.</p>
             </div>
           ) : activeTab === 'assignments' ? (
             <div>

@@ -6,6 +6,13 @@ import { withErrorHandler } from '@/lib/api-handler'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function parseDraftScore(value: unknown): number | null | typeof Number.NaN {
+  if (value === '' || value === null || value === undefined) return null
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 10) return Number.NaN
+  return parsed
+}
+
 // POST /api/teacher/assignments/[id]/grade - Save grade for a student
 export const POST = withErrorHandler('PostTeacherAssignmentGrade', async (request, context) => {
   const user = await requireRole('teacher')
@@ -24,14 +31,6 @@ export const POST = withErrorHandler('PostTeacherAssignmentGrade', async (reques
     return NextResponse.json({ error: 'student_id is required' }, { status: 400 })
   }
 
-  // Validate scores
-  for (const [name, val] of Object.entries({ score_completion, score_thinking, score_workflow })) {
-    const n = Number(val)
-    if (!Number.isInteger(n) || n < 0 || n > 10) {
-      return NextResponse.json({ error: `${name} must be an integer 0–10` }, { status: 400 })
-    }
-  }
-
   if (typeof feedback !== 'string') {
     return NextResponse.json({ error: 'feedback must be a string' }, { status: 400 })
   }
@@ -41,6 +40,24 @@ export const POST = withErrorHandler('PostTeacherAssignmentGrade', async (reques
   }
 
   const shouldMarkGraded = save_mode === 'graded' || save_mode === undefined
+  const parsedScores = {
+    score_completion: shouldMarkGraded ? Number(score_completion) : parseDraftScore(score_completion),
+    score_thinking: shouldMarkGraded ? Number(score_thinking) : parseDraftScore(score_thinking),
+    score_workflow: shouldMarkGraded ? Number(score_workflow) : parseDraftScore(score_workflow),
+  }
+
+  for (const [name, value] of Object.entries(parsedScores)) {
+    if (shouldMarkGraded) {
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 10) {
+        return NextResponse.json({ error: `${name} must be an integer 0–10` }, { status: 400 })
+      }
+      continue
+    }
+
+    if (Number.isNaN(value)) {
+      return NextResponse.json({ error: `${name} must be blank or an integer 0–10` }, { status: 400 })
+    }
+  }
 
   const supabase = getServiceRoleClient()
 
@@ -81,9 +98,9 @@ export const POST = withErrorHandler('PostTeacherAssignmentGrade', async (reques
     .upsert({
       assignment_id: id,
       student_id,
-      score_completion: Number(score_completion),
-      score_thinking: Number(score_thinking),
-      score_workflow: Number(score_workflow),
+      score_completion: parsedScores.score_completion,
+      score_thinking: parsedScores.score_thinking,
+      score_workflow: parsedScores.score_workflow,
       teacher_feedback_draft: feedback,
       teacher_feedback_draft_updated_at: new Date().toISOString(),
       graded_at: shouldMarkGraded ? new Date().toISOString() : null,

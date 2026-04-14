@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, Maximize2, X } from 'lucide-react'
+import { ChevronLeft, Maximize, X } from 'lucide-react'
 import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
@@ -301,7 +301,7 @@ export function TeacherTestPreviewPage({ classroomId, testId }: Props) {
                 void requestExamFullscreen()
               }}
             >
-              <Maximize2 className="h-5 w-5" />
+              <Maximize className="h-5 w-5" />
               <span>Maximize Window</span>
             </Button>
           </div>

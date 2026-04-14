@@ -69,6 +69,8 @@ export function AssignmentArtifactsCell({
   const selectedArtifact = modalIndex !== null ? artifacts[modalIndex] : null
 
   const visibleArtifacts = useMemo(() => (isCompact ? [] : artifacts), [artifacts, isCompact])
+  const compactArtifact = artifacts[0] ?? null
+  const compactRemainingCount = Math.max(artifacts.length - 1, 0)
 
   if (artifacts.length === 0) {
     return <span className="text-text-muted">-</span>
@@ -83,10 +85,20 @@ export function AssignmentArtifactsCell({
             event.stopPropagation()
             setModalIndex(0)
           }}
-          className="inline-flex max-w-[7.5rem] items-center rounded-full border border-border bg-surface-2 px-2 py-0.5 text-xs text-text-default hover:bg-surface-hover"
+          className="inline-flex w-full max-w-full items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-xs text-text-default hover:bg-surface-hover"
           aria-label={`View ${artifacts.length} work item${artifacts.length === 1 ? '' : 's'}`}
         >
-          {artifacts.length} items
+          {compactArtifact && (
+            <>
+              <ArtifactTypeIcon artifact={compactArtifact} />
+              <span className="min-w-0 flex-1 truncate text-left">
+                {getArtifactSummary(compactArtifact)}
+              </span>
+            </>
+          )}
+          {compactRemainingCount > 0 && (
+            <span className="shrink-0 text-text-muted">+{compactRemainingCount}</span>
+          )}
         </button>
       ) : (
         <div className="flex w-full max-w-[32rem] flex-wrap gap-1">

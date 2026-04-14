@@ -14,6 +14,7 @@ interface TestQuestionInfo {
   question_text: string
   question_type: 'multiple_choice' | 'open_response'
   options: string[]
+  correct_option: number | null
   points: number
 }
 
@@ -580,10 +581,18 @@ export function TestStudentGradingPanel({
             if (question.question_type === 'multiple_choice') {
               const responseId = answer?.response_id || null
               const isGradeEditable = !!responseId && !answer?.is_draft
+              const selectedOption =
+                typeof answer?.selected_option === 'number' ? answer.selected_option : null
               const selectedText =
-                typeof answer?.selected_option === 'number'
-                  ? question.options[answer.selected_option] || '—'
-                  : 'No response'
+                selectedOption != null ? question.options[selectedOption] || '—' : 'No response'
+              const correctText =
+                typeof question.correct_option === 'number'
+                  ? question.options[question.correct_option] || '—'
+                  : '—'
+              const isIncorrectMultipleChoice =
+                selectedOption != null &&
+                typeof question.correct_option === 'number' &&
+                selectedOption !== question.correct_option
 
               return (
                 <div key={question.id} className="space-y-2 py-1">
@@ -592,9 +601,27 @@ export function TestStudentGradingPanel({
                   </p>
                   <QuestionMarkdown content={question.question_text} />
                   <div className="grid grid-cols-[minmax(0,1fr)_76px] items-start gap-2">
-                    <p className="text-base text-text-muted">
-                      Answer: {selectedText}{answer?.is_draft ? ' (Draft)' : ''}
-                    </p>
+                    <div className="space-y-1 text-sm">
+                      <div className="rounded-md bg-surface-2 px-3 py-2 text-text-default">
+                        <p
+                          className={`text-xs font-semibold uppercase tracking-wide ${
+                            isIncorrectMultipleChoice ? 'text-warning' : ''
+                          }`}
+                        >
+                          Student answer
+                        </p>
+                        <p className={`font-medium ${isIncorrectMultipleChoice ? 'text-warning' : ''}`}>
+                          {selectedText}
+                          {answer?.is_draft ? ' (Draft)' : ''}
+                        </p>
+                      </div>
+                      <div className="rounded-md bg-surface-2 px-3 py-2 text-text-muted">
+                        <p className="text-xs font-semibold uppercase tracking-wide">
+                          Correct answer
+                        </p>
+                        <p className="font-medium">{correctText}</p>
+                      </div>
+                    </div>
                     <SplitScoreInput
                       ariaLabel={`Q${index + 1} score`}
                       maxPoints={points}

@@ -117,6 +117,10 @@ describe('getRightSidebarCssWidth', () => {
   it('should return percentage for 60%', () => {
     expect(getRightSidebarCssWidth('60%')).toBe('60%')
   })
+
+  it('should return arbitrary percentage widths', () => {
+    expect(getRightSidebarCssWidth('76.4%')).toBe('76.4%')
+  })
 })
 
 describe('getRouteKeyFromTab', () => {

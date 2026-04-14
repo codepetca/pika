@@ -7878,3 +7878,331 @@
 **Follow-up:**
 - Removed the assignment-list late badge so overview cards show mailbox count only.
 - Re-verified that late state is still represented inside the assignment drill-down by the status icon logic: late statuses and late-derived downstream statuses append a clock indicator.
+
+## 2026-04-09 [AI - Codex]
+
+**Goal:** Fix issue #444 so the teacher test grading panel highlights incorrect multiple-choice answers and shows the correct answer.
+
+**Completed:**
+- Extended the teacher test grading panel to read `correct_option` for multiple-choice questions.
+- Replaced the plain `Answer: ...` line with separate `Student answer` and `Correct answer` blocks in the teacher grading view.
+- Styled incorrect student multiple-choice answers with warning text to match the student returned-results treatment.
+- Added component coverage for incorrect-answer highlighting, correct-answer display, and the non-highlighted correct-answer case while preserving the existing MC score override coverage.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TestStudentGradingPanel.test.tsx`
+- `corepack pnpm exec next lint --file src/components/TestStudentGradingPanel.tsx --file tests/components/TestStudentGradingPanel.test.tsx`
+- `corepack pnpm exec vitest run tests/components/TestStudentGradingPanel.test.tsx tests/components/StudentQuizResults.test.tsx`
+- Visual verification on local dev server for `/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=tests`:
+  - teacher desktop grading view: `/tmp/pika-issue-444-teacher-desktop.png`
+  - teacher mobile grading table: `/tmp/pika-issue-444-teacher-mobile.png`
+  - student mobile tests tab: `/tmp/pika-issue-444-student-mobile.png`
+
+**Status:** The teacher grading panel now calls out wrong MC answers clearly and shows the correct answer alongside them. Desktop verification confirmed the changed UI on the seeded closed test (`Seed Test - AI Grading Demo`, `Student2 Test`).
+
+## 2026-04-09 [AI - Codex]
+
+**Goal:** Implement issue #453 so teacher assignment grading uses a first-class three-pane layout with persisted desktop sizing, collapse controls, and resizable inspector behavior.
+
+**Completed:**
+- Added `assignment-grading-layout` helpers and a dedicated `useAssignmentGradingLayout` hook to manage classroom-scoped cookie persistence, defaults, and width clamping for the roster/workspace and content/inspector splits.
+- Expanded `RightSidebarWidth` to support arbitrary percentage strings, then replaced the assignment-specific hardcoded sidebar widths with layout-driven values in the classroom page shell.
+- Updated the teacher assignments roster to switch into an explicit grading-roster mode based on pane state instead of the old sidebar-width heuristic, including a collapsed roster variant that keeps checkbox, first name, status, and grade visible.
+- Reworked `TeacherStudentWorkPanel` to add roster/inspector collapse controls, reset-layout behavior, resizable desktop separators, and a responsive inspector pane that stays full-width on mobile instead of inheriting desktop percentage widths.
+- Added helper, hook, and component coverage for cookie hydration, layout persistence/reset, arbitrary sidebar percentages, grading-pane toggles, and the mobile inspector-width regression.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx tests/hooks/use-assignment-grading-layout.test.tsx tests/unit/assignment-grading-layout.test.ts tests/unit/layout-config.test.ts`
+- `corepack pnpm exec next lint --file src/lib/assignment-grading-layout.ts --file src/hooks/use-assignment-grading-layout.ts --file src/lib/layout-config.ts --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx' --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file src/components/TeacherStudentWorkPanel.tsx --file tests/unit/assignment-grading-layout.test.ts --file tests/unit/layout-config.test.ts --file tests/hooks/use-assignment-grading-layout.test.tsx --file tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on local dev server for `/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=assignments`:
+  - teacher desktop selected grading layout: `/tmp/issue453-teacher-selected-loaded.png`
+  - teacher desktop collapsed roster: `/tmp/issue453-teacher-collapsed-roster.png`
+  - teacher desktop grading hidden/reset states: `/tmp/issue453-teacher-hide-grading.png`, `/tmp/issue453-teacher-reset-layout.png`
+  - teacher mobile grading drawer: `/tmp/issue453-teacher-mobile-fixed.png`
+  - student desktop assignments sanity check: `/tmp/issue453-student-assignments-loaded.png`
+
+**Status:** Assignment grading now uses persistent desktop pane state instead of hardcoded widths, the roster has an explicit collapsed grading mode, and the inspector remains responsive across desktop and mobile without leaking desktop percentage sizing into stacked mobile layouts.
+
+## 2026-04-09 [AI - Codex]
+
+**Goal:** Polish issue #453 so the teacher grading workspace uses a single shared header, stable loading behavior, flush content presentation, and a quick return-to-table action.
+
+**Completed:**
+- Moved teacher assignment grading controls into a shared workspace header inside `TeacherStudentWorkPanel`, including edit, assignment title, previous/next navigation, and icon-only controls for table-only, roster collapse, grading collapse, and layout reset.
+- Removed the layout-shifting top refresh bar from the grading workspace and replaced it with a subtle inline `Updating` status in the shared header while preserving the current content until the new student response arrives.
+- Made the submission content render flush with the pane by adding a `chrome="flush"` viewer mode and removing the boxed wrapper treatment from the grading content area.
+- Extended selected-student assignment context with `onEditAssignment` and `onShowTableOnly` callbacks so the panel can own its header actions while the teacher table remains the source of student selection state.
+- Added request-order guards for student work and history fetches so rapid student navigation cannot paint stale responses into the stable layout.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx tests/hooks/use-assignment-grading-layout.test.tsx tests/unit/assignment-grading-layout.test.ts tests/unit/layout-config.test.ts`
+- `corepack pnpm exec next lint --file src/components/TeacherStudentWorkPanel.tsx --file src/components/editor/RichTextViewer.tsx --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx' --file src/types/index.ts --file tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on local dev server for `/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=assignments`:
+  - teacher desktop grading workspace: `/tmp/issue453-followup-teacher-desktop.png`
+  - teacher mobile grading workspace: `/tmp/issue453-followup-teacher-mobile.png`
+  - student desktop assignments sanity check: `/tmp/issue453-followup-student-desktop.png`
+
+**Status:** The teacher grading experience now reads as one coordinated workspace instead of nested toolbars, content switches no longer shove the layout downward, and the student table can be restored directly from the grading header without introducing a separate persisted mode.
+
+## 2026-04-10 [AI - Codex]
+
+**Goal:** Rework issue #453 into a single teacher assignment workspace with one top action bar, explicit `Overview` / `Details` modes, and no teacher grading content in the shell right sidebar.
+
+**Completed:**
+- Replaced the old roster/workspace grading layout model with a mode-aware inspector layout in `assignment-grading-layout`, including per-mode width/collapse state and per-assignment remembered student cookies for `Details`.
+- Moved teacher assignment workspace ownership into `TeacherClassroomView`, including the single top action bar, assignment title identity, student-name secondary label in `Details`, `Overview` / `Details` segmented control, batch actions, prev/next navigation, and grading visibility/reset controls.
+- Removed teacher assignment grading from `ClassroomPageClient`’s generic `RightSidebar`, while preserving the summary-mode markdown sidebar behavior for assignment list editing.
+- Refactored `TeacherStudentWorkPanel` so it no longer renders its own header and now supports `overview` inspector-only rendering plus `details` content+inspector rendering with stable loading behavior and flush submission content.
+- Removed the old `Show student table only` and roster-collapse concepts from the active grading UI and test coverage, and dropped the obsolete `SelectedStudentInfo` cross-component contract.
+- Rewrote focused tests for the new layout helper/hook model and the simplified student panel contract.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx tests/hooks/use-assignment-grading-layout.test.tsx tests/unit/assignment-grading-layout.test.ts tests/unit/layout-config.test.ts`
+- `corepack pnpm exec next lint --file src/lib/assignment-grading-layout.ts --file src/hooks/use-assignment-grading-layout.ts --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx' --file src/components/TeacherStudentWorkPanel.tsx --file src/types/index.ts --file tests/unit/assignment-grading-layout.test.ts --file tests/hooks/use-assignment-grading-layout.test.tsx --file tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on local dev server at `http://localhost:3003/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=assignments`:
+  - teacher desktop overview: `/tmp/issue453-rework-teacher-overview.png`
+  - teacher desktop overview split: `/tmp/issue453-rework-teacher-overview-split.png`
+  - teacher desktop details: `/tmp/issue453-rework-teacher-details.png`
+  - teacher mobile overview: `/tmp/issue453-rework-teacher-mobile-overview.png`
+  - student desktop assignments sanity check: `/tmp/issue453-rework-student-desktop.png`
+
+**Status:** Teacher assignments now open into a main-content workspace that defaults to `Overview`, shifts to `Details` only by explicit mode switch, keeps a single persistent top action bar, and leaves the generic shell inspector out of grading entirely.
+
+## 2026-04-10 [AI - Codex]
+
+**Goal:** Flatten the assignment workspace action bar so the assignment title, optional details-mode student name, mode toggle, and all controls share one inline toolbar, with icon-only action buttons.
+
+**Completed:**
+- Reworked the assignment-mode action bar in `TeacherClassroomView` into a single inline toolbar row instead of the previous stacked identity/action layout.
+- Moved the assignment title and details-mode student name into the same inline flow as the `Overview` / `Details` toggle and the rest of the controls.
+- Converted `Edit`, `Repo analysis`, `Grading`, and `Send` to icon buttons with tooltip/accessible labels while preserving their disabled-state rules and existing batch-action semantics.
+- Kept the existing prev/next, grading visibility, and reset controls as icon actions in the same inline toolbar so the adjustable pane region remains fully below the bar.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server at `http://localhost:3003/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=assignments`:
+  - teacher desktop overview: `/tmp/issue453-toolbar-teacher-overview.png`
+  - teacher desktop overview split: `/tmp/issue453-toolbar-teacher-overview-split.png`
+  - teacher desktop details: `/tmp/issue453-toolbar-teacher-details.png`
+  - teacher mobile details: `/tmp/issue453-toolbar-teacher-mobile-details.png`
+  - student desktop sanity: `/tmp/issue453-toolbar-student-desktop.png`
+
+**Status:** The assignment workspace now reads as one compact toolbar-driven surface on desktop, with the title and selected student identity inline where requested and no second action row above the panes.
+
+## 2026-04-10 [AI - Codex]
+
+**Goal:** Apply the follow-up toolbar/content-header refinement for issue #453 by renaming the workspace toggle to `Class` / `Individual`, moving the toggle ahead of the assignment title, and shifting student identity into the details content header.
+
+**Completed:**
+- Updated the assignment workspace top bar in `TeacherClassroomView` so the segmented mode control appears first, renamed the visible labels to `Class` and `Individual`, and removed the selected student name from the global toolbar.
+- Added an always-visible student-first content header in `TeacherStudentWorkPanel` for `details` mode, reusing the old repo metadata strip so the student name appears first and repo metadata follows inline when available.
+- Preserved the `Class` view as table-driven only, with no additional student identity outside the selected row and right pane.
+- Added focused component coverage for the new `individual-content-header` behavior and cleaned out the now-unused top-bar student display value.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file 'src/components/TeacherStudentWorkPanel.tsx' --file 'tests/components/TeacherStudentWorkPanel.test.tsx'`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server at `http://localhost:3003/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=assignments`:
+  - teacher desktop class view: `/tmp/issue453-class-toolbar-teacher-overview.png`
+  - teacher desktop class split view: `/tmp/issue453-class-toolbar-teacher-overview-split.png`
+  - teacher desktop individual view: `/tmp/issue453-class-toolbar-teacher-details.png`
+  - teacher mobile individual view: `/tmp/issue453-class-toolbar-teacher-mobile-details.png`
+  - student desktop sanity check: `/tmp/issue453-class-toolbar-student-desktop.png`
+
+**Status:** The assignment workspace now uses the requested `Class` / `Individual` framing, with the top bar focused on assignment scope and controls, and the student identity anchored directly to the individual submission content area.
+
+## 2026-04-10 [AI - Codex]
+
+**Goal:** Remove the assignment workspace `Hide grading` and `Reset layout` toolbar actions now that class-row selection and pane resizing cover the remaining use cases.
+
+**Completed:**
+- Removed the `Hide grading` and `Reset layout` icon buttons from the assignment workspace action bar in `TeacherClassroomView`.
+- Simplified class-mode inspector visibility so selecting a student row always opens the grading pane and deselecting the row remains the way back to a table-only class view.
+- Forced the individual workspace pane to keep the grading inspector visible so older persisted collapsed states cannot strand the user without a way to restore the right pane after the buttons are gone.
+- Kept pane-width resizing intact in `Individual` and preserved the existing prev/next student navigation.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- `corepack pnpm exec tsc --noEmit`
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx`
+- Visual verification on the local dev server at `http://localhost:3003/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=assignments`:
+  - teacher class view: `/tmp/issue453-nohide-teacher-class.png`
+  - teacher class split view: `/tmp/issue453-nohide-teacher-class-split.png`
+  - teacher individual view: `/tmp/issue453-nohide-teacher-individual.png`
+  - teacher mobile individual view: `/tmp/issue453-nohide-teacher-mobile-individual.png`
+  - student desktop sanity check: `/tmp/issue453-nohide-student-desktop.png`
+
+**Status:** The assignment toolbar is now reduced to the essential mode, batch, and navigation actions, while class-row selection and individual-mode resizing carry the remaining layout control.
+
+## 2026-04-10 (issue 453 table compactness follow-up)
+
+**Goal:** Remove the horizontal scrollbar from the teacher assignment student table by tightening the column model instead of relying on overflow.
+
+**Completed:**
+- Removed the `Updated` column from the teacher assignment student table in class mode.
+- Tightened the first-name, last-name, status, and artifacts column widths in `TeacherClassroomView` and stopped enabling horizontal table overflow for the split class workspace.
+- Reworked `AssignmentArtifactsCell` compact mode to show a one-line truncated artifact summary with `+N` overflow count instead of a generic `N items` pill, keeping the modal preview entry point intact.
+- Updated the compact artifacts component test to cover the new ellipsis-style summary rendering.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `corepack pnpm exec vitest run tests/components/AssignmentArtifactsCell.test.tsx`
+- `corepack pnpm exec next lint --file src/components/AssignmentArtifactsCell.tsx --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file tests/components/AssignmentArtifactsCell.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server at `http://localhost:3003/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=assignments`:
+  - teacher class split view: `/tmp/issue453-table-compact-teacher-class-split.png`
+  - teacher individual view sanity: `/tmp/issue453-table-compact-teacher-individual.png`
+  - student desktop sanity check: `/tmp/issue453-table-compact-student-desktop.png`
+
+**Status:** The assignment student table now fits within the class split pane without a horizontal scrollbar, using a narrower schema and a truncated artifacts summary instead of a wide overflow column.
+
+## 2026-04-10 (issue 453 folder-tab workspace chrome)
+
+**Goal:** Replace the assignment workspace `Class / Individual` pill toggle with a folder-tab treatment that visually fuses into the entire workspace below it.
+
+**Completed:**
+- Reworked the assignment-mode toolbar in `TeacherClassroomView` so `Class` and `Individual` render as top tabs instead of a pill toggle, with the active tab overlapping the workspace shell by 1px.
+- Added a shared outer assignment workspace shell with `bg-surface` and a single border so the active tab now reads as attached to the whole workspace rather than floating in the toolbar.
+- Reduced the handoff gap between `PageActionBar` and assignment-mode content so the tab strip and shell render as one unit.
+- Normalized the grading pane backgrounds in `TeacherStudentWorkPanel` to `bg-surface` so the shell owns the top-level chrome and the internal panes no longer fight it visually.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file src/components/TeacherStudentWorkPanel.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server at `http://localhost:3003/classrooms/a88c86b5-7d08-4468-ac4b-71f2f5010d56?tab=assignments`:
+  - teacher desktop class view: `/tmp/issue453-foldertab-teacher-class.png`
+  - teacher desktop individual view: `/tmp/issue453-foldertab-teacher-individual.png`
+  - teacher mobile assignment view: `/tmp/issue453-foldertab-teacher-mobile.png`
+  - student desktop sanity check: `/tmp/issue453-foldertab-student-desktop.png`
+
+**Status:** The assignment workspace now uses a true folder-tab treatment with one shared shell across `Class` and `Individual`, while keeping existing workspace behavior unchanged.
+
+## 2026-04-11 (issue 453 class-table shell flattening)
+
+**Goal:** Remove the nested table-card chrome from assignment `Class` mode so the folder tab visually matches the same top-level workspace surface as `Individual`.
+
+**Completed:**
+- Added a `chrome` presentation option to `TableCard` in `DataTable.tsx`, with `default` preserving existing table cards and `flush` removing the outer border/radius/background.
+- Switched the assignment student table in `TeacherClassroomView` to use `TableCard chrome=\"flush\"`, keeping the existing table header tint, row dividers, sorting, selection, and compact column model intact.
+- Added a focused `DataTable` component test covering `TableCard` default vs flush chrome behavior so the new presentation mode stays assignment-only by default.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/DataTable.test.tsx`
+- `corepack pnpm exec next lint --file src/components/DataTable.tsx --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file tests/components/DataTable.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server:
+  - teacher desktop class view: `/tmp/issue453-flush-teacher-class.png`
+  - teacher desktop class split view: `/tmp/issue453-flush-teacher-class-split.png`
+  - teacher desktop individual view sanity: `/tmp/issue453-flush-teacher-individual.png`
+  - teacher mobile assignment view: `/tmp/issue453-flush-teacher-mobile.png`
+  - student desktop sanity check: `/tmp/issue453-flush-student-desktop.png`
+
+**Status:** The `Class` tab now lands on the same top-level workspace shell as the table beneath it, removing the mismatched nested-card effect without changing assignment behavior or other table screens.
+
+## 2026-04-11 (issue 453 individual header character count)
+
+**Goal:** Move the individual-view character count from the bottom content footer into the content header alongside the student identity, and choose a simple icon for it.
+
+**Completed:**
+- Moved the character count from the bottom of the individual content pane into the `individual-content-header` in `TeacherStudentWorkPanel`.
+- Used the Lucide `Type` icon as the character-count marker and rendered the count as a muted `N chars` badge in the header.
+- Removed the old bottom character-count footer so the content area ends cleanly without a second metadata strip.
+- Updated the panel test to assert the new header count and absence of the old footer copy.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec next lint --file src/components/TeacherStudentWorkPanel.tsx --file tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server:
+  - teacher desktop individual view: `/tmp/issue453-charcount-teacher-individual.png`
+  - teacher mobile individual view: `/tmp/issue453-charcount-teacher-mobile.png`
+  - student desktop sanity check: `/tmp/issue453-charcount-student-desktop.png`
+
+**Status:** Character count now lives in the individual header next to the student identity, using a small `Type` icon and a shorter `chars` label instead of a bottom footer.
+
+## 2026-04-11 (issue 453 character-count text simplification)
+
+**Goal:** Simplify the individual header character count by removing the icon and leaving only the text count.
+
+**Completed:**
+- Removed the Lucide `Type` icon from the individual content header in `TeacherStudentWorkPanel`.
+- Kept the header count as simple muted text in the form `N chars`.
+- Left the header placement and footer removal unchanged.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec next lint --file src/components/TeacherStudentWorkPanel.tsx --file tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server:
+  - teacher desktop individual view: `/tmp/issue453-charcount-noicon-teacher-individual.png`
+  - student desktop sanity check: `/tmp/issue453-charcount-noicon-student-desktop.png`
+
+**Status:** The individual header now shows just `N chars` with no icon, which reads cleaner alongside the student name.
+
+## 2026-04-11 (issue 453 toolbar vertical centering)
+
+**Goal:** Stop the assignment title from feeling bottom-justified in the folder-tab toolbar while keeping the `Class / Individual` tabs attached to the workspace shell.
+
+**Completed:**
+- Reworked the assignment-mode action bar layout in `TeacherClassroomView` so the folder-tab strip stays in a bottom-aligned sub-container while the assignment title, loading state, and action icons sit in a vertically centered sibling row.
+- Added a small minimum toolbar height in assignment mode so the title reads as centered within the toolbar band instead of hanging low with the tabs.
+- Kept the folder-tab overlap and shell attachment unchanged.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server:
+  - teacher desktop class view: `/tmp/issue453-toolbar-center-teacher-class.png`
+  - teacher desktop individual view: `/tmp/issue453-toolbar-center-teacher-individual.png`
+  - teacher mobile assignment view: `/tmp/issue453-toolbar-center-teacher-mobile.png`
+  - student desktop sanity check: `/tmp/issue453-toolbar-center-student-desktop.png`
+
+**Status:** The assignment title now reads vertically centered in the toolbar band while the folder tabs remain visually attached to the workspace shell.
+
+## 2026-04-11 (issue 453 AI feedback draft merge)
+
+**Goal:** Make AI grading feedback appear directly in the feedback draft textarea instead of a separate suggestion box, while preserving any unsaved teacher comments already typed.
+
+**Completed:**
+- Removed the separate `AI Suggestion` card from the grading pane in `TeacherStudentWorkPanel`.
+- Added draft-merge behavior so `ai_feedback_suggestion` is folded into the feedback draft textarea content instead of living in a separate UI.
+- Appended new AI feedback to any current unsaved teacher comments with a blank-line separator, and avoided duplicate appends when the same suggestion is already present.
+- Kept initial document loads consistent by merging any persisted AI suggestion into the visible draft textarea content.
+- Added focused panel tests for both initial merge behavior and append-after-auto-grade behavior.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec next lint --file src/components/TeacherStudentWorkPanel.tsx --file tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server:
+  - teacher individual grading view: `/tmp/issue453-aifeedback-merged-teacher-individual-grading.png`
+  - student desktop sanity check: `/tmp/issue453-aifeedback-merged-student-desktop.png`
+
+**Status:** AI-generated grading feedback now lands directly in the feedback draft area, appending below existing teacher comments instead of showing up in a separate suggestion box.
+
+## 2026-04-11 (issue 453 AI draft cue in feedback draft)
+
+**Goal:** Keep AI-generated grading feedback merged into the single feedback draft textarea, but make fresh AI content temporarily identifiable until the teacher focuses the draft.
+
+**Completed:**
+- Changed `TeacherStudentWorkPanel` draft merging so `ai_feedback_suggestion` is prepended ahead of any existing unsaved teacher draft text instead of appended after it.
+- Added local `hasFreshAIDraft` state so newly merged AI feedback shows a temporary `AI draft` label and subtle textarea tint inside the existing `Feedback Draft` section.
+- Cleared the temporary AI cue on first textarea focus without changing the merged text content or reintroducing a separate suggestion box.
+- Kept duplicate-prevention behavior so the same AI suggestion is not reinserted multiple times.
+- Updated focused panel tests to cover prepend order, temporary AI styling, and cue dismissal on focus.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec next lint --file src/components/TeacherStudentWorkPanel.tsx --file tests/components/TeacherStudentWorkPanel.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the local dev server:
+  - teacher grading before focus: `/Users/stew/Repos/.worktrees/pika/issue/453-grading-layout/.playwright-cli/page-2026-04-11T20-49-35-491Z.png`
+  - teacher grading after focus: `/Users/stew/Repos/.worktrees/pika/issue/453-grading-layout/.playwright-cli/page-2026-04-11T20-49-50-023Z.png`
+  - student assignments sanity check: `/tmp/issue453-ai-draft-student.png`
+
+**Status:** Fresh AI grading feedback now appears first in the draft, is visibly marked as AI-generated until the teacher clicks into the field, and then becomes a normal draft textarea without altering the text.

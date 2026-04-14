@@ -21,5 +21,7 @@ export function useKeyboardShortcutHint() {
     leftPanel: `${mod}\\`,
     /** Right sidebar toggle: ⌘⇧\ or Ctrl+Shift+\ */
     rightPanel: isMac ? '⌘⇧\\' : 'Ctrl+Shift+\\',
+    /** Fullscreen toggle: ⌘⇧F or Ctrl+Shift+F */
+    fullscreen: isMac ? '⌘⇧F' : 'Ctrl+Shift+F',
   }
 }

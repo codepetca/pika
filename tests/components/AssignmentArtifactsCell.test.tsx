@@ -35,7 +35,9 @@ describe('AssignmentArtifactsCell', () => {
     ]
 
     renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
-    expect(screen.getByRole('button', { name: /view 2 work items/i })).toHaveTextContent('2 items')
+    const button = screen.getByRole('button', { name: /view 2 work items/i })
+    expect(button).toHaveTextContent('example.com/a')
+    expect(button).toHaveTextContent('+1')
   })
 
   it('opens a link preview modal when a pill is clicked', () => {
