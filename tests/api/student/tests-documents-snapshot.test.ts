@@ -59,6 +59,10 @@ function createMockDownloadBody(content: string, contentType: string) {
   }
 }
 
+async function readResponseText(response: Response) {
+  return Buffer.from(await response.arrayBuffer()).toString('utf8')
+}
+
 describe('GET /api/student/tests/[id]/documents/[docId]/snapshot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -77,7 +81,7 @@ describe('GET /api/student/tests/[id]/documents/[docId]/snapshot', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('text/html')
     expect(response.headers.get('content-security-policy')).toContain("script-src 'none'")
-    expect(await (await response.blob()).text()).toContain('Snapshot')
+    expect(await readResponseText(response)).toContain('Snapshot')
   })
 
   it('returns 404 when the link doc has no snapshot', async () => {
