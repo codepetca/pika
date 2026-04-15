@@ -8562,3 +8562,21 @@
   - teacher classroom dropdown after keyboard-fix patch: `/tmp/pika-classroom-dropdown-keyboard-fix.png`
 
 **Status:** Keyboard navigation in the titlebar classroom switcher now skips the disabled current-classroom row instead of landing on it.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Ensure the titlebar classroom switcher opens only on click, not hover.
+
+**Completed:**
+- Removed the remaining non-click activation path from the classroom dropdown trigger.
+- Simplified the shared dropdown hook by deleting unused hover-open/hover-close APIs.
+- Tightened the classroom dropdown tests to use a real pointer-down + click sequence.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- After restarting the worktree dev server, visual verification on `http://localhost:3000`:
+  - hover stays closed: `/tmp/pika-classroom-dropdown-hover-check-v4.png`
+  - click opens the menu: `/tmp/pika-classroom-dropdown-click-check-v4.png`
+
+**Status:** The titlebar classroom switcher now stays closed on hover and opens only on click.

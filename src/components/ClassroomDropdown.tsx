@@ -29,7 +29,7 @@ export function ClassroomDropdown({
   onBeforeNavigate,
 }: ClassroomDropdownProps) {
   const router = useRouter()
-  const touchedRef = useRef(false)
+  const allowClickRef = useRef(false)
 
   const currentClassroom = classrooms.find((c) => c.id === currentClassroomId) || classrooms[0]
   const firstSelectableIndex = classrooms.findIndex((c) => c.id !== currentClassroom?.id)
@@ -66,24 +66,6 @@ export function ClassroomDropdown({
     isItemDisabled: (index) => classrooms[index]?.id === currentClassroom?.id,
   })
 
-  // Handle touch to prevent double-firing with click
-  const handleTouchStart = useCallback(() => {
-    touchedRef.current = true
-    if (!isOpen) {
-      setIsOpen(true)
-      setFocusedIndex(firstSelectableIndex >= 0 ? firstSelectableIndex : 0)
-    }
-  }, [firstSelectableIndex, isOpen, setIsOpen, setFocusedIndex])
-
-  const handleClick = useCallback(() => {
-    // Skip if this click was triggered by a touch event
-    if (touchedRef.current) {
-      touchedRef.current = false
-      return
-    }
-    handleTriggerClick()
-  }, [handleTriggerClick])
-
   if (classrooms.length === 0) {
     return null
   }
@@ -106,8 +88,14 @@ export function ClassroomDropdown({
       <button
         id={triggerId}
         type="button"
-        onClick={handleClick}
-        onTouchStart={handleTouchStart}
+        onPointerDown={() => {
+          allowClickRef.current = true
+        }}
+        onClick={() => {
+          if (!allowClickRef.current) return
+          allowClickRef.current = false
+          handleTriggerClick()
+        }}
         onKeyDown={handleTriggerKeyDown}
         className="px-2 py-1 -mx-2 text-xl font-bold text-text-default truncate max-w-xs rounded-md transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         aria-expanded={isOpen}

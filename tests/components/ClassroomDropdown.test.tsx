@@ -21,6 +21,11 @@ describe('ClassroomDropdown', () => {
     push.mockReset()
   })
 
+  function pointerClick(element: HTMLElement) {
+    fireEvent.pointerDown(element, { pointerType: 'mouse' })
+    fireEvent.click(element)
+  }
+
   it('opens on click and does not auto-open on hover', () => {
     render(
       <ClassroomDropdown
@@ -35,7 +40,7 @@ describe('ClassroomDropdown', () => {
 
     expect(screen.getByRole('listbox')).toHaveClass('pointer-events-none')
 
-    fireEvent.click(trigger)
+    pointerClick(trigger)
 
     expect(screen.getByRole('option', { name: /Alpha/ })).toBeVisible()
     expect(screen.getByRole('option', { name: /Beta/ })).toBeVisible()
@@ -51,7 +56,7 @@ describe('ClassroomDropdown', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select classroom' }))
+    pointerClick(screen.getByRole('button', { name: 'Select classroom' }))
 
     const options = screen.getAllByRole('option')
     expect(options.map((option) => option.textContent?.trim())).toEqual(['Alpha', 'BetaCurrent', 'Gamma'])
@@ -69,8 +74,8 @@ describe('ClassroomDropdown', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select classroom' }))
-    fireEvent.click(screen.getByRole('option', { name: /Gamma/ }))
+    pointerClick(screen.getByRole('button', { name: 'Select classroom' }))
+    pointerClick(screen.getByRole('option', { name: /Gamma/ }))
 
     expect(push).toHaveBeenCalledWith('/classrooms/class-3?tab=attendance')
   })
@@ -84,7 +89,7 @@ describe('ClassroomDropdown', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select classroom' }))
+    pointerClick(screen.getByRole('button', { name: 'Select classroom' }))
 
     const alpha = screen.getByRole('option', { name: /Alpha/ })
     const gamma = screen.getByRole('option', { name: /Gamma/ })

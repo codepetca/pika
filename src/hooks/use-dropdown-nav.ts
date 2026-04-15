@@ -21,8 +21,6 @@ interface UseDropdownNavReturn {
   handleTriggerKeyDown: (e: React.KeyboardEvent) => void
   handleItemKeyDown: (e: React.KeyboardEvent) => void
   handleTriggerClick: () => void
-  handleMouseEnter: () => void
-  handleMouseLeave: () => void
   itemRefs: React.MutableRefObject<(HTMLElement | null)[]>
   containerRef: React.RefObject<HTMLDivElement>
 }
@@ -41,7 +39,6 @@ export function useDropdownNav({
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null!)
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const itemRefs = useRef<(HTMLElement | null)[]>([])
 
   // Generate unique IDs for ARIA relationships
@@ -78,20 +75,6 @@ export function useDropdownNav({
       setFocusedIndex(getNextEnabledIndex(initialFocusedIndex))
     }
   }, [close, getNextEnabledIndex, initialFocusedIndex, isOpen])
-
-  const handleMouseEnter = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current)
-      timeoutRef.current = null
-    }
-    setIsOpen(true)
-  }, [])
-
-  const handleMouseLeave = useCallback(() => {
-    timeoutRef.current = setTimeout(() => {
-      close()
-    }, 150)
-  }, [close])
 
   const handleTriggerKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!isOpen) {
@@ -175,15 +158,6 @@ export function useDropdownNav({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [close])
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-    }
-  }, [])
-
   // Reset refs array when item count changes
   useEffect(() => {
     itemRefs.current = itemRefs.current.slice(0, itemCount)
@@ -200,8 +174,6 @@ export function useDropdownNav({
     handleTriggerKeyDown,
     handleItemKeyDown,
     handleTriggerClick,
-    handleMouseEnter,
-    handleMouseLeave,
     itemRefs,
     containerRef,
   }
