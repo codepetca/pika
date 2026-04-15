@@ -8509,3 +8509,18 @@
   - teacher desktop roster view: `/tmp/pika-roster-badge-headers.png`
 
 **Status:** The roster table now uses shorter headers and a plain grey total-students badge.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Apply the same compact header treatment to the attendance student table.
+
+**Completed:**
+- Renamed the attendance table name columns from `First Name` / `Last Name` to `First` / `Last`.
+- Switched the attendance total-students header badge to the neutral count style while keeping the present/absent badges unchanged.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop attendance view: `/tmp/pika-attendance-badge-headers.png`
+
+**Status:** The attendance student table header formatting now matches the roster table.
