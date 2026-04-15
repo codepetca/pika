@@ -139,7 +139,7 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
   }
 
   return (
-    <div className="p-4">
+    <div className="px-3 py-3">
       <div className="rounded-lg bg-surface shadow-sm">
         <div className="space-y-4 p-4">
           {isArchived && (

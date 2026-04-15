@@ -8478,3 +8478,19 @@
   - teacher desktop resources split view: `/tmp/pika-resources-copyfix.png`
 
 **Status:** The right-pane helper copy now matches the requested wording.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Standardize the outer padding between the left announcements pane and right resources pane.
+
+**Completed:**
+- Matched the teacher right-pane wrapper spacing to the teacher left-pane `PageContent` gutter.
+- Kept the student right-pane wrapper aligned with the student left-pane gutter spacing as well.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop resources split view: `/tmp/pika-resources-padding-teacher.png`
+  - student desktop resources split view: `/tmp/pika-resources-padding-student.png`
+
+**Status:** The Resources split view now uses consistent outer pane padding on both sides.
