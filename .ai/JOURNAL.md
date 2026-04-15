@@ -8580,3 +8580,18 @@
   - click opens the menu: `/tmp/pika-classroom-dropdown-click-check-v4.png`
 
 **Status:** The titlebar classroom switcher now stays closed on hover and opens only on click.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Make hovered classroom rows in the titlebar dropdown use a clearer highlight.
+
+**Completed:**
+- Strengthened the hover state for selectable classroom rows so hovered items use the same clearer surface highlight as the focused row.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown hover highlight: `/tmp/pika-classroom-dropdown-hover-highlight.png`
+
+**Status:** Hovered classroom rows in the titlebar dropdown are now visually highlighted more clearly.

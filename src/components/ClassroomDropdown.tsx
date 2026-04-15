@@ -137,7 +137,7 @@ export function ClassroomDropdown({
                 ? 'cursor-default text-text-muted bg-surface-2'
                 : focusedIndex === index
                   ? 'bg-surface-2 text-text-default'
-                  : 'text-text-default hover:bg-surface-hover'
+                  : 'text-text-default hover:bg-surface-2 hover:text-text-default'
             }`}
             role="option"
             aria-selected={isCurrent}
