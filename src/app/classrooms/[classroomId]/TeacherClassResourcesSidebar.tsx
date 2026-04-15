@@ -140,28 +140,28 @@ export function TeacherClassResourcesSidebar({ classroom }: Props) {
 
   return (
     <div className="px-3 py-3">
-      <div className="rounded-lg bg-surface shadow-sm">
-        <div className="space-y-4 p-4">
-          {isArchived && (
-            <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-              This classroom is archived. Resources are read-only.
-            </div>
-          )}
+      <div className="space-y-4">
+        {isArchived && (
+          <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+            This classroom is archived. Resources are read-only.
+          </div>
+        )}
 
-          {!hasContent && !isArchived && (
-            <div className="rounded-lg border border-border bg-surface-2 p-4">
-              <p className="mb-2 text-sm text-text-muted">
-                Use this area to share static resources with your students:
-              </p>
-              <ul className="list-inside list-disc space-y-1 text-sm text-text-muted">
-                <li>Contact information and office hours</li>
-                <li>Links to external resources</li>
-                <li>Rubrics and grading policies</li>
-                <li>Class expectations and rules</li>
-              </ul>
-            </div>
-          )}
+        {!hasContent && !isArchived && (
+          <div className="rounded-lg border border-border bg-surface-2 p-4">
+            <p className="mb-2 text-sm text-text-muted">
+              Use this area to share static resources with your students:
+            </p>
+            <ul className="list-inside list-disc space-y-1 text-sm text-text-muted">
+              <li>Contact information and office hours</li>
+              <li>Links to external resources</li>
+              <li>Rubrics and grading policies</li>
+              <li>Class expectations and rules</li>
+            </ul>
+          </div>
+        )}
 
+        <div className="rounded-lg bg-surface p-4 shadow-sm">
           <RichTextEditor
             content={content}
             onChange={handleContentChange}

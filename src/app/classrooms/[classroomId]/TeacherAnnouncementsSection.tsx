@@ -343,8 +343,8 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
 
       {/* Empty state */}
       {announcements.length === 0 && !isCreating && (
-        <div className="bg-surface rounded-lg border border-border p-8 text-center">
-          <p className="text-text-muted">
+        <div className="rounded-lg border border-border bg-surface-2 p-4">
+          <p className="text-sm text-text-muted">
             No announcements yet. Create one to share updates with your students.
           </p>
         </div>

@@ -86,8 +86,8 @@ export function StudentAnnouncementsSection({ classroom, className }: Props) {
 
   if (announcements.length === 0) {
     return (
-      <div className={cn('bg-surface rounded-lg border border-border p-8 text-center', className ?? 'max-w-2xl mx-auto')}>
-        <p className="text-text-muted">No announcements yet.</p>
+      <div className={cn('rounded-lg border border-border bg-surface-2 p-4', className ?? 'max-w-2xl mx-auto')}>
+        <p className="text-sm text-text-muted">No announcements yet.</p>
       </div>
     )
   }

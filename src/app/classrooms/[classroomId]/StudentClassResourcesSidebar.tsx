@@ -52,16 +52,16 @@ export function StudentClassResourcesSidebar({ classroom }: Props) {
   }
 
   return (
-    <div className="px-4 py-4">
-      <div className="rounded-lg bg-surface p-6 shadow-sm">
-        {hasContent ? (
+    <div className="px-3 py-3">
+      {hasContent ? (
+        <div className="rounded-lg bg-surface p-4 shadow-sm">
           <RichTextViewer content={content!} />
-        ) : (
-          <div className="py-12 text-center">
-            <p className="text-text-muted">No resources have been added yet.</p>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-surface-2 p-4">
+          <p className="text-sm text-text-muted">No resources have been added yet.</p>
+        </div>
+      )}
     </div>
   )
 }

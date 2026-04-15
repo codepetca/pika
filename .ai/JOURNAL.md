@@ -8627,3 +8627,21 @@
   - teacher classroom dropdown hover on unselected row: `/tmp/pika-classroom-dropdown-hover-unselected.png`
 
 **Status:** The dropdown now stays visually flat by default and only highlights rows on interaction.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Fix the remaining resources-pane gutter mismatch so the empty-state cards sit at the same distance from the pane walls in both teacher and student views.
+
+**Completed:**
+- Flattened the teacher resources sidebar so the helper card is no longer nested inside an extra padded wrapper.
+- Matched the student resources pane to the same outer gutter and empty-state card alignment.
+- Kept the announcements empty states on the same surface/padding treatment for split-view consistency.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ResourcesTab.test.tsx tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher resources split view: `/tmp/pika-resources-padding-teacher-v4.png`
+  - student resources split view: `/tmp/pika-resources-padding-student-v4.png`
+
+**Status:** The resources panes now use matching outer gutters, and the empty-state cards line up to the pane walls consistently.
