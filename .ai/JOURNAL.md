@@ -8611,3 +8611,19 @@
   - teacher classroom dropdown hover highlight after current-row background removal: `/tmp/pika-classroom-dropdown-hover-highlight-v2.png`
 
 **Status:** The classroom dropdown hover state is clearer because the current row no longer looks pre-highlighted.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Make unselected classroom dropdown rows render without a filled background until they are actually hovered or keyboard-focused.
+
+**Completed:**
+- Removed the resting background fill from selectable classroom rows in the titlebar dropdown.
+- Kept the hover and focus-visible background treatment so only the actively targeted row gets a surface highlight.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown hover on unselected row: `/tmp/pika-classroom-dropdown-hover-unselected.png`
+
+**Status:** The dropdown now stays visually flat by default and only highlights rows on interaction.

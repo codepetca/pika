@@ -48,8 +48,6 @@ export function ClassroomDropdown({
 
   const {
     isOpen,
-    setIsOpen,
-    focusedIndex,
     setFocusedIndex,
     triggerId,
     menuId,
@@ -121,38 +119,38 @@ export function ClassroomDropdown({
           const isCurrent = classroom.id === currentClassroom?.id
 
           return (
-          <button
-            key={classroom.id}
-            id={getItemId(index)}
-            ref={(el) => { itemRefs.current[index] = el }}
-            type="button"
-            onClick={() => handleSelect(index)}
-            onMouseEnter={() => {
-              if (!isCurrent) setFocusedIndex(index)
-            }}
-            onKeyDown={handleItemKeyDown}
-            disabled={isCurrent}
-            className={`w-full px-3 py-2 text-left text-sm font-medium transition-colors focus:outline-none ${
-              isCurrent
-                ? 'cursor-default text-text-muted'
-                : focusedIndex === index
-                  ? 'bg-surface-2 text-text-default'
-                  : 'text-text-default hover:bg-surface-2 hover:text-text-default'
-            }`}
-            role="option"
-            aria-selected={isCurrent}
-            aria-current={isCurrent ? 'page' : undefined}
-            tabIndex={isOpen && !isCurrent ? 0 : -1}
-          >
-            <span className="flex items-center justify-between gap-3">
-              <span className="truncate">{classroom.title}</span>
-              {isCurrent && (
-                <span className="shrink-0 rounded-badge bg-surface px-2 py-0.5 text-[11px] font-semibold text-text-muted">
-                  Current
-                </span>
-              )}
-            </span>
-          </button>
+            <button
+              key={classroom.id}
+              id={getItemId(index)}
+              ref={(el) => {
+                itemRefs.current[index] = el
+              }}
+              type="button"
+              onClick={() => handleSelect(index)}
+              onMouseEnter={() => {
+                if (!isCurrent) setFocusedIndex(index)
+              }}
+              onKeyDown={handleItemKeyDown}
+              disabled={isCurrent}
+              className={`w-full px-3 py-2 text-left text-sm font-medium transition-colors focus:outline-none ${
+                isCurrent
+                  ? 'cursor-default text-text-muted'
+                  : 'text-text-default hover:bg-surface-hover hover:text-text-default focus-visible:bg-surface-hover focus-visible:text-text-default'
+              }`}
+              role="option"
+              aria-selected={isCurrent}
+              aria-current={isCurrent ? 'page' : undefined}
+              tabIndex={isOpen && !isCurrent ? 0 : -1}
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="truncate">{classroom.title}</span>
+                {isCurrent && (
+                  <span className="shrink-0 rounded-badge bg-surface px-2 py-0.5 text-[11px] font-semibold text-text-muted">
+                    Current
+                  </span>
+                )}
+              </span>
+            </button>
           )
         })}
       </div>
