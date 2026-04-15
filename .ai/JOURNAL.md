@@ -8206,3 +8206,23 @@
   - student assignments sanity check: `/tmp/issue453-ai-draft-student.png`
 
 **Status:** Fresh AI grading feedback now appears first in the draft, is visibly marked as AI-generated until the teacher clicks into the field, and then becomes a normal draft textarea without altering the text.
+
+## 2026-04-15 (dependency and SDK drift alignment)
+
+**Goal:** Align the repo’s runtime policy and direct dependency manifest with the actual locked toolchain state, using Node 24 as the single supported runtime.
+
+**Completed:**
+- Standardized the runtime contract on Node 24 by updating `package.json#engines`, the CI workflow Node version, and `scripts/verify-env.sh`.
+- Updated the stale AI model documentation to reflect the current default of `gpt-5-nano` and documented `OPENAI_GRADING_MODEL` as the override knob.
+- Raised stale direct dependency and devDependency specifiers in `package.json` to the versions already established in `pnpm-lock.yaml`, then refreshed the lockfile with `pnpm install` under Node 24.
+- Fixed two snapshot route tests that relied on `response.blob().text()`, which broke under the Node 24 runtime path; both now assert response content through `arrayBuffer()` decoding instead.
+
+**Validation:**
+- `mise exec node@24 -- corepack pnpm install`
+- `mise exec node@24 -- corepack pnpm run lint`
+- `mise exec node@24 -- npx tsc --noEmit`
+- `mise exec node@24 -- corepack pnpm run test:coverage`
+- `mise exec node@24 -- env NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_placeholder SUPABASE_SECRET_KEY=sb_secret_placeholder SESSION_SECRET=placeholder-session-secret-at-least-32-chars-long NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key SUPABASE_SERVICE_ROLE_KEY=placeholder-service-role-key AUTH_SESSION_SECRET=placeholder-session-secret-at-least-32-chars-long corepack pnpm run build`
+- `mise exec node@24 -- bash scripts/verify-env.sh`
+
+**Status:** The repo now consistently targets Node 24, the manifest matches the locked direct dependency baseline, and the full validation stack passes under Node 24.
