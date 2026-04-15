@@ -8494,3 +8494,18 @@
   - student desktop resources split view: `/tmp/pika-resources-padding-student.png`
 
 **Status:** The Resources split view now uses consistent outer pane padding on both sides.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Simplify the roster table header labels and make the total-students badge neutral.
+
+**Completed:**
+- Renamed the roster table name columns from `First Name` / `Last Name` to `First` / `Last`.
+- Added a neutral count badge variant and used it for the roster total-students chip in the `First` header.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop roster view: `/tmp/pika-roster-badge-headers.png`
+
+**Status:** The roster table now uses shorter headers and a plain grey total-students badge.
