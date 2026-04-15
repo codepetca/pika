@@ -6,6 +6,7 @@ interface UseDropdownNavOptions {
   itemCount: number
   onSelect?: (index: number) => void
   onClose?: () => void
+  initialFocusedIndex?: number
 }
 
 interface UseDropdownNavReturn {
@@ -33,6 +34,7 @@ export function useDropdownNav({
   itemCount,
   onSelect,
   onClose,
+  initialFocusedIndex = 0,
 }: UseDropdownNavOptions): UseDropdownNavReturn {
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
@@ -57,9 +59,9 @@ export function useDropdownNav({
       close()
     } else {
       setIsOpen(true)
-      setFocusedIndex(0)
+      setFocusedIndex(initialFocusedIndex)
     }
-  }, [isOpen, close])
+  }, [isOpen, close, initialFocusedIndex])
 
   const handleMouseEnter = useCallback(() => {
     if (timeoutRef.current) {
@@ -80,7 +82,7 @@ export function useDropdownNav({
       if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         setIsOpen(true)
-        setFocusedIndex(0)
+        setFocusedIndex(initialFocusedIndex)
       }
       return
     }
@@ -109,7 +111,7 @@ export function useDropdownNav({
         close()
         break
     }
-  }, [isOpen, focusedIndex, itemCount, onSelect, close])
+  }, [isOpen, focusedIndex, itemCount, onSelect, close, initialFocusedIndex])
 
   const handleItemKeyDown = useCallback((e: React.KeyboardEvent) => {
     switch (e.key) {

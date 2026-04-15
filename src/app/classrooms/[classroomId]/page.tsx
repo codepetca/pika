@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getUserDisplayInfo } from '@/lib/user-profile'
+import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
 
@@ -43,12 +44,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         .eq('id', classroomId)
         .eq('teacher_id', user.id)
         .single(),
-      supabase
-        .from('classrooms')
-        .select('*')
-        .eq('teacher_id', user.id)
-        .is('archived_at', null)
-        .order('updated_at', { ascending: false }),
+      listActiveTeacherClassrooms(supabase, user.id),
       getUserDisplayInfo(user, supabase),
     ])
 

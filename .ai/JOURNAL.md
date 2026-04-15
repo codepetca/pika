@@ -8524,3 +8524,24 @@
   - teacher desktop attendance view: `/tmp/pika-attendance-badge-headers.png`
 
 **Status:** The attendance student table header formatting now matches the roster table.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Change the titlebar classroom switcher from hover-open to click-open and align its ordering with the classrooms landing page.
+
+**Completed:**
+- Updated the titlebar classroom dropdown to open on click instead of hover.
+- Rendered the full classroom list in landing-page order, including the current classroom as a disabled `Current` row.
+- Switched the teacher classroom-page data source to `listActiveTeacherClassrooms(...)` so the dropdown order matches the landing page ordering logic.
+- Added a focused component test covering click-open behavior, preserved order, current-row rendering, and navigation.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classrooms landing page order: `/tmp/pika-classrooms-index-order.png`
+  - teacher classroom titlebar dropdown open state: `/tmp/pika-classroom-dropdown-open.png`
+  - student classroom header baseline: `/tmp/pika-classroom-dropdown-student.png`
+- Created one temporary local verification classroom to force the teacher dropdown to render, then removed it after screenshots.
+
+**Status:** The titlebar classroom switcher now uses click interaction, matches landing-page ordering, and keeps the current classroom visible in the menu.
