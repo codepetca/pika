@@ -90,7 +90,7 @@ To support automated history analysis, MVP should treat **Pika as the primary dr
 - Summaries apply to **assignments only** (not daily logs).
 - Summaries should run **on-demand** and as a nightly batch job at **1:00am America/Toronto**.
 - On-demand summaries are allowed for **drafts** and **submitted** docs.
-- AI model: **OpenAI `gpt-5-mini`** (configurable).
+- AI model: **OpenAI `gpt-5-nano`** by default (override with `OPENAI_GRADING_MODEL`).
 - On-demand summarization should return cached results unless the assignment doc has changed since the last summary.
 - Nightly batch recomputes summaries only for **submitted** assignment docs changed since last summary.
 - Scheduled execution: Vercel Cron (configured in Vercel dashboard; production recommended) at `0 6 * * *` (06:00 UTC; 1:00am Toronto in winter, 2:00am in summer) → `GET /api/cron/nightly-assignment-summaries` (protected via `CRON_SECRET`).

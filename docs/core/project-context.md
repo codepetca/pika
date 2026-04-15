@@ -122,7 +122,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 ## Troubleshooting
 
 - **Server won’t start**: check Node 24.x, `.env.local`, clear `.next`.
-- **pnpm thinks you’re on Node 22**: your `pnpm` binary is being executed by a different `node` than your shell (common when an older global pnpm is earlier in `PATH`). Fix with Corepack:
+- **pnpm thinks you’re on the wrong Node version**: your `pnpm` binary is being executed by a different `node` than your shell (common when an older global pnpm is earlier in `PATH`). Fix with Corepack:
   - `corepack enable`
   - `corepack prepare pnpm@10.25.0 --activate`
   - Re-open the terminal and re-check: `node -v`, `pnpm -v`, `pnpm exec node -v`
