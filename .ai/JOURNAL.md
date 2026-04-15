@@ -8595,3 +8595,19 @@
   - teacher classroom dropdown hover highlight: `/tmp/pika-classroom-dropdown-hover-highlight.png`
 
 **Status:** Hovered classroom rows in the titlebar dropdown are now visually highlighted more clearly.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Remove the persistent current-row background so the classroom dropdown hover highlight reads more clearly.
+
+**Completed:**
+- Dropped the always-on background fill from the disabled current-classroom row while keeping the `Current` marker badge.
+- Kept the stronger hover/focus highlight for selectable classroom rows unchanged.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown hover highlight after current-row background removal: `/tmp/pika-classroom-dropdown-hover-highlight-v2.png`
+
+**Status:** The classroom dropdown hover state is clearer because the current row no longer looks pre-highlighted.

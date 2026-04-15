@@ -134,7 +134,7 @@ export function ClassroomDropdown({
             disabled={isCurrent}
             className={`w-full px-3 py-2 text-left text-sm font-medium transition-colors focus:outline-none ${
               isCurrent
-                ? 'cursor-default text-text-muted bg-surface-2'
+                ? 'cursor-default text-text-muted'
                 : focusedIndex === index
                   ? 'bg-surface-2 text-text-default'
                   : 'text-text-default hover:bg-surface-2 hover:text-text-default'
