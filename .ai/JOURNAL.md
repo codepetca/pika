@@ -8545,3 +8545,20 @@
 - Created one temporary local verification classroom to force the teacher dropdown to render, then removed it after screenshots.
 
 **Status:** The titlebar classroom switcher now uses click interaction, matches landing-page ordering, and keeps the current classroom visible in the menu.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Fix the keyboard-navigation regression in the titlebar classroom switcher review finding.
+
+**Completed:**
+- Extended the shared dropdown roving-focus logic so it skips disabled items when opening and when moving with arrow keys.
+- Wired the classroom dropdown to mark the current classroom row as disabled in the shared navigation helper as well as in rendering.
+- Added a regression test that arrows past the disabled current-classroom row and activates the next selectable classroom with Enter.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown after keyboard-fix patch: `/tmp/pika-classroom-dropdown-keyboard-fix.png`
+
+**Status:** Keyboard navigation in the titlebar classroom switcher now skips the disabled current-classroom row instead of landing on it.

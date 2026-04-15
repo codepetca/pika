@@ -63,6 +63,7 @@ export function ClassroomDropdown({
     itemCount: classrooms.length,
     onSelect: handleSelect,
     initialFocusedIndex: firstSelectableIndex >= 0 ? firstSelectableIndex : 0,
+    isItemDisabled: (index) => classrooms[index]?.id === currentClassroom?.id,
   })
 
   // Handle touch to prevent double-firing with click
@@ -138,7 +139,9 @@ export function ClassroomDropdown({
             ref={(el) => { itemRefs.current[index] = el }}
             type="button"
             onClick={() => handleSelect(index)}
-            onMouseEnter={() => setFocusedIndex(index)}
+            onMouseEnter={() => {
+              if (!isCurrent) setFocusedIndex(index)
+            }}
             onKeyDown={handleItemKeyDown}
             disabled={isCurrent}
             className={`w-full px-3 py-2 text-left text-sm font-medium transition-colors focus:outline-none ${

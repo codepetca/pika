@@ -7,6 +7,7 @@ interface UseDropdownNavOptions {
   onSelect?: (index: number) => void
   onClose?: () => void
   initialFocusedIndex?: number
+  isItemDisabled?: (index: number) => boolean
 }
 
 interface UseDropdownNavReturn {
@@ -35,6 +36,7 @@ export function useDropdownNav({
   onSelect,
   onClose,
   initialFocusedIndex = 0,
+  isItemDisabled = () => false,
 }: UseDropdownNavOptions): UseDropdownNavReturn {
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
@@ -48,6 +50,20 @@ export function useDropdownNav({
   const menuId = `${baseId}-menu`
   const getItemId = (index: number) => `${baseId}-item-${index}`
 
+  const getNextEnabledIndex = useCallback((startIndex: number, direction: 1 | -1 = 1) => {
+    if (itemCount <= 0) return -1
+
+    const normalizedStart = ((startIndex % itemCount) + itemCount) % itemCount
+    for (let step = 0; step < itemCount; step += 1) {
+      const candidate = ((normalizedStart + step * direction) % itemCount + itemCount) % itemCount
+      if (!isItemDisabled(candidate)) {
+        return candidate
+      }
+    }
+
+    return -1
+  }, [isItemDisabled, itemCount])
+
   const close = useCallback(() => {
     setIsOpen(false)
     setFocusedIndex(-1)
@@ -59,9 +75,9 @@ export function useDropdownNav({
       close()
     } else {
       setIsOpen(true)
-      setFocusedIndex(initialFocusedIndex)
+      setFocusedIndex(getNextEnabledIndex(initialFocusedIndex))
     }
-  }, [isOpen, close, initialFocusedIndex])
+  }, [close, getNextEnabledIndex, initialFocusedIndex, isOpen])
 
   const handleMouseEnter = useCallback(() => {
     if (timeoutRef.current) {
@@ -82,7 +98,7 @@ export function useDropdownNav({
       if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         setIsOpen(true)
-        setFocusedIndex(initialFocusedIndex)
+        setFocusedIndex(getNextEnabledIndex(initialFocusedIndex))
       }
       return
     }
@@ -94,16 +110,16 @@ export function useDropdownNav({
         break
       case 'ArrowDown':
         e.preventDefault()
-        setFocusedIndex((prev) => (prev < itemCount - 1 ? prev + 1 : 0))
+        setFocusedIndex((prev) => getNextEnabledIndex(prev + 1, 1))
         break
       case 'ArrowUp':
         e.preventDefault()
-        setFocusedIndex((prev) => (prev > 0 ? prev - 1 : itemCount - 1))
+        setFocusedIndex((prev) => getNextEnabledIndex(prev - 1, -1))
         break
       case 'Enter':
       case ' ':
         e.preventDefault()
-        if (focusedIndex >= 0 && focusedIndex < itemCount) {
+        if (focusedIndex >= 0 && focusedIndex < itemCount && !isItemDisabled(focusedIndex)) {
           onSelect?.(focusedIndex)
         }
         break
@@ -111,7 +127,7 @@ export function useDropdownNav({
         close()
         break
     }
-  }, [isOpen, focusedIndex, itemCount, onSelect, close, initialFocusedIndex])
+  }, [close, focusedIndex, getNextEnabledIndex, initialFocusedIndex, isItemDisabled, isOpen, itemCount, onSelect])
 
   const handleItemKeyDown = useCallback((e: React.KeyboardEvent) => {
     switch (e.key) {
@@ -121,16 +137,16 @@ export function useDropdownNav({
         break
       case 'ArrowDown':
         e.preventDefault()
-        setFocusedIndex((prev) => (prev < itemCount - 1 ? prev + 1 : 0))
+        setFocusedIndex((prev) => getNextEnabledIndex(prev + 1, 1))
         break
       case 'ArrowUp':
         e.preventDefault()
-        setFocusedIndex((prev) => (prev > 0 ? prev - 1 : itemCount - 1))
+        setFocusedIndex((prev) => getNextEnabledIndex(prev - 1, -1))
         break
       case 'Enter':
       case ' ':
         e.preventDefault()
-        if (focusedIndex >= 0 && focusedIndex < itemCount) {
+        if (focusedIndex >= 0 && focusedIndex < itemCount && !isItemDisabled(focusedIndex)) {
           // Click the element to trigger its native behavior (important for Links)
           itemRefs.current[focusedIndex]?.click()
         }
@@ -139,7 +155,7 @@ export function useDropdownNav({
         close()
         break
     }
-  }, [focusedIndex, itemCount, close])
+  }, [close, focusedIndex, getNextEnabledIndex, isItemDisabled, itemCount])
 
   // Focus the currently focused option
   useEffect(() => {

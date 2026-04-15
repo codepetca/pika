@@ -74,4 +74,29 @@ describe('ClassroomDropdown', () => {
 
     expect(push).toHaveBeenCalledWith('/classrooms/class-3?tab=attendance')
   })
+
+  it('skips the current classroom during keyboard navigation', () => {
+    render(
+      <ClassroomDropdown
+        classrooms={classrooms}
+        currentClassroomId="class-2"
+        currentTab="attendance"
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select classroom' }))
+
+    const alpha = screen.getByRole('option', { name: /Alpha/ })
+    const gamma = screen.getByRole('option', { name: /Gamma/ })
+
+    expect(alpha).toHaveFocus()
+
+    fireEvent.keyDown(alpha, { key: 'ArrowDown' })
+
+    expect(gamma).toHaveFocus()
+
+    fireEvent.keyDown(gamma, { key: 'Enter' })
+
+    expect(push).toHaveBeenCalledWith('/classrooms/class-3?tab=attendance')
+  })
 })
