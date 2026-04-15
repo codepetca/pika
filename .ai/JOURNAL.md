@@ -8392,7 +8392,7 @@
 
 **Completed:**
 - Standardized the runtime contract on Node 24 by updating `package.json#engines`, the CI workflow Node version, and `scripts/verify-env.sh`.
-- Updated the stale AI model documentation to reflect the current default of `gpt-5-nano` and documented `OPENAI_GRADING_MODEL` as the override knob.
+- Updated the stale AI model documentation to reflect the current default of `gpt-5-nano` and documented `OPENAI_SUMMARY_MODEL` as the summary override knob.
 - Raised stale direct dependency and devDependency specifiers in `package.json` to the versions already established in `pnpm-lock.yaml`, then refreshed the lockfile with `pnpm install` under Node 24.
 - Fixed two snapshot route tests that relied on `response.blob().text()`, which broke under the Node 24 runtime path; both now assert response content through `arrayBuffer()` decoding instead.
 
