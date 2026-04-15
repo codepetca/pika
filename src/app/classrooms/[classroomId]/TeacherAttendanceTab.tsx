@@ -284,15 +284,15 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             <DataTableHead>
               <DataTableRow>
                 <SortableHeaderCell
-                  label="First Name"
+                  label="First"
                   isActive={sortColumn === 'first_name'}
                   direction={sortDirection}
                   onClick={() => handleSort('first_name')}
                   density="tight"
-                  trailing={isClassDay && rows.length > 0 ? <StudentCountBadge count={rows.length} /> : undefined}
+                  trailing={isClassDay && rows.length > 0 ? <StudentCountBadge count={rows.length} variant="neutral" /> : undefined}
                 />
                 <SortableHeaderCell
-                  label="Last Name"
+                  label="Last"
                   isActive={sortColumn === 'last_name'}
                   direction={sortDirection}
                   onClick={() => handleSort('last_name')}

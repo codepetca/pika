@@ -8405,3 +8405,243 @@
 - `mise exec node@24 -- bash scripts/verify-env.sh`
 
 **Status:** The repo now consistently targets Node 24, the manifest matches the locked direct dependency baseline, and the full validation stack passes under Node 24.
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Rename the teacher classroom `Attendance` tab to `Daily`.
+
+**Completed:**
+- Updated the teacher classroom navigation item label from `Attendance` to `Daily` while keeping the existing `tab=attendance` route key unchanged.
+- Updated the UI gallery teacher quick link label to match the new wording.
+- Updated the nav component test assertion for the renamed teacher tab.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `corepack pnpm exec vitest run tests/components/NavItems.test.tsx`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop expanded sidebar: `/tmp/pika-daily-teacher-expanded.png`
+  - student mobile classroom view: `/tmp/pika-daily-student.png`
+  - teacher mobile full-page view: `/tmp/pika-daily-teacher-mobile-full.png`
+
+**Status:** The teacher tab label now reads `Daily`, and the classroom page still renders correctly in teacher and student views.
+
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Replace the Resources tab's internal `Announcements` / `Class Resources` sub-tabs with a two-pane layout.
+
+**Completed:**
+- Reworked the classroom Resources tab so announcements stay in the main pane and class resources live in the right sidebar for both teacher and student views.
+- Enabled a persistent desktop right sidebar for `resources-teacher` and `resources-student`, with the standard mobile panel toggle behavior.
+- Extracted dedicated teacher/student class-resources sidebar components and kept the teacher autosave editor behavior intact.
+- Updated announcements sections to support pane-friendly widths instead of always forcing a centered narrow column.
+- Added a focused Resources tab component test and expanded layout-config coverage for the new two-pane route behavior.
+- Polished empty-resource detection so blank Tiptap docs show the expected empty state instead of an empty box.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ResourcesTab.test.tsx tests/unit/layout-config.test.ts`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop split view: `/tmp/pika-resources-teacher-desktop.png`
+  - student desktop split view: `/tmp/pika-resources-student-desktop.png`
+  - teacher mobile resources drawer: `/tmp/pika-resources-teacher-mobile-panel.png`
+
+**Status:** Resources now behaves as a two-pane page with announcements on the left and class resources on the right, while still working on mobile via the standard panel drawer.
+
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Simplify the Resources split-view chrome and move the teacher new-announcement action to the bottom of the announcements pane.
+
+**Completed:**
+- Removed the left-pane `Announcements` heading and the desktop right-pane `Class Resources` header.
+- Removed the teacher resources save-status strip and its divider line.
+- Moved the teacher `New Announcement` action/form block to the bottom of the announcements pane.
+- Simplified the mobile resources drawer header to just the back control so the label and divider are gone there too.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ResourcesTab.test.tsx tests/unit/layout-config.test.ts`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3001`:
+  - teacher desktop split view: `/tmp/pika-resources-teacher-desktop-v4.png`
+  - teacher mobile resources drawer: `/tmp/pika-resources-teacher-mobile-panel-v4.png`
+
+**Status:** The Resources page now presents as a cleaner split view with minimal chrome and the new-announcement action anchored at the bottom of the left pane.
+
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Adjust the empty-state helper copy in the right resources pane.
+
+**Completed:**
+- Changed the teacher resources empty-state text from `Use this page to share static resources with your students:` to `Use this area to share static resources with your students:`.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3001`:
+  - teacher desktop resources split view: `/tmp/pika-resources-copyfix.png`
+
+**Status:** The right-pane helper copy now matches the requested wording.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Standardize the outer padding between the left announcements pane and right resources pane.
+
+**Completed:**
+- Matched the teacher right-pane wrapper spacing to the teacher left-pane `PageContent` gutter.
+- Kept the student right-pane wrapper aligned with the student left-pane gutter spacing as well.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop resources split view: `/tmp/pika-resources-padding-teacher.png`
+  - student desktop resources split view: `/tmp/pika-resources-padding-student.png`
+
+**Status:** The Resources split view now uses consistent outer pane padding on both sides.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Simplify the roster table header labels and make the total-students badge neutral.
+
+**Completed:**
+- Renamed the roster table name columns from `First Name` / `Last Name` to `First` / `Last`.
+- Added a neutral count badge variant and used it for the roster total-students chip in the `First` header.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop roster view: `/tmp/pika-roster-badge-headers.png`
+
+**Status:** The roster table now uses shorter headers and a plain grey total-students badge.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Apply the same compact header treatment to the attendance student table.
+
+**Completed:**
+- Renamed the attendance table name columns from `First Name` / `Last Name` to `First` / `Last`.
+- Switched the attendance total-students header badge to the neutral count style while keeping the present/absent badges unchanged.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop attendance view: `/tmp/pika-attendance-badge-headers.png`
+
+**Status:** The attendance student table header formatting now matches the roster table.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Change the titlebar classroom switcher from hover-open to click-open and align its ordering with the classrooms landing page.
+
+**Completed:**
+- Updated the titlebar classroom dropdown to open on click instead of hover.
+- Rendered the full classroom list in landing-page order, including the current classroom as a disabled `Current` row.
+- Switched the teacher classroom-page data source to `listActiveTeacherClassrooms(...)` so the dropdown order matches the landing page ordering logic.
+- Added a focused component test covering click-open behavior, preserved order, current-row rendering, and navigation.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classrooms landing page order: `/tmp/pika-classrooms-index-order.png`
+  - teacher classroom titlebar dropdown open state: `/tmp/pika-classroom-dropdown-open.png`
+  - student classroom header baseline: `/tmp/pika-classroom-dropdown-student.png`
+- Created one temporary local verification classroom to force the teacher dropdown to render, then removed it after screenshots.
+
+**Status:** The titlebar classroom switcher now uses click interaction, matches landing-page ordering, and keeps the current classroom visible in the menu.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Fix the keyboard-navigation regression in the titlebar classroom switcher review finding.
+
+**Completed:**
+- Extended the shared dropdown roving-focus logic so it skips disabled items when opening and when moving with arrow keys.
+- Wired the classroom dropdown to mark the current classroom row as disabled in the shared navigation helper as well as in rendering.
+- Added a regression test that arrows past the disabled current-classroom row and activates the next selectable classroom with Enter.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown after keyboard-fix patch: `/tmp/pika-classroom-dropdown-keyboard-fix.png`
+
+**Status:** Keyboard navigation in the titlebar classroom switcher now skips the disabled current-classroom row instead of landing on it.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Ensure the titlebar classroom switcher opens only on click, not hover.
+
+**Completed:**
+- Removed the remaining non-click activation path from the classroom dropdown trigger.
+- Simplified the shared dropdown hook by deleting unused hover-open/hover-close APIs.
+- Tightened the classroom dropdown tests to use a real pointer-down + click sequence.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- After restarting the worktree dev server, visual verification on `http://localhost:3000`:
+  - hover stays closed: `/tmp/pika-classroom-dropdown-hover-check-v4.png`
+  - click opens the menu: `/tmp/pika-classroom-dropdown-click-check-v4.png`
+
+**Status:** The titlebar classroom switcher now stays closed on hover and opens only on click.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Make hovered classroom rows in the titlebar dropdown use a clearer highlight.
+
+**Completed:**
+- Strengthened the hover state for selectable classroom rows so hovered items use the same clearer surface highlight as the focused row.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown hover highlight: `/tmp/pika-classroom-dropdown-hover-highlight.png`
+
+**Status:** Hovered classroom rows in the titlebar dropdown are now visually highlighted more clearly.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Remove the persistent current-row background so the classroom dropdown hover highlight reads more clearly.
+
+**Completed:**
+- Dropped the always-on background fill from the disabled current-classroom row while keeping the `Current` marker badge.
+- Kept the stronger hover/focus highlight for selectable classroom rows unchanged.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown hover highlight after current-row background removal: `/tmp/pika-classroom-dropdown-hover-highlight-v2.png`
+
+**Status:** The classroom dropdown hover state is clearer because the current row no longer looks pre-highlighted.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Make unselected classroom dropdown rows render without a filled background until they are actually hovered or keyboard-focused.
+
+**Completed:**
+- Removed the resting background fill from selectable classroom rows in the titlebar dropdown.
+- Kept the hover and focus-visible background treatment so only the actively targeted row gets a surface highlight.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown hover on unselected row: `/tmp/pika-classroom-dropdown-hover-unselected.png`
+
+**Status:** The dropdown now stays visually flat by default and only highlights rows on interaction.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Fix the remaining resources-pane gutter mismatch so the empty-state cards sit at the same distance from the pane walls in both teacher and student views.
+
+**Completed:**
+- Flattened the teacher resources sidebar so the helper card is no longer nested inside an extra padded wrapper.
+- Matched the student resources pane to the same outer gutter and empty-state card alignment.
+- Kept the announcements empty states on the same surface/padding treatment for split-view consistency.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ResourcesTab.test.tsx tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher resources split view: `/tmp/pika-resources-padding-teacher-v4.png`
+  - student resources split view: `/tmp/pika-resources-padding-student-v4.png`
+
+**Status:** The resources panes now use matching outer gutters, and the empty-state cards line up to the pane walls consistently.

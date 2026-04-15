@@ -12,7 +12,9 @@ import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
+import { TeacherClassResourcesSidebar } from './TeacherClassResourcesSidebar'
 import { TeacherResourcesTab } from './TeacherResourcesTab'
+import { StudentClassResourcesSidebar } from './StudentClassResourcesSidebar'
 import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherQuizzesTab } from './TeacherQuizzesTab'
 import { StudentQuizzesTab } from './StudentQuizzesTab'
@@ -664,6 +666,8 @@ function ClassroomPageContent({
       setRightSidebarWidth('60%')
     } else if (isTeacher && activeTab === 'gradebook') {
       setRightSidebarWidth(420)
+    } else if (activeTab === 'resources') {
+      setRightSidebarWidth('50%')
     }
   }, [
     isTeacher,
@@ -1070,7 +1074,7 @@ function ClassroomPageContent({
                         onNavigateToAnnouncements={() =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'resources')
-                            params.set('section', 'announcements')
+                            params.delete('section')
                             params.delete('assignmentId')
                           })
                         }
@@ -1079,16 +1083,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.resources && (
                     <TabContentTransition isActive={activeTab === 'resources'}>
-                      <TeacherResourcesTab
-                        classroom={classroom}
-                        sectionParam={sectionParam}
-                        onSectionChange={(section) =>
-                          navigateInClassroom((params) => {
-                            params.set('tab', 'resources')
-                            params.set('section', section)
-                          })
-                        }
-                      />
+                      <TeacherResourcesTab classroom={classroom} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.roster && (
@@ -1158,7 +1153,7 @@ function ClassroomPageContent({
                         onNavigateToAnnouncements={() =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'resources')
-                            params.set('section', 'announcements')
+                            params.delete('section')
                             params.delete('assignmentId')
                           })
                         }
@@ -1167,16 +1162,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.resources && (
                     <TabContentTransition isActive={activeTab === 'resources'}>
-                      <StudentResourcesTab
-                        classroom={classroom}
-                        sectionParam={sectionParam}
-                        onSectionChange={(section) =>
-                          navigateInClassroom((params) => {
-                            params.set('tab', 'resources')
-                            params.set('section', section)
-                          })
-                        }
-                      />
+                      <StudentResourcesTab classroom={classroom} />
                     </TabContentTransition>
                   )}
                 </>
@@ -1186,6 +1172,8 @@ function ClassroomPageContent({
         </MainContent>
 
         <RightSidebar
+          hideDesktopHeader={activeTab === 'resources'}
+          minimalMobileHeader={activeTab === 'resources'}
           title={
             isTeacher && activeTab === 'assignments' && isMarkdownMode
               ? 'Assignments'
@@ -1214,6 +1202,8 @@ function ClassroomPageContent({
               ? ''
               : isTeacher && activeTab === 'assignments'
               ? ''
+              : activeTab === 'resources'
+              ? 'Class Resources'
               : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
               : activeTab === 'today'
@@ -1308,6 +1298,10 @@ function ClassroomPageContent({
             )
           ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
+          ) : isTeacher && activeTab === 'resources' ? (
+            <TeacherClassResourcesSidebar classroom={classroom} />
+          ) : activeTab === 'resources' ? (
+            <StudentClassResourcesSidebar classroom={classroom} />
           ) : isTeacher &&
             activeTab === 'tests' &&
             testGradingContext.mode === 'grading' &&
