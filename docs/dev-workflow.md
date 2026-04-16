@@ -188,6 +188,20 @@ Avoid:
 git merge --no-ff <branch>   # creates merge commit (rejected on main)
 ```
 
+## Post-merge cleanup
+
+After a feature PR is merged to `main`, clean up from the hub checkout:
+
+```bash
+export PIKA_WORKTREE="$HOME/Repos/pika"
+git -C "$PIKA_WORKTREE" fetch origin
+git -C "$PIKA_WORKTREE" merge --ff-only origin/main
+git -C "$PIKA_WORKTREE" worktree remove "$HOME/Repos/.worktrees/pika/<branch-name>"
+git -C "$PIKA_WORKTREE" branch -D <branch-name>
+```
+
+This keeps the hub checkout fast-forwarded to the merged `main` before removing the finished worktree and branch.
+
 ---
 
 ## Merging `main` into `production` (PR-required)

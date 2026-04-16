@@ -49,6 +49,8 @@ All agents are bound to exactly ONE worktree via `$PIKA_WORKTREE`.
 4. If work was merged, clean up:
    ```bash
    export PIKA_WORKTREE="$HOME/Repos/pika"
+   git -C "$PIKA_WORKTREE" fetch origin
+   git -C "$PIKA_WORKTREE" merge --ff-only origin/main
    git -C "$PIKA_WORKTREE" worktree remove "$HOME/Repos/.worktrees/pika/<branch-name>"
    git -C "$PIKA_WORKTREE" branch -D <branch-name>
    ```

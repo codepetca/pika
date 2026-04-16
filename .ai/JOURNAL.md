@@ -8881,3 +8881,16 @@
   - Build: `next build` succeeded
 
 **Status:** The PR branch remains fully green after a second end-to-end validation run.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Update the worktree cleanup rule so merged-branch cleanup explicitly fast-forwards the hub `main` before removing the worktree and local branch.
+
+**Completed:**
+- Updated `.ai/START-HERE.md` to add `git fetch origin` and `git merge --ff-only origin/main` to the mandatory post-merge cleanup sequence.
+- Added a `Post-merge cleanup` section to `docs/dev-workflow.md` with the same authoritative cleanup flow from the hub checkout.
+
+**Validation:**
+- Reviewed the resulting diff for `.ai/START-HERE.md` and `docs/dev-workflow.md` to confirm both docs now describe the same cleanup sequence.
+
+**Status:** The cleanup rule now explicitly requires fast-forwarding the hub `main` as part of post-merge cleanup.
