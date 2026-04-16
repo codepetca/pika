@@ -8683,3 +8683,16 @@
 - `rg -n "tail -40 .*JOURNAL|tail -60 .*JOURNAL|follow its required reading order|Ensure dev server is running|Refresh auth states if needed|Take screenshots for BOTH roles" AGENTS.md docs/issue-worker.md docs/workflow/handle-issue.md .codex/prompts/session-start.md .ai/START-HERE.md`
 
 **Status:** The remaining workflow docs are leaner, and the startup-budget and no-journal-tail rules now have test coverage.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Address PR review drift findings in `.ai/CURRENT.md` without adding more synchronization machinery.
+
+**Completed:**
+- Removed the volatile claim that all feature epics currently pass and replaced it with a direct pointer back to `.ai/features.json` as the status authority.
+- Replaced hardcoded package-manager and Node-version facts with a pointer to `.nvmrc`, `package.json`, and `scripts/verify-env.sh` so startup context stays operational instead of duplicating metadata.
+
+**Validation:**
+- `pnpm test -- --run tests/unit/ai-startup-docs.test.ts` (resolved to a full Vitest run in this shell; `tests/unit/ai-startup-docs.test.ts` still passed)
+
+**Status:** `.ai/CURRENT.md` is now narrower and less likely to drift away from canonical repo metadata.

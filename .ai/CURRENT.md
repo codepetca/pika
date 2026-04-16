@@ -6,15 +6,14 @@ Read this file at the start of every AI session. It is the compact continuity la
 
 - Product status: core classroom, assignment, quiz/test, and auth flows are live.
 - Maintenance focus: coverage expansion, API-route standardization, UI decomposition, and AI-guidance cleanup.
-- Feature inventory: `.ai/features.json` is the status authority for big epics. All listed epics currently pass.
+- Feature inventory: `.ai/features.json` is the status authority for big epics; check it directly for current pass/fail state.
 
 ## Environment And Workflow Facts
 
 - Main hub checkout: `$HOME/Repos/pika`
 - Feature worktrees: `$HOME/Repos/.worktrees/pika/<branch-name>`
 - Shared env file: `$HOME/Repos/.env/pika/.env.local`
-- Package manager: `pnpm` via Corepack (`packageManager: pnpm@10.25.0`)
-- Node baseline: `24.x`; `.nvmrc` currently points to `v24.12.0`
+- Runtime and package-manager requirements live in `.nvmrc`, `package.json`, and `scripts/verify-env.sh`
 - Worktree and shared-env setup are defined only in `docs/dev-workflow.md`
 
 ## Repo Invariants
