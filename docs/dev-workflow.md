@@ -3,6 +3,9 @@
 This document describes the internal development workflow for the Pika project,
 with a focus on agentic (Claude / Codex) development using git worktrees.
 
+This is the canonical source for worktree usage and shared `.env.local` setup.
+Other AI guidance docs should point here instead of restating the same setup steps.
+
 This is **developer infrastructure**, not a product feature.
 
 ---

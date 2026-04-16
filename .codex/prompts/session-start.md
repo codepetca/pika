@@ -1,28 +1,21 @@
-Start a new AI session: validate environment, load context, identify next task.
+Start a new AI session.
 
-This command operates on the bound worktree (`$PIKA_WORKTREE`).
+Canonical startup rules live in `.ai/START-HERE.md`, `.ai/CURRENT.md`, `docs/ai-instructions.md`, and `docs/dev-workflow.md`.
 
-Steps:
-1) Verify environment: `echo $PIKA_WORKTREE` — must NOT be `$HOME/Repos/pika`.
-   If unset/hub: STOP — tell user to run `pika codex <worktree>` first.
-2) Run: `bash "$PIKA_WORKTREE/scripts/verify-env.sh"`
-3) Recover context: `git -C "$PIKA_WORKTREE" log --oneline -10` and `tail -60 "$PIKA_WORKTREE/.ai/JOURNAL.md"`
-4) Read docs: `$PIKA_WORKTREE/docs/ai-instructions.md` and `$PIKA_WORKTREE/docs/core/architecture.md`
-5) Check features: `node "$PIKA_WORKTREE/scripts/features.mjs" next`
-6) If $ARGUMENTS is an issue number: `gh issue view $ARGUMENTS --json number,title,body,labels`
-7) If the task affects UI/UX, also read:
-   - `$PIKA_WORKTREE/docs/guidance/ui/README.md`
-   - `$PIKA_WORKTREE/docs/guidance/ui/stable.md`
-8) State task clearly. Propose approach. Wait for approval before coding.
-
-For UI/UX work, include a UI guidance declaration:
-- guidance read
-- stable guidance followed
-- experimental guidance introduced: yes/no
-- experimental draft file created or updated, if any
-- human promotion needed: yes/no
-
-Alternatively, run the session start script:
+Preferred path:
 ```bash
 bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"
 ```
+
+Manual fallback:
+1. Verify `$PIKA_WORKTREE` is set and is not `$HOME/Repos/pika`.
+2. Run `bash "$PIKA_WORKTREE/scripts/verify-env.sh"`.
+3. Review `git -C "$PIKA_WORKTREE" status -sb` and `git -C "$PIKA_WORKTREE" log --oneline -8`.
+4. Read `.ai/START-HERE.md`, `.ai/CURRENT.md`, `.ai/features.json`, and `docs/ai-instructions.md`.
+5. Load only the task-specific docs routed by `docs/ai-instructions.md`.
+   - For UI work, include a UI guidance declaration.
+   - Record: stable guidance followed
+   - Record: experimental guidance introduced: yes/no
+   - Record: human promotion needed: yes/no
+6. If `$ARGUMENTS` is an issue number, run `gh issue view $ARGUMENTS --json number,title,body,labels`.
+7. State the task, propose the approach, and wait for approval before coding.

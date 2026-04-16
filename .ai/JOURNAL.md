@@ -8645,3 +8645,80 @@
   - student resources split view: `/tmp/pika-resources-padding-student-v4.png`
 
 **Status:** The resources panes now use matching outer gutters, and the empty-state cards line up to the pane walls consistently.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Slim down the AI guidance surface and move session continuity onto a compact current-state summary instead of the full journal.
+
+**Completed:**
+- Added `.ai/CURRENT.md` as the default always-read continuity file and updated `.ai/START-HERE.md`, `AGENTS.md`, and the session-start skill to use it.
+- Rewrote `docs/ai-instructions.md` into a smaller routing document that points agents to task-specific docs instead of requiring the full core stack every session.
+- Reconciled setup and migration guidance in `docs/core/project-context.md`, `docs/dev-workflow.md`, and `docs/semester-plan.md` so worktree/env setup stays canonical and migration application stays human-controlled.
+- Simplified the Codex prompt files so they point back to canonical workflow docs for generic rules while preserving the required UI guidance declaration for UI-affecting work.
+
+**Validation:**
+- Startup context budget:
+  - `.ai/START-HERE.md` + `.ai/CURRENT.md` + `.ai/features.json` + `docs/ai-instructions.md` = `12,653` characters
+- Conflict scan:
+  - `rg -n "supabase db push|run migrations on deploy|Configure \\.env\\.local \\(see README|tail -40 .*JOURNAL|tail -60 .*JOURNAL|read these files \\*\\*in this exact order\\*\\*|Check journal" .ai docs .codex/prompts AGENTS.md --glob '!**/.ai/JOURNAL.md'`
+- Targeted regression:
+  - `corepack pnpm --dir /Users/stew/Repos/.worktrees/pika/codex/ai-guidance-slimdown exec vitest run tests/unit/ui-guidance-docs.test.ts`
+- Full session-start dry run:
+  - `PATH="/opt/homebrew/opt/node@24/bin:$PATH" PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/codex/ai-guidance-slimdown bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"`
+
+**Status:** The default AI startup path is now under the target budget, journal reads are on-demand, and the bound worktree session-start flow passes end-to-end.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Tighten the remaining workflow-doc overlap and add regression checks for the slimmed AI startup contract.
+
+**Completed:**
+- Reduced `AGENTS.md` by replacing embedded workflow recipes with pointers back to the canonical startup, worktree, and UI verification docs.
+- Reworked `docs/issue-worker.md` and `docs/workflow/handle-issue.md` to follow the new routed doc-loading model and avoid duplicating the full screenshot procedure.
+- Added `tests/unit/ai-startup-docs.test.ts` to lock the startup budget and prevent `.ai/JOURNAL.md` tailing from re-entering the default startup flow.
+
+**Validation:**
+- `corepack pnpm --dir /Users/stew/Repos/.worktrees/pika/codex/ai-guidance-slimdown exec vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts`
+- `wc -lc AGENTS.md docs/issue-worker.md docs/workflow/handle-issue.md .ai/START-HERE.md .ai/CURRENT.md docs/ai-instructions.md`
+- `rg -n "tail -40 .*JOURNAL|tail -60 .*JOURNAL|follow its required reading order|Ensure dev server is running|Refresh auth states if needed|Take screenshots for BOTH roles" AGENTS.md docs/issue-worker.md docs/workflow/handle-issue.md .codex/prompts/session-start.md .ai/START-HERE.md`
+
+**Status:** The remaining workflow docs are leaner, and the startup-budget and no-journal-tail rules now have test coverage.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Address PR review drift findings in `.ai/CURRENT.md` without adding more synchronization machinery.
+
+**Completed:**
+- Removed the volatile claim that all feature epics currently pass and replaced it with a direct pointer back to `.ai/features.json` as the status authority.
+- Replaced hardcoded package-manager and Node-version facts with a pointer to `.nvmrc`, `package.json`, and `scripts/verify-env.sh` so startup context stays operational instead of duplicating metadata.
+
+**Validation:**
+- `pnpm test -- --run tests/unit/ai-startup-docs.test.ts` (resolved to a full Vitest run in this shell; `tests/unit/ai-startup-docs.test.ts` still passed)
+
+**Status:** `.ai/CURRENT.md` is now narrower and less likely to drift away from canonical repo metadata.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Fix the follow-up PR review findings around startup-contract drift in the automated session-start path.
+
+**Completed:**
+- Updated `.codex/skills/pika-session-start/scripts/session_start.sh` to render the full required startup set in order: `.ai/START-HERE.md`, `.ai/CURRENT.md`, `.ai/features.json`, and `docs/ai-instructions.md`.
+- Tightened `tests/unit/ai-startup-docs.test.ts` so the regression suite now asserts that the preferred automated startup paths reference the entire required startup set in the documented order.
+
+**Validation:**
+- `PATH="/opt/homebrew/opt/node@24/bin:$PATH" pnpm exec vitest run tests/unit/ai-startup-docs.test.ts`
+
+**Status:** The automated startup path now matches the documented startup contract, and CI coverage now checks that alignment explicitly.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Replace the remaining source-text-only startup regression with a behavior-level check.
+
+**Completed:**
+- Reworked `tests/unit/ai-startup-docs.test.ts` so the script assertion now builds a disposable fixture worktree, initializes a minimal git repo, and executes the real `session_start.sh` script against that fixture.
+- Added runtime assertions that the rendered output includes the required startup docs in order and still emits the feature summary and next-feature sections.
+
+**Validation:**
+- `PATH="/opt/homebrew/opt/node@24/bin:$PATH" pnpm exec vitest run tests/unit/ai-startup-docs.test.ts`
+
+**Status:** The startup regression now checks actual script behavior instead of only checking source text.

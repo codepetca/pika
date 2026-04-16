@@ -42,7 +42,7 @@ Overview of **Pika**: daily journals, attendance, classrooms, and assignments fo
 
 ## Prerequisites
 
-Node: 24.x (see `package.json#engines` and `.nvmrc`)
+Node: 24.x (`.nvmrc` currently pins the recommended local version)
 
 Package manager: pnpm (recommended via Corepack; `package.json#packageManager`)
 
@@ -50,8 +50,11 @@ Package manager: pnpm (recommended via Corepack; `package.json#packageManager`)
 1. Install dependencies:
    - `corepack enable`
    - `pnpm install`
-2. Configure `.env.local` (see README for template).
-3. Apply all database migrations via Supabase dashboard or `supabase db push`.
+2. Set up `.env.local` using the shared-worktree flow in [`docs/dev-workflow.md`](../dev-workflow.md).
+   - Default: symlink the worktree’s `.env.local` to `$HOME/Repos/.env/pika/.env.local`
+   - Exception-only: use a branch-specific env file when intentionally isolating backend state
+3. Ensure pending migrations have been applied by a human before runtime work that depends on them.
+   - AI agents may create or edit migration files, but must not run `supabase db push`, `supabase db reset`, or similar migration commands
 4. `pnpm dev` and open http://localhost:3000
 5. Optional: `pnpm seed`
    - To wipe + reseed against a specific env file: `ENV_FILE=.env.staging.local ALLOW_DB_WIPE=true pnpm seed:fresh`
@@ -106,7 +109,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 ## Deployment
 
 - Host on Vercel; configure env vars in dashboard; set `ENABLE_MOCK_EMAIL=false` and add real email provider before production.
-- Supabase Cloud for DB; enable connection pooling; run migrations on deploy.
+- Supabase Cloud for DB; enable connection pooling; treat migrations as a separate human-controlled deploy step.
 - If using cron, configure schedules in the Vercel dashboard (production recommended). Current recommended schedule: `0 6 * * *` (06:00 UTC).
 
 ---
