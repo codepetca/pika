@@ -24,7 +24,8 @@ When a task affects UI, styling, layout, or interaction flow, read in this order
 1. [`docs/core/design.md`](/docs/core/design.md)
 2. [`src/ui/README.md`](/src/ui/README.md)
 3. [`docs/guidance/ui/stable.md`](/docs/guidance/ui/stable.md)
-4. Relevant experimental, legacy, and open-question docs in this folder only if they materially affect the task
+4. Family-specific canon docs in this folder when the task targets a governed slice
+5. Relevant experimental, legacy, and open-question docs in this folder only if they materially affect the task
 
 The stable file is the default. Experimental and legacy docs are context, not overrides.
 
@@ -38,11 +39,13 @@ The stable file is the default. Experimental and legacy docs are context, not ov
 
 ## V1 Scope
 
-The first governed slice is:
+The current governed slices are:
 
-- Assignments
-- Attendance
-- Shared classroom shell behavior that directly supports those workflows
+- Cross-cutting stable guidance for assignments, attendance, and shared classroom shell behavior that directly supports those workflows
+- A dedicated teacher work-surface canon for:
+  - teacher assignments
+  - teacher quizzes
+  - teacher tests
 
 This is intentionally smaller than the full app.
 
@@ -60,6 +63,8 @@ When a task touches UI/UX, the implementation plan or issue note should declare:
 
 - [`audit-v1.md`](/docs/guidance/ui/audit-v1.md)
 - [`stable.md`](/docs/guidance/ui/stable.md)
+- [`teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md)
+- [`audit-teacher-work-surfaces.md`](/docs/guidance/ui/audit-teacher-work-surfaces.md)
 - [`legacy.md`](/docs/guidance/ui/legacy.md)
 - [`open-questions.md`](/docs/guidance/ui/open-questions.md)
 - [`experimental/README.md`](/docs/guidance/ui/experimental/README.md)

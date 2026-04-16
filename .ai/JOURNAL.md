@@ -8894,3 +8894,51 @@
 - Reviewed the resulting diff for `.ai/START-HERE.md` and `docs/dev-workflow.md` to confirm both docs now describe the same cleanup sequence.
 
 **Status:** The cleanup rule now explicitly requires fast-forwarding the hub `main` as part of post-merge cleanup.
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Add assignment-parity UX guidance and a repeatable verification harness for tests/quizzes.
+
+**Completed:**
+- Added `docs/guidance/assignment-ux-language.md` to codify the assignment tabs as the canonical assessment UX system, including required primitives, state-based rules, and explicit anti-drift prohibitions.
+- Added `.codex/prompts/assessment-ux-parity.md` so a fresh AI can restyle assessment surfaces against the assignment system without extra coaching.
+- Added `docs/guides/assessment-ux-evaluation.md` with the blind-run workflow, rubric, hard failures, and iteration rules for tightening docs when parity runs drift.
+- Added `e2e/verify/assessment-ux-parity.ts`, registered it in the verification runner, and extended verification results to include artifact paths.
+- Updated `docs/guides/ai-ui-testing.md` and `docs/core/tests.md` so the new `assessment-ux-parity` scenario is discoverable in the existing UI verification docs.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm e2e:verify --help`
+- `pnpm e2e:verify assessment-ux-parity`
+
+**Notes:**
+- The parity scenario captures reference/target screenshots to `artifacts/assessment-ux-parity/`.
+- Verification used the existing local auth states during execution; the worktree itself does not retain a committed `.auth` directory.
+
+**Status:** The documentation, prompt, rubric, and screenshot harness are in place and the new parity capture scenario runs successfully.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Tighten the blind-run guidance package after fresh-context parity runs stalled before implementation.
+
+**Completed:**
+- Added `scripts/run-teacher-tests-parity-challenge.sh` to run a scoped teacher-tests parity challenge with attached before/reference screenshots, prompt packet capture, and automatic pre/post parity screenshots.
+- Added `.codex/prompts/teacher-tests-ux-parity.md` as a task-scoped execution prompt for the `TeacherQuizzesTab` teacher-tests authoring branch.
+- Added `.codex/prompts/assessment-ux-family-parity.md` for a looser “same product family, slight evolution allowed” mode.
+- Tightened `docs/guidance/assignment-ux-language.md`, `.codex/prompts/assessment-ux-parity.md`, and `docs/guides/assessment-ux-evaluation.md` so blind runs must stay scoped and “never reached implementation” counts as failure.
+- Updated `docs/guides/ai-ui-testing.md` to document the dedicated blind challenge runner and the family-mode prompt.
+
+**Validation:**
+- `bash -n scripts/run-teacher-tests-parity-challenge.sh`
+
+**Notes:**
+- Fresh-context `codex exec` parity runs still defaulted into repo startup/context reacquisition before editing; the new runner is intended to reduce that by attaching the concrete reference and before-state screenshots directly to the task packet.
+- The new family-mode prompt explicitly optimizes for consistent future aesthetic across assignments/tests/quizzes rather than exact cloning.
+
+**Status:** Runner and updated guidance are ready for the next blind run iteration.
+## 2026-04-16 — Teacher Work-Surface Canon + Audit
+
+- Added `docs/guidance/ui/teacher-work-surfaces.md` as the stable canon for the teacher assignments/quizzes/tests family.
+- Added `docs/guidance/ui/audit-teacher-work-surfaces.md` to classify foundations, primitives, composed patterns, feature-local behavior, and legacy drift for that family.
+- Added `.codex/prompts/teacher-work-surface-promotion-review.md` for recurring non-mutating promotion review runs.
+- Updated UI guidance entrypoints and issue workflow docs so teacher assignments/quizzes/tests work routes through the new canon and audit.
