@@ -8709,3 +8709,16 @@
 - `PATH="/opt/homebrew/opt/node@24/bin:$PATH" pnpm exec vitest run tests/unit/ai-startup-docs.test.ts`
 
 **Status:** The automated startup path now matches the documented startup contract, and CI coverage now checks that alignment explicitly.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Replace the remaining source-text-only startup regression with a behavior-level check.
+
+**Completed:**
+- Reworked `tests/unit/ai-startup-docs.test.ts` so the script assertion now builds a disposable fixture worktree, initializes a minimal git repo, and executes the real `session_start.sh` script against that fixture.
+- Added runtime assertions that the rendered output includes the required startup docs in order and still emits the feature summary and next-feature sections.
+
+**Validation:**
+- `PATH="/opt/homebrew/opt/node@24/bin:$PATH" pnpm exec vitest run tests/unit/ai-startup-docs.test.ts`
+
+**Status:** The startup regression now checks actual script behavior instead of only checking source text.
