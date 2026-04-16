@@ -8722,3 +8722,162 @@
 - `PATH="/opt/homebrew/opt/node@24/bin:$PATH" pnpm exec vitest run tests/unit/ai-startup-docs.test.ts`
 
 **Status:** The startup regression now checks actual script behavior instead of only checking source text.
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Detect dependency and SDK drift and produce a minimal alignment plan for the automation run.
+
+**Completed:**
+- Loaded the required repo startup/docs context and ran the session-start ritual.
+- Confirmed the local environment is off-target for development because `verify-env.sh` requires Node 24.x but this worktree currently sees Node 22.21.1.
+- Compared `package.json`, `pnpm-lock.yaml`, `.nvmrc`, CI workflow config, and current AI/Supabase integration code to isolate concrete repo drift.
+- Found the main actionable drift in CI env naming: the workflow still exports legacy Supabase/session variable names while runtime code and docs now require the newer publishable/secret/session names.
+- Verified the main dependency families currently checked are internally aligned between manifest and lockfile.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` with `PIKA_WORKTREE=/Users/stew/.codex/worktrees/88c8/pika` (failed on Node version check)
+- `node -v` → `v22.21.1`
+- `pnpm -v` → `10.25.0`
+- `pnpm exec node -v` → `v22.21.1`
+- Read-only inspection of `package.json`, `pnpm-lock.yaml`, `.nvmrc`, `.github/workflows/ci.yml`, `src/lib/supabase.ts`, `src/lib/auth.ts`, and OpenAI call sites under `src/lib/`.
+
+**Status:** No app code changes were made; the current alignment plan is to fix Node/runtime parity first, then update CI env naming, and treat any `@types/node` or OpenAI SDK changes as optional follow-ups.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Remove the CI config drift between legacy env var names and the variables the current runtime code expects.
+
+**Completed:**
+- Updated the GitHub Actions build step to export `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and `SESSION_SECRET`.
+- Removed the legacy CI-only names `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `AUTH_SESSION_SECRET` from the workflow.
+
+**Validation:**
+- Read-only cross-check against `src/lib/supabase.ts` and `src/lib/auth.ts` confirmed these are the env vars the app currently reads.
+- Did not run `verify-env.sh`, tests, or build because the active shell still resolves Node `v22.21.1` while the repo requires Node `24.x`.
+
+**Status:** CI build configuration is now aligned with the app’s current Supabase/session env contract; local runtime parity still needs a Node 24 shell.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Make Pika worktrees automatically use the repo’s pinned Node toolchain instead of inheriting the machine-wide `mise` Node 22 default.
+
+**Completed:**
+- Added repo-local [`/Users/stew/.codex/worktrees/88c8/pika/.mise.toml`](/Users/stew/.codex/worktrees/88c8/pika/.mise.toml) with `node = "24.12.0"` to match `.nvmrc`.
+- Expanded the same repo-local config to pin `pnpm = "10.25.0"` to match `package.json#packageManager`.
+- Trusted the repo-local `mise` config and installed both pinned tools through `mise`.
+- Verified this worktree now resolves `node` to `v24.12.0`, `pnpm` to `10.25.0`, and `pnpm exec node` to `v24.12.0`.
+
+**Validation:**
+- `mise current` → `node 24.12.0`, `pnpm 10.25.0`
+- `which node && node -v && which pnpm && pnpm -v && pnpm exec node -v`
+- `bash scripts/verify-env.sh`
+  - passes Node/npm/.ai checks
+  - stops at expected fresh-worktree blocker: missing `node_modules`
+
+**Status:** Future Pika worktrees with this repo config will select the pinned Node/pnpm toolchain automatically under `mise`; the remaining setup step in a fresh worktree is dependency install.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Stop `mise` from prompting for trust on every new Pika worktree while keeping trust scoped to user-controlled worktree roots.
+
+**Completed:**
+- Updated global `mise` config at [`/Users/stew/.config/mise/config.toml`](/Users/stew/.config/mise/config.toml:1) to trust:
+  - `/Users/stew/.codex/worktrees`
+  - `/Users/stew/Repos/.worktrees/pika`
+  - `/Users/stew/Repos/pika`
+- Kept the existing global default `node = "22"` unchanged; only trust behavior was broadened for the Pika worktree roots.
+
+**Validation:**
+- `sed -n '1,120p' /Users/stew/.config/mise/config.toml`
+- `mise trust --show` from the worktree → `~/.codex/worktrees/88c8/pika: trusted`
+
+**Status:** New Pika worktrees under those trusted roots should no longer require per-worktree `mise trust`.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Broaden the global `mise` trust allowlist from only Pika repo worktrees to all worktrees under `/Users/stew/Repos/.worktrees`.
+
+**Completed:**
+- Updated global `mise` config at [`/Users/stew/.config/mise/config.toml`](/Users/stew/.config/mise/config.toml:1) to trust `/Users/stew/Repos/.worktrees` instead of the narrower `/Users/stew/Repos/.worktrees/pika`.
+
+**Validation:**
+- `sed -n '1,80p' /Users/stew/.config/mise/config.toml`
+
+**Status:** Any repo worktree created under `/Users/stew/Repos/.worktrees/` should now avoid per-worktree `mise trust` prompts.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Validate the repo end-to-end under the pinned Node 24 / pnpm 10 toolchain in this worktree.
+
+**Completed:**
+- Installed dependencies with `corepack pnpm install` under the repo-local `mise` toolchain.
+- Ran `bash scripts/verify-env.sh --full` under Node `24.12.0`.
+- Verified the full repo validation passes in this worktree: tests, lint, and production build all succeeded.
+
+**Validation:**
+- `node -v` → `v24.12.0`
+- `pnpm -v` → `10.25.0`
+- `pnpm exec node -v` → `v24.12.0`
+- `bash scripts/verify-env.sh --full`
+  - Tests: `192` files passed, `1694` tests passed
+  - Lint: no ESLint warnings or errors
+  - Build: `next build` succeeded
+
+**Notes:**
+- `pnpm install` warned that some dependency build scripts were ignored (`@parcel/watcher`, `esbuild`, `unrs-resolver`) pending `pnpm approve-builds`, but the repo still passed full verification as-is.
+- Every `mise`-mediated command also warned that global `~/.config/mise/config.toml` contains an unknown field: `trusted_config_paths`. That means the earlier trust-path change is not valid for this installed `mise` version and should be revisited separately.
+
+**Status:** The application/toolchain works cleanly on Node 24 in this worktree; remaining follow-up is to correct the global `mise` trust configuration approach.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Correct the global `mise` trust configuration so the installed parser accepts the trusted worktree paths without warnings.
+
+**Completed:**
+- Moved `trusted_config_paths` into the [`[settings]`](/Users/stew/.config/mise/config.toml:4) section of global [`/Users/stew/.config/mise/config.toml`](/Users/stew/.config/mise/config.toml:1).
+- Kept the trusted roots the same:
+  - `/Users/stew/.codex/worktrees`
+  - `/Users/stew/Repos/.worktrees`
+  - `/Users/stew/Repos/pika`
+
+**Validation:**
+- `mise settings get trusted_config_paths`
+- `mise current`
+- `mise trust --show`
+
+**Status:** The installed `mise` parser now accepts the trust configuration cleanly, and the current worktree remains trusted.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Re-test the corrected global `mise` trust configuration with fresh directories under trusted and untrusted roots.
+
+**Completed:**
+- Created temporary smoke-test directories under:
+  - `/Users/stew/Repos/.worktrees`
+  - `/Users/stew/.codex/worktrees`
+  - `/tmp`
+- Added the same minimal `.mise.toml` (`node = "24.12.0"`) to each temp directory.
+- Verified the two trusted-root directories auto-trusted and resolved Node `24.12.0` without any explicit `mise trust`.
+- Verified the `/tmp` directory remained blocked as untrusted and still required `mise trust`.
+- Removed all temporary smoke-test directories after the check.
+
+**Validation:**
+- Trusted path test: `mise current && node -v && mise trust --show`
+- Untrusted path test: `mise current && node -v && mise trust --show` (expected trust failure)
+
+**Status:** The global `mise` trust configuration is working as intended: trusted worktree roots bypass the prompt, and untrusted paths still enforce it.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Re-run the full environment verification on the published PR branch to confirm the branch still passes after all setup changes.
+
+**Completed:**
+- Re-ran `bash scripts/verify-env.sh --full` on branch `codex/node24-mise-and-ci-env` after the PR was opened.
+- Confirmed the second full validation pass is also green.
+
+**Validation:**
+- `bash scripts/verify-env.sh --full`
+  - Tests: `192` files passed, `1694` tests passed
+  - Lint: no ESLint warnings or errors
+  - Build: `next build` succeeded
+
+**Status:** The PR branch remains fully green after a second end-to-end validation run.
