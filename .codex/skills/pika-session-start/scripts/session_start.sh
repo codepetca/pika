@@ -49,14 +49,14 @@ git -C "$PIKA_WORKTREE" log --oneline -8
 echo ""
 git -C "$PIKA_WORKTREE" status -sb
 
-# ── 4. Recent journal ───────────────────────────────
+# ── 4. Current context ──────────────────────────────
 echo ""
-echo "── 4. Recent journal (last 40 lines)"
-JOURNAL="$PIKA_WORKTREE/.ai/JOURNAL.md"
-if [[ -f "$JOURNAL" ]]; then
-  tail -40 "$JOURNAL"
+echo "── 4. Current context"
+CURRENT="$PIKA_WORKTREE/.ai/CURRENT.md"
+if [[ -f "$CURRENT" ]]; then
+  sed -n '1,220p' "$CURRENT"
 else
-  echo -e "${INFO} No journal found at $JOURNAL"
+  echo -e "${INFO} No current context found at $CURRENT"
 fi
 
 # ── 5. Feature inventory ────────────────────────────
@@ -71,6 +71,11 @@ if [[ -f "$FEATURES_SCRIPT" ]]; then
 else
   echo -e "${INFO} features.mjs not found"
 fi
+
+echo ""
+echo "── 6. Reminder"
+echo -e "${INFO} Read docs/ai-instructions.md next, then load only the task-specific docs it routes you to."
+echo -e "${INFO} Use .ai/JOURNAL.md only for historical investigation."
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"

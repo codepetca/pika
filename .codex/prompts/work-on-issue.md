@@ -1,30 +1,15 @@
-Load a GitHub issue, explore affected code, and draft a plan before coding.
+Load a GitHub issue, inspect affected code, and draft a plan before coding.
 
-Takes the issue number as $ARGUMENTS.
+Assume the startup context from `.ai/START-HERE.md` is already loaded. If not, run `/session-start` first.
 
 Steps:
-1) `gh issue view $ARGUMENTS --json number,title,body,labels,assignees`
-2) Read docs: `docs/ai-instructions.md`, relevant sections of `docs/core/architecture.md`
-3) If the issue affects UI/UX, also read `docs/guidance/ui/README.md` and `docs/guidance/ui/stable.md`
-4) Explore affected files (read only, no changes yet)
-5) Draft plan: branch name, files to change, tests to write first, migration needed?
-6) For UI/UX work, include a UI guidance declaration:
-   - guidance read
-   - stable guidance followed
-   - experimental guidance introduced: yes/no
-   - experimental draft file created or updated, if any
-   - human promotion needed: yes/no
-7) Present plan and wait for approval
-8) After approval: set up worktree from hub (`export PIKA_WORKTREE="$HOME/Repos/pika"`)
-   ```bash
-   git -C "$HOME/Repos/pika" fetch origin
-   git -C "$HOME/Repos/pika" worktree add "$HOME/Repos/.worktrees/pika/issue-$ARGUMENTS-<slug>" \
-     -b "issue/$ARGUMENTS-<slug>" origin/main
-   ```
-   Then tell user: `pika codex issue-$ARGUMENTS-<slug>`
-
-Default rule for UI/UX work:
-- stable guidance is the default
-- AI may create or update experimental guidance
-- AI may add to legacy or open-question guidance when justified
-- AI must not silently edit stable guidance during feature work
+1. Run `gh issue view $ARGUMENTS --json number,title,body,labels,assignees`.
+2. Read `docs/workflow/handle-issue.md` plus the task-specific docs selected by `docs/ai-instructions.md`.
+   - For UI work, include a UI guidance declaration.
+   - Record: stable guidance followed
+   - Record: experimental guidance introduced: yes/no
+   - Record: human promotion needed: yes/no
+3. Inspect the affected files and the nearest tests without editing anything yet.
+4. Draft the plan: worktree or branch name, files to change, tests to write first, and whether a migration file is needed.
+5. Present the plan and wait for approval.
+6. After approval, create or bind the worktree using `docs/dev-workflow.md`, then continue the work from that bound worktree.

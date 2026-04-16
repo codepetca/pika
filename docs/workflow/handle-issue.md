@@ -7,7 +7,7 @@ Use the automated command for the full workflow:
 ## Quick Reference (if running manually)
 
 1. `gh issue view <N> --json number,title,body,labels`
-2. Read `docs/ai-instructions.md` + relevant core docs
+2. Read `.ai/START-HERE.md`, `.ai/CURRENT.md`, and `docs/ai-instructions.md`
 3. If the issue touches UI/UX, also read `docs/guidance/ui/README.md` and `docs/guidance/ui/stable.md`
 4. Draft plan: branch name, files to change, tests to write first, migration needed?
 5. For UI/UX work, include a UI guidance declaration:
@@ -25,7 +25,7 @@ Use the automated command for the full workflow:
 
 - Write tests BEFORE implementation for core logic
 - Make minimal, focused changes — do not modify unrelated files
-- Follow the reading order to prevent drift
+- Follow the routed doc-loading flow in `docs/ai-instructions.md`
 - Preserve existing patterns unless explicitly asked to change them
 - Stable UI guidance is the default for new UI work
 - AI may draft experimental UI guidance, but may not silently edit stable UI guidance during feature work

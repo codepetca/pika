@@ -9,14 +9,14 @@ gh issue view <number> --json number,title,body,labels,comments
 
 ## 2) Load Context (MANDATORY)
 1. Read `.ai/START-HERE.md`
-2. Read `docs/ai-instructions.md` and follow its required reading order.
+2. Read `.ai/CURRENT.md`
+3. Read `docs/ai-instructions.md` and load only the task-specific docs it routes you to.
 3. Check `.ai/features.json` for any referenced feature IDs.
 4. If the issue affects UI/UX, read `docs/guidance/ui/README.md` and `docs/guidance/ui/stable.md`.
 
 ## 3) Branch & PR Setup
-- Branch name pattern: `<issue-number>-<short-slug>` (example: `8-ai-effectiveness-layer`)
-- If a matching branch already exists, use it.
-- Prefer creating a **Draft PR** early; include `Closes #<number>` in the body.
+- Create or bind a dedicated worktree using `docs/dev-workflow.md`.
+- Prefer a draft PR early; include `Closes #<number>` in the body.
 
 ## 4) Plan Before Coding (MANDATORY)
 Produce a short plan:
@@ -45,36 +45,9 @@ Do not proceed until the user approves the plan.
 - AI must not silently edit stable UI guidance as part of ordinary feature work.
 
 ## 6) AI UI Verification (MANDATORY for UI Changes)
-
-After implementing UI changes, you MUST verify them visually:
-
-```bash
-# 1. Ensure dev server is running
-pnpm dev
-
-# 2. Refresh auth states if needed
-pnpm e2e:auth
-
-# 3. Take screenshots for BOTH roles
-npx playwright screenshot http://localhost:3000/<page> /tmp/teacher.png \
-  --load-storage .auth/teacher.json --viewport-size 1440,900
-
-npx playwright screenshot http://localhost:3000/<page> /tmp/student.png \
-  --load-storage .auth/student.json --viewport-size 1440,900
-
-# 4. View screenshot with Read tool, iterate until satisfied
-
-# 5. Run verification scripts if applicable
-pnpm e2e:verify <scenario>
-```
-
-**This is mandatory for:**
-- Any UI component changes
-- Any styling/CSS changes
-- New UI features
-- Layout changes
-
-See `docs/guides/ai-ui-testing.md` for detailed patterns.
+- Use `docs/guides/ai-ui-testing.md` or `.codex/prompts/ui-verify.md`.
+- Check the affected teacher and student views when both roles are impacted.
+- Iterate on the UI until the verified screenshots are acceptable.
 
 ## 7) Update AI Continuity Layer
 Before ending a session:
