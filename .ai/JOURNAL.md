@@ -8865,3 +8865,19 @@
 - Untrusted path test: `mise current && node -v && mise trust --show` (expected trust failure)
 
 **Status:** The global `mise` trust configuration is working as intended: trusted worktree roots bypass the prompt, and untrusted paths still enforce it.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Re-run the full environment verification on the published PR branch to confirm the branch still passes after all setup changes.
+
+**Completed:**
+- Re-ran `bash scripts/verify-env.sh --full` on branch `codex/node24-mise-and-ci-env` after the PR was opened.
+- Confirmed the second full validation pass is also green.
+
+**Validation:**
+- `bash scripts/verify-env.sh --full`
+  - Tests: `192` files passed, `1694` tests passed
+  - Lint: no ESLint warnings or errors
+  - Build: `next build` succeeded
+
+**Status:** The PR branch remains fully green after a second end-to-end validation run.
