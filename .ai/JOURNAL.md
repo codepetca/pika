@@ -8696,3 +8696,16 @@
 - `pnpm test -- --run tests/unit/ai-startup-docs.test.ts` (resolved to a full Vitest run in this shell; `tests/unit/ai-startup-docs.test.ts` still passed)
 
 **Status:** `.ai/CURRENT.md` is now narrower and less likely to drift away from canonical repo metadata.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Fix the follow-up PR review findings around startup-contract drift in the automated session-start path.
+
+**Completed:**
+- Updated `.codex/skills/pika-session-start/scripts/session_start.sh` to render the full required startup set in order: `.ai/START-HERE.md`, `.ai/CURRENT.md`, `.ai/features.json`, and `docs/ai-instructions.md`.
+- Tightened `tests/unit/ai-startup-docs.test.ts` so the regression suite now asserts that the preferred automated startup paths reference the entire required startup set in the documented order.
+
+**Validation:**
+- `PATH="/opt/homebrew/opt/node@24/bin:$PATH" pnpm exec vitest run tests/unit/ai-startup-docs.test.ts`
+
+**Status:** The automated startup path now matches the documented startup contract, and CI coverage now checks that alignment explicitly.

@@ -9,16 +9,16 @@ function readRepoFile(relativePath: string) {
   return readFileSync(resolve(testDir, '../..', relativePath), 'utf8')
 }
 
+const requiredStartupFiles = [
+  '.ai/START-HERE.md',
+  '.ai/CURRENT.md',
+  '.ai/features.json',
+  'docs/ai-instructions.md',
+]
+
 describe('AI startup docs', () => {
   it('keeps the default startup set under the budget', () => {
-    const files = [
-      '.ai/START-HERE.md',
-      '.ai/CURRENT.md',
-      '.ai/features.json',
-      'docs/ai-instructions.md',
-    ]
-
-    const totalChars = files.reduce((sum, file) => sum + readRepoFile(file).length, 0)
+    const totalChars = requiredStartupFiles.reduce((sum, file) => sum + readRepoFile(file).length, 0)
 
     expect(totalChars).toBeLessThanOrEqual(15_000)
   })
@@ -35,9 +35,19 @@ describe('AI startup docs', () => {
       expect(content).not.toContain('tail -40 "$PIKA_WORKTREE/.ai/JOURNAL.md"')
       expect(content).not.toContain('tail -60 "$PIKA_WORKTREE/.ai/JOURNAL.md"')
     }
+  })
 
-    expect(readRepoFile('.ai/START-HERE.md')).toContain('.ai/CURRENT.md')
-    expect(readRepoFile('.codex/prompts/session-start.md')).toContain('.ai/CURRENT.md')
-    expect(readRepoFile('.codex/skills/pika-session-start/scripts/session_start.sh')).toContain('.ai/CURRENT.md')
+  it('keeps the preferred startup paths aligned with the required startup set', () => {
+    const prompt = readRepoFile('.codex/prompts/session-start.md')
+    const script = readRepoFile('.codex/skills/pika-session-start/scripts/session_start.sh')
+
+    for (const file of requiredStartupFiles) {
+      expect(prompt).toContain(file)
+      expect(script).toContain(file)
+    }
+
+    expect(script.indexOf('.ai/START-HERE.md')).toBeLessThan(script.indexOf('.ai/CURRENT.md'))
+    expect(script.indexOf('.ai/CURRENT.md')).toBeLessThan(script.indexOf('.ai/features.json'))
+    expect(script.indexOf('.ai/features.json')).toBeLessThan(script.indexOf('docs/ai-instructions.md'))
   })
 })

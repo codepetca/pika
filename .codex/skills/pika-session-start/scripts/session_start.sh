@@ -6,6 +6,20 @@ PASS="\033[0;32m✅\033[0m"
 FAIL="\033[0;31m❌\033[0m"
 INFO="\033[0;34mℹ️ \033[0m"
 
+print_required_doc() {
+  local label="$1"
+  local file="$2"
+  local range="$3"
+
+  echo ""
+  echo "── $label"
+  if [[ -f "$file" ]]; then
+    sed -n "$range" "$file"
+  else
+    echo -e "${INFO} Missing required startup doc: $file"
+  fi
+}
+
 echo "╔══════════════════════════════════════════════╗"
 echo "║         Pika Session Start Ritual            ║"
 echo "╚══════════════════════════════════════════════╝"
@@ -49,19 +63,20 @@ git -C "$PIKA_WORKTREE" log --oneline -8
 echo ""
 git -C "$PIKA_WORKTREE" status -sb
 
-# ── 4. Current context ──────────────────────────────
-echo ""
-echo "── 4. Current context"
+# ── 4. Required startup docs ────────────────────────
+START_HERE="$PIKA_WORKTREE/.ai/START-HERE.md"
 CURRENT="$PIKA_WORKTREE/.ai/CURRENT.md"
-if [[ -f "$CURRENT" ]]; then
-  sed -n '1,220p' "$CURRENT"
-else
-  echo -e "${INFO} No current context found at $CURRENT"
-fi
+FEATURES_FILE="$PIKA_WORKTREE/.ai/features.json"
+AI_INSTRUCTIONS="$PIKA_WORKTREE/docs/ai-instructions.md"
 
-# ── 5. Feature inventory ────────────────────────────
+print_required_doc "4. Startup contract (.ai/START-HERE.md)" "$START_HERE" '1,200p'
+print_required_doc "5. Current context (.ai/CURRENT.md)" "$CURRENT" '1,220p'
+print_required_doc "6. Feature inventory (.ai/features.json)" "$FEATURES_FILE" '1,220p'
+print_required_doc "7. AI routing (docs/ai-instructions.md)" "$AI_INSTRUCTIONS" '1,260p'
+
+# ── 8. Feature summary ──────────────────────────────
 echo ""
-echo "── 5. Feature inventory"
+echo "── 8. Feature summary"
 FEATURES_SCRIPT="$PIKA_WORKTREE/scripts/features.mjs"
 if [[ -f "$FEATURES_SCRIPT" ]]; then
   node "$FEATURES_SCRIPT" summary 2>/dev/null || echo "(features.mjs summary unavailable)"
@@ -73,8 +88,9 @@ else
 fi
 
 echo ""
-echo "── 6. Reminder"
-echo -e "${INFO} Read docs/ai-instructions.md next, then load only the task-specific docs it routes you to."
+echo "── 9. Reminder"
+echo -e "${INFO} The required startup docs were rendered above."
+echo -e "${INFO} Load only the task-specific docs routed by docs/ai-instructions.md before coding."
 echo -e "${INFO} Use .ai/JOURNAL.md only for historical investigation."
 
 echo ""
