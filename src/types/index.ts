@@ -409,6 +409,86 @@ export interface ClassroomResources {
   updated_by: string | null
 }
 
+export interface CourseBlueprint {
+  id: string
+  teacher_id: string
+  title: string
+  subject: string
+  grade_level: string
+  course_code: string
+  term_template: string
+  overview_markdown: string
+  outline_markdown: string
+  resources_markdown: string
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintAssignment {
+  id: string
+  course_blueprint_id: string
+  title: string
+  instructions_markdown: string
+  default_due_days: number
+  default_due_time: string
+  points_possible: number | null
+  include_in_final: boolean
+  is_draft: boolean
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintAssessment {
+  id: string
+  course_blueprint_id: string
+  assessment_type: QuizAssessmentType
+  title: string
+  content: Record<string, unknown>
+  documents: TestDocument[]
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintLessonTemplate {
+  id: string
+  course_blueprint_id: string
+  title: string
+  content_markdown: string
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CourseBlueprintDetail extends CourseBlueprint {
+  assignments: CourseBlueprintAssignment[]
+  assessments: CourseBlueprintAssessment[]
+  lesson_templates: CourseBlueprintLessonTemplate[]
+}
+
+export interface CoursePackageManifest {
+  version: string
+  exported_at: string
+  title: string
+  subject: string
+  grade_level: string
+  course_code: string
+  term_template: string
+}
+
+export interface CreateClassroomFromBlueprintInput {
+  blueprintId: string
+  title: string
+  classCode?: string
+  termLabel?: string
+  semester?: 'semester1' | 'semester2'
+  year?: number
+  start_date?: string
+  end_date?: string
+}
+
 // Quiz types
 export type QuizStatus = 'draft' | 'active' | 'closed'
 export type QuizAssessmentType = 'quiz' | 'test'
