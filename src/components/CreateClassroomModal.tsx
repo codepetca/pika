@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, FormEvent, useId } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Input, Button, DialogPanel, FormField } from '@/ui'
 import { format } from 'date-fns'
+import type { CourseBlueprint } from '@/types'
 
 type WizardStep = 'name' | 'calendar'
 type CalendarMode = 'preset' | 'custom'
@@ -12,14 +13,22 @@ interface CreateClassroomModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: (classroom: any) => void
+  initialBlueprintId?: string | null
 }
 
-export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClassroomModalProps) {
+export function CreateClassroomModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialBlueprintId = null,
+}: CreateClassroomModalProps) {
   const startMonthId = useId()
   const endMonthId = useId()
 
   const [step, setStep] = useState<WizardStep>('name')
   const [title, setTitle] = useState('')
+  const [availableBlueprints, setAvailableBlueprints] = useState<CourseBlueprint[]>([])
+  const [selectedBlueprintId, setSelectedBlueprintId] = useState(initialBlueprintId || '')
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('preset')
   const [selectedSemester, setSelectedSemester] = useState<Semester>('semester1')
 
@@ -32,6 +41,15 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!isOpen) return
+    setSelectedBlueprintId(initialBlueprintId || '')
+    fetch('/api/teacher/course-blueprints')
+      .then((response) => response.json().catch(() => ({})))
+      .then((data) => setAvailableBlueprints((data.blueprints || []) as CourseBlueprint[]))
+      .catch(() => setAvailableBlueprints([]))
+  }, [initialBlueprintId, isOpen])
 
   function getSemesterYears() {
     const now = new Date()
@@ -63,6 +81,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
   function resetForm() {
     setStep('name')
     setTitle('')
+    setSelectedBlueprintId(initialBlueprintId || '')
     setCalendarMode('preset')
     setSelectedSemester('semester1')
     setError('')
@@ -73,23 +92,7 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
     setLoading(true)
 
     try {
-      // Step 1: Create classroom
-      const createResponse = await fetch('/api/teacher/classrooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
-      })
-
-      const createData = await createResponse.json()
-
-      if (!createResponse.ok) {
-        throw new Error(createData.error || 'Failed to create classroom')
-      }
-
-      const classroom = createData.classroom
-
-      // Step 2: Create calendar
-      let calendarBody: any = { classroom_id: classroom.id }
+      let calendarBody: any = { classroom_id: undefined }
 
       if (calendarMode === 'preset') {
         const { semester1Year, semester2Year } = getSemesterYears()
@@ -104,12 +107,47 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
         calendarBody.end_date = endDate
       }
 
-      await fetch('/api/teacher/class-days', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(calendarBody),
-      })
-      // Ignoring errors on calendar creation - classroom is already created
+      let classroom: any
+
+      if (selectedBlueprintId) {
+        const instantiateResponse = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}/instantiate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            semester: calendarMode === 'preset' ? calendarBody.semester : undefined,
+            year: calendarMode === 'preset' ? calendarBody.year : undefined,
+            start_date: calendarMode === 'custom' ? calendarBody.start_date : undefined,
+            end_date: calendarMode === 'custom' ? calendarBody.end_date : undefined,
+          }),
+        })
+        const instantiateData = await instantiateResponse.json().catch(() => ({}))
+        if (!instantiateResponse.ok) {
+          throw new Error(instantiateData.error || 'Failed to create classroom from blueprint')
+        }
+        classroom = instantiateData.classroom
+      } else {
+        const createResponse = await fetch('/api/teacher/classrooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title }),
+        })
+
+        const createData = await createResponse.json().catch(() => ({}))
+
+        if (!createResponse.ok) {
+          throw new Error(createData.error || 'Failed to create classroom')
+        }
+
+        classroom = createData.classroom
+        calendarBody.classroom_id = classroom.id
+
+        await fetch('/api/teacher/class-days', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(calendarBody),
+        })
+      }
 
       onSuccess(classroom)
       resetForm()
@@ -159,6 +197,23 @@ export function CreateClassroomModal({ isOpen, onClose, onSuccess }: CreateClass
                 autoFocus
               />
             </FormField>
+
+            {availableBlueprints.length > 0 ? (
+              <FormField label="Start From Blueprint" hint="Optional. Blueprints copy reusable course content into the new classroom.">
+                <select
+                  value={selectedBlueprintId}
+                  onChange={(e) => setSelectedBlueprintId(e.target.value)}
+                  className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Blank classroom</option>
+                  {availableBlueprints.map((blueprint) => (
+                    <option key={blueprint.id} value={blueprint.id}>
+                      {blueprint.title}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            ) : null}
           </div>
         )}
 

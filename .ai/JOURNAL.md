@@ -9515,3 +9515,28 @@
 - `bash scripts/verify-env.sh` (218 files, 1886 tests)
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=quizzes"`
+
+## 2026-04-17 [AI - Codex]
+
+**Goal:** Add flat course blueprints as reusable teacher-owned course packages with in-app editing, classroom instantiation, and portable import/export.
+
+**Completed:**
+- Added `course_blueprints`, `course_blueprint_assignments`, `course_blueprint_assessments`, and `course_blueprint_lesson_templates` schema/RLS in `supabase/migrations/054_course_blueprints.sql`.
+- Added blueprint server helpers, teacher APIs, validations, and shared types for blueprint CRUD, bulk markdown editing, package export/import, classroom instantiation, and copilot preview/apply flows.
+- Added markdown serializers/parsers for blueprint assignments, quizzes/tests, and lesson templates, plus tar-based portable package encoding/decoding around `manifest.json` and the markdown files.
+- Added the teacher blueprint workspace at `src/app/teacher/blueprints/page.tsx`, a create-blueprint modal, classroom-from-blueprint entry points, and responsive teacher/student shell fixes using the shared `PikaLogo`.
+- Hardened assessment markdown serialization against incomplete stored blobs and fixed the instantiate route validation mismatch so blueprint id comes from the route as intended.
+- Added targeted tests for blueprint package round-trips, assessment serialization regression coverage, blueprint API routes, and classroom instantiation.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test tests/lib/course-blueprint-assessments-markdown.test.ts tests/lib/course-blueprint-package.test.ts tests/api/teacher/course-blueprints-route.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts`
+- `pnpm build`
+- Playwright visual verification on the blueprint page, create-classroom modal, and mobile shell using mocked blueprint API responses because local migration application is out of scope for AI agents in this repo.
+
+**Notes:**
+- The new export format is a real `.tar` package containing `manifest.json`, `course-overview.md`, `course-outline.md`, `resources.md`, `assignments.md`, `quizzes.md`, `tests.md`, and `lesson-plans.md`.
+- Import remains backward-compatible with the older JSON bundle format.
+- Local runtime use of `/teacher/blueprints` still requires the new migration to be applied through the normal human-run Supabase workflow.
+
+**Status:** Flat course blueprint v1 is implemented, validated, and ready for draft PR review.

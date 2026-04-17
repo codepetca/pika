@@ -5,8 +5,8 @@
     "phase": "Infrastructure — AI Effectiveness Layer",
     "DO_NOT_DELETE_FEATURES": "This inventory is APPEND-ONLY. Mark features as passing/failing, add new features, but NEVER DELETE FEATURES FROM THIS FILE. Deletion corrupts project history.",
     "deletionPolicy": "PROHIBITED",
-    "totalFeatures": 9,
-    "passing": 9,
+    "totalFeatures": 10,
+    "passing": 10,
     "failing": 0
   },
   "features": [
@@ -105,6 +105,17 @@
       "addedDate": "2025-12-13",
       "completedDate": "2025-12-14",
       "removedDate": "2026-01-31"
+    },
+    {
+      "id": "epic-course-blueprints",
+      "phase": "Phase 8 — Course Authoring",
+      "description": "Teacher-owned flat course blueprints with markdown-first editing, classroom instantiation, and portable package import/export",
+      "passes": true,
+      "verification": "Run: pnpm lint && pnpm build && pnpm test tests/lib/course-blueprint-package.test.ts tests/api/teacher/course-blueprints-route.test.ts tests/api/teacher/course-blueprint-instantiate.test.ts",
+      "issueRefs": [],
+      "blockedBy": [],
+      "addedDate": "2026-04-17",
+      "completedDate": "2026-04-17"
     }
   ]
 }
