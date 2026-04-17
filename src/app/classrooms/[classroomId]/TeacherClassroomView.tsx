@@ -1166,14 +1166,14 @@ export function TeacherClassroomView({
       </button>
     ) : (
       <div className="flex w-full flex-wrap items-center gap-2 sm:min-h-[2.75rem]">
-        <div className="inline-flex items-center rounded-lg border border-border bg-surface-2 p-0.5">
+        <div className="mb-[-1px] flex items-end gap-1 self-end">
           <button
             type="button"
             className={[
               assignmentWorkspaceMode === 'overview'
-                ? 'bg-surface text-text-default shadow-sm'
-                : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
-              'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
+                : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
+              'min-h-10 px-3 py-2 text-sm font-medium transition-colors',
             ].join(' ')}
             onClick={() => handleSwitchWorkspaceMode('overview')}
             aria-pressed={assignmentWorkspaceMode === 'overview'}
@@ -1184,10 +1184,10 @@ export function TeacherClassroomView({
             type="button"
             className={[
               assignmentWorkspaceMode === 'details'
-                ? 'bg-surface text-text-default shadow-sm'
-                : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
-              !canOpenDetails ? 'cursor-not-allowed opacity-50 hover:bg-transparent hover:text-text-muted' : '',
-              'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
+                : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
+              !canOpenDetails ? 'cursor-not-allowed opacity-50 hover:bg-surface-2 hover:text-text-muted' : '',
+              'min-h-10 px-3 py-2 text-sm font-medium transition-colors',
             ].join(' ')}
             onClick={() => handleSwitchWorkspaceMode('details')}
             aria-pressed={assignmentWorkspaceMode === 'details'}
