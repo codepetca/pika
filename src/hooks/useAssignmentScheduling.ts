@@ -103,7 +103,6 @@ export function useAssignmentScheduling({
   onError,
 }: UseAssignmentSchedulingOptions): UseAssignmentSchedulingReturn {
   const [scheduleDate, setScheduleDate] = useState(getDefaultScheduleDateInSchedulingTimezone())
-  const [scheduleDate, setScheduleDate] = useState(getDefaultScheduleDateInSchedulingTimezone())
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
   const [primaryAction, setPrimaryAction] = useState<CreateSubmitAction>('post')
   const [showPostNowConfirm, setShowPostNowConfirm] = useState(false)
