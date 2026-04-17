@@ -30,8 +30,8 @@ describe('AssignmentModal', () => {
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   describe('edit mode', () => {

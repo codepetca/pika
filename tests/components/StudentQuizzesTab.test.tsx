@@ -122,6 +122,27 @@ describe('StudentQuizzesTab exam mode', () => {
     }
   }
 
+  function mockFullscreenSuccess() {
+    let fullscreenElement: Element | null = null
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+
+    const requestFullscreen = vi.fn().mockImplementation(async () => {
+      fullscreenElement = document.documentElement
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    })
+
+    return { requestFullscreen }
+  }
+
   it('does not show an in-panel exit control for active tests', async () => {
     queueTestList()
     queueTestDetail()
@@ -146,12 +167,14 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
-      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Maximize Window/i })).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('radio', { name: '3' })).toBeDisabled()
-    expect(screen.getByRole('radio', { name: '4' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    expect(screen.queryByText('2 + 2 = ?')).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: '3' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: '4' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
     expect(screen.queryByText('Exit Test')).not.toBeInTheDocument()
     expect(screen.queryByText('Leave this test?')).not.toBeInTheDocument()
   })
@@ -238,6 +261,8 @@ describe('StudentQuizzesTab exam mode', () => {
   })
 
   it('shows left-panel exits and away indicators in active test detail', async () => {
+    mockFullscreenSuccess()
+
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -346,16 +371,18 @@ describe('StudentQuizzesTab exam mode', () => {
 
     expect(screen.getByLabelText(/Exits 4\./)).toBeInTheDocument()
     expect(screen.getByLabelText('Away time 13s.')).toBeInTheDocument()
-    expect(screen.getAllByText('Window must be maximized in exam mode.').length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: /Maximize/i })).toBeInTheDocument()
-    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
-    expect(screen.getByTestId('exam-interaction-blocker')).toBeInTheDocument()
+    expect(screen.queryByText('Window must be maximized in exam mode.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Maximize/i })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('exam-interaction-blocker')).not.toBeInTheDocument()
     expect(screen.queryByText(/Window status:/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Focus events:/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Browser minimization attempts/i)).not.toBeInTheDocument()
   })
 
   it('uses centered detail before start and 30/70 exam mode split after start', async () => {
+    mockFullscreenSuccess()
+
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -482,6 +509,8 @@ describe('StudentQuizzesTab exam mode', () => {
   })
 
   it('switches to 50/50 split when opening a doc and restores 30/70 on back', async () => {
+    mockFullscreenSuccess()
+
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -2287,7 +2316,7 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
-      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Maximize Window/i })).toBeInTheDocument()
     })
 
     fireEvent(window, new Event('resize'))

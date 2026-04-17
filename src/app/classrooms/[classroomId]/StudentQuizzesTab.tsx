@@ -825,14 +825,14 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         {showNotMaximizedWarning && (
           <div
             aria-hidden="true"
-            className="pointer-events-none fixed inset-0 z-[60] border-[10px] border-warning bg-warning-bg/15"
+            className="pointer-events-none fixed inset-0 z-[60] border-[10px] border-warning bg-warning-bg"
           />
         )}
         {showNotMaximizedWarning && (
           <div
             aria-hidden="true"
             data-testid="exam-content-obscurer"
-            className="pointer-events-none fixed inset-x-0 bottom-0 top-12 z-[62] bg-page/90 backdrop-blur-[2px]"
+            className="pointer-events-none fixed inset-0 z-[62] bg-warning-bg"
           />
         )}
         {showNotMaximizedWarning && (
@@ -863,13 +863,18 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
           </div>
         )}
 
-        <PageContent className={showSplitExamShell ? 'flex-1 min-h-0 px-0 pt-1' : 'flex-1 min-h-0'}>
-          <div
-            className={`mx-auto h-full w-full ${
-              showSplitExamShell || !hasSelectedQuiz ? 'max-w-none' : 'max-w-3xl'
-            }`}
-          >
-            {showSplitExamShell ? (
+        {showNotMaximizedWarning ? (
+          <PageContent className={showSplitExamShell ? 'flex-1 min-h-0 px-0 pt-1' : 'flex-1 min-h-0'}>
+            <div aria-hidden="true" className="h-full" />
+          </PageContent>
+        ) : (
+          <PageContent className={showSplitExamShell ? 'flex-1 min-h-0 px-0 pt-1' : 'flex-1 min-h-0'}>
+            <div
+              className={`mx-auto h-full w-full ${
+                showSplitExamShell || !hasSelectedQuiz ? 'max-w-none' : 'max-w-3xl'
+              }`}
+            >
+              {showSplitExamShell ? (
               <div
                 data-testid="student-test-split-container"
                 className={`grid grid-cols-1 gap-2 ${
@@ -895,12 +900,6 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                     >
                       <div className="space-y-4">
                         <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
-
-                        {showNotMaximizedWarning && (
-                          <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-xs text-warning">
-                            Window must be maximized in exam mode.
-                          </div>
-                        )}
 
                         {allowedDocs.length > 0 ? (
                           <div className="space-y-2">
@@ -1117,7 +1116,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                 )}
               </section>
               </div>
-            ) : !hasSelectedQuiz ? (
+              ) : !hasSelectedQuiz ? (
               quizzes.length === 0 ? (
                 <EmptyState
                   title="No tests available."
@@ -1226,8 +1225,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                 )}
               </div>
             )}
-          </div>
-        </PageContent>
+            </div>
+          </PageContent>
+        )}
 
         <ConfirmDialog
           isOpen={showStartTestConfirm}

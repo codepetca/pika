@@ -44,6 +44,7 @@ interface Props {
   apiBasePath?: string
   onQuizUpdate: () => void
   onRequestDelete?: () => void
+  onRequestTestPreview?: (preview: { testId: string; title: string }) => void
 }
 
 type AssessmentEditorDraft = {
@@ -60,6 +61,7 @@ export function QuizDetailPanel({
   apiBasePath = '/api/teacher/quizzes',
   onQuizUpdate,
   onRequestDelete,
+  onRequestTestPreview,
 }: Props) {
   const AUTOSAVE_DEBOUNCE_MS = 3000
   const AUTOSAVE_MIN_INTERVAL_MS = 10_000
@@ -103,6 +105,62 @@ export function QuizDetailPanel({
   const savedMarkdownRef = useRef('')
   const documentsRef = useRef(documents)
   const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
+
+  const requestCurrentWindowFullscreen = useCallback(async () => {
+    const fullscreenElement = document.documentElement as HTMLElement & {
+      requestFullscreen?: () => Promise<void>
+    }
+    if (typeof fullscreenElement.requestFullscreen !== 'function') return
+    if (document.fullscreenElement) return
+
+    try {
+      await fullscreenElement.requestFullscreen()
+    } catch {
+      // Browsers can reject fullscreen requests even on direct clicks.
+    }
+  }, [])
+
+  const openMaximizedTestPreviewWindow = useCallback((url = '') => {
+    const popupWidth = Math.max(window.screen?.availWidth ?? 0, window.innerWidth ?? 0, 1280)
+    const popupHeight = Math.max(window.screen?.availHeight ?? 0, window.innerHeight ?? 0, 720)
+    const popupFeatures = [
+      'popup=yes',
+      'resizable=yes',
+      'scrollbars=yes',
+      'left=0',
+      'top=0',
+      `width=${popupWidth}`,
+      `height=${popupHeight}`,
+    ].join(',')
+    const previewWindow = window.open(url, '_blank', popupFeatures)
+
+    if (previewWindow) {
+      try {
+        if (!url) {
+          previewWindow.document.title = 'Opening Preview'
+          previewWindow.document.body.innerHTML = `
+            <div style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;color:#0f172a;font:600 16px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+              Opening preview...
+            </div>
+          `
+          previewWindow.document.body.style.margin = '0'
+        }
+        previewWindow.moveTo(0, 0)
+        previewWindow.resizeTo(popupWidth, popupHeight)
+        previewWindow.focus()
+        const requestFullscreen = previewWindow.document.documentElement.requestFullscreen
+        if (typeof requestFullscreen === 'function') {
+          void requestFullscreen.call(previewWindow.document.documentElement).catch(() => {
+            // Browsers may reject fullscreen even on a fresh popup.
+          })
+        }
+      } catch {
+        // Browsers may block scripted move/resize/focus based on user settings.
+      }
+    }
+
+    return previewWindow
+  }, [])
 
   const normalizeQuestionPositions = useCallback((nextQuestions: QuizQuestion[]): QuizQuestion[] => {
     return nextQuestions.map((question, index) => ({ ...question, position: index }))
@@ -827,6 +885,15 @@ export function QuizDetailPanel({
   const handleOpenTestPreview = useCallback(async () => {
     if (!isTestsView) return
 
+    const previewUrl = `/classrooms/${classroomId}/tests/${quiz.id}/preview`
+    let previewWindow: Window | null = null
+
+    if (onRequestTestPreview) {
+      void requestCurrentWindowFullscreen()
+    } else {
+      previewWindow = openMaximizedTestPreviewWindow()
+    }
+
     setOpeningTestPreview(true)
     const nextDraft = {
       title: editTitle,
@@ -840,37 +907,39 @@ export function QuizDetailPanel({
     })
 
     if (saved) {
-      const popupWidth = Math.max(window.screen?.availWidth ?? 0, window.innerWidth ?? 0, 1280)
-      const popupHeight = Math.max(window.screen?.availHeight ?? 0, window.innerHeight ?? 0, 720)
-      const popupFeatures = [
-        'noopener',
-        'noreferrer',
-        'popup=yes',
-        'resizable=yes',
-        'scrollbars=yes',
-        'left=0',
-        'top=0',
-        `width=${popupWidth}`,
-        `height=${popupHeight}`,
-      ].join(',')
-      const previewWindow = window.open(
-        `/classrooms/${classroomId}/tests/${quiz.id}/preview`,
-        '_blank',
-        popupFeatures
-      )
-      if (previewWindow) {
+      if (onRequestTestPreview) {
+        onRequestTestPreview({
+          testId: quiz.id,
+          title: nextDraft.title,
+        })
+      } else if (previewWindow && !previewWindow.closed) {
         try {
-          previewWindow.moveTo(0, 0)
-          previewWindow.resizeTo(popupWidth, popupHeight)
+          previewWindow.location.replace(previewUrl)
           previewWindow.focus()
         } catch {
-          // Browsers may block scripted move/resize/focus based on user settings.
+          openMaximizedTestPreviewWindow(previewUrl)
         }
+      } else {
+        openMaximizedTestPreviewWindow(previewUrl)
       }
+    } else if (previewWindow && !previewWindow.closed) {
+      previewWindow.close()
     }
 
     setOpeningTestPreview(false)
-  }, [classroomId, documents, draftShowResults, editTitle, isTestsView, questions, quiz.id, saveDraft])
+  }, [
+    classroomId,
+    documents,
+    draftShowResults,
+    editTitle,
+    isTestsView,
+    openMaximizedTestPreviewWindow,
+    onRequestTestPreview,
+    questions,
+    quiz.id,
+    requestCurrentWindowFullscreen,
+    saveDraft,
+  ])
 
   if (loading) {
     return (

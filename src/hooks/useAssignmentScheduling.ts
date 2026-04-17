@@ -155,6 +155,7 @@ export function useAssignmentScheduling({
       setPrimaryAction('schedule')
     } else {
       setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
+      setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
       setPrimaryAction('post')
     }
@@ -179,6 +180,7 @@ export function useAssignmentScheduling({
       setScheduleDate(parsed.date)
       setScheduleTime(parsed.time)
     } else {
+      setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
     }
