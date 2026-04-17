@@ -22,6 +22,7 @@ export interface VerificationResult {
   passed: boolean
   checks: VerificationCheck[]
   error?: string
+  artifacts?: string[]
 }
 
 export interface VerificationScript {

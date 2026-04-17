@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
-import { countCharacters } from '@/lib/tiptap-content'
 
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div data-testid="spinner" />,
@@ -970,22 +969,10 @@ describe('TeacherStudentWorkPanel', () => {
     expect(await screen.findByTestId('rich-text-viewer')).toHaveAttribute('data-chrome', 'flush')
     expect(screen.queryByTestId('grading-workspace-header')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /show student table only/i })).not.toBeInTheDocument()
-    expect(screen.getByTestId('individual-content-header')).toHaveTextContent('student-1')
-    const expectedCharacters = countCharacters({
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [{ type: 'text', text: 'Work for student-1' }],
-        },
-      ],
-    })
-    expect(screen.getByLabelText(`${expectedCharacters} characters`)).toHaveTextContent(
-      `${expectedCharacters} chars`,
-    )
+    expect(screen.queryByTestId('individual-content-header')).not.toBeInTheDocument()
   })
 
-  it('renders the individual content header with student name first and repo metadata after it', async () => {
+  it('removes student identity and repo metadata from the top content header in details mode', async () => {
     mockFetchByStudent({
       'student-1': {
         graded: false,
@@ -1006,14 +993,8 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const header = await screen.findByTestId('individual-content-header')
-    expect(header).toHaveTextContent('student-1')
-    expect(header).toHaveTextContent('Repo')
-    expect(within(header).getByRole('link')).toHaveAttribute(
-      'href',
-      'https://github.com/example/student-1-repo',
-    )
-    expect(header).toHaveTextContent('@student1')
+    await screen.findByTestId('rich-text-viewer')
+    expect(screen.queryByTestId('individual-content-header')).not.toBeInTheDocument()
   })
 
   it('resets the individual pane split to 50/50 on separator double click', async () => {
@@ -1036,7 +1017,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    await screen.findByTestId('individual-content-header')
+    await screen.findByTestId('rich-text-viewer')
 
     fireEvent.doubleClick(screen.getByRole('separator', { name: 'Resize content and grading panes' }))
 

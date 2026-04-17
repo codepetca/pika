@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ClockAlert, LogOut, Maximize } from 'lucide-react'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
-import { PageContent, PageLayout } from '@/components/PageLayout'
+import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
 import {
   getQuizExitCount,
   getQuizStatusBadgeClass,
@@ -12,7 +12,7 @@ import {
 } from '@/lib/quizzes'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
 import { StudentQuizResults } from '@/components/StudentQuizResults'
-import { Button, ConfirmDialog } from '@/ui'
+import { Button, ConfirmDialog, EmptyState } from '@/ui'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
@@ -717,7 +717,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     }
 
     return (
-      <div className="space-y-3">
+      <PageStack>
         {quizzes.map((quiz) => {
           const isSelected = selectedQuizId === quiz.id
 
@@ -728,30 +728,37 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
               onClick={() => {
                 void handleSelectQuiz(quiz.id)
               }}
-              className={`w-full rounded-lg border p-4 text-left transition-colors ${
+              className={`block w-full rounded-card border px-5 py-4 text-left transition-[background-color,border-color,box-shadow,transform] ${
                 showSelectionState && isSelected
-                  ? 'border-primary ring-1 ring-primary/40'
-                  : 'border-border bg-surface hover:bg-surface-hover'
+                  ? 'border-primary bg-surface-accent ring-1 ring-primary/25 shadow-panel'
+                  : 'border-border bg-surface-panel hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium text-text-default">{quiz.title}</h3>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-semibold text-text-default">{quiz.title}</h3>
+                  {quiz.status === 'closed' && (
+                    <p className="mt-1 text-sm text-text-muted">
+                      This {isTestsView ? 'test' : 'quiz'} is closed
+                    </p>
+                  )}
+                </div>
                 {isTestsView ? (
                   <>
                     {quiz.student_status === 'can_view_results' ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-info-bg text-info">
+                      <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-info">
                         Returned
                       </span>
                     ) : quiz.status === 'closed' ? (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${getQuizStatusBadgeClass('closed')}`}>
+                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getQuizStatusBadgeClass('closed')}`}>
                         Closed
                       </span>
                     ) : quiz.student_status === 'responded' ? (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-surface-2 text-text-muted">
+                      <span className="rounded-badge bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">
                         Submitted
                       </span>
                     ) : (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${getQuizStatusBadgeClass('active')}`}>
+                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getQuizStatusBadgeClass('active')}`}>
                         New
                       </span>
                     )}
@@ -759,32 +766,27 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                 ) : (
                   <>
                     {quiz.student_status === 'not_started' && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${getQuizStatusBadgeClass('active')}`}>
+                      <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${getQuizStatusBadgeClass('active')}`}>
                         New
                       </span>
                     )}
                     {quiz.student_status === 'responded' && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-surface-2 text-text-muted">
+                      <span className="rounded-badge bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">
                         Submitted
                       </span>
                     )}
                     {quiz.student_status === 'can_view_results' && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-info-bg text-info">
+                      <span className="rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-info">
                         View Results
                       </span>
                     )}
                   </>
                 )}
               </div>
-              {quiz.status === 'closed' && (
-                <p className="text-xs text-text-muted mt-1">
-                  This {isTestsView ? 'test' : 'quiz'} is closed
-                </p>
-              )}
             </button>
           )
         })}
-      </div>
+      </PageStack>
     )
   }
 
@@ -806,12 +808,17 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     const awayCount = focusSummary?.away_count ?? 0
     const routeExitAttempts = focusSummary?.route_exit_attempts ?? 0
     const windowUnmaximizeAttempts = focusSummary?.window_unmaximize_attempts ?? 0
-    const showNotMaximizedWarning = hasSelectedQuiz && focusEnabled && !isFullscreen
+    const showNotMaximizedWarning = showCurrentTestInfoPanel && !isFullscreen
     const iframeDocs = allowedDocs.filter((doc) => doc.source !== 'text' && Boolean(doc.url))
     const selectedTestTitle = hasSelectedQuiz ? selectedQuiz.quiz.title : ''
     const selectedTestPanelTitle = isViewingResults
       ? `${selectedTestTitle} Results`
       : selectedTestTitle
+    const showSplitExamShell =
+      hasSelectedQuiz &&
+      !requiresStart &&
+      !hasResponded &&
+      showCurrentTestInfoPanel
 
     return (
       <PageLayout className="relative h-full flex flex-col">
@@ -856,18 +863,19 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
           </div>
         )}
 
-        <PageContent className="flex-1 min-h-0 px-0 pt-1">
-          <div className="mx-auto h-full w-full max-w-none">
-            <div
-              data-testid="student-test-split-container"
-              className={`grid grid-cols-1 gap-2 ${
-                showDocPanel
-                  ? 'lg:grid-cols-[50%_50%]'
-                  : showCurrentTestInfoPanel || isViewingResults
-                    ? 'lg:grid-cols-[30%_70%]'
-                    : 'lg:grid-cols-[50%_50%]'
-              } lg:h-full lg:min-h-0 lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
-            >
+        <PageContent className={showSplitExamShell ? 'flex-1 min-h-0 px-0 pt-1' : 'flex-1 min-h-0'}>
+          <div
+            className={`mx-auto h-full w-full ${
+              showSplitExamShell || !hasSelectedQuiz ? 'max-w-none' : 'max-w-3xl'
+            }`}
+          >
+            {showSplitExamShell ? (
+              <div
+                data-testid="student-test-split-container"
+                className={`grid grid-cols-1 gap-2 ${
+                  showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
+                } lg:h-full lg:min-h-0 lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
+              >
               <section
                 className={`rounded-xl border border-border bg-surface ${
                   showCurrentTestInfoPanel
@@ -1108,7 +1116,116 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                   </div>
                 )}
               </section>
-            </div>
+              </div>
+            ) : !hasSelectedQuiz ? (
+              quizzes.length === 0 ? (
+                <EmptyState
+                  title="No tests available."
+                  description="When your teacher publishes a test, it will show up here."
+                />
+              ) : (
+                <div className="min-w-0 h-full flex flex-col max-w-none">
+                  {renderAssessmentList(false)}
+                </div>
+              )
+            ) : selectedQuizId && loadingQuiz ? (
+              <div className="flex justify-center py-12">
+                <Spinner size="lg" />
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="mb-4 flex items-center gap-1 text-sm text-text-muted hover:text-text-default"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back to tests
+                </button>
+
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="truncate text-xl font-bold text-text-default">
+                      {selectedTestPanelTitle}
+                    </h2>
+                    {allowedDocs.length > 0 && requiresStart ? (
+                      <p className="mt-1 text-sm text-text-muted">
+                        {allowedDocs.length} reference document{allowedDocs.length === 1 ? '' : 's'} will be available during the test.
+                      </p>
+                    ) : null}
+                  </div>
+                  <span
+                    className={[
+                      'rounded-badge px-2.5 py-1 text-xs font-semibold',
+                      selectedQuiz?.quiz.student_status === 'can_view_results'
+                        ? 'bg-info-bg text-info'
+                        : selectedQuiz?.quiz.student_status === 'responded'
+                          ? 'bg-surface-2 text-text-muted'
+                          : selectedQuiz?.quiz.status === 'closed'
+                            ? getQuizStatusBadgeClass('closed')
+                            : getQuizStatusBadgeClass('active'),
+                    ].join(' ')}
+                  >
+                    {selectedQuiz?.quiz.student_status === 'can_view_results'
+                      ? 'Returned'
+                      : selectedQuiz?.quiz.student_status === 'responded'
+                        ? 'Submitted'
+                        : selectedQuiz?.quiz.status === 'closed'
+                          ? 'Closed'
+                          : 'New'}
+                  </span>
+                </div>
+
+                {requiresStart ? (
+                  <div className="rounded-card border border-border bg-surface-panel p-5 shadow-elevated">
+                    <p className="text-sm text-text-muted">
+                      Review the test details, then start when you are ready.
+                    </p>
+                    <div className="mt-4">
+                      <Button
+                        type="button"
+                        className="w-full sm:w-auto"
+                        onClick={() => handleRequestStartTest(selectedQuiz.quiz.id)}
+                      >
+                        Start the Test
+                      </Button>
+                    </div>
+                  </div>
+                ) : hasResponded && selectedQuiz.quiz.student_status === 'can_view_results' ? (
+                  <StudentQuizResults
+                    quizId={selectedQuizId!}
+                    myResponses={selectedQuiz.studentResponses}
+                    assessmentType={assessmentType}
+                    apiBasePath={apiBasePath}
+                    showSubmissionBanner={false}
+                  />
+                ) : hasResponded ? (
+                  <div className="rounded-card border border-success bg-success-bg p-5 text-center shadow-elevated">
+                    <p className="font-medium text-success">Response Submitted</p>
+                    {selectedQuiz.quiz.status !== 'closed' ? (
+                      <p className="mt-1 text-sm text-text-muted">
+                        Results will be available after this test is closed and returned by your teacher.
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-text-muted">
+                        Results will be available after your teacher returns this test.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <StudentQuizForm
+                    quizId={selectedQuizId!}
+                    questions={selectedQuiz.questions}
+                    initialResponses={selectedQuiz.studentResponses}
+                    enableDraftAutosave
+                    isInteractionLocked={showNotMaximizedWarning}
+                    assessmentType={assessmentType}
+                    apiBasePath={apiBasePath}
+                    onSubmitted={handleQuizSubmitted}
+                  />
+                )}
+              </div>
+            )}
           </div>
         </PageContent>
 

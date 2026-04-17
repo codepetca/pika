@@ -689,6 +689,21 @@ function ClassroomPageContent({
   ])
 
   useEffect(() => {
+    if (!isTeacher || activeTab !== 'tests') return
+    if (testGradingContext.mode === 'grading') return
+    if (selectedQuiz) return
+    setRightSidebarOpen(false)
+    closeMobileDrawer()
+  }, [
+    activeTab,
+    closeMobileDrawer,
+    isTeacher,
+    selectedQuiz,
+    setRightSidebarOpen,
+    testGradingContext.mode,
+  ])
+
+  useEffect(() => {
     if (activeTab === 'roster') {
       setRightSidebarOpen(false)
     }
@@ -1327,7 +1342,9 @@ function ClassroomPageContent({
                   : undefined
               }
             />
-          ) : isTeacher && isAssessmentTab ? (
+          ) : isTeacher &&
+            activeTab === 'tests' &&
+            testGradingContext.mode === 'authoring' ? null : isTeacher && isAssessmentTab ? (
             <div className="flex h-full min-h-0 items-center p-4">
               <EmptyState
                 title={`Select a ${assessmentLabel}`}

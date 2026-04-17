@@ -15,10 +15,12 @@ import type { VerificationResult, VerificationScript } from './types'
 
 // Import scenarios
 import { addStudentsModal } from './add-students-modal'
+import { assessmentUxParity } from './assessment-ux-parity'
 import { createClassroomWizard } from './create-classroom-wizard'
 
 const scenarios: Record<string, VerificationScript> = {
   'add-students-modal': addStudentsModal,
+  'assessment-ux-parity': assessmentUxParity,
   'create-classroom-wizard': createClassroomWizard,
 }
 
