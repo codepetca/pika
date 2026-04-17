@@ -1,13 +1,11 @@
 'use client'
 
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
 import { useTeacherStudentWorkController } from '@/components/assignment-workspace/useTeacherStudentWorkController'
-import { ACTIONBAR_ICON_BUTTON_CLASSNAME } from '@/components/PageLayout'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
   clampAssignmentWorkspacePaneLayout,
@@ -36,6 +34,7 @@ interface TeacherStudentWorkPanelProps {
   onGoNextStudent?: () => void
   canGoPrevStudent?: boolean
   canGoNextStudent?: boolean
+  onDetailsMetaChange?: (meta: { studentName: string; characterCount: number } | null) => void
 }
 
 export function TeacherStudentWorkPanel({
@@ -52,6 +51,7 @@ export function TeacherStudentWorkPanel({
   onGoNextStudent,
   canGoPrevStudent = false,
   canGoNextStudent = false,
+  onDetailsMetaChange,
 }: TeacherStudentWorkPanelProps) {
   const workspaceRef = useRef<HTMLDivElement | null>(null)
   const {
@@ -160,6 +160,25 @@ export function TeacherStudentWorkPanel({
     }))
   }, [updateLayout])
 
+  useEffect(() => {
+    if (mode !== 'details' || showInitialSpinner || error || !data) {
+      onDetailsMetaChange?.(null)
+      return
+    }
+
+    const nextDisplayContent = previewContent || data.doc?.content
+    const nextCharacterCount =
+      nextDisplayContent && !isEmpty(nextDisplayContent)
+        ? countCharacters(nextDisplayContent)
+        : 0
+    const nextStudentDisplayName = data.student.name?.trim() || data.student.email
+
+    onDetailsMetaChange?.({
+      studentName: nextStudentDisplayName,
+      characterCount: nextCharacterCount,
+    })
+  }, [data, error, mode, onDetailsMetaChange, previewContent, showInitialSpinner])
+
   if (showInitialSpinner) {
     return (
       <div className="flex justify-center py-12">
@@ -177,16 +196,6 @@ export function TeacherStudentWorkPanel({
   }
 
   const displayContent = previewContent || data.doc?.content
-  const repoDisplayUrl =
-    data.repo_target.submittedRepoUrl ||
-    data.repo_target.effectiveRepoUrl ||
-    data.repo_target.target?.selected_repo_url ||
-    ''
-  const repoDisplayGitHubUsername =
-    data.repo_target.submittedGitHubUsername ||
-    data.repo_target.effectiveGitHubUsername ||
-    repoReviewResult?.github_login ||
-    ''
   const studentDisplayName = data.student.name?.trim() || data.student.email
   const characterCount =
     displayContent && !isEmpty(displayContent) ? countCharacters(displayContent) : 0
@@ -249,81 +258,12 @@ export function TeacherStudentWorkPanel({
           previewEntry ? 'outline outline-2 outline-primary outline-offset-[-2px]' : ''
         }`}
       >
-        <div
-          data-testid="individual-content-header"
-          className="border-b border-border bg-surface px-4 py-2 text-sm"
-        >
-          <div className="flex flex-col gap-1 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
-            <div
-              className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1"
-            >
-              <div
-                className="min-w-0 truncate font-medium text-text-default"
-                title={studentDisplayName}
-              >
-                {studentDisplayName}
-              </div>
-              {(repoDisplayUrl || repoDisplayGitHubUsername) && (
-                <>
-                  <span className="text-text-muted" aria-hidden="true">
-                    /
-                  </span>
-                  <div className="min-w-0 truncate text-text-muted">
-                    <span className="text-text-muted">Repo </span>
-                    {repoDisplayUrl ? (
-                      <a
-                        href={repoDisplayUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        {repoDisplayUrl}
-                      </a>
-                    ) : (
-                      '—'
-                    )}
-                  </div>
-                  {repoDisplayGitHubUsername && (
-                    <div className="truncate text-text-muted">
-                      <span className="font-medium text-text-default">
-                        @{repoDisplayGitHubUsername}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-            <div
-              className="inline-flex shrink-0 items-center justify-center text-xs text-text-muted sm:justify-self-center"
-              aria-label={`${characterCount} characters`}
-            >
-              <span>{characterCount} chars</span>
-            </div>
-            {(onGoPrevStudent || onGoNextStudent) && (
-              <div className="flex items-center gap-1 sm:justify-self-end">
-                <button
-                  type="button"
-                  className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-                  onClick={onGoPrevStudent}
-                  disabled={!onGoPrevStudent || !canGoPrevStudent}
-                  aria-label="Previous student"
-                >
-                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-                  onClick={onGoNextStudent}
-                  disabled={!onGoNextStudent || !canGoNextStudent}
-                  aria-label="Next student"
-                >
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
-            )}
-          </div>
-          {previewEntry && (
-            <div className="mt-1 text-xs font-medium text-primary">
+        {previewEntry && (
+          <div
+            data-testid="individual-content-header"
+            className="border-b border-border bg-surface px-4 py-2 text-sm"
+          >
+            <div className="text-xs font-medium text-primary">
               Previewing save from{' '}
               {formatInTimeZone(
                 new Date(previewEntry.created_at),
@@ -331,8 +271,8 @@ export function TeacherStudentWorkPanel({
                 'MMM d, h:mm a',
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
         {displayContent && !isEmpty(displayContent) ? (
           <div className="min-h-0 flex-1 overflow-auto">
             <RichTextViewer content={displayContent} fillHeight chrome="flush" />

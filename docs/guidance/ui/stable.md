@@ -1,8 +1,15 @@
 # Stable UI Guidance
 
-These are the stable UI rules for the v1 governed slice: assignments, attendance, and the classroom shell that supports them.
+These are the stable cross-cutting UI rules for the current governed slices.
 
 Use these by default for new work.
+
+For teacher assignments, teacher quizzes, and teacher tests, also read:
+
+- [`docs/guidance/ui/teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md)
+- [`docs/guidance/ui/audit-teacher-work-surfaces.md`](/docs/guidance/ui/audit-teacher-work-surfaces.md)
+
+This file handles shared foundation rules. The teacher work-surface canon handles that family’s composition and promotion lifecycle.
 
 ## Stable Rules
 
@@ -84,5 +91,6 @@ Source grounding:
 ## Stable Guidance Limits
 
 - This file is intentionally narrow. It does not try to canonize the entire app.
+- Teacher assignments/quizzes/tests family rules live in [`teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md).
 - If a current pattern exists in code but is not listed here, do not assume it is stable.
 - Use an experimental draft when you want to propose reuse beyond the current stable rules.

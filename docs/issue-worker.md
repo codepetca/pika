@@ -13,6 +13,7 @@ gh issue view <number> --json number,title,body,labels,comments
 3. Read `docs/ai-instructions.md` and load only the task-specific docs it routes you to.
 3. Check `.ai/features.json` for any referenced feature IDs.
 4. If the issue affects UI/UX, read `docs/guidance/ui/README.md` and `docs/guidance/ui/stable.md`.
+5. If the issue affects teacher assignments, teacher quizzes, or teacher tests, also read `docs/guidance/ui/teacher-work-surfaces.md` and `docs/guidance/ui/audit-teacher-work-surfaces.md`.
 
 ## 3) Branch & PR Setup
 - Create or bind a dedicated worktree using `docs/dev-workflow.md`.
@@ -27,6 +28,7 @@ Produce a short plan:
 If the issue affects UI/UX, add a **UI guidance declaration**:
 - guidance read
 - stable guidance followed
+- teacher work-surface canon followed: yes/no/not-applicable
 - experimental guidance introduced: yes/no
 - experimental draft file created or updated, if any
 - human promotion needed: yes/no

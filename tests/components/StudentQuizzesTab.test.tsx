@@ -102,6 +102,13 @@ describe('StudentQuizzesTab exam mode', () => {
     return splitContainer
   }
 
+  function querySplitContainer(container: HTMLElement): HTMLDivElement | null {
+    const splitContainer = container.querySelector(
+      '[data-testid="student-test-split-container"]'
+    )
+    return splitContainer instanceof HTMLDivElement ? splitContainer : null
+  }
+
   function makeFocusSummary(overrides: Partial<QuizFocusSummary> = {}): QuizFocusSummary {
     return {
       exit_count: 0,
@@ -348,7 +355,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(screen.queryByText(/Browser minimization attempts/i)).not.toBeInTheDocument()
   })
 
-  it('uses 50/50 split before start and 30/70 exam mode split after start', async () => {
+  it('uses centered detail before start and 30/70 exam mode split after start', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -441,16 +448,14 @@ describe('StudentQuizzesTab exam mode', () => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
     })
 
-    const splitContainerBeforeStart = getSplitContainer(container)
-    expect(splitContainerBeforeStart.className).toContain('lg:grid-cols-[50%_50%]')
-    expect(splitContainerBeforeStart.className).not.toContain('lg:grid-cols-[30%_70%]')
-    expect(screen.getByRole('heading', { name: 'Tests' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Exam Mode' })).not.toBeInTheDocument()
-
     fireEvent.click(screen.getByText('Midterm Test'))
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
     })
+    expect(querySplitContainer(container)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Back to tests' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Tests' })).not.toBeInTheDocument()
+
     fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
@@ -1114,7 +1119,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(document.querySelector('iframe[title="Node.js API"]')).not.toBeInTheDocument()
   })
 
-  it('uses 30/70 split when student is viewing returned test results', async () => {
+  it('uses centered detail when student is viewing returned test results', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -1226,9 +1231,8 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(screen.getByText('Returned')).toBeInTheDocument()
     expect(screen.queryByText('View Results')).not.toBeInTheDocument()
 
-    const splitContainer = getSplitContainer(container)
-    expect(splitContainer.className).toContain('lg:grid-cols-[30%_70%]')
-    expect(splitContainer.className).not.toContain('lg:grid-cols-[50%_50%]')
+    expect(querySplitContainer(container)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Back to tests' })).toBeInTheDocument()
   })
 
   it('shows Closed, Submitted, and Returned status pills for tests', async () => {
@@ -1441,7 +1445,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(screen.queryByRole('button', { name: 'Open in new tab' })).not.toBeInTheDocument()
   })
 
-  it('keeps the test list visible and refreshes statuses after submit', async () => {
+  it('refreshes list statuses after submit when returning from detail', async () => {
     let listCallCount = 0
     let detailCallCount = 0
 
@@ -1565,7 +1569,14 @@ describe('StudentQuizzesTab exam mode', () => {
       expect(screen.getByText('Response Submitted')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Final Test')).toBeInTheDocument()
+    expect(querySplitContainer(document.body)).toBeNull()
+    expect(screen.queryByText('Final Test')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to tests' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Final Test')).toBeInTheDocument()
+    })
     expect(screen.getByText('Submitted')).toBeInTheDocument()
   })
 

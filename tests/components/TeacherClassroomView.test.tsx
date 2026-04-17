@@ -1,5 +1,5 @@
-import { forwardRef } from 'react'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { forwardRef, useEffect } from 'react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClassroomView'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
@@ -78,12 +78,21 @@ vi.mock('@/components/AssignmentArtifactsCell', () => ({
 }))
 
 vi.mock('@/components/TeacherStudentWorkPanel', () => ({
-  TeacherStudentWorkPanel: ({ assignmentId, studentId, mode }: any) => (
-    <div data-testid="teacher-work-panel">{`${mode}:${assignmentId}:${studentId}`}</div>
-  ),
+  TeacherStudentWorkPanel: ({ assignmentId, studentId, mode, onDetailsMetaChange }: any) => {
+    useEffect(() => {
+      onDetailsMetaChange?.(
+        mode === 'details'
+          ? { studentName: `${studentId} Student`, characterCount: 17 }
+          : null,
+      )
+    }, [mode, onDetailsMetaChange, studentId])
+
+    return <div data-testid="teacher-work-panel">{`${mode}:${assignmentId}:${studentId}`}</div>
+  },
 }))
 
 vi.mock('@/components/PageLayout', () => ({
+  ACTIONBAR_ICON_BUTTON_CLASSNAME: 'icon-button',
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME: 'primary-button',
   ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME: 'wide-button',
   PageLayout: ({ children }: any) => <div>{children}</div>,
@@ -321,5 +330,159 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-2:student-2')
     })
+  })
+
+  it('renders class-mode actions in the selected-assignment action bar without duplicating them in the table', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+    })
+
+    expect(screen.getByRole('button', { name: 'Class' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: /Send/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit assignment' })).toBeInTheDocument()
+  })
+
+  it('switches to individual mode with student controls in the action bar', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Individual' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('details:assignment-1:student-1')
+    })
+
+    expect(screen.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: /AI Grade/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Send/i })).not.toBeInTheDocument()
+    expect(screen.getByText('student-1 Student')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('17 chars')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: 'Previous student' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next student' })).toBeInTheDocument()
+  })
+
+  it('keeps class mode active when clicking a student row', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1').assignment,
+            students: [
+              ...makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1').students,
+              {
+                student_id: 'student-2',
+                student_email: 'student-2@example.com',
+                student_first_name: 'student-2',
+                student_last_name: 'Student',
+                status: 'submitted_on_time',
+                student_updated_at: '2026-04-10T12:00:00Z',
+                artifacts: [],
+                doc: {
+                  submitted_at: '2026-04-10T12:00:00Z',
+                  updated_at: '2026-04-10T12:00:00Z',
+                  score_completion: null,
+                  score_thinking: null,
+                  score_workflow: null,
+                  graded_at: null,
+                  returned_at: null,
+                  feedback_returned_at: null,
+                },
+              },
+            ],
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+    })
+
+    fireEvent.click(screen.getAllByText('student-2')[0])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-2')
+    })
+
+    expect(screen.getByRole('button', { name: 'Class' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'false')
   })
 })

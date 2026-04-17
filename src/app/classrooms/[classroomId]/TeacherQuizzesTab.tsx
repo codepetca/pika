@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, Circle, ClockAlert, LogOut, Plus, Send } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
-import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
-import { Button, ConfirmDialog, DialogPanel, FormField, Select, Tooltip } from '@/ui'
+import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, Select, Tooltip } from '@/ui'
 import { useRightSidebar } from '@/components/layout'
 import {
   TEACHER_QUIZZES_UPDATED_EVENT,
@@ -641,120 +641,127 @@ export function TeacherQuizzesTab({
     }
   }
   const batchGradeDescription = batchGradeDescriptionParts.join(' ')
+  const testsModeToggle = isTestsView ? (
+    <div className="inline-flex items-center rounded-md border border-border bg-surface p-0.5 shadow-sm">
+      <button
+        type="button"
+        onClick={() => {
+          setTestsMode('authoring')
+          setSelectedQuizId(null)
+          setRightSidebarOpen(false)
+        }}
+        className={[
+          'rounded px-2.5 py-1 text-xs font-medium transition-colors sm:px-3 sm:py-1.5 sm:text-sm',
+          testsMode === 'authoring'
+            ? 'bg-surface-panel text-text-default shadow-sm'
+            : 'text-text-muted hover:text-text-default',
+        ].join(' ')}
+        aria-pressed={testsMode === 'authoring'}
+      >
+        Authoring
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setTestsMode('grading')
+          setRightSidebarOpen(true)
+        }}
+        className={[
+          'rounded px-2.5 py-1 text-xs font-medium transition-colors sm:px-3 sm:py-1.5 sm:text-sm',
+          testsMode === 'grading'
+            ? 'bg-surface-panel text-text-default shadow-sm'
+            : 'text-text-muted hover:text-text-default',
+        ].join(' ')}
+        aria-pressed={testsMode === 'grading'}
+      >
+        Grading
+      </button>
+    </div>
+  ) : null
 
   return (
-    <PageLayout>
+    <PageLayout className="flex h-full min-h-0 flex-col">
       <PageActionBar
         primary={
-          <div className="w-full flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              {!isReadOnly && (!isTestsView || testsMode === 'authoring') && (
-                <Button onClick={handleNewQuiz} variant="primary" className="gap-1.5">
-                  <Plus className="h-4 w-4" />
-                  {isTestsView ? 'New Test' : 'New Quiz'}
-                </Button>
-              )}
-              {isTestsView && testsMode === 'grading' ? (
-                <div className="rounded-md border border-border bg-surface px-3 py-2 text-sm">
-                  <span className="font-medium text-text-default">{selectedTestTitle}</span>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            {isTestsView && testsMode === 'grading' ? (
+              <>
+                <div className="min-w-0 rounded-md border border-border bg-surface px-3 py-2 text-sm">
+                  <span className="block truncate font-medium text-text-default">{selectedTestTitle}</span>
                 </div>
-              ) : null}
-              {isTestsView && testsMode === 'grading' && !isReadOnly ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      if (batchSelectedCount === 0) {
-                        setGradingWarning('Select students to grade')
-                        return
-                      }
-                      setShowBatchGradeModal(true)
-                    }}
-                    className={batchSelectedCount === 0 ? 'h-8 w-8 p-0 opacity-60' : 'h-8 w-8 p-0'}
-                    aria-label={batchSelectedCount > 0 ? `Grade ${batchSelectedCount} selected` : 'Grade selected students'}
-                    disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
-                  >
-                    <Check className="h-4 w-4 text-primary" />
-                  </Button>
-                  <Tooltip
-                    content={
-                      batchSelectedCount > 0
-                        ? `Return (${batchSelectedCount})`
-                        : 'Select students to return'
-                    }
-                  >
+                {!isReadOnly ? (
+                  <>
                     <Button
                       type="button"
                       variant="secondary"
                       size="sm"
-                      className={batchSelectedCount === 0 ? 'h-8 w-8 p-0 opacity-60' : 'h-8 w-8 p-0'}
-                      aria-label={batchSelectedCount > 0 ? `Return ${batchSelectedCount} selected tests` : 'Return selected tests'}
-                      disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
                       onClick={() => {
                         if (batchSelectedCount === 0) {
-                          setGradingWarning('Select students to return')
+                          setGradingWarning('Select students to grade')
                           return
                         }
-                        setShowReturnConfirm(true)
+                        setShowBatchGradeModal(true)
                       }}
+                      className={batchSelectedCount === 0 ? 'h-8 w-8 p-0 opacity-60' : 'h-8 w-8 p-0'}
+                      aria-label={batchSelectedCount > 0 ? `Grade ${batchSelectedCount} selected` : 'Grade selected students'}
+                      disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
                     >
-                      <Send className="h-4 w-4 text-primary" />
+                      <Check className="h-4 w-4 text-primary" />
                     </Button>
-                  </Tooltip>
-                </>
-              ) : null}
-            </div>
-
-            {isTestsView ? (
-              <div className="inline-flex rounded-md border border-border bg-surface p-0.5 ml-auto">
-                <button
-                  type="button"
-                  onClick={() => setTestsMode('authoring')}
-                  className={[
-                    'rounded px-3 py-1.5 text-sm font-medium transition-colors',
-                    testsMode === 'authoring'
-                      ? 'bg-primary text-text-inverse'
-                      : 'text-text-muted hover:text-text-default',
-                  ].join(' ')}
-                >
-                  Authoring
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTestsMode('grading')
-                    setRightSidebarOpen(true)
-                  }}
-                  className={[
-                    'rounded px-3 py-1.5 text-sm font-medium transition-colors',
-                    testsMode === 'grading'
-                      ? 'bg-primary text-text-inverse'
-                      : 'text-text-muted hover:text-text-default',
-                  ].join(' ')}
-                >
-                  Grading
-                </button>
-              </div>
-            ) : null}
+                    <Tooltip
+                      content={
+                        batchSelectedCount > 0
+                          ? `Return (${batchSelectedCount})`
+                          : 'Select students to return'
+                      }
+                    >
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className={batchSelectedCount === 0 ? 'h-8 w-8 p-0 opacity-60' : 'h-8 w-8 p-0'}
+                        aria-label={batchSelectedCount > 0 ? `Return ${batchSelectedCount} selected tests` : 'Return selected tests'}
+                        disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
+                        onClick={() => {
+                          if (batchSelectedCount === 0) {
+                            setGradingWarning('Select students to return')
+                            return
+                          }
+                          setShowReturnConfirm(true)
+                        }}
+                      >
+                        <Send className="h-4 w-4 text-primary" />
+                      </Button>
+                    </Tooltip>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              !isReadOnly && (!isTestsView || testsMode === 'authoring') && (
+                <Button onClick={handleNewQuiz} variant="primary" className="gap-1.5 shadow-sm">
+                  <Plus className="h-4 w-4" />
+                  {isTestsView ? 'New Test' : 'New Quiz'}
+                </Button>
+              )
+            )}
           </div>
         }
+        trailing={testsModeToggle}
       />
 
-      <PageContent>
+      <PageContent className="flex min-h-0 flex-1 flex-col gap-3">
         {gradingError && isTestsView && testsMode === 'grading' && (
-          <div className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {gradingError}
           </div>
         )}
         {gradingWarning && isTestsView && testsMode === 'grading' && (
-          <div className="mb-3 rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+          <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
             {gradingWarning}
           </div>
         )}
         {gradingInfo && isTestsView && testsMode === 'grading' && (
-          <div className="mb-3 rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
+          <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
             {gradingInfo}
           </div>
         )}
@@ -764,9 +771,12 @@ export function TeacherQuizzesTab({
             <Spinner size="lg" />
           </div>
         ) : quizzes.length === 0 ? (
-          <p className="text-text-muted text-center py-8">
-            No {assessmentLabelPlural.toLowerCase()} yet. Create one to get started.
-          </p>
+          <EmptyState
+            title={`No ${assessmentLabelPlural.toLowerCase()} yet`}
+            description={`Create a ${isTestsView ? 'test' : 'quiz'} to get started.`}
+            tone="muted"
+            className="mx-auto w-full max-w-3xl"
+          />
         ) : isTestsView && testsMode === 'grading' ? (
           <div className="space-y-3">
             {gradingLoading ? (
@@ -953,7 +963,7 @@ export function TeacherQuizzesTab({
             )}
           </div>
         ) : (
-          <div className="space-y-3">
+          <PageStack className="mx-auto w-full max-w-6xl">
             {quizzes.map((quiz) => (
               <QuizCard
                 key={quiz.id}
@@ -965,7 +975,7 @@ export function TeacherQuizzesTab({
                 onQuizUpdate={loadQuizzes}
               />
             ))}
-          </div>
+          </PageStack>
         )}
       </PageContent>
 
