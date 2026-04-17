@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { AssignmentModal } from '@/components/AssignmentModal'
+import * as scheduling from '@/lib/scheduling'
 import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
 
@@ -30,8 +31,8 @@ describe('AssignmentModal', () => {
   })
 
   afterEach(() => {
-    vi.unstubAllGlobals()
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   describe('edit mode', () => {
@@ -193,6 +194,7 @@ describe('AssignmentModal', () => {
         <AssignmentModal
           isOpen={true}
           classroomId="classroom-1"
+          assignment={{ ...baseAssignment, due_at: toTorontoEndOfDayIso('2026-03-02') }}
           assignment={{ ...baseAssignment, due_at: toTorontoEndOfDayIso('2026-03-02') }}
           onClose={vi.fn()}
           onSuccess={vi.fn()}

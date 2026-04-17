@@ -41,6 +41,7 @@ import {
   TEACHER_QUIZZES_UPDATED_EVENT,
 } from '@/lib/events'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
+import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
@@ -425,6 +426,10 @@ function ClassroomPageContent({
     studentId: null,
     studentName: null,
   })
+  const [teacherTestPreview, setTeacherTestPreview] = useState<{
+    testId: string
+    title: string | null
+  } | null>(null)
   const [testGradingSaveState, setTestGradingSaveState] = useState<{
     canSave: boolean
     isSaving: boolean
@@ -458,6 +463,19 @@ function ClassroomPageContent({
       setTestGradingSaveState({ canSave: false, isSaving: false, status: 'idle' })
     }
   }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab !== 'tests') {
+      setTeacherTestPreview(null)
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!teacherTestPreview) return
+    if (!selectedQuiz) return
+    if (selectedQuiz.id === teacherTestPreview.testId) return
+    setTeacherTestPreview(null)
+  }, [selectedQuiz, teacherTestPreview])
 
   const handleQuizUpdate = useCallback(() => {
     window.dispatchEvent(
@@ -1334,6 +1352,13 @@ function ClassroomPageContent({
               classroomId={classroom.id}
               apiBasePath={assessmentApiBasePath}
               onQuizUpdate={handleQuizUpdate}
+              onRequestTestPreview={
+                activeTab === 'tests'
+                  ? (preview) => {
+                      setTeacherTestPreview(preview)
+                    }
+                  : undefined
+              }
               onRequestDelete={
                 activeTab === 'tests'
                   ? () => {
@@ -1583,6 +1608,18 @@ function ClassroomPageContent({
           void handleConfirmAssessmentDelete()
         }}
       />
+
+      {isTeacher && activeTab === 'tests' && teacherTestPreview ? (
+        <TeacherTestPreviewPage
+          classroomId={classroom.id}
+          testId={teacherTestPreview.testId}
+          embedded
+          listenForUpdates
+          onClose={() => {
+            setTeacherTestPreview(null)
+          }}
+        />
+      ) : null}
 
     </AppShell>
   )

@@ -1,4 +1,4 @@
-import { applyPatch, compare } from 'fast-json-patch'
+import { applyPatch, compare } from 'fast-json-patch/index.mjs'
 import type { JsonPatchOperation } from '@/types'
 
 type JsonObject = object
