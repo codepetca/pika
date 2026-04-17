@@ -14,12 +14,16 @@ interface ScheduleDateTimePickerProps {
   onConfirm: () => void
   onCancel?: () => void
   confirmLabel?: string
+  cancelLabel?: string
+  cancelVariant?: 'secondary' | 'danger'
   title?: string
   dateLabel?: string
   timeLabel?: string
   showHeader?: boolean
   showTimezoneLabel?: boolean
   className?: string
+  contextLabel?: string | null
+  contextTone?: 'primary' | 'warning' | 'muted'
 }
 
 export function ScheduleDateTimePicker({
@@ -32,15 +36,25 @@ export function ScheduleDateTimePicker({
   onConfirm,
   onCancel,
   confirmLabel = 'Done',
+  cancelLabel = 'Cancel',
+  cancelVariant = 'secondary',
   title = 'Schedule',
   dateLabel = 'Date (Toronto)',
   timeLabel = 'Time (Toronto)',
   showHeader = true,
   showTimezoneLabel = true,
   className = '',
+  contextLabel,
+  contextTone = 'muted',
 }: ScheduleDateTimePickerProps) {
   const dateInputId = useId()
   const timeInputId = useId()
+  const contextToneClass =
+    contextTone === 'warning'
+      ? 'text-warning'
+      : contextTone === 'primary'
+        ? 'text-primary'
+        : 'text-text-muted'
 
   return (
     <div className={`bg-surface rounded-lg shadow-lg border border-border p-3 ${className}`.trim()}>
@@ -49,6 +63,12 @@ export function ScheduleDateTimePicker({
           <Calendar className="h-4 w-4 text-text-muted" />
           <span className="text-sm font-medium text-text-default">{title}</span>
         </div>
+      )}
+
+      {contextLabel && (
+        <p className={`mb-3 text-sm font-medium ${contextToneClass}`}>
+          {contextLabel}
+        </p>
       )}
 
       <div className="space-y-3">
@@ -86,8 +106,8 @@ export function ScheduleDateTimePicker({
 
       <div className="mt-3 flex items-center gap-2">
         {onCancel && (
-          <Button variant="secondary" size="sm" className="flex-1" onClick={onCancel}>
-            Cancel
+          <Button variant={cancelVariant} size="sm" className="flex-1" onClick={onCancel}>
+            {cancelLabel}
           </Button>
         )}
         <Button

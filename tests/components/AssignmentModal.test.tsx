@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
@@ -31,6 +31,7 @@ describe('AssignmentModal', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.useRealTimers()
   })
 
   describe('edit mode', () => {
@@ -61,6 +62,7 @@ describe('AssignmentModal', () => {
 
       expect(screen.getByLabelText(/Title/)).toHaveValue('Original title')
       expect(screen.getByDisplayValue('2025-01-15')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Wed Jan 15' })).toBeInTheDocument()
     })
 
     it('renders a markdown-only instructions editor with formatting buttons', () => {
@@ -132,6 +134,7 @@ describe('AssignmentModal', () => {
 
       expect(screen.getByRole('button', { name: 'Post' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Choose assignment action' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
       expect(screen.queryByRole('menuitem', { name: 'Post' })).not.toBeInTheDocument()
       expect(screen.getByRole('menuitem', { name: 'Schedule' })).toBeInTheDocument()
@@ -180,6 +183,35 @@ describe('AssignmentModal', () => {
       expect(options.method).toBe('POST')
       const payload = JSON.parse(options.body)
       expect(payload.release_at).toBeDefined()
+    })
+
+    it('defaults the schedule dialog date to the next day for draft assignments', async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-03-01T13:00:00.000Z')) // 2026-03-01 08:00 Toronto
+
+      render(
+        <AssignmentModal
+          isOpen={true}
+          classroomId="classroom-1"
+          assignment={{ ...baseAssignment, due_at: toTorontoEndOfDayIso('2026-03-02') }}
+          onClose={vi.fn()}
+          onSuccess={vi.fn()}
+        />
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule' }))
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      const scheduleDialog = screen.getByRole('dialog', { name: 'Schedule Release' })
+      const scheduleScope = within(scheduleDialog)
+
+      expect(scheduleScope.getByText('Due tomorrow')).toBeInTheDocument()
+      expect(scheduleScope.getByLabelText('Date')).toHaveValue('2026-03-02')
+      expect(scheduleScope.getByLabelText('Time')).toHaveValue('07:00')
     })
 
     it('manual save sends only changed fields and closes modal', async () => {
@@ -306,7 +338,7 @@ describe('AssignmentModal', () => {
       )
 
       expect(screen.getByRole('button', { name: 'Schedule' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /Scheduled for/ })).toBeInTheDocument()
+      expect(screen.getByText(/Mar 1, 9:00 AM/)).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Choose assignment action' })).toBeDisabled()
       fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
       expect(screen.queryByRole('menuitem', { name: 'Post' })).not.toBeInTheDocument()
@@ -318,7 +350,7 @@ describe('AssignmentModal', () => {
       await waitFor(() => {
         expect(screen.getByText('Schedule Release')).toBeInTheDocument()
       })
-      expect(screen.queryByRole('button', { name: 'Clear schedule' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Cancel schedule' })).toBeInTheDocument()
       expect(onSuccess).not.toHaveBeenCalled()
     })
 
@@ -372,7 +404,7 @@ describe('AssignmentModal', () => {
       })
     })
 
-    it('clears scheduled release from attached scheduled chip cancel button', async () => {
+    it('clears scheduled release from the schedule modal cancel action', async () => {
       const scheduledAssignment: Assignment = {
         ...baseAssignment,
         is_draft: false,
@@ -396,7 +428,11 @@ describe('AssignmentModal', () => {
         />
       )
 
-      fireEvent.click(screen.getByRole('button', { name: 'Clear scheduled release' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
+      await waitFor(() => {
+        expect(screen.getByText('Schedule Release')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel schedule' }))
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -419,7 +455,7 @@ describe('AssignmentModal', () => {
       expect(screen.queryByRole('menuitem', { name: 'Schedule' })).not.toBeInTheDocument()
     })
 
-    it('saves pending form edits before opening schedule modal from release info', async () => {
+    it('saves pending form edits before opening schedule modal from schedule action', async () => {
       const scheduledAssignment: Assignment = {
         ...baseAssignment,
         is_draft: false,
@@ -442,7 +478,7 @@ describe('AssignmentModal', () => {
       )
 
       fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated title' } })
-      fireEvent.click(screen.getByRole('button', { name: /Scheduled for/ }))
+      fireEvent.click(screen.getByRole('button', { name: 'Schedule' }))
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -652,7 +688,7 @@ describe('AssignmentModal', () => {
       expect(payload.release_at).toBeDefined()
 
       await waitFor(() => {
-        expect(screen.getByText(/Scheduled for/)).toBeInTheDocument()
+        expect(screen.getByText(/Mar 1, 9:00 AM/)).toBeInTheDocument()
       })
     })
 
