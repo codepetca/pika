@@ -403,6 +403,13 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-page/90 pb-4 pt-3 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-center px-4">
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => router.push('/teacher/blueprints')}
+              className="rounded-control border border-border bg-surface px-4 py-1.5 text-sm font-semibold text-text-default shadow-sm transition-colors hover:bg-surface-hover"
+            >
+              Blueprints
+            </button>
             <div className="inline-flex items-stretch rounded-full border border-border bg-surface-2 p-0.5 shadow-sm">
               <button
                 type="button"

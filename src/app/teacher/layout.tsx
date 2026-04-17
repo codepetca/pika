@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import Link from 'next/link'
-import Image from 'next/image'
+import { PikaLogo } from '@/components/PikaLogo'
 
 export default async function TeacherLayout({
   children,
@@ -21,15 +21,23 @@ export default async function TeacherLayout({
   return (
     <div className="min-h-screen bg-page">
       <nav className="bg-surface shadow-sm border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <Image src="/pika_silhouette.png" alt="Pika" width={40} height={40} className="object-contain" />
+        <div className="mx-auto max-w-7xl px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <Link href="/classrooms" className="flex items-center">
+                <PikaLogo className="h-10 w-10" />
+              </Link>
               <Link
                 href="/classrooms"
                 className="text-text-muted hover:text-text-default"
               >
                 Classrooms
+              </Link>
+              <Link
+                href="/teacher/blueprints"
+                className="text-text-muted hover:text-text-default"
+              >
+                Blueprints
               </Link>
               <Link
                 href="/teacher/calendar"
@@ -38,8 +46,8 @@ export default async function TeacherLayout({
                 Calendar
               </Link>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-text-muted">{user.email}</span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end">
+              <span className="hidden text-sm text-text-muted sm:inline">{user.email}</span>
               <Link
                 href="/logout"
                 className="text-sm text-danger hover:text-danger-hover"
