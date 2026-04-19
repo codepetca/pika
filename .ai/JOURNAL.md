@@ -8942,3 +8942,15 @@
 - Added `docs/guidance/ui/audit-teacher-work-surfaces.md` to classify foundations, primitives, composed patterns, feature-local behavior, and legacy drift for that family.
 - Added `.codex/prompts/teacher-work-surface-promotion-review.md` for recurring non-mutating promotion review runs.
 - Updated UI guidance entrypoints and issue workflow docs so teacher assignments/quizzes/tests work routes through the new canon and audit.
+## 2026-04-19 — Dependency Manager Drift Cleanup
+
+- Removed the stale `package-lock.json` so the repo uses only the declared pnpm workflow.
+- Updated `README.md` build/deploy instructions from npm to pnpm to match `package.json`, CI, and `vercel.json`.
+- Updated `scripts/seed.ts` usage comments from npm to pnpm.
+
+**Validation:**
+- `rg -n 'package-lock\\.json|npm run build|npm start|Usage: npm run seed|ENV_FILE=.*npm run seed' /Users/stew/.codex/worktrees/18ce/pika -g '!**/node_modules/**'`
+
+**Notes:**
+- Left `src/lib/repo-review.ts` handling of `package-lock.json` intact because it is generic generated-file detection, not active package-manager configuration.
+- Did not run installs/tests in this session.
