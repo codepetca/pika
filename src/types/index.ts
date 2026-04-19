@@ -38,6 +38,30 @@ export interface Session {
 
 export type LessonPlanVisibility = 'current_week' | 'one_week_ahead' | 'all'
 
+export type PublishedCourseSiteLessonPlanScope = 'current_week' | 'one_week_ahead' | 'all'
+
+export interface PlannedCourseSiteConfig {
+  overview: boolean
+  outline: boolean
+  resources: boolean
+  assignments: boolean
+  quizzes: boolean
+  tests: boolean
+  lesson_plans: boolean
+}
+
+export interface ActualCourseSiteConfig extends PlannedCourseSiteConfig {
+  announcements: boolean
+  lesson_plan_scope: PublishedCourseSiteLessonPlanScope
+}
+
+export interface ClassroomBlueprintOrigin {
+  blueprint_id: string
+  blueprint_title: string
+  package_manifest_version: string
+  package_exported_at: string
+}
+
 export interface Classroom {
   id: string
   teacher_id: string
@@ -49,6 +73,13 @@ export interface Classroom {
   start_date: string | null // YYYY-MM-DD, inclusive
   end_date: string | null // YYYY-MM-DD, inclusive
   lesson_plan_visibility: LessonPlanVisibility
+  source_blueprint_id: string | null
+  source_blueprint_origin: ClassroomBlueprintOrigin | null
+  actual_site_slug: string | null
+  actual_site_published: boolean
+  actual_site_config: ActualCourseSiteConfig
+  course_overview_markdown: string
+  course_outline_markdown: string
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -591,6 +622,9 @@ export interface CourseBlueprint {
   overview_markdown: string
   outline_markdown: string
   resources_markdown: string
+  planned_site_slug: string | null
+  planned_site_published: boolean
+  planned_site_config: PlannedCourseSiteConfig
   position: number
   created_at: string
   updated_at: string
@@ -637,6 +671,7 @@ export interface CourseBlueprintDetail extends CourseBlueprint {
   assignments: CourseBlueprintAssignment[]
   assessments: CourseBlueprintAssessment[]
   lesson_templates: CourseBlueprintLessonTemplate[]
+  linked_classrooms: LinkedBlueprintClassroom[]
 }
 
 export interface CoursePackageManifest {
@@ -647,6 +682,9 @@ export interface CoursePackageManifest {
   grade_level: string
   course_code: string
   term_template: string
+  planned_site_slug?: string | null
+  planned_site_published?: boolean
+  planned_site_config?: PlannedCourseSiteConfig
 }
 
 export interface CreateClassroomFromBlueprintInput {
@@ -877,6 +915,64 @@ export interface Announcement {
   scheduled_for: string | null // NULL = published immediately, future timestamp = scheduled
   created_at: string
   updated_at: string
+}
+
+export interface LinkedBlueprintClassroom {
+  id: string
+  title: string
+  class_code: string
+  term_label: string | null
+  actual_site_slug: string | null
+  actual_site_published: boolean
+  archived_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type BlueprintMergeSuggestionArea =
+  | 'overview'
+  | 'outline'
+  | 'resources'
+  | 'assignments'
+  | 'quizzes'
+  | 'tests'
+  | 'lesson-plans'
+  | 'announcements'
+
+export type BlueprintMergeSuggestionOperation = 'add' | 'update' | 'remove'
+
+export interface BlueprintMergeSuggestionItem {
+  key: string
+  label: string
+  operation: BlueprintMergeSuggestionOperation
+  current_summary: string
+  proposed_summary: string
+}
+
+export interface BlueprintMergeSuggestion {
+  area: BlueprintMergeSuggestionArea
+  title: string
+  summary: string
+  items: BlueprintMergeSuggestionItem[]
+  preview_markdown?: string
+}
+
+export interface BlueprintMergeSuggestionSet {
+  classroom_id: string
+  classroom_title: string
+  blueprint_id: string
+  generated_at: string
+  suggestions: BlueprintMergeSuggestion[]
+}
+
+export interface ClassroomArchiveManifest {
+  version: string
+  exported_at: string
+  classroom_title: string
+  class_code: string
+  term_label: string | null
+  teacher_id: string
+  source_blueprint_origin: ClassroomBlueprintOrigin | null
 }
 
 export interface GradebookSettings {

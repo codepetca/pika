@@ -5,6 +5,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { createCourseBlueprintSchema } from '@/lib/validations/teacher'
 import {
   createCourseBlueprint,
+  hydrateCourseBlueprint,
   listTeacherCourseBlueprints,
 } from '@/lib/server/course-blueprints'
 
@@ -21,7 +22,9 @@ export const GET = withErrorHandler('GetTeacherCourseBlueprints', async () => {
     return NextResponse.json({ error: 'Failed to fetch course blueprints' }, { status: 500 })
   }
 
-  return NextResponse.json({ blueprints: data || [] })
+  return NextResponse.json({
+    blueprints: (data || []).map((blueprint) => hydrateCourseBlueprint(blueprint as Record<string, any>)),
+  })
 })
 
 export const POST = withErrorHandler('PostTeacherCourseBlueprints', async (request) => {

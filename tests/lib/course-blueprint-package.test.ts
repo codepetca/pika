@@ -20,6 +20,17 @@ const DETAIL: CourseBlueprintDetail = {
   overview_markdown: '# Overview\nCourse summary',
   outline_markdown: '# Outline\n- Unit 1',
   resources_markdown: '# Resources\n- IDE',
+  planned_site_slug: 'computer-science-11',
+  planned_site_published: true,
+  planned_site_config: {
+    overview: true,
+    outline: true,
+    resources: true,
+    assignments: true,
+    quizzes: false,
+    tests: true,
+    lesson_plans: true,
+  },
   position: 0,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
@@ -102,6 +113,7 @@ const DETAIL: CourseBlueprintDetail = {
       updated_at: '2026-01-01T00:00:00Z',
     },
   ],
+  linked_classrooms: [],
 }
 
 describe('course blueprint package', () => {
@@ -111,6 +123,9 @@ describe('course blueprint package', () => {
 
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Computer Science 11')
+    expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
+    expect(parsed.blueprint.planned_site_published).toBe(true)
+    expect(parsed.blueprint.planned_site_config.quizzes).toBe(false)
     expect(parsed.assignments).toHaveLength(1)
     expect(parsed.assessments).toHaveLength(2)
     expect(parsed.lesson_templates).toHaveLength(1)
@@ -124,8 +139,10 @@ describe('course blueprint package', () => {
 
     expect(decoded).not.toBeNull()
     expect(decoded?.manifest.title).toBe('Computer Science 11')
+    expect(decoded?.manifest.version).toBe('2')
     expect(parsed.errors).toEqual([])
     expect(parsed.blueprint.title).toBe('Computer Science 11')
+    expect(parsed.blueprint.planned_site_slug).toBe('computer-science-11')
     expect(parsed.assignments).toHaveLength(1)
     expect(parsed.assessments).toHaveLength(2)
     expect(parsed.lesson_templates).toHaveLength(1)

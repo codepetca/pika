@@ -11,13 +11,17 @@ vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabase),
 }))
 
-vi.mock('@/lib/server/course-blueprints', () => ({
-  createCourseBlueprint: vi.fn(),
-  listTeacherCourseBlueprints: vi.fn(),
-  getCourseBlueprintDetail: vi.fn(),
-  updateCourseBlueprint: vi.fn(),
-  deleteCourseBlueprint: vi.fn(),
-}))
+vi.mock('@/lib/server/course-blueprints', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/server/course-blueprints')>('@/lib/server/course-blueprints')
+  return {
+    ...actual,
+    createCourseBlueprint: vi.fn(),
+    listTeacherCourseBlueprints: vi.fn(),
+    getCourseBlueprintDetail: vi.fn(),
+    updateCourseBlueprint: vi.fn(),
+    deleteCourseBlueprint: vi.fn(),
+  }
+})
 
 const mockSupabase = { from: vi.fn() }
 

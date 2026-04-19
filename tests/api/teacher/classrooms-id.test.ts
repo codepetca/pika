@@ -9,12 +9,16 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
-vi.mock('@/lib/server/classrooms', () => ({
-  assertTeacherOwnsClassroom: vi.fn(async () => ({
-    ok: true,
-    classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
-  })),
-}))
+vi.mock('@/lib/server/classrooms', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/server/classrooms')>('@/lib/server/classrooms')
+  return {
+    ...actual,
+    assertTeacherOwnsClassroom: vi.fn(async () => ({
+      ok: true,
+      classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
+    })),
+  }
+})
 vi.mock('@/lib/server/classroom-order', () => ({
   getNextTeacherClassroomPosition: vi.fn(),
 }))

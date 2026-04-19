@@ -14,6 +14,12 @@ import {
   parseCourseBlueprintImportArchive,
   type CourseBlueprintPackageBundle,
 } from '@/lib/course-blueprint-package'
+import {
+  DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
+  DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+  normalizeActualCourseSiteConfig,
+  normalizePlannedCourseSiteConfig,
+} from '@/lib/course-site-publishing'
 import type {
   CourseBlueprint,
   CourseBlueprintAssignment,
@@ -21,6 +27,7 @@ import type {
   CourseBlueprintDetail,
   CourseBlueprintLessonTemplate,
   CreateClassroomFromBlueprintInput,
+  LinkedBlueprintClassroom,
   TestDocument,
 } from '@/types'
 import type { QuizDraftContent, TestDraftContent } from '@/lib/server/assessment-drafts'
@@ -34,6 +41,31 @@ type BlueprintOwnershipResult =
 
 function getSupabase() {
   return getServiceRoleClient()
+}
+
+export function hydrateCourseBlueprint(row: Record<string, any>): CourseBlueprint {
+  return {
+    ...(row as CourseBlueprint),
+    planned_site_slug: row.planned_site_slug ?? null,
+    planned_site_published: !!row.planned_site_published,
+    planned_site_config: normalizePlannedCourseSiteConfig(
+      row.planned_site_config ?? DEFAULT_PLANNED_COURSE_SITE_CONFIG
+    ),
+  }
+}
+
+function hydrateLinkedBlueprintClassroom(row: Record<string, any>): LinkedBlueprintClassroom {
+  return {
+    id: row.id,
+    title: row.title,
+    class_code: row.class_code,
+    term_label: row.term_label ?? null,
+    actual_site_slug: row.actual_site_slug ?? null,
+    actual_site_published: !!row.actual_site_published,
+    archived_at: row.archived_at ?? null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
 }
 
 function buildDueAt(startDate: string | null, defaultDueDays: number, defaultDueTime: string): string {
@@ -104,7 +136,7 @@ export async function assertTeacherOwnsCourseBlueprint(
     return { ok: false, status: 403, error: 'Forbidden' }
   }
 
-  return { ok: true, blueprint: data as CourseBlueprint }
+  return { ok: true, blueprint: hydrateCourseBlueprint(data as Record<string, any>) }
 }
 
 export async function listTeacherCourseBlueprints(
@@ -143,7 +175,7 @@ export async function getCourseBlueprintDetail(
   if (!ownership.ok) return { detail: null, error: ownership.error, status: ownership.status }
 
   const supabase = getSupabase()
-  const [assignmentsResult, assessmentsResult, lessonsResult] = await Promise.all([
+  const [assignmentsResult, assessmentsResult, lessonsResult, linkedClassroomsResult] = await Promise.all([
     supabase
       .from('course_blueprint_assignments')
       .select('*')
@@ -159,10 +191,19 @@ export async function getCourseBlueprintDetail(
       .select('*')
       .eq('course_blueprint_id', blueprintId)
       .order('position', { ascending: true }),
+    supabase
+      .from('classrooms')
+      .select('id,title,class_code,term_label,actual_site_slug,actual_site_published,archived_at,created_at,updated_at')
+      .eq('teacher_id', teacherId)
+      .eq('source_blueprint_id', blueprintId)
+      .order('created_at', { ascending: false }),
   ])
 
-  if (assignmentsResult.error || assessmentsResult.error || lessonsResult.error) {
-    console.error('Error loading course blueprint detail:', assignmentsResult.error || assessmentsResult.error || lessonsResult.error)
+  if (assignmentsResult.error || assessmentsResult.error || lessonsResult.error || linkedClassroomsResult.error) {
+    console.error(
+      'Error loading course blueprint detail:',
+      assignmentsResult.error || assessmentsResult.error || lessonsResult.error || linkedClassroomsResult.error
+    )
     return { detail: null, error: 'Failed to load course blueprint detail', status: 500 }
   }
 
@@ -175,6 +216,9 @@ export async function getCourseBlueprintDetail(
         documents: Array.isArray(assessment.documents) ? (assessment.documents as TestDocument[]) : [],
       })),
       lesson_templates: (lessonsResult.data || []) as CourseBlueprintLessonTemplate[],
+      linked_classrooms: (linkedClassroomsResult.data || []).map((classroom: Record<string, any>) =>
+        hydrateLinkedBlueprintClassroom(classroom)
+      ),
     },
   }
 }
@@ -191,12 +235,13 @@ export async function createCourseBlueprint(
       teacher_id: teacherId,
       ...input,
       position,
+      planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
     })
     .select()
     .single()
 
   if (error) throw new Error('Failed to create course blueprint')
-  return data as CourseBlueprint
+  return hydrateCourseBlueprint(data as Record<string, any>)
 }
 
 export async function updateCourseBlueprint(
@@ -208,15 +253,37 @@ export async function updateCourseBlueprint(
   if (!ownership.ok) return ownership
 
   const supabase = getSupabase()
+  if (updates.planned_site_slug) {
+    const { data: slugConflict, error: slugError } = await supabase
+      .from('course_blueprints')
+      .select('id')
+      .eq('planned_site_slug', updates.planned_site_slug)
+      .neq('id', blueprintId)
+      .limit(1)
+
+    if (slugError) {
+      return { ok: false as const, status: 500, error: 'Failed to validate planned site slug' }
+    }
+
+    if ((slugConflict || []).length > 0) {
+      return { ok: false as const, status: 409, error: 'That planned site slug is already in use' }
+    }
+  }
+
   const { data, error } = await supabase
     .from('course_blueprints')
-    .update(updates)
+    .update({
+      ...updates,
+      planned_site_config: updates.planned_site_config
+        ? normalizePlannedCourseSiteConfig(updates.planned_site_config)
+        : updates.planned_site_config,
+    })
     .eq('id', blueprintId)
     .select()
     .single()
 
   if (error) return { ok: false as const, status: 500, error: 'Failed to update course blueprint' }
-  return { ok: true as const, blueprint: data as CourseBlueprint }
+  return { ok: true as const, blueprint: hydrateCourseBlueprint(data as Record<string, any>) }
 }
 
 export async function deleteCourseBlueprint(teacherId: string, blueprintId: string) {
@@ -248,8 +315,30 @@ export async function syncCourseBlueprintAssignments(
   if (!ownership.ok) return ownership
 
   const supabase = getSupabase()
+  const { data: existingAssignments, error: existingAssignmentsError } = await supabase
+    .from('course_blueprint_assignments')
+    .select('id')
+    .eq('course_blueprint_id', blueprintId)
+
+  if (existingAssignmentsError) {
+    return { ok: false as const, status: 500, error: 'Failed to load blueprint assignments' }
+  }
+
   const creates = assignments.filter((assignment) => !assignment.id)
   const updates = assignments.filter((assignment) => assignment.id)
+  const incomingIds = new Set(updates.map((assignment) => assignment.id!))
+  const deleteIds = (existingAssignments || [])
+    .map((assignment) => assignment.id as string)
+    .filter((id) => !incomingIds.has(id))
+
+  if (deleteIds.length > 0) {
+    const { error } = await supabase
+      .from('course_blueprint_assignments')
+      .delete()
+      .eq('course_blueprint_id', blueprintId)
+      .in('id', deleteIds)
+    if (error) return { ok: false as const, status: 500, error: 'Failed to delete removed blueprint assignments' }
+  }
 
   if (creates.length > 0) {
     const { error } = await supabase.from('course_blueprint_assignments').insert(
@@ -298,8 +387,30 @@ export async function syncCourseBlueprintAssessments(
   if (!ownership.ok) return ownership
 
   const supabase = getSupabase()
+  const { data: existingAssessments, error: existingAssessmentsError } = await supabase
+    .from('course_blueprint_assessments')
+    .select('id')
+    .eq('course_blueprint_id', blueprintId)
+
+  if (existingAssessmentsError) {
+    return { ok: false as const, status: 500, error: 'Failed to load blueprint assessments' }
+  }
+
   const creates = assessments.filter((assessment) => !assessment.id)
   const updates = assessments.filter((assessment) => assessment.id)
+  const incomingIds = new Set(updates.map((assessment) => assessment.id!))
+  const deleteIds = (existingAssessments || [])
+    .map((assessment) => assessment.id as string)
+    .filter((id) => !incomingIds.has(id))
+
+  if (deleteIds.length > 0) {
+    const { error } = await supabase
+      .from('course_blueprint_assessments')
+      .delete()
+      .eq('course_blueprint_id', blueprintId)
+      .in('id', deleteIds)
+    if (error) return { ok: false as const, status: 500, error: 'Failed to delete removed blueprint assessments' }
+  }
 
   if (creates.length > 0) {
     const { error } = await supabase.from('course_blueprint_assessments').insert(
@@ -347,8 +458,30 @@ export async function syncCourseBlueprintLessonTemplates(
   if (!ownership.ok) return ownership
 
   const supabase = getSupabase()
+  const { data: existingLessons, error: existingLessonsError } = await supabase
+    .from('course_blueprint_lesson_templates')
+    .select('id')
+    .eq('course_blueprint_id', blueprintId)
+
+  if (existingLessonsError) {
+    return { ok: false as const, status: 500, error: 'Failed to load lesson templates' }
+  }
+
   const creates = lessonTemplates.filter((lesson) => !lesson.id)
   const updates = lessonTemplates.filter((lesson) => lesson.id)
+  const incomingIds = new Set(updates.map((lesson) => lesson.id!))
+  const deleteIds = (existingLessons || [])
+    .map((lesson) => lesson.id as string)
+    .filter((id) => !incomingIds.has(id))
+
+  if (deleteIds.length > 0) {
+    const { error } = await supabase
+      .from('course_blueprint_lesson_templates')
+      .delete()
+      .eq('course_blueprint_id', blueprintId)
+      .in('id', deleteIds)
+    if (error) return { ok: false as const, status: 500, error: 'Failed to delete removed lesson templates' }
+  }
 
   if (creates.length > 0) {
     const { error } = await supabase.from('course_blueprint_lesson_templates').insert(
@@ -416,6 +549,9 @@ export async function importCourseBlueprintBundle(teacherId: string, bundle: Cou
     overview_markdown: parsed.blueprint.overview_markdown,
     outline_markdown: parsed.blueprint.outline_markdown,
     resources_markdown: parsed.blueprint.resources_markdown,
+    planned_site_slug: parsed.blueprint.planned_site_slug,
+    planned_site_published: parsed.blueprint.planned_site_published,
+    planned_site_config: parsed.blueprint.planned_site_config,
   } as Partial<CourseBlueprint>)
   if (!updateResult.ok) return updateResult
 
@@ -598,6 +734,7 @@ export async function createClassroomFromBlueprint(
   }
 
   const supabase = getSupabase()
+  const blueprintBundle = buildCourseBlueprintExportBundle(detailResult.detail)
   const { data: classCodeConflict } = await supabase
     .from('classrooms')
     .select('id')
@@ -633,6 +770,16 @@ export async function createClassroomFromBlueprint(
       class_code: classCode || generatedClassCode,
       term_label: input.termLabel || null,
       position: classroomPosition,
+      source_blueprint_id: input.blueprintId,
+      source_blueprint_origin: {
+        blueprint_id: detailResult.detail.id,
+        blueprint_title: detailResult.detail.title,
+        package_manifest_version: blueprintBundle.manifest.version,
+        package_exported_at: blueprintBundle.manifest.exported_at,
+      },
+      course_overview_markdown: detailResult.detail.overview_markdown,
+      course_outline_markdown: detailResult.detail.outline_markdown,
+      actual_site_config: DEFAULT_ACTUAL_COURSE_SITE_CONFIG,
     })
     .select()
     .single()

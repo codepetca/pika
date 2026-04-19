@@ -19,7 +19,16 @@ import {
   courseBlueprintLessonTemplatesToMarkdown,
   markdownToCourseBlueprintLessonTemplates,
 } from '@/lib/course-blueprint-lesson-templates'
-import type { CourseBlueprint, CourseBlueprintDetail } from '@/types'
+import {
+  DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+  slugifyCourseSiteValue,
+} from '@/lib/course-site-publishing'
+import type {
+  BlueprintMergeSuggestionSet,
+  CourseBlueprint,
+  CourseBlueprintDetail,
+  PlannedCourseSiteConfig,
+} from '@/types'
 
 type EditorTab =
   | 'overview'
@@ -30,6 +39,10 @@ type EditorTab =
   | 'tests'
   | 'lesson-plans'
   | 'copilot'
+  | 'publish'
+  | 'sync'
+
+type CopilotTarget = Exclude<EditorTab, 'copilot' | 'publish' | 'sync'>
 
 const TAB_LABELS: Record<EditorTab, string> = {
   overview: 'Overview',
@@ -40,9 +53,11 @@ const TAB_LABELS: Record<EditorTab, string> = {
   tests: 'Tests',
   'lesson-plans': 'Lesson Plans',
   copilot: 'Copilot',
+  publish: 'Publish',
+  sync: 'Sync',
 }
 
-type DraftState = Record<Exclude<EditorTab, 'copilot'>, string>
+type DraftState = Record<Exclude<EditorTab, 'copilot' | 'publish' | 'sync'>, string>
 
 function emptyDraftState(): DraftState {
   return {
@@ -77,11 +92,25 @@ export default function TeacherBlueprintsPage() {
   })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [plannedSite, setPlannedSite] = useState<{
+    slug: string
+    published: boolean
+    config: PlannedCourseSiteConfig
+  }>({
+    slug: '',
+    published: false,
+    config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+  })
   const [aiPrompt, setAiPrompt] = useState('')
-  const [aiTarget, setAiTarget] = useState<EditorTab>('overview')
-  const [aiPreview, setAiPreview] = useState<{ target: EditorTab; content: string } | null>(null)
+  const [aiTarget, setAiTarget] = useState<CopilotTarget>('overview')
+  const [aiPreview, setAiPreview] = useState<{ target: CopilotTarget; content: string } | null>(null)
   const [aiAnalysis, setAiAnalysis] = useState<any>(null)
   const [aiBusy, setAiBusy] = useState(false)
+  const [mergeClassroomId, setMergeClassroomId] = useState('')
+  const [mergeSuggestions, setMergeSuggestions] = useState<BlueprintMergeSuggestionSet | null>(null)
+  const [mergeSelection, setMergeSelection] = useState<Record<string, boolean>>({})
+  const [mergeLoading, setMergeLoading] = useState(false)
+  const [mergeApplying, setMergeApplying] = useState(false)
 
   const counts = useMemo(() => {
     if (!detail) return null
@@ -130,6 +159,11 @@ export default function TeacherBlueprintsPage() {
         course_code: blueprint.course_code,
         term_template: blueprint.term_template,
       })
+      setPlannedSite({
+        slug: blueprint.planned_site_slug || '',
+        published: blueprint.planned_site_published,
+        config: blueprint.planned_site_config || DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+      })
       setDrafts({
         overview: blueprint.overview_markdown || '',
         outline: blueprint.outline_markdown || '',
@@ -139,6 +173,9 @@ export default function TeacherBlueprintsPage() {
         tests: courseBlueprintAssessmentsToMarkdown(blueprint.assessments as any, 'test'),
         'lesson-plans': courseBlueprintLessonTemplatesToMarkdown(blueprint.lesson_templates),
       })
+      setMergeClassroomId(blueprint.linked_classrooms[0]?.id || '')
+      setMergeSuggestions(null)
+      setMergeSelection({})
       setAiPreview(null)
       setAiAnalysis(null)
     } catch (err: any) {
@@ -255,6 +292,92 @@ export default function TeacherBlueprintsPage() {
     }
   }
 
+  async function savePlannedSite() {
+    if (!selectedBlueprintId) return
+    setSaving(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planned_site_slug: plannedSite.slug || null,
+          planned_site_published: plannedSite.published,
+          planned_site_config: plannedSite.config,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save planned site settings')
+      }
+      await loadBlueprints(selectedBlueprintId)
+      await loadDetail(selectedBlueprintId)
+    } catch (err: any) {
+      setError(err.message || 'Failed to save planned site settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function loadMergeSuggestions(classroomId = mergeClassroomId) {
+    if (!selectedBlueprintId || !classroomId) return
+    setMergeLoading(true)
+    setError('')
+    try {
+      const response = await fetch(
+        `/api/teacher/course-blueprints/${selectedBlueprintId}/merge-suggestions?classroomId=${encodeURIComponent(classroomId)}`
+      )
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load merge suggestions')
+      }
+      const suggestionSet = data.suggestion_set as BlueprintMergeSuggestionSet
+      setMergeSuggestions(suggestionSet)
+      setMergeSelection(
+        Object.fromEntries(suggestionSet.suggestions.map((suggestion) => [suggestion.area, true]))
+      )
+    } catch (err: any) {
+      setError(err.message || 'Failed to load merge suggestions')
+    } finally {
+      setMergeLoading(false)
+    }
+  }
+
+  async function applyMergeSuggestions() {
+    if (!selectedBlueprintId || !mergeClassroomId || !mergeSuggestions) return
+    const selectedAreas = mergeSuggestions.suggestions
+      .map((suggestion) => suggestion.area)
+      .filter((area) => mergeSelection[area])
+
+    if (selectedAreas.length === 0) {
+      setError('Select at least one suggestion area to apply.')
+      return
+    }
+
+    setMergeApplying(true)
+    setError('')
+    try {
+      const response = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}/merge-apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          classroomId: mergeClassroomId,
+          areas: selectedAreas,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to apply classroom changes back into the blueprint')
+      }
+      await loadDetail(selectedBlueprintId)
+      await loadMergeSuggestions(mergeClassroomId)
+    } catch (err: any) {
+      setError(err.message || 'Failed to apply classroom changes back into the blueprint')
+    } finally {
+      setMergeApplying(false)
+    }
+  }
+
   async function handleExport() {
     if (!selectedBlueprintId || !detail) return
     setError('')
@@ -315,7 +438,7 @@ export default function TeacherBlueprintsPage() {
     }
   }
 
-  async function runCopilot(target: EditorTab | 'analyze') {
+  async function runCopilot(target: CopilotTarget | 'analyze') {
     if (!selectedBlueprintId) return
     setAiBusy(true)
     setError('')
@@ -384,6 +507,9 @@ export default function TeacherBlueprintsPage() {
             ? [
                 { id: 'create-classroom', label: 'Create classroom', onSelect: () => setShowCreateClassroom(true) },
                 { id: 'export-package', label: 'Export package', onSelect: handleExport },
+                ...(plannedSite.published && plannedSite.slug
+                  ? [{ id: 'open-planned-site', label: 'Open planned site', onSelect: () => window.open(`/planned/${plannedSite.slug}`, '_blank') }]
+                  : []),
               ]
             : []),
         ]}
@@ -497,13 +623,181 @@ export default function TeacherBlueprintsPage() {
                   ))}
                 </div>
 
-                {activeTab === 'copilot' ? (
+                {activeTab === 'publish' ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr),auto]">
+                      <FormField label="Planned Site Slug" hint="Leave blank to keep the planned site private.">
+                        <Input
+                          value={plannedSite.slug}
+                          onChange={(e) =>
+                            setPlannedSite((current) => ({ ...current, slug: slugifyCourseSiteValue(e.target.value) }))
+                          }
+                          placeholder="computer-science-11"
+                        />
+                      </FormField>
+                      <div className="flex items-end">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() =>
+                            setPlannedSite((current) => ({
+                              ...current,
+                              slug: slugifyCourseSiteValue(meta.title || detail.title),
+                            }))
+                          }
+                        >
+                          Generate From Title
+                        </Button>
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-3 rounded-card border border-border bg-surface-2 px-4 py-3 text-sm text-text-default">
+                      <input
+                        type="checkbox"
+                        checked={plannedSite.published}
+                        onChange={(e) =>
+                          setPlannedSite((current) => ({ ...current, published: e.target.checked }))
+                        }
+                        className="h-4 w-4"
+                      />
+                      Publish this planned course site using the slug above
+                    </label>
+
+                    <div className="rounded-card border border-border bg-surface-2 p-4">
+                      <div className="text-sm font-semibold text-text-default">Published Sections</div>
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        {(Object.entries(plannedSite.config) as Array<[keyof PlannedCourseSiteConfig, boolean]>).map(
+                          ([key, enabled]) => (
+                            <label key={key} className="flex items-center gap-3 text-sm text-text-default">
+                              <input
+                                type="checkbox"
+                                checked={enabled}
+                                onChange={(e) =>
+                                  setPlannedSite((current) => ({
+                                    ...current,
+                                    config: { ...current.config, [key]: e.target.checked },
+                                  }))
+                                }
+                                className="h-4 w-4"
+                              />
+                              {key.replace('_', ' ')}
+                            </label>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    {plannedSite.published && plannedSite.slug ? (
+                      <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                        Planned site URL: <a className="text-primary underline" href={`/planned/${plannedSite.slug}`} target="_blank" rel="noreferrer">{`/planned/${plannedSite.slug}`}</a>
+                      </div>
+                    ) : null}
+
+                    <div className="flex justify-end">
+                      <Button type="button" onClick={savePlannedSite} disabled={saving}>
+                        {saving ? 'Saving...' : 'Save Publishing'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : activeTab === 'sync' ? (
+                  <div className="space-y-4">
+                    {detail.linked_classrooms.length === 0 ? (
+                      <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                        No classrooms have been created from this blueprint yet.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr),auto]">
+                          <FormField label="Linked Classroom" hint="Compare this live classroom against the reusable blueprint.">
+                            <select
+                              value={mergeClassroomId}
+                              onChange={(e) => {
+                                setMergeClassroomId(e.target.value)
+                                setMergeSuggestions(null)
+                              }}
+                              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                            >
+                              {detail.linked_classrooms.map((classroom) => (
+                                <option key={classroom.id} value={classroom.id}>
+                                  {classroom.title}
+                                </option>
+                              ))}
+                            </select>
+                          </FormField>
+                          <div className="flex items-end">
+                            <Button type="button" variant="secondary" onClick={() => loadMergeSuggestions()} disabled={mergeLoading || !mergeClassroomId}>
+                              {mergeLoading ? 'Comparing...' : 'Load Suggestions'}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {mergeSuggestions ? (
+                          <div className="space-y-4">
+                            {mergeSuggestions.suggestions.length === 0 ? (
+                              <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                                No blueprint drift detected for this classroom.
+                              </div>
+                            ) : (
+                              <>
+                                {mergeSuggestions.suggestions.map((suggestion) => (
+                                  <div key={suggestion.area} className="rounded-card border border-border bg-surface-2 p-4">
+                                    <label className="flex items-start gap-3">
+                                      <input
+                                        type="checkbox"
+                                        checked={!!mergeSelection[suggestion.area]}
+                                        onChange={(e) =>
+                                          setMergeSelection((current) => ({
+                                            ...current,
+                                            [suggestion.area]: e.target.checked,
+                                          }))
+                                        }
+                                        className="mt-1 h-4 w-4"
+                                      />
+                                      <div className="min-w-0">
+                                        <div className="text-sm font-semibold text-text-default">{suggestion.title}</div>
+                                        <div className="mt-1 text-sm text-text-muted">{suggestion.summary}</div>
+                                      </div>
+                                    </label>
+                                    <div className="mt-3 space-y-2">
+                                      {suggestion.items.map((item) => (
+                                        <div key={`${suggestion.area}:${item.key}`} className="rounded-md border border-border bg-surface px-3 py-2 text-sm">
+                                          <div className="font-medium text-text-default">
+                                            {item.label} • {item.operation}
+                                          </div>
+                                          <div className="mt-1 text-text-muted">Blueprint: {item.current_summary}</div>
+                                          <div className="text-text-muted">Classroom: {item.proposed_summary}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {suggestion.preview_markdown ? (
+                                      <textarea
+                                        readOnly
+                                        value={suggestion.preview_markdown}
+                                        className="mt-3 min-h-[140px] w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-xs text-text-default"
+                                      />
+                                    ) : null}
+                                  </div>
+                                ))}
+
+                                <div className="flex justify-end">
+                                  <Button type="button" onClick={applyMergeSuggestions} disabled={mergeApplying}>
+                                    {mergeApplying ? 'Applying...' : 'Apply Selected Changes'}
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                ) : activeTab === 'copilot' ? (
                   <div className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-[220px,minmax(0,1fr)]">
                       <FormField label="Copilot Target">
                         <select
                           value={aiTarget}
-                          onChange={(e) => setAiTarget(e.target.value as EditorTab)}
+                          onChange={(e) => setAiTarget(e.target.value as CopilotTarget)}
                           className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                           <option value="overview">Overview</option>

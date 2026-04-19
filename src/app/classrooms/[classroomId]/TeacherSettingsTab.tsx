@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useState, useId } from 'react'
+import { useMemo, useState, useId, useRef } from 'react'
 import { Info } from 'lucide-react'
-import { Button, ConfirmDialog, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, Input, Tooltip } from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
+import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
-import type { Classroom, LessonPlanVisibility } from '@/types'
+import type { ActualCourseSiteConfig, Classroom, LessonPlanVisibility } from '@/types'
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 
@@ -31,7 +32,11 @@ export function TeacherSettingsTab({
   const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
   const allowEnrollmentId = useId()
   const titleId = useId()
+  const actualSiteSlugId = useId()
+  const actualOverviewId = useId()
+  const actualOutlineId = useId()
   const isReadOnly = !!classroom.archived_at
+  const archiveImportRef = useRef<HTMLInputElement | null>(null)
   const [title, setTitle] = useState(classroom.title)
   const [titleSaving, setTitleSaving] = useState(false)
   const [titleError, setTitleError] = useState<string>('')
@@ -53,6 +58,19 @@ export function TeacherSettingsTab({
   const [visibilitySuccess, setVisibilitySuccess] = useState<string>('')
   const [visibilitySaving, setVisibilitySaving] = useState(false)
   const visibilityId = useId()
+  const [actualSiteSlug, setActualSiteSlug] = useState(classroom.actual_site_slug || '')
+  const [actualSitePublished, setActualSitePublished] = useState(!!classroom.actual_site_published)
+  const [actualSiteConfig, setActualSiteConfig] = useState<ActualCourseSiteConfig>(
+    classroom.actual_site_config || DEFAULT_ACTUAL_COURSE_SITE_CONFIG
+  )
+  const [courseOverviewMarkdown, setCourseOverviewMarkdown] = useState(classroom.course_overview_markdown || '')
+  const [courseOutlineMarkdown, setCourseOutlineMarkdown] = useState(classroom.course_outline_markdown || '')
+  const [siteSaving, setSiteSaving] = useState(false)
+  const [siteError, setSiteError] = useState('')
+  const [siteSuccess, setSiteSuccess] = useState('')
+  const [archiveBusy, setArchiveBusy] = useState(false)
+  const [archiveError, setArchiveError] = useState('')
+  const [archiveSuccess, setArchiveSuccess] = useState('')
 
   const origin = useMemo(() => {
     if (typeof window === 'undefined') return ''
@@ -182,6 +200,97 @@ export function TeacherSettingsTab({
     }
   }
 
+  async function saveActualSiteSettings() {
+    if (isReadOnly) return
+    setSiteSaving(true)
+    setSiteError('')
+    setSiteSuccess('')
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actualSiteSlug: actualSiteSlug || null,
+          actualSitePublished,
+          actualSiteConfig,
+          courseOverviewMarkdown,
+          courseOutlineMarkdown,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save actual course site settings')
+      }
+      setActualSiteSlug(data.classroom?.actual_site_slug || '')
+      setActualSitePublished(!!data.classroom?.actual_site_published)
+      setActualSiteConfig(data.classroom?.actual_site_config || actualSiteConfig)
+      setCourseOverviewMarkdown(data.classroom?.course_overview_markdown || courseOverviewMarkdown)
+      setCourseOutlineMarkdown(data.classroom?.course_outline_markdown || courseOutlineMarkdown)
+      setSiteSuccess('Actual course site settings saved.')
+      setTimeout(() => setSiteSuccess(''), 2000)
+    } catch (err: any) {
+      setSiteError(err.message || 'Failed to save actual course site settings')
+    } finally {
+      setSiteSaving(false)
+    }
+  }
+
+  async function exportArchive() {
+    setArchiveBusy(true)
+    setArchiveError('')
+    setArchiveSuccess('')
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroom.id}/archive`)
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to export classroom archive')
+      }
+      const blob = await response.blob()
+      const contentDisposition = response.headers.get('content-disposition') || ''
+      const fileNameMatch = contentDisposition.match(/filename="([^"]+)"/i)
+      const fileName =
+        fileNameMatch?.[1] || `${classroom.title.replace(/\s+/g, '-').toLowerCase()}.classroom-archive.tar`
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = fileName
+      link.click()
+      URL.revokeObjectURL(url)
+      setArchiveSuccess('Classroom archive exported.')
+      setTimeout(() => setArchiveSuccess(''), 2000)
+    } catch (err: any) {
+      setArchiveError(err.message || 'Failed to export classroom archive')
+    } finally {
+      setArchiveBusy(false)
+    }
+  }
+
+  async function importArchiveFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setArchiveBusy(true)
+    setArchiveError('')
+    setArchiveSuccess('')
+    try {
+      const response = await fetch('/api/teacher/classrooms/archive/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-tar' },
+        body: await file.arrayBuffer(),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to restore classroom archive')
+      }
+      setArchiveSuccess('Classroom archive restored as a new archived classroom.')
+      setTimeout(() => setArchiveSuccess(''), 2000)
+    } catch (err: any) {
+      setArchiveError(err.message || 'Failed to restore classroom archive')
+    } finally {
+      setArchiveBusy(false)
+      if (event.target) event.target.value = ''
+    }
+  }
+
   return (
     <PageLayout>
       {/* Sub-tab navigation */}
@@ -212,6 +321,13 @@ export function TeacherSettingsTab({
 
       {section === 'general' ? (
         <PageContent className="space-y-4 pt-0">
+            <input
+              ref={archiveImportRef}
+              type="file"
+              accept="application/x-tar,.tar"
+              className="hidden"
+              onChange={importArchiveFile}
+            />
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
               <div className="flex items-center gap-2">
@@ -339,6 +455,180 @@ export function TeacherSettingsTab({
 
               {visibilityError && <div className="text-sm text-danger">{visibilityError}</div>}
               {visibilitySuccess && <div className="text-sm text-success">{visibilitySuccess}</div>}
+            </div>
+
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold text-text-default">Actual Course Website</div>
+                <Tooltip content="Publish a public-facing version of the current classroom state" side="right">
+                  <span className="text-text-muted cursor-help">
+                    <Info size={14} />
+                  </span>
+                </Tooltip>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr),auto]">
+                <div>
+                  <label htmlFor={actualSiteSlugId} className="mb-2 block text-sm text-text-muted">
+                    Public slug
+                  </label>
+                  <Input
+                    id={actualSiteSlugId}
+                    value={actualSiteSlug}
+                    onChange={(e) => setActualSiteSlug(slugifyCourseSiteValue(e.target.value))}
+                    disabled={siteSaving || isReadOnly}
+                    placeholder="career-studies-period-1"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={siteSaving || isReadOnly}
+                    onClick={() => setActualSiteSlug(slugifyCourseSiteValue(title || classroom.title))}
+                  >
+                    Generate
+                  </Button>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-3 text-sm text-text-default">
+                <input
+                  type="checkbox"
+                  checked={actualSitePublished}
+                  onChange={(e) => setActualSitePublished(e.target.checked)}
+                  disabled={siteSaving || isReadOnly}
+                  className="h-4 w-4"
+                />
+                Publish this classroom as the actual course website
+              </label>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {(
+                  [
+                    ['overview', 'Overview'],
+                    ['outline', 'Outline'],
+                    ['resources', 'Resources'],
+                    ['assignments', 'Assignments'],
+                    ['quizzes', 'Quizzes'],
+                    ['tests', 'Tests'],
+                    ['lesson_plans', 'Lesson plans'],
+                    ['announcements', 'Announcements'],
+                  ] as Array<[keyof ActualCourseSiteConfig, string]>
+                ).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-3 text-sm text-text-default">
+                    <input
+                      type="checkbox"
+                      checked={typeof actualSiteConfig[key] === 'boolean' ? (actualSiteConfig[key] as boolean) : false}
+                      onChange={(e) =>
+                        setActualSiteConfig((current) => ({
+                          ...current,
+                          [key]: e.target.checked,
+                        }))
+                      }
+                      disabled={siteSaving || isReadOnly}
+                      className="h-4 w-4"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm text-text-muted">Lesson plan visibility on website</label>
+                <select
+                  value={actualSiteConfig.lesson_plan_scope}
+                  onChange={(e) =>
+                    setActualSiteConfig((current) => ({
+                      ...current,
+                      lesson_plan_scope: e.target.value as ActualCourseSiteConfig['lesson_plan_scope'],
+                    }))
+                  }
+                  disabled={siteSaving || isReadOnly}
+                  className="rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="current_week">Current week (and earlier)</option>
+                  <option value="one_week_ahead">One week ahead</option>
+                  <option value="all">All lesson plans</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor={actualOverviewId} className="mb-2 block text-sm text-text-muted">
+                  Website overview
+                </label>
+                <textarea
+                  id={actualOverviewId}
+                  value={courseOverviewMarkdown}
+                  onChange={(e) => setCourseOverviewMarkdown(e.target.value)}
+                  disabled={siteSaving || isReadOnly}
+                  className="min-h-[140px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label htmlFor={actualOutlineId} className="mb-2 block text-sm text-text-muted">
+                  Website outline
+                </label>
+                <textarea
+                  id={actualOutlineId}
+                  value={courseOutlineMarkdown}
+                  onChange={(e) => setCourseOutlineMarkdown(e.target.value)}
+                  disabled={siteSaving || isReadOnly}
+                  className="min-h-[160px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {actualSitePublished && actualSiteSlug ? (
+                <div className="text-sm text-text-muted">
+                  Actual site URL:{' '}
+                  <a
+                    href={`/actual/${actualSiteSlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline"
+                  >
+                    {`/actual/${actualSiteSlug}`}
+                  </a>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap gap-3">
+                <Button type="button" onClick={saveActualSiteSettings} disabled={siteSaving || isReadOnly}>
+                  {siteSaving ? 'Saving…' : 'Save Website Settings'}
+                </Button>
+              </div>
+
+              {siteError && <div className="text-sm text-danger">{siteError}</div>}
+              {siteSuccess && <div className="text-sm text-success">{siteSuccess}</div>}
+            </div>
+
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold text-text-default">Archive & Restore</div>
+                <Tooltip content="Export a full classroom snapshot or restore one as a new archived classroom" side="right">
+                  <span className="text-text-muted cursor-help">
+                    <Info size={14} />
+                  </span>
+                </Tooltip>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Button type="button" variant="secondary" onClick={exportArchive} disabled={archiveBusy}>
+                  {archiveBusy ? 'Working…' : 'Export Archive'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => archiveImportRef.current?.click()}
+                  disabled={archiveBusy || isReadOnly}
+                >
+                  Restore Archive
+                </Button>
+              </div>
+
+              {archiveError && <div className="text-sm text-danger">{archiveError}</div>}
+              {archiveSuccess && <div className="text-sm text-success">{archiveSuccess}</div>}
             </div>
 
             <ConfirmDialog

@@ -16,6 +16,10 @@ import type {
   CourseBlueprintLessonTemplate,
   CoursePackageManifest,
 } from '@/types'
+import {
+  DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+  normalizePlannedCourseSiteConfig,
+} from '@/lib/course-site-publishing'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
@@ -49,6 +53,9 @@ export type CourseBlueprintImportResult = {
     | 'overview_markdown'
     | 'outline_markdown'
     | 'resources_markdown'
+    | 'planned_site_slug'
+    | 'planned_site_published'
+    | 'planned_site_config'
   >
   assignments: Array<{
     title: string
@@ -71,13 +78,16 @@ export type CourseBlueprintImportResult = {
 
 export function buildCoursePackageManifest(blueprint: CourseBlueprint): CoursePackageManifest {
   return {
-    version: '1',
+    version: '2',
     exported_at: new Date().toISOString(),
     title: blueprint.title,
     subject: blueprint.subject,
     grade_level: blueprint.grade_level,
     course_code: blueprint.course_code,
     term_template: blueprint.term_template,
+    planned_site_slug: blueprint.planned_site_slug,
+    planned_site_published: blueprint.planned_site_published,
+    planned_site_config: normalizePlannedCourseSiteConfig(blueprint.planned_site_config),
   }
 }
 
@@ -272,6 +282,9 @@ export function parseCourseBlueprintImportArchive(
         overview_markdown: '',
         outline_markdown: '',
         resources_markdown: '',
+        planned_site_slug: null,
+        planned_site_published: false,
+        planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
       },
       assignments: [],
       assessments: [],
@@ -296,6 +309,9 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
         overview_markdown: '',
         outline_markdown: '',
         resources_markdown: '',
+        planned_site_slug: null,
+        planned_site_published: false,
+        planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
       },
       assignments: [],
       assessments: [],
@@ -321,6 +337,11 @@ export function parseCourseBlueprintImportBundle(input: unknown): CourseBlueprin
       overview_markdown: files['course-overview.md'] ?? '',
       outline_markdown: files['course-outline.md'] ?? '',
       resources_markdown: files['resources.md'] ?? '',
+      planned_site_slug: manifest.planned_site_slug ?? null,
+      planned_site_published: !!manifest.planned_site_published,
+      planned_site_config: manifest.planned_site_config
+        ? normalizePlannedCourseSiteConfig(manifest.planned_site_config)
+        : DEFAULT_PLANNED_COURSE_SITE_CONFIG,
     },
     assignments: assignmentResult.assignments,
     assessments: [...quizResult.assessments, ...testResult.assessments].sort((left, right) => left.position - right.position),
