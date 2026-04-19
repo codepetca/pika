@@ -25,6 +25,32 @@ const sampleQuestions: QuizQuestion[] = [
   createMockQuizQuestion({ id: 'q2', question_text: 'Favorite animal?', options: ['Cat', 'Dog'], position: 1 }),
 ]
 
+const summaryDetailQuestions: QuizQuestion[] = [
+  createMockQuizQuestion({
+    id: 'sq1',
+    assessment_type: 'test',
+    question_type: 'open_response',
+    question_text: 'Explain the runtime complexity of your solution.',
+    options: [],
+    correct_option: null,
+    answer_key: 'Look for linear-time reasoning and mention of hash-map tradeoffs.',
+    sample_solution: 'A good answer explains O(n) time and O(n) space.',
+    points: 6,
+    response_monospace: true,
+    position: 0,
+  }),
+  createMockQuizQuestion({
+    id: 'sq2',
+    assessment_type: 'test',
+    question_type: 'multiple_choice',
+    question_text: 'Which traversal visits the root node first?',
+    options: ['Inorder', 'Preorder', 'Postorder'],
+    correct_option: 1,
+    points: 3,
+    position: 1,
+  }),
+]
+
 const sampleResults: QuizResultsAggregate[] = [
   { question_id: 'q1', question_text: 'Favorite color?', options: ['Red', 'Blue', 'Green'], counts: [5, 10, 5], total_responses: 20 },
   { question_id: 'q2', question_text: 'Favorite animal?', options: ['Cat', 'Dog'], counts: [12, 8], total_responses: 20 },
@@ -217,8 +243,74 @@ describe('QuizDetailPanel', () => {
       const tabLabels = Array.from(tabStrip!.children)
         .filter((element) => element.tagName === 'BUTTON')
         .map((element) => element.textContent?.trim() || '')
-      expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Markdown', 'Results (0)'])
+      expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Markdown'])
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+    })
+
+    it('renders tests in summary-detail mode with question summaries on the left and details on the right', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Two Pane Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Two Pane Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      expect(await screen.findByTestId('test-summary-detail-layout')).toBeInTheDocument()
+      expect(screen.getByTestId('test-question-summary-pane')).toBeInTheDocument()
+      expect(screen.getByTestId('test-question-detail-pane')).toBeInTheDocument()
+
+      expect(screen.getByText('6 pts')).toBeInTheDocument()
+      expect(screen.getByLabelText('Question 1 code response')).toBeChecked()
+      expect(screen.getByText('MC')).toBeInTheDocument()
+
+      expect(screen.getByDisplayValue('Explain the runtime complexity of your solution.')).toBeInTheDocument()
+      expect(
+        screen.getByDisplayValue('Look for linear-time reasoning and mention of hash-map tradeoffs.')
+      ).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Select question 2' }))
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Which traversal visits the root node first?')).toBeInTheDocument()
+      })
+      expect(screen.getByDisplayValue('Inorder')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('Preorder')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('Postorder')).toBeInTheDocument()
     })
 
     it('saves draft and opens student preview route for tests', async () => {
@@ -513,6 +605,8 @@ Correct Option: 2
         />,
         { wrapper: Wrapper }
       )
+
+      fireEvent.click(await screen.findByText('Markdown'))
 
       const textarea = await screen.findByRole('textbox')
       expect(textarea).toHaveValue(persistedSourceMarkdown)

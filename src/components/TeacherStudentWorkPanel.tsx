@@ -6,6 +6,7 @@ import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
 import { useTeacherStudentWorkController } from '@/components/assignment-workspace/useTeacherStudentWorkController'
+import { WorkspaceSplitPane } from '@/components/WorkspaceSplitPane'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
   clampAssignmentWorkspacePaneLayout,
@@ -254,61 +255,55 @@ export function TeacherStudentWorkPanel({
   }
 
   return (
-    <div ref={workspaceRef} className="relative flex h-full min-h-0 flex-col lg:flex-row">
-      <div
-        className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
+    <div ref={workspaceRef} className="relative flex h-full min-h-0 flex-col">
+      <WorkspaceSplitPane
+        className="flex-1"
+        orientation="responsive"
+        leftPaneClassName={`flex min-h-0 flex-1 flex-col ${
           previewEntry ? 'outline outline-2 outline-primary outline-offset-[-2px]' : ''
         }`}
-      >
-        {previewEntry && (
-          <div
-            data-testid="individual-content-header"
-            className="border-b border-border bg-surface px-4 py-2 text-sm"
-          >
-            <div className="text-xs font-medium text-primary">
-              Previewing save from{' '}
-              {formatInTimeZone(
-                new Date(previewEntry.created_at),
-                'America/Toronto',
-                'MMM d, h:mm a',
-              )}
-            </div>
-          </div>
-        )}
-        {displayContent && !isEmpty(displayContent) ? (
-          <div className="min-h-0 flex-1 overflow-auto">
-            <RichTextViewer content={displayContent} fillHeight chrome="flush" />
-          </div>
-        ) : (
-          <div className="flex h-32 items-center justify-center text-text-muted">
-            No work submitted yet
-          </div>
-        )}
-      </div>
-
-      {!layout.inspectorCollapsed && (
-        <div className="relative hidden w-0 shrink-0 lg:block">
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize content and grading panes"
-            className="absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize bg-transparent"
-            onPointerDown={handleInspectorResizeStart}
-            onDoubleClick={handleInspectorResizeReset}
-          >
-            <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
-          </div>
-        </div>
-      )}
-
-      {!layout.inspectorCollapsed && (
-        <div
-          className="flex min-h-0 flex-col overflow-hidden border-t border-border bg-surface lg:border-t-0"
-          style={inspectorPaneStyle}
-        >
-          {inspector}
-        </div>
-      )}
+        rightVisible={!layout.inspectorCollapsed}
+        rightPaneClassName="flex min-h-0 flex-col overflow-hidden border-t border-border bg-surface lg:border-t-0"
+        rightPaneStyle={inspectorPaneStyle}
+        divider={
+          layout.inspectorCollapsed
+            ? undefined
+            : {
+                label: 'Resize content and grading panes',
+                onPointerDown: handleInspectorResizeStart,
+                onDoubleClick: handleInspectorResizeReset,
+              }
+        }
+        left={
+          <>
+            {previewEntry && (
+              <div
+                data-testid="individual-content-header"
+                className="border-b border-border bg-surface px-4 py-2 text-sm"
+              >
+                <div className="text-xs font-medium text-primary">
+                  Previewing save from{' '}
+                  {formatInTimeZone(
+                    new Date(previewEntry.created_at),
+                    'America/Toronto',
+                    'MMM d, h:mm a',
+                  )}
+                </div>
+              </div>
+            )}
+            {displayContent && !isEmpty(displayContent) ? (
+              <div className="min-h-0 flex-1 overflow-auto">
+                <RichTextViewer content={displayContent} fillHeight chrome="flush" />
+              </div>
+            ) : (
+              <div className="flex h-32 items-center justify-center text-text-muted">
+                No work submitted yet
+              </div>
+            )}
+          </>
+        }
+        right={inspector}
+      />
     </div>
   )
 }
