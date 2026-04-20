@@ -8968,3 +8968,26 @@
 
 **Notes:**
 - The targeted command expanded to the full Vitest suite in this worktree; all 194 files / 1708 tests passed.
+**Goal:** Close student exam sessions gracefully when a teacher closes a test in progress (Issue #431).
+
+**Completed:**
+- Added a lightweight student session-status route at `src/app/api/student/tests/[id]/session-status/route.ts` so active test sessions can revalidate without polling the heavier test-detail payload
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` to:
+  - poll active started tests every 30 seconds
+  - recheck immediately on window focus / visibility return
+  - exit exam mode cleanly when the teacher closes the test
+  - show an in-place blocking notice with `Return to tests` instead of abruptly redirecting the student
+- Updated `src/components/StudentQuizForm.tsx` so submit/autosave failures caused by a remotely closed test notify the parent view and trigger immediate session revalidation
+- Added regression coverage for the new route and the new student-side closure behavior
+
+**Validation:**
+- `pnpm test tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-respond.test.ts tests/api/student/tests-session-status.test.ts tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx` (35 tests passing)
+- `pnpm lint`
+- Visual verification:
+  - `/tmp/pika-student-test-closure.png`
+  - `/tmp/pika-teacher-tests.png`
+  - `/tmp/pika-teacher-tests-mobile.png`
+
+**Notes:**
+- No `.ai/features.json` update was needed because this is a targeted behavior fix rather than an epic-level feature change
+- Student visual verification used the seeded active test with a Playwright route override for the new session-status endpoint so the exact closure notice state could be reviewed in-browser
