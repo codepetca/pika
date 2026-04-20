@@ -133,6 +133,59 @@ describe('GET /api/student/tests/[id]/session-status', () => {
     expect(data.message).toBe('Your current work has been submitted.')
   })
 
+  it('returns the results-available closure message when the test has been returned', async () => {
+    const serverTests = await import('@/lib/server/tests')
+    vi.mocked(serverTests.assertStudentCanAccessTest).mockResolvedValueOnce({
+      ok: true,
+      test: {
+        id: 'test-1',
+        classroom_id: 'classroom-1',
+        title: 'Unit Test',
+        status: 'closed',
+        show_results: false,
+        position: 0,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+      },
+    } as any)
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { is_submitted: true, returned_at: '2026-01-02T00:00:00.000Z' },
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await GET(
+      new NextRequest('http://localhost:3000/api/student/tests/test-1/session-status'),
+      { params: Promise.resolve({ id: 'test-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.can_continue).toBe(false)
+    expect(data.student_status).toBe('can_view_results')
+    expect(data.message).toBe('Your current work has been submitted. Results are now available from the tests list.')
+  })
+
   it('returns 404 when a closed test has no submitted work to preserve student access rules', async () => {
     const serverTests = await import('@/lib/server/tests')
     vi.mocked(serverTests.assertStudentCanAccessTest).mockResolvedValueOnce({

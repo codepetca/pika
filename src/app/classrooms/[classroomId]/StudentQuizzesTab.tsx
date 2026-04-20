@@ -257,7 +257,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     setPendingStartTestId(null)
     setActiveDoc(null)
     setRemoteClosureNotice({
-      title: 'This test was closed by your teacher.',
+      title: 'This test is now closed.',
       description: getRemoteClosureDescription(nextStudentStatus, options?.message),
     })
     focusSessionIdRef.current = null
@@ -1003,377 +1003,397 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
               }`}
             >
               {showSplitExamShell ? (
-              <div
-                data-testid="student-test-split-container"
-                className={`grid grid-cols-1 gap-2 ${
-                  showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
-                } lg:h-full lg:min-h-0 lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
-              >
-              <section
-                className={`rounded-xl border border-border bg-surface ${
-                  showCurrentTestInfoPanel
-                    ? 'relative p-0 overflow-x-hidden overflow-y-auto scrollbar-hover lg:sticky lg:top-12 lg:h-[calc(100dvh-3rem)]'
-                    : 'lg:h-full lg:min-h-0 p-3 sm:p-4'
-                }`}
-              >
-                {showCurrentTestInfoPanel ? (
-                  <>
-                    <div
-                      aria-hidden={showDocPanel}
-                      className={`p-3 sm:p-4 transition-all duration-200 ease-out motion-reduce:transition-none ${
-                        showDocPanel
-                          ? 'pointer-events-none translate-x-2 opacity-0'
-                          : 'translate-x-0 opacity-100'
-                      }`}
-                    >
-                      <div className="space-y-4">
-                        <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
+                <div
+                  data-testid="student-test-split-container"
+                  className={`grid grid-cols-1 gap-2 ${
+                    showDocPanel ? 'lg:grid-cols-[50%_50%]' : 'lg:grid-cols-[30%_70%]'
+                  } lg:min-h-0 lg:h-[calc(100dvh-3rem)] lg:transition-[grid-template-columns] lg:duration-500 lg:ease-[cubic-bezier(0.22,1,0.36,1)] lg:[will-change:grid-template-columns] motion-reduce:transition-none`}
+                >
+                  <section
+                    data-testid="student-test-documents-pane"
+                    className={`rounded-xl border border-border bg-surface ${
+                      showCurrentTestInfoPanel
+                        ? 'relative min-h-0 overflow-x-hidden overflow-y-auto scrollbar-hover p-0'
+                        : 'lg:h-full lg:min-h-0 p-3 sm:p-4'
+                    }`}
+                  >
+                    {showCurrentTestInfoPanel ? (
+                      <>
+                        <div
+                          aria-hidden={showDocPanel}
+                          className={`p-3 sm:p-4 transition-all duration-200 ease-out motion-reduce:transition-none ${
+                            showDocPanel
+                              ? 'pointer-events-none translate-x-2 opacity-0'
+                              : 'translate-x-0 opacity-100'
+                          }`}
+                        >
+                          <div className="space-y-4">
+                            <h2 className="mb-3 text-lg font-semibold text-text-default">Documents</h2>
 
-                        {allowedDocs.length > 0 ? (
-                          <div className="space-y-2">
-                            {allowedDocs.map((doc) => (
-                              <Button
-                                key={doc.id}
+                            {allowedDocs.length > 0 ? (
+                              <div className="space-y-2">
+                                {allowedDocs.map((doc) => (
+                                  <Button
+                                    key={doc.id}
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="w-full justify-start"
+                                    onClick={() => {
+                                      markAllowedDocInteraction()
+                                      setActiveDoc(doc)
+                                    }}
+                                    tabIndex={showDocPanel ? -1 : 0}
+                                  >
+                                    {doc.title}
+                                  </Button>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-text-muted">No documents provided for this test.</p>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
+                              <span
+                                className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                                aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
+                              >
+                                <LogOut className="h-4 w-4" />
+                                <span>{exitsCount}</span>
+                              </span>
+                              <span
+                                className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                                aria-label={`Away time ${awayDurationLabel}.`}
+                              >
+                                <ClockAlert className="h-4 w-4" />
+                                <span>{awayDurationLabel}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          aria-hidden={!showDocPanel}
+                          onPointerDown={markAllowedDocInteraction}
+                          onPointerMove={markAllowedDocInteraction}
+                          onWheel={markAllowedDocInteraction}
+                          className={`absolute inset-0 transition-all duration-300 ease-out motion-reduce:transition-none ${
+                            showDocPanel
+                              ? 'pointer-events-auto translate-x-0 opacity-100'
+                              : 'pointer-events-none -translate-x-2 opacity-0'
+                          }`}
+                        >
+                          <div className="flex h-full flex-col bg-surface">
+                            <div className="grid h-10 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-surface-2 px-3">
+                              <button
                                 type="button"
-                                variant="secondary"
-                                size="sm"
-                                className="w-full justify-start"
                                 onClick={() => {
                                   markAllowedDocInteraction()
-                                  setActiveDoc(doc)
+                                  setActiveDoc(null)
                                 }}
-                                tabIndex={showDocPanel ? -1 : 0}
+                                aria-label="Back to documents list"
+                                className="inline-flex items-center gap-1 justify-self-start whitespace-nowrap rounded-md bg-info-bg px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-info-bg-hover"
+                                tabIndex={showDocPanel ? 0 : -1}
                               >
-                                {doc.title}
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                                <span>Back</span>
+                              </button>
+                              <span className="min-w-0 truncate text-center text-sm text-text-muted">
+                                {activeDoc?.title || 'Documentation'}
+                              </span>
+                              <span
+                                aria-hidden="true"
+                                className="invisible inline-flex items-center gap-1 justify-self-end whitespace-nowrap rounded-md border border-primary/40 px-2 py-1 text-xs font-semibold"
+                              >
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                                <span>Back</span>
+                              </span>
+                            </div>
+
+                            {activeDoc?.source === 'text' ? (
+                              <div
+                                className="scrollbar-hover min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-surface-2 p-3"
+                                onMouseUp={handleTextDocPointerUp}
+                                onKeyUp={handleTextDocPointerUp}
+                              >
+                                <pre className="whitespace-pre-wrap break-words text-sm text-text-default">
+                                  {activeDoc.content || ''}
+                                </pre>
+                              </div>
+                            ) : iframeDocs.length > 0 ? (
+                              <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
+                                {iframeDocs.map((doc) => {
+                                  const isVisible = activeDoc?.id === doc.id
+                                  return (
+                                    <iframe
+                                      key={doc.id}
+                                      src={doc.url}
+                                      title={doc.title || 'Documentation'}
+                                      onFocus={markAllowedDocInteraction}
+                                      onPointerEnter={markAllowedDocInteraction}
+                                      className={`absolute inset-y-0 left-0 h-full w-[calc(100%+10px)] transition-opacity duration-150 motion-reduce:transition-none ${
+                                        isVisible
+                                          ? 'opacity-100'
+                                          : 'pointer-events-none opacity-0'
+                                      }`}
+                                      sandbox="allow-same-origin allow-scripts allow-forms"
+                                      loading="eager"
+                                    />
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <div className="flex min-h-0 flex-1 items-center justify-center p-4">
+                                <p className="text-sm text-text-muted">This document is unavailable.</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h2 className="mb-3 text-lg font-semibold text-text-default">Tests</h2>
+                        {renderAssessmentList(true)}
+                      </>
+                    )}
+                  </section>
+
+                  <section
+                    data-testid="student-test-detail-pane"
+                    className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${
+                      showCurrentTestInfoPanel
+                        ? 'min-h-0 overflow-y-auto scrollbar-hover'
+                        : 'lg:h-full'
+                    } ${
+                      showNotMaximizedWarning ? 'border-warning bg-warning-bg/20' : ''
+                    }`}
+                  >
+                    {selectedQuizId && loadingQuiz ? (
+                      <div className="flex justify-center py-12">
+                        <Spinner size="lg" />
+                      </div>
+                    ) : hasSelectedQuiz ? (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold text-text-default">{selectedTestPanelTitle}</h2>
+
+                        {remoteClosureNotice ? (
+                          <div className="rounded-xl border border-warning bg-warning-bg/20 p-4">
+                            <div className="space-y-3">
+                              <p className="text-base font-semibold text-text-default">
+                                {remoteClosureNotice.title}
+                              </p>
+                              <p className="text-sm text-text-muted">
+                                {remoteClosureNotice.description}
+                              </p>
+                              <Button
+                                type="button"
+                                className="w-full sm:w-auto"
+                                onClick={performBackToAssessmentList}
+                              >
+                                Return to tests
                               </Button>
-                            ))}
+                            </div>
                           </div>
-                        ) : (
-                          <p className="text-sm text-text-muted">No documents provided for this test.</p>
-                        )}
-
-                        <div className="flex flex-wrap items-center gap-2 text-sm text-text-muted">
-                          <span
-                            className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
-                            aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
-                          >
-                            <LogOut className="h-4 w-4" />
-                            <span>{exitsCount}</span>
-                          </span>
-                          <span
-                            className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
-                            aria-label={`Away time ${awayDurationLabel}.`}
-                          >
-                            <ClockAlert className="h-4 w-4" />
-                            <span>{awayDurationLabel}</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                      <div
-                        aria-hidden={!showDocPanel}
-                        onPointerDown={markAllowedDocInteraction}
-                        onPointerMove={markAllowedDocInteraction}
-                        onWheel={markAllowedDocInteraction}
-                        className={`absolute inset-0 transition-all duration-300 ease-out motion-reduce:transition-none ${
-                          showDocPanel
-                            ? 'pointer-events-auto translate-x-0 opacity-100'
-                          : 'pointer-events-none -translate-x-2 opacity-0'
-                      }`}
-                    >
-                      <div className="flex h-full flex-col bg-surface">
-                        <div className="grid h-10 grid-cols-[auto_minmax(0,1fr)_auto] items-center border-b border-border bg-surface-2 px-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              markAllowedDocInteraction()
-                              setActiveDoc(null)
-                            }}
-                            aria-label="Back to documents list"
-                            className="inline-flex items-center gap-1 justify-self-start whitespace-nowrap rounded-md bg-info-bg px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-info-bg-hover"
-                            tabIndex={showDocPanel ? 0 : -1}
-                          >
-                            <ChevronLeft className="h-3.5 w-3.5" />
-                            <span>Back</span>
-                          </button>
-                          <span className="min-w-0 truncate text-center text-sm text-text-muted">
-                            {activeDoc?.title || 'Documentation'}
-                          </span>
-                          <span
-                            aria-hidden="true"
-                            className="invisible inline-flex items-center gap-1 justify-self-end whitespace-nowrap rounded-md border border-primary/40 px-2 py-1 text-xs font-semibold"
-                          >
-                            <ChevronLeft className="h-3.5 w-3.5" />
-                            <span>Back</span>
-                          </span>
-                        </div>
-
-                        {activeDoc?.source === 'text' ? (
-                          <div
-                            className="scrollbar-hover min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-surface-2 p-3"
-                            onMouseUp={handleTextDocPointerUp}
-                            onKeyUp={handleTextDocPointerUp}
-                          >
-                            <pre className="whitespace-pre-wrap break-words text-sm text-text-default">
-                              {activeDoc.content || ''}
-                            </pre>
-                          </div>
-                        ) : iframeDocs.length > 0 ? (
-                          <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
-                            {iframeDocs.map((doc) => {
-                              const isVisible = activeDoc?.id === doc.id
-                              return (
-                                <iframe
-                                  key={doc.id}
-                                  src={doc.url}
-                                  title={doc.title || 'Documentation'}
-                                  onFocus={markAllowedDocInteraction}
-                                  onPointerEnter={markAllowedDocInteraction}
-                                  className={`absolute inset-y-0 left-0 h-full w-[calc(100%+10px)] transition-opacity duration-150 motion-reduce:transition-none ${
-                                    isVisible
-                                      ? 'opacity-100'
-                                      : 'pointer-events-none opacity-0'
-                                  }`}
-                                  sandbox="allow-same-origin allow-scripts allow-forms"
-                                  loading="eager"
-                                />
-                              )
-                            })}
-                          </div>
-                        ) : (
-                          <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-                            <p className="text-sm text-text-muted">This document is unavailable.</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="mb-3 text-lg font-semibold text-text-default">Tests</h2>
-                    {renderAssessmentList(true)}
-                  </>
-                )}
-              </section>
-
-              <section
-                className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${
-                  showCurrentTestInfoPanel
-                    ? 'lg:overflow-y-auto scrollbar-hover lg:sticky lg:top-12 lg:h-[calc(100dvh-3rem)]'
-                    : 'lg:h-full'
-                } ${
-                  showNotMaximizedWarning ? 'border-warning bg-warning-bg/20' : ''
-                }`}
-              >
-                {selectedQuizId && loadingQuiz ? (
-                  <div className="flex justify-center py-12">
-                    <Spinner size="lg" />
-                  </div>
-                ) : hasSelectedQuiz ? (
-                  <div className="space-y-4">
-                    <h2 className="text-xl font-bold text-text-default">{selectedTestPanelTitle}</h2>
-
-                    {remoteClosureNotice ? (
-                      <div className="rounded-xl border border-warning bg-warning-bg/20 p-4">
-                        <div className="space-y-3">
-                          <p className="text-base font-semibold text-text-default">
-                            {remoteClosureNotice.title}
-                          </p>
-                          <p className="text-sm text-text-muted">
-                            {remoteClosureNotice.description}
-                          </p>
+                        ) : requiresStart ? (
                           <Button
                             type="button"
                             className="w-full sm:w-auto"
-                            onClick={performBackToAssessmentList}
+                            onClick={() => handleRequestStartTest(selectedQuiz.quiz.id)}
                           >
-                            Return to tests
+                            Start the Test
                           </Button>
-                        </div>
-                      </div>
-                    ) : requiresStart ? (
-                      <Button
-                        type="button"
-                        className="w-full sm:w-auto"
-                        onClick={() => handleRequestStartTest(selectedQuiz.quiz.id)}
-                      >
-                        Start the Test
-                      </Button>
-                    ) : hasResponded && selectedQuiz.quiz.student_status === 'can_view_results' ? (
-                      <StudentQuizResults
-                        quizId={selectedQuizId!}
-                        myResponses={selectedQuiz.studentResponses}
-                        assessmentType={assessmentType}
-                        apiBasePath={apiBasePath}
-                        showSubmissionBanner={!(isTestsView && selectedQuiz.quiz.student_status === 'can_view_results')}
-                      />
-                    ) : hasResponded ? (
-                      <div className="p-4 bg-success-bg rounded-lg text-center">
-                        <p className="text-success font-medium">Response Submitted</p>
-                        {selectedQuiz.quiz.status !== 'closed' ? (
-                          <p className="text-sm text-text-muted mt-1">
-                            Results will be available after this test is closed and returned by your teacher.
-                          </p>
+                        ) : hasResponded && selectedQuiz.quiz.student_status === 'can_view_results' ? (
+                          <StudentQuizResults
+                            quizId={selectedQuizId!}
+                            myResponses={selectedQuiz.studentResponses}
+                            assessmentType={assessmentType}
+                            apiBasePath={apiBasePath}
+                            showSubmissionBanner={!(isTestsView && selectedQuiz.quiz.student_status === 'can_view_results')}
+                          />
+                        ) : hasResponded ? (
+                          <div className="p-4 bg-success-bg rounded-lg text-center">
+                            <p className="text-success font-medium">Response Submitted</p>
+                            {selectedQuiz.quiz.status !== 'closed' ? (
+                              <p className="text-sm text-text-muted mt-1">
+                                Results will be available after this test is closed and returned by your teacher.
+                              </p>
+                            ) : (
+                              <p className="text-sm text-text-muted mt-1">
+                                Results will be available after your teacher returns this test.
+                              </p>
+                            )}
+                          </div>
                         ) : (
-                          <p className="text-sm text-text-muted mt-1">
-                            Results will be available after your teacher returns this test.
-                          </p>
+                          <StudentQuizForm
+                            quizId={selectedQuizId!}
+                            questions={selectedQuiz.questions}
+                            initialResponses={selectedQuiz.studentResponses}
+                            enableDraftAutosave
+                            isInteractionLocked={showNotMaximizedWarning}
+                            assessmentType={assessmentType}
+                            apiBasePath={apiBasePath}
+                            onAvailabilityLoss={() => {
+                              void revalidateActiveTestSession()
+                            }}
+                            onSubmitted={handleQuizSubmitted}
+                          />
+                        )}
+
+                        {!showCurrentTestInfoPanel && (
+                          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2 text-sm text-text-muted">
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                              aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
+                            >
+                              <LogOut className="h-4 w-4" />
+                              <span>{exitsCount}</span>
+                            </span>
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
+                              aria-label={`Away time ${awayDurationLabel}.`}
+                            >
+                              <ClockAlert className="h-4 w-4" />
+                              <span>{awayDurationLabel}</span>
+                            </span>
+                          </div>
                         )}
                       </div>
                     ) : (
-                      <StudentQuizForm
-                        quizId={selectedQuizId!}
-                        questions={selectedQuiz.questions}
-                        initialResponses={selectedQuiz.studentResponses}
-                        enableDraftAutosave
-                        isInteractionLocked={showNotMaximizedWarning}
-                        assessmentType={assessmentType}
-                        apiBasePath={apiBasePath}
-                        onAvailabilityLoss={() => {
-                          void revalidateActiveTestSession()
-                        }}
-                        onSubmitted={handleQuizSubmitted}
-                      />
-                    )}
-
-                    {!showCurrentTestInfoPanel && (
-                      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2 text-sm text-text-muted">
-                        <span
-                          className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
-                          aria-label={`Exits ${exitsCount}. Away/focus ${awayCount}, in-app exits ${routeExitAttempts}, window/full-screen exits ${windowUnmaximizeAttempts}.`}
-                        >
-                          <LogOut className="h-4 w-4" />
-                          <span>{exitsCount}</span>
-                        </span>
-                        <span
-                          className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 tabular-nums"
-                          aria-label={`Away time ${awayDurationLabel}.`}
-                        >
-                          <ClockAlert className="h-4 w-4" />
-                          <span>{awayDurationLabel}</span>
-                        </span>
+                      <div className="flex h-full min-h-[240px] items-center justify-center rounded-lg border border-dashed border-border bg-surface-2 px-4 text-center">
+                        <p className="text-sm text-text-muted">
+                          Select a test from the list to view and complete it.
+                        </p>
                       </div>
                     )}
-                  </div>
-                ) : (
-                  <div className="flex h-full min-h-[240px] items-center justify-center rounded-lg border border-dashed border-border bg-surface-2 px-4 text-center">
-                    <p className="text-sm text-text-muted">
-                      Select a test from the list to view and complete it.
-                    </p>
-                  </div>
-                )}
-              </section>
-              </div>
+                  </section>
+                </div>
               ) : !hasSelectedQuiz ? (
-              quizzes.length === 0 ? (
-                <EmptyState
-                  title="No tests available."
-                  description="When your teacher publishes a test, it will show up here."
-                />
-              ) : (
-                <div className="min-w-0 h-full flex flex-col max-w-none">
-                  {renderAssessmentList(false)}
-                </div>
-              )
-            ) : selectedQuizId && loadingQuiz ? (
-              <div className="flex justify-center py-12">
-                <Spinner size="lg" />
-              </div>
-            ) : (
-              <div className="min-w-0">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="mb-4 flex items-center gap-1 text-sm text-text-muted hover:text-text-default"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Back to tests
-                </button>
-
-                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h2 className="truncate text-xl font-bold text-text-default">
-                      {selectedTestPanelTitle}
-                    </h2>
-                    {allowedDocs.length > 0 && requiresStart ? (
-                      <p className="mt-1 text-sm text-text-muted">
-                        {allowedDocs.length} reference document{allowedDocs.length === 1 ? '' : 's'} will be available during the test.
-                      </p>
-                    ) : null}
-                  </div>
-                  <span
-                    className={[
-                      'rounded-badge px-2.5 py-1 text-xs font-semibold',
-                      selectedQuiz?.quiz.student_status === 'can_view_results'
-                        ? 'bg-info-bg text-info'
-                        : selectedQuiz?.quiz.student_status === 'responded'
-                          ? 'bg-surface-2 text-text-muted'
-                          : selectedQuiz?.quiz.status === 'closed'
-                            ? getQuizStatusBadgeClass('closed')
-                            : getQuizStatusBadgeClass('active'),
-                    ].join(' ')}
-                  >
-                    {selectedQuiz?.quiz.student_status === 'can_view_results'
-                      ? 'Returned'
-                      : selectedQuiz?.quiz.student_status === 'responded'
-                        ? 'Submitted'
-                        : selectedQuiz?.quiz.status === 'closed'
-                          ? 'Closed'
-                          : 'New'}
-                  </span>
-                </div>
-
-                {requiresStart ? (
-                  <div className="rounded-card border border-border bg-surface-panel p-5 shadow-elevated">
-                    <p className="text-sm text-text-muted">
-                      Review the test details, then start when you are ready.
-                    </p>
-                    <div className="mt-4">
-                      <Button
-                        type="button"
-                        className="w-full sm:w-auto"
-                        onClick={() => handleRequestStartTest(selectedQuiz.quiz.id)}
-                      >
-                        Start the Test
-                      </Button>
-                    </div>
-                  </div>
-                ) : hasResponded && selectedQuiz.quiz.student_status === 'can_view_results' ? (
-                  <StudentQuizResults
-                    quizId={selectedQuizId!}
-                    myResponses={selectedQuiz.studentResponses}
-                    assessmentType={assessmentType}
-                    apiBasePath={apiBasePath}
-                    showSubmissionBanner={false}
+                quizzes.length === 0 ? (
+                  <EmptyState
+                    title="No tests available."
+                    description="When your teacher publishes a test, it will show up here."
                   />
-                ) : hasResponded ? (
-                  <div className="rounded-card border border-success bg-success-bg p-5 text-center shadow-elevated">
-                    <p className="font-medium text-success">Response Submitted</p>
-                    {selectedQuiz.quiz.status !== 'closed' ? (
-                      <p className="mt-1 text-sm text-text-muted">
-                        Results will be available after this test is closed and returned by your teacher.
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-sm text-text-muted">
-                        Results will be available after your teacher returns this test.
-                      </p>
-                    )}
-                  </div>
                 ) : (
-                  <StudentQuizForm
-                    quizId={selectedQuizId!}
-                    questions={selectedQuiz.questions}
-                    initialResponses={selectedQuiz.studentResponses}
-                    enableDraftAutosave
-                    isInteractionLocked={showNotMaximizedWarning}
-                    assessmentType={assessmentType}
-                    apiBasePath={apiBasePath}
-                    onSubmitted={handleQuizSubmitted}
-                  />
-                )}
-              </div>
-            )}
+                  <div className="min-w-0 h-full flex flex-col max-w-none">
+                    {renderAssessmentList(false)}
+                  </div>
+                )
+              ) : selectedQuizId && loadingQuiz ? (
+                <div className="flex justify-center py-12">
+                  <Spinner size="lg" />
+                </div>
+              ) : (
+                <div className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="mb-4 flex items-center gap-1 text-sm text-text-muted hover:text-text-default"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Back to tests
+                  </button>
+
+                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="truncate text-xl font-bold text-text-default">
+                        {selectedTestPanelTitle}
+                      </h2>
+                      {allowedDocs.length > 0 && requiresStart ? (
+                        <p className="mt-1 text-sm text-text-muted">
+                          {allowedDocs.length} reference document{allowedDocs.length === 1 ? '' : 's'} will be available during the test.
+                        </p>
+                      ) : null}
+                    </div>
+                    <span
+                      className={[
+                        'rounded-badge px-2.5 py-1 text-xs font-semibold',
+                        selectedQuiz?.quiz.student_status === 'can_view_results'
+                          ? 'bg-info-bg text-info'
+                          : selectedQuiz?.quiz.student_status === 'responded'
+                            ? 'bg-surface-2 text-text-muted'
+                            : selectedQuiz?.quiz.status === 'closed'
+                              ? getQuizStatusBadgeClass('closed')
+                              : getQuizStatusBadgeClass('active'),
+                      ].join(' ')}
+                    >
+                      {selectedQuiz?.quiz.student_status === 'can_view_results'
+                        ? 'Returned'
+                        : selectedQuiz?.quiz.student_status === 'responded'
+                          ? 'Submitted'
+                          : selectedQuiz?.quiz.status === 'closed'
+                            ? 'Closed'
+                            : 'New'}
+                    </span>
+                  </div>
+
+                  {remoteClosureNotice ? (
+                    <div className="rounded-xl border border-warning bg-warning-bg/20 p-4">
+                      <div className="space-y-3">
+                        <p className="text-base font-semibold text-text-default">
+                          {remoteClosureNotice.title}
+                        </p>
+                        <p className="text-sm text-text-muted">
+                          {remoteClosureNotice.description}
+                        </p>
+                        <Button
+                          type="button"
+                          className="w-full sm:w-auto"
+                          onClick={performBackToAssessmentList}
+                        >
+                          Return to tests
+                        </Button>
+                      </div>
+                    </div>
+                  ) : requiresStart ? (
+                    <div className="rounded-card border border-border bg-surface-panel p-5 shadow-elevated">
+                      <p className="text-sm text-text-muted">
+                        Review the test details, then start when you are ready.
+                      </p>
+                      <div className="mt-4">
+                        <Button
+                          type="button"
+                          className="w-full sm:w-auto"
+                          onClick={() => handleRequestStartTest(selectedQuiz.quiz.id)}
+                        >
+                          Start the Test
+                        </Button>
+                      </div>
+                    </div>
+                  ) : hasResponded && selectedQuiz.quiz.student_status === 'can_view_results' ? (
+                    <StudentQuizResults
+                      quizId={selectedQuizId!}
+                      myResponses={selectedQuiz.studentResponses}
+                      assessmentType={assessmentType}
+                      apiBasePath={apiBasePath}
+                      showSubmissionBanner={false}
+                    />
+                  ) : hasResponded ? (
+                    <div className="rounded-card border border-success bg-success-bg p-5 text-center shadow-elevated">
+                      <p className="font-medium text-success">Response Submitted</p>
+                      {selectedQuiz.quiz.status !== 'closed' ? (
+                        <p className="mt-1 text-sm text-text-muted">
+                          Results will be available after this test is closed and returned by your teacher.
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-sm text-text-muted">
+                          Results will be available after your teacher returns this test.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <StudentQuizForm
+                      quizId={selectedQuizId!}
+                      questions={selectedQuiz.questions}
+                      initialResponses={selectedQuiz.studentResponses}
+                      enableDraftAutosave
+                      isInteractionLocked={showNotMaximizedWarning}
+                      assessmentType={assessmentType}
+                      apiBasePath={apiBasePath}
+                      onSubmitted={handleQuizSubmitted}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </PageContent>
         )}

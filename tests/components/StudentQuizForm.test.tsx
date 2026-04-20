@@ -128,6 +128,38 @@ describe('StudentQuizForm preview mode', () => {
     })
   })
 
+  it('renders a persistent action footer with save state and submit controls', async () => {
+    const onSubmitted = vi.fn()
+
+    render(
+      <StudentQuizForm
+        quizId="test-footer-id"
+        questions={[
+          createMockQuizQuestion({
+            id: 'q1',
+            question_text: 'Which option is correct?',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        initialResponses={{
+          q1: {
+            question_type: 'multiple_choice',
+            selected_option: 1,
+          },
+        }}
+        assessmentType="test"
+        enableDraftAutosave
+        onSubmitted={onSubmitted}
+      />
+    )
+
+    const footer = screen.getByTestId('student-quiz-action-footer')
+    expect(within(footer).getByText('Saved')).toBeInTheDocument()
+    expect(within(footer).getByRole('button', { name: 'Submit' })).toBeInTheDocument()
+  })
+
   it('notifies the parent when a submit fails because the test is no longer active', async () => {
     const onSubmitted = vi.fn()
     const onAvailabilityLoss = vi.fn()
