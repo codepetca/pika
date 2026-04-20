@@ -8960,6 +8960,8 @@
 - Added prompt guidance telling the grader to treat attached links, repositories, and images as part of the submission rather than marking them missing.
 - Allowed artifact-only submissions, such as image-only site evidence, to be graded instead of failing as empty work.
 - Added regression coverage for link-mark artifacts and image-only submissions.
+- Normalized legacy stringified `assignment_docs.content` in the assignment auto-grade route before invoking the shared grading helper.
+- Added API-level regression coverage so assignment auto-grading now proves both parsed legacy content and legacy empty submissions are handled correctly at the route boundary.
 
 **Validation:**
 - `pnpm test -- tests/unit/ai-grading.test.ts tests/lib/assignment-artifacts.test.ts tests/api/teacher/assignments-id.test.ts`
