@@ -8954,3 +8954,15 @@
 **Notes:**
 - Left `src/lib/repo-review.ts` handling of `package-lock.json` intact because it is generic generated-file detection, not active package-manager configuration.
 - Did not run installs/tests in this session.
+## 2026-04-20 — Assignment AI Grading Artifact Detection
+
+- Fixed assignment AI grading so attached artifacts are included in the grader prompt instead of relying on extracted plain text alone.
+- Added prompt guidance telling the grader to treat attached links, repositories, and images as part of the submission rather than marking them missing.
+- Allowed artifact-only submissions, such as image-only site evidence, to be graded instead of failing as empty work.
+- Added regression coverage for link-mark artifacts and image-only submissions.
+
+**Validation:**
+- `pnpm test -- tests/unit/ai-grading.test.ts tests/lib/assignment-artifacts.test.ts tests/api/teacher/assignments-id.test.ts`
+
+**Notes:**
+- The targeted command expanded to the full Vitest suite in this worktree; all 194 files / 1708 tests passed.
