@@ -35,6 +35,7 @@ Inspect or modify source only after the startup set and the docs required by you
 ## Repo Invariants
 
 - Platform: Next.js App Router, Supabase, Tailwind CSS, Vitest, Vercel
+- Vercel cron guardrail: on the Hobby plan, cron schedules must run at most once per day; do not add sub-daily repo-managed Vercel cron jobs
 - Timezone: all deadline and attendance logic uses `America/Toronto`
 - Auth: email verification codes plus password login; no OAuth providers
 - Architecture: keep business logic out of UI components; prefer `src/lib/*` and server-side modules

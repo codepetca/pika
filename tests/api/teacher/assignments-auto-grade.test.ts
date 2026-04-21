@@ -200,7 +200,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
   })
 
-  it('starts a background run for multi-student requests', async () => {
+  it('starts a resumable batch run for multi-student requests', async () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
       method: 'POST',
       body: JSON.stringify({

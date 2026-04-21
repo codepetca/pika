@@ -677,6 +677,124 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(statusFetchCount).toBeGreaterThan(0)
     })
+    expect(
+      screen.getByText('Keep this assignment open while grading runs. Reopening it resumes the current progress.'),
+    ).toBeInTheDocument()
     expect(tickFetchCount).toBe(0)
+  })
+
+  it('retries after a transient tick failure while the assignment stays open', async () => {
+    vi.useFakeTimers()
+
+    const initialRun = {
+      id: 'run-1',
+      assignment_id: 'assignment-1',
+      status: 'running',
+      model: 'gpt-5-nano',
+      requested_count: 2,
+      gradable_count: 2,
+      processed_count: 0,
+      completed_count: 0,
+      skipped_missing_count: 0,
+      skipped_empty_count: 0,
+      failed_count: 0,
+      pending_count: 2,
+      next_retry_at: null,
+      error_samples: [],
+      started_at: '2026-04-20T12:00:00Z',
+      completed_at: null,
+      created_at: '2026-04-20T12:00:00Z',
+    }
+
+    let assignmentFetchCount = 0
+    let tickFetchCount = 0
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        assignmentFetchCount += 1
+        return Promise.resolve({
+          ok: true,
+          json: async () =>
+            makeAssignmentDetails(
+              'assignment-1',
+              'Assignment One',
+              'student-1',
+              assignmentFetchCount === 1 ? initialRun : null,
+            ),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            run: initialRun,
+          }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-1/tick') {
+        tickFetchCount += 1
+        if (tickFetchCount === 1) {
+          return Promise.reject(new Error('temporary network issue'))
+        }
+
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            claimed: true,
+            run: {
+              ...initialRun,
+              status: 'completed',
+              processed_count: 2,
+              completed_count: 2,
+              pending_count: 0,
+              completed_at: '2026-04-20T12:03:00Z',
+            },
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    try {
+      render(<TeacherClassroomView classroom={classroom} />)
+
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(tickFetchCount).toBe(1)
+
+      await act(async () => {
+        vi.advanceTimersByTime(2_100)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(screen.getByText('Graded 2')).toBeInTheDocument()
+      expect(tickFetchCount).toBe(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -9059,3 +9059,15 @@
 - `pnpm exec vitest run tests/unit/ai-grading.test.ts`
 - `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
 - `pnpm lint`
+
+## 2026-04-21 — Remove Unsupported Assignment AI Grading Cron
+
+- Removed the repo-managed Vercel cron schedule and cron route for assignment AI grading so Hobby-plan deployments are no longer blocked by the unsupported every-minute schedule.
+- Kept batch assignment AI grading on the existing teacher-driven run-summary and tick endpoints, and updated the teacher assignment overlay copy to explain that the assignment page must stay open and that reopening resumes progress.
+- Added regression coverage for delayed tick retries and documented the Hobby-plan once-per-day cron limit in the AI/runtime docs.
+
+**Validation:**
+- `pnpm test tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm build`
+- `pnpm run seed`
+- Seeded browser verification on `Test Classroom` → `Personal Narrative Essay` showing the new teacher AI grading note during an active batch run
