@@ -71,7 +71,7 @@ export class AssignmentAiGradingError extends Error {
   }
 }
 
-export function isRetryableAssignmentAiGradingError(error: unknown): boolean {
+export function isRetryableAssignmentAiGradingError(error: unknown): error is AssignmentAiGradingError {
   return error instanceof AssignmentAiGradingError && error.retryable
 }
 

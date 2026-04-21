@@ -20,7 +20,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
   const student_ids = Array.isArray(body?.student_ids)
     ? body.student_ids.filter((studentId: unknown): studentId is string => typeof studentId === 'string')
     : []
-  const normalizedStudentIds = Array.from(new Set(student_ids))
+  const normalizedStudentIds: string[] = Array.from(new Set(student_ids))
 
   if (normalizedStudentIds.length === 0) {
     return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })

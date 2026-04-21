@@ -717,13 +717,13 @@ export function TeacherClassroomView({
   }, [info])
 
   useEffect(() => {
-    if (selection.mode !== 'assignment' || !activeAssignmentAiRunId || !hasActiveAssignmentAiRun) return
+    if (!selectedAssignmentKey || !activeAssignmentAiRunId || !hasActiveAssignmentAiRun) return
 
     let isCancelled = false
     let timeoutId: number | undefined
 
     const syncRun = async () => {
-      const assignmentId = selection.assignmentId
+      const assignmentId = selectedAssignmentKey
       const runId = activeAssignmentAiRunId
       let shouldContinue = true
       let nextDelayMs = 2000
@@ -781,7 +781,7 @@ export function TeacherClassroomView({
         window.clearTimeout(timeoutId)
       }
     }
-  }, [activeAssignmentAiRunId, hasActiveAssignmentAiRun, selection.assignmentId, selection.mode])
+  }, [activeAssignmentAiRunId, hasActiveAssignmentAiRun, selectedAssignmentKey])
 
   useEffect(() => {
     if (!activeAssignmentAiRun || hasActiveAssignmentAiRun) return

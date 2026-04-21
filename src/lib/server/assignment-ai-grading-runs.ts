@@ -889,5 +889,5 @@ export async function listRunnableAssignmentAiGradingRuns(
     throw new Error('Failed to list runnable assignment AI grading runs')
   }
 
-  return ((data as AssignmentAiGradingRun[] | null) ?? []).map(toAssignmentAiGradingRunSummary)
+  return ((data as AssignmentAiGradingRun[] | null) ?? []).map((run) => toAssignmentAiGradingRunSummary(run))
 }
