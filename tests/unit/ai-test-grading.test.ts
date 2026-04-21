@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildTestOpenResponseBatchSystemPrompt,
+  buildTestOpenResponseBatchUserPrompt,
+  buildTestOpenResponsePreparedContext,
+  buildTestOpenResponseSingleUserPrompt,
   buildTestOpenResponseReferenceCacheKey,
   normalizeTestOpenResponseReferenceAnswers,
   prepareTestOpenResponseGradingContext,
+  resolveReusableTestOpenResponseReferenceAnswers,
   suggestTestOpenResponseGradeWithContext,
   suggestTestOpenResponseGradesBatch,
+  suggestTestOpenResponseGradesBatchWithContext,
   suggestTestOpenResponseGrade,
 } from '@/lib/ai-test-grading'
 import { GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline'
@@ -215,6 +221,49 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(userPrompt).toContain('formatName')
   })
 
+  it('uses a compact bulk profile for coding prompts', () => {
+    const manual = buildTestOpenResponsePreparedContext({
+      testTitle: 'Coding Test',
+      questionText: 'Write a method that counts vowels.',
+      maxPoints: 5,
+      answerKey: 'Loops through the string and counts vowels.',
+      sampleSolution: 'public int countVowels(String s) { return 0; }',
+      responseMonospace: true,
+      promptProfile: 'manual',
+    })
+    const bulk = buildTestOpenResponsePreparedContext({
+      testTitle: 'Coding Test',
+      questionText: 'Write a method that counts vowels.',
+      maxPoints: 5,
+      answerKey: 'Loops through the string and counts vowels.',
+      sampleSolution: 'public int countVowels(String s) { return 0; }',
+      responseMonospace: true,
+      promptProfile: 'bulk',
+    })
+
+    expect(manual.systemPrompt.length).toBeGreaterThan(bulk.systemPrompt.length)
+    expect(manual.promptMetrics.totalChars).toBeGreaterThan(bulk.promptMetrics.totalChars)
+    expect(manual.systemPrompt).toContain('award high partial credit')
+    expect(bulk.systemPrompt).not.toContain('award high partial credit')
+    expect(bulk.systemPrompt).toContain('Award strong partial credit')
+  })
+
+  it('omits sample solution in bulk mode when an answer key exists', () => {
+    const prepared = buildTestOpenResponsePreparedContext({
+      testTitle: 'Unit 3 Test',
+      questionText: 'Implement formatName.',
+      maxPoints: 5,
+      answerKey: 'Returns the name in first last format.',
+      sampleSolution: 'public String formatName(String name) { return name; }',
+      responseMonospace: true,
+      promptProfile: 'bulk',
+    })
+
+    const userPrompt = buildTestOpenResponseSingleUserPrompt(prepared, 'return first + " " + last;')
+    expect(prepared.sampleSolutionIncluded).toBe(false)
+    expect(userPrompt).not.toContain('Sample solution (one valid approach, not a required exact match):')
+  })
+
   it('maps score to nearest bucket when score buckets are provided', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
@@ -410,6 +459,21 @@ describe('prepared test grading context', () => {
     expect(first.score).toBe(4)
     expect(second.score).toBe(3)
   })
+
+  it('marks provided reference answers as a cache hit source', async () => {
+    const prepared = await prepareTestOpenResponseGradingContext({
+      testTitle: 'Unit 1 Test',
+      questionText: 'Explain osmosis.',
+      maxPoints: 5,
+      referenceAnswers: [
+        'Defines osmosis accurately.',
+        'Mentions membrane and concentration gradient.',
+      ],
+      promptProfile: 'bulk',
+    })
+
+    expect(prepared.reference_answers_source).toBe('provided')
+  })
 })
 
 describe('suggestTestOpenResponseGradesBatch', () => {
@@ -460,6 +524,33 @@ describe('suggestTestOpenResponseGradesBatch', () => {
         grading_basis: 'teacher_key',
       }),
     ])
+  })
+
+  it('supports batch grading with a prepared context without rebuilding the prompt', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_text:
+          '{"results":[{"response_id":"response-1","score":5,"feedback":"Excellent answer."},{"response_id":"response-2","score":3,"feedback":"Good start. Add one more key detail."}]}',
+      }),
+    })
+
+    const prepared = buildTestOpenResponsePreparedContext({
+      testTitle: 'Unit 3 Test',
+      questionText: 'Explain what a method does.',
+      maxPoints: 5,
+      answerKey: 'A method groups reusable instructions and can take parameters and return a value.',
+      promptProfile: 'bulk',
+    })
+
+    const suggestions = await suggestTestOpenResponseGradesBatchWithContext(prepared, [
+      { responseId: 'response-1', responseText: 'A method is reusable code.' },
+      { responseId: 'response-2', responseText: 'A method runs code.' },
+    ])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(suggestions).toHaveLength(2)
   })
 })
 
@@ -533,5 +624,63 @@ describe('open-response reference cache helpers', () => {
     ])
 
     expect(normalized).toEqual(['First answer', 'Second answer'])
+  })
+
+  it('reuses cached reference answers when key and model match', () => {
+    const model = 'gpt-5-nano'
+    const resolution = resolveReusableTestOpenResponseReferenceAnswers({
+      testTitle: 'Unit 1 Test',
+      questionText: 'Explain osmosis.',
+      maxPoints: 5,
+      model,
+      cacheKey: buildTestOpenResponseReferenceCacheKey({
+        testTitle: 'Unit 1 Test',
+        questionText: 'Explain osmosis.',
+        maxPoints: 5,
+        model,
+      }),
+      cacheAnswers: ['Defines osmosis accurately.', 'Mentions the membrane.'],
+      cacheModel: model,
+    })
+
+    expect(resolution.cacheHit).toBe(true)
+    expect(resolution.referenceAnswers).toEqual([
+      'Defines osmosis accurately.',
+      'Mentions the membrane.',
+    ])
+  })
+
+  it('builds shorter batch prompts for the bulk profile', () => {
+    const responses = [
+      { responseId: 'response-1', responseText: 'A method is reusable code.' },
+      { responseId: 'response-2', responseText: 'A method runs code.' },
+    ]
+    const manualPrepared = buildTestOpenResponsePreparedContext({
+      testTitle: 'Unit 3 Test',
+      questionText: 'Explain what a method does.',
+      maxPoints: 5,
+      answerKey: 'A method groups reusable instructions and can take parameters and return a value.',
+      promptProfile: 'manual',
+    })
+    const bulkPrepared = buildTestOpenResponsePreparedContext({
+      testTitle: 'Unit 3 Test',
+      questionText: 'Explain what a method does.',
+      maxPoints: 5,
+      answerKey: 'A method groups reusable instructions and can take parameters and return a value.',
+      promptProfile: 'bulk',
+    })
+
+    const manualMetrics = {
+      total:
+        buildTestOpenResponseBatchSystemPrompt(manualPrepared).length +
+        buildTestOpenResponseBatchUserPrompt(manualPrepared, responses).length,
+    }
+    const bulkMetrics = {
+      total:
+        buildTestOpenResponseBatchSystemPrompt(bulkPrepared).length +
+        buildTestOpenResponseBatchUserPrompt(bulkPrepared, responses).length,
+    }
+
+    expect(manualMetrics.total).toBeGreaterThan(bulkMetrics.total)
   })
 })

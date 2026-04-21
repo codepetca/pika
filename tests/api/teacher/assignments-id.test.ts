@@ -8,6 +8,9 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
+vi.mock('@/lib/server/assignment-ai-grading-runs', () => ({
+  getActiveAssignmentAiGradingRunSummary: vi.fn(async () => null),
+}))
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -179,9 +182,11 @@ describe('GET /api/teacher/assignments/[id]', () => {
       score_workflow: 7,
       graded_at: '2026-03-10T12:00:00.000Z',
       returned_at: null,
+      feedback_returned_at: undefined,
     })
     expect(data.students[0].doc).not.toHaveProperty('content')
     expect(data.students[0].doc).not.toHaveProperty('is_submitted')
+    expect(data.active_ai_grading_run).toBeNull()
   })
 })
 

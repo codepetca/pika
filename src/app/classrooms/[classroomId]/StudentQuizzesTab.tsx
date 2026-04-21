@@ -87,12 +87,62 @@ function isFullscreenActive(): boolean {
   return typeof document !== 'undefined' && Boolean(document.fullscreenElement)
 }
 
+const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 400
+const EXAM_WINDOW_MIN_WIDTH_RATIO = 0.92
+const EXAM_WINDOW_MIN_HEIGHT_RATIO = 0.88
 const DOCS_EXIT_SUPPRESSION_WINDOW_MS = 1200
 const UNSUPPRESSED_ROUTE_EXIT_SOURCES = new Set([
   'tab_navigation',
   'home_navigation',
   'classroom_switch',
 ])
+
+type ExamWindowComplianceSnapshot = {
+  isFullscreen: boolean
+  isCompliant: boolean
+  widthRatio: number
+  heightRatio: number
+  innerWidth: number
+  innerHeight: number
+  availWidth: number
+  availHeight: number
+}
+
+function getExamWindowComplianceSnapshot(): ExamWindowComplianceSnapshot {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return {
+      isFullscreen: false,
+      isCompliant: true,
+      widthRatio: 1,
+      heightRatio: 1,
+      innerWidth: 0,
+      innerHeight: 0,
+      availWidth: 0,
+      availHeight: 0,
+    }
+  }
+
+  const isFullscreen = isFullscreenActive()
+  const innerWidth = window.innerWidth
+  const innerHeight = window.innerHeight
+  const availWidth = window.screen?.availWidth || innerWidth
+  const availHeight = window.screen?.availHeight || innerHeight
+  const widthRatio = availWidth > 0 ? innerWidth / availWidth : 1
+  const heightRatio = availHeight > 0 ? innerHeight / availHeight : 1
+
+  return {
+    isFullscreen,
+    isCompliant:
+      isFullscreen ||
+      (widthRatio >= EXAM_WINDOW_MIN_WIDTH_RATIO && heightRatio >= EXAM_WINDOW_MIN_HEIGHT_RATIO),
+    widthRatio,
+    heightRatio,
+    innerWidth,
+    innerHeight,
+    availWidth,
+    availHeight,
+  }
+}
 
 function extractAllowedDocLinks(questions: QuizQuestion[]): AllowedDocItem[] {
   const markdownLinkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
@@ -149,6 +199,8 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const [showStartTestConfirm, setShowStartTestConfirm] = useState(false)
   const [pendingStartTestId, setPendingStartTestId] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isWindowCompliantNow, setIsWindowCompliantNow] = useState(true)
+  const [isWindowCompliantStable, setIsWindowCompliantStable] = useState(true)
   const [activeDoc, setActiveDoc] = useState<AllowedDocItem | null>(null)
   const [remoteClosureNotice, setRemoteClosureNotice] = useState<RemoteClosureNotice | null>(null)
   const selectedQuizIdRef = useRef<string | null>(null)
@@ -156,6 +208,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const awayStartedAtRef = useRef<number | null>(null)
   const focusEnabledRef = useRef(false)
   const fullscreenActiveRef = useRef(false)
+  const isWindowCompliantStableRef = useRef(true)
+  const pendingNonCompliantTimeoutRef = useRef<number | null>(null)
+  const pendingNonCompliantSourceRef = useRef<'fullscreen_exit' | 'window_resize' | null>(null)
   const lastRouteExitRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
   const lastWindowSignalRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
   const findIntentUntilRef = useRef(0)
@@ -202,21 +257,42 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   }, [selectedQuizId])
 
   useEffect(() => {
+    isWindowCompliantStableRef.current = isWindowCompliantStable
+  }, [isWindowCompliantStable])
+
+  const clearPendingNonCompliantTimeout = useCallback(() => {
+    if (pendingNonCompliantTimeoutRef.current !== null) {
+      window.clearTimeout(pendingNonCompliantTimeoutRef.current)
+      pendingNonCompliantTimeoutRef.current = null
+    }
+    pendingNonCompliantSourceRef.current = null
+  }, [])
+
+  useEffect(() => {
     focusEnabledRef.current = focusEnabled
     if (!focusEnabled) {
+      clearPendingNonCompliantTimeout()
       lastRouteExitRef.current = null
       lastWindowSignalRef.current = null
       findIntentUntilRef.current = 0
       findSuppressionUntilRef.current = 0
       docsInteractionSuppressionUntilRef.current = 0
     }
-  }, [focusEnabled])
+  }, [clearPendingNonCompliantTimeout, focusEnabled])
 
   useEffect(() => {
-    const fullscreenNow = isFullscreenActive()
-    fullscreenActiveRef.current = fullscreenNow
-    setIsFullscreen(fullscreenNow)
+    const snapshot = getExamWindowComplianceSnapshot()
+    fullscreenActiveRef.current = snapshot.isFullscreen
+    setIsFullscreen(snapshot.isFullscreen)
+    setIsWindowCompliantNow(snapshot.isCompliant)
+    setIsWindowCompliantStable(snapshot.isCompliant)
   }, [])
+
+  useEffect(() => {
+    return () => {
+      clearPendingNonCompliantTimeout()
+    }
+  }, [clearPendingNonCompliantTimeout])
 
   const loadQuizzes = useCallback(async () => {
     setLoading(true)
@@ -240,6 +316,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     studentStatus?: StudentQuizStatus
     message?: string | null
   }) => {
+    clearPendingNonCompliantTimeout()
     const nextStudentStatus = options?.studentStatus ?? 'responded'
     setSelectedQuiz((current) => {
       if (!current) return current
@@ -264,7 +341,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     awayStartedAtRef.current = null
     lastRouteExitRef.current = null
     lastWindowSignalRef.current = null
-  }, [])
+  }, [clearPendingNonCompliantTimeout])
 
   async function handleSelectQuiz(quizId: string) {
     setSelectedQuizId(quizId)
@@ -473,6 +550,85 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     )
   }, [postFocusEvent, shouldSuppressForBrowserFind, shouldSuppressForDocInteraction])
 
+  const applyWindowComplianceSnapshot = useCallback((snapshot: ExamWindowComplianceSnapshot) => {
+    fullscreenActiveRef.current = snapshot.isFullscreen
+    setIsFullscreen(snapshot.isFullscreen)
+    setIsWindowCompliantNow(snapshot.isCompliant)
+  }, [])
+
+  const confirmNonCompliantWindow = useCallback((
+    source: 'fullscreen_exit' | 'window_resize',
+    snapshot: ExamWindowComplianceSnapshot
+  ) => {
+    setIsWindowCompliantStable(false)
+    if (!isWindowCompliantStableRef.current) return
+
+    const baseMetadata = {
+      width_ratio: Number(snapshot.widthRatio.toFixed(3)),
+      height_ratio: Number(snapshot.heightRatio.toFixed(3)),
+      inner_width: snapshot.innerWidth,
+      inner_height: snapshot.innerHeight,
+      avail_width: snapshot.availWidth,
+      avail_height: snapshot.availHeight,
+    }
+
+    if (source === 'window_resize') {
+      logWindowUnmaximizeAttempt(
+        'window_resize',
+        baseMetadata,
+        { dedupe: true, dedupeWindowMs: 3000, suppressDuringFind: true, updateSummary: true }
+      )
+      return
+    }
+
+    logWindowUnmaximizeAttempt(
+      'fullscreen_exit',
+      {
+        trigger: 'fullscreenchange',
+        ...baseMetadata,
+      },
+      { dedupe: true, suppressDuringFind: true, updateSummary: true }
+    )
+  }, [logWindowUnmaximizeAttempt])
+
+  const updateWindowCompliance = useCallback((
+    source: 'fullscreen_exit' | 'window_resize'
+  ) => {
+    const snapshot = getExamWindowComplianceSnapshot()
+    applyWindowComplianceSnapshot(snapshot)
+
+    if (snapshot.isCompliant) {
+      clearPendingNonCompliantTimeout()
+      setIsWindowCompliantStable(true)
+      return snapshot
+    }
+
+    clearPendingNonCompliantTimeout()
+    pendingNonCompliantSourceRef.current = source
+    pendingNonCompliantTimeoutRef.current = window.setTimeout(() => {
+      pendingNonCompliantTimeoutRef.current = null
+      const confirmedSource = pendingNonCompliantSourceRef.current
+      pendingNonCompliantSourceRef.current = null
+      const confirmedSnapshot = getExamWindowComplianceSnapshot()
+      applyWindowComplianceSnapshot(confirmedSnapshot)
+
+      if (confirmedSnapshot.isCompliant) {
+        setIsWindowCompliantStable(true)
+        return
+      }
+
+      if (confirmedSource) {
+        confirmNonCompliantWindow(confirmedSource, confirmedSnapshot)
+      }
+    }, EXAM_WINDOW_COMPLIANCE_GRACE_MS)
+
+    return snapshot
+  }, [
+    applyWindowComplianceSnapshot,
+    clearPendingNonCompliantTimeout,
+    confirmNonCompliantWindow,
+  ])
+
   const requestExamFullscreen = useCallback(async (
     source: string,
     options?: { logFailures?: boolean }
@@ -480,9 +636,12 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     if (!isTestsView) return
     const fullscreenElement = document.documentElement as FullscreenCapableElement
     if (!fullscreenElement?.requestFullscreen) {
-      const fullscreenNow = isFullscreenActive()
-      fullscreenActiveRef.current = fullscreenNow
-      setIsFullscreen(fullscreenNow)
+      const snapshot = getExamWindowComplianceSnapshot()
+      applyWindowComplianceSnapshot(snapshot)
+      if (snapshot.isCompliant) {
+        clearPendingNonCompliantTimeout()
+        setIsWindowCompliantStable(true)
+      }
       if (options?.logFailures) {
         logWindowUnmaximizeAttempt(
           'fullscreen_not_supported',
@@ -494,20 +653,26 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     }
 
     if (isFullscreenActive()) {
-      fullscreenActiveRef.current = true
-      setIsFullscreen(true)
+      const snapshot = getExamWindowComplianceSnapshot()
+      applyWindowComplianceSnapshot(snapshot)
+      clearPendingNonCompliantTimeout()
+      setIsWindowCompliantStable(true)
       return
     }
 
     try {
       await fullscreenElement.requestFullscreen()
-      const fullscreenNow = isFullscreenActive()
-      fullscreenActiveRef.current = fullscreenNow
-      setIsFullscreen(fullscreenNow)
+      const snapshot = getExamWindowComplianceSnapshot()
+      applyWindowComplianceSnapshot(snapshot)
+      clearPendingNonCompliantTimeout()
+      setIsWindowCompliantStable(snapshot.isCompliant)
     } catch (error) {
-      const fullscreenNow = isFullscreenActive()
-      fullscreenActiveRef.current = fullscreenNow
-      setIsFullscreen(fullscreenNow)
+      const snapshot = getExamWindowComplianceSnapshot()
+      applyWindowComplianceSnapshot(snapshot)
+      if (snapshot.isCompliant) {
+        clearPendingNonCompliantTimeout()
+        setIsWindowCompliantStable(true)
+      }
       if (options?.logFailures) {
         logWindowUnmaximizeAttempt(
           'fullscreen_request_failed',
@@ -519,9 +684,15 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
         )
       }
     }
-  }, [isTestsView, logWindowUnmaximizeAttempt])
+  }, [
+    applyWindowComplianceSnapshot,
+    clearPendingNonCompliantTimeout,
+    isTestsView,
+    logWindowUnmaximizeAttempt,
+  ])
 
   const performBackToAssessmentList = useCallback(() => {
+    clearPendingNonCompliantTimeout()
     setSelectedQuizId(null)
     setSelectedQuiz(null)
     setStartedTestId(null)
@@ -530,9 +701,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     setPendingStartTestId(null)
     setActiveDoc(null)
     setRemoteClosureNotice(null)
-    const fullscreenNow = isFullscreenActive()
-    fullscreenActiveRef.current = fullscreenNow
-    setIsFullscreen(fullscreenNow)
+    const snapshot = getExamWindowComplianceSnapshot()
+    applyWindowComplianceSnapshot(snapshot)
+    setIsWindowCompliantStable(snapshot.isCompliant)
     focusSessionIdRef.current = null
     awayStartedAtRef.current = null
     lastRouteExitRef.current = null
@@ -541,7 +712,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     findSuppressionUntilRef.current = 0
     docsInteractionSuppressionUntilRef.current = 0
     loadQuizzes() // Refresh list to get updated status
-  }, [loadQuizzes])
+  }, [applyWindowComplianceSnapshot, clearPendingNonCompliantTimeout, loadQuizzes])
 
   function handleBack() {
     performBackToAssessmentList()
@@ -695,63 +866,45 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
 
   useEffect(() => {
     if (!focusEnabled) {
-      const fullscreenNow = isFullscreenActive()
-      fullscreenActiveRef.current = fullscreenNow
-      setIsFullscreen(fullscreenNow)
+      clearPendingNonCompliantTimeout()
+      const snapshot = getExamWindowComplianceSnapshot()
+      applyWindowComplianceSnapshot(snapshot)
+      setIsWindowCompliantStable(snapshot.isCompliant)
       return
     }
 
-    const fullscreenNow = isFullscreenActive()
-    fullscreenActiveRef.current = fullscreenNow
-    setIsFullscreen(fullscreenNow)
-    if (!fullscreenNow) {
+    const initialSnapshot = getExamWindowComplianceSnapshot()
+    applyWindowComplianceSnapshot(initialSnapshot)
+    setIsWindowCompliantStable(true)
+    if (!initialSnapshot.isFullscreen) {
       void requestExamFullscreen('exam_mode_start')
+    }
+    if (!initialSnapshot.isCompliant) {
+      updateWindowCompliance('window_resize')
     }
 
     const handleFullscreenChange = () => {
-      const currentlyFullscreen = isFullscreenActive()
-      const wasFullscreen = fullscreenActiveRef.current
-      fullscreenActiveRef.current = currentlyFullscreen
-      setIsFullscreen(currentlyFullscreen)
-      if (wasFullscreen && !currentlyFullscreen) {
-        logWindowUnmaximizeAttempt(
-          'fullscreen_exit',
-          { trigger: 'fullscreenchange' },
-          { dedupe: true, suppressDuringFind: true, updateSummary: true }
-        )
-      }
+      void updateWindowCompliance('fullscreen_exit')
     }
 
     const handleResize = () => {
-      if (isFullscreenActive()) return
-      const availWidth = window.screen?.availWidth || window.innerWidth
-      const availHeight = window.screen?.availHeight || window.innerHeight
-      const widthRatio = availWidth > 0 ? window.innerWidth / availWidth : 1
-      const heightRatio = availHeight > 0 ? window.innerHeight / availHeight : 1
-      const looksUnmaximized = widthRatio < 0.92 || heightRatio < 0.88
-      if (!looksUnmaximized) return
-
-      logWindowUnmaximizeAttempt(
-        'window_resize',
-        {
-          width_ratio: Number(widthRatio.toFixed(3)),
-          height_ratio: Number(heightRatio.toFixed(3)),
-          inner_width: window.innerWidth,
-          inner_height: window.innerHeight,
-          avail_width: availWidth,
-          avail_height: availHeight,
-        },
-        { dedupe: true, dedupeWindowMs: 3000, suppressDuringFind: true, updateSummary: true }
-      )
+      void updateWindowCompliance('window_resize')
     }
 
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     window.addEventListener('resize', handleResize)
     return () => {
+      clearPendingNonCompliantTimeout()
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       window.removeEventListener('resize', handleResize)
     }
-  }, [focusEnabled, logWindowUnmaximizeAttempt, requestExamFullscreen])
+  }, [
+    applyWindowComplianceSnapshot,
+    clearPendingNonCompliantTimeout,
+    focusEnabled,
+    requestExamFullscreen,
+    updateWindowCompliance,
+  ])
 
   useEffect(() => {
     if (!focusEnabled) return
@@ -936,7 +1089,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     const awayCount = focusSummary?.away_count ?? 0
     const routeExitAttempts = focusSummary?.route_exit_attempts ?? 0
     const windowUnmaximizeAttempts = focusSummary?.window_unmaximize_attempts ?? 0
-    const showNotMaximizedWarning = showCurrentTestInfoPanel && !isFullscreen
+    const showNotMaximizedWarning = showCurrentTestInfoPanel && !isWindowCompliantStable
     const iframeDocs = allowedDocs.filter((doc) => doc.source !== 'text' && Boolean(doc.url))
     const selectedTestTitle = hasSelectedQuiz ? selectedQuiz.quiz.title : ''
     const selectedTestPanelTitle = isViewingResults

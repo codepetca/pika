@@ -86,7 +86,7 @@ pnpm run lint
 - `DEV_TEACHER_EMAILS` (comma-separated)
 - `ENABLE_MOCK_EMAIL` (`true` to log verification/reset codes)
 - `NEXT_PUBLIC_APP_URL`
-- `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in Vercel dashboard)
+- `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
 
 Legacy anon/service keys are supported but publishable/secret are preferred.
 
@@ -110,7 +110,7 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 
 - Host on Vercel; configure env vars in dashboard; set `ENABLE_MOCK_EMAIL=false` and add real email provider before production.
 - Supabase Cloud for DB; enable connection pooling; treat migrations as a separate human-controlled deploy step.
-- If using cron, configure schedules in the Vercel dashboard (production recommended). Current recommended schedule: `0 6 * * *` (06:00 UTC).
+- If using cron, configure schedules in the Vercel dashboard (production recommended). On the Hobby plan, Vercel cron is limited to at most one run per day, so do not add sub-daily schedules. Current recommended schedule: `0 6 * * *` (06:00 UTC).
 
 ---
 

@@ -8991,3 +8991,83 @@
 **Notes:**
 - No `.ai/features.json` update was needed because this is a targeted behavior fix rather than an epic-level feature change
 - Student visual verification used the seeded active test with a Playwright route override for the new session-status endpoint so the exact closure notice state could be reviewed in-browser
+## 2026-04-20 — Test AI Grading Token Reduction With Accuracy Guardrails
+
+- Added prompt profiles for test AI grading so manual single-response assist keeps the full rubric while bulk auto-grade uses a compact grading-critical prompt.
+- Reworked test auto-grade to batch only same-question multi-response groups by default, reuse cached/generated question-level reference answers, and persist new reference caches back to `test_questions`.
+- Added shared AI prompt telemetry plus deterministic measurement and gold-set evaluation scripts for assignment and test grading flows.
+- Updated teacher grading copy to explain the adaptive `Balanced` strategy and kept the request payload/API contract unchanged.
+- Added unit, API, and component coverage for compact prompt sizing, cache reuse/persistence, adaptive batching, and manual-profile preservation.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test` (full suite: 195 files / 1718 tests)
+- `pnpm measure:ai-grading-prompts`
+- Visual verification in current worktree dev server:
+  - teacher desktop `AI Prompt` modal
+  - teacher mobile `AI Prompt` modal
+  - student mobile tests list
+
+**Notes:**
+- `eval:test-ai-grading-gold-set` was added but not run here because `OPENAI_API_KEY` was not configured in this shell.
+- UI verification initially hit a different worktree’s dev server on port 3000; I restarted `next dev` from this issue worktree before capturing screenshots.
+## 2026-04-20 — Durable Assignment AI Grading Runs
+
+- Reworked batch assignment AI grading into durable run records with chunked execution, retries, cron draining, and polling endpoints while preserving the single-student synchronous path.
+- Added assignment AI grading run/storage types, migration `054_assignment_ai_grading_runs.sql`, a shared server worker, and structured per-item telemetry/error classification in the assignment grading helper.
+- Updated the teacher assignments workspace to start/resume background runs, poll progress, disable conflicting batch actions during active runs, and report graded vs empty vs missing vs failed counts accurately.
+- Hardened assignment detail loading so the new `active_ai_grading_run` read path degrades gracefully when migration `054` has not been applied locally yet, avoiding a teacher-page 500.
+- Polished the in-table progress overlay into a compact pill so the running-state label stays readable on desktop and mobile.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm exec vitest run` (full suite: 197 files / 1725 tests)
+- Visual verification in current worktree dev server:
+  - teacher desktop assignment grading workspace with active-run UI mocked into the detail pane
+  - teacher mobile assignment grading workspace with active-run UI mocked into the detail pane
+  - student mobile assignments list with real seeded data
+  - teacher desktop real assignment detail load after the schema-read hardening change
+
+**Notes:**
+- Repo rules prohibit me from applying Supabase migrations directly, so live multi-student background grading still requires migration `054` to be applied by a human before the new run tables exist.
+- For local visual verification of the active-run state, I used Playwright route interception against the teacher assignment detail fetch because the local schema had not yet been migrated.
+
+## 2026-04-21 — Assignment AI Grading Timeout and Retry Tuning
+
+- Tightened assignment grading Responses requests to strict JSON-schema output with `max_output_tokens` capped so `gpt-5-nano` returns only the score/comment shape the app actually needs.
+- Changed timeout retries to use a shorter backoff ladder (`7s`, `20s`, `45s`) while keeping the broader retry ladder (`15s`, `60s`, `180s`) for other retryable errors.
+- Added `next_retry_at` to assignment AI run summaries and updated the teacher polling loop to wait for the real retry window instead of hammering `tick` every `2s` during backoff.
+- Kept the batch-grading UX intact while reducing wasted wait time after transient timeouts and reducing output-token sprawl on successful calls.
+
+**Validation:**
+- `pnpm exec vitest run` (full suite: 197 files / 1726 tests)
+- `pnpm lint`
+- Visual verification in current worktree dev server:
+  - teacher desktop assignment detail for `Personal Narrative Essay`
+  - teacher mobile assignment detail for `Personal Narrative Essay`
+  - teacher desktop assignments summary
+  - teacher mobile assignments summary
+  - student mobile assignments summary
+
+## 2026-04-21 — Assignment Structured Output Regression Fix
+
+- Fixed assignment AI grading after `gpt-5-nano` structured-output calls returned only reasoning items when the `220` output-token cap was exhausted before any JSON message was emitted.
+- Updated assignment grading requests to use `reasoning.effort: "minimal"` and added a one-time fallback retry with a larger output cap before treating the response as failed.
+- Hardened the response parser to accept structured output from `output[].content[]` blocks even when the raw Responses API payload omits top-level `output_text`.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/ai-grading.test.ts`
+- `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
+- `pnpm lint`
+
+## 2026-04-21 — Remove Unsupported Assignment AI Grading Cron
+
+- Removed the repo-managed Vercel cron schedule and cron route for assignment AI grading so Hobby-plan deployments are no longer blocked by the unsupported every-minute schedule.
+- Kept batch assignment AI grading on the existing teacher-driven run-summary and tick endpoints, and updated the teacher assignment overlay copy to explain that the assignment page must stay open and that reopening resumes progress.
+- Added regression coverage for delayed tick retries and documented the Hobby-plan once-per-day cron limit in the AI/runtime docs.
+
+**Validation:**
+- `pnpm test tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm build`
+- `pnpm run seed`
+- Seeded browser verification on `Test Classroom` → `Personal Narrative Essay` showing the new teacher AI grading note during an active batch run

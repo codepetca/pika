@@ -1,159 +1,118 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
-import { gradeStudentWork } from '@/lib/ai-grading'
-import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
-import { analyzeAuthenticity } from '@/lib/authenticity'
 import { withErrorHandler } from '@/lib/api-handler'
-import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
 import { parseContentField } from '@/lib/tiptap-content'
-import type { AssignmentDocHistoryEntry } from '@/types'
+import {
+  createOrResumeAssignmentAiGradingRun,
+  gradeAssignmentDocWithAi,
+} from '@/lib/server/assignment-ai-grading-runs'
+import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-const CONCURRENCY_LIMIT = 5
 
 // POST /api/teacher/assignments/[id]/auto-grade - AI grade selected students
 export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
   const body = await request.json()
-  const { student_ids } = body
+  const student_ids = Array.isArray(body?.student_ids)
+    ? body.student_ids.filter((studentId: unknown): studentId is string => typeof studentId === 'string')
+    : []
+  const normalizedStudentIds: string[] = Array.from(new Set(student_ids))
 
-  if (!Array.isArray(student_ids) || student_ids.length === 0) {
+  if (normalizedStudentIds.length === 0) {
     return NextResponse.json({ error: 'student_ids array is required' }, { status: 400 })
   }
 
-  if (student_ids.length > 100) {
+  if (normalizedStudentIds.length > 100) {
     return NextResponse.json({ error: 'Cannot auto-grade more than 100 students at once' }, { status: 400 })
   }
 
+  const assignment = await assertTeacherOwnsAssignment(user.id, id)
   const supabase = getServiceRoleClient()
 
-  // Verify teacher owns this assignment
-  const { data: assignment, error: assignmentError } = await supabase
-    .from('assignments')
-    .select('*, classrooms!inner(teacher_id)')
-    .eq('id', id)
-    .single()
+  if (normalizedStudentIds.length > 1) {
+    const runResult = await createOrResumeAssignmentAiGradingRun({
+      assignmentId: id,
+      teacherId: user.id,
+      studentIds: normalizedStudentIds,
+    })
 
-  if (assignmentError || !assignment) {
-    return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
+    if (runResult.kind === 'conflict') {
+      return NextResponse.json(
+        {
+          error: 'Another assignment AI grading run is already active',
+          mode: 'background',
+          run: runResult.run,
+        },
+        { status: 409 },
+      )
+    }
+
+    return NextResponse.json(
+      {
+        mode: 'background',
+        run: runResult.run,
+      },
+      { status: 202 },
+    )
   }
 
-  if (assignment.classrooms.teacher_id !== user.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
-
-  // Fetch all docs for the given students
-  const { data: docs, error: docsError } = await supabase
+  const studentId = normalizedStudentIds[0]
+  const { data: doc, error: docError } = await supabase
     .from('assignment_docs')
-    .select('*')
+    .select('id, student_id, content, feedback, authenticity_score')
     .eq('assignment_id', id)
-    .in('student_id', student_ids)
+    .eq('student_id', studentId)
+    .maybeSingle()
 
-  if (docsError) {
-    console.error('Error fetching docs for auto-grade:', docsError)
+  if (docError) {
+    console.error('Error fetching docs for auto-grade:', docError)
     return NextResponse.json({ error: 'Failed to fetch student docs' }, { status: 500 })
   }
 
-  const instructionsText = limitedMarkdownToPlainText(
-    getAssignmentInstructionsMarkdown(assignment).markdown
-  )
-
-  // Process with concurrency limit
-  let gradedCount = 0
-  let skippedCount = 0
-  const errors: string[] = []
-
-  const queue = [...(docs || [])]
-
-  async function processOne() {
-    while (queue.length > 0) {
-      const doc = queue.shift()!
-      const studentWork = parseContentField(doc.content)
-
-      // Skip docs with no content (empty work)
-      if (!studentWork.content || studentWork.content.length === 0) {
-        skippedCount++
-        continue
-      }
-
-      try {
-        const result = await gradeStudentWork({
-          assignmentTitle: assignment.title,
-          instructions: instructionsText,
-          studentWork,
-          previousFeedback: doc.feedback,
-        })
-
-        const { error: updateError } = await supabase
-          .from('assignment_docs')
-          .update({
-            score_completion: result.score_completion,
-            score_thinking: result.score_thinking,
-            score_workflow: result.score_workflow,
-            ai_feedback_suggestion: result.feedback,
-            ai_feedback_suggested_at: new Date().toISOString(),
-            ai_feedback_model: result.model,
-            graded_at: null,
-            graded_by: null,
-          })
-          .eq('id', doc.id)
-
-        if (updateError) {
-          errors.push(`Failed to save grade for student ${doc.student_id}`)
-        } else {
-          gradedCount++
-
-          // Compute authenticity if not already set
-          if (doc.authenticity_score == null) {
-            try {
-              const { data: historyEntries } = await supabase
-                .from('assignment_doc_history')
-                .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at')
-                .eq('assignment_doc_id', doc.id)
-                .order('created_at', { ascending: true })
-
-              if (historyEntries && historyEntries.length > 1) {
-                const authResult = analyzeAuthenticity(historyEntries as AssignmentDocHistoryEntry[])
-                if (authResult.score !== null) {
-                  await supabase
-                    .from('assignment_docs')
-                    .update({
-                      authenticity_score: authResult.score,
-                      authenticity_flags: authResult.flags,
-                    })
-                    .eq('id', doc.id)
-                }
-              }
-            } catch {
-              // Non-fatal: authenticity scoring failure shouldn't block grading
-            }
-          }
-        }
-      } catch (err: any) {
-        errors.push(`${doc.student_id}: ${err.message}`)
-        skippedCount++
-      }
-    }
+  if (!doc) {
+    return NextResponse.json({
+      graded_count: 0,
+      skipped_count: 1,
+      errors: undefined,
+    })
   }
 
-  // Run workers in parallel up to concurrency limit
-  const workers = Array.from(
-    { length: Math.min(CONCURRENCY_LIMIT, queue.length) },
-    () => processOne()
-  )
-  await Promise.all(workers)
+  const studentWork = parseContentField(doc.content)
+  if (!studentWork.content || studentWork.content.length === 0) {
+    return NextResponse.json({
+      graded_count: 0,
+      skipped_count: 1,
+      errors: undefined,
+    })
+  }
 
-  // Count students with no doc at all as skipped
-  const docsStudentIds = new Set((docs || []).map((d) => d.student_id))
-  const noDocCount = student_ids.filter((sid) => !docsStudentIds.has(sid)).length
-  skippedCount += noDocCount
+  try {
+    await gradeAssignmentDocWithAi({
+      supabase,
+      assignment,
+      assignmentDoc: doc,
+      telemetry: {
+        operation: 'single_grade',
+        requestedStrategy: 'single',
+        resolvedStrategy: 'single',
+        studentId,
+      },
+    })
+  } catch (error) {
+    return NextResponse.json({
+      graded_count: 0,
+      skipped_count: 1,
+      errors: [error instanceof Error ? `${studentId}: ${error.message}` : `${studentId}: Auto-grade failed`],
+    })
+  }
 
   return NextResponse.json({
-    graded_count: gradedCount,
-    skipped_count: skippedCount,
-    errors: errors.length > 0 ? errors : undefined,
+    graded_count: 1,
+    skipped_count: 0,
+    errors: undefined,
   })
 })
