@@ -433,14 +433,14 @@ export function TeacherRosterTab({ classroom }: Props) {
                   />
                 </DataTableHeaderCell>
                 <SortableHeaderCell
-                  label="First Name"
+                  label="First"
                   isActive={sortColumn === 'first_name'}
                   direction={sortDirection}
                   onClick={() => onSort('first_name')}
-                  trailing={sortedRoster.length > 0 ? <StudentCountBadge count={sortedRoster.length} /> : undefined}
+                  trailing={sortedRoster.length > 0 ? <StudentCountBadge count={sortedRoster.length} variant="neutral" /> : undefined}
                 />
                 <SortableHeaderCell
-                  label="Last Name"
+                  label="Last"
                   isActive={sortColumn === 'last_name'}
                   direction={sortDirection}
                   onClick={() => onSort('last_name')}

@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -56,9 +56,9 @@ jobs:
           # Required environment variables for build
           # These are dummy values for CI - real values are in Vercel
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
-          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
-          AUTH_SESSION_SECRET: placeholder-session-secret-at-least-32-chars-long
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
+          SUPABASE_SECRET_KEY: placeholder-secret-key
+          SESSION_SECRET: placeholder-session-secret-at-least-32-chars-long
 
       - name: Upload coverage reports
         if: always()

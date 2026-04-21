@@ -86,6 +86,7 @@ pnpm e2e:verify --help
 # Run specific scenario
 pnpm e2e:verify create-classroom-wizard
 pnpm e2e:verify add-students-modal
+pnpm e2e:verify assessment-ux-parity
 ```
 
 ### Output Format
@@ -106,6 +107,50 @@ Scripts output JSON to stdout:
 ```
 
 Exit code is 0 for pass, 1 for fail.
+
+### Assignment-Parity Capture
+
+Use the `assessment-ux-parity` scenario when you need a reference/target screenshot set for assignment-style assessment work:
+
+```bash
+pnpm e2e:verify assessment-ux-parity
+```
+
+Artifacts are written to:
+
+```bash
+artifacts/assessment-ux-parity/
+```
+
+This scenario captures teacher/student assignment reference screens plus teacher/student assessment target screens for rubric-based review.
+
+### Blind Challenge Runner
+
+Use the dedicated teacher-tests blind runner when you want a fresh AI to attempt the parity change with attached screenshot references:
+
+```bash
+bash scripts/run-teacher-tests-parity-challenge.sh --refresh-auth
+```
+
+Artifacts written by the runner:
+
+- current assignment reference screenshot
+- teacher tests screenshot before the run
+- teacher tests screenshot after the run
+- exact prompt packet used for the run
+- the fresh AI's final summary
+
+The runner uses the scoped prompt at:
+
+```bash
+.codex/prompts/teacher-tests-ux-parity.md
+```
+
+If you want a looser “same family, not exact clone” direction for future work, use:
+
+```bash
+.codex/prompts/assessment-ux-family-parity.md
+```
 
 ## Iteration Workflow
 

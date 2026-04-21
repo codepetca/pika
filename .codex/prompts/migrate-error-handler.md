@@ -1,54 +1,11 @@
-Migrate an API route from manual try/catch error handling to `withErrorHandler`.
+Migrate the API route in `$ARGUMENTS` from manual `try/catch` handling to `withErrorHandler`.
 
-Takes the file path to migrate as an argument (relative to `$PIKA_WORKTREE` or absolute).
-
-This command operates on the bound worktree (`$PIKA_WORKTREE`).
-
-Rules:
-- ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`.
-- Preserve all existing business logic exactly.
-- Do NOT change response shapes, status codes, or behavior.
-- Only refactor the error handling wrapper.
-
-Migration pattern:
-
-**Before (manual):**
-```typescript
-export async function GET(request: NextRequest) {
-  try {
-    const user = await requireRole('teacher')
-    // ... business logic ...
-    return NextResponse.json(data)
-  } catch (error: any) {
-    if (error.name === 'AuthenticationError') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    if (error.name === 'AuthorizationError') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-    console.error('...', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-}
-```
-
-**After (withErrorHandler):**
-```typescript
-export const GET = withErrorHandler('GetResource', async (request, context) => {
-  const user = await requireRole('teacher')
-  // ... business logic (unchanged) ...
-  return NextResponse.json(data)
-})
-```
+Preserve business logic and response behavior. Only change the error-handling structure.
 
 Steps:
-1) Read the target file. If it already uses `withErrorHandler`, stop.
-2) For each exported handler (GET, POST, PATCH, PUT, DELETE):
-   - Remove the outer try/catch block.
-   - Keep the happy-path body unchanged.
-   - Change `export async function X(...)` to `export const X = withErrorHandler(...)`.
-   - Ensure handler signature includes `context` param.
-   - Derive route name from file path in PascalCase.
-3) Add `import { withErrorHandler } from '@/lib/api-handler'` if not present.
-4) If catch block has custom error handling beyond auth/500, convert to `ApiError` or `apiErrors` inline.
-5) Verify with `pnpm tsc --noEmit` and run any existing tests.
+1. Read the target file. If it already uses `withErrorHandler`, stop.
+2. For each exported handler, remove the outer `try/catch` and keep the happy path unchanged.
+3. Convert `export async function X(...)` to `export const X = withErrorHandler(...)`.
+4. Add `import { withErrorHandler } from '@/lib/api-handler'` if missing.
+5. If the old `catch` contained custom domain behavior, move it inline with `ApiError` or `apiErrors`.
+6. Verify with `pnpm -C "$PIKA_WORKTREE" tsc --noEmit` and run nearby tests when available.

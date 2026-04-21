@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import {
   combineScheduleDateTimeToIso,
+  getDefaultScheduleDateInSchedulingTimezone,
   getTodayInSchedulingTimezone,
   isScheduleIsoInFuture,
   isVisibleAtNow,
@@ -40,5 +41,10 @@ describe('scheduling utilities', () => {
     vi.setSystemTime(new Date('2026-03-01T04:30:00.000Z')) // 2026-02-28 23:30 Toronto
     expect(getTodayInSchedulingTimezone()).toBe('2026-02-28')
   })
-})
 
+  it('returns next Toronto day for default schedule helper', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-01T04:30:00.000Z')) // 2026-02-28 23:30 Toronto
+    expect(getDefaultScheduleDateInSchedulingTimezone()).toBe('2026-03-01')
+  })
+})

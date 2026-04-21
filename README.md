@@ -171,8 +171,8 @@ pnpm exec playwright show-report playwright-report
 
 ### Build
 ```bash
-npm run build
-npm start
+pnpm build
+pnpm start
 ```
 
 ## Authentication (Primary Flow)
@@ -227,7 +227,7 @@ pika/
 
 1. Push to GitHub and import into Vercel.
 2. Configure env vars (match `.env.local`); set `ENABLE_MOCK_EMAIL=false` and wire a real email provider in `email.ts` for production.
-3. Build command `npm run build`; output `.next`.
+3. Build command `pnpm build`; output `.next`.
 
 ## Environment Variables Reference
 

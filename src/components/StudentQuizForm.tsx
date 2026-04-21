@@ -26,7 +26,18 @@ interface Props {
   isInteractionLocked?: boolean
   assessmentType?: QuizAssessmentType
   apiBasePath?: string
+  onAvailabilityLoss?: () => void
   onSubmitted: () => void
+}
+
+function isAssessmentAvailabilityError(message: string): boolean {
+  const normalized = message.toLowerCase()
+  return (
+    normalized.includes('not active') ||
+    normalized.includes('not found') ||
+    normalized.includes('submitted test') ||
+    normalized.includes('already responded')
+  )
 }
 
 export function StudentQuizForm({
@@ -38,6 +49,7 @@ export function StudentQuizForm({
   isInteractionLocked = false,
   assessmentType,
   apiBasePath = '/api/student/quizzes',
+  onAvailabilityLoss,
   onSubmitted,
 }: Props) {
   const OPEN_RESPONSE_TAB_INDENT = '\t'
@@ -78,6 +90,8 @@ export function StudentQuizForm({
     }
     return response.question_type === 'multiple_choice'
   })
+  const saveStatusLabel =
+    saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Unsaved changes'
   useEffect(() => {
     const normalized = normalizeTestResponses(initialResponses)
     setResponses(normalized)
@@ -137,9 +151,13 @@ export function StudentQuizForm({
       setSaveStatus('saved')
     } catch (saveError) {
       console.error('Error saving test draft:', saveError)
+      const message = saveError instanceof Error ? saveError.message : 'Failed to save draft'
+      if (isAssessmentAvailabilityError(message)) {
+        onAvailabilityLoss?.()
+      }
       setSaveStatus('unsaved')
     }
-  }, [apiBasePath, quizId, shouldAutosave])
+  }, [apiBasePath, onAvailabilityLoss, quizId, shouldAutosave])
 
   useEffect(() => {
     return () => {
@@ -368,7 +386,11 @@ export function StudentQuizForm({
       setFlaggedQuestions([])
       onSubmitted()
     } catch (err: any) {
-      setError(err.message || 'Failed to submit response')
+      const message = err?.message || 'Failed to submit response'
+      if (isAssessmentAvailabilityError(message)) {
+        onAvailabilityLoss?.()
+      }
+      setError(message)
     } finally {
       setSubmitting(false)
       setShowConfirm(false)
@@ -383,163 +405,165 @@ export function StudentQuizForm({
   }
 
   return (
-    <div className="mt-4 space-y-6">
-      {questions.map((question, index) => (
-        <div key={question.id} data-question-id={question.id} className="space-y-2">
-          {(() => {
-            const response = responses[question.id]
-            const openResponseText =
-              response?.question_type === 'open_response' ? response.response_text : ''
-            const selectedOption =
-              response?.question_type === 'multiple_choice' ? response.selected_option : null
-            const isFlagged = isQuestionFlagged(quizId, question.id)
+    <>
+      <div className="mt-4 flex min-h-full flex-col gap-6">
+        <div className="space-y-6">
+          {questions.map((question, index) => (
+            <div key={question.id} data-question-id={question.id} className="space-y-2">
+              {(() => {
+                const response = responses[question.id]
+                const openResponseText =
+                  response?.question_type === 'open_response' ? response.response_text : ''
+                const selectedOption =
+                  response?.question_type === 'multiple_choice' ? response.selected_option : null
+                const isFlagged = isQuestionFlagged(quizId, question.id)
 
-            return (
-              <>
-                <div
-                  data-question-title-id={question.id}
-                  className={`group relative space-y-1 cursor-pointer rounded-lg px-3 py-2 transition-colors ${
-                    isFlagged ? 'bg-info-bg' : 'hover:bg-surface-hover'
-                  } ${isInteractionLocked ? 'cursor-not-allowed opacity-50' : ''}`}
-                  onClick={() => !isInteractionLocked && handleToggleFlagged(question.id)}
-                  title={isFlagged ? 'Unflag question' : 'Flag for review'}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if ((e.key === 'Enter' || e.key === ' ') && !isInteractionLocked) {
-                      handleToggleFlagged(question.id)
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                        Q{index + 1}
-                        {isTestMode && typeof question.points === 'number'
-                          ? ` · ${question.points} pts`
-                          : ''}
-                      </p>
-                      <QuestionMarkdown content={question.question_text} />
-                    </div>
+                return (
+                  <>
                     <div
-                      className={`text-2xl leading-none flex-shrink-0 pt-1 transition-opacity ${
-                        isFlagged ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                      }`}
+                      data-question-title-id={question.id}
+                      className={`group relative space-y-1 cursor-pointer rounded-lg px-3 py-2 transition-colors ${
+                        isFlagged ? 'bg-info-bg' : 'hover:bg-surface-hover'
+                      } ${isInteractionLocked ? 'cursor-not-allowed opacity-50' : ''}`}
+                      onClick={() => !isInteractionLocked && handleToggleFlagged(question.id)}
+                      title={isFlagged ? 'Unflag question' : 'Flag for review'}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if ((e.key === 'Enter' || e.key === ' ') && !isInteractionLocked) {
+                          handleToggleFlagged(question.id)
+                        }
+                      }}
                     >
-                      {isFlagged ? '★' : '☆'}
-                    </div>
-                  </div>
-                </div>
-                {question.question_type === 'open_response' ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={openResponseText}
-                      disabled={isInteractionLocked}
-                      onChange={(event) =>
-                        handleOpenResponseChange(
-                          question.id,
-                          event.target.value,
-                          Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)
-                        )
-                      }
-                      onKeyDown={(event) =>
-                        handleOpenResponseKeyDown(
-                          event,
-                          question.id,
-                          Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)
-                        )
-                      }
-                      rows={6}
-                      maxLength={Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)}
-                      className={`w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary ${
-                        question.response_monospace ? 'font-mono leading-6' : ''
-                      }`}
-                      style={{ tabSize: OPEN_RESPONSE_TAB_SIZE }}
-                      placeholder="Write your response..."
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {question.options.map((option, optionIndex) => {
-                      const isSelected = selectedOption === optionIndex
-
-                      return (
-                        <label
-                          key={optionIndex}
-                          className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                            isSelected
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border hover:bg-surface-hover'
-                          } ${isInteractionLocked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                            Q{index + 1}
+                            {isTestMode && typeof question.points === 'number'
+                              ? ` · ${question.points} pts`
+                              : ''}
+                          </p>
+                          <QuestionMarkdown content={question.question_text} />
+                        </div>
+                        <div
+                          className={`text-2xl leading-none flex-shrink-0 pt-1 transition-opacity ${
+                            isFlagged ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                          }`}
                         >
-                          <input
-                            type="radio"
-                            name={`question-${question.id}`}
-                            checked={isSelected}
-                            disabled={isInteractionLocked}
-                            onChange={() => handleOptionSelect(question.id, optionIndex)}
-                            className="sr-only"
-                          />
-                          <span
-                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                              isSelected ? 'border-primary' : 'border-border'
-                            }`}
-                          >
-                            {isSelected && (
-                              <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-                            )}
-                          </span>
-                          <span className="text-text-default">{option}</span>
-                        </label>
-                      )
-                    })}
-                  </div>
-                )}
-              </>
-            )
-          })()}
+                          {isFlagged ? '★' : '☆'}
+                        </div>
+                      </div>
+                    </div>
+                    {question.question_type === 'open_response' ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={openResponseText}
+                          disabled={isInteractionLocked}
+                          onChange={(event) =>
+                            handleOpenResponseChange(
+                              question.id,
+                              event.target.value,
+                              Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)
+                            )
+                          }
+                          onKeyDown={(event) =>
+                            handleOpenResponseKeyDown(
+                              event,
+                              question.id,
+                              Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)
+                            )
+                          }
+                          rows={6}
+                          maxLength={Number(question.response_max_chars ?? DEFAULT_OPEN_RESPONSE_MAX_CHARS)}
+                          className={`w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary ${
+                            question.response_monospace ? 'font-mono leading-6' : ''
+                          }`}
+                          style={{ tabSize: OPEN_RESPONSE_TAB_SIZE }}
+                          placeholder="Write your response..."
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {question.options.map((option, optionIndex) => {
+                          const isSelected = selectedOption === optionIndex
+
+                          return (
+                            <label
+                              key={optionIndex}
+                              className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                                isSelected
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-border hover:bg-surface-hover'
+                              } ${isInteractionLocked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                            >
+                              <input
+                                type="radio"
+                                name={`question-${question.id}`}
+                                checked={isSelected}
+                                disabled={isInteractionLocked}
+                                onChange={() => handleOptionSelect(question.id, optionIndex)}
+                                className="sr-only"
+                              />
+                              <span
+                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                  isSelected ? 'border-primary' : 'border-border'
+                                }`}
+                              >
+                                {isSelected && (
+                                  <span className="w-2.5 h-2.5 rounded-full bg-primary" />
+                                )}
+                              </span>
+                              <span className="text-text-default">{option}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+          ))}
+
+          {error && (
+            <div className="rounded-lg bg-danger-bg p-3 text-sm text-danger">{error}</div>
+          )}
+
+          {previewSubmitMessage && (
+            <div className="rounded-lg border border-success bg-success-bg px-3 py-2 text-sm text-success">
+              {previewSubmitMessage}
+            </div>
+          )}
         </div>
-      ))}
 
-      {error && (
-        <div className="p-3 bg-danger-bg text-danger text-sm rounded-lg">{error}</div>
-      )}
-
-      {shouldAutosave && (
-        <p className="text-xs text-text-muted">
-          {saveStatus === 'saving'
-            ? 'Saving...'
-            : saveStatus === 'saved'
-              ? 'Saved'
-              : 'Unsaved changes'}
-        </p>
-      )}
-
-      {previewSubmitMessage && (
-        <div className="rounded-lg border border-success bg-success-bg px-3 py-2 text-sm text-success">
-          {previewSubmitMessage}
-        </div>
-      )}
-
-      <div className="pt-4 space-y-3">
-        <Button
-          onClick={() => {
-            if (flaggedQuestions.length > 0) {
-              setShowFlaggedWarning(true)
-            } else {
-              setShowConfirm(true)
-            }
-          }}
-          disabled={isInteractionLocked || !allAnswered || submitting}
-          className="w-full"
+        <div
+          data-testid="student-quiz-action-footer"
+          className="sticky bottom-0 z-10 mt-auto rounded-lg border border-border bg-surface p-3 shadow-sm"
         >
-          Submit
-        </Button>
-        {!allAnswered && (
-          <p className="text-sm text-text-muted text-center">
-            Answer all questions to submit
-          </p>
-        )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              {shouldAutosave && (
+                <p className="text-xs text-text-muted">{saveStatusLabel}</p>
+              )}
+              {!allAnswered && (
+                <p className="text-sm text-text-muted">Answer all questions to submit</p>
+              )}
+            </div>
+            <Button
+              onClick={() => {
+                if (flaggedQuestions.length > 0) {
+                  setShowFlaggedWarning(true)
+                } else {
+                  setShowConfirm(true)
+                }
+              }}
+              disabled={isInteractionLocked || !allAnswered || submitting}
+              className="w-full sm:min-w-[10rem] sm:w-auto"
+            >
+              Submit
+            </Button>
+          </div>
+        </div>
       </div>
 
       <ConfirmDialog
@@ -574,6 +598,6 @@ export function StudentQuizForm({
         onCancel={() => setShowConfirm(false)}
         onConfirm={handleSubmit}
       />
-    </div>
+    </>
   )
 }

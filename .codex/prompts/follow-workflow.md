@@ -1,20 +1,10 @@
-STOP and re-read the workflow docs before continuing.
+Stop and reload the canonical workflow context before continuing.
 
-You may have drifted from the required workflow. Follow these steps:
-
-1) Check environment first: `echo $PIKA_WORKTREE`
-2) Read the workflow docs:
-   - Read `$PIKA_WORKTREE/.ai/START-HERE.md`
-   - Read `$PIKA_WORKTREE/docs/dev-workflow.md`
-   (If $PIKA_WORKTREE is unset, use `$HOME/Repos/pika`)
-
-Key rules to remember:
-
-- NEVER assume the shell cwd
-- ALL git commands MUST use: `git -C "$PIKA_WORKTREE"`
-- ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`
-- Verify `$PIKA_WORKTREE` is set before running commands
-- Hub (`$HOME/Repos/pika`) is for managing worktrees, NOT feature development
+Read these files in order:
+1. `$PIKA_WORKTREE/.ai/START-HERE.md`
+2. `$PIKA_WORKTREE/.ai/CURRENT.md`
+3. `$PIKA_WORKTREE/docs/ai-instructions.md`
+4. `$PIKA_WORKTREE/docs/dev-workflow.md`
 
 After reading, confirm:
 1. What is `$PIKA_WORKTREE` set to?

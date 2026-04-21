@@ -259,7 +259,27 @@ describe('QuizDetailPanel', () => {
           }),
         })
 
-      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+      const replaceSpy = vi.fn()
+      const fakePreviewWindow = {
+        closed: false,
+        close: vi.fn(),
+        focus: vi.fn(),
+        moveTo: vi.fn(),
+        resizeTo: vi.fn(),
+        document: {
+          title: '',
+          body: {
+            innerHTML: '',
+            style: {
+              margin: '',
+            },
+          },
+        },
+        location: {
+          replace: replaceSpy,
+        },
+      } as unknown as Window
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => fakePreviewWindow)
 
       const testQuiz = makeQuizWithStats({
         id: 'test-preview-action-id',
@@ -286,18 +306,101 @@ describe('QuizDetailPanel', () => {
       await waitFor(() => {
         expect(openSpy).toHaveBeenCalled()
       })
-      const openArgs = openSpy.mock.calls.at(-1)
-      expect(openArgs?.[0]).toBe('/classrooms/classroom-1/tests/test-preview-action-id/preview')
+      const openArgs = openSpy.mock.calls.at(0)
+      expect(openArgs?.[0]).toBe('')
       expect(openArgs?.[1]).toBe('_blank')
-      expect(openArgs?.[2]).toContain('noopener')
-      expect(openArgs?.[2]).toContain('noreferrer')
+      expect(openArgs?.[2]).toContain('popup=yes')
       expect(openArgs?.[2]).toContain('width=')
       expect(openArgs?.[2]).toContain('height=')
+      expect(replaceSpy).toHaveBeenCalledWith('/classrooms/classroom-1/tests/test-preview-action-id/preview')
 
       const patchCall = fetchMock.mock.calls.find(
         (call: any[]) =>
           typeof call[0] === 'string' &&
           call[0].includes('/api/teacher/tests/test-preview-action-id/draft') &&
+          call[1]?.method === 'PATCH'
+      )
+      expect(patchCall).toBeTruthy()
+
+      openSpy.mockRestore()
+    })
+
+    it('uses the in-app preview callback for tests when provided', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Inline Preview Test',
+                show_results: true,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [],
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 2,
+              content: {
+                title: 'Inline Preview Test',
+                show_results: true,
+                questions: sampleQuestions,
+              },
+            },
+          }),
+        })
+
+      const onRequestTestPreview = vi.fn()
+      const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+      const testQuiz = makeQuizWithStats({
+        id: 'test-inline-preview-id',
+        assessment_type: 'test',
+        title: 'Inline Preview Test',
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          onRequestTestPreview={onRequestTestPreview}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+
+      await waitFor(() => {
+        expect(onRequestTestPreview).toHaveBeenCalledWith({
+          testId: 'test-inline-preview-id',
+          title: 'Inline Preview Test',
+        })
+      })
+      expect(openSpy).not.toHaveBeenCalled()
+
+      const patchCall = fetchMock.mock.calls.find(
+        (call: any[]) =>
+          typeof call[0] === 'string' &&
+          call[0].includes('/api/teacher/tests/test-inline-preview-id/draft') &&
           call[1]?.method === 'PATCH'
       )
       expect(patchCall).toBeTruthy()

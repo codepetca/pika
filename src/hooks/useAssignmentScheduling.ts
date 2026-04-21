@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 import {
   combineScheduleDateTimeToIso,
   DEFAULT_SCHEDULE_TIME,
-  getTodayInSchedulingTimezone,
+  getDefaultScheduleDateInSchedulingTimezone,
   isScheduleIsoInFuture,
   isVisibleAtNow,
   parseScheduleIsoToParts,
@@ -102,7 +102,7 @@ export function useAssignmentScheduling({
   onClose,
   onError,
 }: UseAssignmentSchedulingOptions): UseAssignmentSchedulingReturn {
-  const [scheduleDate, setScheduleDate] = useState(getTodayInSchedulingTimezone())
+  const [scheduleDate, setScheduleDate] = useState(getDefaultScheduleDateInSchedulingTimezone())
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
   const [primaryAction, setPrimaryAction] = useState<CreateSubmitAction>('post')
   const [showPostNowConfirm, setShowPostNowConfirm] = useState(false)
@@ -154,7 +154,8 @@ export function useAssignmentScheduling({
       setScheduleTime(scheduled.time)
       setPrimaryAction('schedule')
     } else {
-      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
+      setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
       setPrimaryAction('post')
     }
@@ -179,7 +180,8 @@ export function useAssignmentScheduling({
       setScheduleDate(parsed.date)
       setScheduleTime(parsed.time)
     } else {
-      setScheduleDate(getTodayInSchedulingTimezone())
+      setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
+      setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
     }
   }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { StudentQuizzesTab } from '@/app/classrooms/[classroomId]/StudentQuizzesTab'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -18,6 +18,7 @@ describe('StudentQuizzesTab exam mode', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     cleanup()
     vi.useRealTimers()
     Object.defineProperty(window, 'innerWidth', {
@@ -102,6 +103,13 @@ describe('StudentQuizzesTab exam mode', () => {
     return splitContainer
   }
 
+  function querySplitContainer(container: HTMLElement): HTMLDivElement | null {
+    const splitContainer = container.querySelector(
+      '[data-testid="student-test-split-container"]'
+    )
+    return splitContainer instanceof HTMLDivElement ? splitContainer : null
+  }
+
   function makeFocusSummary(overrides: Partial<QuizFocusSummary> = {}): QuizFocusSummary {
     return {
       exit_count: 0,
@@ -113,6 +121,27 @@ describe('StudentQuizzesTab exam mode', () => {
       last_away_ended_at: null,
       ...overrides,
     }
+  }
+
+  function mockFullscreenSuccess() {
+    let fullscreenElement: Element | null = null
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+
+    const requestFullscreen = vi.fn().mockImplementation(async () => {
+      fullscreenElement = document.documentElement
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    })
+
+    return { requestFullscreen }
   }
 
   it('does not show an in-panel exit control for active tests', async () => {
@@ -139,12 +168,14 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
-      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Maximize Window/i })).toBeInTheDocument()
     })
 
-    expect(screen.getByRole('radio', { name: '3' })).toBeDisabled()
-    expect(screen.getByRole('radio', { name: '4' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    expect(screen.queryByText('2 + 2 = ?')).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: '3' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: '4' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
     expect(screen.queryByText('Exit Test')).not.toBeInTheDocument()
     expect(screen.queryByText('Leave this test?')).not.toBeInTheDocument()
   })
@@ -201,11 +232,7 @@ describe('StudentQuizzesTab exam mode', () => {
         focus_summary: makeFocusSummary(),
       }),
     })
-    const requestFullscreen = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(document.documentElement, 'requestFullscreen', {
-      configurable: true,
-      value: requestFullscreen,
-    })
+    const { requestFullscreen } = mockFullscreenSuccess()
 
     render(
       <StudentQuizzesTab classroom={classroom} assessmentType="test" />
@@ -230,7 +257,235 @@ describe('StudentQuizzesTab exam mode', () => {
     })
   })
 
+  it('shows a closure notice when an active test is closed remotely and returns to the tests list after acknowledgment', async () => {
+    let listReads = 0
+    const setIntervalSpy = vi.spyOn(window, 'setInterval')
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        listReads += 1
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: listReads === 1 ? 'active' : 'closed',
+              show_results: false,
+              position: 0,
+              student_status: listReads === 1 ? 'not_started' : 'responded',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: null,
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1/session-status')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              status: 'closed',
+              assessment_type: 'test',
+              student_status: 'responded',
+              returned_at: null,
+            },
+            student_status: 'responded',
+            returned_at: null,
+            can_continue: false,
+            message: 'Your current work has been submitted.',
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    mockFullscreenSuccess()
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    })
+
+    expect(setIntervalSpy.mock.calls.some(([, delay]) => delay === 30_000)).toBe(true)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('This test is now closed.')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Your current work has been submitted.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Return to tests' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('This test is now closed.')).not.toBeInTheDocument()
+      expect(screen.getByText('This test is closed')).toBeInTheDocument()
+    })
+  })
+
+  it('shows the results-available closure copy when the returned-work session is closed remotely', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [
+              {
+                id: 'test-1',
+                title: 'Midterm Test',
+                assessment_type: 'test',
+                status: 'active',
+                show_results: false,
+                position: 0,
+                student_status: 'not_started',
+              },
+            ],
+          }),
+        }
+      }
+
+      if (url === '/api/student/tests/test-1') {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: null,
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1/session-status')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              status: 'closed',
+              assessment_type: 'test',
+              student_status: 'can_view_results',
+              returned_at: '2026-01-02T00:00:00.000Z',
+            },
+            student_status: 'can_view_results',
+            returned_at: '2026-01-02T00:00:00.000Z',
+            can_continue: false,
+            message: 'Your current work has been submitted. Results are now available from the tests list.',
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+
+    mockFullscreenSuccess()
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('This test is now closed.')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Your current work has been submitted. Results are now available from the tests list.')).toBeInTheDocument()
+  })
+
   it('shows left-panel exits and away indicators in active test detail', async () => {
+    mockFullscreenSuccess()
+
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -339,16 +594,18 @@ describe('StudentQuizzesTab exam mode', () => {
 
     expect(screen.getByLabelText(/Exits 4\./)).toBeInTheDocument()
     expect(screen.getByLabelText('Away time 13s.')).toBeInTheDocument()
-    expect(screen.getAllByText('Window must be maximized in exam mode.').length).toBeGreaterThan(0)
-    expect(screen.getByRole('button', { name: /Maximize/i })).toBeInTheDocument()
-    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
-    expect(screen.getByTestId('exam-interaction-blocker')).toBeInTheDocument()
+    expect(screen.queryByText('Window must be maximized in exam mode.')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Maximize/i })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('exam-interaction-blocker')).not.toBeInTheDocument()
     expect(screen.queryByText(/Window status:/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Focus events:/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Browser minimization attempts/i)).not.toBeInTheDocument()
   })
 
-  it('uses 50/50 split before start and 30/70 exam mode split after start', async () => {
+  it('uses centered detail before start and 30/70 exam mode split after start', async () => {
+    mockFullscreenSuccess()
+
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -441,16 +698,14 @@ describe('StudentQuizzesTab exam mode', () => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
     })
 
-    const splitContainerBeforeStart = getSplitContainer(container)
-    expect(splitContainerBeforeStart.className).toContain('lg:grid-cols-[50%_50%]')
-    expect(splitContainerBeforeStart.className).not.toContain('lg:grid-cols-[30%_70%]')
-    expect(screen.getByRole('heading', { name: 'Tests' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Exam Mode' })).not.toBeInTheDocument()
-
     fireEvent.click(screen.getByText('Midterm Test'))
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
     })
+    expect(querySplitContainer(container)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Back to tests' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Tests' })).not.toBeInTheDocument()
+
     fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
     await waitFor(() => {
       expect(screen.getByText('Start this test?')).toBeInTheDocument()
@@ -477,6 +732,8 @@ describe('StudentQuizzesTab exam mode', () => {
   })
 
   it('switches to 50/50 split when opening a doc and restores 30/70 on back', async () => {
+    mockFullscreenSuccess()
+
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -589,14 +846,17 @@ describe('StudentQuizzesTab exam mode', () => {
     const splitContainerExamMode = getSplitContainer(container)
     expect(splitContainerExamMode.className).toContain('lg:grid-cols-[30%_70%]')
     expect(splitContainerExamMode.className).not.toContain('lg:grid-cols-[50%_50%]')
-    expect(splitContainerExamMode.className).toContain('lg:h-full')
+    expect(splitContainerExamMode.className).toContain('lg:h-[calc(100dvh-3rem)]')
     expect(splitContainerExamMode.className).toContain('lg:min-h-0')
 
-    const paneSections = splitContainerExamMode.querySelectorAll('section')
-    expect(paneSections[0]?.className || '').toContain('lg:sticky')
-    expect(paneSections[0]?.className || '').toContain('lg:h-[calc(100dvh-3rem)]')
-    expect(paneSections[1]?.className || '').toContain('lg:sticky')
-    expect(paneSections[1]?.className || '').toContain('overflow-y-auto')
+    const documentsPane = screen.getByTestId('student-test-documents-pane')
+    const detailPane = screen.getByTestId('student-test-detail-pane')
+    expect(documentsPane.className).toContain('min-h-0')
+    expect(documentsPane.className).toContain('overflow-y-auto')
+    expect(documentsPane.className).not.toContain('lg:sticky')
+    expect(detailPane.className).toContain('min-h-0')
+    expect(detailPane.className).toContain('overflow-y-auto')
+    expect(detailPane.className).not.toContain('lg:sticky')
 
     const docsHeading = screen.getByRole('heading', { name: 'Documents' })
     const leftPaneScroller = docsHeading.closest('.scrollbar-hover')
@@ -627,6 +887,100 @@ describe('StudentQuizzesTab exam mode', () => {
     })
     const splitContainerBack = getSplitContainer(container)
     expect(splitContainerBack.className).toContain('lg:grid-cols-[30%_70%]')
+  })
+
+  it('keeps the submit footer mounted while the right pane scrolls through a long active test', async () => {
+    let fullscreenElement: Element | null = null
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockImplementation(async () => {
+        fullscreenElement = document.documentElement
+      }),
+    })
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: Array.from({ length: 12 }, (_, index) => ({
+              id: `q${index + 1}`,
+              quiz_id: 'test-1',
+              question_text: `Question ${index + 1}?`,
+              options: ['A', 'B'],
+              question_type: 'multiple_choice' as const,
+              points: 1,
+              response_max_chars: 5000,
+              position: index,
+            })),
+            student_responses: {},
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Question 12?')).toBeInTheDocument()
+    })
+
+    const detailPane = screen.getByTestId('student-test-detail-pane')
+    const actionFooter = within(detailPane).getByTestId('student-quiz-action-footer')
+
+    fireEvent.scroll(detailPane, { target: { scrollTop: 1200 } })
+
+    expect(detailPane.className).toContain('overflow-y-auto')
+    expect(within(actionFooter).getByRole('button', { name: 'Submit' })).toBeInTheDocument()
+    expect(within(actionFooter).getByText('Answer all questions to submit')).toBeInTheDocument()
   })
 
   it('suppresses iframe doc-triggered fullscreen and resize exits', async () => {
@@ -1114,7 +1468,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(document.querySelector('iframe[title="Node.js API"]')).not.toBeInTheDocument()
   })
 
-  it('uses 30/70 split when student is viewing returned test results', async () => {
+  it('uses centered detail when student is viewing returned test results', async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -1226,9 +1580,8 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(screen.getByText('Returned')).toBeInTheDocument()
     expect(screen.queryByText('View Results')).not.toBeInTheDocument()
 
-    const splitContainer = getSplitContainer(container)
-    expect(splitContainer.className).toContain('lg:grid-cols-[30%_70%]')
-    expect(splitContainer.className).not.toContain('lg:grid-cols-[50%_50%]')
+    expect(querySplitContainer(container)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Back to tests' })).toBeInTheDocument()
   })
 
   it('shows Closed, Submitted, and Returned status pills for tests', async () => {
@@ -1441,7 +1794,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(screen.queryByRole('button', { name: 'Open in new tab' })).not.toBeInTheDocument()
   })
 
-  it('keeps the test list visible and refreshes statuses after submit', async () => {
+  it('refreshes list statuses after submit when returning from detail', async () => {
     let listCallCount = 0
     let detailCallCount = 0
 
@@ -1565,7 +1918,14 @@ describe('StudentQuizzesTab exam mode', () => {
       expect(screen.getByText('Response Submitted')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Final Test')).toBeInTheDocument()
+    expect(querySplitContainer(document.body)).toBeNull()
+    expect(screen.queryByText('Final Test')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to tests' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Final Test')).toBeInTheDocument()
+    })
     expect(screen.getByText('Submitted')).toBeInTheDocument()
   })
 
@@ -2276,7 +2636,7 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
-      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Maximize Window/i })).toBeInTheDocument()
     })
 
     fireEvent(window, new Event('resize'))

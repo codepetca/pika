@@ -1,3 +1,7 @@
+import {
+  extractAssignmentArtifacts,
+  type AssignmentArtifact,
+} from '@/lib/assignment-artifacts'
 import { extractPlainText } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
@@ -30,6 +34,44 @@ function extractResponseOutputText(payload: any): string | null {
   return null
 }
 
+function formatArtifactLabel(artifact: AssignmentArtifact): string {
+  switch (artifact.type) {
+    case 'image':
+      return 'Image'
+    case 'repo':
+      return 'Repository'
+    default:
+      return 'Link'
+  }
+}
+
+function buildStudentSubmissionText(studentWork: TiptapContent): string {
+  const studentText = extractPlainText(studentWork).trim()
+  const artifacts = extractAssignmentArtifacts(studentWork)
+  const sections: string[] = []
+
+  if (studentText) {
+    sections.push(studentText)
+  }
+
+  if (artifacts.length > 0) {
+    const artifactLines = artifacts.map((artifact) => {
+      const repoSummary =
+        artifact.type === 'repo' && artifact.repo_owner && artifact.repo_name
+          ? ` (${artifact.repo_owner}/${artifact.repo_name})`
+          : ''
+      return `- ${formatArtifactLabel(artifact)}: ${artifact.url}${repoSummary}`
+    })
+    sections.push(`Attached Artifacts:\n${artifactLines.join('\n')}`)
+  }
+
+  if (sections.length === 0) {
+    throw new Error('Student work is empty')
+  }
+
+  return sections.join('\n\n')
+}
+
 export interface GradeResult {
   score_completion: number
   score_thinking: number
@@ -50,17 +92,14 @@ export async function gradeStudentWork(opts: {
   }
 
   const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
-  const studentText = extractPlainText(opts.studentWork)
-
-  if (!studentText.trim()) {
-    throw new Error('Student work is empty')
-  }
+  const studentSubmission = buildStudentSubmissionText(opts.studentWork)
 
   const systemPrompt = `You are an assignment grader. Grade the student's work using this rubric:
 
 - **Completion** (0–10): Did the student complete all parts of the assignment?
 - **Thinking** (0–10): Does the work show depth of thought, analysis, or understanding?
 - **Workflow** (0–10): Is the work organized, clear, and well-presented?
+- Treat attached artifacts (links, repositories, images) as part of the student's submission. Do not say a required site or artifact is missing if it appears in the "Attached Artifacts" section.
 
 Respond with ONLY valid JSON in this format:
 {"score_completion":N,"score_thinking":N,"score_workflow":N,"feedback":"..."}
@@ -75,7 +114,7 @@ Feedback rules:
 Instructions: ${opts.instructions}
 
 Student Work:
-${studentText}`
+${studentSubmission}`
 
   const res = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
