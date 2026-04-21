@@ -10,6 +10,10 @@
   },
   "crons": [
     {
+      "path": "/api/cron/assignment-ai-grading-runs",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/nightly-log-summaries",
       "schedule": "0 6 * * *"
     }

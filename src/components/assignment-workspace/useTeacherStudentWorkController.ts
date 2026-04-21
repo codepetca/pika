@@ -20,6 +20,7 @@ const SECTION_ORDER: InspectorSectionId[] = ['history', 'repo', 'grades', 'comme
 const DEFAULT_EXPANDED_SECTIONS: InspectorSectionId[] = ['grades', 'comments']
 const INSPECTOR_SECTIONS_COOKIE_PREFIX = 'pika_teacher_student_work_sections'
 const GRADE_AUTOSAVE_DELAY_MS = 900
+const DRAFT_AUTOSAVED_NOTICE_MS = 2500
 
 function getInspectorSectionsCookieName(classroomId: string) {
   return `${INSPECTOR_SECTIONS_COOKIE_PREFIX}:${classroomId}`
@@ -155,6 +156,7 @@ export interface TeacherStudentWorkController {
   hasFreshAIDraft: boolean
   gradeMode: GradeSaveMode
   gradeSaving: boolean
+  showDraftAutosavedNotice: boolean
   gradeError: string
   autoGrading: boolean
   feedbackReturning: boolean
@@ -194,6 +196,7 @@ export function useTeacherStudentWorkController({
   const studentLoadRequestIdRef = useRef(0)
   const historyLoadRequestIdRef = useRef(0)
   const lastSavedGradeSnapshotRef = useRef('')
+  const draftAutosavedTimeoutRef = useRef<number | null>(null)
   const [data, setData] = useState<StudentWorkData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -211,6 +214,7 @@ export function useTeacherStudentWorkController({
   const [feedbackDraft, setFeedbackDraft] = useState('')
   const [hasFreshAIDraft, setHasFreshAIDraft] = useState(false)
   const [gradeSaving, setGradeSaving] = useState(false)
+  const [showDraftAutosavedNotice, setShowDraftAutosavedNotice] = useState(false)
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
   const [feedbackReturning, setFeedbackReturning] = useState(false)
@@ -246,6 +250,25 @@ export function useTeacherStudentWorkController({
     },
     [persistExpandedSections],
   )
+
+  const clearDraftAutosavedNotice = useCallback(() => {
+    if (draftAutosavedTimeoutRef.current) {
+      window.clearTimeout(draftAutosavedTimeoutRef.current)
+      draftAutosavedTimeoutRef.current = null
+    }
+    setShowDraftAutosavedNotice(false)
+  }, [])
+
+  const flashDraftAutosavedNotice = useCallback(() => {
+    if (draftAutosavedTimeoutRef.current) {
+      window.clearTimeout(draftAutosavedTimeoutRef.current)
+    }
+    setShowDraftAutosavedNotice(true)
+    draftAutosavedTimeoutRef.current = window.setTimeout(() => {
+      draftAutosavedTimeoutRef.current = null
+      setShowDraftAutosavedNotice(false)
+    }, DRAFT_AUTOSAVED_NOTICE_MS)
+  }, [])
 
   const dispatchGradeUpdated = useCallback(
     (doc: AssignmentDoc | null) => {
@@ -305,6 +328,7 @@ export function useTeacherStudentWorkController({
   }, [handleExitPreview, lockedEntryId])
 
   const populateGradeForm = useCallback((doc: AssignmentDoc | null, mergeBaseDraft?: string | null) => {
+    clearDraftAutosavedNotice()
     if (!doc) {
       setScoreCompletion('')
       setScoreThinking('')
@@ -339,7 +363,7 @@ export function useTeacherStudentWorkController({
       feedbackDraft: mergedDraft.value,
       mode: getGradeSaveMode(doc),
     })
-  }, [])
+  }, [clearDraftAutosavedNotice])
 
   const loadStudentWork = useCallback(
     async (options?: { mergeFeedbackIntoDraftFrom?: string | null }): Promise<StudentWorkData | null> => {
@@ -416,6 +440,9 @@ export function useTeacherStudentWorkController({
 
   useEffect(() => {
     return () => {
+      if (draftAutosavedTimeoutRef.current) {
+        window.clearTimeout(draftAutosavedTimeoutRef.current)
+      }
       onLoadingStateChange?.(false)
     }
   }, [onLoadingStateChange])
@@ -526,6 +553,11 @@ export function useTeacherStudentWorkController({
         lastSavedGradeSnapshotRef.current = nextSnapshot
         setData((current) => (current ? { ...current, doc: result.doc } : current))
         dispatchGradeUpdated(result.doc)
+        if (selectedSaveMode === 'draft') {
+          flashDraftAutosavedNotice()
+        } else {
+          clearDraftAutosavedNotice()
+        }
       } catch (err: any) {
         lastSavedGradeSnapshotRef.current = previousSavedSnapshot
         setData((current) => (current ? { ...current, doc: previousDoc } : current))
@@ -538,7 +570,9 @@ export function useTeacherStudentWorkController({
       assignmentId,
       data,
       dispatchGradeUpdated,
+      clearDraftAutosavedNotice,
       feedbackDraft,
+      flashDraftAutosavedNotice,
       scoreCompletion,
       scoreThinking,
       scoreWorkflow,
@@ -584,23 +618,27 @@ export function useTeacherStudentWorkController({
 
   const updateScoreCompletion = useCallback((value: string) => {
     setGradeError('')
+    clearDraftAutosavedNotice()
     setScoreCompletion(value)
-  }, [])
+  }, [clearDraftAutosavedNotice])
 
   const updateScoreThinking = useCallback((value: string) => {
     setGradeError('')
+    clearDraftAutosavedNotice()
     setScoreThinking(value)
-  }, [])
+  }, [clearDraftAutosavedNotice])
 
   const updateScoreWorkflow = useCallback((value: string) => {
     setGradeError('')
+    clearDraftAutosavedNotice()
     setScoreWorkflow(value)
-  }, [])
+  }, [clearDraftAutosavedNotice])
 
   const updateFeedbackDraft = useCallback((value: string) => {
     setGradeError('')
+    clearDraftAutosavedNotice()
     setFeedbackDraft(value)
-  }, [])
+  }, [clearDraftAutosavedNotice])
 
   const handleSetGradeMode = useCallback(
     async (selectedSaveMode: GradeSaveMode) => {
@@ -748,6 +786,7 @@ export function useTeacherStudentWorkController({
     hasFreshAIDraft,
     gradeMode,
     gradeSaving,
+    showDraftAutosavedNotice,
     gradeError,
     autoGrading,
     feedbackReturning,

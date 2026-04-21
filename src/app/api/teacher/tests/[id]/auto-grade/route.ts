@@ -6,7 +6,8 @@ import {
   getTestOpenResponseGradingModel,
   prepareTestOpenResponseGradingContext,
   suggestTestOpenResponseGradeWithContext,
-  suggestTestOpenResponseGradesBatch,
+  suggestTestOpenResponseGradesBatchWithContext,
+  resolveReusableTestOpenResponseReferenceAnswers,
 } from '@/lib/ai-test-grading'
 import { withErrorHandler } from '@/lib/api-handler'
 
@@ -99,7 +100,7 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
   const supabase = getServiceRoleClient()
   const { data: openQuestionRows, error: openQuestionError } = await supabase
     .from('test_questions')
-    .select('id, question_text, points, response_monospace, answer_key, sample_solution')
+    .select('id, question_text, points, response_monospace, answer_key, sample_solution, ai_reference_cache_key, ai_reference_cache_answers, ai_reference_cache_model, ai_reference_cache_generated_at')
     .eq('test_id', testId)
     .eq('question_type', 'open_response')
 
@@ -118,6 +119,20 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
         responseMonospace: row.response_monospace === true,
         answerKey: typeof row.answer_key === 'string' ? row.answer_key : null,
         sampleSolution: typeof row.sample_solution === 'string' ? row.sample_solution : null,
+        referenceCache: resolveReusableTestOpenResponseReferenceAnswers({
+          testTitle,
+          questionText: String(row.question_text || ''),
+          maxPoints: Number(row.points ?? 0),
+          model: currentModel,
+          isCodingQuestion: row.response_monospace === true,
+          cacheKey: typeof (row as any).ai_reference_cache_key === 'string'
+            ? (row as any).ai_reference_cache_key
+            : null,
+          cacheAnswers: (row as any).ai_reference_cache_answers,
+          cacheModel: typeof (row as any).ai_reference_cache_model === 'string'
+            ? (row as any).ai_reference_cache_model
+            : null,
+        }),
       },
     ])
   )
@@ -178,6 +193,8 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
     responseMonospace: boolean
     answerKey: string | null
     sampleSolution: string | null
+    cachedReferenceAnswers: string[] | null
+    expectedReferenceCacheKey: string
   }
 
   const tasksByQuestion = new Map<string, GradeTask[]>()
@@ -309,6 +326,8 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
         responseMonospace: questionMeta.responseMonospace,
         answerKey: questionMeta.answerKey,
         sampleSolution: questionMeta.sampleSolution,
+        cachedReferenceAnswers: questionMeta.referenceCache.referenceAnswers,
+        expectedReferenceCacheKey: questionMeta.referenceCache.expectedCacheKey,
       }
       const current = tasksByQuestion.get(questionId) || []
       current.push(task)
@@ -403,29 +422,62 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
           responseMonospace: firstTask.responseMonospace,
           answerKey: firstTask.answerKey,
           sampleSolution: firstTask.sampleSolution,
+          referenceAnswers: firstTask.cachedReferenceAnswers,
           promptGuidelineOverride,
+          promptProfile: 'bulk',
+          telemetryContext: {
+            feature: 'test_auto_grade',
+            requestedStrategy: gradingStrategy,
+            resolvedStrategy:
+              gradingStrategy === 'aggressive_batch' || tasks.length > 1 ? 'batch' : 'single',
+          },
         })
 
-        if (gradingStrategy === 'aggressive_batch') {
-          const suggestions = await suggestTestOpenResponseGradesBatch({
-            testTitle,
-            questionText: firstTask.questionText,
-            maxPoints: firstTask.maxPoints,
-            responseMonospace: firstTask.responseMonospace,
-            answerKey: firstTask.answerKey,
-            sampleSolution: firstTask.sampleSolution,
-            promptGuidelineOverride,
-            referenceAnswers:
-              prepared.grading_basis === 'generated_reference'
-                ? prepared.reference_answers
-                : undefined,
-            responses: tasks.map((task) => ({
+        if (
+          prepared.grading_basis === 'generated_reference' &&
+          prepared.reference_answers_source === 'generated'
+        ) {
+          const { error: cacheUpdateError } = await supabase
+            .from('test_questions')
+            .update({
+              ai_reference_cache_key: firstTask.expectedReferenceCacheKey,
+              ai_reference_cache_answers: prepared.reference_answers,
+              ai_reference_cache_model: prepared.model,
+              ai_reference_cache_generated_at: new Date().toISOString(),
+            })
+            .eq('id', firstTask.questionId)
+            .eq('test_id', testId)
+
+          if (cacheUpdateError) {
+            console.error('Error caching generated reference answers:', {
+              testId,
+              questionId: firstTask.questionId,
+              error: cacheUpdateError,
+            })
+          }
+        }
+
+        const useBatchStrategy =
+          gradingStrategy === 'aggressive_batch' ||
+          (gradingStrategy === 'balanced' && tasks.length > 1)
+
+        if (useBatchStrategy) {
+          const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
+            prepared,
+            tasks.map((task) => ({
               responseId: task.responseId,
               responseText: task.responseText,
             })),
-          })
+            {
+              feature: 'test_auto_grade',
+              requestedStrategy: gradingStrategy,
+              resolvedStrategy: 'batch',
+            }
+          )
 
-          const suggestionById = new Map(suggestions.map((suggestion) => [suggestion.responseId, suggestion]))
+          const suggestionById = new Map(
+            suggestions.map((suggestion) => [suggestion.responseId, suggestion])
+          )
           for (const task of tasks) {
             const suggestion = suggestionById.get(task.responseId)
             if (!suggestion) {
@@ -439,7 +491,12 @@ export const POST = withErrorHandler('AutoGradeTeacherTest', async (request, con
         for (const task of tasks) {
           const suggestion = await suggestTestOpenResponseGradeWithContext(
             prepared,
-            task.responseText
+            task.responseText,
+            {
+              feature: 'test_auto_grade',
+              requestedStrategy: gradingStrategy,
+              resolvedStrategy: 'single',
+            }
           )
           await persistSuggestion(task, suggestion)
         }

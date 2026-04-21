@@ -706,6 +706,11 @@ describe('TeacherQuizzesTab', () => {
     expect(await screen.findByRole('heading', { name: 'AI Prompt' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Grading option')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Additional instructions (optional)')).toHaveValue('')
+    expect(
+      screen.getByText(
+        /Balanced adapts automatically: it reuses one question-level grading context per question and batches same-question responses when there is more than one to grade\./
+      )
+    ).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Grading strategy'), {
       target: { value: 'aggressive_batch' },
     })

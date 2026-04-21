@@ -71,6 +71,7 @@ export function TeacherStudentWorkPanel({
     hasFreshAIDraft,
     gradeMode,
     gradeSaving,
+    showDraftAutosavedNotice,
     gradeError,
     feedbackReturning,
     repoAnalyzing,
@@ -238,6 +239,7 @@ export function TeacherStudentWorkPanel({
       gradeError={gradeError}
       feedbackReturning={feedbackReturning}
       gradeSaving={gradeSaving}
+      showDraftAutosavedNotice={showDraftAutosavedNotice}
       repoAnalyzing={repoAnalyzing}
       expandedSections={expandedSections}
       onToggleSection={toggleSection}

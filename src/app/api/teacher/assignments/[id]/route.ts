@@ -5,6 +5,7 @@ import { calculateAssignmentStatus } from '@/lib/assignments'
 import { extractAssignmentArtifacts } from '@/lib/assignment-artifacts'
 import { buildAssignmentInstructionFields, getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
+import { getActiveAssignmentAiGradingRunSummary } from '@/lib/server/assignment-ai-grading-runs'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -139,6 +140,8 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     return nameA.localeCompare(nameB)
   })
 
+  const activeAiGradingRun = await getActiveAssignmentAiGradingRunSummary(id)
+
   return NextResponse.json({
     assignment: {
       id: assignment.id,
@@ -158,6 +161,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     },
     classroom: assignment.classrooms,
     students,
+    active_ai_grading_run: activeAiGradingRun,
   })
 })
 

@@ -52,6 +52,21 @@ describe('gradeStudentWork prompt rules', () => {
     expect(systemPrompt).toContain('sentence starting with "Strength:"')
     expect(systemPrompt).toContain('sentence starting with "Next Step:"')
     expect(systemPrompt).toContain('total score is less than 30')
+    expect(gradingBody.max_output_tokens).toBe(220)
+    expect(gradingBody.reasoning).toEqual({ effort: 'minimal' })
+    expect(gradingBody.text?.format).toEqual(
+      expect.objectContaining({
+        type: 'json_schema',
+        name: 'assignment_grade',
+        strict: true,
+      }),
+    )
+    expect(gradingBody.text?.format?.schema).toEqual(
+      expect.objectContaining({
+        type: 'object',
+        additionalProperties: false,
+      }),
+    )
   })
 
   it('includes extracted artifacts in the grading prompt', async () => {
@@ -132,5 +147,101 @@ describe('gradeStudentWork prompt rules', () => {
     expect(result.score_completion).toBe(8)
     expect(userPrompt).toContain('Attached Artifacts:')
     expect(userPrompt).toContain('- Image: https://cdn.example.com/submission-images/final-site.png')
+  })
+
+  it('parses structured output from response content when output_text is absent', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        status: 'completed',
+        output: [
+          { type: 'reasoning', summary: [] },
+          {
+            type: 'message',
+            role: 'assistant',
+            content: [
+              {
+                type: 'output_text',
+                text: '{"score_completion":9,"score_thinking":8,"score_workflow":8,"feedback":"Strength: Strong structure. Next Step: Add one more specific detail. Improve: Expand your reflection with one concrete example."}',
+              },
+            ],
+          },
+        ],
+      }),
+    })
+
+    const result = await gradeStudentWork({
+      assignmentTitle: 'Reflection',
+      instructions: 'Write a reflection about your learning process.',
+      studentWork: {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'I learned how to revise more carefully this week.' }],
+          },
+        ],
+      },
+    })
+
+    expect(result.score_completion).toBe(9)
+    expect(result.feedback).toContain('Strength:')
+  })
+
+  it('retries once with a larger output cap when the first response is incomplete', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'incomplete',
+          incomplete_details: { reason: 'max_output_tokens' },
+          output: [{ type: 'reasoning', summary: [] }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'completed',
+          output: [
+            { type: 'reasoning', summary: [] },
+            {
+              type: 'message',
+              role: 'assistant',
+              content: [
+                {
+                  type: 'output_text',
+                  text: '{"score_completion":8,"score_thinking":8,"score_workflow":7,"feedback":"Strength: Complete response. Next Step: Tighten your conclusion. Improve: Add one more concrete image to strengthen the ending."}',
+                },
+              ],
+            },
+          ],
+        }),
+      })
+
+    const result = await gradeStudentWork({
+      assignmentTitle: 'Personal Narrative',
+      instructions: 'Write about a meaningful memory.',
+      studentWork: {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'I wrote about baking with my grandmother and what I learned from it.' }],
+          },
+        ],
+      },
+    })
+
+    expect(result.score_completion).toBe(8)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}'))
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}'))
+    expect(firstBody.max_output_tokens).toBe(220)
+    expect(secondBody.max_output_tokens).toBe(420)
+    expect(firstBody.reasoning).toEqual({ effort: 'minimal' })
+    expect(secondBody.reasoning).toEqual({ effort: 'minimal' })
   })
 })

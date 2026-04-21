@@ -9,6 +9,11 @@ const mockFetchJSONWithCache = vi.fn()
 const mockToggleSelect = vi.fn()
 const mockToggleSelectAll = vi.fn()
 const mockClearSelection = vi.fn()
+const mockStudentSelectionState = {
+  selectedIds: new Set<string>(),
+  allSelected: false,
+  selectedCount: 0,
+}
 
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: any) => <div>{children}</div>,
@@ -48,12 +53,12 @@ vi.mock('@/hooks/useDelayedBusy', () => ({
 
 vi.mock('@/hooks/useStudentSelection', () => ({
   useStudentSelection: () => ({
-    selectedIds: new Set<string>(),
+    selectedIds: mockStudentSelectionState.selectedIds,
     toggleSelect: mockToggleSelect,
     toggleSelectAll: mockToggleSelectAll,
-    allSelected: false,
+    allSelected: mockStudentSelectionState.allSelected,
     clearSelection: mockClearSelection,
-    selectedCount: 0,
+    selectedCount: mockStudentSelectionState.selectedCount,
   }),
 }))
 
@@ -200,7 +205,12 @@ function makeAssignmentSummary(id: string, title: string) {
   }
 }
 
-function makeAssignmentDetails(assignmentId: string, title: string, studentId: string) {
+function makeAssignmentDetails(
+  assignmentId: string,
+  title: string,
+  studentId: string,
+  activeAiGradingRun: any = null,
+) {
   return {
     assignment: {
       id: assignmentId,
@@ -238,6 +248,7 @@ function makeAssignmentDetails(assignmentId: string, title: string, studentId: s
         },
       },
     ],
+    active_ai_grading_run: activeAiGradingRun,
   }
 }
 
@@ -255,6 +266,9 @@ describe('TeacherClassroomView', () => {
     mockToggleSelect.mockReset()
     mockToggleSelectAll.mockReset()
     mockClearSelection.mockReset()
+    mockStudentSelectionState.selectedIds = new Set<string>()
+    mockStudentSelectionState.allSelected = false
+    mockStudentSelectionState.selectedCount = 0
     clearSelectionCookie()
     mockFetchJSONWithCache.mockResolvedValue({
       assignments: [
@@ -367,7 +381,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'Class' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getAllByRole('button', { name: /AI Grade/i })).toHaveLength(1)
-    expect(screen.getByRole('button', { name: /Send/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Return/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit assignment' })).toBeInTheDocument()
   })
 
@@ -484,5 +498,185 @@ describe('TeacherClassroomView', () => {
 
     expect(screen.getByRole('button', { name: 'Class' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Individual' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('resumes an active assignment AI grading run and reports the final counts', async () => {
+    const initialRun = {
+      id: 'run-1',
+      assignment_id: 'assignment-1',
+      status: 'running',
+      model: 'gpt-5-nano',
+      requested_count: 2,
+      gradable_count: 1,
+      processed_count: 0,
+      completed_count: 0,
+      skipped_missing_count: 1,
+      skipped_empty_count: 0,
+      failed_count: 0,
+      pending_count: 2,
+      next_retry_at: null,
+      error_samples: [],
+      started_at: '2026-04-20T12:00:00Z',
+      completed_at: null,
+      created_at: '2026-04-20T12:00:00Z',
+    }
+
+    let assignmentFetchCount = 0
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        assignmentFetchCount += 1
+        return Promise.resolve({
+          ok: true,
+          json: async () =>
+            makeAssignmentDetails(
+              'assignment-1',
+              'Assignment One',
+              'student-1',
+              assignmentFetchCount === 1 ? initialRun : null,
+            ),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            run: {
+              ...initialRun,
+              processed_count: 1,
+              pending_count: 1,
+              next_retry_at: null,
+            },
+          }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-1/tick') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            claimed: true,
+            run: {
+              ...initialRun,
+              status: 'completed',
+              processed_count: 2,
+              completed_count: 1,
+              pending_count: 0,
+              next_retry_at: null,
+              completed_at: '2026-04-20T12:02:00Z',
+            },
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Graded 1 • 1 missing')).toBeInTheDocument()
+    })
+    expect(mockClearSelection).toHaveBeenCalled()
+  })
+
+  it('waits for the next retry window before polling tick again', async () => {
+    const nextRetryAt = new Date(Date.now() + 60_000).toISOString()
+    let statusFetchCount = 0
+    let tickFetchCount = 0
+
+    const initialRun = {
+      id: 'run-1',
+      assignment_id: 'assignment-1',
+      status: 'running',
+      model: 'gpt-5-nano',
+      requested_count: 2,
+      gradable_count: 2,
+      processed_count: 1,
+      completed_count: 1,
+      skipped_missing_count: 0,
+      skipped_empty_count: 0,
+      failed_count: 0,
+      pending_count: 1,
+      next_retry_at: nextRetryAt,
+      error_samples: [],
+      started_at: '2026-04-20T12:00:00Z',
+      completed_at: null,
+      created_at: '2026-04-20T12:00:00Z',
+    }
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () =>
+            makeAssignmentDetails(
+              'assignment-1',
+              'Assignment One',
+              'student-1',
+              initialRun,
+            ),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-1') {
+        statusFetchCount += 1
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            run: initialRun,
+          }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-1/tick') {
+        tickFetchCount += 1
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            claimed: true,
+            run: initialRun,
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(statusFetchCount).toBeGreaterThan(0)
+    })
+    expect(tickFetchCount).toBe(0)
   })
 })

@@ -64,6 +64,7 @@ import { isVisibleAtNow } from '@/lib/scheduling'
 import type {
   Classroom,
   Assignment,
+  AssignmentAiGradingRunSummary,
   AssignmentStats,
   AssignmentStatus,
   ClassDay,
@@ -229,6 +230,64 @@ function getStudentDisplayName(row: StudentSubmissionRow | null): string | null 
   return fullName || row.student_email || null
 }
 
+function isAssignmentAiGradingRunActive(run: AssignmentAiGradingRunSummary | null): boolean {
+  return !!run && (run.status === 'queued' || run.status === 'running')
+}
+
+function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null): number {
+  if (!run || !isAssignmentAiGradingRunActive(run) || !run.next_retry_at) {
+    return 2000
+  }
+
+  const retryAt = new Date(run.next_retry_at).getTime()
+  if (!Number.isFinite(retryAt)) {
+    return 2000
+  }
+
+  const delay = retryAt - Date.now() + 250
+  return Math.min(Math.max(delay, 1000), 10_000)
+}
+
+function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary): {
+  info: string
+  error: string
+} {
+  const summaryParts: string[] = []
+
+  if (run.completed_count > 0) {
+    summaryParts.push(`Graded ${run.completed_count}`)
+  }
+  if (run.skipped_empty_count > 0) {
+    summaryParts.push(`${run.skipped_empty_count} empty`)
+  }
+  if (run.skipped_missing_count > 0) {
+    summaryParts.push(`${run.skipped_missing_count} missing`)
+  }
+  if (run.failed_count > 0) {
+    summaryParts.push(`${run.failed_count} failed`)
+  }
+
+  const summary = summaryParts.length > 0
+    ? summaryParts.join(' • ')
+    : 'No grading changes were needed'
+  const errorDetails = run.error_samples
+    .slice(0, 3)
+    .map((sample) => sample.message)
+    .join('\n')
+
+  if (run.status === 'completed_with_errors' || run.status === 'failed') {
+    return {
+      info: '',
+      error: errorDetails ? `${summary}\n${errorDetails}` : summary,
+    }
+  }
+
+  return {
+    info: summary,
+    error: '',
+  }
+}
+
 export function TeacherClassroomView({
   classroom,
   onSelectAssignment,
@@ -262,6 +321,7 @@ export function TeacherClassroomView({
     assignment: Assignment
     students: StudentSubmissionRow[]
   } | null>(null)
+  const [assignmentAiGradingRun, setAssignmentAiGradingRun] = useState<AssignmentAiGradingRunSummary | null>(null)
   const [selectedAssignmentLoading, setSelectedAssignmentLoading] = useState(false)
   const [selectedAssignmentError, setSelectedAssignmentError] = useState<string>('')
 
@@ -296,6 +356,7 @@ export function TeacherClassroomView({
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const wasActiveRef = useRef(isActive)
+  const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
   const showSummarySpinner = useDelayedBusy(loading && assignments.length === 0)
   const {
     layout: assignmentGradingLayout,
@@ -456,6 +517,7 @@ export function TeacherClassroomView({
   useEffect(() => {
     if (selection.mode !== 'assignment') {
       setSelectedAssignmentData(null)
+      setAssignmentAiGradingRun(null)
       setSelectedAssignmentError('')
       setSelectedAssignmentLoading(false)
       return
@@ -477,9 +539,11 @@ export function TeacherClassroomView({
           assignment: data.assignment,
           students: (data.students || []) as StudentSubmissionRow[],
         })
+        setAssignmentAiGradingRun((data.active_ai_grading_run as AssignmentAiGradingRunSummary | null) ?? null)
       } catch (err: any) {
         setSelectedAssignmentError(err.message || 'Failed to load assignment')
         setSelectedAssignmentData(null)
+        setAssignmentAiGradingRun(null)
       } finally {
         setSelectedAssignmentLoading(false)
       }
@@ -503,6 +567,15 @@ export function TeacherClassroomView({
       ? selectedAssignmentData
       : null
   }, [selectedAssignmentData, selection])
+
+  const activeAssignmentAiRun = useMemo(() => {
+    if (selection.mode !== 'assignment' || !assignmentAiGradingRun) return null
+    return assignmentAiGradingRun.assignment_id === selection.assignmentId
+      ? assignmentAiGradingRun
+      : null
+  }, [assignmentAiGradingRun, selection])
+  const activeAssignmentAiRunId = activeAssignmentAiRun?.id ?? null
+  const hasActiveAssignmentAiRun = isAssignmentAiGradingRunActive(activeAssignmentAiRun)
 
   // Notify parent about selected assignment for sidebar
   useEffect(() => {
@@ -643,11 +716,99 @@ export function TeacherClassroomView({
     return () => clearTimeout(timer)
   }, [info])
 
+  useEffect(() => {
+    if (selection.mode !== 'assignment' || !activeAssignmentAiRunId || !hasActiveAssignmentAiRun) return
+
+    let isCancelled = false
+    let timeoutId: number | undefined
+
+    const syncRun = async () => {
+      const assignmentId = selection.assignmentId
+      const runId = activeAssignmentAiRunId
+      let shouldContinue = true
+      let nextDelayMs = 2000
+
+      try {
+        const statusResponse = await fetch(
+          `/api/teacher/assignments/${assignmentId}/auto-grade-runs/${runId}`,
+        )
+        const statusData = await statusResponse.json().catch(() => ({}))
+        if (!isCancelled && statusResponse.ok && statusData.run) {
+          const nextRun = statusData.run as AssignmentAiGradingRunSummary
+          setAssignmentAiGradingRun(nextRun)
+          if (!isAssignmentAiGradingRunActive(nextRun)) {
+            shouldContinue = false
+            return
+          }
+
+          const statusDelayMs = getAssignmentAiRunPollDelayMs(nextRun)
+          nextDelayMs = statusDelayMs
+          if (statusDelayMs > 2500) {
+            return
+          }
+        }
+
+        const tickResponse = await fetch(
+          `/api/teacher/assignments/${assignmentId}/auto-grade-runs/${runId}/tick`,
+          {
+            method: 'POST',
+          },
+        )
+        const tickData = await tickResponse.json().catch(() => ({}))
+        if (!isCancelled && tickResponse.ok && tickData.run) {
+          const nextRun = tickData.run as AssignmentAiGradingRunSummary
+          setAssignmentAiGradingRun(nextRun)
+          if (!isAssignmentAiGradingRunActive(nextRun)) {
+            shouldContinue = false
+          } else {
+            nextDelayMs = getAssignmentAiRunPollDelayMs(nextRun)
+          }
+        }
+      } catch {
+        // Keep the run state visible; the next poll or cron tick can recover.
+      } finally {
+        if (!isCancelled && shouldContinue) {
+          timeoutId = window.setTimeout(syncRun, nextDelayMs)
+        }
+      }
+    }
+
+    void syncRun()
+
+    return () => {
+      isCancelled = true
+      if (timeoutId) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [activeAssignmentAiRunId, hasActiveAssignmentAiRun, selection.assignmentId, selection.mode])
+
+  useEffect(() => {
+    if (!activeAssignmentAiRun || hasActiveAssignmentAiRun) return
+
+    const handledKey = `${activeAssignmentAiRun.id}:${activeAssignmentAiRun.status}:${activeAssignmentAiRun.processed_count}:${activeAssignmentAiRun.failed_count}`
+    if (handledCompletedRunKeysRef.current.has(handledKey)) return
+    handledCompletedRunKeysRef.current.add(handledKey)
+
+    const message = formatAssignmentAiGradingRunMessage(activeAssignmentAiRun)
+    batchClearSelection()
+    setRefreshCounter((count) => count + 1)
+
+    if (message.error) {
+      setError(message.error)
+      setInfo('')
+    } else {
+      setInfo(message.info)
+      setError('')
+    }
+  }, [activeAssignmentAiRun, batchClearSelection, hasActiveAssignmentAiRun])
+
   async function handleBatchAutoGrade() {
     if (!selectedAssignmentData || batchSelectedCount === 0) return
     setBatchProgressCount(batchSelectedCount)
     setIsAutoGrading(true)
     setError('')
+    setInfo('')
     try {
       const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/auto-grade`, {
         method: 'POST',
@@ -655,12 +816,22 @@ export function TeacherClassroomView({
         body: JSON.stringify({ student_ids: Array.from(batchSelectedIds) }),
       })
       const data = await res.json()
+      if (res.status === 202 && data.run) {
+        setAssignmentAiGradingRun(data.run as AssignmentAiGradingRunSummary)
+        batchClearSelection()
+        return
+      }
+      if (res.status === 409 && data.run) {
+        setAssignmentAiGradingRun(data.run as AssignmentAiGradingRunSummary)
+        throw new Error(data.error || 'Another grading run is already active')
+      }
       if (!res.ok) throw new Error(data.error || 'Auto-grade failed')
       const total = (data.graded_count ?? 0) + (data.skipped_count ?? 0)
       if (data.graded_count === 0) {
         setError('No gradable content found — submissions may be empty')
       } else if (data.skipped_count > 0) {
-        setError(`Graded ${data.graded_count} of ${total} — ${data.skipped_count} skipped (empty content)`)
+        setInfo(`Graded ${data.graded_count} of ${total} • ${data.skipped_count} skipped`)
+        setError('')
       }
       batchClearSelection()
       // Reload assignment data to refresh statuses/grades
@@ -955,6 +1126,10 @@ export function TeacherClassroomView({
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
   const workspaceActionLabelSuffix = batchSelectedCount > 0 ? ` (${batchSelectedCount})` : ''
+  const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
+  const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
+    ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
+    : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
 
   function handleOverviewInspectorResizeStart(event: React.PointerEvent<HTMLDivElement>) {
     if (!workspaceContainerRef.current) return
@@ -1009,13 +1184,13 @@ export function TeacherClassroomView({
             </div>
           ) : (
             <div className="relative">
-              {(isAutoGrading || isArtifactRepoAnalyzing || isReturning) && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-surface/70">
-                  <div className="flex items-center gap-2 text-sm text-text-muted">
+              {(showAssignmentAiRunOverlay || isArtifactRepoAnalyzing || isReturning) && (
+                <div className="absolute inset-0 z-10 flex items-start justify-center rounded-md bg-surface/70 px-4 pt-4">
+                  <div className="flex max-w-[18rem] items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-xs leading-tight text-text-muted shadow-sm sm:max-w-none sm:text-sm">
                     <Spinner />
                     <span>
-                      {isAutoGrading
-                        ? `Grading ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+                      {showAssignmentAiRunOverlay
+                        ? assignmentAiRunOverlayLabel
                         : isArtifactRepoAnalyzing
                           ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
                           : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
@@ -1224,10 +1399,10 @@ export function TeacherClassroomView({
                         onSelect: () => {
                           void handleBatchArtifactRepoAnalyze()
                         },
-                        disabled: isArtifactRepoAnalyzing || isReadOnly || batchSelectedCount === 0,
+                        disabled: isArtifactRepoAnalyzing || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
                       },
                     ]}
-                    disabled={isAutoGrading || isReadOnly || batchSelectedCount === 0}
+                    disabled={isAutoGrading || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
                     className="inline-flex"
                     toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
                     menuPlacement="down"
@@ -1237,7 +1412,7 @@ export function TeacherClassroomView({
                   />
                 </Tooltip>
 
-                <Tooltip content={`Send${workspaceActionLabelSuffix}`}>
+                <Tooltip content={`Return${workspaceActionLabelSuffix}`}>
                   <Button
                     type="button"
                     variant="subtle"
@@ -1246,11 +1421,11 @@ export function TeacherClassroomView({
                     onClick={() => {
                       setShowReturnConfirm(true)
                     }}
-                    disabled={isReturning || isReadOnly || batchSelectedCount === 0}
-                    aria-label={`Send${workspaceActionLabelSuffix}`}
+                    disabled={isReturning || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
+                    aria-label={`Return${workspaceActionLabelSuffix}`}
                   >
                     <Send className="h-4 w-4" aria-hidden="true" />
-                    <span>Send</span>
+                    <span>Return</span>
                   </Button>
                 </Tooltip>
               </>
