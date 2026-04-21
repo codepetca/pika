@@ -12,7 +12,9 @@ import { TeacherGradebookTab } from './TeacherGradebookTab'
 import { TeacherSettingsTab } from './TeacherSettingsTab'
 import { TeacherLessonCalendarTab, TeacherLessonCalendarSidebar, CalendarSidebarState } from './TeacherLessonCalendarTab'
 import { StudentLessonCalendarTab } from './StudentLessonCalendarTab'
+import { TeacherClassResourcesSidebar } from './TeacherClassResourcesSidebar'
 import { TeacherResourcesTab } from './TeacherResourcesTab'
+import { StudentClassResourcesSidebar } from './StudentClassResourcesSidebar'
 import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherQuizzesTab } from './TeacherQuizzesTab'
 import { StudentQuizzesTab } from './StudentQuizzesTab'
@@ -39,6 +41,7 @@ import {
   TEACHER_QUIZZES_UPDATED_EVENT,
 } from '@/lib/events'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
+import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
@@ -423,6 +426,10 @@ function ClassroomPageContent({
     studentId: null,
     studentName: null,
   })
+  const [teacherTestPreview, setTeacherTestPreview] = useState<{
+    testId: string
+    title: string | null
+  } | null>(null)
   const [testGradingSaveState, setTestGradingSaveState] = useState<{
     canSave: boolean
     isSaving: boolean
@@ -456,6 +463,19 @@ function ClassroomPageContent({
       setTestGradingSaveState({ canSave: false, isSaving: false, status: 'idle' })
     }
   }, [activeTab])
+
+  useEffect(() => {
+    if (activeTab !== 'tests') {
+      setTeacherTestPreview(null)
+    }
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!teacherTestPreview) return
+    if (!selectedQuiz) return
+    if (selectedQuiz.id === teacherTestPreview.testId) return
+    setTeacherTestPreview(null)
+  }, [selectedQuiz, teacherTestPreview])
 
   const handleQuizUpdate = useCallback(() => {
     window.dispatchEvent(
@@ -664,6 +684,8 @@ function ClassroomPageContent({
       setRightSidebarWidth('60%')
     } else if (isTeacher && activeTab === 'gradebook') {
       setRightSidebarWidth(420)
+    } else if (activeTab === 'resources') {
+      setRightSidebarWidth('50%')
     }
   }, [
     isTeacher,
@@ -682,6 +704,21 @@ function ClassroomPageContent({
     assignmentViewMode,
     setRightSidebarOpen,
     closeMobileDrawer,
+  ])
+
+  useEffect(() => {
+    if (!isTeacher || activeTab !== 'tests') return
+    if (testGradingContext.mode === 'grading') return
+    if (selectedQuiz) return
+    setRightSidebarOpen(false)
+    closeMobileDrawer()
+  }, [
+    activeTab,
+    closeMobileDrawer,
+    isTeacher,
+    selectedQuiz,
+    setRightSidebarOpen,
+    testGradingContext.mode,
   ])
 
   useEffect(() => {
@@ -1070,7 +1107,7 @@ function ClassroomPageContent({
                         onNavigateToAnnouncements={() =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'resources')
-                            params.set('section', 'announcements')
+                            params.delete('section')
                             params.delete('assignmentId')
                           })
                         }
@@ -1079,16 +1116,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.resources && (
                     <TabContentTransition isActive={activeTab === 'resources'}>
-                      <TeacherResourcesTab
-                        classroom={classroom}
-                        sectionParam={sectionParam}
-                        onSectionChange={(section) =>
-                          navigateInClassroom((params) => {
-                            params.set('tab', 'resources')
-                            params.set('section', section)
-                          })
-                        }
-                      />
+                      <TeacherResourcesTab classroom={classroom} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.roster && (
@@ -1158,7 +1186,7 @@ function ClassroomPageContent({
                         onNavigateToAnnouncements={() =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'resources')
-                            params.set('section', 'announcements')
+                            params.delete('section')
                             params.delete('assignmentId')
                           })
                         }
@@ -1167,16 +1195,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.resources && (
                     <TabContentTransition isActive={activeTab === 'resources'}>
-                      <StudentResourcesTab
-                        classroom={classroom}
-                        sectionParam={sectionParam}
-                        onSectionChange={(section) =>
-                          navigateInClassroom((params) => {
-                            params.set('tab', 'resources')
-                            params.set('section', section)
-                          })
-                        }
-                      />
+                      <StudentResourcesTab classroom={classroom} />
                     </TabContentTransition>
                   )}
                 </>
@@ -1186,6 +1205,8 @@ function ClassroomPageContent({
         </MainContent>
 
         <RightSidebar
+          hideDesktopHeader={activeTab === 'resources'}
+          minimalMobileHeader={activeTab === 'resources'}
           title={
             isTeacher && activeTab === 'assignments' && isMarkdownMode
               ? 'Assignments'
@@ -1214,6 +1235,8 @@ function ClassroomPageContent({
               ? ''
               : isTeacher && activeTab === 'assignments'
               ? ''
+              : activeTab === 'resources'
+              ? 'Class Resources'
               : activeTab === 'assignments'
               ? (selectedAssignment?.title || 'Instructions')
               : activeTab === 'today'
@@ -1308,6 +1331,10 @@ function ClassroomPageContent({
             )
           ) : isTeacher && activeTab === 'calendar' && calendarSidebarState ? (
             <TeacherLessonCalendarSidebar {...calendarSidebarState} />
+          ) : isTeacher && activeTab === 'resources' ? (
+            <TeacherClassResourcesSidebar classroom={classroom} />
+          ) : activeTab === 'resources' ? (
+            <StudentClassResourcesSidebar classroom={classroom} />
           ) : isTeacher &&
             activeTab === 'tests' &&
             testGradingContext.mode === 'grading' &&
@@ -1325,6 +1352,13 @@ function ClassroomPageContent({
               classroomId={classroom.id}
               apiBasePath={assessmentApiBasePath}
               onQuizUpdate={handleQuizUpdate}
+              onRequestTestPreview={
+                activeTab === 'tests'
+                  ? (preview) => {
+                      setTeacherTestPreview(preview)
+                    }
+                  : undefined
+              }
               onRequestDelete={
                 activeTab === 'tests'
                   ? () => {
@@ -1333,7 +1367,9 @@ function ClassroomPageContent({
                   : undefined
               }
             />
-          ) : isTeacher && isAssessmentTab ? (
+          ) : isTeacher &&
+            activeTab === 'tests' &&
+            testGradingContext.mode === 'authoring' ? null : isTeacher && isAssessmentTab ? (
             <div className="flex h-full min-h-0 items-center p-4">
               <EmptyState
                 title={`Select a ${assessmentLabel}`}
@@ -1572,6 +1608,18 @@ function ClassroomPageContent({
           void handleConfirmAssessmentDelete()
         }}
       />
+
+      {isTeacher && activeTab === 'tests' && teacherTestPreview ? (
+        <TeacherTestPreviewPage
+          classroomId={classroom.id}
+          testId={teacherTestPreview.testId}
+          embedded
+          listenForUpdates
+          onClose={() => {
+            setTeacherTestPreview(null)
+          }}
+        />
+      ) : null}
 
     </AppShell>
   )

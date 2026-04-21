@@ -106,8 +106,7 @@ esac
                       │
 ┌─────────────────────▼───────────────────────────────────┐
 │ 4. APPLY                                                │
-│    - Supabase Dashboard → SQL Editor → Run migration    │
-│    - Or: supabase db push --db-url $PROD_DB_URL         │
+│    - Human applies migration via Supabase Dashboard     │
 │    - Verify via quick smoke test                        │
 └─────────────────────┬───────────────────────────────────┘
                       │

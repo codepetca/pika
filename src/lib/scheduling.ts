@@ -1,4 +1,5 @@
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
+import { addDaysToDateString } from '@/lib/date-string'
 
 export const SCHEDULING_TIMEZONE = 'America/Toronto'
 export const DEFAULT_SCHEDULE_TIME = '07:00'
@@ -10,6 +11,10 @@ export interface ScheduleDateTimeParts {
 
 export function getTodayInSchedulingTimezone(): string {
   return formatInTimeZone(new Date(), SCHEDULING_TIMEZONE, 'yyyy-MM-dd')
+}
+
+export function getDefaultScheduleDateInSchedulingTimezone(): string {
+  return addDaysToDateString(getTodayInSchedulingTimezone(), 1)
 }
 
 export function combineScheduleDateTimeToIso(date: string, time?: string): string {
@@ -38,4 +43,3 @@ export function normalizeScheduleTime(time?: string): string {
   if (!time) return DEFAULT_SCHEDULE_TIME
   return time
 }
-

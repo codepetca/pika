@@ -59,6 +59,10 @@ function createMockDownloadBody(content: string, contentType: string) {
   }
 }
 
+async function readResponseText(response: Response) {
+  return Buffer.from(await response.arrayBuffer()).toString('utf8')
+}
+
 describe('GET /api/teacher/tests/[id]/documents/[docId]/snapshot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -76,6 +80,6 @@ describe('GET /api/teacher/tests/[id]/documents/[docId]/snapshot', () => {
 
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('application/pdf')
-    expect(await (await response.blob()).text()).toContain('%PDF-1.4')
+    expect(await readResponseText(response)).toContain('%PDF-1.4')
   })
 })

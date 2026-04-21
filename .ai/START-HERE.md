@@ -11,14 +11,16 @@
 ```
 [ ] Verify worktree: echo $PIKA_WORKTREE (must NOT be $HOME/Repos/pika)
 [ ] Run: bash "$PIKA_WORKTREE/scripts/verify-env.sh"
-[ ] Check journal: tail -40 "$PIKA_WORKTREE/.ai/JOURNAL.md"
 [ ] Check status: git -C "$PIKA_WORKTREE" status
-[ ] Read: docs/ai-instructions.md (then follow its reading order)
-[ ] Identify task: GitHub issue, features.json, or ask user
+[ ] Read: .ai/CURRENT.md
+[ ] Read: docs/ai-instructions.md
+[ ] Check features: node "$PIKA_WORKTREE/scripts/features.mjs" next
+[ ] Load task-specific docs routed by docs/ai-instructions.md
 [ ] Plan before coding: state task, propose approach, wait for approval
 ```
 
 Do not start coding if verification fails.
+Use `.ai/JOURNAL.md` only if you need historical detail that is not covered by `.ai/CURRENT.md`.
 
 ---
 
@@ -29,9 +31,9 @@ All agents are bound to exactly ONE worktree via `$PIKA_WORKTREE`.
 - NEVER assume the shell cwd.
 - ALL git commands MUST use: `git -C "$PIKA_WORKTREE"`.
 - ALL file paths MUST be absolute or prefixed with `$PIKA_WORKTREE`.
-- Never do branch work in `$HOME/Repos/pika/` (the hub). Use worktrees under `$HOME/Repos/.worktrees/pika/`.
+- Never do branch work in `$HOME/Repos/pika/` (the hub).
+- Worktree creation, cleanup, and shared `.env.local` setup live in `docs/dev-workflow.md`.
 - For hub-level git commands (add/remove worktrees): `export PIKA_WORKTREE="$HOME/Repos/pika"`
-- Creating worktrees: see `docs/dev-workflow.md`
 
 ---
 
@@ -47,6 +49,8 @@ All agents are bound to exactly ONE worktree via `$PIKA_WORKTREE`.
 4. If work was merged, clean up:
    ```bash
    export PIKA_WORKTREE="$HOME/Repos/pika"
+   git -C "$PIKA_WORKTREE" fetch origin
+   git -C "$PIKA_WORKTREE" merge --ff-only origin/main
    git -C "$PIKA_WORKTREE" worktree remove "$HOME/Repos/.worktrees/pika/<branch-name>"
    git -C "$PIKA_WORKTREE" branch -D <branch-name>
    ```
@@ -57,10 +61,11 @@ All agents are bound to exactly ONE worktree via `$PIKA_WORKTREE`.
 
 Trust in this order:
 1. `.ai/features.json` — status authority
-2. `docs/core/architecture.md` — architecture and invariants
-3. `docs/core/tests.md` — testing requirements
-4. `docs/core/design.md` — UI/UX rules
-5. `docs/core/project-context.md` — setup and commands
-6. `docs/core/roadmap.md` — phase strategy
-7. `docs/core/decision-log.md` — historical rationale
-8. `.ai/JOURNAL.md` — session history
+2. `.ai/CURRENT.md` — compact current-state context
+3. `docs/core/architecture.md` — architecture and invariants
+4. `docs/core/tests.md` — testing requirements
+5. `docs/core/design.md` — UI/UX rules
+6. `docs/core/project-context.md` — setup and commands
+7. `docs/core/roadmap.md` — phase strategy
+8. `docs/core/decision-log.md` — historical rationale
+9. `.ai/JOURNAL.md` — session history (on demand)

@@ -1,8 +1,8 @@
 /**
  * Seed script for development/testing
  *
- * Usage: npm run seed
- *        ENV_FILE=.env.staging npm run seed
+ * Usage: pnpm run seed
+ *        ENV_FILE=.env.staging pnpm run seed
  *
  * This script creates test data without clearing existing data:
  * 1. Creates test users (1 teacher, 2 students)

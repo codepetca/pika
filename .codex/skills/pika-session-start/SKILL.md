@@ -1,13 +1,13 @@
 ---
 name: pika-session-start
-description: Start a new Pika AI session. Validates worktree environment, runs verify-env.sh, loads recent journal and git context, checks feature inventory, and identifies the next task. Run at the beginning of every coding session.
+description: Start a new Pika AI session. Validates worktree environment, runs verify-env.sh, loads compact current context and git state, checks feature inventory, and identifies the next task. Run at the beginning of every coding session.
 ---
 
 # Pika Session Start
 
 ## Overview
 
-Automates the `.ai/START-HERE.md` ritual to ensure every AI session begins with validated environment and correct context.
+Automates the `.ai/START-HERE.md` ritual to ensure every AI session begins with validated environment and compact current context.
 
 ## Workflow
 
@@ -15,7 +15,7 @@ Automates the `.ai/START-HERE.md` ritual to ensure every AI session begins with 
    ```bash
    bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"
    ```
-2. Review the output — confirm worktree, branch, and task.
+2. Review the output — confirm worktree, branch, `.ai/CURRENT.md`, and feature status.
 3. If an issue number is provided, load it with `gh issue view <number>`.
 4. Propose implementation plan before writing any code.
 

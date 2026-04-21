@@ -8206,3 +8206,788 @@
   - student assignments sanity check: `/tmp/issue453-ai-draft-student.png`
 
 **Status:** Fresh AI grading feedback now appears first in the draft, is visibly marked as AI-generated until the teacher clicks into the field, and then becomes a normal draft textarea without altering the text.
+
+## 2026-04-14 (assignment grading panes default to 50/50)
+
+**Goal:** Make the assignment workspace left/right panes open at an even 50/50 split in both Class and Individual grading modes.
+
+**Completed:**
+- Updated the shared assignment grading layout default so both overview (`Class`) and details (`Individual`) modes start with a `50%` inspector width instead of `40%`.
+- Left the existing persisted-cookie behavior and separator double-click reset behavior intact.
+- Updated the layout helper and hook tests to reflect the new default split.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/unit/assignment-grading-layout.test.ts tests/hooks/use-assignment-grading-layout.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- Visual verification on the local dev server:
+  - teacher class grading view: `/tmp/pika-assignment-class-mode.png`
+  - teacher individual grading view: `/tmp/pika-assignment-individual-mode.png`
+  - student mobile classroom sanity check: `/tmp/pika-student-classrooms.png`
+
+**Status:** Assignment grading now defaults to a 50/50 workspace split in both class and individual modes, while saved user-resized layouts still persist as before.
+
+## 2026-04-14 (assignment grading divider gutter removed)
+
+**Goal:** Remove the small gutter before the right-hand grading cards in assignment Class and Individual modes without losing resize behavior.
+
+**Completed:**
+- Changed both assignment resize separators to use an overlay hit target instead of reserving visible layout width.
+- Kept the draggable divider and double-click reset behavior intact while letting the right panel start flush against the divider line.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx tests/hooks/use-assignment-grading-layout.test.tsx tests/unit/assignment-grading-layout.test.ts`
+- Visual verification on the local dev server:
+  - teacher class grading view: `/tmp/pika-assignment-class-mode-tight-divider.png`
+  - teacher individual grading view: `/tmp/pika-assignment-individual-mode-tight-divider.png`
+  - student mobile classroom sanity check: `/tmp/pika-student-classrooms-tight-divider.png`
+
+**Status:** Assignment right-panel cards now sit flush against the divider in both class and individual grading modes, with the resize handle still available as an invisible overlay.
+
+## 2026-04-14 (individual assignment header compacted)
+
+**Goal:** Make the individual-mode left-pane header more vertically compact without removing the student name, character count, or navigation controls.
+
+**Completed:**
+- Reduced the individual work header top/bottom padding from `py-3` to `py-2`.
+- Tightened the internal row gap from `gap-2` to `gap-1` so the student name row and controls sit closer together.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherStudentWorkPanel.test.tsx`
+- Visual verification on the local dev server:
+  - teacher individual grading view: `/tmp/pika-assignment-individual-header-compact.png`
+
+**Status:** The individual-mode header is more vertically compact while preserving the same content and controls.
+
+## 2026-04-14 (classrooms landing title enlarged)
+
+**Goal:** Make the `Classrooms` title on the landing classrooms page feel larger and more prominent.
+
+**Completed:**
+- Increased the student landing page `Classrooms` heading from `text-2xl` to `text-3xl`.
+- Added a classrooms-only title size bump in the shared app header so the teacher landing page title renders larger without affecting other page titles.
+
+**Validation:**
+- Visual verification on the local dev server:
+  - teacher classrooms landing page: `/tmp/pika-classrooms-title-teacher.png`
+  - student classrooms landing page: `/tmp/pika-classrooms-title-student.png`
+
+**Status:** The landing `Classrooms` title is now more prominent for both teacher and student views.
+
+## 2026-04-14 (assignment summary gutters removed)
+
+**Goal:** Remove the extra left/right gutter around assignment summary lists while keeping the cards themselves readable.
+
+**Completed:**
+- Removed the generic `PageContent` horizontal padding from the teacher assignment summary view.
+- Removed the generic `PageContent` horizontal padding from the student assignment summary view only, leaving the edit/detail view spacing unchanged.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx' --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- `corepack pnpm exec vitest run tests/components/StudentAssignmentsTab.test.tsx`
+- Visual verification on the local dev server:
+  - teacher assignments summary: `/tmp/pika-assignments-teacher-summary-gutterless.png`
+  - student assignments summary: `/tmp/pika-assignments-student-summary-gutterless.png`
+
+**Status:** Assignment summary lists now sit flush to the available width in both teacher and student views, without changing the internal card padding.
+
+## 2026-04-14 (assignment gutter correction for class and individual modes)
+
+**Goal:** Revert the accidental assignment summary gutter removal and apply the gutter reduction only to the teacher assignment workspace modes.
+
+**Completed:**
+- Restored the original assignment summary padding for teacher and student summary views.
+- Moved the horizontal gutter reduction to the non-summary teacher assignment workspace wrapper, so it applies only in `Class` and `Individual` modes.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/StudentAssignmentsTab.tsx' --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- `corepack pnpm exec vitest run tests/components/StudentAssignmentsTab.test.tsx`
+- Visual verification on the local dev server:
+  - teacher class workspace: `/tmp/pika-assignments-teacher-class-workspace-gutterless.png`
+  - teacher individual workspace: `/tmp/pika-assignments-teacher-individual-workspace-gutterless.png`
+  - student assignment summary sanity check: `/tmp/pika-assignments-student-summary-restored.png`
+
+**Status:** Assignment summary gutters are restored, and the reduced outer gutter now applies only to the teacher `Class` and `Individual` assignment workspaces.
+
+## 2026-04-14 (header fullscreen-to-datetime spacing)
+
+**Goal:** Add a bit more breathing room between the fullscreen toggle and the date/time in the app header.
+
+**Completed:**
+- Added a small right margin to the fullscreen toggle button in the shared app header.
+- Left the date/time and user menu spacing unchanged.
+
+**Validation:**
+- `corepack pnpm exec next lint --file src/components/AppHeader.tsx`
+- Visual verification on the local dev server:
+  - teacher header: `/tmp/pika-header-gap-teacher.png`
+  - student header: `/tmp/pika-header-gap-student.png`
+
+**Status:** The fullscreen button now has a small visual gap before the date/time in the shared app header.
+
+## 2026-04-14 (assignment workspace action bar gutter removed)
+
+**Goal:** Remove the action bar gutter in the teacher assignment workspace so it aligns with the gutterless `Class` and `Individual` panes.
+
+**Completed:**
+- Overrode the shared `PageActionBar` horizontal padding only for non-summary assignment workspace mode in `TeacherClassroomView`.
+- Left summary-mode action bars and other pages unchanged.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- Visual verification on the local dev server:
+  - teacher class workspace action bar: `/tmp/pika-assignments-class-actionbar-gutterless.png`
+  - teacher individual workspace action bar: `/tmp/pika-assignments-individual-actionbar-gutterless.png`
+
+**Status:** The teacher assignment workspace action bar is now flush with the `Class` and `Individual` workspace content.
+
+## 2026-04-14 (assignment workspace action bar right padding)
+
+**Goal:** Keep the teacher assignment workspace action bar flush on the left while adding a small amount of right padding.
+
+**Completed:**
+- Adjusted the non-summary assignment action bar override from full `px-0` to `pl-0 pr-2`.
+- Kept the `Class` and `Individual` workspace content alignment intact while giving the right-edge assignment title control a bit of breathing room.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- Visual verification on the local dev server:
+  - teacher class workspace action bar: `/tmp/pika-assignments-class-actionbar-rightpad.png`
+  - teacher individual workspace action bar: `/tmp/pika-assignments-individual-actionbar-rightpad.png`
+
+**Status:** The teacher assignment workspace action bar is flush on the left with a small right-edge inset.
+
+## 2026-04-14 (assignment class mode defaults to split workspace)
+
+**Goal:** Make teacher assignment `Class` mode open in the split-pane workspace by default instead of showing only the table pane.
+
+**Completed:**
+- Updated `TeacherClassroomView` to auto-select the first available student once when entering an assignment workspace, regardless of whether the active mode is `Class` or `Individual`.
+- Added a workspace-key guard so the default selection happens on entry, but manual deselection is not immediately overridden during the same workspace session.
+- Reset that guard when leaving assignment mode so reopening an assignment still defaults back to the split layout.
+
+**Validation:**
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx'`
+- Visual verification on the local dev server:
+  - teacher class workspace defaults split: `/tmp/pika-assignment-class-default-split.png`
+  - teacher individual workspace still split: `/tmp/pika-assignment-individual-still-split.png`
+
+**Status:** Teacher assignment `Class` mode now opens with the split workspace active by default.
+
+## 2026-04-14 (review fix: assignment switch stale split pane)
+
+**Goal:** Address review feedback that switching between assignments could briefly bind the new class workspace to a stale student selection from the previous assignment.
+
+**Completed:**
+- Updated `TeacherClassroomView` so only assignment data whose `assignment.id` matches the current selection is treated as active for student rows, header/sidebar state, and split-pane rendering.
+- Tightened the default student auto-selection effect so it only treats a student as already selected if that student still exists in the current assignment roster.
+- Added a focused `TeacherClassroomView` regression test that switches from one assignment to another while the second roster fetch is still pending and verifies the old right pane disappears until the new assignment data arrives.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/hooks/use-assignment-grading-layout.test.tsx tests/unit/assignment-grading-layout.test.ts`
+- `corepack pnpm exec next lint --file 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' --file tests/components/TeacherClassroomView.test.tsx`
+
+**Status:** Assignment-to-assignment switching no longer reuses a stale student selection while the next roster is loading, and the regression is covered by an automated component test.
+## 2026-04-15 (dependency and SDK drift alignment)
+
+**Goal:** Align the repo’s runtime policy and direct dependency manifest with the actual locked toolchain state, using Node 24 as the single supported runtime.
+
+**Completed:**
+- Standardized the runtime contract on Node 24 by updating `package.json#engines`, the CI workflow Node version, and `scripts/verify-env.sh`.
+- Updated the stale AI model documentation to reflect the current default of `gpt-5-nano` and documented `OPENAI_SUMMARY_MODEL` as the summary override knob.
+- Raised stale direct dependency and devDependency specifiers in `package.json` to the versions already established in `pnpm-lock.yaml`, then refreshed the lockfile with `pnpm install` under Node 24.
+- Fixed two snapshot route tests that relied on `response.blob().text()`, which broke under the Node 24 runtime path; both now assert response content through `arrayBuffer()` decoding instead.
+
+**Validation:**
+- `mise exec node@24 -- corepack pnpm install`
+- `mise exec node@24 -- corepack pnpm run lint`
+- `mise exec node@24 -- npx tsc --noEmit`
+- `mise exec node@24 -- corepack pnpm run test:coverage`
+- `mise exec node@24 -- env NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_placeholder SUPABASE_SECRET_KEY=sb_secret_placeholder SESSION_SECRET=placeholder-session-secret-at-least-32-chars-long NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-anon-key SUPABASE_SERVICE_ROLE_KEY=placeholder-service-role-key AUTH_SESSION_SECRET=placeholder-session-secret-at-least-32-chars-long corepack pnpm run build`
+- `mise exec node@24 -- bash scripts/verify-env.sh`
+
+**Status:** The repo now consistently targets Node 24, the manifest matches the locked direct dependency baseline, and the full validation stack passes under Node 24.
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Rename the teacher classroom `Attendance` tab to `Daily`.
+
+**Completed:**
+- Updated the teacher classroom navigation item label from `Attendance` to `Daily` while keeping the existing `tab=attendance` route key unchanged.
+- Updated the UI gallery teacher quick link label to match the new wording.
+- Updated the nav component test assertion for the renamed teacher tab.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh`
+- `corepack pnpm exec vitest run tests/components/NavItems.test.tsx`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop expanded sidebar: `/tmp/pika-daily-teacher-expanded.png`
+  - student mobile classroom view: `/tmp/pika-daily-student.png`
+  - teacher mobile full-page view: `/tmp/pika-daily-teacher-mobile-full.png`
+
+**Status:** The teacher tab label now reads `Daily`, and the classroom page still renders correctly in teacher and student views.
+
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Replace the Resources tab's internal `Announcements` / `Class Resources` sub-tabs with a two-pane layout.
+
+**Completed:**
+- Reworked the classroom Resources tab so announcements stay in the main pane and class resources live in the right sidebar for both teacher and student views.
+- Enabled a persistent desktop right sidebar for `resources-teacher` and `resources-student`, with the standard mobile panel toggle behavior.
+- Extracted dedicated teacher/student class-resources sidebar components and kept the teacher autosave editor behavior intact.
+- Updated announcements sections to support pane-friendly widths instead of always forcing a centered narrow column.
+- Added a focused Resources tab component test and expanded layout-config coverage for the new two-pane route behavior.
+- Polished empty-resource detection so blank Tiptap docs show the expected empty state instead of an empty box.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ResourcesTab.test.tsx tests/unit/layout-config.test.ts`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop split view: `/tmp/pika-resources-teacher-desktop.png`
+  - student desktop split view: `/tmp/pika-resources-student-desktop.png`
+  - teacher mobile resources drawer: `/tmp/pika-resources-teacher-mobile-panel.png`
+
+**Status:** Resources now behaves as a two-pane page with announcements on the left and class resources on the right, while still working on mobile via the standard panel drawer.
+
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Simplify the Resources split-view chrome and move the teacher new-announcement action to the bottom of the announcements pane.
+
+**Completed:**
+- Removed the left-pane `Announcements` heading and the desktop right-pane `Class Resources` header.
+- Removed the teacher resources save-status strip and its divider line.
+- Moved the teacher `New Announcement` action/form block to the bottom of the announcements pane.
+- Simplified the mobile resources drawer header to just the back control so the label and divider are gone there too.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ResourcesTab.test.tsx tests/unit/layout-config.test.ts`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3001`:
+  - teacher desktop split view: `/tmp/pika-resources-teacher-desktop-v4.png`
+  - teacher mobile resources drawer: `/tmp/pika-resources-teacher-mobile-panel-v4.png`
+
+**Status:** The Resources page now presents as a cleaner split view with minimal chrome and the new-announcement action anchored at the bottom of the left pane.
+
+## 2026-04-14 [AI - Codex]
+
+**Goal:** Adjust the empty-state helper copy in the right resources pane.
+
+**Completed:**
+- Changed the teacher resources empty-state text from `Use this page to share static resources with your students:` to `Use this area to share static resources with your students:`.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3001`:
+  - teacher desktop resources split view: `/tmp/pika-resources-copyfix.png`
+
+**Status:** The right-pane helper copy now matches the requested wording.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Standardize the outer padding between the left announcements pane and right resources pane.
+
+**Completed:**
+- Matched the teacher right-pane wrapper spacing to the teacher left-pane `PageContent` gutter.
+- Kept the student right-pane wrapper aligned with the student left-pane gutter spacing as well.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop resources split view: `/tmp/pika-resources-padding-teacher.png`
+  - student desktop resources split view: `/tmp/pika-resources-padding-student.png`
+
+**Status:** The Resources split view now uses consistent outer pane padding on both sides.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Simplify the roster table header labels and make the total-students badge neutral.
+
+**Completed:**
+- Renamed the roster table name columns from `First Name` / `Last Name` to `First` / `Last`.
+- Added a neutral count badge variant and used it for the roster total-students chip in the `First` header.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop roster view: `/tmp/pika-roster-badge-headers.png`
+
+**Status:** The roster table now uses shorter headers and a plain grey total-students badge.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Apply the same compact header treatment to the attendance student table.
+
+**Completed:**
+- Renamed the attendance table name columns from `First Name` / `Last Name` to `First` / `Last`.
+- Switched the attendance total-students header badge to the neutral count style while keeping the present/absent badges unchanged.
+
+**Validation:**
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher desktop attendance view: `/tmp/pika-attendance-badge-headers.png`
+
+**Status:** The attendance student table header formatting now matches the roster table.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Change the titlebar classroom switcher from hover-open to click-open and align its ordering with the classrooms landing page.
+
+**Completed:**
+- Updated the titlebar classroom dropdown to open on click instead of hover.
+- Rendered the full classroom list in landing-page order, including the current classroom as a disabled `Current` row.
+- Switched the teacher classroom-page data source to `listActiveTeacherClassrooms(...)` so the dropdown order matches the landing page ordering logic.
+- Added a focused component test covering click-open behavior, preserved order, current-row rendering, and navigation.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classrooms landing page order: `/tmp/pika-classrooms-index-order.png`
+  - teacher classroom titlebar dropdown open state: `/tmp/pika-classroom-dropdown-open.png`
+  - student classroom header baseline: `/tmp/pika-classroom-dropdown-student.png`
+- Created one temporary local verification classroom to force the teacher dropdown to render, then removed it after screenshots.
+
+**Status:** The titlebar classroom switcher now uses click interaction, matches landing-page ordering, and keeps the current classroom visible in the menu.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Fix the keyboard-navigation regression in the titlebar classroom switcher review finding.
+
+**Completed:**
+- Extended the shared dropdown roving-focus logic so it skips disabled items when opening and when moving with arrow keys.
+- Wired the classroom dropdown to mark the current classroom row as disabled in the shared navigation helper as well as in rendering.
+- Added a regression test that arrows past the disabled current-classroom row and activates the next selectable classroom with Enter.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown after keyboard-fix patch: `/tmp/pika-classroom-dropdown-keyboard-fix.png`
+
+**Status:** Keyboard navigation in the titlebar classroom switcher now skips the disabled current-classroom row instead of landing on it.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Ensure the titlebar classroom switcher opens only on click, not hover.
+
+**Completed:**
+- Removed the remaining non-click activation path from the classroom dropdown trigger.
+- Simplified the shared dropdown hook by deleting unused hover-open/hover-close APIs.
+- Tightened the classroom dropdown tests to use a real pointer-down + click sequence.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- After restarting the worktree dev server, visual verification on `http://localhost:3000`:
+  - hover stays closed: `/tmp/pika-classroom-dropdown-hover-check-v4.png`
+  - click opens the menu: `/tmp/pika-classroom-dropdown-click-check-v4.png`
+
+**Status:** The titlebar classroom switcher now stays closed on hover and opens only on click.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Make hovered classroom rows in the titlebar dropdown use a clearer highlight.
+
+**Completed:**
+- Strengthened the hover state for selectable classroom rows so hovered items use the same clearer surface highlight as the focused row.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown hover highlight: `/tmp/pika-classroom-dropdown-hover-highlight.png`
+
+**Status:** Hovered classroom rows in the titlebar dropdown are now visually highlighted more clearly.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Remove the persistent current-row background so the classroom dropdown hover highlight reads more clearly.
+
+**Completed:**
+- Dropped the always-on background fill from the disabled current-classroom row while keeping the `Current` marker badge.
+- Kept the stronger hover/focus highlight for selectable classroom rows unchanged.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown hover highlight after current-row background removal: `/tmp/pika-classroom-dropdown-hover-highlight-v2.png`
+
+**Status:** The classroom dropdown hover state is clearer because the current row no longer looks pre-highlighted.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Make unselected classroom dropdown rows render without a filled background until they are actually hovered or keyboard-focused.
+
+**Completed:**
+- Removed the resting background fill from selectable classroom rows in the titlebar dropdown.
+- Kept the hover and focus-visible background treatment so only the actively targeted row gets a surface highlight.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher classroom dropdown hover on unselected row: `/tmp/pika-classroom-dropdown-hover-unselected.png`
+
+**Status:** The dropdown now stays visually flat by default and only highlights rows on interaction.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Fix the remaining resources-pane gutter mismatch so the empty-state cards sit at the same distance from the pane walls in both teacher and student views.
+
+**Completed:**
+- Flattened the teacher resources sidebar so the helper card is no longer nested inside an extra padded wrapper.
+- Matched the student resources pane to the same outer gutter and empty-state card alignment.
+- Kept the announcements empty states on the same surface/padding treatment for split-view consistency.
+
+**Validation:**
+- `corepack pnpm exec vitest run tests/components/ResourcesTab.test.tsx tests/components/ClassroomDropdown.test.tsx`
+- `corepack pnpm exec tsc --noEmit`
+- Visual verification on the worktree dev server at `http://localhost:3000`:
+  - teacher resources split view: `/tmp/pika-resources-padding-teacher-v4.png`
+  - student resources split view: `/tmp/pika-resources-padding-student-v4.png`
+
+**Status:** The resources panes now use matching outer gutters, and the empty-state cards line up to the pane walls consistently.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Slim down the AI guidance surface and move session continuity onto a compact current-state summary instead of the full journal.
+
+**Completed:**
+- Added `.ai/CURRENT.md` as the default always-read continuity file and updated `.ai/START-HERE.md`, `AGENTS.md`, and the session-start skill to use it.
+- Rewrote `docs/ai-instructions.md` into a smaller routing document that points agents to task-specific docs instead of requiring the full core stack every session.
+- Reconciled setup and migration guidance in `docs/core/project-context.md`, `docs/dev-workflow.md`, and `docs/semester-plan.md` so worktree/env setup stays canonical and migration application stays human-controlled.
+- Simplified the Codex prompt files so they point back to canonical workflow docs for generic rules while preserving the required UI guidance declaration for UI-affecting work.
+
+**Validation:**
+- Startup context budget:
+  - `.ai/START-HERE.md` + `.ai/CURRENT.md` + `.ai/features.json` + `docs/ai-instructions.md` = `12,653` characters
+- Conflict scan:
+  - `rg -n "supabase db push|run migrations on deploy|Configure \\.env\\.local \\(see README|tail -40 .*JOURNAL|tail -60 .*JOURNAL|read these files \\*\\*in this exact order\\*\\*|Check journal" .ai docs .codex/prompts AGENTS.md --glob '!**/.ai/JOURNAL.md'`
+- Targeted regression:
+  - `corepack pnpm --dir /Users/stew/Repos/.worktrees/pika/codex/ai-guidance-slimdown exec vitest run tests/unit/ui-guidance-docs.test.ts`
+- Full session-start dry run:
+  - `PATH="/opt/homebrew/opt/node@24/bin:$PATH" PIKA_WORKTREE=/Users/stew/Repos/.worktrees/pika/codex/ai-guidance-slimdown bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"`
+
+**Status:** The default AI startup path is now under the target budget, journal reads are on-demand, and the bound worktree session-start flow passes end-to-end.
+
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Tighten the remaining workflow-doc overlap and add regression checks for the slimmed AI startup contract.
+
+**Completed:**
+- Reduced `AGENTS.md` by replacing embedded workflow recipes with pointers back to the canonical startup, worktree, and UI verification docs.
+- Reworked `docs/issue-worker.md` and `docs/workflow/handle-issue.md` to follow the new routed doc-loading model and avoid duplicating the full screenshot procedure.
+- Added `tests/unit/ai-startup-docs.test.ts` to lock the startup budget and prevent `.ai/JOURNAL.md` tailing from re-entering the default startup flow.
+
+**Validation:**
+- `corepack pnpm --dir /Users/stew/Repos/.worktrees/pika/codex/ai-guidance-slimdown exec vitest run tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts`
+- `wc -lc AGENTS.md docs/issue-worker.md docs/workflow/handle-issue.md .ai/START-HERE.md .ai/CURRENT.md docs/ai-instructions.md`
+- `rg -n "tail -40 .*JOURNAL|tail -60 .*JOURNAL|follow its required reading order|Ensure dev server is running|Refresh auth states if needed|Take screenshots for BOTH roles" AGENTS.md docs/issue-worker.md docs/workflow/handle-issue.md .codex/prompts/session-start.md .ai/START-HERE.md`
+
+**Status:** The remaining workflow docs are leaner, and the startup-budget and no-journal-tail rules now have test coverage.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Address PR review drift findings in `.ai/CURRENT.md` without adding more synchronization machinery.
+
+**Completed:**
+- Removed the volatile claim that all feature epics currently pass and replaced it with a direct pointer back to `.ai/features.json` as the status authority.
+- Replaced hardcoded package-manager and Node-version facts with a pointer to `.nvmrc`, `package.json`, and `scripts/verify-env.sh` so startup context stays operational instead of duplicating metadata.
+
+**Validation:**
+- `pnpm test -- --run tests/unit/ai-startup-docs.test.ts` (resolved to a full Vitest run in this shell; `tests/unit/ai-startup-docs.test.ts` still passed)
+
+**Status:** `.ai/CURRENT.md` is now narrower and less likely to drift away from canonical repo metadata.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Fix the follow-up PR review findings around startup-contract drift in the automated session-start path.
+
+**Completed:**
+- Updated `.codex/skills/pika-session-start/scripts/session_start.sh` to render the full required startup set in order: `.ai/START-HERE.md`, `.ai/CURRENT.md`, `.ai/features.json`, and `docs/ai-instructions.md`.
+- Tightened `tests/unit/ai-startup-docs.test.ts` so the regression suite now asserts that the preferred automated startup paths reference the entire required startup set in the documented order.
+
+**Validation:**
+- `PATH="/opt/homebrew/opt/node@24/bin:$PATH" pnpm exec vitest run tests/unit/ai-startup-docs.test.ts`
+
+**Status:** The automated startup path now matches the documented startup contract, and CI coverage now checks that alignment explicitly.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Replace the remaining source-text-only startup regression with a behavior-level check.
+
+**Completed:**
+- Reworked `tests/unit/ai-startup-docs.test.ts` so the script assertion now builds a disposable fixture worktree, initializes a minimal git repo, and executes the real `session_start.sh` script against that fixture.
+- Added runtime assertions that the rendered output includes the required startup docs in order and still emits the feature summary and next-feature sections.
+
+**Validation:**
+- `PATH="/opt/homebrew/opt/node@24/bin:$PATH" pnpm exec vitest run tests/unit/ai-startup-docs.test.ts`
+
+**Status:** The startup regression now checks actual script behavior instead of only checking source text.
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Detect dependency and SDK drift and produce a minimal alignment plan for the automation run.
+
+**Completed:**
+- Loaded the required repo startup/docs context and ran the session-start ritual.
+- Confirmed the local environment is off-target for development because `verify-env.sh` requires Node 24.x but this worktree currently sees Node 22.21.1.
+- Compared `package.json`, `pnpm-lock.yaml`, `.nvmrc`, CI workflow config, and current AI/Supabase integration code to isolate concrete repo drift.
+- Found the main actionable drift in CI env naming: the workflow still exports legacy Supabase/session variable names while runtime code and docs now require the newer publishable/secret/session names.
+- Verified the main dependency families currently checked are internally aligned between manifest and lockfile.
+
+**Validation:**
+- `bash .codex/skills/pika-session-start/scripts/session_start.sh` with `PIKA_WORKTREE=/Users/stew/.codex/worktrees/88c8/pika` (failed on Node version check)
+- `node -v` → `v22.21.1`
+- `pnpm -v` → `10.25.0`
+- `pnpm exec node -v` → `v22.21.1`
+- Read-only inspection of `package.json`, `pnpm-lock.yaml`, `.nvmrc`, `.github/workflows/ci.yml`, `src/lib/supabase.ts`, `src/lib/auth.ts`, and OpenAI call sites under `src/lib/`.
+
+**Status:** No app code changes were made; the current alignment plan is to fix Node/runtime parity first, then update CI env naming, and treat any `@types/node` or OpenAI SDK changes as optional follow-ups.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Remove the CI config drift between legacy env var names and the variables the current runtime code expects.
+
+**Completed:**
+- Updated the GitHub Actions build step to export `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and `SESSION_SECRET`.
+- Removed the legacy CI-only names `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `AUTH_SESSION_SECRET` from the workflow.
+
+**Validation:**
+- Read-only cross-check against `src/lib/supabase.ts` and `src/lib/auth.ts` confirmed these are the env vars the app currently reads.
+- Did not run `verify-env.sh`, tests, or build because the active shell still resolves Node `v22.21.1` while the repo requires Node `24.x`.
+
+**Status:** CI build configuration is now aligned with the app’s current Supabase/session env contract; local runtime parity still needs a Node 24 shell.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Make Pika worktrees automatically use the repo’s pinned Node toolchain instead of inheriting the machine-wide `mise` Node 22 default.
+
+**Completed:**
+- Added repo-local [`/Users/stew/.codex/worktrees/88c8/pika/.mise.toml`](/Users/stew/.codex/worktrees/88c8/pika/.mise.toml) with `node = "24.12.0"` to match `.nvmrc`.
+- Expanded the same repo-local config to pin `pnpm = "10.25.0"` to match `package.json#packageManager`.
+- Trusted the repo-local `mise` config and installed both pinned tools through `mise`.
+- Verified this worktree now resolves `node` to `v24.12.0`, `pnpm` to `10.25.0`, and `pnpm exec node` to `v24.12.0`.
+
+**Validation:**
+- `mise current` → `node 24.12.0`, `pnpm 10.25.0`
+- `which node && node -v && which pnpm && pnpm -v && pnpm exec node -v`
+- `bash scripts/verify-env.sh`
+  - passes Node/npm/.ai checks
+  - stops at expected fresh-worktree blocker: missing `node_modules`
+
+**Status:** Future Pika worktrees with this repo config will select the pinned Node/pnpm toolchain automatically under `mise`; the remaining setup step in a fresh worktree is dependency install.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Stop `mise` from prompting for trust on every new Pika worktree while keeping trust scoped to user-controlled worktree roots.
+
+**Completed:**
+- Updated global `mise` config at [`/Users/stew/.config/mise/config.toml`](/Users/stew/.config/mise/config.toml:1) to trust:
+  - `/Users/stew/.codex/worktrees`
+  - `/Users/stew/Repos/.worktrees/pika`
+  - `/Users/stew/Repos/pika`
+- Kept the existing global default `node = "22"` unchanged; only trust behavior was broadened for the Pika worktree roots.
+
+**Validation:**
+- `sed -n '1,120p' /Users/stew/.config/mise/config.toml`
+- `mise trust --show` from the worktree → `~/.codex/worktrees/88c8/pika: trusted`
+
+**Status:** New Pika worktrees under those trusted roots should no longer require per-worktree `mise trust`.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Broaden the global `mise` trust allowlist from only Pika repo worktrees to all worktrees under `/Users/stew/Repos/.worktrees`.
+
+**Completed:**
+- Updated global `mise` config at [`/Users/stew/.config/mise/config.toml`](/Users/stew/.config/mise/config.toml:1) to trust `/Users/stew/Repos/.worktrees` instead of the narrower `/Users/stew/Repos/.worktrees/pika`.
+
+**Validation:**
+- `sed -n '1,80p' /Users/stew/.config/mise/config.toml`
+
+**Status:** Any repo worktree created under `/Users/stew/Repos/.worktrees/` should now avoid per-worktree `mise trust` prompts.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Validate the repo end-to-end under the pinned Node 24 / pnpm 10 toolchain in this worktree.
+
+**Completed:**
+- Installed dependencies with `corepack pnpm install` under the repo-local `mise` toolchain.
+- Ran `bash scripts/verify-env.sh --full` under Node `24.12.0`.
+- Verified the full repo validation passes in this worktree: tests, lint, and production build all succeeded.
+
+**Validation:**
+- `node -v` → `v24.12.0`
+- `pnpm -v` → `10.25.0`
+- `pnpm exec node -v` → `v24.12.0`
+- `bash scripts/verify-env.sh --full`
+  - Tests: `192` files passed, `1694` tests passed
+  - Lint: no ESLint warnings or errors
+  - Build: `next build` succeeded
+
+**Notes:**
+- `pnpm install` warned that some dependency build scripts were ignored (`@parcel/watcher`, `esbuild`, `unrs-resolver`) pending `pnpm approve-builds`, but the repo still passed full verification as-is.
+- Every `mise`-mediated command also warned that global `~/.config/mise/config.toml` contains an unknown field: `trusted_config_paths`. That means the earlier trust-path change is not valid for this installed `mise` version and should be revisited separately.
+
+**Status:** The application/toolchain works cleanly on Node 24 in this worktree; remaining follow-up is to correct the global `mise` trust configuration approach.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Correct the global `mise` trust configuration so the installed parser accepts the trusted worktree paths without warnings.
+
+**Completed:**
+- Moved `trusted_config_paths` into the [`[settings]`](/Users/stew/.config/mise/config.toml:4) section of global [`/Users/stew/.config/mise/config.toml`](/Users/stew/.config/mise/config.toml:1).
+- Kept the trusted roots the same:
+  - `/Users/stew/.codex/worktrees`
+  - `/Users/stew/Repos/.worktrees`
+  - `/Users/stew/Repos/pika`
+
+**Validation:**
+- `mise settings get trusted_config_paths`
+- `mise current`
+- `mise trust --show`
+
+**Status:** The installed `mise` parser now accepts the trust configuration cleanly, and the current worktree remains trusted.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Re-test the corrected global `mise` trust configuration with fresh directories under trusted and untrusted roots.
+
+**Completed:**
+- Created temporary smoke-test directories under:
+  - `/Users/stew/Repos/.worktrees`
+  - `/Users/stew/.codex/worktrees`
+  - `/tmp`
+- Added the same minimal `.mise.toml` (`node = "24.12.0"`) to each temp directory.
+- Verified the two trusted-root directories auto-trusted and resolved Node `24.12.0` without any explicit `mise trust`.
+- Verified the `/tmp` directory remained blocked as untrusted and still required `mise trust`.
+- Removed all temporary smoke-test directories after the check.
+
+**Validation:**
+- Trusted path test: `mise current && node -v && mise trust --show`
+- Untrusted path test: `mise current && node -v && mise trust --show` (expected trust failure)
+
+**Status:** The global `mise` trust configuration is working as intended: trusted worktree roots bypass the prompt, and untrusted paths still enforce it.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Re-run the full environment verification on the published PR branch to confirm the branch still passes after all setup changes.
+
+**Completed:**
+- Re-ran `bash scripts/verify-env.sh --full` on branch `codex/node24-mise-and-ci-env` after the PR was opened.
+- Confirmed the second full validation pass is also green.
+
+**Validation:**
+- `bash scripts/verify-env.sh --full`
+  - Tests: `192` files passed, `1694` tests passed
+  - Lint: no ESLint warnings or errors
+  - Build: `next build` succeeded
+
+**Status:** The PR branch remains fully green after a second end-to-end validation run.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Update the worktree cleanup rule so merged-branch cleanup explicitly fast-forwards the hub `main` before removing the worktree and local branch.
+
+**Completed:**
+- Updated `.ai/START-HERE.md` to add `git fetch origin` and `git merge --ff-only origin/main` to the mandatory post-merge cleanup sequence.
+- Added a `Post-merge cleanup` section to `docs/dev-workflow.md` with the same authoritative cleanup flow from the hub checkout.
+
+**Validation:**
+- Reviewed the resulting diff for `.ai/START-HERE.md` and `docs/dev-workflow.md` to confirm both docs now describe the same cleanup sequence.
+
+**Status:** The cleanup rule now explicitly requires fast-forwarding the hub `main` as part of post-merge cleanup.
+## 2026-04-15 [AI - Codex]
+
+**Goal:** Add assignment-parity UX guidance and a repeatable verification harness for tests/quizzes.
+
+**Completed:**
+- Added `docs/guidance/assignment-ux-language.md` to codify the assignment tabs as the canonical assessment UX system, including required primitives, state-based rules, and explicit anti-drift prohibitions.
+- Added `.codex/prompts/assessment-ux-parity.md` so a fresh AI can restyle assessment surfaces against the assignment system without extra coaching.
+- Added `docs/guides/assessment-ux-evaluation.md` with the blind-run workflow, rubric, hard failures, and iteration rules for tightening docs when parity runs drift.
+- Added `e2e/verify/assessment-ux-parity.ts`, registered it in the verification runner, and extended verification results to include artifact paths.
+- Updated `docs/guides/ai-ui-testing.md` and `docs/core/tests.md` so the new `assessment-ux-parity` scenario is discoverable in the existing UI verification docs.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm exec tsc --noEmit`
+- `pnpm e2e:verify --help`
+- `pnpm e2e:verify assessment-ux-parity`
+
+**Notes:**
+- The parity scenario captures reference/target screenshots to `artifacts/assessment-ux-parity/`.
+- Verification used the existing local auth states during execution; the worktree itself does not retain a committed `.auth` directory.
+
+**Status:** The documentation, prompt, rubric, and screenshot harness are in place and the new parity capture scenario runs successfully.
+
+## 2026-04-16 [AI - Codex]
+
+**Goal:** Tighten the blind-run guidance package after fresh-context parity runs stalled before implementation.
+
+**Completed:**
+- Added `scripts/run-teacher-tests-parity-challenge.sh` to run a scoped teacher-tests parity challenge with attached before/reference screenshots, prompt packet capture, and automatic pre/post parity screenshots.
+- Added `.codex/prompts/teacher-tests-ux-parity.md` as a task-scoped execution prompt for the `TeacherQuizzesTab` teacher-tests authoring branch.
+- Added `.codex/prompts/assessment-ux-family-parity.md` for a looser “same product family, slight evolution allowed” mode.
+- Tightened `docs/guidance/assignment-ux-language.md`, `.codex/prompts/assessment-ux-parity.md`, and `docs/guides/assessment-ux-evaluation.md` so blind runs must stay scoped and “never reached implementation” counts as failure.
+- Updated `docs/guides/ai-ui-testing.md` to document the dedicated blind challenge runner and the family-mode prompt.
+
+**Validation:**
+- `bash -n scripts/run-teacher-tests-parity-challenge.sh`
+
+**Notes:**
+- Fresh-context `codex exec` parity runs still defaulted into repo startup/context reacquisition before editing; the new runner is intended to reduce that by attaching the concrete reference and before-state screenshots directly to the task packet.
+- The new family-mode prompt explicitly optimizes for consistent future aesthetic across assignments/tests/quizzes rather than exact cloning.
+
+**Status:** Runner and updated guidance are ready for the next blind run iteration.
+## 2026-04-16 — Teacher Work-Surface Canon + Audit
+
+- Added `docs/guidance/ui/teacher-work-surfaces.md` as the stable canon for the teacher assignments/quizzes/tests family.
+- Added `docs/guidance/ui/audit-teacher-work-surfaces.md` to classify foundations, primitives, composed patterns, feature-local behavior, and legacy drift for that family.
+- Added `.codex/prompts/teacher-work-surface-promotion-review.md` for recurring non-mutating promotion review runs.
+- Updated UI guidance entrypoints and issue workflow docs so teacher assignments/quizzes/tests work routes through the new canon and audit.
+## 2026-04-19 — Dependency Manager Drift Cleanup
+
+- Removed the stale `package-lock.json` so the repo uses only the declared pnpm workflow.
+- Updated `README.md` build/deploy instructions from npm to pnpm to match `package.json`, CI, and `vercel.json`.
+- Updated `scripts/seed.ts` usage comments from npm to pnpm.
+
+**Validation:**
+- `rg -n 'package-lock\\.json|npm run build|npm start|Usage: npm run seed|ENV_FILE=.*npm run seed' /Users/stew/.codex/worktrees/18ce/pika -g '!**/node_modules/**'`
+
+**Notes:**
+- Left `src/lib/repo-review.ts` handling of `package-lock.json` intact because it is generic generated-file detection, not active package-manager configuration.
+- Did not run installs/tests in this session.
+## 2026-04-20 — Assignment AI Grading Artifact Detection
+
+- Fixed assignment AI grading so attached artifacts are included in the grader prompt instead of relying on extracted plain text alone.
+- Added prompt guidance telling the grader to treat attached links, repositories, and images as part of the submission rather than marking them missing.
+- Allowed artifact-only submissions, such as image-only site evidence, to be graded instead of failing as empty work.
+- Added regression coverage for link-mark artifacts and image-only submissions.
+- Normalized legacy stringified `assignment_docs.content` in the assignment auto-grade route before invoking the shared grading helper.
+- Added API-level regression coverage so assignment auto-grading now proves both parsed legacy content and legacy empty submissions are handled correctly at the route boundary.
+
+**Validation:**
+- `pnpm test -- tests/unit/ai-grading.test.ts tests/lib/assignment-artifacts.test.ts tests/api/teacher/assignments-id.test.ts`
+
+**Notes:**
+- The targeted command expanded to the full Vitest suite in this worktree; all 194 files / 1708 tests passed.
+**Goal:** Close student exam sessions gracefully when a teacher closes a test in progress (Issue #431).
+
+**Completed:**
+- Added a lightweight student session-status route at `src/app/api/student/tests/[id]/session-status/route.ts` so active test sessions can revalidate without polling the heavier test-detail payload
+- Updated `src/app/classrooms/[classroomId]/StudentQuizzesTab.tsx` to:
+  - poll active started tests every 30 seconds
+  - recheck immediately on window focus / visibility return
+  - exit exam mode cleanly when the teacher closes the test
+  - show an in-place blocking notice with `Return to tests` instead of abruptly redirecting the student
+- Updated `src/components/StudentQuizForm.tsx` so submit/autosave failures caused by a remotely closed test notify the parent view and trigger immediate session revalidation
+- Added regression coverage for the new route and the new student-side closure behavior
+
+**Validation:**
+- `pnpm test tests/api/student/tests-route.test.ts tests/api/student/tests-id.test.ts tests/api/student/tests-attempt.test.ts tests/api/student/tests-respond.test.ts tests/api/student/tests-session-status.test.ts tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx` (35 tests passing)
+- `pnpm lint`
+- Visual verification:
+  - `/tmp/pika-student-test-closure.png`
+  - `/tmp/pika-teacher-tests.png`
+  - `/tmp/pika-teacher-tests-mobile.png`
+
+**Notes:**
+- No `.ai/features.json` update was needed because this is a targeted behavior fix rather than an epic-level feature change
+- Student visual verification used the seeded active test with a Playwright route override for the new session-status endpoint so the exact closure notice state could be reviewed in-browser

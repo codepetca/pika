@@ -15,7 +15,7 @@ export interface AssignmentGradingLayoutMetrics {
 }
 
 export const ASSIGNMENT_GRADING_LAYOUT = {
-  defaultInspectorWidth: 40,
+  defaultInspectorWidth: 50,
   inspectorMinPx: 320,
   overviewPrimaryMinPx: 420,
   detailsPrimaryMinPx: 360,

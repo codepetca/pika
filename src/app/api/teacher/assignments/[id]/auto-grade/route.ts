@@ -6,6 +6,7 @@ import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { withErrorHandler } from '@/lib/api-handler'
 import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
+import { parseContentField } from '@/lib/tiptap-content'
 import type { AssignmentDocHistoryEntry } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -70,9 +71,10 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
   async function processOne() {
     while (queue.length > 0) {
       const doc = queue.shift()!
+      const studentWork = parseContentField(doc.content)
 
       // Skip docs with no content (empty work)
-      if (!doc.content || (typeof doc.content === 'object' && (!doc.content.content || doc.content.content.length === 0))) {
+      if (!studentWork.content || studentWork.content.length === 0) {
         skippedCount++
         continue
       }
@@ -81,7 +83,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
         const result = await gradeStudentWork({
           assignmentTitle: assignment.title,
           instructions: instructionsText,
-          studentWork: doc.content,
+          studentWork,
           previousFeedback: doc.feedback,
         })
 

@@ -73,6 +73,11 @@ export function SplitButton({
     }
   }, [isOpen])
 
+  function handleOptionSelect(onSelect: () => void) {
+    setIsOpen(false)
+    onSelect()
+  }
+
   return (
     <div ref={containerRef} className={cn('relative inline-flex', className)}>
       <Button
@@ -94,7 +99,10 @@ export function SplitButton({
         aria-controls={menuId}
         aria-expanded={isOpen}
         aria-label={toggleAriaLabel}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={(event) => {
+          event.stopPropagation()
+          setIsOpen((prev) => !prev)
+        }}
         disabled={disabled || options.length === 0}
         className="rounded-l-none border-l border-black/15 px-3"
       >
@@ -105,8 +113,9 @@ export function SplitButton({
         <div
           id={menuId}
           role="menu"
+          onClick={(event) => event.stopPropagation()}
           className={cn(
-            'absolute right-0 z-20 min-w-[9rem] rounded-md border border-border-strong bg-surface p-1 shadow-xl',
+            'absolute right-0 z-50 min-w-[9rem] rounded-md border border-border-strong bg-surface p-1 shadow-xl',
             menuPlacement === 'down' ? 'top-full mt-1' : 'bottom-full mb-1'
           )}
         >
@@ -116,9 +125,9 @@ export function SplitButton({
               type="button"
               role="menuitem"
               disabled={option.disabled}
-              onClick={() => {
-                option.onSelect()
-                setIsOpen(false)
+              onClick={(event) => {
+                event.stopPropagation()
+                handleOptionSelect(option.onSelect)
               }}
               className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
             >

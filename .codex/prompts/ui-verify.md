@@ -1,18 +1,13 @@
-Visual verification of UI changes using Playwright screenshots.
+Visually verify UI changes for the page path in `$ARGUMENTS`.
 
-Takes the page path as $ARGUMENTS (e.g. `classrooms/abc123`).
+Use the repo guide for expectations: `docs/guides/ai-ui-testing.md`.
 
-Steps:
-1) Verify dev server: `curl -s http://localhost:3000 > /dev/null`
-2) Verify auth: `ls "$PIKA_WORKTREE/.auth/"` — need teacher.json, student.json
-3) Teacher screenshot (1440x900):
-   `npx playwright screenshot "http://localhost:3000/$ARGUMENTS" /tmp/pika-teacher.png --load-storage "$PIKA_WORKTREE/.auth/teacher.json" --viewport-size 1440,900`
-4) Student screenshot (390x844):
-   `npx playwright screenshot "http://localhost:3000/$ARGUMENTS" /tmp/pika-student.png --load-storage "$PIKA_WORKTREE/.auth/student.json" --viewport-size 390,844`
-5) View screenshots, describe what you see, flag any issues.
-6) If issues found: fix code and repeat.
-
-Alternatively:
+Preferred path:
 ```bash
 bash "$PIKA_WORKTREE/.codex/skills/pika-ui-verify/scripts/ui_verify.sh" "$ARGUMENTS"
 ```
+
+After screenshots are captured:
+1. Review the teacher and student views.
+2. Check layout, spacing, typography, responsiveness, and missing states.
+3. If anything looks off, fix the code and repeat the verification.

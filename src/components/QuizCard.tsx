@@ -227,8 +227,7 @@ export function QuizCard({
                 : 'transition hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel',
         ].join(' ')}
       >
-        <div className="grid grid-cols-[1fr_auto] items-center gap-3">
-          {/* Left: Title, response stats, status badge */}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
           <button
             type="button"
             onClick={onSelect}
@@ -240,16 +239,11 @@ export function QuizCard({
             ].join(' ')}>
               {quiz.title}
             </h3>
-            <div className="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
-              <span>{quiz.stats.responded}/{quiz.stats.total_students} responded</span>
-              <span
-                className={`inline-flex shrink-0 items-center rounded-badge px-2.5 py-1 text-xs font-semibold ${statusBadgeClass}`}
-              >
-                {statusLabel}
-              </span>
-            </div>
-            {isScheduled && quiz.opens_at && (
-              <p className="text-xs text-warning mt-0.5">
+            <p className="mt-0.5 text-xs text-text-muted">
+              {quiz.stats.responded}/{quiz.stats.total_students} responded
+            </p>
+            {isScheduled && quiz.opens_at ? (
+              <p className="mt-0.5 text-xs text-warning">
                 Opens {new Date(quiz.opens_at).toLocaleString('en-US', {
                   timeZone: 'America/Toronto',
                   month: 'short',
@@ -258,17 +252,28 @@ export function QuizCard({
                   minute: '2-digit',
                 })}
               </p>
-            )}
-            {actionError && (
+            ) : null}
+            {actionError ? (
               <p className="mt-1 text-xs text-danger" role="alert">
                 {actionError}
               </p>
-            )}
+            ) : null}
           </button>
 
-          {/* Right: Action buttons */}
-          <div className="relative flex items-center gap-1">
-            {/* Status action */}
+          <div className="flex items-center gap-2 sm:flex-col sm:items-center sm:justify-center sm:px-4 sm:text-center">
+            <span
+              className={`inline-flex shrink-0 items-center rounded-badge px-2.5 py-1 text-xs font-semibold ${statusBadgeClass}`}
+            >
+              {statusLabel}
+            </span>
+            {!isDraft && !isScheduled ? (
+              <span className="text-sm text-text-muted">
+                {quiz.stats.responded}/{quiz.stats.total_students}
+              </span>
+            ) : null}
+          </div>
+
+          <div className="relative col-span-2 flex items-center justify-end gap-1 sm:col-span-1">
             {quiz.status === 'draft' && (
               <Tooltip
                 content={
@@ -280,9 +285,9 @@ export function QuizCard({
                 }
               >
                 <Button
-                  variant="success"
+                  variant="ghost"
                   size="sm"
-                  className="h-9 w-9 p-0"
+                  className="p-1.5 text-success hover:bg-success-bg-muted"
                   aria-label={
                     supportsScheduling
                       ? `Open ${assessmentLabel} now`
@@ -298,9 +303,9 @@ export function QuizCard({
             {quiz.status === 'active' && !isScheduled && (
               <Tooltip content={`Close ${assessmentLabel}`}>
                 <Button
-                  variant="danger"
+                  variant="ghost"
                   size="sm"
-                  className="h-9 w-9 p-0"
+                  className="p-1.5 text-danger hover:bg-danger-bg"
                   aria-label={`Close ${assessmentLabel}`}
                   disabled={isReadOnly || updating}
                   onClick={(e) => {
@@ -349,9 +354,9 @@ export function QuizCard({
             {quiz.status === 'closed' && (
               <Tooltip content={`Reopen ${assessmentLabel}`}>
                 <Button
-                  variant="success"
+                  variant="ghost"
                   size="sm"
-                  className="h-9 w-9 p-0"
+                  className="p-1.5 text-success hover:bg-success-bg-muted"
                   aria-label={`Reopen ${assessmentLabel}`}
                   disabled={isReadOnly || updating}
                   onClick={(e) => {

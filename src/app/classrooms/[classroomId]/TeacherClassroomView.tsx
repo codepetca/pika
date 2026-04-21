@@ -38,6 +38,7 @@ import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import {
+  ACTIONBAR_ICON_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
   ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME,
   PageActionBar,
@@ -222,6 +223,12 @@ function getTeacherAssignmentStatusTooltipLabel(status: AssignmentStatus, wasLat
   return baseLabel
 }
 
+function getStudentDisplayName(row: StudentSubmissionRow | null): string | null {
+  if (!row) return null
+  const fullName = [row.student_first_name, row.student_last_name].filter(Boolean).join(' ').trim()
+  return fullName || row.student_email || null
+}
+
 export function TeacherClassroomView({
   classroom,
   onSelectAssignment,
@@ -266,6 +273,10 @@ export function TeacherClassroomView({
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [individualHeaderMeta, setIndividualHeaderMeta] = useState<{
+    studentName: string
+    characterCount: number
+  } | null>(null)
   const [assignmentWorkspaceMode, setAssignmentWorkspaceMode] =
     useState<AssignmentWorkspaceMode>('overview')
   const [editAssignment, setEditAssignment] = useState<Assignment | null>(null)
@@ -273,6 +284,7 @@ export function TeacherClassroomView({
   const [info, setInfo] = useState('')
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const workspaceContainerRef = useRef<HTMLDivElement | null>(null)
+  const defaultedWorkspaceKeyRef = useRef<string | null>(null)
   const [workspaceWidth, setWorkspaceWidth] = useState(0)
 
   // Batch grading state
@@ -485,18 +497,27 @@ export function TeacherClassroomView({
     }
   }, [selection])
 
+  const activeSelectedAssignmentData = useMemo(() => {
+    if (selection.mode !== 'assignment' || !selectedAssignmentData) return null
+    return selectedAssignmentData.assignment.id === selection.assignmentId
+      ? selectedAssignmentData
+      : null
+  }, [selectedAssignmentData, selection])
+
   // Notify parent about selected assignment for sidebar
   useEffect(() => {
     if (selection.mode === 'summary') {
       onSelectAssignment?.(null)
-    } else if (selectedAssignmentData) {
-      const { assignment } = selectedAssignmentData
+    } else if (activeSelectedAssignmentData) {
+      const { assignment } = activeSelectedAssignmentData
       onSelectAssignment?.({
         title: assignment.title,
         instructions: assignment.instructions_markdown || assignment.rich_instructions || assignment.description,
       })
+    } else {
+      onSelectAssignment?.(null)
     }
-  }, [selection.mode, selectedAssignmentData, onSelectAssignment])
+  }, [activeSelectedAssignmentData, onSelectAssignment, selection.mode])
 
   // Notify parent of view mode changes
   useEffect(() => {
@@ -568,10 +589,16 @@ export function TeacherClassroomView({
     return rows
   }, [selectedAssignmentData, sortColumn, sortDirection])
 
-  const currentStudentRows = sortedStudents
+  const currentStudentRows = useMemo(
+    () => (activeSelectedAssignmentData ? sortedStudents : []),
+    [activeSelectedAssignmentData, sortedStudents],
+  )
 
   const studentRowIds = useMemo(() => currentStudentRows.map((s) => s.student_id), [currentStudentRows])
-  const dueAtMs = useMemo(() => selectedAssignmentData ? new Date(selectedAssignmentData.assignment.due_at).getTime() : 0, [selectedAssignmentData])
+  const dueAtMs = useMemo(
+    () => (activeSelectedAssignmentData ? new Date(activeSelectedAssignmentData.assignment.due_at).getTime() : 0),
+    [activeSelectedAssignmentData],
+  )
   const selectedAssignmentKey =
     selection.mode === 'assignment' ? selection.assignmentId : null
   const {
@@ -719,6 +746,7 @@ export function TeacherClassroomView({
     if (!selectedStudentId) return null
     return currentStudentRows.find((student) => student.student_id === selectedStudentId) ?? null
   }, [currentStudentRows, selectedStudentId])
+  const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
 
   const handleGoPrevStudent = useCallback(() => {
     if (selectedStudentIndex <= 0) return
@@ -731,18 +759,23 @@ export function TeacherClassroomView({
   }, [currentStudentRows, selectedStudentIndex])
 
   useEffect(() => {
-    if (selection.mode !== 'assignment' || !selectedStudentId) return
+    if (selection.mode !== 'assignment' || !activeSelectedStudentId) return
     writeCookie(
       getAssignmentWorkspaceStudentCookieName(classroom.id, selection.assignmentId),
-      selectedStudentId,
+      activeSelectedStudentId,
     )
-  }, [classroom.id, selectedStudentId, selection])
+  }, [activeSelectedStudentId, classroom.id, selection])
 
   useEffect(() => {
     if (!selectedStudentId) return
     if (currentStudentRows.some((student) => student.student_id === selectedStudentId)) return
     setSelectedStudentId(null)
   }, [currentStudentRows, selectedStudentId])
+
+  useEffect(() => {
+    if (selection.mode === 'assignment') return
+    defaultedWorkspaceKeyRef.current = null
+  }, [selection.mode])
 
   const resolveDetailsStudentId = useCallback(() => {
     if (selection.mode !== 'assignment') return null
@@ -769,9 +802,11 @@ export function TeacherClassroomView({
 
     if (nextMode === 'details') {
       const nextStudentId = resolveDetailsStudentId()
-      if (nextStudentId) {
-        setSelectedStudentId(nextStudentId)
-      }
+      if (!nextStudentId) return
+      setIndividualHeaderMeta(null)
+      setSelectedStudentId(nextStudentId)
+    } else {
+      setIndividualHeaderMeta(null)
     }
 
     updateModeLayout(nextMode, assignmentGradingLayout[assignmentWorkspaceMode])
@@ -785,14 +820,28 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
-    if (assignmentWorkspaceMode !== 'details') return
-    if (selectedStudentId) return
+    if (!activeSelectedAssignmentData || selectedAssignmentLoading) return
+    const workspaceKey = `${selection.assignmentId}:${assignmentWorkspaceMode}`
+    if (defaultedWorkspaceKeyRef.current === workspaceKey) return
+
+    if (activeSelectedStudentId) {
+      defaultedWorkspaceKeyRef.current = workspaceKey
+      return
+    }
 
     const nextStudentId = resolveDetailsStudentId()
     if (nextStudentId) {
+      defaultedWorkspaceKeyRef.current = workspaceKey
       setSelectedStudentId(nextStudentId)
     }
-  }, [assignmentWorkspaceMode, resolveDetailsStudentId, selectedStudentId, selection.mode])
+  }, [
+    activeSelectedAssignmentData,
+    activeSelectedStudentId,
+    assignmentWorkspaceMode,
+    resolveDetailsStudentId,
+    selectedAssignmentLoading,
+    selection,
+  ])
 
   // Escape key to deselect student
   useEffect(() => {
@@ -808,6 +857,16 @@ export function TeacherClassroomView({
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [assignmentWorkspaceMode, selectedStudentId])
+
+  useEffect(() => {
+    if (selection.mode !== 'assignment') {
+      setIndividualHeaderMeta(null)
+    }
+  }, [selection.mode])
+
+  useEffect(() => {
+    setIndividualHeaderMeta(null)
+  }, [selectedAssignmentKey])
 
   // Apply sidebar grade saves to the current row without forcing a table reload.
   useEffect(() => {
@@ -871,18 +930,26 @@ export function TeacherClassroomView({
   }
 
   const canEditAssignment =
-    selection.mode === 'assignment' && !!selectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
+    selection.mode === 'assignment' && !!activeSelectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
   const selectedAssignmentSummary = selection.mode === 'assignment'
     ? assignments.find((item) => item.id === selection.assignmentId) ?? null
     : null
   const selectedAssignmentTitle =
-    selectedAssignmentData?.assignment.title ??
+    activeSelectedAssignmentData?.assignment.title ??
     selectedAssignmentSummary?.title ??
     'Assignment'
+  const selectedStudentDisplayName =
+    individualHeaderMeta?.studentName ?? getStudentDisplayName(selectedStudentRow)
+  const individualCharacterCountLabel =
+    selectedStudentDisplayName
+      ? individualHeaderMeta
+        ? `${individualHeaderMeta.characterCount} chars`
+        : 'Loading…'
+      : null
   const activeWorkspaceLayout = assignmentGradingLayout[assignmentWorkspaceMode]
   const showOverviewInspector =
     assignmentWorkspaceMode === 'overview' &&
-    !!selectedStudentId
+    !!activeSelectedStudentId
   const canOpenDetails =
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
@@ -924,80 +991,21 @@ export function TeacherClassroomView({
 
   const studentTable = (
     <div className="flex h-full min-h-0 flex-col">
-      {assignmentWorkspaceMode === 'overview' && (
-        <div className="border-b border-border bg-surface px-3 py-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
-              <SplitButton
-                label={
-                  <span className="inline-flex items-center gap-2">
-                    <Check className="h-4 w-4" aria-hidden="true" />
-                    <span>AI Grade</span>
-                  </span>
-                }
-                onPrimaryClick={() => {
-                  void handleBatchAutoGrade()
-                }}
-                options={[
-                  {
-                    id: 'repo-analysis',
-                    label: (
-                      <span className="inline-flex items-center gap-2">
-                        <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                        <span>Repo analysis</span>
-                      </span>
-                    ),
-                    onSelect: () => {
-                      void handleBatchArtifactRepoAnalyze()
-                    },
-                    disabled: isArtifactRepoAnalyzing || isReadOnly || batchSelectedCount === 0,
-                  },
-                ]}
-                disabled={isAutoGrading || isReadOnly || batchSelectedCount === 0}
-                className="inline-flex"
-                toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
-                menuPlacement="down"
-                primaryButtonProps={{
-                  'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
-                }}
-              />
-            </Tooltip>
-
-            <Tooltip content={`Send${workspaceActionLabelSuffix}`}>
-              <Button
-                type="button"
-                variant="subtle"
-                size="sm"
-                className="px-4"
-                onClick={() => {
-                  setShowReturnConfirm(true)
-                }}
-                disabled={isReturning || isReadOnly || batchSelectedCount === 0}
-                aria-label={`Send${workspaceActionLabelSuffix}`}
-              >
-                <Send className="h-4 w-4" aria-hidden="true" />
-                <span>Send</span>
-              </Button>
-            </Tooltip>
-          </div>
-        </div>
-      )}
-
       <KeyboardNavigableTable
         ref={tableContainerRef}
         rowKeys={currentStudentRows.map((student) => student.student_id)}
-        selectedKey={selectedStudentId}
+        selectedKey={activeSelectedStudentId}
         onSelectKey={setSelectedStudentId}
         onDeselect={() => setSelectedStudentId(null)}
       >
         <TableCard chrome="flush">
-          {selectedAssignmentLoading ? (
+          {selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError) ? (
             <div className="flex justify-center py-10">
               <Spinner />
             </div>
-          ) : selectedAssignmentError || !selectedAssignmentData ? (
+          ) : selectedAssignmentError ? (
             <div className="p-4 text-sm text-danger">
-              {selectedAssignmentError || 'Failed to load assignment'}
+              {selectedAssignmentError}
             </div>
           ) : (
             <div className="relative">
@@ -1054,8 +1062,8 @@ export function TeacherClassroomView({
                   </DataTableRow>
                 </DataTableHead>
                 <DataTableBody>
-                  {sortedStudents.map((student) => {
-                    const isSelected = selectedStudentId === student.student_id
+                  {currentStudentRows.map((student) => {
+                    const isSelected = activeSelectedStudentId === student.student_id
                     const totalScore =
                       student.doc?.score_completion != null &&
                       student.doc?.score_thinking != null &&
@@ -1079,8 +1087,10 @@ export function TeacherClassroomView({
                         key={student.student_id}
                         className={getRowClassName(isSelected)}
                         onClick={() => {
-                          setSelectedStudentId(isSelected ? null : student.student_id)
-                          setAssignmentWorkspaceMode('overview')
+                          if (assignmentWorkspaceMode === 'details') {
+                            setIndividualHeaderMeta(null)
+                          }
+                          setSelectedStudentId(student.student_id)
                         }}
                       >
                         <DataTableCell>
@@ -1155,15 +1165,15 @@ export function TeacherClassroomView({
         <span>New</span>
       </button>
     ) : (
-      <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 sm:min-h-[2.75rem]">
-        <div className="mb-[-1px] flex border-b border-border self-end">
+      <div className="flex w-full flex-wrap items-center gap-2 sm:min-h-[2.75rem]">
+        <div className="mb-[-1px] flex items-end gap-1 self-end">
           <button
             type="button"
             className={[
               assignmentWorkspaceMode === 'overview'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-muted hover:border-border hover:text-text-default',
-              'border-b-2 -mb-px px-4 py-2 text-sm font-medium transition-colors',
+                ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
+                : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
+              'min-h-10 px-3 py-2 text-sm font-medium transition-colors',
             ].join(' ')}
             onClick={() => handleSwitchWorkspaceMode('overview')}
             aria-pressed={assignmentWorkspaceMode === 'overview'}
@@ -1174,10 +1184,10 @@ export function TeacherClassroomView({
             type="button"
             className={[
               assignmentWorkspaceMode === 'details'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-text-muted hover:border-border hover:text-text-default',
-              !canOpenDetails ? 'cursor-not-allowed opacity-50 hover:border-transparent hover:text-text-muted' : '',
-              'border-b-2 -mb-px px-4 py-2 text-sm font-medium transition-colors',
+                ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
+                : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
+              !canOpenDetails ? 'cursor-not-allowed opacity-50 hover:bg-surface-2 hover:text-text-muted' : '',
+              'min-h-10 px-3 py-2 text-sm font-medium transition-colors',
             ].join(' ')}
             onClick={() => handleSwitchWorkspaceMode('details')}
             aria-pressed={assignmentWorkspaceMode === 'details'}
@@ -1187,13 +1197,106 @@ export function TeacherClassroomView({
           </button>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center gap-3 self-center">
-          {workspaceLoading && (
-            <div aria-live="polite" className="inline-flex items-center gap-1 text-xs text-text-muted">
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-              <span>Updating</span>
-            </div>
-          )}
+        <div className="flex min-w-0 basis-full justify-center sm:basis-auto sm:flex-1">
+          <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:gap-3">
+            {assignmentWorkspaceMode === 'overview' ? (
+              <>
+                <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
+                  <SplitButton
+                    label={
+                      <span className="inline-flex items-center gap-2">
+                        <Check className="h-4 w-4" aria-hidden="true" />
+                        <span>AI Grade</span>
+                      </span>
+                    }
+                    onPrimaryClick={() => {
+                      void handleBatchAutoGrade()
+                    }}
+                    options={[
+                      {
+                        id: 'repo-analysis',
+                        label: (
+                          <span className="inline-flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                            <span>Repo analysis</span>
+                          </span>
+                        ),
+                        onSelect: () => {
+                          void handleBatchArtifactRepoAnalyze()
+                        },
+                        disabled: isArtifactRepoAnalyzing || isReadOnly || batchSelectedCount === 0,
+                      },
+                    ]}
+                    disabled={isAutoGrading || isReadOnly || batchSelectedCount === 0}
+                    className="inline-flex"
+                    toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
+                    menuPlacement="down"
+                    primaryButtonProps={{
+                      'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
+                    }}
+                  />
+                </Tooltip>
+
+                <Tooltip content={`Send${workspaceActionLabelSuffix}`}>
+                  <Button
+                    type="button"
+                    variant="subtle"
+                    size="sm"
+                    className="px-4"
+                    onClick={() => {
+                      setShowReturnConfirm(true)
+                    }}
+                    disabled={isReturning || isReadOnly || batchSelectedCount === 0}
+                    aria-label={`Send${workspaceActionLabelSuffix}`}
+                  >
+                    <Send className="h-4 w-4" aria-hidden="true" />
+                    <span>Send</span>
+                  </Button>
+                </Tooltip>
+              </>
+            ) : (
+              <>
+                <div
+                  className="min-w-0 max-w-[18rem] truncate text-center text-sm font-medium text-text-default"
+                  title={selectedStudentDisplayName ?? undefined}
+                >
+                  {selectedStudentDisplayName ?? 'No student selected'}
+                </div>
+                {individualCharacterCountLabel && (
+                  <div className="shrink-0 text-xs text-text-muted" aria-label={individualCharacterCountLabel}>
+                    {individualCharacterCountLabel}
+                  </div>
+                )}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+                    onClick={handleGoPrevStudent}
+                    disabled={!canGoPrevStudent}
+                    aria-label="Previous student"
+                  >
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+                    onClick={handleGoNextStudent}
+                    disabled={!canGoNextStudent}
+                    aria-label="Next student"
+                  >
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              </>
+            )}
+
+            {workspaceLoading && (
+              <div aria-live="polite" className="inline-flex items-center gap-1 text-xs text-text-muted">
+                <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                <span>Updating</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-1 sm:ml-auto sm:gap-2">
@@ -1202,8 +1305,8 @@ export function TeacherClassroomView({
               type="button"
               className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex max-w-[22rem] items-center gap-2`}
               onClick={() => {
-                if (selectedAssignmentData) {
-                  setEditAssignment(selectedAssignmentData.assignment)
+                if (activeSelectedAssignmentData) {
+                  setEditAssignment(activeSelectedAssignmentData.assignment)
                 }
               }}
               disabled={!canEditAssignment}
@@ -1226,13 +1329,14 @@ export function TeacherClassroomView({
         primary={primaryButtons}
         actions={[]}
         trailing={showMobileToggle ? <RightSidebarToggle /> : undefined}
+        className={selection.mode === 'summary' ? '' : 'pl-0 pr-2'}
       />
 
       <PageContent
         className={
           selection.mode === 'summary'
             ? 'flex flex-col gap-3'
-            : 'flex min-h-0 flex-1 flex-col gap-3 pt-0'
+            : 'px-0 flex min-h-0 flex-1 flex-col gap-3 pt-0'
         }
       >
         {error && (
@@ -1296,11 +1400,11 @@ export function TeacherClassroomView({
               className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
             >
               {assignmentWorkspaceMode === 'details' ? (
-                selectedStudentId ? (
+                activeSelectedStudentId ? (
                   <TeacherStudentWorkPanel
                     classroomId={classroom.id}
                     assignmentId={selection.assignmentId}
-                    studentId={selectedStudentId}
+                    studentId={activeSelectedStudentId}
                     mode="details"
                     inspectorCollapsed={false}
                     inspectorWidth={activeWorkspaceLayout.inspectorWidth}
@@ -1311,14 +1415,15 @@ export function TeacherClassroomView({
                     onGoNextStudent={handleGoNextStudent}
                     canGoPrevStudent={canGoPrevStudent}
                     canGoNextStudent={canGoNextStudent}
+                    onDetailsMetaChange={setIndividualHeaderMeta}
                   />
-                ) : selectedAssignmentLoading ? (
+                ) : selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError) ? (
                   <div className="flex flex-1 items-center justify-center py-12">
                     <Spinner />
                   </div>
-                ) : selectedAssignmentError || !selectedAssignmentData ? (
+                ) : selectedAssignmentError ? (
                   <div className="flex flex-1 items-center justify-center p-4 text-sm text-danger">
-                    {selectedAssignmentError || 'Failed to load assignment'}
+                    {selectedAssignmentError}
                   </div>
                 ) : (
                   <div className="flex flex-1 items-center justify-center text-sm text-text-muted">
@@ -1331,15 +1436,17 @@ export function TeacherClassroomView({
                     {studentTable}
                   </div>
                   {isDesktop && (
-                    <div
-                      role="separator"
-                      aria-orientation="vertical"
-                      aria-label="Resize table and grading panes"
-                      className="relative hidden w-3 shrink-0 cursor-col-resize bg-transparent lg:block"
-                      onPointerDown={handleOverviewInspectorResizeStart}
-                      onDoubleClick={handleOverviewInspectorResizeReset}
-                    >
-                      <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+                    <div className="relative hidden w-0 shrink-0 lg:block">
+                      <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label="Resize table and grading panes"
+                        className="absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize bg-transparent"
+                        onPointerDown={handleOverviewInspectorResizeStart}
+                        onDoubleClick={handleOverviewInspectorResizeReset}
+                      >
+                        <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
+                      </div>
                     </div>
                   )}
                   <div
@@ -1356,7 +1463,7 @@ export function TeacherClassroomView({
                     <TeacherStudentWorkPanel
                       classroomId={classroom.id}
                       assignmentId={selection.assignmentId}
-                      studentId={selectedStudentId}
+                      studentId={activeSelectedStudentId}
                       mode="overview"
                       inspectorCollapsed={false}
                       inspectorWidth={activeWorkspaceLayout.inspectorWidth}

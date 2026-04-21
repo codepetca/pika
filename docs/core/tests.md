@@ -171,6 +171,7 @@ Run predefined verification scenarios:
 pnpm e2e:verify --help                    # List available scenarios
 pnpm e2e:verify add-students-modal        # Verify add students modal
 pnpm e2e:verify create-classroom-wizard   # Verify classroom creation
+pnpm e2e:verify assessment-ux-parity      # Capture assignment parity references/targets
 ```
 
 Scripts output JSON with pass/fail status and can be used to validate UI changes.

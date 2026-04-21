@@ -12,14 +12,27 @@ interface DateActionBarProps {
   onNext: () => void
   rightActions?: React.ReactNode
   className?: string
+  layout?: 'default' | 'compact'
 }
 
-export function DateActionBar({ value, onChange, onPrev, onNext, rightActions, className = '' }: DateActionBarProps) {
+export function DateActionBar({
+  value,
+  onChange,
+  onPrev,
+  onNext,
+  rightActions,
+  className = '',
+  layout = 'default',
+}: DateActionBarProps) {
   const dateInputRef = useRef<HTMLInputElement>(null)
   const formattedDate = value ? format(parseISO(value), 'EEE MMM d') : ''
+  const isCompact = layout === 'compact'
+  const containerClassName = isCompact
+    ? 'flex items-center gap-2'
+    : 'flex w-full flex-wrap items-center justify-between gap-4'
 
   return (
-    <div className={['flex w-full flex-wrap items-center justify-between gap-4', className].join(' ')}>
+    <div className={[containerClassName, className].join(' ')}>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={ACTIONBAR_ICON_BUTTON_CLASSNAME} onClick={onPrev} aria-label="Previous day">
           <ChevronLeft className="h-5 w-5" aria-hidden="true" />

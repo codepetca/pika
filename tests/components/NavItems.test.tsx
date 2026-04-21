@@ -105,7 +105,7 @@ describe('NavItems notification dots', () => {
     })
     const { container } = renderNav('teacher', 'attendance')
 
-    expect(screen.getByRole('link', { name: 'Attendance' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Daily' })).toBeInTheDocument()
     expect(container.querySelector('[data-new-activity-dot="true"]')).toBeNull()
     expect(screen.queryByRole('link', { name: /new activity/i })).toBeNull()
   })

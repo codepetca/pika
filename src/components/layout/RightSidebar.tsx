@@ -13,6 +13,10 @@ export interface RightSidebarProps {
   title?: ReactNode
   /** Optional action buttons shown in header next to title */
   headerActions?: ReactNode
+  /** Hide the desktop header while keeping the mobile drawer header */
+  hideDesktopHeader?: boolean
+  /** Simplify the mobile drawer header to just the back control */
+  minimalMobileHeader?: boolean
 }
 
 /**
@@ -22,8 +26,16 @@ export interface RightSidebarProps {
  * - Hidden when closed (w-0, no border, overflow-hidden)
  * - No toggle button when disabled for a view
  */
-export function RightSidebar({ children, className, title = 'Details', headerActions }: RightSidebarProps) {
+export function RightSidebar({
+  children,
+  className,
+  title = 'Details',
+  headerActions,
+  hideDesktopHeader = false,
+  minimalMobileHeader = false,
+}: RightSidebarProps) {
   const showHeader = !!(title || headerActions)
+  const showDesktopHeader = showHeader && !hideDesktopHeader
   const mobileAriaLabel = typeof title === 'string' && title.trim().length > 0 ? title : 'Details'
   const { isOpen, enabled } = useRightSidebar()
   const { isRightOpen, close } = useMobileDrawer()
@@ -74,7 +86,7 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
             .join(' ')}
         >
           {/* Header */}
-          {showHeader && (
+          {showDesktopHeader && (
             <div className="flex items-center justify-between p-2 border-b border-border">
               <span className="truncate flex-1 px-2 text-sm font-semibold text-text-default">
                 {title}
@@ -114,24 +126,37 @@ export function RightSidebar({ children, className, title = 'Details', headerAct
               'flex flex-col',
             ].join(' ')}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-3 border-b border-border">
-              <span className="text-sm font-semibold text-text-default truncate flex-1">
-                {title}
-              </span>
-              {headerActions && (
-                <div className="flex items-center gap-1 mx-2">{headerActions}</div>
-              )}
-              <button
-                ref={firstFocusableRef}
-                type="button"
-                onClick={close}
-                className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
-                aria-label="Back"
-              >
-                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </div>
+            {minimalMobileHeader ? (
+              <div className="flex justify-end p-3">
+                <button
+                  ref={firstFocusableRef}
+                  type="button"
+                  onClick={close}
+                  className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
+                  aria-label="Back"
+                >
+                  <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between p-3 border-b border-border">
+                <span className="text-sm font-semibold text-text-default truncate flex-1">
+                  {title}
+                </span>
+                {headerActions && (
+                  <div className="flex items-center gap-1 mx-2">{headerActions}</div>
+                )}
+                <button
+                  ref={firstFocusableRef}
+                  type="button"
+                  onClick={close}
+                  className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
+                  aria-label="Back"
+                >
+                  <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            )}
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto">{children}</div>
