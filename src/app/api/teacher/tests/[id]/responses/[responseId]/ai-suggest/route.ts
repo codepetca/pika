@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
-import { suggestTestOpenResponseGrade } from '@/lib/ai-test-grading'
+import {
+  getTestOpenResponseGradingModel,
+  prepareTestOpenResponseGradingContext,
+  resolveReusableTestOpenResponseReferenceAnswers,
+  suggestTestOpenResponseGradeWithContext,
+} from '@/lib/ai-test-grading'
 import { withErrorHandler } from '@/lib/api-handler'
 
 export const dynamic = 'force-dynamic'
@@ -33,7 +38,10 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
         points,
         response_monospace,
         answer_key,
-        sample_solution
+        sample_solution,
+        ai_reference_cache_key,
+        ai_reference_cache_answers,
+        ai_reference_cache_model
       )
     `)
     .eq('id', responseId)
@@ -59,14 +67,68 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
     return NextResponse.json({ error: 'Response text is empty' }, { status: 400 })
   }
 
-  const suggestion = await suggestTestOpenResponseGrade({
+  const currentModel = getTestOpenResponseGradingModel()
+  const referenceCache = resolveReusableTestOpenResponseReferenceAnswers({
     testTitle: access.test.title,
     questionText: String(question.question_text || ''),
-    responseText,
+    maxPoints: Number(question.points ?? 0),
+    model: currentModel,
+    isCodingQuestion: question.response_monospace === true,
+    cacheKey:
+      typeof question.ai_reference_cache_key === 'string'
+        ? question.ai_reference_cache_key
+        : null,
+    cacheAnswers: question.ai_reference_cache_answers,
+    cacheModel:
+      typeof question.ai_reference_cache_model === 'string'
+        ? question.ai_reference_cache_model
+        : null,
+  })
+
+  const prepared = await prepareTestOpenResponseGradingContext({
+    testTitle: access.test.title,
+    questionText: String(question.question_text || ''),
     maxPoints: Number(question.points ?? 0),
     answerKey: typeof question.answer_key === 'string' ? question.answer_key : null,
     sampleSolution: typeof question.sample_solution === 'string' ? question.sample_solution : null,
+    referenceAnswers: referenceCache.referenceAnswers,
     responseMonospace: question.response_monospace === true,
+    promptProfile: 'manual',
+    telemetryContext: {
+      feature: 'test_ai_suggest',
+      requestedStrategy: 'manual',
+      resolvedStrategy: 'single',
+    },
+  })
+
+  if (
+    prepared.grading_basis === 'generated_reference' &&
+    prepared.reference_answers_source === 'generated'
+  ) {
+    const { error: cacheUpdateError } = await supabase
+      .from('test_questions')
+      .update({
+        ai_reference_cache_key: referenceCache.expectedCacheKey,
+        ai_reference_cache_answers: prepared.reference_answers,
+        ai_reference_cache_model: prepared.model,
+        ai_reference_cache_generated_at: new Date().toISOString(),
+      })
+      .eq('id', question.id)
+      .eq('test_id', testId)
+
+    if (cacheUpdateError) {
+      console.error('Error caching generated reference answers for AI suggest:', {
+        testId,
+        questionId: question.id,
+        error: cacheUpdateError,
+      })
+    }
+  }
+
+  const suggestion = await suggestTestOpenResponseGradeWithContext(prepared, responseText, {
+    feature: 'test_ai_suggest',
+    requestedStrategy: 'manual',
+    resolvedStrategy: 'single',
   })
 
   return NextResponse.json({

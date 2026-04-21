@@ -431,6 +431,7 @@ export function TeacherWorkInspector({
   gradeError,
   feedbackReturning,
   gradeSaving,
+  showDraftAutosavedNotice,
   repoAnalyzing,
   expandedSections,
   onToggleSection,
@@ -466,6 +467,7 @@ export function TeacherWorkInspector({
   gradeError: string
   feedbackReturning: boolean
   gradeSaving: boolean
+  showDraftAutosavedNotice: boolean
   repoAnalyzing: boolean
   expandedSections: InspectorSectionId[]
   onToggleSection: (section: InspectorSectionId) => void
@@ -476,12 +478,6 @@ export function TeacherWorkInspector({
   const hasRepoConnection = !!(
     data.repo_target.effectiveRepoUrl || data.repo_target.effectiveGitHubUsername
   )
-  const hasSavedDraftContent = !!(
-    data.doc?.teacher_feedback_draft?.trim()
-    || data.doc?.score_completion !== null
-    || data.doc?.score_thinking !== null
-    || data.doc?.score_workflow !== null
-  )
   const gradeStatusLabel = gradeSaving
     ? `Saving ${gradeMode === 'graded' ? 'graded' : 'draft'}...`
     : data.doc?.graded_at
@@ -490,7 +486,7 @@ export function TeacherWorkInspector({
           'America/Toronto',
           'MMM d, h:mm a',
         )}`
-      : hasSavedDraftContent
+      : showDraftAutosavedNotice
         ? 'Draft autosaved'
         : null
 

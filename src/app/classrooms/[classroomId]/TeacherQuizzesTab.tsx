@@ -1085,8 +1085,9 @@ export function TeacherQuizzesTab({
             />
           </FormField>
           <p className="mt-2 text-xs text-text-muted">
-            Balanced reuses one question-level grading context per question. Aggressive Batch is
-            experimental and grades same-question responses together in one AI call.
+            Balanced adapts automatically: it reuses one question-level grading context per
+            question and batches same-question responses when there is more than one to grade.
+            Aggressive Batch is experimental and forces batching for each same-question group.
           </p>
         </div>
         <div className="mt-4">

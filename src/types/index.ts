@@ -266,6 +266,91 @@ export interface AssignmentFeedbackEntry {
   created_by: string | null
 }
 
+export type AssignmentAiGradingRunStatus =
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'completed_with_errors'
+  | 'failed'
+
+export type AssignmentAiGradingItemStatus =
+  | 'queued'
+  | 'processing'
+  | 'completed'
+  | 'skipped'
+  | 'failed'
+
+export type AssignmentAiGradingSkipReason = 'missing_doc' | 'empty_doc'
+
+export interface AssignmentAiGradingRunErrorSample {
+  student_id: string | null
+  code: string | null
+  message: string
+}
+
+export interface AssignmentAiGradingRun {
+  id: string
+  assignment_id: string
+  status: AssignmentAiGradingRunStatus
+  triggered_by: string
+  model: string | null
+  requested_student_ids_json: string[]
+  selection_hash: string
+  requested_count: number
+  gradable_count: number
+  processed_count: number
+  completed_count: number
+  skipped_missing_count: number
+  skipped_empty_count: number
+  failed_count: number
+  error_samples_json: AssignmentAiGradingRunErrorSample[]
+  lease_token: string | null
+  lease_expires_at: string | null
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AssignmentAiGradingRunItem {
+  id: string
+  run_id: string
+  assignment_id: string
+  student_id: string
+  assignment_doc_id: string | null
+  queue_position: number
+  status: AssignmentAiGradingItemStatus
+  skip_reason: AssignmentAiGradingSkipReason | null
+  attempt_count: number
+  next_retry_at: string | null
+  last_error_code: string | null
+  last_error_message: string | null
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AssignmentAiGradingRunSummary {
+  id: string
+  assignment_id: string
+  status: AssignmentAiGradingRunStatus
+  model: string | null
+  requested_count: number
+  gradable_count: number
+  processed_count: number
+  completed_count: number
+  skipped_missing_count: number
+  skipped_empty_count: number
+  failed_count: number
+  pending_count: number
+  next_retry_at: string | null
+  error_samples: AssignmentAiGradingRunErrorSample[]
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+}
+
 export type RepoReviewProvider = 'github'
 export type RepoReviewRunStatus = 'queued' | 'running' | 'completed' | 'failed'
 export type AssignmentRepoTargetSelectionMode = 'auto' | 'teacher_override'

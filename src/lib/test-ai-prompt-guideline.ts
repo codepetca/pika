@@ -7,6 +7,13 @@ export const DEFAULT_TEST_AI_PROMPT_GUIDELINE = [
   'If the score is below full marks, include one sentence starting with "Improve:" with one concrete improvement to reach full marks.',
 ].join('\n')
 
+export const BULK_TEST_AI_PROMPT_GUIDELINE = [
+  'If score buckets are provided, choose the nearest bucket exactly.',
+  'If no score buckets are provided, use whole-number scores only.',
+  'Feedback should stay concise and use "Strength:" and "Next Step:".',
+  'If the score is below full marks, include one "Improve:" sentence with one concrete fix.',
+].join('\n')
+
 export const GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE = [
   'Grade 11 CS AI Grading Rules for Coding Questions',
   '',
@@ -112,4 +119,16 @@ export const GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE = [
   'Feedback: Strength: <sentence> Next Step: <sentence> Improve: <sentence if needed>',
   '',
   'If the student earned full marks, omit the Improve sentence.',
+].join('\n')
+
+export const BULK_GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE = [
+  'Grade 11 CS bulk grading rules for coding questions',
+  '',
+  '- Use whole-number scores unless score buckets are provided.',
+  '- If score buckets are provided, choose exactly one provided bucket.',
+  '- In CodeHS Java, accept readInt/readLine, println, hidden boilerplate, and minor beginner syntax issues when the logic is clear.',
+  '- Prioritize concept correctness, logic, and required structure before syntax polish.',
+  '- Award strong partial credit when the core algorithm is correct, even if implementation details are rough.',
+  '- Accept alternate valid solutions unless the prompt explicitly requires a specific structure.',
+  '- Keep feedback concise and use Strength:, Next Step:, and Improve: when not full marks.',
 ].join('\n')

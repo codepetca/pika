@@ -26,9 +26,22 @@ vi.mock('@/lib/server/tests', () => ({
   })),
 }))
 
-const suggestTestOpenResponseGrade = vi.fn()
+const getTestOpenResponseGradingModel = vi.fn(() => 'gpt-5-nano')
+const prepareTestOpenResponseGradingContext = vi.fn()
+const suggestTestOpenResponseGradeWithContext = vi.fn()
+const resolveReusableTestOpenResponseReferenceAnswers = vi.fn(() => ({
+  expectedCacheKey: 'cache-key',
+  cacheHit: true,
+  referenceAnswers: ['Cached reference answer'],
+}))
 vi.mock('@/lib/ai-test-grading', () => ({
-  suggestTestOpenResponseGrade: (...args: any[]) => suggestTestOpenResponseGrade(...args),
+  getTestOpenResponseGradingModel: () => getTestOpenResponseGradingModel(),
+  prepareTestOpenResponseGradingContext: (...args: any[]) =>
+    prepareTestOpenResponseGradingContext(...args),
+  suggestTestOpenResponseGradeWithContext: (...args: any[]) =>
+    suggestTestOpenResponseGradeWithContext(...args),
+  resolveReusableTestOpenResponseReferenceAnswers: (...args: any[]) =>
+    resolveReusableTestOpenResponseReferenceAnswers(...args),
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
@@ -39,7 +52,13 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
   })
 
   it('returns suggestion with grading metadata and uses answer_key context', async () => {
-    suggestTestOpenResponseGrade.mockResolvedValue({
+    prepareTestOpenResponseGradingContext.mockResolvedValue({
+      model: 'gpt-5-nano',
+      grading_basis: 'teacher_key',
+      reference_answers: [],
+      reference_answers_source: 'teacher_key',
+    })
+    suggestTestOpenResponseGradeWithContext.mockResolvedValue({
       score: 3.75,
       feedback: 'Good foundation. Add membrane specifics.',
       grading_basis: 'teacher_key',
@@ -70,6 +89,9 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
                   'Water moves across a semi-permeable membrane from low solute to high solute concentration.',
                 sample_solution:
                   'public String explainOsmosis() {\n  return "Water moves across a semipermeable membrane.";\n}',
+                ai_reference_cache_key: 'cache-key',
+                ai_reference_cache_answers: ['Cached reference answer'],
+                ai_reference_cache_model: 'gpt-5-nano',
               },
             },
             error: null,
@@ -87,13 +109,15 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(suggestTestOpenResponseGrade).toHaveBeenCalledWith(
+    expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledWith(
       expect.objectContaining({
         answerKey: expect.stringContaining('semi-permeable membrane'),
         sampleSolution: expect.stringContaining('explainOsmosis'),
         responseMonospace: true,
+        promptProfile: 'manual',
       })
     )
+    expect(suggestTestOpenResponseGradeWithContext).toHaveBeenCalledTimes(1)
     expect(data.suggestion).toEqual(
       expect.objectContaining({
         grading_basis: 'teacher_key',

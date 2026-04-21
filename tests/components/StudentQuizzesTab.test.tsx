@@ -168,14 +168,14 @@ describe('StudentQuizzesTab exam mode', () => {
     fireEvent.click(screen.getByText('Start test'))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Maximize Window/i })).toBeInTheDocument()
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
     })
 
-    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
-    expect(screen.queryByText('2 + 2 = ?')).not.toBeInTheDocument()
-    expect(screen.queryByRole('radio', { name: '3' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('radio', { name: '4' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('4')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument()
     expect(screen.queryByText('Exit Test')).not.toBeInTheDocument()
     expect(screen.queryByText('Leave this test?')).not.toBeInTheDocument()
   })
@@ -2170,7 +2170,7 @@ describe('StudentQuizzesTab exam mode', () => {
 
     await waitFor(() => {
       expect(focusBodies.filter((body) => body.event_type === 'away_start')).toHaveLength(1)
-      expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(1)
+      expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
       expect(focusBodies.filter((body) => body.event_type === 'away_end')).toHaveLength(1)
     })
   })
@@ -2518,8 +2518,437 @@ describe('StudentQuizzesTab exam mode', () => {
     })
   })
 
-  it('logs window unmaximize telemetry on resize when exam mode window is reduced', async () => {
+  it('keeps the question visible on transient fullscreen loss when the window still looks maximized', async () => {
     const focusBodies: Array<Record<string, any>> = []
+    let fullscreenElement: Element | null = null
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockImplementation(async () => {
+        fullscreenElement = document.documentElement
+        document.dispatchEvent(new Event('fullscreenchange'))
+      }),
+    })
+
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: null,
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
+        focusBodies.push(parsedBody)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(fullscreenElement).toBe(document.documentElement)
+    })
+
+    vi.useFakeTimers()
+    fullscreenElement = null
+    fireEvent(document, new Event('fullscreenchange'))
+
+    await act(async () => {
+      vi.advanceTimersByTime(450)
+    })
+
+    expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
+  })
+
+  it('locks after sustained fullscreen loss when the window remains non-compliant', async () => {
+    const focusBodies: Array<Record<string, any>> = []
+    let fullscreenElement: Element | null = null
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockImplementation(async () => {
+        fullscreenElement = document.documentElement
+        document.dispatchEvent(new Event('fullscreenchange'))
+      }),
+    })
+
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: null,
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
+        focusBodies.push(parsedBody)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary({
+              window_unmaximize_attempts: focusBodies.filter(
+                (body) => body.event_type === 'window_unmaximize_attempt'
+              ).length,
+            }),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(fullscreenElement).toBe(document.documentElement)
+    })
+
+    vi.useFakeTimers()
+    fullscreenElement = null
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 700,
+    })
+    Object.defineProperty(window.screen, 'availWidth', {
+      configurable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window.screen, 'availHeight', {
+      configurable: true,
+      value: 900,
+    })
+    fireEvent(document, new Event('fullscreenchange'))
+
+    await act(async () => {
+      vi.advanceTimersByTime(450)
+    })
+
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    expect(screen.queryByText('2 + 2 = ?')).not.toBeInTheDocument()
+    expect(
+      focusBodies.some(
+        (body) =>
+          body.event_type === 'window_unmaximize_attempt' &&
+          body.metadata?.source === 'fullscreen_exit'
+      )
+    ).toBe(true)
+  })
+
+  it('cancels the pending lock when compliance returns before the grace window expires', async () => {
+    const focusBodies: Array<Record<string, any>> = []
+    let fullscreenElement: Element | null = null
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockImplementation(async () => {
+        fullscreenElement = document.documentElement
+        document.dispatchEvent(new Event('fullscreenchange'))
+      }),
+    })
+
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: null,
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
+        focusBodies.push(parsedBody)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(fullscreenElement).toBe(document.documentElement)
+    })
+
+    vi.useFakeTimers()
+    fullscreenElement = null
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 700,
+    })
+    Object.defineProperty(window.screen, 'availWidth', {
+      configurable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window.screen, 'availHeight', {
+      configurable: true,
+      value: 900,
+    })
+    fireEvent(document, new Event('fullscreenchange'))
+
+    await act(async () => {
+      vi.advanceTimersByTime(200)
+    })
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 1024,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 768,
+    })
+    Object.defineProperty(window.screen, 'availWidth', {
+      configurable: true,
+      value: 1024,
+    })
+    Object.defineProperty(window.screen, 'availHeight', {
+      configurable: true,
+      value: 768,
+    })
+    fireEvent(window, new Event('resize'))
+
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+    })
+
+    expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
+  })
+
+  it('locks after the grace window when exam mode window is reduced', async () => {
+    const focusBodies: Array<Record<string, any>> = []
+    let fullscreenElement: Element | null = null
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockImplementation(async () => {
+        fullscreenElement = document.documentElement
+        document.dispatchEvent(new Event('fullscreenchange'))
+      }),
+    })
+
     fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
         return {
@@ -2594,12 +3023,29 @@ describe('StudentQuizzesTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    let fullscreenElement: Element | null = null
-    Object.defineProperty(document, 'fullscreenElement', {
-      configurable: true,
-      get: () => fullscreenElement,
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
     })
 
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(screen.getByText('2 + 2 = ?')).toBeInTheDocument()
+      expect(fullscreenElement).toBe(document.documentElement)
+    })
+
+    vi.useFakeTimers()
+    fullscreenElement = null
     Object.defineProperty(window, 'innerWidth', {
       configurable: true,
       writable: true,
@@ -2618,37 +3064,20 @@ describe('StudentQuizzesTab exam mode', () => {
       configurable: true,
       value: 900,
     })
-
-    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
-
-    await waitFor(() => {
-      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByText('Midterm Test'))
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
-    await waitFor(() => {
-      expect(screen.getByText('Start this test?')).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByText('Start test'))
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Maximize Window/i })).toBeInTheDocument()
-    })
-
     fireEvent(window, new Event('resize'))
 
-    await waitFor(() => {
-      expect(
-        focusBodies.some(
-          (body) =>
-            body.event_type === 'window_unmaximize_attempt' &&
-            body.metadata?.source === 'window_resize'
-        )
-      ).toBe(true)
+    await act(async () => {
+      vi.advanceTimersByTime(450)
     })
+
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    expect(screen.queryByText('2 + 2 = ?')).not.toBeInTheDocument()
+    expect(
+      focusBodies.some(
+        (body) =>
+          body.event_type === 'window_unmaximize_attempt' &&
+          body.metadata?.source === 'window_resize'
+      )
+    ).toBe(true)
   })
 })
