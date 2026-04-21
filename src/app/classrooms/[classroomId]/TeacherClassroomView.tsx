@@ -288,6 +288,9 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
   }
 }
 
+const ASSIGNMENT_AI_GRADING_RUN_NOTE =
+  'Keep this assignment open while grading runs. Reopening it resumes the current progress.'
+
 export function TeacherClassroomView({
   classroom,
   onSelectAssignment,
@@ -765,7 +768,7 @@ export function TeacherClassroomView({
           }
         }
       } catch {
-        // Keep the run state visible; the next poll or cron tick can recover.
+        // Keep the run state visible; the next poll cycle can recover.
       } finally {
         if (!isCancelled && shouldContinue) {
           timeoutId = window.setTimeout(syncRun, nextDelayMs)
@@ -1186,15 +1189,22 @@ export function TeacherClassroomView({
             <div className="relative">
               {(showAssignmentAiRunOverlay || isArtifactRepoAnalyzing || isReturning) && (
                 <div className="absolute inset-0 z-10 flex items-start justify-center rounded-md bg-surface/70 px-4 pt-4">
-                  <div className="flex max-w-[18rem] items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-xs leading-tight text-text-muted shadow-sm sm:max-w-none sm:text-sm">
-                    <Spinner />
-                    <span>
-                      {showAssignmentAiRunOverlay
-                        ? assignmentAiRunOverlayLabel
-                        : isArtifactRepoAnalyzing
-                          ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-                          : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
-                    </span>
+                  <div className="flex max-w-[24rem] flex-col gap-1 rounded-2xl border border-border bg-surface px-3 py-2 text-xs leading-tight text-text-muted shadow-sm sm:max-w-[28rem] sm:text-sm">
+                    <div className="flex items-center gap-2">
+                      <Spinner />
+                      <span>
+                        {showAssignmentAiRunOverlay
+                          ? assignmentAiRunOverlayLabel
+                          : isArtifactRepoAnalyzing
+                            ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+                            : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
+                      </span>
+                    </div>
+                    {showAssignmentAiRunOverlay ? (
+                      <p className="pl-6 text-[11px] leading-tight text-text-muted sm:text-xs">
+                        {ASSIGNMENT_AI_GRADING_RUN_NOTE}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               )}
