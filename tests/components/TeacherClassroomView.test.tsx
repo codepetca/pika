@@ -595,7 +595,7 @@ describe('TeacherClassroomView', () => {
     expect(mockClearSelection).toHaveBeenCalled()
   })
 
-  it('dedupes repeated assignment AI grading failures in the completion message', async () => {
+  it('shows only unique true errors in the completion message and treats empty work as missing', async () => {
     const initialRun = {
       id: 'run-1',
       assignment_id: 'assignment-1',
@@ -698,9 +698,10 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
-      expect(screen.getByText(/1 empty • 2 failed/)).toBeInTheDocument()
+      expect(screen.getByText(/1 missing • 2 failed/)).toBeInTheDocument()
     })
-    expect(screen.getByText(/2 students: AI grading service failed for this submission\. Try again\./)).toBeInTheDocument()
+    expect(screen.getByText(/AI grading service failed for this submission\. Try again\./)).toBeInTheDocument()
+    expect(screen.queryByText(/2 students:/)).not.toBeInTheDocument()
   })
 
   it('waits for the next retry window before polling tick again', async () => {

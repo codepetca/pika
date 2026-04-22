@@ -9097,3 +9097,14 @@
 - `pnpm exec vitest run tests/unit/ai-grading.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
 - `pnpm exec eslint 'src/lib/ai-grading.ts' 'src/lib/server/assignment-ai-grading-runs.ts' 'src/app/api/teacher/assignments/[id]/auto-grade/route.ts' 'src/components/assignment-workspace/useTeacherStudentWorkController.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'tests/api/teacher/assignments-auto-grade.test.ts' 'tests/unit/ai-grading.test.ts' 'tests/components/TeacherStudentWorkPanel.test.tsx' 'tests/components/TeacherClassroomView.test.tsx'`
 - Visual verification screenshots: `/tmp/pika-teacher-grading.png`, `/tmp/pika-teacher-grading-mobile.png`, `/tmp/pika-student-assignments.png`
+
+## 2026-04-21 — Return Missing Assignment Grades and Simplify Run Errors
+
+- Updated assignment return handling so fully graded work can be returned even when the student never submitted, which allows `Missing` zero-point grades to reach students through the normal return flow.
+- Standardized classroom AI grading summaries to treat empty work as `missing` and show only unique true error messages instead of sampled per-student counts.
+- Added regression coverage for returning unsubmitted `Missing` grades and for the revised teacher header summary wording.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'tests/api/teacher/assignments-id-return.test.ts' 'tests/components/TeacherClassroomView.test.tsx'`
+- Visual verification screenshots: `/tmp/pika-teacher-classroom-header-desktop.png`, `/tmp/pika-teacher-classroom-header-mobile.png`, `/tmp/pika-student-classroom-mobile.png`

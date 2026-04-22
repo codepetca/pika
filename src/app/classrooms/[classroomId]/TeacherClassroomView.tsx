@@ -249,19 +249,20 @@ function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null
 }
 
 function summarizeAssignmentAiGradingErrors(run: AssignmentAiGradingRunSummary): string {
-  const counts = new Map<string, number>()
+  const uniqueMessages: string[] = []
+  const seen = new Set<string>()
 
   for (const sample of run.error_samples) {
     const message = sample.message.trim()
-    if (!message) continue
-    counts.set(message, (counts.get(message) || 0) + 1)
+    if (!message || seen.has(message)) continue
+    seen.add(message)
+    uniqueMessages.push(message)
   }
 
-  if (counts.size === 0) return ''
+  if (uniqueMessages.length === 0) return ''
 
-  return Array.from(counts.entries())
+  return uniqueMessages
     .slice(0, 3)
-    .map(([message, count]) => (count > 1 ? `${count} students: ${message}` : message))
     .join(' · ')
 }
 
@@ -274,11 +275,9 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
   if (run.completed_count > 0) {
     summaryParts.push(`Graded ${run.completed_count}`)
   }
-  if (run.skipped_empty_count > 0) {
-    summaryParts.push(`${run.skipped_empty_count} empty`)
-  }
-  if (run.skipped_missing_count > 0) {
-    summaryParts.push(`${run.skipped_missing_count} missing`)
+  const missingCount = run.skipped_empty_count + run.skipped_missing_count
+  if (missingCount > 0) {
+    summaryParts.push(`${missingCount} missing`)
   }
   if (run.failed_count > 0) {
     summaryParts.push(`${run.failed_count} failed`)
