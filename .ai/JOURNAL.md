@@ -9087,3 +9087,79 @@
   - student desktop active test
   - student desktop maximize-warning overlay
   - student desktop restored test with preserved draft
+## 2026-04-21 — Finalize Default Assignment Grading State
+
+- Changed assignment AI grading to save successful grades as final by default, while preserving draft only when a teacher explicitly chooses draft during manual grading.
+- Auto-finalized missing or empty submissions with `Missing` feedback, zero scores, and graded metadata so batch and single-student grading flows no longer leave these students ungraded.
+- Collapsed repeated AI grading failure text into concise grouped summaries in the teacher classroom header and kept the updated grading workspace stable across desktop and mobile verification.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/ai-grading.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/lib/ai-grading.ts' 'src/lib/server/assignment-ai-grading-runs.ts' 'src/app/api/teacher/assignments/[id]/auto-grade/route.ts' 'src/components/assignment-workspace/useTeacherStudentWorkController.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'tests/api/teacher/assignments-auto-grade.test.ts' 'tests/unit/ai-grading.test.ts' 'tests/components/TeacherStudentWorkPanel.test.tsx' 'tests/components/TeacherClassroomView.test.tsx'`
+- Visual verification screenshots: `/tmp/pika-teacher-grading.png`, `/tmp/pika-teacher-grading-mobile.png`, `/tmp/pika-student-assignments.png`
+
+## 2026-04-21 — Return Missing Assignment Grades and Simplify Run Errors
+
+- Updated assignment return handling so fully graded work can be returned even when the student never submitted, which allows `Missing` zero-point grades to reach students through the normal return flow.
+- Standardized classroom AI grading summaries to treat empty work as `missing` and show only unique true error messages instead of sampled per-student counts.
+- Added regression coverage for returning unsubmitted `Missing` grades and for the revised teacher header summary wording.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'tests/api/teacher/assignments-id-return.test.ts' 'tests/components/TeacherClassroomView.test.tsx'`
+- Visual verification screenshots: `/tmp/pika-teacher-classroom-header-desktop.png`, `/tmp/pika-teacher-classroom-header-mobile.png`, `/tmp/pika-student-classroom-mobile.png`
+
+## 2026-04-21 — Prevent Duplicate Assignment Re-Returns
+
+- Tightened the assignment return filter so already returned work is not re-returned unless the student has submitted again, while still allowing unsubmitted `Missing` grades to be returned once.
+- Added regression coverage to ensure the return route skips already returned docs instead of duplicating feedback entries or restamping return timestamps.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'tests/api/teacher/assignments-id-return.test.ts'`
+
+## 2026-04-21 — Validate Enrollment Before Assignment Auto-Grade
+
+- Updated teacher assignment auto-grade to verify every requested `student_id` is enrolled in the assignment classroom before creating missing grades or batch grading runs.
+- Added route-level regression coverage for rejecting non-enrolled single-student and batch auto-grade requests, and confirmed the missing-grade path is not called for invalid IDs.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/auto-grade/route.ts' 'tests/api/teacher/assignments-auto-grade.test.ts'`
+
+## 2026-04-21 — Reorder Batch Missing-Grade Writes
+
+- Changed assignment AI grading batch setup to create the grading run and run items before writing `Missing` zero-point grades for skipped students.
+- Added direct service-level regression coverage to ensure missing-grade upserts do not happen when run creation or run-item creation fails, and to lock in the new successful ordering.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
+- `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
+
+## 2026-04-21 — Make Assignment AI Batch Creation Atomic
+
+- Added migration `055_assignment_ai_grading_run_atomic_rpc.sql` with `create_assignment_ai_grading_run_atomic(...)` so run creation, run-item inserts, and skipped-student `Missing` grade upserts happen in one database transaction.
+- Updated `createOrResumeAssignmentAiGradingRun()` to call the atomic RPC instead of issuing separate writes from TypeScript, added explicit migration guidance when the new RPC is unavailable, and mapped active-run unique-key races back to the intended resume/conflict response.
+- Replaced the service regression tests to assert the RPC payload, matching-run resume behavior, the race-recovery path, and the migration-055 error path.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
+
+## 2026-04-22 — Tighten Atomic RPC Access And Item Failure Handling
+
+- Restricted `create_assignment_ai_grading_run_atomic(...)` execution to `service_role` so the new security-definer RPC cannot be called directly by ordinary authenticated users.
+- Updated batch item processing so failed `Missing` grade writes on `missing_doc` or `empty_doc` items become item-level `failed` states with explicit error metadata instead of crashing the whole grading run.
+- Added regression coverage for both skipped-item failure paths to confirm the run completes with item errors rather than top-level failure.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
+
+## 2026-04-22 — Reshape Migration 055 For Supabase CLI Parsing
+
+- Rewrote `055_assignment_ai_grading_run_atomic_rpc.sql` as a single top-level `DO` block that dynamically creates the RPC and applies the `revoke`/`grant`, avoiding the CLI prepared-statement failure when it tries to apply the whole file at once.
+- Preserved the same RPC body and service-role-only execute permissions; this change is migration-shape only.
+
+**Validation:**
+- Manual migration diff review for semantic parity of the function body and permission changes.

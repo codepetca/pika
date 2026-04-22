@@ -248,6 +248,24 @@ function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null
   return Math.min(Math.max(delay, 1000), 10_000)
 }
 
+function summarizeAssignmentAiGradingErrors(run: AssignmentAiGradingRunSummary): string {
+  const uniqueMessages: string[] = []
+  const seen = new Set<string>()
+
+  for (const sample of run.error_samples) {
+    const message = sample.message.trim()
+    if (!message || seen.has(message)) continue
+    seen.add(message)
+    uniqueMessages.push(message)
+  }
+
+  if (uniqueMessages.length === 0) return ''
+
+  return uniqueMessages
+    .slice(0, 3)
+    .join(' · ')
+}
+
 function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary): {
   info: string
   error: string
@@ -257,11 +275,9 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
   if (run.completed_count > 0) {
     summaryParts.push(`Graded ${run.completed_count}`)
   }
-  if (run.skipped_empty_count > 0) {
-    summaryParts.push(`${run.skipped_empty_count} empty`)
-  }
-  if (run.skipped_missing_count > 0) {
-    summaryParts.push(`${run.skipped_missing_count} missing`)
+  const missingCount = run.skipped_empty_count + run.skipped_missing_count
+  if (missingCount > 0) {
+    summaryParts.push(`${missingCount} missing`)
   }
   if (run.failed_count > 0) {
     summaryParts.push(`${run.failed_count} failed`)
@@ -270,15 +286,12 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
   const summary = summaryParts.length > 0
     ? summaryParts.join(' • ')
     : 'No grading changes were needed'
-  const errorDetails = run.error_samples
-    .slice(0, 3)
-    .map((sample) => sample.message)
-    .join('\n')
+  const errorSummary = summarizeAssignmentAiGradingErrors(run)
 
   if (run.status === 'completed_with_errors' || run.status === 'failed') {
     return {
       info: '',
-      error: errorDetails ? `${summary}\n${errorDetails}` : summary,
+      error: errorSummary ? `${summary}\n${errorSummary}` : summary,
     }
   }
 
