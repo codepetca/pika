@@ -46,6 +46,7 @@ interface Props {
   onQuizUpdate: () => void
   onRequestDelete?: () => void
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
+  onPendingMarkdownImportChange?: (pending: boolean) => void
   showInlineDeleteAction?: boolean
   testQuestionLayout?: 'stacked' | 'summary-detail'
   showPreviewButton?: boolean
@@ -68,6 +69,7 @@ export function QuizDetailPanel({
   onQuizUpdate,
   onRequestDelete,
   onRequestTestPreview,
+  onPendingMarkdownImportChange,
   showInlineDeleteAction = true,
   testQuestionLayout = 'stacked',
   showPreviewButton = true,
@@ -354,6 +356,14 @@ export function QuizDetailPanel({
     }
     savedMarkdownRef.current = currentTestMarkdown
   }, [currentTestMarkdown, isTestsView, markdownContent, markdownDirty])
+
+  useEffect(() => {
+    onPendingMarkdownImportChange?.(isTestsView ? hasPendingMarkdownImport : false)
+
+    return () => {
+      onPendingMarkdownImportChange?.(false)
+    }
+  }, [hasPendingMarkdownImport, isTestsView, onPendingMarkdownImportChange])
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -1367,15 +1377,7 @@ export function QuizDetailPanel({
       right={
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col" data-testid="test-question-markdown-pane">
           <div className="flex min-h-0 flex-1 flex-col p-4">
-            {questions.length === 0 ? (
-              <EmptyState
-                title="No questions yet"
-                description="Add a question to begin authoring this test."
-                tone="muted"
-              />
-            ) : (
-              testsMarkdownPanel
-            )}
+            {testsMarkdownPanel}
           </div>
         </div>
       }

@@ -47,11 +47,13 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     testQuestionLayout,
     showPreviewButton,
     showResultsTab,
+    onPendingMarkdownImportChange,
   }: {
     quiz: QuizWithStats
     testQuestionLayout?: string
     showPreviewButton?: boolean
     showResultsTab?: boolean
+    onPendingMarkdownImportChange?: (pending: boolean) => void
   }) => (
     <div
       data-testid="mock-test-detail"
@@ -60,6 +62,12 @@ vi.mock('@/components/QuizDetailPanel', () => ({
       data-show-results={String(showResultsTab)}
     >
       Detail for {quiz.title}
+      <button type="button" onClick={() => onPendingMarkdownImportChange?.(true)}>
+        Mark pending markdown
+      </button>
+      <button type="button" onClick={() => onPendingMarkdownImportChange?.(false)}>
+        Clear pending markdown
+      </button>
     </div>
   ),
 }))
@@ -96,6 +104,8 @@ function resultsFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
 }
 
 function makeResultsResponse(overrides?: {
+  quizId?: string
+  quizTitle?: string
   students?: Array<Record<string, unknown>>
   questions?: Array<Record<string, unknown>>
   quizStatus?: QuizWithStats['status']
@@ -104,8 +114,8 @@ function makeResultsResponse(overrides?: {
     ok: true,
     json: async () => ({
       quiz: {
-        id: 'test-1',
-        title: 'Unit Test',
+        id: overrides?.quizId ?? 'test-1',
+        title: overrides?.quizTitle ?? 'Unit Test',
         status: overrides?.quizStatus ?? 'active',
         grading_finalized_at: null,
       },
@@ -221,6 +231,34 @@ describe('TeacherTestsTab', () => {
     expect(onSelectTest).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'test-1', title: 'Unit Test' })
     )
+  })
+
+  it('disables preview and status actions while markdown edits are pending', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark pending markdown' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Preview' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+      expect(
+        screen.getByText('Apply or undo markdown changes before previewing or changing the test status.')
+      ).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear pending markdown' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
+    })
   })
 
   it('opens a newly created test directly into authoring mode', async () => {
@@ -439,6 +477,117 @@ describe('TeacherTestsTab', () => {
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
     expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 15_000)
+  })
+
+  it('ignores stale grading responses after switching to a different test', async () => {
+    let resolveFirstResults:
+      | ((value: { ok: boolean; json: () => Promise<any> }) => void)
+      | null = null
+    let resolveSecondResults:
+      | ((value: { ok: boolean; json: () => Promise<any> }) => void)
+      | null = null
+
+    const firstResultsPromise = new Promise<{ ok: boolean; json: () => Promise<any> }>((resolve) => {
+      resolveFirstResults = resolve
+    })
+    const secondResultsPromise = new Promise<{ ok: boolean; json: () => Promise<any> }>((resolve) => {
+      resolveSecondResults = resolve
+    })
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          tests: [
+            makeTest({ id: 'test-1', title: 'Unit Test A' }),
+            makeTest({ id: 'test-2', title: 'Unit Test B' }),
+          ],
+        }),
+      })
+      .mockImplementationOnce(() => firstResultsPromise as unknown as Promise<Response>)
+      .mockImplementationOnce(() => secondResultsPromise as unknown as Promise<Response>)
+
+    const view = renderTab({ testsTabClickToken: 0 })
+
+    fireEvent.click(await screen.findByText('Unit Test A'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+
+    view.rerender(
+      <TeacherTestsTab
+        classroom={classroom}
+        testsTabClickToken={1}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Unit Test B'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+
+    await act(async () => {
+      resolveSecondResults?.(
+        makeResultsResponse({
+          quizId: 'test-2',
+          quizTitle: 'Unit Test B',
+          students: [
+            {
+              student_id: 'student-2',
+              name: 'Bob Yellow',
+              first_name: 'Bob',
+              last_name: 'Yellow',
+              email: 'bob@example.com',
+              status: 'submitted',
+              submitted_at: null,
+              last_activity_at: '2026-04-17T18:20:00.000Z',
+              points_earned: 4,
+              points_possible: 5,
+              percent: 80,
+              graded_open_responses: 1,
+              ungraded_open_responses: 0,
+              focus_summary: null,
+            },
+          ],
+        })
+      )
+      await Promise.resolve()
+    })
+
+    expect(await screen.findByText('Bob Yellow')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveFirstResults?.(
+        makeResultsResponse({
+          quizId: 'test-1',
+          quizTitle: 'Unit Test A',
+          students: [
+            {
+              student_id: 'student-1',
+              name: 'Alice Zephyr',
+              first_name: 'Alice',
+              last_name: 'Zephyr',
+              email: 'alice@example.com',
+              status: 'submitted',
+              submitted_at: null,
+              last_activity_at: '2026-04-17T18:15:00.000Z',
+              points_earned: 3,
+              points_possible: 5,
+              percent: 60,
+              graded_open_responses: 0,
+              ungraded_open_responses: 1,
+              focus_summary: null,
+            },
+          ],
+        })
+      )
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Bob Yellow')).toBeInTheDocument()
+      expect(screen.queryByText('Alice Zephyr')).not.toBeInTheDocument()
+    })
   })
 
   it('prompts to close an active test before return and sends close_test=true', async () => {

@@ -372,6 +372,66 @@ describe('QuizDetailPanel', () => {
       })
     })
 
+    it('keeps the markdown helper available for empty tests in summary-detail mode', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Empty Markdown Import Test',
+              show_results: true,
+              questions: [],
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Empty Markdown Import Test',
+        stats: { total_students: 25, responded: 0, questions_count: 0 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const markdownPane = await screen.findByTestId('test-question-markdown-pane')
+      const markdownEditor = within(markdownPane).getByTestId('test-markdown-editor')
+
+      expect(markdownEditor).toBeInTheDocument()
+      expect(markdownEditor).toHaveProperty('readOnly', true)
+      expect(within(markdownPane).getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
+
+      fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
+      fireEvent.change(markdownEditor, {
+        target: { value: '# Test\nTitle: Empty Markdown Import Test\nShow Results: true\n' },
+      })
+
+      await waitFor(() => {
+        expect(within(markdownPane).getByRole('button', { name: 'Apply Markdown' })).toBeInTheDocument()
+      })
+    })
+
     it('duplicates a test question immediately below the source in summary-detail mode', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
@@ -560,6 +620,7 @@ describe('QuizDetailPanel', () => {
     })
 
     it('locks the left pane while markdown edits are pending in summary-detail mode', async () => {
+      const onPendingMarkdownImportChange = vi.fn()
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -595,6 +656,7 @@ describe('QuizDetailPanel', () => {
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
           onQuizUpdate={vi.fn()}
+          onPendingMarkdownImportChange={onPendingMarkdownImportChange}
           testQuestionLayout="summary-detail"
           showPreviewButton={false}
           showResultsTab={false}
@@ -621,6 +683,7 @@ describe('QuizDetailPanel', () => {
         expect(within(markdownPane).getByRole('button', { name: 'Undo markdown edits' })).toBeInTheDocument()
         expect(screen.getByTestId('markdown-pending-lock')).toBeInTheDocument()
         expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toBeDisabled()
+        expect(onPendingMarkdownImportChange).toHaveBeenLastCalledWith(true)
       })
     })
 

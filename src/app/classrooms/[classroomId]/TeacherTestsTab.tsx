@@ -164,12 +164,23 @@ export function TeacherTestsTab({
   const isReadOnly = !!classroom.archived_at
   const { setOpen: setRightSidebarOpen } = useRightSidebar()
   const previousTestsTabClickTokenRef = useRef(testsTabClickToken)
+  const gradingSelectionRef = useRef<{
+    workspaceState: WorkspaceState
+    selectedWorkspaceTab: WorkspaceTab
+    selectedTestId: string | null
+  }>({
+    workspaceState: 'list',
+    selectedWorkspaceTab: 'authoring',
+    selectedTestId: null,
+  })
+  const latestGradingRequestIdRef = useRef(0)
 
   const [tests, setTests] = useState<QuizWithStats[]>([])
   const [loading, setLoading] = useState(true)
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState>('list')
   const [selectedWorkspaceTab, setSelectedWorkspaceTab] = useState<WorkspaceTab>('authoring')
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null)
+  const [hasPendingMarkdownImport, setHasPendingMarkdownImport] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [pendingCreatedTestId, setPendingCreatedTestId] = useState<string | null>(null)
   const [testPreviewRequestToken, setTestPreviewRequestToken] = useState(0)
@@ -303,11 +314,24 @@ export function TeacherTestsTab({
       return
     }
 
+    const requestedTestId = selectedTestId
+    const requestId = ++latestGradingRequestIdRef.current
+    const isStaleRequest = () => {
+      const currentSelection = gradingSelectionRef.current
+      return (
+        latestGradingRequestIdRef.current !== requestId ||
+        currentSelection.workspaceState !== 'selected' ||
+        currentSelection.selectedWorkspaceTab !== 'grading' ||
+        currentSelection.selectedTestId !== requestedTestId
+      )
+    }
+
     setGradingLoading(true)
     setGradingError('')
     try {
-      const response = await fetch(`${apiBasePath}/${selectedTestId}/results`, { cache: 'no-store' })
+      const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
       const data = await response.json()
+      if (isStaleRequest()) return
       if (!response.ok) throw new Error(data.error || 'Failed to load test results')
 
       const nextStatus =
@@ -316,11 +340,11 @@ export function TeacherTestsTab({
           : null
 
       setGradingServerTestStatus(nextStatus)
-      setGradingServerTestId(selectedTestId)
+      setGradingServerTestId(requestedTestId)
       if (nextStatus) {
         setTests((prev) =>
           prev.map((test) =>
-            test.id === selectedTestId && test.status !== nextStatus ? { ...test, status: nextStatus } : test
+            test.id === requestedTestId && test.status !== nextStatus ? { ...test, status: nextStatus } : test
           )
         )
       }
@@ -336,10 +360,12 @@ export function TeacherTestsTab({
           : []
       )
     } catch (error: any) {
+      if (isStaleRequest()) return
       setGradingError(error.message || 'Failed to load test results')
       setGradingStudents([])
       setGradingQuestions([])
     } finally {
+      if (isStaleRequest()) return
       setGradingLoading(false)
     }
   }, [selectedTestId])
@@ -362,6 +388,14 @@ export function TeacherTestsTab({
   useEffect(() => {
     onSelectTest?.(workspaceState === 'selected' ? selectedTest : null)
   }, [onSelectTest, selectedTest, workspaceState])
+
+  useEffect(() => {
+    gradingSelectionRef.current = {
+      workspaceState,
+      selectedWorkspaceTab,
+      selectedTestId,
+    }
+  }, [selectedTestId, selectedWorkspaceTab, workspaceState])
 
   useEffect(() => {
     if (!selectedTestId) return
@@ -410,12 +444,19 @@ export function TeacherTestsTab({
       setGradingQuestions([])
       setGradingServerTestStatus(null)
       setGradingServerTestId(null)
+      setGradingLoading(false)
       clearBatchSelection()
       return
     }
 
     void loadGradingRows()
   }, [clearBatchSelection, loadGradingRows, selectedWorkspaceTab, workspaceState])
+
+  useEffect(() => {
+    if (workspaceState !== 'selected' || selectedWorkspaceTab !== 'authoring') {
+      setHasPendingMarkdownImport(false)
+    }
+  }, [selectedWorkspaceTab, workspaceState])
 
   useEffect(() => {
     if (
@@ -1048,6 +1089,7 @@ export function TeacherTestsTab({
                 variant="secondary"
                 size="sm"
                 onClick={() => setTestPreviewRequestToken((value) => value + 1)}
+                disabled={hasPendingMarkdownImport}
               >
                 Preview
               </Button>
@@ -1059,7 +1101,13 @@ export function TeacherTestsTab({
                   onClick={() => {
                     void handleRequestSelectedTestActivate()
                   }}
-                  disabled={!selectedActivation.valid || isReadOnly || statusUpdating || checkingActivation}
+                  disabled={
+                    !selectedActivation.valid ||
+                    isReadOnly ||
+                    statusUpdating ||
+                    checkingActivation ||
+                    hasPendingMarkdownImport
+                  }
                 >
                   <Play className="h-4 w-4" />
                   Open
@@ -1071,7 +1119,7 @@ export function TeacherTestsTab({
                   variant="secondary"
                   size="sm"
                   onClick={() => setShowCloseConfirm(true)}
-                  disabled={isReadOnly || statusUpdating}
+                  disabled={isReadOnly || statusUpdating || hasPendingMarkdownImport}
                 >
                   <Square className="h-4 w-4" />
                   Close
@@ -1085,7 +1133,7 @@ export function TeacherTestsTab({
                   onClick={() => {
                     void handleSelectedTestStatusChange('active')
                   }}
-                  disabled={isReadOnly || statusUpdating}
+                  disabled={isReadOnly || statusUpdating || hasPendingMarkdownImport}
                 >
                   <Play className="h-4 w-4" />
                   Reopen
@@ -1193,6 +1241,11 @@ export function TeacherTestsTab({
             {statusActionError}
           </div>
         ) : null}
+        {hasPendingMarkdownImport && workspaceState === 'selected' && selectedWorkspaceTab === 'authoring' ? (
+          <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+            Apply or undo markdown changes before previewing or changing the test status.
+          </div>
+        ) : null}
         {gradingError && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
           <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
             {gradingError}
@@ -1248,6 +1301,7 @@ export function TeacherTestsTab({
                 onQuizUpdate={() => {
                   void loadTests()
                 }}
+                onPendingMarkdownImportChange={setHasPendingMarkdownImport}
                 showInlineDeleteAction={false}
                 testQuestionLayout="summary-detail"
                 showPreviewButton={false}
