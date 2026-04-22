@@ -165,6 +165,19 @@ begin
 end;
 $$;
 
+revoke all on function public.create_assignment_ai_grading_run_atomic(
+  uuid,
+  uuid,
+  text,
+  uuid[],
+  text,
+  integer,
+  integer,
+  integer,
+  jsonb,
+  timestamptz
+) from public, anon, authenticated;
+
 grant execute on function public.create_assignment_ai_grading_run_atomic(
   uuid,
   uuid,
@@ -176,4 +189,4 @@ grant execute on function public.create_assignment_ai_grading_run_atomic(
   integer,
   jsonb,
   timestamptz
-) to authenticated, service_role;
+) to service_role;

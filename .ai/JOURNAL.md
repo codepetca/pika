@@ -9145,3 +9145,13 @@
 **Validation:**
 - `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts`
 - `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
+
+## 2026-04-22 — Tighten Atomic RPC Access And Item Failure Handling
+
+- Restricted `create_assignment_ai_grading_run_atomic(...)` execution to `service_role` so the new security-definer RPC cannot be called directly by ordinary authenticated users.
+- Updated batch item processing so failed `Missing` grade writes on `missing_doc` or `empty_doc` items become item-level `failed` states with explicit error metadata instead of crashing the whole grading run.
+- Added regression coverage for both skipped-item failure paths to confirm the run completes with item errors rather than top-level failure.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`

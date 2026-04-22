@@ -540,6 +540,39 @@ async function processAssignmentAiRunItem(opts: {
   const attemptCount = item.attempt_count + 1
   const now = new Date().toISOString()
 
+  async function markMissingGradeAndSkip(skipReason: 'missing_doc' | 'empty_doc'): Promise<void> {
+    try {
+      await markAssignmentDocMissingGrade({
+        supabase,
+        assignmentId: run.assignment_id,
+        studentId: item.student_id,
+        gradedBy: run.triggered_by,
+      })
+    } catch (error) {
+      await updateRunItem(supabase, item.id, {
+        status: 'failed',
+        skip_reason: null,
+        attempt_count: attemptCount,
+        last_error_code: 'save_missing_grade_failed',
+        last_error_message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to save missing grade for skipped submission',
+        completed_at: now,
+      })
+      return
+    }
+
+    await updateRunItem(supabase, item.id, {
+      status: 'skipped',
+      skip_reason: skipReason,
+      attempt_count: attemptCount,
+      last_error_code: null,
+      last_error_message: null,
+      completed_at: now,
+    })
+  }
+
   await updateRunItem(supabase, item.id, {
     status: 'processing',
     started_at: item.started_at ?? now,
@@ -564,39 +597,13 @@ async function processAssignmentAiRunItem(opts: {
   }
 
   if (!assignmentDoc) {
-    await markAssignmentDocMissingGrade({
-      supabase,
-      assignmentId: run.assignment_id,
-      studentId: item.student_id,
-      gradedBy: run.triggered_by,
-    })
-    await updateRunItem(supabase, item.id, {
-      status: 'skipped',
-      skip_reason: 'missing_doc',
-      attempt_count: attemptCount,
-      last_error_code: null,
-      last_error_message: null,
-      completed_at: now,
-    })
+    await markMissingGradeAndSkip('missing_doc')
     return
   }
 
   const studentWork = parseContentField(assignmentDoc.content)
   if (!hasGradableAssignmentSubmission(studentWork)) {
-    await markAssignmentDocMissingGrade({
-      supabase,
-      assignmentId: run.assignment_id,
-      studentId: item.student_id,
-      gradedBy: run.triggered_by,
-    })
-    await updateRunItem(supabase, item.id, {
-      status: 'skipped',
-      skip_reason: 'empty_doc',
-      attempt_count: attemptCount,
-      last_error_code: null,
-      last_error_message: null,
-      completed_at: now,
-    })
+    await markMissingGradeAndSkip('empty_doc')
     return
   }
 

@@ -12,7 +12,10 @@ vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
 }))
 
-import { createOrResumeAssignmentAiGradingRun } from '@/lib/server/assignment-ai-grading-runs'
+import {
+  createOrResumeAssignmentAiGradingRun,
+  tickAssignmentAiGradingRun,
+} from '@/lib/server/assignment-ai-grading-runs'
 
 function buildSelectionHash(studentIds: string[]) {
   return createHash('sha256')
@@ -75,6 +78,178 @@ function buildRunItemsTable(items: unknown[] = []) {
       })),
     })),
   }
+}
+
+function buildTickHarness(opts: {
+  skipReason: 'missing_doc' | 'empty_doc'
+  assignmentDoc: {
+    id: string
+    student_id: string
+    content: unknown
+    feedback: string | null
+    authenticity_score: number | null
+  } | null
+  upsertError: unknown
+}) {
+  const run = {
+    id: 'run-1',
+    assignment_id: 'assignment-1',
+    status: 'queued',
+    triggered_by: 'teacher-1',
+    model: 'gpt-5-nano',
+    selection_hash: buildSelectionHash(['student-1']),
+    requested_student_ids_json: ['student-1'],
+    requested_count: 1,
+    gradable_count: 0,
+    processed_count: 0,
+    completed_count: 0,
+    skipped_missing_count: 0,
+    skipped_empty_count: 0,
+    failed_count: 0,
+    error_samples_json: [],
+    lease_token: null,
+    lease_expires_at: null,
+    started_at: null,
+    completed_at: null,
+    created_at: '2026-04-21T12:00:00.000Z',
+    updated_at: '2026-04-21T12:00:00.000Z',
+  }
+
+  const items = [
+    {
+      id: 'item-1',
+      run_id: 'run-1',
+      assignment_id: 'assignment-1',
+      student_id: 'student-1',
+      assignment_doc_id: opts.assignmentDoc?.id ?? null,
+      queue_position: 0,
+      status: 'queued',
+      skip_reason: opts.skipReason,
+      attempt_count: 0,
+      next_retry_at: null,
+      last_error_code: null,
+      last_error_message: null,
+      started_at: null,
+      completed_at: null,
+      created_at: '2026-04-21T12:00:00.000Z',
+      updated_at: '2026-04-21T12:00:00.000Z',
+    },
+  ]
+
+  mockSupabaseClient.rpc.mockImplementation(async (fn: string) => {
+    if (fn === 'claim_assignment_ai_grading_run') {
+      return { data: true, error: null }
+    }
+    throw new Error(`Unexpected rpc: ${fn}`)
+  })
+
+  ;(mockSupabaseClient.from as any).mockImplementation((table: string) => {
+    if (table === 'assignment_ai_grading_runs') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn((field: string, value: string) => {
+            if (field === 'id') {
+              return {
+                maybeSingle: vi.fn(async () => ({
+                  data: value === run.id ? { ...run } : null,
+                  error: null,
+                })),
+              }
+            }
+
+            if (field === 'assignment_id') {
+              return {
+                in: vi.fn(() => ({
+                  order: vi.fn(() => ({
+                    limit: vi.fn(async () => ({
+                      data:
+                        value === run.assignment_id && ['queued', 'running'].includes(run.status)
+                          ? [{ ...run }]
+                          : [],
+                      error: null,
+                    })),
+                  })),
+                })),
+              }
+            }
+
+            throw new Error(`Unexpected assignment_ai_grading_runs eq field: ${field}`)
+          }),
+        })),
+        update: vi.fn((payload: Record<string, unknown>) => ({
+          eq: vi.fn((field: string, value: string) => ({
+            select: vi.fn(() => ({
+              single: vi.fn(async () => {
+                if (field !== 'id' || value !== run.id) {
+                  return { data: null, error: null }
+                }
+                Object.assign(run, payload)
+                return { data: { ...run }, error: null }
+              }),
+            })),
+          })),
+        })),
+      }
+    }
+
+    if (table === 'assignment_ai_grading_run_items') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn((field: string, value: string) => ({
+            order: vi.fn(async () => ({
+              data:
+                field === 'run_id' && value === run.id
+                  ? items.map((item) => ({ ...item }))
+                  : [],
+              error: null,
+            })),
+          })),
+        })),
+        update: vi.fn((payload: Record<string, unknown>) => ({
+          eq: vi.fn(async (field: string, value: string) => {
+            const item = items.find((candidate) => field === 'id' && candidate.id === value)
+            if (item) Object.assign(item, payload)
+            return { error: null }
+          }),
+        })),
+      }
+    }
+
+    if (table === 'assignments') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn(async () => ({
+              data: {
+                id: 'assignment-1',
+                title: 'Assignment One',
+                classroom_id: 'classroom-1',
+              },
+              error: null,
+            })),
+          })),
+        })),
+      }
+    }
+
+    if (table === 'assignment_docs') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(async () => ({
+              data: opts.assignmentDoc ? { ...opts.assignmentDoc } : null,
+              error: null,
+            })),
+          })),
+        })),
+        upsert: vi.fn(async () => ({ error: opts.upsertError })),
+      }
+    }
+
+    throw new Error(`Unexpected table: ${table}`)
+  })
+
+  return { run, items }
 }
 
 describe('createOrResumeAssignmentAiGradingRun', () => {
@@ -270,5 +445,65 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
         status: 'queued',
       }),
     })
+  })
+
+  it('marks a missing-doc item failed when saving the Missing grade fails', async () => {
+    const harness = buildTickHarness({
+      skipReason: 'missing_doc',
+      assignmentDoc: null,
+      upsertError: { message: 'upsert failed' },
+    })
+
+    const result = await tickAssignmentAiGradingRun({
+      assignmentId: 'assignment-1',
+      runId: 'run-1',
+    })
+
+    expect(result.claimed).toBe(true)
+    expect(result.run).toEqual(expect.objectContaining({
+      status: 'completed_with_errors',
+      failed_count: 1,
+      skipped_missing_count: 0,
+    }))
+    expect(harness.items[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      skip_reason: null,
+      attempt_count: 1,
+      last_error_code: 'save_missing_grade_failed',
+      last_error_message: 'Failed to save missing grade for student student-1',
+    }))
+  })
+
+  it('marks an empty-doc item failed when saving the Missing grade fails', async () => {
+    const harness = buildTickHarness({
+      skipReason: 'empty_doc',
+      assignmentDoc: {
+        id: 'doc-1',
+        student_id: 'student-1',
+        content: JSON.stringify({ type: 'doc', content: [] }),
+        feedback: null,
+        authenticity_score: null,
+      },
+      upsertError: { message: 'upsert failed' },
+    })
+
+    const result = await tickAssignmentAiGradingRun({
+      assignmentId: 'assignment-1',
+      runId: 'run-1',
+    })
+
+    expect(result.claimed).toBe(true)
+    expect(result.run).toEqual(expect.objectContaining({
+      status: 'completed_with_errors',
+      failed_count: 1,
+      skipped_empty_count: 0,
+    }))
+    expect(harness.items[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      skip_reason: null,
+      attempt_count: 1,
+      last_error_code: 'save_missing_grade_failed',
+      last_error_message: 'Failed to save missing grade for student student-1',
+    }))
   })
 })
