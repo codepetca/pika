@@ -12,10 +12,16 @@ function hasReturnableAssignmentGrade(doc: {
   score_completion: number | null
   score_thinking: number | null
   score_workflow: number | null
+  is_submitted?: boolean | null
+  returned_at?: string | null
 }) {
-  return doc.score_completion != null
+  const hasFullGrade = doc.score_completion != null
     && doc.score_thinking != null
     && doc.score_workflow != null
+
+  if (!hasFullGrade) return false
+
+  return !!doc.is_submitted || !doc.returned_at
 }
 
 async function updateAssignmentDocsForStudents(opts: {
@@ -83,7 +89,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
   const eligibleDocIds = new Set(eligibleDocs.map((doc) => doc.id))
   const actionableDocIds = new Set(
     loadedDocs
-      .filter((doc) => doc.is_submitted || eligibleDocIds.has(doc.id))
+      .filter((doc) => doc.is_submitted || eligibleDocIds.has(doc.id) || !!doc.returned_at)
       .map((doc) => doc.id),
   )
   const ungradedDocs = clearableDocs.filter((doc) => !eligibleDocIds.has(doc.id))

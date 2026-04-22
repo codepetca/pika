@@ -9108,3 +9108,12 @@
 - `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherClassroomView.test.tsx`
 - `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'tests/api/teacher/assignments-id-return.test.ts' 'tests/components/TeacherClassroomView.test.tsx'`
 - Visual verification screenshots: `/tmp/pika-teacher-classroom-header-desktop.png`, `/tmp/pika-teacher-classroom-header-mobile.png`, `/tmp/pika-student-classroom-mobile.png`
+
+## 2026-04-21 — Prevent Duplicate Assignment Re-Returns
+
+- Tightened the assignment return filter so already returned work is not re-returned unless the student has submitted again, while still allowing unsubmitted `Missing` grades to be returned once.
+- Added regression coverage to ensure the return route skips already returned docs instead of duplicating feedback entries or restamping return timestamps.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'tests/api/teacher/assignments-id-return.test.ts'`
