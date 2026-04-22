@@ -1,6 +1,6 @@
 # Assignment UX Language
 
-This document codifies the current assignments experience as a reusable design language. It is the primary source of truth for the look, feel, structure, and interaction rhythm of assignment-style work in Pika.
+This document codifies the current assignments experience as a reusable design language. It is the assignment-specific reference implementation for the teacher work-surface family in Pika.
 
 The goal is not to freeze every pixel. The goal is to preserve the recognizable system:
 
@@ -10,7 +10,7 @@ The goal is not to freeze every pixel. The goal is to preserve the recognizable 
 - clear summary-to-detail progression
 - assignment-family cards and surfaces
 
-If another surface borrows from assignments later, it should feel like a descendant of this system rather than a separate tool.
+Assignments are the current baseline for the teacher family, not permanent authority. This doc should support [`docs/guidance/ui/teacher-work-surfaces.md`](/docs/guidance/ui/teacher-work-surfaces.md), not compete with it.
 
 ## Canonical Sources
 
@@ -27,6 +27,25 @@ Read these files before reproducing the assignment experience:
   - `src/ui/EmptyState.tsx`
 
 These files define the real implementation. This doc explains the design language they express.
+
+## Relationship To The Teacher Work-Surface Canon
+
+The family canon names the formal interaction ladder:
+
+- `entry`
+- `summary`
+- `workspace`
+- `workspace_mode`
+- `inspector_active`
+
+Assignments are the clearest current implementation of that ladder on the teacher side:
+
+- tab click lands in `entry` and resolves to a calm assignment `summary`
+- selecting an assignment enters `workspace`
+- assignment review switches between `workspace_mode` states such as `overview` and `details`
+- the teacher grading/review pane becomes `inspector_active` only when the current mode and selection justify it
+
+When another teacher surface borrows from assignments later, it should feel like a descendant of this system rather than a separate tool.
 
 ## Required Primitives
 
@@ -77,9 +96,9 @@ The system feels purposeful, not ornamental.
 
 ## Teacher Assignments
 
-Teacher assignments have two dominant states: summary and workspace.
+Teacher assignments have a stable summary-to-workspace progression and are the current baseline reference for the teacher family.
 
-### Summary state
+### `summary`
 
 The summary state is the default browsing view.
 
@@ -98,7 +117,7 @@ Visual characteristics:
 - `PageStack` separates cards evenly
 - cards span the available content width
 
-### Workspace state
+### `workspace`
 
 Once a teacher selects an assignment, the interface can become denser and more tool-like, but it still keeps the same shell.
 
@@ -108,7 +127,23 @@ Important behavior:
 - the calm outer shell remains consistent
 - tables, grading panes, and side content are justified by active review work
 
-The assignments system earns complexity only after the user is inside the work.
+Assignments earn complexity only after the teacher is inside the work.
+
+### `workspace_mode`
+
+Teacher assignments use meaningful sub-modes inside the selected workspace.
+
+Those modes:
+
+- represent materially different work
+- do not appear before a selection exists
+- keep the same outer page-shell language
+
+### `inspector_active`
+
+The teacher workspace uses side-by-side review only when the current assignment mode and current student selection justify it.
+
+The assignments reference model does not reserve a passive inspector before that point.
 
 ## Student Assignments
 
@@ -258,42 +293,4 @@ When reproducing the assignment experience, preserve:
 - semantic-token usage
 - existing `@/ui` and page-shell primitives
 
-## What Not To Introduce
-
-Do not introduce any of the following into an assignment-style surface:
-
-- default split panes before selection
-- placeholder inspector panels
-- loud toggle bars
-- dashboard chrome
-- bespoke card families unrelated to assignment cards
-- extra framing around empty states
-- raw `dark:` classes in app code
-
-## AI Reproduction Checklist
-
-If an AI needs to reproduce the assignment style, it should verify:
-
-- `PageLayout` is the outer shell
-- `PageActionBar` stays sparse and stable
-- `PageContent` and `PageStack` control the browsing rhythm
-- cards fill the available content width
-- the first visual emphasis is on content, not controls
-- empty states use a single quiet surface
-- detail appears only after selection
-- status chips are compact
-- copy stays short and muted
-
-## Reuse Guidance
-
-If another feature later borrows from assignments, use this rule:
-
-Start from the assignment shell and only add complexity when the task truly requires it.
-
-That means:
-
-- browse like assignments
-- select like assignments
-- only become denser when active work or review genuinely needs it
-
-This keeps future surfaces in the same product family even if the exact domain behavior differs.
+If another teacher-family surface diverges from assignments, use the family canon to decide whether the divergence is a deliberate improvement or unsupported drift.

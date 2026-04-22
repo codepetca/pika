@@ -1,14 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { Button, Input } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
-import {
-  defaultPointsForQuestionType,
-} from '@/lib/test-questions'
+import { defaultPointsForQuestionType } from '@/lib/test-questions'
 import { MAX_QUIZ_OPTIONS } from '@/lib/quizzes'
 import type { QuizQuestion, TestQuestionType } from '@/types'
 
@@ -18,6 +16,10 @@ interface Props {
   isEditable: boolean
   onChange: (question: QuizQuestion, options?: { force?: boolean }) => void
   onDelete: (questionId: string) => void
+  onDuplicate?: (questionId: string) => void
+  variant?: 'card' | 'detail' | 'accordion'
+  isExpanded?: boolean
+  onToggleExpanded?: () => void
 }
 
 type LocalQuestionState = {
@@ -31,6 +33,17 @@ type LocalQuestionState = {
   sample_solution: string
 }
 
+function summarizeHeaderLine(questionText: string | null | undefined): string {
+  const firstMeaningfulLine =
+    (questionText || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) || ''
+
+  const flattened = firstMeaningfulLine.replace(/[#>*_`~-]/g, ' ').replace(/\s+/g, ' ').trim()
+  return flattened || 'Untitled question'
+}
+
 function toLocalState(question: QuizQuestion): LocalQuestionState {
   const questionType = question.question_type === 'open_response' ? 'open_response' : 'multiple_choice'
   return {
@@ -38,7 +51,9 @@ function toLocalState(question: QuizQuestion): LocalQuestionState {
     question_text: question.question_text ?? '',
     options: Array.isArray(question.options) ? question.options : ['Option 1', 'Option 2'],
     correct_option:
-      typeof question.correct_option === 'number' && Number.isInteger(question.correct_option) && question.correct_option >= 0
+      typeof question.correct_option === 'number' &&
+      Number.isInteger(question.correct_option) &&
+      question.correct_option >= 0
         ? question.correct_option
         : 0,
     points: String(question.points ?? defaultPointsForQuestionType(questionType)),
@@ -54,32 +69,21 @@ function toLocalState(question: QuizQuestion): LocalQuestionState {
   }
 }
 
-function normalizeForComparison(state: LocalQuestionState) {
-  return {
-    ...state,
-    question_text: state.question_text.trim(),
-    options: state.options.map((option) => option.trim()),
-    points: Number(state.points),
-    answer_key: state.answer_key.trim(),
-    sample_solution: state.sample_solution.trim(),
-  }
-}
-
 export function TestQuestionEditor({
   question,
   questionNumber,
   isEditable,
   onChange,
   onDelete,
+  onDuplicate,
+  variant = 'card',
+  isExpanded = true,
+  onToggleExpanded,
 }: Props) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: question.id, disabled: !isEditable })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: question.id,
+    disabled: !isEditable,
+  })
 
   const sortableStyle = {
     transform: CSS.Transform.toString(transform),
@@ -88,20 +92,18 @@ export function TestQuestionEditor({
 
   const [state, setState] = useState<LocalQuestionState>(() => toLocalState(question))
   const [error, setError] = useState('')
-  const [isAnswerSectionOpen, setIsAnswerSectionOpen] = useState(false)
+  const [isAnswerSectionOpen, setIsAnswerSectionOpen] = useState(variant !== 'card')
   const codeToggleId = `question-${question.id}-code-toggle`
+  const toggleLabel = `${isExpanded ? 'Collapse' : 'Expand'} question ${questionNumber}`
+  const questionPlaceholder = `Question ${questionNumber}`
+  const pointsLabel = `${Number.parseInt(state.points, 10) || question.points || defaultPointsForQuestionType(state.question_type)} pts`
+  const collapsedSummary = summarizeHeaderLine(state.question_text)
 
   useEffect(() => {
     setState(toLocalState(question))
     setError('')
-    setIsAnswerSectionOpen(false)
-  }, [question])
-
-  const isDirty = useMemo(() => {
-    const current = normalizeForComparison(state)
-    const baseline = normalizeForComparison(toLocalState(question))
-    return JSON.stringify(current) !== JSON.stringify(baseline)
-  }, [question, state])
+    setIsAnswerSectionOpen(variant !== 'card')
+  }, [question, variant])
 
   function updateState(partial: Partial<LocalQuestionState>) {
     setState((prev) => ({ ...prev, ...partial }))
@@ -156,7 +158,11 @@ export function TestQuestionEditor({
         setError('Options cannot be empty')
         return
       }
-      if (!Number.isInteger(state.correct_option) || state.correct_option < 0 || state.correct_option >= nextOptions.length) {
+      if (
+        !Number.isInteger(state.correct_option) ||
+        state.correct_option < 0 ||
+        state.correct_option >= nextOptions.length
+      ) {
         setError('Select a correct option')
         return
       }
@@ -196,18 +202,367 @@ export function TestQuestionEditor({
     )
   }
 
+  const multipleChoiceEditor = state.question_type === 'multiple_choice' ? (
+    <div
+      className={
+        variant === 'accordion'
+          ? 'space-y-2 border-t border-border bg-surface-2 px-4 py-4'
+          : 'space-y-2 rounded-md border border-border bg-surface-2 px-4 py-4'
+      }
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Options</p>
+      {state.options.map((option, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <input
+            type="radio"
+            name={`correct-option-${question.id}`}
+            checked={state.correct_option === index}
+            disabled={!isEditable}
+            onChange={() => {
+              updateState({ correct_option: index })
+              setTimeout(() => handleSave(), 0)
+            }}
+            className="h-4 w-4"
+          />
+          {isEditable ? (
+            <Input
+              type="text"
+              value={option}
+              onChange={(event) => updateOption(index, event.target.value)}
+              onBlur={() => handleSave()}
+              placeholder={`Option ${String.fromCharCode(65 + index)}`}
+              className="flex-1"
+            />
+          ) : (
+            <div className="flex-1 rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default">
+              {option}
+            </div>
+          )}
+          {isEditable && state.options.length > 2 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                removeOption(index)
+                setTimeout(() => handleSave(), 0)
+              }}
+              className="p-1 text-text-muted hover:text-danger"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : null}
+        </div>
+      ))}
+      {isEditable && state.options.length < MAX_QUIZ_OPTIONS ? (
+        <Button type="button" variant="secondary" size="sm" onClick={addOption} className="gap-1.5">
+          <Plus className="h-4 w-4" />
+          Option
+        </Button>
+      ) : null}
+    </div>
+  ) : null
+
+  const openResponseEditor =
+    state.question_type === 'open_response' ? (
+      <div
+        className={
+          variant === 'accordion'
+            ? 'space-y-3 border-t border-border bg-surface-2 px-4 py-4'
+            : 'space-y-3 rounded-md border border-border bg-surface-2 px-4 py-4'
+        }
+      >
+        {variant === 'card' && isEditable ? (
+          <button
+            type="button"
+            onClick={() => setIsAnswerSectionOpen((prev) => !prev)}
+            className="w-full text-left text-xs font-semibold uppercase tracking-wide text-text-muted hover:text-text-default"
+          >
+            {isAnswerSectionOpen
+              ? 'Hide Grading Notes'
+              : state.answer_key.trim() || state.sample_solution.trim()
+                ? 'Grading Notes Added'
+                : 'Add Grading Notes'}
+          </button>
+        ) : (
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Key</p>
+        )}
+
+        {variant !== 'card' || isAnswerSectionOpen ? (
+          <div className="space-y-3">
+            {variant === 'card' && isEditable ? null : (
+              <div>
+                {variant !== 'card' ? null : (
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Key</p>
+                )}
+                {isEditable ? (
+                  <textarea
+                    value={state.answer_key}
+                    onChange={(event) => updateState({ answer_key: event.target.value })}
+                    onBlur={() => handleSave()}
+                    placeholder="Enter an optional answer key for AI-assisted grading..."
+                    rows={4}
+                    className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                ) : (
+                  <div className="min-h-[96px] rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default whitespace-pre-wrap">
+                    {state.answer_key || 'No answer key provided.'}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {variant === 'card' && isEditable ? (
+              <>
+                <textarea
+                  value={state.answer_key}
+                  onChange={(event) => updateState({ answer_key: event.target.value })}
+                  onBlur={() => handleSave()}
+                  placeholder="Enter an optional answer key for AI-assisted grading..."
+                  rows={4}
+                  className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <textarea
+                  value={state.sample_solution}
+                  onChange={(event) => updateState({ sample_solution: event.target.value })}
+                  onBlur={() => handleSave()}
+                  placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
+                  rows={6}
+                  className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </>
+            ) : (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Sample Solution</p>
+                {isEditable ? (
+                  <textarea
+                    value={state.sample_solution}
+                    onChange={(event) => updateState({ sample_solution: event.target.value })}
+                    onBlur={() => handleSave()}
+                    placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
+                    rows={6}
+                    className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                ) : (
+                  <div className="min-h-[128px] rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default whitespace-pre-wrap">
+                    {state.sample_solution || 'No sample solution provided.'}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+    ) : null
+
+  if (variant === 'detail' && isEditable) {
+    return (
+      <div className="flex h-full min-h-0 w-full max-w-none flex-col gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+            <span>Q{questionNumber}</span>
+            <span aria-hidden="true">•</span>
+            <span>{state.question_type === 'open_response' ? 'Open Response' : 'Multiple Choice'}</span>
+          </div>
+        </div>
+
+        <textarea
+          value={state.question_text}
+          onChange={(event) => updateState({ question_text: event.target.value })}
+          onBlur={() => handleSave()}
+          placeholder={questionPlaceholder}
+          rows={5}
+          className="w-full min-h-[144px] resize-y rounded-md border border-border bg-surface px-4 py-3 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+
+        {multipleChoiceEditor}
+        {openResponseEditor}
+
+        {error ? <p className="text-sm text-danger">{error}</p> : null}
+      </div>
+    )
+  }
+
+  if (variant === 'accordion') {
+    return (
+      <div
+        ref={setNodeRef}
+        style={sortableStyle}
+        className={`rounded-lg border border-border bg-surface ${isDragging ? 'z-50 border-primary opacity-90 shadow-xl' : ''}`}
+      >
+        <div className="flex flex-wrap items-center gap-2 px-3 py-3">
+          <div className="flex min-h-8 items-center">
+            {isEditable ? (
+              <button
+                type="button"
+                className="cursor-grab touch-none p-0 text-text-muted hover:text-text-default active:cursor-grabbing"
+                {...attributes}
+                {...listeners}
+                aria-label="Drag to reorder"
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+            ) : (
+              <span className="text-xs font-semibold text-text-muted">Q{questionNumber}</span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={onToggleExpanded}
+            aria-expanded={isExpanded}
+            aria-label={toggleLabel}
+            className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          >
+            <span className="text-text-muted">
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </span>
+            {isEditable ? (
+              <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Q{questionNumber}</span>
+            ) : null}
+            {state.question_type === 'multiple_choice' ? (
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                MC
+              </span>
+            ) : null}
+            {!isExpanded ? (
+              <span
+                data-testid={`question-${question.id}-collapsed-summary`}
+                className="min-w-0 flex-1 truncate text-sm font-medium text-text-default"
+              >
+                {collapsedSummary}
+              </span>
+            ) : null}
+          </button>
+
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-3">
+            {isEditable ? (
+              <>
+                <label
+                  htmlFor={`question-${question.id}-accordion-points`}
+                  className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted"
+                >
+                  <span>Pts</span>
+                  <Input
+                    id={`question-${question.id}-accordion-points`}
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={state.points}
+                    aria-label={`Question ${questionNumber} points`}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={(event) => updateState({ points: event.target.value })}
+                    onBlur={() => handleSave()}
+                    className="h-8 w-16 px-2 text-sm"
+                  />
+                </label>
+                {state.question_type === 'open_response' ? (
+                  <label
+                    htmlFor={`${codeToggleId}-accordion`}
+                    className="inline-flex items-center gap-2 text-sm text-text-default"
+                  >
+                    <input
+                      id={`${codeToggleId}-accordion`}
+                      type="checkbox"
+                      checked={state.response_monospace}
+                      aria-label={`Question ${questionNumber} code response`}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => {
+                        updateState({ response_monospace: event.target.checked })
+                        setTimeout(() => handleSave(), 0)
+                      }}
+                      className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
+                    />
+                    <span>Code</span>
+                  </label>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                  {pointsLabel}
+                </span>
+                {state.question_type === 'open_response' && state.response_monospace ? (
+                  <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                    Code
+                  </span>
+                ) : null}
+              </>
+            )}
+
+            {isEditable ? (
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Duplicate question ${questionNumber}`}
+                  className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-text-default"
+                  onClick={() => onDuplicate?.(question.id)}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Delete question ${questionNumber}`}
+                  className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-danger"
+                  onClick={() => onDelete(question.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {isExpanded ? (
+          <div className="space-y-0 border-t border-border">
+            {isEditable ? (
+              <>
+                <div className="bg-surface">
+                  <textarea
+                    value={state.question_text}
+                    onChange={(event) => updateState({ question_text: event.target.value })}
+                    onBlur={() => handleSave()}
+                    placeholder={questionPlaceholder}
+                    rows={4}
+                    className="block w-full min-h-[112px] resize-y border-0 bg-surface px-4 py-4 text-sm text-text-default placeholder:text-text-muted focus:outline-none focus:ring-0"
+                  />
+                </div>
+                {multipleChoiceEditor}
+                {openResponseEditor}
+              </>
+            ) : (
+              <>
+                <div className="bg-surface">
+                  <QuestionMarkdown content={state.question_text} className="px-4 py-4" />
+                </div>
+                {multipleChoiceEditor}
+                {openResponseEditor}
+              </>
+            )}
+
+            {error ? <p className="text-sm text-danger">{error}</p> : null}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div
       ref={setNodeRef}
       style={sortableStyle}
-      className={`border border-border rounded-lg p-3 bg-surface ${isDragging ? 'shadow-xl scale-[1.02] z-50 border-primary opacity-90' : ''}`}
+      className={`rounded-lg border border-border bg-surface p-3 ${isDragging ? 'z-50 scale-[1.02] border-primary opacity-90 shadow-xl' : ''}`}
     >
       <div className="grid gap-2 md:grid-cols-[16px_24px_minmax(0,1fr)_112px] md:gap-x-0">
         <div className="flex items-center justify-start md:self-center">
           {isEditable ? (
             <button
               type="button"
-              className="p-0 touch-none text-text-muted hover:text-text-default cursor-grab active:cursor-grabbing"
+              className="cursor-grab touch-none p-0 text-text-muted hover:text-text-default active:cursor-grabbing"
               {...attributes}
               {...listeners}
               aria-label="Drag to reorder"
@@ -230,97 +585,12 @@ export function TestQuestionEditor({
                 value={state.question_text}
                 onChange={(event) => updateState({ question_text: event.target.value })}
                 onBlur={() => handleSave()}
-                placeholder="Question prompt"
+                placeholder={questionPlaceholder}
                 rows={3}
                 className="w-full min-h-[88px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
               />
-
-              {state.question_type === 'multiple_choice' ? (
-                <div className="space-y-2">
-                  {state.options.map((option, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name={`correct-option-${question.id}`}
-                        checked={state.correct_option === index}
-                        onChange={() => {
-                          updateState({ correct_option: index })
-                          setTimeout(() => handleSave(), 0)
-                        }}
-                        className="h-4 w-4"
-                      />
-                      <Input
-                        type="text"
-                        value={option}
-                        onChange={(event) => updateOption(index, event.target.value)}
-                        onBlur={() => handleSave()}
-                        placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                        className="flex-1"
-                      />
-                      {state.options.length > 2 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            removeOption(index)
-                            setTimeout(() => handleSave(), 0)
-                          }}
-                          className="p-1 text-text-muted hover:text-danger"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                  {state.options.length < MAX_QUIZ_OPTIONS && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={addOption}
-                      className="gap-1.5"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Option
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2 rounded-md border border-border bg-surface-2 px-3 py-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsAnswerSectionOpen((prev) => !prev)}
-                    className="w-full text-left text-xs font-semibold uppercase tracking-wide text-text-muted hover:text-text-default"
-                  >
-                    {isAnswerSectionOpen
-                      ? 'Hide Grading Notes'
-                      : state.answer_key.trim() || state.sample_solution.trim()
-                      ? 'Grading Notes Added'
-                      : 'Add Grading Notes'}
-                  </button>
-                  {isAnswerSectionOpen ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={state.answer_key}
-                        onChange={(event) => updateState({ answer_key: event.target.value })}
-                        onBlur={() => handleSave()}
-                        placeholder="Enter an optional answer key for AI-assisted grading..."
-                        rows={4}
-                        className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                      <textarea
-                        value={state.sample_solution}
-                        onChange={(event) => updateState({ sample_solution: event.target.value })}
-                        onBlur={() => handleSave()}
-                        placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
-                        rows={6}
-                        className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              )}
+              {multipleChoiceEditor}
+              {openResponseEditor}
             </>
           ) : (
             <>
@@ -344,7 +614,7 @@ export function TestQuestionEditor({
         {isEditable ? (
           <div className="w-full min-w-0 space-y-2 rounded-md border border-border bg-surface-2 p-2.5 md:self-start">
             <div className="grid min-w-0 grid-cols-[1fr_52px] items-center gap-2">
-              <label className="text-[11px] font-medium uppercase tracking-wide leading-none text-text-muted">
+              <label className="text-[11px] font-medium uppercase leading-none tracking-wide text-text-muted">
                 Points
               </label>
               <Input
@@ -359,7 +629,10 @@ export function TestQuestionEditor({
 
             {state.question_type === 'open_response' ? (
               <div className="grid min-w-0 grid-cols-[1fr_52px] items-center gap-2">
-                <label htmlFor={codeToggleId} className="text-[11px] font-medium uppercase tracking-wide leading-none text-text-muted">
+                <label
+                  htmlFor={codeToggleId}
+                  className="text-[11px] font-medium uppercase leading-none tracking-wide text-text-muted"
+                >
                   Code
                 </label>
                 <div className="flex h-8 items-center justify-start">
@@ -377,34 +650,22 @@ export function TestQuestionEditor({
               </div>
             ) : null}
 
-            <div className="space-y-2 pt-1">
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={() => handleSave({ force: true })}
-                disabled={!isDirty}
-                className="w-full min-w-0 px-2"
-              >
-                Save
-              </Button>
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                onClick={() => onDelete(question.id)}
-                className="w-full min-w-0 px-2"
-              >
-                Delete
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="danger"
+              size="sm"
+              onClick={() => onDelete(question.id)}
+              className="w-full min-w-0 px-2"
+            >
+              Delete
+            </Button>
           </div>
         ) : (
           <div />
         )}
       </div>
 
-      {error && <p className="text-sm text-danger pl-7 mt-2">{error}</p>}
+      {error ? <p className="mt-2 pl-7 text-sm text-danger">{error}</p> : null}
     </div>
   )
 }

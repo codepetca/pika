@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown'
@@ -23,6 +23,32 @@ function makeQuizWithStats(overrides: Partial<QuizWithStats> = {}): QuizWithStat
 const sampleQuestions: QuizQuestion[] = [
   createMockQuizQuestion({ id: 'q1', question_text: 'Favorite color?', options: ['Red', 'Blue', 'Green'], position: 0 }),
   createMockQuizQuestion({ id: 'q2', question_text: 'Favorite animal?', options: ['Cat', 'Dog'], position: 1 }),
+]
+
+const summaryDetailQuestions: QuizQuestion[] = [
+  createMockQuizQuestion({
+    id: 'sq1',
+    assessment_type: 'test',
+    question_type: 'open_response',
+    question_text: 'Explain the runtime complexity of your solution.',
+    options: [],
+    correct_option: null,
+    answer_key: 'Look for linear-time reasoning and mention of hash-map tradeoffs.',
+    sample_solution: 'A good answer explains O(n) time and O(n) space.',
+    points: 6,
+    response_monospace: true,
+    position: 0,
+  }),
+  createMockQuizQuestion({
+    id: 'sq2',
+    assessment_type: 'test',
+    question_type: 'multiple_choice',
+    question_text: 'Which traversal visits the root node first?',
+    options: ['Inorder', 'Preorder', 'Postorder'],
+    correct_option: 1,
+    points: 3,
+    position: 1,
+  }),
 ]
 
 const sampleResults: QuizResultsAggregate[] = [
@@ -217,8 +243,564 @@ describe('QuizDetailPanel', () => {
       const tabLabels = Array.from(tabStrip!.children)
         .filter((element) => element.tagName === 'BUTTON')
         .map((element) => element.textContent?.trim() || '')
-      expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Markdown', 'Results (0)'])
+      expect(tabLabels).toEqual(['Questions (2)', 'Documents (1)', 'Markdown'])
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
+    })
+
+    it('renders tests in summary-detail mode with accordion editors on the left and markdown on the right', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Two Pane Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Two Pane Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      expect(await screen.findByTestId('test-summary-detail-layout')).toBeInTheDocument()
+      const editorPane = screen.getByTestId('test-question-editor-pane')
+      const markdownPane = screen.getByTestId('test-question-markdown-pane')
+      expect(editorPane).toBeInTheDocument()
+      expect(markdownPane).toBeInTheDocument()
+      expect(within(editorPane).getByTestId('test-documents-card')).toBeInTheDocument()
+      expect(within(editorPane).getByText('Documents')).toBeInTheDocument()
+      expect(within(editorPane).getByText('0 documents')).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: 'Add Document' })).toBeInTheDocument()
+
+      expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('2 questions')
+      expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('9 pts')
+      expect(within(editorPane).getByRole('button', { name: 'Expand all questions' })).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: 'Collapse question 1' })).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: 'Expand question 2' })).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: 'Duplicate question 1' })).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: 'Delete question 1' })).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toHaveClass('bg-primary')
+      expect(within(editorPane).getByRole('button', { name: 'Choose question type' })).toBeInTheDocument()
+      expect(within(editorPane).getByLabelText('Question 1 points')).toHaveValue(6)
+      expect(within(editorPane).getByLabelText('Question 1 code response')).toBeChecked()
+      expect(within(editorPane).getByTestId('question-sq2-collapsed-summary')).toHaveTextContent(
+        'Which traversal visits the root node first?'
+      )
+      expect(within(editorPane).getByDisplayValue('Explain the runtime complexity of your solution.')).toBeInTheDocument()
+      expect(
+        within(editorPane).getByDisplayValue('Look for linear-time reasoning and mention of hash-map tradeoffs.')
+      ).toBeInTheDocument()
+      expect(within(editorPane).queryByDisplayValue('Which traversal visits the root node first?')).not.toBeInTheDocument()
+
+      const markdownEditor = within(markdownPane).getByTestId('test-markdown-editor')
+      expect((markdownEditor as HTMLTextAreaElement).value).toContain('Explain the runtime complexity of your solution.')
+      expect((markdownEditor as HTMLTextAreaElement).value).toContain('Which traversal visits the root node first?')
+      expect(markdownEditor).toHaveProperty('readOnly', true)
+      expect(within(markdownPane).getByTestId('markdown-helper-status')).toHaveTextContent('Markdown mirror')
+      expect(within(markdownPane).getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
+      expect(within(markdownPane).queryByText('Markdown')).not.toBeInTheDocument()
+      expect(within(markdownPane).queryByText('Edit the full test source alongside the structured questions.')).not.toBeInTheDocument()
+      expect(within(markdownPane).queryByRole('button', { name: 'Details' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Select question 2' })).not.toBeInTheDocument()
+
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Collapse documents' }))
+
+      await waitFor(() => {
+        expect(within(editorPane).getByRole('button', { name: 'Expand documents' })).toBeInTheDocument()
+        expect(within(editorPane).queryByRole('button', { name: 'Add Document' })).not.toBeInTheDocument()
+      })
+
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Expand documents' }))
+
+      await waitFor(() => {
+        expect(within(editorPane).getByRole('button', { name: 'Collapse documents' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Add Document' })).toBeInTheDocument()
+      })
+
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Expand all questions' }))
+
+      await waitFor(() => {
+        expect(within(editorPane).getByRole('button', { name: 'Collapse all questions' })).toBeInTheDocument()
+        expect(within(editorPane).getByLabelText('Question 2 points')).toHaveValue(3)
+        expect(within(editorPane).getByDisplayValue('Which traversal visits the root node first?')).toBeInTheDocument()
+        expect(within(editorPane).queryByTestId('question-sq2-collapsed-summary')).not.toBeInTheDocument()
+        expect(within(editorPane).getByDisplayValue('Inorder')).toBeInTheDocument()
+        expect(within(editorPane).getByDisplayValue('Preorder')).toBeInTheDocument()
+        expect(within(editorPane).getByDisplayValue('Postorder')).toBeInTheDocument()
+      })
+
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Collapse all questions' }))
+
+      await waitFor(() => {
+        expect(within(editorPane).getByRole('button', { name: 'Expand all questions' })).toBeInTheDocument()
+        expect(within(editorPane).queryByDisplayValue('Explain the runtime complexity of your solution.')).not.toBeInTheDocument()
+        expect(within(editorPane).queryByDisplayValue('Which traversal visits the root node first?')).not.toBeInTheDocument()
+        expect(within(editorPane).getByTestId('question-sq1-collapsed-summary')).toHaveTextContent(
+          'Explain the runtime complexity of your solution.'
+        )
+        expect(within(editorPane).getByTestId('question-sq2-collapsed-summary')).toHaveTextContent(
+          'Which traversal visits the root node first?'
+        )
+      })
+    })
+
+    it('keeps the markdown helper available for empty tests in summary-detail mode', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Empty Markdown Import Test',
+              show_results: true,
+              questions: [],
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Empty Markdown Import Test',
+        stats: { total_students: 25, responded: 0, questions_count: 0 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const markdownPane = await screen.findByTestId('test-question-markdown-pane')
+      const markdownEditor = within(markdownPane).getByTestId('test-markdown-editor')
+
+      expect(markdownEditor).toBeInTheDocument()
+      expect(markdownEditor).toHaveProperty('readOnly', true)
+      expect(within(markdownPane).getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
+
+      fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
+      fireEvent.change(markdownEditor, {
+        target: { value: '# Test\nTitle: Empty Markdown Import Test\nShow Results: true\n' },
+      })
+
+      await waitFor(() => {
+        expect(within(markdownPane).getByRole('button', { name: 'Apply Markdown' })).toBeInTheDocument()
+      })
+    })
+
+    it('duplicates a test question immediately below the source in summary-detail mode', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Duplicate Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Duplicate Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const editorPane = await screen.findByTestId('test-question-editor-pane')
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Duplicate question 1' }))
+
+      await waitFor(() => {
+        expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('3 questions')
+        expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('15 pts')
+        expect(within(editorPane).getByRole('button', { name: 'Collapse question 1' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Collapse question 2' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Expand question 3' })).toBeInTheDocument()
+        expect(within(editorPane).getByLabelText('Question 2 points')).toHaveValue(6)
+        expect(within(editorPane).getByLabelText('Question 2 code response')).toBeChecked()
+        expect(
+          within(editorPane).getAllByDisplayValue('Explain the runtime complexity of your solution.')
+        ).toHaveLength(2)
+        expect(within(editorPane).getByTestId('question-sq2-collapsed-summary')).toHaveTextContent(
+          'Which traversal visits the root node first?'
+        )
+      })
+    })
+
+    it('remembers the last selected question type in the add split button', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Split Button Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Split Button Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const editorPane = await screen.findByTestId('test-question-editor-pane')
+      expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toBeInTheDocument()
+
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Choose question type' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Open' }))
+
+      await waitFor(() => {
+        expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('3 questions')
+        expect(within(editorPane).getByRole('button', { name: '+ Open Question' })).toBeInTheDocument()
+      })
+
+      fireEvent.click(within(editorPane).getByRole('button', { name: '+ Open Question' }))
+
+      await waitFor(() => {
+        expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('4 questions')
+        expect(within(editorPane).getByRole('button', { name: '+ Open Question' })).toBeInTheDocument()
+      })
+    })
+
+    it('updates the markdown mirror immediately after structured edits in summary-detail mode', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Mirror Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Mirror Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const editorPane = await screen.findByTestId('test-question-editor-pane')
+      const markdownPane = screen.getByTestId('test-question-markdown-pane')
+      const promptField = within(editorPane).getByDisplayValue('Explain the runtime complexity of your solution.')
+
+      fireEvent.change(promptField, {
+        target: { value: 'Explain the amortized runtime complexity of your solution.' },
+      })
+      fireEvent.blur(promptField)
+
+      await waitFor(() => {
+        expect(
+          (within(markdownPane).getByTestId('test-markdown-editor') as HTMLTextAreaElement).value
+        ).toContain('Explain the amortized runtime complexity of your solution.')
+      })
+
+      const patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
+      expect(patchCalls).toHaveLength(0)
+    })
+
+    it('locks the left pane while markdown edits are pending in summary-detail mode', async () => {
+      const onPendingMarkdownImportChange = vi.fn()
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Pending Markdown Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Pending Markdown Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          onPendingMarkdownImportChange={onPendingMarkdownImportChange}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const editorPane = await screen.findByTestId('test-question-editor-pane')
+      const markdownPane = screen.getByTestId('test-question-markdown-pane')
+      const markdownEditor = within(markdownPane).getByTestId('test-markdown-editor')
+
+      fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
+      expect(markdownEditor).toHaveProperty('readOnly', false)
+
+      fireEvent.change(markdownEditor, {
+        target: { value: '# Test\nTitle: Pending Markdown Test\nShow Results: true\n' },
+      })
+
+      await waitFor(() => {
+        expect(within(markdownPane).getByTestId('markdown-helper-status')).toHaveTextContent(
+          'Markdown edits not applied'
+        )
+        expect(within(markdownPane).getByRole('button', { name: 'Apply Markdown' })).toBeInTheDocument()
+        expect(within(markdownPane).getByRole('button', { name: 'Undo markdown edits' })).toBeInTheDocument()
+        expect(screen.getByTestId('markdown-pending-lock')).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toBeDisabled()
+        expect(onPendingMarkdownImportChange).toHaveBeenLastCalledWith(true)
+      })
+    })
+
+    it('applies markdown to the left pane before the save request resolves', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      let resolvePatch: ((value: { ok: boolean; json: () => Promise<any> }) => void) | null = null
+      const patchPromise = new Promise<{ ok: boolean; json: () => Promise<any> }>((resolve) => {
+        resolvePatch = resolve
+      })
+
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            draft: {
+              version: 1,
+              content: {
+                title: 'Apply Timing Test',
+                show_results: true,
+                questions: summaryDetailQuestions,
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            quiz: {
+              documents: [],
+            },
+          }),
+        })
+        .mockImplementationOnce(() => patchPromise as unknown as Promise<Response>)
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Apply Timing Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const editorPane = await screen.findByTestId('test-question-editor-pane')
+      const markdownPane = screen.getByTestId('test-question-markdown-pane')
+
+      fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
+      fireEvent.change(within(markdownPane).getByTestId('test-markdown-editor'), {
+        target: {
+          value: `# Test
+Title: Apply Timing Test Updated
+Show Results: true
+
+## Questions
+### Question 1
+ID: ${markdownQuestionId1}
+Type: multiple_choice
+Points: 1
+Prompt:
+Updated prompt before save returns?
+Options:
+- A
+- B
+Correct Option: 2
+
+## Documents
+_None_
+`,
+        },
+      })
+      fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
+
+      await waitFor(() => {
+        expect(within(editorPane).getByDisplayValue('Updated prompt before save returns?')).toBeInTheDocument()
+        expect(within(markdownPane).getByTestId('markdown-helper-status')).toHaveTextContent('Applying markdown...')
+      })
+
+      resolvePatch?.({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 2,
+            content: {
+              title: 'Apply Timing Test Updated',
+              show_results: true,
+              questions: [
+                {
+                  id: markdownQuestionId1,
+                  question_type: 'multiple_choice',
+                  question_text: 'Updated prompt before save returns?',
+                  options: ['A', 'B'],
+                  correct_option: 1,
+                  answer_key: null,
+                  sample_solution: null,
+                  points: 1,
+                  response_max_chars: 5000,
+                  response_monospace: false,
+                },
+              ],
+            },
+          },
+        }),
+      })
+
+      await waitFor(() => {
+        expect(within(markdownPane).getByText('Markdown applied')).toBeInTheDocument()
+      })
     })
 
     it('saves draft and opens student preview route for tests', async () => {
@@ -453,7 +1035,7 @@ describe('QuizDetailPanel', () => {
   })
 
   describe('Markdown tab', () => {
-    it('loads and resets to the persisted source markdown instead of regenerating from structured fields', async () => {
+    it('loads persisted markdown as a read-only mirror and undo restores it after edits', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       const persistedSourceMarkdown = `# Test
 Title: Markdown Test
@@ -514,14 +1096,26 @@ Correct Option: 2
         { wrapper: Wrapper }
       )
 
-      const textarea = await screen.findByRole('textbox')
-      expect(textarea).toHaveValue(persistedSourceMarkdown)
+      fireEvent.click(await screen.findByText('Markdown'))
 
+      const textarea = await screen.findByRole('textbox')
+      expect((textarea as HTMLTextAreaElement).value).toContain('Favorite color?')
+      expect((textarea as HTMLTextAreaElement).value).toContain('Favorite animal?')
+      expect(textarea).not.toHaveValue(persistedSourceMarkdown)
+      expect(textarea).toHaveProperty('readOnly', true)
+      expect(screen.getByTestId('markdown-helper-status')).toHaveTextContent('Markdown mirror')
+      expect(screen.getByRole('button', { name: 'Edit Markdown' })).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
+      expect(screen.getByRole('textbox')).toHaveProperty('readOnly', false)
       fireEvent.change(textarea, { target: { value: 'edited markdown' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Reset' }))
+      expect(screen.getByTestId('markdown-helper-status')).toHaveTextContent('Markdown edits not applied')
+      fireEvent.click(screen.getByRole('button', { name: 'Undo markdown edits' }))
 
       await waitFor(() => {
-        expect(screen.getByRole('textbox')).toHaveValue(persistedSourceMarkdown)
+        expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toContain('Favorite color?')
+        expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toContain('Favorite animal?')
+        expect(screen.getByRole('textbox')).toHaveProperty('readOnly', true)
       })
     })
 
@@ -606,6 +1200,7 @@ Correct Option: 2
       })
 
       fireEvent.click(screen.getByText('Markdown'))
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
       fireEvent.change(screen.getByRole('textbox'), {
         target: {
           value: `# Test
@@ -704,6 +1299,7 @@ _None_
       })
 
       fireEvent.click(screen.getByText('Markdown'))
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
       fireEvent.change(screen.getByRole('textbox'), {
         target: {
           value: `# Test
@@ -777,7 +1373,7 @@ Prompt:
       })
 
       fireEvent.click(screen.getByText('Markdown'))
-      fireEvent.click(screen.getByRole('button', { name: 'Copy Schema' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Schema' }))
 
       await waitFor(() => {
         expect(clipboardWriteText).toHaveBeenCalledWith(TEST_MARKDOWN_AI_SCHEMA)
@@ -872,15 +1468,13 @@ Prompt:
         expect(screen.getByDisplayValue('Explain your reasoning')).toBeInTheDocument()
       })
 
-      const promptField = screen.getByPlaceholderText('Question prompt')
+      const promptField = screen.getByPlaceholderText('Question 1')
       expect(promptField.tagName).toBe('TEXTAREA')
 
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
       expect(screen.queryByPlaceholderText('Character limit')).not.toBeInTheDocument()
       expect(screen.getByLabelText('Code')).toBeInTheDocument()
       expect(screen.getByText('Points')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
       const promptFieldGridCheck = screen.getByDisplayValue('Explain your reasoning')
       const gridContainer = promptFieldGridCheck.closest('div')?.parentElement
       expect(gridContainer?.className).toContain('md:grid-cols-[16px_24px_minmax(0,1fr)_112px]')
@@ -995,18 +1589,13 @@ Prompt:
       })
 
       fireEvent.click(screen.getByRole('button', { name: 'Add Grading Notes' }))
+      const answerKeyField = screen.getByPlaceholderText('Enter an optional answer key for AI-assisted grading...')
       fireEvent.change(
-        screen.getByPlaceholderText('Enter an optional answer key for AI-assisted grading...'),
+        answerKeyField,
         { target: { value: 'Objects resist changes in motion.' } }
       )
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-
-      await waitFor(() => {
-        expect(fetchMock).toHaveBeenCalledWith(
-          expect.stringContaining('/api/teacher/tests/'),
-          expect.objectContaining({ method: 'PATCH' })
-        )
-      })
+      fireEvent.blur(answerKeyField)
+      await new Promise((resolve) => setTimeout(resolve, 3_200))
 
       const patchCall = [...fetchMock.mock.calls]
         .reverse()
@@ -1016,6 +1605,7 @@ Prompt:
             typeof call[0] === 'string' &&
             call[0].includes('/draft')
         )
+      expect(patchCall).toBeTruthy()
       const patchBody = JSON.parse(patchCall?.[1]?.body ?? '{}')
       const answerKeyFromContent = patchBody?.content?.questions?.[0]?.answer_key
       const answerKeyFromPatch = Array.isArray(patchBody?.patch)
@@ -1066,16 +1656,16 @@ Prompt:
       fireEvent.click(screen.getByText('Questions (0)'))
 
       await waitFor(() => {
-        expect(screen.getByText('Add MC Question')).toBeInTheDocument()
+        expect(screen.getByText('+ MC Question')).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByText('Add MC Question'))
+      fireEvent.click(screen.getByText('+ MC Question'))
 
       await waitFor(() => {
         expect(screen.getByText('Questions (1)')).toBeInTheDocument()
       })
 
-      const promptField = screen.getByPlaceholderText('Question prompt') as HTMLTextAreaElement
+      const promptField = screen.getByPlaceholderText('Question 1') as HTMLTextAreaElement
       expect(promptField.value).toBe('')
       expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
 
