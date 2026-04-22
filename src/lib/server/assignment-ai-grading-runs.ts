@@ -122,6 +122,18 @@ function isAssignmentAiGradingSchemaError(error: unknown): error is SupabaseSche
   return combined.includes('assignment_ai_grading_run')
 }
 
+function isAssignmentAiGradingCreateRpcError(error: unknown): error is SupabaseSchemaError {
+  if (!error || typeof error !== 'object') return false
+
+  const record = error as SupabaseSchemaError
+  if (record.code === 'PGRST202' || record.code === '42883') {
+    return true
+  }
+
+  const combined = `${record.message ?? ''} ${record.details ?? ''} ${record.hint ?? ''}`.toLowerCase()
+  return combined.includes('create_assignment_ai_grading_run_atomic')
+}
+
 function getSummaryNextRetryAt(items: AssignmentAiGradingRunItem[]): string | null {
   if (items.length === 0) return null
 
@@ -698,15 +710,12 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   let gradableCount = 0
   let skippedMissingCount = 0
   let skippedEmptyCount = 0
-  const missingGradeStudentIds: string[] = []
 
   const itemRows = normalizedStudentIds.map((studentId, index) => {
     const doc = docByStudentId.get(studentId)
     if (!doc) {
       skippedMissingCount += 1
-      missingGradeStudentIds.push(studentId)
       return {
-        assignment_id: opts.assignmentId,
         student_id: studentId,
         assignment_doc_id: null,
         queue_position: index,
@@ -724,9 +733,7 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
     const parsed = parseContentField(doc.content)
     if (!hasGradableAssignmentSubmission(parsed)) {
       skippedEmptyCount += 1
-      missingGradeStudentIds.push(studentId)
       return {
-        assignment_id: opts.assignmentId,
         student_id: studentId,
         assignment_doc_id: doc.id,
         queue_position: index,
@@ -743,7 +750,6 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
 
     gradableCount += 1
     return {
-      assignment_id: opts.assignmentId,
       student_id: studentId,
       assignment_doc_id: doc.id,
       queue_position: index,
@@ -758,67 +764,39 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
     }
   })
 
-  const initialStatus: AssignmentAiGradingRunStatus =
-    gradableCount === 0 ? 'completed' : 'queued'
   const now = new Date().toISOString()
-  const runPayload = {
-    assignment_id: opts.assignmentId,
-    status: initialStatus,
-    triggered_by: opts.teacherId,
-    model: getModelAlias(),
-    requested_student_ids_json: normalizedStudentIds,
-    selection_hash: selectionHash,
-    requested_count: normalizedStudentIds.length,
-    gradable_count: gradableCount,
-    processed_count: skippedMissingCount + skippedEmptyCount,
-    completed_count: 0,
-    skipped_missing_count: skippedMissingCount,
-    skipped_empty_count: skippedEmptyCount,
-    failed_count: 0,
-    error_samples_json: [],
-    started_at: gradableCount === 0 ? now : null,
-    completed_at: gradableCount === 0 ? now : null,
-  }
-
-  const { data: run, error: runError } = await supabase
-    .from('assignment_ai_grading_runs')
-    .insert(runPayload)
-    .select('*')
-    .single()
+  const { data: run, error: runError } = await supabase.rpc('create_assignment_ai_grading_run_atomic', {
+    p_assignment_id: opts.assignmentId,
+    p_teacher_id: opts.teacherId,
+    p_model: getModelAlias(),
+    p_requested_student_ids: normalizedStudentIds,
+    p_selection_hash: selectionHash,
+    p_gradable_count: gradableCount,
+    p_skipped_missing_count: skippedMissingCount,
+    p_skipped_empty_count: skippedEmptyCount,
+    p_item_rows: itemRows,
+    p_now: now,
+  })
 
   if (runError || !run) {
+    if ((runError as SupabaseSchemaError | null | undefined)?.code === '23505') {
+      const concurrentRun = await fetchLatestActiveRun(supabase, opts.assignmentId)
+      if (concurrentRun) {
+        const items = await fetchAssignmentAiGradingRunItems(supabase, concurrentRun.id)
+        const summary = toAssignmentAiGradingRunSummary(concurrentRun, { items })
+        if (concurrentRun.selection_hash === selectionHash) {
+          return { kind: 'resumed', run: summary }
+        }
+        return { kind: 'conflict', run: summary }
+      }
+    }
+    if (isAssignmentAiGradingCreateRpcError(runError)) {
+      throw new Error('Assignment AI grading run transaction is unavailable. Apply migration 055.')
+    }
     if (isAssignmentAiGradingSchemaError(runError)) {
       throw new Error('Assignment AI grading run tables are unavailable. Apply migration 054.')
     }
     throw new Error('Failed to create assignment AI grading run')
-  }
-
-  const rowsWithRunId = itemRows.map((item) => ({
-    run_id: run.id,
-    ...item,
-  }))
-  const { error: itemsError } = await supabase
-    .from('assignment_ai_grading_run_items')
-    .insert(rowsWithRunId)
-
-  if (itemsError) {
-    if (isAssignmentAiGradingSchemaError(itemsError)) {
-      throw new Error('Assignment AI grading run tables are unavailable. Apply migration 054.')
-    }
-    throw new Error('Failed to create assignment AI grading run items')
-  }
-
-  if (missingGradeStudentIds.length > 0) {
-    await Promise.all(
-      missingGradeStudentIds.map((studentId) =>
-        markAssignmentDocMissingGrade({
-          supabase,
-          assignmentId: opts.assignmentId,
-          studentId,
-          gradedBy: opts.teacherId,
-        }),
-      ),
-    )
   }
 
   return {

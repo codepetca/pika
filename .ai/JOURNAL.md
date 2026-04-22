@@ -9135,3 +9135,13 @@
 **Validation:**
 - `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
 - `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
+
+## 2026-04-21 — Make Assignment AI Batch Creation Atomic
+
+- Added migration `055_assignment_ai_grading_run_atomic_rpc.sql` with `create_assignment_ai_grading_run_atomic(...)` so run creation, run-item inserts, and skipped-student `Missing` grade upserts happen in one database transaction.
+- Updated `createOrResumeAssignmentAiGradingRun()` to call the atomic RPC instead of issuing separate writes from TypeScript, added explicit migration guidance when the new RPC is unavailable, and mapped active-run unique-key races back to the intended resume/conflict response.
+- Replaced the service regression tests to assert the RPC payload, matching-run resume behavior, the race-recovery path, and the migration-055 error path.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
