@@ -26,10 +26,9 @@ const mockSupabaseClient = { from: vi.fn() }
 
 function buildAssignmentDocsTable(options?: {
   docs?: any[]
-  selectError?: any
-  clearUpdateError?: any
   returnUpdateError?: any
   feedbackUpdateError?: any
+  selectError?: any
 }) {
   const docs = options?.docs ?? []
   const update = vi.fn((payload: Record<string, unknown>) => ({
@@ -38,13 +37,6 @@ function buildAssignmentDocsTable(options?: {
         return {
           in: vi.fn().mockResolvedValue({
             error: options?.returnUpdateError ?? null,
-          }),
-        }
-      }
-      if ('teacher_cleared_at' in payload || payload.is_submitted === false) {
-        return {
-          in: vi.fn().mockResolvedValue({
-            error: options?.clearUpdateError ?? null,
           }),
         }
       }
@@ -90,12 +82,13 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     expect(data.error).toBe('student_ids array is required')
   })
 
-  it('clears submitted docs and fully returns only graded ones', async () => {
+  it('returns existing docs with blank or complete rubrics and blocks partial rubrics', async () => {
     const docs = [
       {
         id: 'doc-1',
         student_id: 'student-1',
         is_submitted: true,
+        submitted_at: '2026-04-10T12:00:00.000Z',
         score_completion: 4,
         score_thinking: 4,
         score_workflow: 4,
@@ -104,19 +97,21 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       {
         id: 'doc-2',
         student_id: 'student-2',
-        is_submitted: true,
+        is_submitted: false,
+        submitted_at: null,
         score_completion: null,
-        score_thinking: 3,
-        score_workflow: 3,
+        score_thinking: null,
+        score_workflow: null,
         teacher_feedback_draft: '',
       },
       {
         id: 'doc-3',
         student_id: 'student-3',
         is_submitted: false,
-        score_completion: null,
+        submitted_at: null,
+        score_completion: 2,
         score_thinking: 3,
-        score_workflow: 3,
+        score_workflow: null,
         teacher_feedback_draft: 'Missing completion score',
       },
     ]
@@ -151,7 +146,7 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
       method: 'POST',
       body: JSON.stringify({
-        student_ids: ['student-1', 'student-2', 'student-3'],
+        student_ids: ['student-1', 'student-2', 'student-3', 'student-4'],
       }),
     })
 
@@ -159,9 +154,13 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(1)
+    expect(data.returned_count).toBe(2)
     expect(data.cleared_count).toBe(2)
+    expect(data.returned_student_ids).toEqual(['student-1', 'student-2'])
+    expect(data.blocked_count).toBe(1)
+    expect(data.blocked_student_ids).toEqual(['student-3'])
     expect(data.missing_count).toBe(1)
+    expect(data.missing_student_ids).toEqual(['student-4'])
 
     const payloads = assignmentDocsTable.update.mock.calls.map(([payload]) => payload)
     expect(payloads).toEqual(expect.arrayContaining([
@@ -175,12 +174,7 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       }),
     ]))
     expect(
-      payloads.some((payload: any) =>
-        payload.is_submitted === false
-        && typeof payload.teacher_cleared_at === 'string'
-        && !('returned_at' in payload)
-        && !('feedback_returned_at' in payload)
-      )
+      payloads.every((payload: any) => !('submitted_at' in payload))
     ).toBe(true)
 
     expect(appendAssignmentFeedbackEntry).toHaveBeenCalledWith(
@@ -245,7 +239,7 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
 
     expect(response.status).toBe(200)
     expect(data.returned_count).toBe(1)
-    expect(data.cleared_count).toBe(0)
+    expect(data.cleared_count).toBe(1)
     expect(data.missing_count).toBe(0)
 
     expect(assignmentDocsTable.update).toHaveBeenCalledWith(
@@ -318,11 +312,25 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.returned_count).toBe(0)
-    expect(data.cleared_count).toBe(0)
+    expect(data.returned_count).toBe(1)
+    expect(data.cleared_count).toBe(1)
     expect(data.missing_count).toBe(0)
-    expect(assignmentDocsTable.update).not.toHaveBeenCalled()
-    expect(appendAssignmentFeedbackEntry).not.toHaveBeenCalled()
+    expect(assignmentDocsTable.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        is_submitted: false,
+        returned_at: expect.any(String),
+        feedback_returned_at: expect.any(String),
+        teacher_cleared_at: expect.any(String),
+      }),
+    )
+    expect(appendAssignmentFeedbackEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignmentId: 'assignment-1',
+        studentId: 'student-1',
+        createdBy: 'teacher-1',
+        body: 'Already returned',
+      }),
+    )
   })
 
   it('returns 500 when returning docs update fails', async () => {
@@ -379,20 +387,19 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     expect(data.error).toBe('Failed to return docs')
   })
 
-  it('returns 500 when mailbox clear update fails for reasons other than missing column', async () => {
+  it('does not return partial rubric drafts when every selected doc is blocked', async () => {
     const assignmentDocsTable = buildAssignmentDocsTable({
       docs: [
         {
           id: 'doc-1',
           student_id: 'student-1',
-          is_submitted: true,
-          score_completion: null,
+          is_submitted: false,
+          score_completion: 5,
           score_thinking: null,
-          score_workflow: null,
+          score_workflow: 7,
           teacher_feedback_draft: '',
         },
       ],
-      clearUpdateError: { code: '23505', message: 'boom' },
     })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
@@ -430,7 +437,10 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
     const data = await response.json()
 
-    expect(response.status).toBe(500)
-    expect(data.error).toBe('Failed to clear assignment mailbox')
+    expect(response.status).toBe(200)
+    expect(data.returned_count).toBe(0)
+    expect(data.blocked_count).toBe(1)
+    expect(data.blocked_student_ids).toEqual(['student-1'])
+    expect(assignmentDocsTable.update).not.toHaveBeenCalled()
   })
 })

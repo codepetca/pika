@@ -10,7 +10,9 @@ import {
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
   getAssignmentStatusIconClass,
+  getAssignmentRubricState,
   hasDraftSavedGrade,
+  isAssignmentReturnable,
   formatDueDate,
   isPastDue,
   formatRelativeDueDate,
@@ -671,6 +673,46 @@ describe('assignment utilities', () => {
 
     it('should return gray for invalid status', () => {
       expect(getAssignmentStatusIconClass('invalid_status' as any)).toBe('text-gray-400')
+    })
+  })
+
+  describe('assignment rubric helpers', () => {
+    it('returns null rubric state for a missing doc', () => {
+      expect(getAssignmentRubricState(null)).toBeNull()
+      expect(isAssignmentReturnable(null)).toBe(false)
+    })
+
+    it('treats a fully blank rubric as returnable', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: null,
+        score_thinking: null,
+        score_workflow: null,
+      })
+
+      expect(getAssignmentRubricState(doc)).toBe('blank')
+      expect(isAssignmentReturnable(doc)).toBe(true)
+    })
+
+    it('treats a fully completed rubric as returnable, including zeroes', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: 0,
+        score_thinking: 0,
+        score_workflow: 0,
+      })
+
+      expect(getAssignmentRubricState(doc)).toBe('complete')
+      expect(isAssignmentReturnable(doc)).toBe(true)
+    })
+
+    it('treats partial rubric drafts as blocked from return', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: 8,
+        score_thinking: null,
+        score_workflow: 6,
+      })
+
+      expect(getAssignmentRubricState(doc)).toBe('partial')
+      expect(isAssignmentReturnable(doc)).toBe(false)
     })
   })
 

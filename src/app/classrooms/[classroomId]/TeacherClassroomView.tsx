@@ -51,6 +51,8 @@ import {
 import { RightSidebarToggle } from '@/components/layout'
 import {
   calculateAssignmentStatus,
+  getAssignmentRubricState,
+  getAssignmentStatusIconClass,
   getAssignmentStatusLabel,
   hasDraftSavedGrade,
 } from '@/lib/assignments'
@@ -212,6 +214,13 @@ function getStudentDisplayName(row: StudentSubmissionRow | null): string | null 
   if (!row) return null
   const fullName = [row.student_first_name, row.student_last_name].filter(Boolean).join(' ').trim()
   return fullName || row.student_email || null
+}
+
+function getBatchReturnEligibility(
+  doc: StudentSubmissionRow['doc']
+): 'missing' | 'blocked' | 'returnable' {
+  if (!doc) return 'missing'
+  return getAssignmentRubricState(doc) === 'partial' ? 'blocked' : 'returnable'
 }
 
 function isAssignmentAiGradingRunActive(run: AssignmentAiGradingRunSummary | null): boolean {
@@ -680,6 +689,7 @@ export function TeacherClassroomView({
     toggleSelectAll: batchToggleSelectAll,
     allSelected: batchAllSelected,
     clearSelection: batchClearSelection,
+    setSelection: batchSetSelection,
     selectedCount: batchSelectedCount,
   } = useStudentSelection(studentRowIds)
 
@@ -691,24 +701,29 @@ export function TeacherClassroomView({
     batchClearSelection()
   }, [batchClearSelection, selectedAssignmentKey, selection.mode])
 
-  const batchSelectedGradedCount = useMemo(() => {
-    if (currentStudentRows.length === 0) return 0
-    let graded = 0
+  const batchSelectedReturnSummary = useMemo(() => {
+    let returnableCount = 0
+    let blockedCount = 0
+    let missingCount = 0
+
     for (const student of currentStudentRows) {
-      const doc = student.doc
-      const hasDraftScores = !!(
-        doc &&
-        doc.score_completion != null &&
-        doc.score_thinking != null &&
-        doc.score_workflow != null
-      )
-      if (batchSelectedIds.has(student.student_id) && (doc?.graded_at || hasDraftScores)) {
-        graded += 1
+      if (!batchSelectedIds.has(student.student_id)) continue
+
+      switch (getBatchReturnEligibility(student.doc)) {
+        case 'returnable':
+          returnableCount += 1
+          break
+        case 'blocked':
+          blockedCount += 1
+          break
+        case 'missing':
+          missingCount += 1
+          break
       }
     }
-    return graded
+
+    return { returnableCount, blockedCount, missingCount }
   }, [batchSelectedIds, currentStudentRows])
-  const batchSelectedUngradedCount = batchSelectedCount - batchSelectedGradedCount
 
   useEffect(() => {
     if (!info) return
@@ -891,11 +906,32 @@ export function TeacherClassroomView({
       if (!res.ok) throw new Error(data.error || 'Return failed')
       const returnedCount = Number(data.returned_count ?? 0)
       const clearedCount = Number(data.cleared_count ?? returnedCount)
+      const blockedCount = Number(data.blocked_count ?? 0)
       const missingCount = Number(data.missing_count ?? 0)
-      setInfo(
-        `Cleared ${clearedCount} mailbox item(s)${returnedCount > 0 ? ` • ${returnedCount} returned with grades` : ''}${missingCount > 0 ? ` • ${missingCount} no work yet` : ''}`
+      const returnedStudentIds = Array.isArray(data.returned_student_ids)
+        ? data.returned_student_ids.filter((value: unknown): value is string => typeof value === 'string')
+        : []
+      const remainingSelectedIds = Array.from(batchSelectedIds).filter(
+        (studentId) => !returnedStudentIds.includes(studentId)
       )
-      batchClearSelection()
+      if (remainingSelectedIds.length > 0) {
+        batchSetSelection(remainingSelectedIds)
+      } else {
+        batchClearSelection()
+      }
+
+      const summaryParts: string[] = []
+      summaryParts.push(`Returned ${returnedCount}`)
+      if (blockedCount > 0) {
+        summaryParts.push(`Blocked ${blockedCount} partial-rubric draft${blockedCount === 1 ? '' : 's'}`)
+      }
+      if (missingCount > 0) {
+        summaryParts.push(`${missingCount} with no work yet`)
+      }
+      if (returnedCount === 0 && clearedCount > 0) {
+        summaryParts.push(`Cleared ${clearedCount}`)
+      }
+      setInfo(summaryParts.join(' • '))
       setShowReturnConfirm(false)
       // Reload assignment data to refresh statuses/grades
       setRefreshCounter((c) => c + 1)
@@ -1662,7 +1698,7 @@ export function TeacherClassroomView({
       <ConfirmDialog
         isOpen={showReturnConfirm}
         title={`Return work to ${batchSelectedCount} selected student(s)?`}
-        description={`This clears the assignment mailbox for the selected students. ${batchSelectedGradedCount} ready item(s) will also be returned to students now.${batchSelectedUngradedCount > 0 ? ` ${batchSelectedUngradedCount} not-yet-graded item(s) will be cleared from the mailbox only.` : ''}`}
+        description={`Returning will mark ${batchSelectedReturnSummary.returnableCount} selected student document(s) as returned now, even if the work was never submitted. ${batchSelectedReturnSummary.blockedCount > 0 ? `${batchSelectedReturnSummary.blockedCount} selected student(s) have partial rubric drafts and must be completed or cleared before return. ` : ''}${batchSelectedReturnSummary.missingCount > 0 ? `${batchSelectedReturnSummary.missingCount} selected student(s) have no work yet and will be left unchanged.` : ''}`.trim()}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
         isConfirmDisabled={isReturning}

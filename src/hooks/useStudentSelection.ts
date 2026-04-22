@@ -41,12 +41,17 @@ export function useStudentSelection(rowIds: string[]) {
     setSelectedIds(new Set())
   }, [])
 
+  const setSelection = useCallback((ids: Iterable<string>) => {
+    setSelectedIds(new Set(ids))
+  }, [])
+
   return {
     selectedIds,
     toggleSelect,
     toggleSelectAll,
     allSelected,
     clearSelection,
+    setSelection,
     selectedCount,
   }
 }

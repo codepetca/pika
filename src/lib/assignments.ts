@@ -2,6 +2,9 @@ import { Assignment, AssignmentDoc, AssignmentStatus, AssignmentStats } from '@/
 import { formatInTimeZone } from 'date-fns-tz'
 
 type AssignmentStatDoc = Pick<AssignmentDoc, 'is_submitted' | 'submitted_at' | 'returned_at' | 'teacher_cleared_at'>
+type AssignmentRubricDoc = Pick<AssignmentDoc, 'score_completion' | 'score_thinking' | 'score_workflow'>
+
+export type AssignmentRubricState = 'blank' | 'partial' | 'complete'
 
 function getAssignmentFullReturnAt(
   doc: Pick<AssignmentDoc, 'teacher_cleared_at' | 'returned_at'>
@@ -12,6 +15,29 @@ function getAssignmentFullReturnAt(
   return timestamps.reduce((latest, current) =>
     new Date(current).getTime() > new Date(latest).getTime() ? current : latest
   )
+}
+
+export function getAssignmentRubricState(
+  doc: AssignmentRubricDoc | null | undefined
+): AssignmentRubricState | null {
+  if (!doc) return null
+
+  const filledCount = [
+    doc.score_completion,
+    doc.score_thinking,
+    doc.score_workflow,
+  ].filter((value) => value !== null && value !== undefined).length
+
+  if (filledCount === 0) return 'blank'
+  if (filledCount === 3) return 'complete'
+  return 'partial'
+}
+
+export function isAssignmentReturnable(
+  doc: AssignmentRubricDoc | null | undefined
+): boolean {
+  const rubricState = getAssignmentRubricState(doc)
+  return rubricState === 'blank' || rubricState === 'complete'
 }
 
 /**
