@@ -9126,3 +9126,12 @@
 **Validation:**
 - `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts`
 - `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/auto-grade/route.ts' 'tests/api/teacher/assignments-auto-grade.test.ts'`
+
+## 2026-04-21 — Reorder Batch Missing-Grade Writes
+
+- Changed assignment AI grading batch setup to create the grading run and run items before writing `Missing` zero-point grades for skipped students.
+- Added direct service-level regression coverage to ensure missing-grade upserts do not happen when run creation or run-item creation fails, and to lock in the new successful ordering.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
+- `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`

@@ -698,20 +698,13 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   let gradableCount = 0
   let skippedMissingCount = 0
   let skippedEmptyCount = 0
-  const missingGradeWrites: Promise<void>[] = []
+  const missingGradeStudentIds: string[] = []
 
   const itemRows = normalizedStudentIds.map((studentId, index) => {
     const doc = docByStudentId.get(studentId)
     if (!doc) {
       skippedMissingCount += 1
-      missingGradeWrites.push(
-        markAssignmentDocMissingGrade({
-          supabase,
-          assignmentId: opts.assignmentId,
-          studentId,
-          gradedBy: opts.teacherId,
-        }),
-      )
+      missingGradeStudentIds.push(studentId)
       return {
         assignment_id: opts.assignmentId,
         student_id: studentId,
@@ -731,14 +724,7 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
     const parsed = parseContentField(doc.content)
     if (!hasGradableAssignmentSubmission(parsed)) {
       skippedEmptyCount += 1
-      missingGradeWrites.push(
-        markAssignmentDocMissingGrade({
-          supabase,
-          assignmentId: opts.assignmentId,
-          studentId,
-          gradedBy: opts.teacherId,
-        }),
-      )
+      missingGradeStudentIds.push(studentId)
       return {
         assignment_id: opts.assignmentId,
         student_id: studentId,
@@ -771,10 +757,6 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
       completed_at: null,
     }
   })
-
-  if (missingGradeWrites.length > 0) {
-    await Promise.all(missingGradeWrites)
-  }
 
   const initialStatus: AssignmentAiGradingRunStatus =
     gradableCount === 0 ? 'completed' : 'queued'
@@ -824,6 +806,19 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
       throw new Error('Assignment AI grading run tables are unavailable. Apply migration 054.')
     }
     throw new Error('Failed to create assignment AI grading run items')
+  }
+
+  if (missingGradeStudentIds.length > 0) {
+    await Promise.all(
+      missingGradeStudentIds.map((studentId) =>
+        markAssignmentDocMissingGrade({
+          supabase,
+          assignmentId: opts.assignmentId,
+          studentId,
+          gradedBy: opts.teacherId,
+        }),
+      ),
+    )
   }
 
   return {
