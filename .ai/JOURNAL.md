@@ -9071,3 +9071,19 @@
 - `pnpm build`
 - `pnpm run seed`
 - Seeded browser verification on `Test Classroom` → `Personal Narrative Essay` showing the new teacher AI grading note during an active batch run
+
+## 2026-04-21 — Preserve Student Test Progress Through Exam Lock Overlay
+
+- Investigated issue `#483` and confirmed the progress-loss symptom came from same-session remounting during sustained exam-mode non-compliance, not from missing draft persistence on the server.
+- Kept the active student test shell mounted while the maximize-warning overlay is active, hiding it with `visibility: hidden` and `aria-hidden` instead of swapping the pane out for an empty placeholder.
+- Updated exam-mode component coverage so lock-state assertions check that content becomes hidden rather than unmounted, and added a regression test proving an unsaved open-response draft survives the lock/unlock cycle.
+- Visually verified the seeded student test flow in `Test Classroom`, including the active test, maximize-warning overlay, and restored view with the typed response still present.
+
+**Validation:**
+- `pnpm test tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx tests/api/student/tests-id.test.ts tests/api/student/tests-attempt.test.ts`
+- Browser verification on seeded `Test Classroom` tests:
+  - teacher desktop tests tab
+  - student mobile tests tab
+  - student desktop active test
+  - student desktop maximize-warning overlay
+  - student desktop restored test with preserved draft

@@ -1144,18 +1144,15 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
           </div>
         )}
 
-        {showNotMaximizedWarning ? (
-          <PageContent className={showSplitExamShell ? 'flex-1 min-h-0 px-0 pt-1' : 'flex-1 min-h-0'}>
-            <div aria-hidden="true" className="h-full" />
-          </PageContent>
-        ) : (
-          <PageContent className={showSplitExamShell ? 'flex-1 min-h-0 px-0 pt-1' : 'flex-1 min-h-0'}>
-            <div
-              className={`mx-auto h-full w-full ${
-                showSplitExamShell || !hasSelectedQuiz ? 'max-w-none' : 'max-w-3xl'
-              }`}
-            >
-              {showSplitExamShell ? (
+        <PageContent className={showSplitExamShell ? 'flex-1 min-h-0 px-0 pt-1' : 'flex-1 min-h-0'}>
+          <div
+            aria-hidden={showNotMaximizedWarning}
+            className={`mx-auto h-full w-full ${
+              showSplitExamShell || !hasSelectedQuiz ? 'max-w-none' : 'max-w-3xl'
+            }`}
+            style={showNotMaximizedWarning ? { visibility: 'hidden' } : undefined}
+          >
+            {showSplitExamShell ? (
                 <div
                   data-testid="student-test-split-container"
                   className={`grid grid-cols-1 gap-2 ${
@@ -1420,7 +1417,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                     )}
                   </section>
                 </div>
-              ) : !hasSelectedQuiz ? (
+            ) : !hasSelectedQuiz ? (
                 quizzes.length === 0 ? (
                   <EmptyState
                     title="No tests available."
@@ -1431,11 +1428,11 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                     {renderAssessmentList(false)}
                   </div>
                 )
-              ) : selectedQuizId && loadingQuiz ? (
+            ) : selectedQuizId && loadingQuiz ? (
                 <div className="flex justify-center py-12">
                   <Spinner size="lg" />
                 </div>
-              ) : (
+            ) : (
                 <div className="min-w-0">
                   <button
                     type="button"
@@ -1546,10 +1543,9 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                     />
                   )}
                 </div>
-              )}
-            </div>
-          </PageContent>
-        )}
+            )}
+          </div>
+        </PageContent>
 
         <ConfirmDialog
           isOpen={showStartTestConfirm}

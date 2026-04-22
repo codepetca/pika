@@ -2766,7 +2766,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
 
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
-    expect(screen.queryByText('2 + 2 = ?')).not.toBeInTheDocument()
+    expect(screen.getByText('2 + 2 = ?')).not.toBeVisible()
     expect(
       focusBodies.some(
         (body) =>
@@ -3071,7 +3071,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
 
     expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
-    expect(screen.queryByText('2 + 2 = ?')).not.toBeInTheDocument()
+    expect(screen.getByText('2 + 2 = ?')).not.toBeVisible()
     expect(
       focusBodies.some(
         (body) =>
@@ -3079,5 +3079,223 @@ describe('StudentQuizzesTab exam mode', () => {
           body.metadata?.source === 'window_resize'
       )
     ).toBe(true)
+  })
+
+  it('preserves unsaved in-progress test answers when the maximize lock overlay appears and clears', async () => {
+    let fullscreenElement: Element | null = null
+    let savedResponses: Record<string, unknown> = {}
+    const focusBodies: Array<Record<string, any>> = []
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockImplementation(async () => {
+        fullscreenElement = document.documentElement
+        document.dispatchEvent(new Event('fullscreenchange'))
+      }),
+    })
+
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/session-status')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              status: 'active',
+              assessment_type: 'test',
+              student_status: 'not_started',
+              returned_at: null,
+            },
+            student_status: 'not_started',
+            returned_at: null,
+            can_continue: true,
+            message: null,
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1') && !url.includes('/session-status') && !url.includes('/focus-events') && !url.includes('/attempt')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+              {
+                id: 'q2',
+                quiz_id: 'test-1',
+                question_text: 'Explain one benefit of writing tests before implementation.',
+                options: [],
+                question_type: 'open_response',
+                points: 4,
+                response_max_chars: 5000,
+                position: 1,
+              },
+            ],
+            student_responses: savedResponses,
+            focus_summary: makeFocusSummary({
+              window_unmaximize_attempts: focusBodies.filter(
+                (body) => body.event_type === 'window_unmaximize_attempt'
+              ).length,
+            }),
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/attempt') && options?.method === 'PATCH') {
+        const body = JSON.parse(String(options.body || '{}')) as { responses?: Record<string, unknown> }
+        savedResponses = body.responses || {}
+        return {
+          ok: true,
+          json: async () => ({
+            attempt: {
+              id: 'attempt-1',
+              responses: savedResponses,
+              is_submitted: false,
+            },
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        const parsedBody = JSON.parse(String(options?.body || '{}')) as Record<string, any>
+        focusBodies.push(parsedBody)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary({
+              window_unmaximize_attempts: focusBodies.filter(
+                (body) => body.event_type === 'window_unmaximize_attempt'
+              ).length,
+            }),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Explain one benefit of writing tests before implementation.')
+      ).toBeInTheDocument()
+    })
+
+    vi.useFakeTimers()
+
+    const responseBox = screen.getAllByPlaceholderText('Write your response...')[0]
+    fireEvent.change(responseBox, {
+      target: { value: 'TDD clarifies expected behavior before coding.' },
+    })
+
+    expect(savedResponses).toEqual({})
+
+    fullscreenElement = null
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 700,
+    })
+    Object.defineProperty(window.screen, 'availWidth', {
+      configurable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window.screen, 'availHeight', {
+      configurable: true,
+      value: 900,
+    })
+    fireEvent(document, new Event('fullscreenchange'))
+
+    await act(async () => {
+      vi.advanceTimersByTime(450)
+    })
+
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      writable: true,
+      value: 900,
+    })
+    Object.defineProperty(window.screen, 'availWidth', {
+      configurable: true,
+      value: 1400,
+    })
+    Object.defineProperty(window.screen, 'availHeight', {
+      configurable: true,
+      value: 900,
+    })
+    await act(async () => {
+      fireEvent(window, new Event('resize'))
+    })
+
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue('TDD clarifies expected behavior before coding.')).toBeVisible()
   })
 })
