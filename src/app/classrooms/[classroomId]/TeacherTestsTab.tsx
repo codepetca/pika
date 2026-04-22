@@ -824,7 +824,7 @@ export function TeacherTestsTab({
   const batchGradeDescription = batchGradeDescriptionParts.join(' ')
 
   const gradingTable = (
-    <div className="space-y-3">
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
       {gradingLoading ? (
         <div className="flex justify-center py-10">
           <Spinner />
@@ -836,7 +836,7 @@ export function TeacherTestsTab({
           tone="muted"
         />
       ) : (
-        <div className="overflow-hidden rounded-md border border-border bg-surface">
+        <div className="min-h-0 w-full overflow-hidden rounded-md border border-border bg-surface">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-surface-hover text-left text-text-muted">
@@ -1040,130 +1040,135 @@ export function TeacherTestsTab({
       </div>
 
       <div className="flex min-w-0 basis-full justify-center sm:basis-auto sm:flex-1">
-        <div className="min-w-0 max-w-[24rem] truncate text-center text-sm font-medium text-text-default">
-          {selectedTestTitle}
+        <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:gap-3">
+          {selectedWorkspaceTab === 'authoring' ? (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setTestPreviewRequestToken((value) => value + 1)}
+              >
+                Preview
+              </Button>
+              {selectedTest?.status === 'draft' ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void handleRequestSelectedTestActivate()
+                  }}
+                  disabled={!selectedActivation.valid || isReadOnly || statusUpdating || checkingActivation}
+                >
+                  <Play className="h-4 w-4" />
+                  Open
+                </Button>
+              ) : null}
+              {selectedTest?.status === 'active' ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowCloseConfirm(true)}
+                  disabled={isReadOnly || statusUpdating}
+                >
+                  <Square className="h-4 w-4" />
+                  Close
+                </Button>
+              ) : null}
+              {selectedTest?.status === 'closed' ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    void handleSelectedTestStatusChange('active')
+                  }}
+                  disabled={isReadOnly || statusUpdating}
+                >
+                  <Play className="h-4 w-4" />
+                  Reopen
+                </Button>
+              ) : null}
+              {onRequestDelete ? (
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={onRequestDelete}
+                  disabled={isReadOnly}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={openBatchPromptGuidelineModal}
+                disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
+              >
+                AI Prompt
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  if (batchSelectedCount === 0) {
+                    setGradingWarning('Select students to grade')
+                    return
+                  }
+                  setShowBatchGradeModal(true)
+                }}
+                disabled={
+                  batchSelectedCount === 0 ||
+                  isBatchAutoGrading ||
+                  isBatchReturning ||
+                  isBatchClearingOpenGrades
+                }
+              >
+                <Check className="h-4 w-4" />
+                AI Grade
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  if (batchSelectedCount === 0) {
+                    setGradingWarning('Select students to return')
+                    return
+                  }
+                  setShowReturnConfirm(true)
+                }}
+                disabled={
+                  batchSelectedCount === 0 ||
+                  isBatchAutoGrading ||
+                  isBatchReturning ||
+                  isBatchClearingOpenGrades
+                }
+              >
+                <Send className="h-4 w-4" />
+                Return
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-        {selectedWorkspaceTab === 'authoring' ? (
-          <>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setTestPreviewRequestToken((value) => value + 1)}
-            >
-              Preview
-            </Button>
-            {selectedTest?.status === 'draft' ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  void handleRequestSelectedTestActivate()
-                }}
-                disabled={!selectedActivation.valid || isReadOnly || statusUpdating || checkingActivation}
-              >
-                <Play className="h-4 w-4" />
-                Open
-              </Button>
-            ) : null}
-            {selectedTest?.status === 'active' ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowCloseConfirm(true)}
-                disabled={isReadOnly || statusUpdating}
-              >
-                <Square className="h-4 w-4" />
-                Close
-              </Button>
-            ) : null}
-            {selectedTest?.status === 'closed' ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  void handleSelectedTestStatusChange('active')
-                }}
-                disabled={isReadOnly || statusUpdating}
-              >
-                <Play className="h-4 w-4" />
-                Reopen
-              </Button>
-            ) : null}
-            {onRequestDelete ? (
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                onClick={onRequestDelete}
-                disabled={isReadOnly}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete
-              </Button>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={openBatchPromptGuidelineModal}
-              disabled={isBatchAutoGrading || isBatchReturning || isBatchClearingOpenGrades}
-            >
-              AI Prompt
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                if (batchSelectedCount === 0) {
-                  setGradingWarning('Select students to grade')
-                  return
-                }
-                setShowBatchGradeModal(true)
-              }}
-              disabled={
-                batchSelectedCount === 0 ||
-                isBatchAutoGrading ||
-                isBatchReturning ||
-                isBatchClearingOpenGrades
-              }
-            >
-              <Check className="h-4 w-4" />
-              AI Grade
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                if (batchSelectedCount === 0) {
-                  setGradingWarning('Select students to return')
-                  return
-                }
-                setShowReturnConfirm(true)
-              }}
-              disabled={
-                batchSelectedCount === 0 ||
-                isBatchAutoGrading ||
-                isBatchReturning ||
-                isBatchClearingOpenGrades
-              }
-            >
-              <Send className="h-4 w-4" />
-              Return
-            </Button>
-          </>
-        )}
+      <div className="flex min-w-0 basis-full justify-end sm:basis-auto sm:ml-auto">
+        <div
+          className="min-w-0 max-w-[22rem] truncate text-right text-sm font-medium text-text-default"
+          title={selectedTestTitle}
+        >
+          {selectedTestTitle}
+        </div>
       </div>
     </div>
   ) : (
@@ -1175,7 +1180,7 @@ export function TeacherTestsTab({
 
   return (
     <PageLayout className="flex h-full min-h-0 flex-col">
-      <PageActionBar primary={selectedHeader} />
+      <PageActionBar primary={selectedHeader} className={isSelectedWorkspace ? 'pl-0 pr-2' : ''} />
 
       <PageContent
         className={[
@@ -1233,24 +1238,26 @@ export function TeacherTestsTab({
           <div className="flex justify-center py-12">
             <Spinner size="lg" />
           </div>
-        ) : selectedWorkspaceTab === 'authoring' && selectedTest ? (
-          <div className="flex min-h-0 w-full flex-1 overflow-hidden rounded-b-lg border border-border bg-surface">
-            <QuizDetailPanel
-              quiz={selectedTest}
-              classroomId={classroom.id}
-              apiBasePath={apiBasePath}
-              onQuizUpdate={() => {
-                void loadTests()
-              }}
-              showInlineDeleteAction={false}
-              testQuestionLayout="summary-detail"
-              showPreviewButton={false}
-              showResultsTab={false}
-              previewRequestToken={testPreviewRequestToken}
-            />
-          </div>
         ) : (
-          gradingTable
+          <div className="flex min-h-0 w-full flex-1 overflow-hidden rounded-b-lg border border-border bg-surface">
+            {selectedWorkspaceTab === 'authoring' ? (
+              <QuizDetailPanel
+                quiz={selectedTest}
+                classroomId={classroom.id}
+                apiBasePath={apiBasePath}
+                onQuizUpdate={() => {
+                  void loadTests()
+                }}
+                showInlineDeleteAction={false}
+                testQuestionLayout="summary-detail"
+                showPreviewButton={false}
+                showResultsTab={false}
+                previewRequestToken={testPreviewRequestToken}
+              />
+            ) : (
+              gradingTable
+            )}
+          </div>
         )}
       </PageContent>
 
