@@ -6,7 +6,7 @@ import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
 import { useTeacherStudentWorkController } from '@/components/assignment-workspace/useTeacherStudentWorkController'
-import { WorkspaceSplitPane } from '@/components/WorkspaceSplitPane'
+import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
   clampAssignmentWorkspacePaneLayout,
@@ -201,15 +201,6 @@ export function TeacherStudentWorkPanel({
   const studentDisplayName = data.student.name?.trim() || data.student.email
   const characterCount =
     displayContent && !isEmpty(displayContent) ? countCharacters(displayContent) : 0
-  const inspectorPaneStyle = layout.inspectorCollapsed
-    ? undefined
-    : isDesktop
-      ? ({
-          width: `${layout.inspectorWidth}%`,
-          flexBasis: `${layout.inspectorWidth}%`,
-        } as const)
-      : undefined
-
   const inspector = (
     <TeacherWorkInspector
       data={data}
@@ -256,15 +247,15 @@ export function TeacherStudentWorkPanel({
 
   return (
     <div ref={workspaceRef} className="relative flex h-full min-h-0 flex-col">
-      <WorkspaceSplitPane
+      <SummaryDetailWorkspaceShell
         className="flex-1"
         orientation="responsive"
-        leftPaneClassName={`flex min-h-0 flex-1 flex-col ${
+        leftPaneClassName={`flex min-h-0 flex-col ${
           previewEntry ? 'outline outline-2 outline-primary outline-offset-[-2px]' : ''
         }`}
         rightVisible={!layout.inspectorCollapsed}
-        rightPaneClassName="flex min-h-0 flex-col overflow-hidden border-t border-border bg-surface lg:border-t-0"
-        rightPaneStyle={inspectorPaneStyle}
+        rightPaneClassName="flex min-h-0 flex-col"
+        rightWidthPercent={!layout.inspectorCollapsed && isDesktop ? layout.inspectorWidth : undefined}
         divider={
           layout.inspectorCollapsed
             ? undefined

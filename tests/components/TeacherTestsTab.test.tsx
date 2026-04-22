@@ -44,20 +44,17 @@ vi.mock('@/components/QuizModal', () => ({
 vi.mock('@/components/QuizDetailPanel', () => ({
   QuizDetailPanel: ({
     quiz,
-    testAuthoringView,
     testQuestionLayout,
     showPreviewButton,
     showResultsTab,
   }: {
     quiz: QuizWithStats
-    testAuthoringView?: string
     testQuestionLayout?: string
     showPreviewButton?: boolean
     showResultsTab?: boolean
   }) => (
     <div
       data-testid="mock-test-detail"
-      data-authoring-view={testAuthoringView}
       data-question-layout={testQuestionLayout}
       data-show-preview={String(showPreviewButton)}
       data-show-results={String(showResultsTab)}
@@ -92,14 +89,26 @@ function listFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
   )
 }
 
+function resultsFetchCalls(fetchMock: ReturnType<typeof vi.fn>) {
+  return fetchMock.mock.calls.filter(
+    ([url]: [string]) => typeof url === 'string' && url.includes('/api/teacher/tests/') && url.endsWith('/results')
+  )
+}
+
 function makeResultsResponse(overrides?: {
   students?: Array<Record<string, unknown>>
   questions?: Array<Record<string, unknown>>
+  quizStatus?: QuizWithStats['status']
 }) {
   return {
     ok: true,
     json: async () => ({
-      quiz: { id: 'test-1', title: 'Unit Test', grading_finalized_at: null },
+      quiz: {
+        id: 'test-1',
+        title: 'Unit Test',
+        status: overrides?.quizStatus ?? 'active',
+        grading_finalized_at: null,
+      },
       questions:
         overrides?.questions ?? [
           {
@@ -148,6 +157,7 @@ describe('TeacherTestsTab', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -200,12 +210,13 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByText('Unit Test'))
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-authoring-view', 'questions')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'summary-detail')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-preview', 'false')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-results', 'false')
     expect(screen.getByRole('button', { name: 'Authoring' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Grading' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Questions' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Documents' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Back to tests' })).not.toBeInTheDocument()
     expect(onSelectTest).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'test-1', title: 'Unit Test' })
@@ -290,6 +301,144 @@ describe('TeacherTestsTab', () => {
       studentId: 'student-1',
       studentName: 'Alice Zephyr',
     })
+  })
+
+  it('polls grading rows only while grading is visible and focused', async () => {
+    let visibilityState: DocumentVisibilityState = 'visible'
+    let hasFocus = true
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    })
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => hasFocus)
+    const setIntervalSpy = vi
+      .spyOn(window, 'setInterval')
+      .mockImplementation((() => 1) as typeof window.setInterval)
+    const clearIntervalSpy = vi
+      .spyOn(window, 'clearInterval')
+      .mockImplementation((() => undefined) as typeof window.clearInterval)
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValue(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 15_000)
+
+    hasFocus = false
+    window.dispatchEvent(new Event('blur'))
+    expect(clearIntervalSpy).toHaveBeenCalled()
+
+    hasFocus = true
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(resultsFetchCalls(fetchMock)).toHaveLength(2)
+    })
+
+    visibilityState = 'hidden'
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+      await Promise.resolve()
+    })
+
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(2)
+
+    visibilityState = 'visible'
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(resultsFetchCalls(fetchMock)).toHaveLength(3)
+    })
+  })
+
+  it('does not start polling when the server reports the test is closed', async () => {
+    let visibilityState: DocumentVisibilityState = 'visible'
+    let hasFocus = true
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    })
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => hasFocus)
+    const setIntervalSpy = vi
+      .spyOn(window, 'setInterval')
+      .mockImplementation((() => 1) as typeof window.setInterval)
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValue(makeResultsResponse({ quizStatus: 'closed' }))
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
+    expect(setIntervalSpy).not.toHaveBeenCalledWith(expect.any(Function), 15_000)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'))
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+    })
+
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('starts polling when the server reports the test is active even if the list was stale', async () => {
+    let visibilityState: DocumentVisibilityState = 'visible'
+    let hasFocus = true
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    })
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => hasFocus)
+    const setIntervalSpy = vi
+      .spyOn(window, 'setInterval')
+      .mockImplementation((() => 1) as typeof window.setInterval)
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'closed' })] }),
+      })
+      .mockResolvedValue(makeResultsResponse({ quizStatus: 'active' }))
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(1)
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 15_000)
   })
 
   it('prompts to close an active test before return and sends close_test=true', async () => {

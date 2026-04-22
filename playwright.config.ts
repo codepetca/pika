@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test'
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 const resolvedBaseUrl = new URL(baseURL)
 const resolvedPort = resolvedBaseUrl.port || (resolvedBaseUrl.protocol === 'https:' ? '443' : '80')
-const webServerCommand = `pnpm run dev -- --port ${resolvedPort}`
+const webServerCommand = `pnpm exec next dev --port ${resolvedPort}`
 
 export default defineConfig({
   testDir: './e2e',

@@ -14,12 +14,10 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { Check, Copy, ExternalLink, GripVertical, Plus, X } from 'lucide-react'
-import { Button, EmptyState, Tooltip } from '@/ui'
+import { Check, ChevronDown, ChevronUp, Copy, ExternalLink, Plus, RotateCcw, X } from 'lucide-react'
+import { Button, EmptyState, SplitButton, Tooltip, cn } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { canEditQuizQuestions } from '@/lib/quizzes'
 import { QuizQuestionEditor } from '@/components/QuizQuestionEditor'
@@ -28,7 +26,7 @@ import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 import { QuizResultsView } from '@/components/QuizResultsView'
 import { QuizIndividualResponses } from '@/components/QuizIndividualResponses'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
-import { WorkspaceSplitPane } from '@/components/WorkspaceSplitPane'
+import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
@@ -49,7 +47,6 @@ interface Props {
   onRequestDelete?: () => void
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   showInlineDeleteAction?: boolean
-  testAuthoringView?: 'questions' | 'documents'
   testQuestionLayout?: 'stacked' | 'summary-detail'
   showPreviewButton?: boolean
   showResultsTab?: boolean
@@ -72,7 +69,6 @@ export function QuizDetailPanel({
   onRequestDelete,
   onRequestTestPreview,
   showInlineDeleteAction = true,
-  testAuthoringView,
   testQuestionLayout = 'stacked',
   showPreviewButton = true,
   showResultsTab,
@@ -90,8 +86,8 @@ export function QuizDetailPanel({
   const [viewMode, setViewMode] = useState<'questions' | 'documents' | 'markdown' | 'preview' | 'results'>(
     () => 'questions'
   )
-  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null)
-  const [testDetailTab, setTestDetailTab] = useState<'details' | 'markdown'>('details')
+  const [isDocumentsCardExpanded, setIsDocumentsCardExpanded] = useState(true)
+  const [expandedQuestionIds, setExpandedQuestionIds] = useState<string[]>([])
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [draftShowResults, setDraftShowResults] = useState(quiz.show_results)
@@ -99,8 +95,12 @@ export function QuizDetailPanel({
   const [markdownError, setMarkdownError] = useState('')
   const [markdownInfo, setMarkdownInfo] = useState('')
   const [markdownDirty, setMarkdownDirty] = useState(false)
+  const [isMarkdownEditing, setIsMarkdownEditing] = useState(false)
   const [markdownSaving, setMarkdownSaving] = useState(false)
   const [openingTestPreview, setOpeningTestPreview] = useState(false)
+  const [preferredTestQuestionType, setPreferredTestQuestionType] = useState<'multiple_choice' | 'open_response'>(
+    'multiple_choice'
+  )
   const [conflictDraft, setConflictDraft] = useState<{
     version: number
     content: { title: string; show_results: boolean; questions: QuizQuestion[] }
@@ -123,6 +123,7 @@ export function QuizDetailPanel({
   const documentsRef = useRef(documents)
   const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
   const previousPreviewRequestTokenRef = useRef(previewRequestToken)
+  const previousQuestionIdsRef = useRef<string[]>([])
 
   const requestCurrentWindowFullscreen = useCallback(async () => {
     const fullscreenElement = document.documentElement as HTMLElement & {
@@ -287,6 +288,7 @@ export function QuizDetailPanel({
     setDraftShowResults(quiz.show_results)
     setIsEditingTitle(false)
     setConflictDraft(null)
+    setIsMarkdownEditing(false)
     setMarkdownDirty(false)
     markdownDirtyRef.current = false
     setMarkdownError('')
@@ -314,12 +316,44 @@ export function QuizDetailPanel({
       documents,
     })
   }, [documents, draftShowResults, editTitle, isTestsView, questions])
+  const hasResponses = quiz.stats.responded > 0
+  const isEditable = canEditQuizQuestions(quiz, hasResponses)
+  const hasPendingMarkdownImport = isTestsView && markdownDirty
+  const isMarkdownEditable = isEditable && isMarkdownEditing
+  const markdownHelperStatus = markdownSaving
+    ? 'Applying markdown...'
+    : hasPendingMarkdownImport
+      ? 'Markdown edits not applied'
+      : isMarkdownEditing
+        ? 'Editing markdown'
+        : 'Markdown mirror'
   const usesSummaryDetailQuestions = isTestsView && testQuestionLayout === 'summary-detail'
   const resolvedShowResultsTab = showResultsTab ?? !isTestsView
-  const currentTestAuthoringView =
-    isTestsView && testAuthoringView ? testAuthoringView : viewMode
-  const selectedQuestion =
-    questions.find((question) => question.id === selectedQuestionId) ?? questions[0] ?? null
+  const totalQuestionPoints = useMemo(
+    () =>
+      questions.reduce(
+        (sum, question) =>
+          sum +
+          (typeof question.points === 'number'
+            ? question.points
+            : question.question_type === 'open_response'
+              ? DEFAULT_OPEN_RESPONSE_POINTS
+              : DEFAULT_MULTIPLE_CHOICE_POINTS),
+        0
+      ),
+    [questions]
+  )
+  const areAllQuestionsExpanded =
+    questions.length > 0 && questions.every((question) => expandedQuestionIds.includes(question.id))
+
+  useEffect(() => {
+    if (!isTestsView) return
+    if (markdownDirty) return
+    if (markdownContent !== currentTestMarkdown) {
+      setMarkdownContent(currentTestMarkdown)
+    }
+    savedMarkdownRef.current = currentTestMarkdown
+  }, [currentTestMarkdown, isTestsView, markdownContent, markdownDirty])
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -328,9 +362,6 @@ export function QuizDetailPanel({
       titleInputRef.current?.select()
     }
   }, [isEditingTitle])
-
-  const hasResponses = quiz.stats.responded > 0
-  const isEditable = canEditQuizQuestions(quiz, hasResponses)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -610,21 +641,21 @@ export function QuizDetailPanel({
   }, [isTestsView, viewMode])
 
   useEffect(() => {
-    if (questions.length === 0) {
-      setSelectedQuestionId(null)
-      return
-    }
+    const currentQuestionIds = questions.map((question) => question.id)
+    const previousQuestionIds = previousQuestionIdsRef.current
 
-    if (!selectedQuestionId || !questions.some((question) => question.id === selectedQuestionId)) {
-      setSelectedQuestionId(questions[0]?.id ?? null)
-    }
-  }, [questions, selectedQuestionId])
+    setExpandedQuestionIds((prev) => {
+      const retained = prev.filter((questionId) => currentQuestionIds.includes(questionId))
+      if (previousQuestionIds.length === 0) {
+        return currentQuestionIds[0] ? [currentQuestionIds[0]] : []
+      }
 
-  useEffect(() => {
-    if (currentTestAuthoringView === 'documents') {
-      setTestDetailTab('details')
-    }
-  }, [currentTestAuthoringView])
+      const newQuestionIds = currentQuestionIds.filter((questionId) => !previousQuestionIds.includes(questionId))
+      return [...retained, ...newQuestionIds]
+    })
+
+    previousQuestionIdsRef.current = currentQuestionIds
+  }, [questions])
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -756,14 +787,19 @@ export function QuizDetailPanel({
 
     const nextQuestions = normalizeQuestionPositions([...questions, nextQuestion])
     setQuestions(nextQuestions)
-    setSelectedQuestionId(nextQuestion.id)
-    setTestDetailTab('details')
 
     scheduleAutosave({
       title: editTitle,
       show_results: draftShowResults,
       questions: nextQuestions,
     })
+  }
+
+  function handleAddTestQuestionViaSplitButton(
+    questionType: 'multiple_choice' | 'open_response' = preferredTestQuestionType
+  ) {
+    setPreferredTestQuestionType(questionType)
+    handleAddQuestion(questionType)
   }
 
   function handleQuestionChange(updatedQuestion: QuizQuestion, options?: { force?: boolean }) {
@@ -793,18 +829,59 @@ export function QuizDetailPanel({
       questions.filter((question) => question.id !== questionId)
     )
     setQuestions(nextQuestions)
-    if (selectedQuestionId === questionId) {
-      const deletedIndex = questions.findIndex((question) => question.id === questionId)
-      const fallbackQuestion =
-        nextQuestions[Math.max(0, deletedIndex - 1)] || nextQuestions[0] || null
-      setSelectedQuestionId(fallbackQuestion?.id ?? null)
-    }
 
     scheduleAutosave({
       title: editTitle,
       show_results: draftShowResults,
       questions: nextQuestions,
     })
+  }
+
+  function handleDuplicateQuestion(questionId: string) {
+    const sourceIndex = questions.findIndex((question) => question.id === questionId)
+    if (sourceIndex === -1) return
+
+    const sourceQuestion = questions[sourceIndex]
+    const now = new Date().toISOString()
+    const duplicatedQuestion: QuizQuestion = {
+      ...sourceQuestion,
+      id: crypto.randomUUID(),
+      options: [...sourceQuestion.options],
+      created_at: now,
+      updated_at: now,
+    }
+
+    const nextQuestions = normalizeQuestionPositions([
+      ...questions.slice(0, sourceIndex + 1),
+      duplicatedQuestion,
+      ...questions.slice(sourceIndex + 1),
+    ])
+
+    setQuestions(nextQuestions)
+    setExpandedQuestionIds((prev) =>
+      prev.includes(questionId) ? [...prev, duplicatedQuestion.id] : prev
+    )
+
+    scheduleAutosave({
+      title: editTitle,
+      show_results: draftShowResults,
+      questions: nextQuestions,
+    })
+  }
+
+  function handleToggleQuestionExpanded(questionId: string) {
+    setExpandedQuestionIds((prev) =>
+      prev.includes(questionId) ? prev.filter((id) => id !== questionId) : [...prev, questionId]
+    )
+  }
+
+  function handleToggleAllQuestions() {
+    if (questions.length === 0) {
+      setExpandedQuestionIds([])
+      return
+    }
+
+    setExpandedQuestionIds(areAllQuestionsExpanded ? [] : questions.map((question) => question.id))
   }
 
   function handleConflictReload() {
@@ -816,6 +893,7 @@ export function QuizDetailPanel({
   }
 
   function handleMarkdownChange(content: string) {
+    setIsMarkdownEditing(true)
     setMarkdownContent(content)
     setMarkdownDirty(true)
     markdownDirtyRef.current = true
@@ -823,20 +901,19 @@ export function QuizDetailPanel({
     setMarkdownInfo('')
   }
 
-  function handleResetMarkdown() {
-    setMarkdownContent(savedMarkdownRef.current || currentTestMarkdown)
-    setMarkdownDirty(false)
-    markdownDirtyRef.current = false
+  function handleEditMarkdown() {
+    setIsMarkdownEditing(true)
     setMarkdownError('')
     setMarkdownInfo('')
   }
 
-  function handleRebuildMarkdownFromStructured() {
+  function handleUndoMarkdownChanges() {
     setMarkdownContent(currentTestMarkdown)
-    setMarkdownDirty(true)
-    markdownDirtyRef.current = true
+    setIsMarkdownEditing(false)
+    setMarkdownDirty(false)
+    markdownDirtyRef.current = false
     setMarkdownError('')
-    setMarkdownInfo('Markdown rebuilt from structured editor')
+    setMarkdownInfo('')
   }
 
   async function handleCopyMarkdown() {
@@ -912,19 +989,32 @@ export function QuizDetailPanel({
       questions: nextQuestions,
     }
 
-    const saved = await saveDraft(nextDraft, {
-      forceFull: true,
+    const nextDerivedMarkdown = testToMarkdown({
+      title: parsed.draftContent.title,
+      show_results: parsed.draftContent.show_results,
+      questions: nextQuestions,
       documents: parsed.documents,
     })
 
+    setEditTitle(parsed.draftContent.title)
+    setDraftShowResults(parsed.draftContent.show_results)
+    setQuestions(nextQuestions)
+    setDocuments(parsed.documents)
+    setMarkdownContent(nextDerivedMarkdown)
+    savedMarkdownRef.current = nextDerivedMarkdown
+    setIsMarkdownEditing(false)
+    setMarkdownDirty(false)
+    markdownDirtyRef.current = false
+    setMarkdownError('')
+    setMarkdownInfo('')
+
+    const saved = await saveDraft(nextDraft, {
+      forceFull: true,
+      documents: parsed.documents,
+      sourceMarkdown: nextDerivedMarkdown,
+    })
+
     if (saved) {
-      setEditTitle(parsed.draftContent.title)
-      setDraftShowResults(parsed.draftContent.show_results)
-      setQuestions(nextQuestions)
-      setDocuments(parsed.documents)
-      setMarkdownDirty(false)
-      markdownDirtyRef.current = false
-      setMarkdownError('')
       setMarkdownInfo('Markdown applied')
     }
 
@@ -1000,60 +1090,74 @@ export function QuizDetailPanel({
   }, [handleOpenTestPreview, isTestsView, previewRequestToken])
 
   const testsMarkdownPanel = (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            void handleCopyMarkdown()
-          }}
-          className="gap-1.5"
-        >
-          <Copy className="h-4 w-4" />
-          Copy
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            void handleCopyMarkdownSchema()
-          }}
-          className="gap-1.5"
-        >
-          <Copy className="h-4 w-4" />
-          Copy Schema
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={handleRebuildMarkdownFromStructured}
-          disabled={markdownSaving}
-        >
-          Rebuild From Structured
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={handleResetMarkdown}
-          disabled={!markdownDirty || markdownSaving}
-        >
-          Reset
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => {
-            void handleApplyMarkdown()
-          }}
-          disabled={markdownSaving || !isEditable}
-        >
-          {markdownSaving ? 'Applying...' : 'Apply Markdown'}
-        </Button>
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span data-testid="markdown-helper-status" className="text-xs font-medium text-text-muted">
+          {markdownHelperStatus}
+        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              void handleCopyMarkdown()
+            }}
+            className="gap-1.5"
+          >
+            <Copy className="h-4 w-4" />
+            Copy
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              void handleCopyMarkdownSchema()
+            }}
+            className="gap-1.5"
+          >
+            <Copy className="h-4 w-4" />
+            Schema
+          </Button>
+          {!isMarkdownEditing ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={handleEditMarkdown}
+              disabled={!isEditable || markdownSaving}
+            >
+              Edit Markdown
+            </Button>
+          ) : null}
+          {hasPendingMarkdownImport ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Undo markdown edits"
+                title="Undo markdown edits"
+                onClick={handleUndoMarkdownChanges}
+                disabled={markdownSaving}
+                className="h-8 w-8 p-0"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  void handleApplyMarkdown()
+                }}
+                disabled={markdownSaving || !isEditable}
+              >
+                {markdownSaving ? 'Applying...' : 'Apply Markdown'}
+              </Button>
+            </>
+          ) : null}
+        </div>
       </div>
       {!isEditable && (
         <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
@@ -1071,19 +1175,55 @@ export function QuizDetailPanel({
         </div>
       )}
       <textarea
+        data-testid="test-markdown-editor"
         value={markdownContent}
+        readOnly={!isMarkdownEditable}
         onChange={(event) => handleMarkdownChange(event.target.value)}
         onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's' && hasPendingMarkdownImport) {
             event.preventDefault()
             void handleApplyMarkdown()
           }
         }}
-        className="min-h-[420px] w-full rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+        className={cn(
+          'min-h-[420px] flex-1 w-full rounded-md border border-border p-3 font-mono text-sm text-text-default',
+          isMarkdownEditable
+            ? 'bg-surface focus:outline-none focus:ring-2 focus:ring-primary'
+            : 'cursor-default bg-surface-2 focus:outline-none'
+        )}
         spellCheck={false}
       />
     </div>
   )
+
+  function renderTestAddQuestionSplitButton() {
+    return (
+      <SplitButton
+        label={preferredTestQuestionType === 'open_response' ? '+ Open Question' : '+ MC Question'}
+        onPrimaryClick={() => handleAddTestQuestionViaSplitButton(preferredTestQuestionType)}
+        options={[
+          {
+            id: 'multiple_choice',
+            label: 'MC',
+            onSelect: () => handleAddTestQuestionViaSplitButton('multiple_choice'),
+          },
+          {
+            id: 'open_response',
+            label: 'Open',
+            onSelect: () => handleAddTestQuestionViaSplitButton('open_response'),
+          },
+        ]}
+        variant="primary"
+        size="sm"
+        disabled={hasPendingMarkdownImport}
+        className="flex w-full shadow-sm"
+        toggleAriaLabel="Choose question type"
+        primaryButtonProps={{
+          className: 'min-w-0 flex-1 justify-center font-semibold',
+        }}
+      />
+    )
+  }
 
   const testsDocumentsPanel = (
     <div className="space-y-3 p-4">
@@ -1100,127 +1240,144 @@ export function QuizDetailPanel({
     </div>
   )
 
+  const testsInlineDocumentsCard = (
+    <div
+      data-testid="test-documents-card"
+      className="overflow-hidden rounded-lg border border-border bg-surface"
+    >
+      <button
+        type="button"
+        data-testid="test-documents-card-toggle"
+        aria-expanded={isDocumentsCardExpanded}
+        aria-label={isDocumentsCardExpanded ? 'Collapse documents' : 'Expand documents'}
+        onClick={() => setIsDocumentsCardExpanded((prev) => !prev)}
+        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="text-sm font-medium text-text-default">Documents</span>
+          <span className="text-xs text-text-muted">
+            {documents.length} document{documents.length === 1 ? '' : 's'}
+          </span>
+        </div>
+        <span className="text-text-muted">
+          {isDocumentsCardExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </span>
+      </button>
+      {isDocumentsCardExpanded ? (
+        <div className="border-t border-border p-3">
+          <TestDocumentsEditor
+            testId={quiz.id}
+            documents={documents}
+            apiBasePath={apiBasePath}
+            isEditable={isEditable && !hasPendingMarkdownImport}
+            onUpdated={loadQuizDetails}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+
   const testsSummaryDetailPanel = (
-    <WorkspaceSplitPane
+    <SummaryDetailWorkspaceShell
       orientation="row"
       data-testid="test-summary-detail-layout"
-      leftPaneClassName="flex w-[18rem] shrink-0 flex-col bg-surface-2"
-      rightPaneClassName="flex min-h-0 min-w-0 flex-1 flex-col bg-surface"
+      leftPaneClassName="min-h-0 bg-surface-2"
+      rightPaneClassName="min-h-0"
+      rightWidthPercent={50}
       left={
-        <div data-testid="test-question-summary-pane" className="flex h-full min-h-0 flex-col">
-        <div className="border-b border-border px-3 py-3 text-xs text-text-muted">
-          {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="test-question-summary-list">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={questions.map((question) => question.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-2">
-                {questions.map((question, index) => (
-                  <TestQuestionSummaryCard
-                    key={question.id}
-                    question={question}
-                    questionNumber={index + 1}
-                    isEditable={isEditable}
-                    isSelected={selectedQuestion?.id === question.id}
-                    onSelect={() => {
-                      setSelectedQuestionId(question.id)
-                      setTestDetailTab('details')
-                    }}
-                  />
-                ))}
+        <div data-testid="test-question-editor-pane" className="flex h-full min-h-0 flex-col">
+          <div className="border-b border-border px-3 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-text-muted">
+                <span>
+                  {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
+                </span>
+                <span aria-hidden="true">•</span>
+                <span data-testid="test-question-editor-header-summary">
+                  {questions.length} question{questions.length === 1 ? '' : 's'} • {totalQuestionPoints} pts
+                </span>
               </div>
-            </SortableContext>
-          </DndContext>
-        </div>
-
-        {isEditable ? (
-          <div className="border-t border-border p-3">
-            <div className="grid gap-2">
               <Button
-                variant="secondary"
+                type="button"
+                variant="ghost"
                 size="sm"
-                onClick={() => handleAddQuestion('multiple_choice')}
-                className="w-full gap-1.5"
+                aria-label={areAllQuestionsExpanded ? 'Collapse all questions' : 'Expand all questions'}
+                onClick={handleToggleAllQuestions}
+                disabled={questions.length === 0}
+                className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-text-default"
               >
-                <Plus className="h-4 w-4" />
-                Add MC Question
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleAddQuestion('open_response')}
-                className="w-full gap-1.5"
-              >
-                <Plus className="h-4 w-4" />
-                Add Open Question
+                {areAllQuestionsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </Button>
             </div>
           </div>
-        ) : null}
-      </div>
-      }
-      right={
-        <div
-          className="flex h-full min-h-0 min-w-0 flex-1 flex-col"
-          data-testid="test-question-detail-pane"
-        >
-        <div className="border-b border-border px-4 pt-3">
-          <div className="flex items-end gap-1">
-            <button
-              type="button"
-              onClick={() => setTestDetailTab('details')}
-              className={[
-                testDetailTab === 'details'
-                  ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
-                  : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
-                'min-h-9 px-3 py-2 text-sm font-medium transition-colors',
-              ].join(' ')}
-            >
-              Details
-            </button>
-            <button
-              type="button"
-              onClick={() => setTestDetailTab('markdown')}
-              className={[
-                testDetailTab === 'markdown'
-                  ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
-                  : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
-                'min-h-9 px-3 py-2 text-sm font-medium transition-colors',
-              ].join(' ')}
-            >
-              Markdown
-            </button>
+          <div className="relative min-h-0 flex-1">
+            <div className={cn('flex h-full min-h-0 flex-col', hasPendingMarkdownImport && 'opacity-60')}>
+              <div className="min-h-0 flex-1 overflow-y-auto p-3" data-testid="test-question-accordion-list">
+                <div className="space-y-3">
+                  {testsInlineDocumentsCard}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <SortableContext
+                      items={questions.map((question) => question.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-3">
+                        {questions.map((question, index) => (
+                          <TestQuestionEditor
+                            key={question.id}
+                            question={question}
+                            questionNumber={index + 1}
+                            isEditable={isEditable}
+                            onChange={handleQuestionChange}
+                            onDuplicate={handleDuplicateQuestion}
+                            onDelete={handleQuestionDelete}
+                            variant="accordion"
+                            isExpanded={expandedQuestionIds.includes(question.id)}
+                            onToggleExpanded={() => handleToggleQuestionExpanded(question.id)}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              </div>
+
+              {isEditable ? (
+                <div className="border-t border-border p-3">
+                  {renderTestAddQuestionSplitButton()}
+                </div>
+              ) : null}
+            </div>
+            {hasPendingMarkdownImport ? (
+              <div
+                data-testid="markdown-pending-lock"
+                className="absolute inset-0 z-10 flex items-center justify-center bg-surface/75 px-6 text-center"
+              >
+                <div className="max-w-sm rounded-md border border-warning bg-surface px-4 py-3 text-sm text-text-default shadow-lg">
+                  Apply or undo markdown changes to continue editing questions.
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {testDetailTab === 'markdown' ? (
-            testsMarkdownPanel
-          ) : selectedQuestion ? (
-            <TestQuestionEditor
-              question={selectedQuestion}
-              questionNumber={questions.findIndex((question) => question.id === selectedQuestion.id) + 1}
-              isEditable={isEditable}
-              onChange={handleQuestionChange}
-              onDelete={handleQuestionDelete}
-              variant="detail"
-            />
-          ) : (
-            <EmptyState
-              title="No questions yet"
-              description="Add a question to begin authoring this test."
-              tone="muted"
-            />
-          )}
+      }
+      right={
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col" data-testid="test-question-markdown-pane">
+          <div className="flex min-h-0 flex-1 flex-col p-4">
+            {questions.length === 0 ? (
+              <EmptyState
+                title="No questions yet"
+                description="Add a question to begin authoring this test."
+                tone="muted"
+              />
+            ) : (
+              testsMarkdownPanel
+            )}
+          </div>
         </div>
-      </div>
       }
     />
   )
@@ -1234,7 +1391,7 @@ export function QuizDetailPanel({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full w-full min-w-0 flex-col">
       {/* Tabs */}
       {!usesSummaryDetailQuestions && (
         <div className="flex border-b border-border shrink-0">
@@ -1351,9 +1508,7 @@ export function QuizDetailPanel({
           </div>
         )}
 
-        {usesSummaryDetailQuestions && currentTestAuthoringView === 'documents' ? (
-          testsDocumentsPanel
-        ) : usesSummaryDetailQuestions && currentTestAuthoringView === 'questions' ? (
+        {usesSummaryDetailQuestions ? (
           testsSummaryDetailPanel
         ) : viewMode === 'questions' ? (
           <div className="space-y-3">
@@ -1408,73 +1563,69 @@ export function QuizDetailPanel({
               {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
             </div>
 
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={questions.map((q) => q.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {questions.map((question, index) => (
-                  isTestsView ? (
-                    <TestQuestionEditor
-                      key={question.id}
-                      question={question}
-                      questionNumber={index + 1}
-                      isEditable={isEditable}
-                      onChange={handleQuestionChange}
-                      onDelete={handleQuestionDelete}
-                    />
-                  ) : (
-                    <QuizQuestionEditor
-                      key={question.id}
-                      question={question}
-                      questionNumber={index + 1}
-                      isEditable={isEditable}
-                      onChange={handleQuestionChange}
-                      onDelete={handleQuestionDelete}
-                    />
-                  )
-                ))}
-              </SortableContext>
-            </DndContext>
-
-            {isEditable && (
-              isTestsView ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleAddQuestion('multiple_choice')}
-                    className="w-full gap-1.5"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add MC Question
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleAddQuestion('open_response')}
-                    className="w-full gap-1.5"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Open Question
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleAddQuestion('multiple_choice')}
-                  className="w-full gap-1.5"
+            <div className="relative">
+              <div className={cn('space-y-3', isTestsView && hasPendingMarkdownImport && 'opacity-60')}>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
                 >
-                  <Plus className="h-4 w-4" />
-                  Add Question
-                </Button>
-              )
-            )}
+                  <SortableContext
+                    items={questions.map((q) => q.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {questions.map((question, index) => (
+                      isTestsView ? (
+                        <TestQuestionEditor
+                          key={question.id}
+                          question={question}
+                          questionNumber={index + 1}
+                          isEditable={isEditable}
+                          onChange={handleQuestionChange}
+                          onDuplicate={handleDuplicateQuestion}
+                          onDelete={handleQuestionDelete}
+                        />
+                      ) : (
+                        <QuizQuestionEditor
+                          key={question.id}
+                          question={question}
+                          questionNumber={index + 1}
+                          isEditable={isEditable}
+                          onChange={handleQuestionChange}
+                          onDelete={handleQuestionDelete}
+                        />
+                      )
+                    ))}
+                  </SortableContext>
+                </DndContext>
+
+                {isEditable && (
+                  isTestsView ? (
+                    renderTestAddQuestionSplitButton()
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleAddQuestion('multiple_choice')}
+                      className="w-full gap-1.5"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Question
+                    </Button>
+                  )
+                )}
+              </div>
+              {isTestsView && hasPendingMarkdownImport ? (
+                <div
+                  data-testid="markdown-pending-lock"
+                  className="absolute inset-0 z-10 flex items-center justify-center bg-surface/75 px-6 text-center"
+                >
+                  <div className="max-w-sm rounded-md border border-warning bg-surface px-4 py-3 text-sm text-text-default shadow-lg">
+                    Apply or undo markdown changes to continue editing questions.
+                  </div>
+                </div>
+              ) : null}
+            </div>
 
           </div>
         ) : viewMode === 'documents' && isTestsView ? (
@@ -1605,101 +1756,6 @@ function QuizPreview({ questions, isTestsView }: { questions: QuizQuestion[]; is
           )}
         </div>
       ))}
-    </div>
-  )
-}
-
-function summarizeQuestionText(questionText: string | null | undefined): string {
-  const flattened = (questionText || '')
-    .replace(/[#>*_`~-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  return flattened || 'Untitled question'
-}
-
-function TestQuestionSummaryCard({
-  question,
-  questionNumber,
-  isEditable,
-  isSelected,
-  onSelect,
-}: {
-  question: QuizQuestion
-  questionNumber: number
-  isEditable: boolean
-  isSelected: boolean
-  onSelect: () => void
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: question.id,
-    disabled: !isEditable,
-  })
-
-  const sortableStyle = {
-    transform: CSS.Transform.toString(transform),
-    transition: isDragging ? undefined : transition,
-  }
-
-  return (
-    <div ref={setNodeRef} style={sortableStyle}>
-      <button
-        type="button"
-        onClick={onSelect}
-        aria-label={`Select question ${questionNumber}`}
-        className={[
-          'flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left transition-colors',
-          isSelected
-            ? 'border-primary bg-surface-hover text-text-default'
-            : 'border-border bg-surface text-text-default hover:border-border-strong hover:bg-surface-hover',
-          isDragging ? 'shadow-lg' : '',
-        ].join(' ')}
-      >
-        <div className="flex min-h-8 items-center pt-0.5">
-          {isEditable ? (
-            <span
-              className="cursor-grab touch-none text-text-muted hover:text-text-default active:cursor-grabbing"
-              aria-label="Drag to reorder"
-              onClick={(event) => event.stopPropagation()}
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical className="h-4 w-4" />
-            </span>
-          ) : (
-            <span className="text-xs font-semibold text-text-muted">Q{questionNumber}</span>
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            {isEditable ? (
-              <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Q{questionNumber}</span>
-            ) : null}
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-default">
-              {summarizeQuestionText(question.question_text)}
-            </span>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-            <span>{question.points ?? 0} pts</span>
-            {question.question_type === 'open_response' ? (
-              <label className="inline-flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={question.response_monospace === true}
-                  readOnly
-                  tabIndex={-1}
-                  aria-label={`Question ${questionNumber} code response`}
-                  className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-0"
-                />
-                <span>Code</span>
-              </label>
-            ) : (
-              <span>MC</span>
-            )}
-          </div>
-        </div>
-      </button>
     </div>
   )
 }

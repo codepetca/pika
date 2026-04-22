@@ -37,7 +37,7 @@ import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
-import { WorkspaceSplitPane } from '@/components/WorkspaceSplitPane'
+import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
@@ -1617,19 +1617,12 @@ export function TeacherClassroomView({
                   </div>
                 )
               ) : showOverviewInspector ? (
-                <WorkspaceSplitPane
+                <SummaryDetailWorkspaceShell
                   className="flex-1"
                   orientation="responsive"
-                  leftPaneClassName="min-h-0 flex-1 overflow-hidden"
-                  rightPaneClassName="min-h-0 overflow-hidden border-t border-border bg-surface lg:border-t-0"
-                  rightPaneStyle={
-                    isDesktop
-                      ? ({
-                          width: `${activeWorkspaceLayout.inspectorWidth}%`,
-                          flexBasis: `${activeWorkspaceLayout.inspectorWidth}%`,
-                        } as const)
-                      : undefined
-                  }
+                  leftPaneClassName="min-h-0"
+                  rightPaneClassName="min-h-0"
+                  rightWidthPercent={isDesktop ? activeWorkspaceLayout.inspectorWidth : undefined}
                   divider={{
                     label: 'Resize table and grading panes',
                     onPointerDown: handleOverviewInspectorResizeStart,

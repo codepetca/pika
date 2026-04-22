@@ -59,9 +59,10 @@ interface TestGradingQuestionSummary {
 
 type WorkspaceState = 'list' | 'selected'
 type WorkspaceTab = 'authoring' | 'grading'
-type TestAuthoringView = 'questions' | 'documents'
 type TestGradingSortColumn = 'first_name' | 'last_name'
 type TestAiGradingStrategy = 'balanced' | 'aggressive_batch'
+
+const GRADING_POLL_INTERVAL_MS = 15_000
 
 const TEST_AI_GRADING_STRATEGY_OPTIONS = [
   { value: 'balanced', label: 'Balanced (Recommended)' },
@@ -168,7 +169,6 @@ export function TeacherTestsTab({
   const [loading, setLoading] = useState(true)
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState>('list')
   const [selectedWorkspaceTab, setSelectedWorkspaceTab] = useState<WorkspaceTab>('authoring')
-  const [selectedAuthoringView, setSelectedAuthoringView] = useState<TestAuthoringView>('questions')
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [pendingCreatedTestId, setPendingCreatedTestId] = useState<string | null>(null)
@@ -176,6 +176,8 @@ export function TeacherTestsTab({
 
   const [gradingStudents, setGradingStudents] = useState<TestGradingStudentRow[]>([])
   const [gradingQuestions, setGradingQuestions] = useState<TestGradingQuestionSummary[]>([])
+  const [gradingServerTestStatus, setGradingServerTestStatus] = useState<Quiz['status'] | null>(null)
+  const [gradingServerTestId, setGradingServerTestId] = useState<string | null>(null)
   const [gradingLoading, setGradingLoading] = useState(false)
   const [gradingError, setGradingError] = useState('')
   const [gradingSortColumn, setGradingSortColumn] = useState<TestGradingSortColumn>('last_name')
@@ -296,6 +298,8 @@ export function TeacherTestsTab({
     if (!selectedTestId) {
       setGradingStudents([])
       setGradingQuestions([])
+      setGradingServerTestStatus(null)
+      setGradingServerTestId(null)
       return
     }
 
@@ -306,6 +310,20 @@ export function TeacherTestsTab({
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to load test results')
 
+      const nextStatus =
+        data?.quiz?.status === 'draft' || data?.quiz?.status === 'active' || data?.quiz?.status === 'closed'
+          ? (data.quiz.status as Quiz['status'])
+          : null
+
+      setGradingServerTestStatus(nextStatus)
+      setGradingServerTestId(selectedTestId)
+      if (nextStatus) {
+        setTests((prev) =>
+          prev.map((test) =>
+            test.id === selectedTestId && test.status !== nextStatus ? { ...test, status: nextStatus } : test
+          )
+        )
+      }
       setGradingStudents((data.students || []) as TestGradingStudentRow[])
       setGradingQuestions(
         Array.isArray(data.questions)
@@ -351,7 +369,6 @@ export function TeacherTestsTab({
 
     setWorkspaceState('list')
     setSelectedWorkspaceTab('authoring')
-    setSelectedAuthoringView('questions')
     setSelectedTestId(null)
     setSelectedStudentId(null)
     clearBatchSelection()
@@ -364,7 +381,6 @@ export function TeacherTestsTab({
     setSelectedTestId(pendingCreatedTestId)
     setWorkspaceState('selected')
     setSelectedWorkspaceTab('authoring')
-    setSelectedAuthoringView('questions')
     setSelectedStudentId(null)
     setPendingCreatedTestId(null)
     setRightSidebarOpen(false)
@@ -378,7 +394,6 @@ export function TeacherTestsTab({
 
     setWorkspaceState('list')
     setSelectedWorkspaceTab('authoring')
-    setSelectedAuthoringView('questions')
     setSelectedTestId(null)
     setSelectedStudentId(null)
     setGradingError('')
@@ -393,12 +408,78 @@ export function TeacherTestsTab({
       setSelectedStudentId(null)
       setGradingStudents([])
       setGradingQuestions([])
+      setGradingServerTestStatus(null)
+      setGradingServerTestId(null)
       clearBatchSelection()
       return
     }
 
     void loadGradingRows()
   }, [clearBatchSelection, loadGradingRows, selectedWorkspaceTab, workspaceState])
+
+  useEffect(() => {
+    if (
+      workspaceState !== 'selected' ||
+      selectedWorkspaceTab !== 'grading' ||
+      !selectedTestId ||
+      gradingServerTestId !== selectedTestId ||
+      gradingServerTestStatus !== 'active'
+    ) {
+      return
+    }
+
+    let intervalId: number | null = null
+    let disposed = false
+    let pollingInFlight = false
+
+    const canPollNow = () => document.visibilityState === 'visible' && document.hasFocus()
+
+    const stopPolling = () => {
+      if (intervalId === null) return
+      window.clearInterval(intervalId)
+      intervalId = null
+    }
+
+    const pollNow = async () => {
+      if (disposed || pollingInFlight || !canPollNow()) return
+      pollingInFlight = true
+      try {
+        await loadGradingRows()
+      } finally {
+        pollingInFlight = false
+      }
+    }
+
+    const startPolling = () => {
+      if (intervalId !== null || !canPollNow()) return
+      intervalId = window.setInterval(() => {
+        void pollNow()
+      }, GRADING_POLL_INTERVAL_MS)
+    }
+
+    const handlePollingStateChange = () => {
+      if (!canPollNow()) {
+        stopPolling()
+        return
+      }
+
+      startPolling()
+      void pollNow()
+    }
+
+    startPolling()
+    document.addEventListener('visibilitychange', handlePollingStateChange)
+    window.addEventListener('focus', handlePollingStateChange)
+    window.addEventListener('blur', handlePollingStateChange)
+
+    return () => {
+      disposed = true
+      stopPolling()
+      document.removeEventListener('visibilitychange', handlePollingStateChange)
+      window.removeEventListener('focus', handlePollingStateChange)
+      window.removeEventListener('blur', handlePollingStateChange)
+    }
+  }, [gradingServerTestId, gradingServerTestStatus, loadGradingRows, selectedTestId, selectedWorkspaceTab, workspaceState])
 
   useEffect(() => {
     function handleGradingRowUpdate(event: Event) {
@@ -485,7 +566,6 @@ export function TeacherTestsTab({
     setSelectedTestId(test.id)
     setWorkspaceState('selected')
     setSelectedWorkspaceTab('authoring')
-    setSelectedAuthoringView('questions')
     setSelectedStudentId(null)
     setGradingError('')
     setGradingWarning('')
@@ -970,22 +1050,6 @@ export function TeacherTestsTab({
           <>
             <Button
               type="button"
-              variant={selectedAuthoringView === 'questions' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setSelectedAuthoringView('questions')}
-            >
-              Questions
-            </Button>
-            <Button
-              type="button"
-              variant={selectedAuthoringView === 'documents' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setSelectedAuthoringView('documents')}
-            >
-              Documents
-            </Button>
-            <Button
-              type="button"
               variant="secondary"
               size="sm"
               onClick={() => setTestPreviewRequestToken((value) => value + 1)}
@@ -1170,7 +1234,7 @@ export function TeacherTestsTab({
             <Spinner size="lg" />
           </div>
         ) : selectedWorkspaceTab === 'authoring' && selectedTest ? (
-          <div className="flex min-h-0 flex-1 overflow-hidden rounded-b-lg border border-border bg-surface">
+          <div className="flex min-h-0 w-full flex-1 overflow-hidden rounded-b-lg border border-border bg-surface">
             <QuizDetailPanel
               quiz={selectedTest}
               classroomId={classroom.id}
@@ -1179,7 +1243,6 @@ export function TeacherTestsTab({
                 void loadTests()
               }}
               showInlineDeleteAction={false}
-              testAuthoringView={selectedAuthoringView}
               testQuestionLayout="summary-detail"
               showPreviewButton={false}
               showResultsTab={false}
