@@ -9155,3 +9155,11 @@
 **Validation:**
 - `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts`
 - `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
+
+## 2026-04-22 — Reshape Migration 055 For Supabase CLI Parsing
+
+- Rewrote `055_assignment_ai_grading_run_atomic_rpc.sql` as a single top-level `DO` block that dynamically creates the RPC and applies the `revoke`/`grant`, avoiding the CLI prepared-statement failure when it tries to apply the whole file at once.
+- Preserved the same RPC body and service-role-only execute permissions; this change is migration-shape only.
+
+**Validation:**
+- Manual migration diff review for semantic parity of the function body and permission changes.
