@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ExternalLink, FileText, Link2, Pencil, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ExternalLink, Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { Button, DialogPanel, Input } from '@/ui'
 import {
   MAX_TEST_DOCUMENT_TEXT_LENGTH,
@@ -18,17 +18,28 @@ interface Props {
   documents?: TestDocument[]
   apiBasePath?: string
   isEditable: boolean
-  onUpdated: () => void
+  onDocumentsChange?: (documents: TestDocument[]) => void
+  addButtonPlacement?: 'footer' | 'header' | 'none'
+  headerTitle?: string
+  externalAddRequest?: {
+    id: number
+    mode: AddDocumentTab
+  } | null
+  onExternalAddRequestHandled?: () => void
 }
 
-type AddDocumentModal = 'link' | 'text' | 'upload' | null
+type AddDocumentTab = 'link' | 'upload' | 'text'
 
 export function TestDocumentsEditor({
   testId,
   documents = [],
   apiBasePath = '/api/teacher/tests',
   isEditable,
-  onUpdated,
+  onDocumentsChange,
+  addButtonPlacement = 'footer',
+  headerTitle,
+  externalAddRequest,
+  onExternalAddRequestHandled,
 }: Props) {
   const [localDocs, setLocalDocs] = useState<TestDocument[]>(() => normalizeTestDocuments(documents))
   const [linkTitle, setLinkTitle] = useState('')
@@ -41,22 +52,25 @@ export function TestDocumentsEditor({
   const [editUrl, setEditUrl] = useState('')
   const [editContent, setEditContent] = useState('')
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null)
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
-  const [activeModal, setActiveModal] = useState<AddDocumentModal | 'edit'>(null)
+  const [activeAddTab, setActiveAddTab] = useState<AddDocumentTab>('link')
+  const [activeModal, setActiveModal] = useState<'add' | 'edit' | null>(null)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [syncingDocId, setSyncingDocId] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [nowMs, setNowMs] = useState(() => Date.now())
-  const addMenuId = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const addMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const normalized = normalizeTestDocuments(documents)
     setLocalDocs(normalized)
   }, [documents])
+
+  useEffect(() => {
+    if (!externalAddRequest) return
+    openAddModal(externalAddRequest.mode)
+    onExternalAddRequestHandled?.()
+  }, [externalAddRequest, onExternalAddRequestHandled])
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -72,46 +86,11 @@ export function TestDocumentsEditor({
     [localDocs, editingDocId]
   )
 
-  useEffect(() => {
-    if (!isAddMenuOpen) return
-
-    function handleClickOutside(event: MouseEvent) {
-      if (!addMenuRef.current) return
-      if (!addMenuRef.current.contains(event.target as Node)) {
-        setIsAddMenuOpen(false)
-      }
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsAddMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleEscape)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [isAddMenuOpen])
-
-  function openAddModal(mode: Exclude<AddDocumentModal, null>) {
-    if (!isEditable || saving || uploading) return
-    setError('')
-    setSuccess('')
-    setIsAddMenuOpen(false)
-    setActiveModal(mode)
-    if (mode === 'link') {
-      setLinkTitle('')
-      setLinkUrl('')
-      return
-    }
-    if (mode === 'text') {
-      setTextTitle('')
-      setTextContent('')
-      return
-    }
+  function resetAddFormState() {
+    setLinkTitle('')
+    setLinkUrl('')
+    setTextTitle('')
+    setTextContent('')
     setUploadTitle('')
     setSelectedUploadFile(null)
     if (fileInputRef.current) {
@@ -119,7 +98,15 @@ export function TestDocumentsEditor({
     }
   }
 
-  function clearModalFields(mode: Exclude<AddDocumentModal, null>) {
+  function openAddModal(mode: AddDocumentTab = activeAddTab) {
+    if (!isEditable || saving || uploading) return
+    setError('')
+    setActiveAddTab(mode)
+    resetAddFormState()
+    setActiveModal('add')
+  }
+
+  function clearModalFields(mode: AddDocumentTab) {
     if (mode === 'link') {
       setLinkTitle('')
       setLinkUrl('')
@@ -146,7 +133,6 @@ export function TestDocumentsEditor({
   async function persistDocuments(nextDocs: TestDocument[]) {
     setSaving(true)
     setError('')
-    setSuccess('')
     try {
       const res = await fetch(`${apiBasePath}/${testId}`, {
         method: 'PATCH',
@@ -160,8 +146,7 @@ export function TestDocumentsEditor({
 
       const normalized = normalizeTestDocuments(data.quiz?.documents || nextDocs)
       setLocalDocs(normalized)
-      setSuccess('Documents saved')
-      onUpdated()
+      onDocumentsChange?.(normalized)
       return normalized
     } catch (err: any) {
       setError(err.message || 'Failed to save documents')
@@ -174,7 +159,6 @@ export function TestDocumentsEditor({
   async function syncLinkDocument(
     docId: string,
     options?: {
-      successMessage?: string
       failurePrefix?: string
       silent?: boolean
     }
@@ -182,7 +166,6 @@ export function TestDocumentsEditor({
     setSyncingDocId(docId)
     if (!options?.silent) {
       setError('')
-      setSuccess('')
     }
     try {
       const res = await fetch(`${apiBasePath}/${testId}/documents/${docId}/sync`, {
@@ -195,10 +178,7 @@ export function TestDocumentsEditor({
 
       const normalized = normalizeTestDocuments(data.quiz?.documents || localDocs)
       setLocalDocs(normalized)
-      if (!options?.silent) {
-        setSuccess(options?.successMessage || 'Document synced')
-      }
-      onUpdated()
+      onDocumentsChange?.(normalized)
       return normalized
     } catch (err: any) {
       const prefix = options?.failurePrefix || 'Failed to sync document'
@@ -216,7 +196,6 @@ export function TestDocumentsEditor({
   function openEditModal(doc: TestDocument) {
     if (!isEditable || saving || uploading) return
     setError('')
-    setSuccess('')
     setEditingDocId(doc.id)
     setEditTitle(doc.title)
     setEditUrl(doc.url || '')
@@ -266,7 +245,6 @@ export function TestDocumentsEditor({
       closeAddModal()
       if (urlChanged) {
         void syncLinkDocument(editingDoc.id, {
-          successMessage: 'Link saved and synced',
           failurePrefix: 'Link saved, but sync failed',
         })
       }
@@ -302,7 +280,6 @@ export function TestDocumentsEditor({
       clearModalFields('link')
       closeAddModal()
       void syncLinkDocument(nextLinkDoc.id, {
-        successMessage: 'Link saved and synced',
         failurePrefix: 'Link saved, but sync failed',
       })
     }
@@ -341,7 +318,6 @@ export function TestDocumentsEditor({
     if (!isEditable || uploading || saving) return
     setUploading(true)
     setError('')
-    setSuccess('')
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -383,19 +359,44 @@ export function TestDocumentsEditor({
     await persistDocuments(nextDocs)
   }
 
+  const addDocumentButton = (
+    <div>
+      <Button
+        type="button"
+        variant={addButtonPlacement === 'header' ? 'primary' : 'secondary'}
+        size="sm"
+        onClick={() => openAddModal()}
+        disabled={!isEditable || saving || uploading}
+        className="gap-1.5"
+        aria-label="Add Document"
+      >
+        <Plus className="h-4 w-4" />
+        Add Document
+      </Button>
+    </div>
+  )
+
   return (
     <div className="space-y-4">
+      {(headerTitle || addButtonPlacement === 'header') && (
+        <div className={`flex items-center gap-3 ${headerTitle ? 'justify-between' : 'justify-end'}`}>
+          {headerTitle ? (
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-text-default">{headerTitle}</h3>
+              <p className="text-sm text-text-muted">
+                {localDocs.length} document{localDocs.length === 1 ? '' : 's'}
+              </p>
+            </div>
+          ) : null}
+          {isEditable ? addDocumentButton : null}
+        </div>
+      )}
+
       {error && (
         <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
           {error}
         </div>
       )}
-      {success && (
-        <div className="rounded-md border border-success bg-success-bg px-3 py-2 text-sm text-success">
-          {success}
-        </div>
-      )}
-
       {localDocs.length > 0 && (
         <div className="space-y-2">
           {localDocs.map((doc) => (
@@ -475,84 +476,123 @@ export function TestDocumentsEditor({
         </div>
       )}
 
-      <div className="flex justify-center">
-        <div ref={addMenuRef} className="relative">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setIsAddMenuOpen((prev) => !prev)}
-            disabled={!isEditable || saving || uploading}
-            className="gap-1.5"
-            aria-label="Add Document"
-            aria-haspopup="menu"
-            aria-expanded={isAddMenuOpen}
-            aria-controls={addMenuId}
-          >
-            Add Document
-            <ChevronDown className="h-4 w-4" />
-          </Button>
-          {isAddMenuOpen && (
-            <div
-              id={addMenuId}
-              role="menu"
-              className="absolute left-1/2 z-20 mt-1 w-44 -translate-x-1/2 rounded-md border border-border-strong bg-surface p-1 shadow-xl"
-            >
-              <button
+      {addButtonPlacement === 'footer' && isEditable ? (
+        <div className="flex justify-center">
+          {addDocumentButton}
+        </div>
+      ) : null}
+
+      <DialogPanel
+        isOpen={activeModal === 'add'}
+        onClose={closeAddModal}
+        maxWidth={activeAddTab === 'text' ? 'max-w-xl' : 'max-w-lg'}
+        ariaLabelledBy="add-test-document-title"
+      >
+        <h4 id="add-test-document-title" className="text-base font-semibold text-text-default">
+          Add Document
+        </h4>
+        <div className="mt-4">
+          <div role="tablist" aria-label="Document type" className="flex gap-2 border-b border-border">
+            {(['link', 'upload', 'text'] as const).map((tab) => {
+              const isActive = activeAddTab === tab
+              const label = tab === 'upload' ? 'PDF' : tab === 'link' ? 'Link' : 'Text'
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveAddTab(tab)}
+                  className={[
+                    'border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-text-muted hover:text-text-default',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+
+          {activeAddTab === 'link' ? (
+            <div className="mt-4 space-y-3">
+              <Input
+                placeholder="Title"
+                value={linkTitle}
+                onChange={(event) => setLinkTitle(event.target.value)}
+                disabled={!isEditable || saving || uploading}
+                aria-label="Document title"
+              />
+              <Input
+                placeholder="https://..."
+                value={linkUrl}
+                onChange={(event) => setLinkUrl(event.target.value)}
+                disabled={!isEditable || saving || uploading}
+                aria-label="Document URL"
+              />
+            </div>
+          ) : null}
+
+          {activeAddTab === 'text' ? (
+            <div className="mt-4 space-y-2">
+              <Input
+                placeholder="Title"
+                value={textTitle}
+                onChange={(event) => setTextTitle(event.target.value)}
+                disabled={!isEditable || saving || uploading}
+                aria-label="Document title"
+              />
+              <textarea
+                placeholder="Paste text students can reference during the test..."
+                value={textContent}
+                onChange={(event) => setTextContent(event.target.value.slice(0, MAX_TEST_DOCUMENT_TEXT_LENGTH))}
+                disabled={!isEditable || saving || uploading}
+                rows={6}
+                className="w-full resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+                aria-label="Document text"
+              />
+              <p className="text-xs text-text-muted">
+                {textContent.length}/{MAX_TEST_DOCUMENT_TEXT_LENGTH} characters
+              </p>
+            </div>
+          ) : null}
+
+          {activeAddTab === 'upload' ? (
+            <div className="mt-4 space-y-3">
+              <Input
+                placeholder="Title (optional)"
+                value={uploadTitle}
+                onChange={(event) => setUploadTitle(event.target.value)}
+                disabled={!isEditable || saving || uploading}
+                aria-label="Document title"
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={TEST_DOCUMENT_ACCEPT}
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null
+                  setSelectedUploadFile(file)
+                }}
+              />
+              <Button
                 type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover"
-                onClick={() => openAddModal('link')}
-              >
-                <Link2 className="h-4 w-4" />
-                Link
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover"
-                onClick={() => openAddModal('text')}
-              >
-                <FileText className="h-4 w-4" />
-                Text
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-text-default hover:bg-surface-hover"
-                onClick={() => openAddModal('upload')}
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!isEditable || saving || uploading}
+                className="gap-1.5"
               >
                 <Upload className="h-4 w-4" />
-                PDF
-              </button>
+                {selectedUploadFile ? 'Choose another file' : 'Choose file'}
+              </Button>
+              <p className="text-sm text-text-muted">
+                {selectedUploadFile ? `Selected: ${selectedUploadFile.name}` : 'No file selected'}
+              </p>
             </div>
-          )}
-        </div>
-      </div>
-
-      <DialogPanel
-        isOpen={activeModal === 'link'}
-        onClose={closeAddModal}
-        maxWidth="max-w-lg"
-        ariaLabelledBy="add-test-link-title"
-      >
-        <h4 id="add-test-link-title" className="text-base font-semibold text-text-default">
-          Add link
-        </h4>
-        <div className="mt-4 space-y-3">
-          <Input
-            placeholder="Title"
-            value={linkTitle}
-            onChange={(event) => setLinkTitle(event.target.value)}
-            disabled={!isEditable || saving || uploading}
-            aria-label="Document title"
-          />
-          <Input
-            placeholder="https://..."
-            value={linkUrl}
-            onChange={(event) => setLinkUrl(event.target.value)}
-            disabled={!isEditable || saving || uploading}
-            aria-label="Document URL"
-          />
+          ) : null}
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <Button
@@ -566,121 +606,14 @@ export function TestDocumentsEditor({
           <Button
             type="button"
             onClick={() => {
-              void handleAddLink()
-            }}
-            disabled={!isEditable || saving || uploading}
-            aria-label="Add link document"
-          >
-            Add link
-          </Button>
-        </div>
-      </DialogPanel>
-
-      <DialogPanel
-        isOpen={activeModal === 'text'}
-        onClose={closeAddModal}
-        maxWidth="max-w-xl"
-        ariaLabelledBy="add-test-text-title"
-      >
-        <h4 id="add-test-text-title" className="text-base font-semibold text-text-default">
-          Add Text
-        </h4>
-        <div className="mt-4 space-y-2">
-          <Input
-            placeholder="Title"
-            value={textTitle}
-            onChange={(event) => setTextTitle(event.target.value)}
-            disabled={!isEditable || saving || uploading}
-            aria-label="Document title"
-          />
-          <textarea
-            placeholder="Paste text students can reference during the test..."
-            value={textContent}
-            onChange={(event) => setTextContent(event.target.value.slice(0, MAX_TEST_DOCUMENT_TEXT_LENGTH))}
-            disabled={!isEditable || saving || uploading}
-            rows={6}
-            className="w-full resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
-            aria-label="Document text"
-          />
-          <p className="text-xs text-text-muted">
-            {textContent.length}/{MAX_TEST_DOCUMENT_TEXT_LENGTH} characters
-          </p>
-        </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={closeAddModal}
-            disabled={saving || uploading}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              void handleAddText()
-            }}
-            disabled={!isEditable || saving || uploading}
-            aria-label="Add text document"
-          >
-            Add Text
-          </Button>
-        </div>
-      </DialogPanel>
-
-      <DialogPanel
-        isOpen={activeModal === 'upload'}
-        onClose={closeAddModal}
-        maxWidth="max-w-lg"
-        ariaLabelledBy="upload-test-pdf-title"
-      >
-        <h4 id="upload-test-pdf-title" className="text-base font-semibold text-text-default">
-          Upload pdf
-        </h4>
-        <div className="mt-4 space-y-3">
-          <Input
-            placeholder="Title (optional)"
-            value={uploadTitle}
-            onChange={(event) => setUploadTitle(event.target.value)}
-            disabled={!isEditable || saving || uploading}
-            aria-label="Document title"
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={TEST_DOCUMENT_ACCEPT}
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0] || null
-              setSelectedUploadFile(file)
-            }}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={!isEditable || saving || uploading}
-            className="gap-1.5"
-          >
-            <Upload className="h-4 w-4" />
-            {selectedUploadFile ? 'Choose another file' : 'Choose file'}
-          </Button>
-          <p className="text-sm text-text-muted">
-            {selectedUploadFile ? `Selected: ${selectedUploadFile.name}` : 'No file selected'}
-          </p>
-        </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={closeAddModal}
-            disabled={saving || uploading}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
+              if (activeAddTab === 'link') {
+                void handleAddLink()
+                return
+              }
+              if (activeAddTab === 'text') {
+                void handleAddText()
+                return
+              }
               if (!selectedUploadFile) {
                 setError('Please choose a file to upload')
                 return
@@ -688,8 +621,21 @@ export function TestDocumentsEditor({
               void handleUploadFile(selectedUploadFile)
             }}
             disabled={!isEditable || saving || uploading}
+            aria-label={
+              activeAddTab === 'link'
+                ? 'Add link document'
+                : activeAddTab === 'text'
+                  ? 'Add text document'
+                  : 'Upload pdf document'
+            }
           >
-            {uploading ? 'Uploading...' : 'Upload pdf'}
+            {activeAddTab === 'link'
+              ? 'Add link'
+              : activeAddTab === 'text'
+                ? 'Add text'
+                : uploading
+                  ? 'Uploading...'
+                  : 'Upload pdf'}
           </Button>
         </div>
       </DialogPanel>

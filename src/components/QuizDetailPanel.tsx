@@ -89,6 +89,10 @@ export function QuizDetailPanel({
     () => 'questions'
   )
   const [isDocumentsCardExpanded, setIsDocumentsCardExpanded] = useState(true)
+  const [externalDocumentAddRequest, setExternalDocumentAddRequest] = useState<{
+    id: number
+    mode: 'link' | 'text' | 'upload'
+  } | null>(null)
   const [expandedQuestionIds, setExpandedQuestionIds] = useState<string[]>([])
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
@@ -1245,7 +1249,7 @@ export function QuizDetailPanel({
         documents={documents}
         apiBasePath={apiBasePath}
         isEditable={isEditable}
-        onUpdated={loadQuizDetails}
+        onDocumentsChange={setDocuments}
       />
     </div>
   )
@@ -1253,26 +1257,46 @@ export function QuizDetailPanel({
   const testsInlineDocumentsCard = (
     <div
       data-testid="test-documents-card"
-      className="overflow-hidden rounded-lg border border-border bg-surface"
+      className="rounded-lg border border-border bg-surface"
     >
-      <button
-        type="button"
-        data-testid="test-documents-card-toggle"
-        aria-expanded={isDocumentsCardExpanded}
-        aria-label={isDocumentsCardExpanded ? 'Collapse documents' : 'Expand documents'}
-        onClick={() => setIsDocumentsCardExpanded((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
-      >
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="text-sm font-medium text-text-default">Documents</span>
-          <span className="text-xs text-text-muted">
-            {documents.length} document{documents.length === 1 ? '' : 's'}
+      <div className="flex items-center gap-3 px-3 py-3">
+        <button
+          type="button"
+          data-testid="test-documents-card-toggle"
+          aria-expanded={isDocumentsCardExpanded}
+          aria-label={isDocumentsCardExpanded ? 'Collapse documents' : 'Expand documents'}
+          onClick={() => setIsDocumentsCardExpanded((prev) => !prev)}
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left"
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="text-sm font-medium text-text-default">Documents</span>
+            <span className="text-xs text-text-muted">
+              {documents.length} document{documents.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <span className="text-text-muted">
+            {isDocumentsCardExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </span>
-        </div>
-        <span className="text-text-muted">
-          {isDocumentsCardExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </span>
-      </button>
+        </button>
+        {isEditable && !hasPendingMarkdownImport ? (
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            aria-label="Add Document"
+            className="h-8 w-8 shrink-0 px-0 text-base font-semibold leading-none"
+            onClick={() => {
+              setIsDocumentsCardExpanded(true)
+              setExternalDocumentAddRequest({
+                id: Date.now(),
+                mode: 'link',
+              })
+            }}
+          >
+            +
+          </Button>
+        ) : null}
+      </div>
       {isDocumentsCardExpanded ? (
         <div className="border-t border-border p-3">
           <TestDocumentsEditor
@@ -1280,7 +1304,10 @@ export function QuizDetailPanel({
             documents={documents}
             apiBasePath={apiBasePath}
             isEditable={isEditable && !hasPendingMarkdownImport}
-            onUpdated={loadQuizDetails}
+            onDocumentsChange={setDocuments}
+            addButtonPlacement="none"
+            externalAddRequest={externalDocumentAddRequest}
+            onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
           />
         </div>
       ) : null}
@@ -1632,13 +1659,14 @@ export function QuizDetailPanel({
           </div>
         ) : viewMode === 'documents' && isTestsView ? (
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-text-default">Reference Documents</h3>
             <TestDocumentsEditor
               testId={quiz.id}
               documents={documents}
               apiBasePath={apiBasePath}
               isEditable={isEditable}
-              onUpdated={loadQuizDetails}
+              onDocumentsChange={setDocuments}
+              addButtonPlacement="header"
+              headerTitle="Reference Documents"
             />
           </div>
         ) : viewMode === 'markdown' && isTestsView ? (
