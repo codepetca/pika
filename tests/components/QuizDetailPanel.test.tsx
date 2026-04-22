@@ -299,6 +299,7 @@ describe('QuizDetailPanel', () => {
       expect(within(editorPane).getByText('Documents')).toBeInTheDocument()
       expect(within(editorPane).getByText('0 documents')).toBeInTheDocument()
       expect(within(editorPane).getByRole('button', { name: 'Add Document' })).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: 'Add Document' })).toHaveTextContent('+')
 
       expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('2 questions')
       expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('9 pts')
@@ -335,7 +336,8 @@ describe('QuizDetailPanel', () => {
 
       await waitFor(() => {
         expect(within(editorPane).getByRole('button', { name: 'Expand documents' })).toBeInTheDocument()
-        expect(within(editorPane).queryByRole('button', { name: 'Add Document' })).not.toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Add Document' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Add Document' })).toHaveTextContent('+')
       })
 
       fireEvent.click(within(editorPane).getByRole('button', { name: 'Expand documents' }))
@@ -1757,7 +1759,7 @@ Prompt:
 
       fireEvent.click(screen.getByRole('button', { name: /Documents/ }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Link' }))
+      expect(screen.getByRole('heading', { name: 'Add Document' })).toBeInTheDocument()
       fireEvent.change(screen.getByPlaceholderText('Title'), {
         target: { value: 'Java API' },
       })
@@ -1778,6 +1780,10 @@ Prompt:
             source: 'link',
           },
         ])
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('Java API')).toBeInTheDocument()
       })
 
       await waitFor(() => {
@@ -2072,7 +2078,7 @@ Prompt:
 
       fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Text' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'Text' }))
       fireEvent.change(screen.getByPlaceholderText('Title'), {
         target: { value: 'Allowed formulas' },
       })
@@ -2093,6 +2099,10 @@ Prompt:
             content: 'distance = rate * time',
           },
         ])
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('Allowed formulas')).toBeInTheDocument()
       })
     })
 
@@ -2140,9 +2150,9 @@ Prompt:
 
       fireEvent.click(screen.getByRole('button', { name: 'Documents' }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
-      fireEvent.click(screen.getByRole('menuitem', { name: 'PDF' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'PDF' }))
 
-      expect(screen.getByRole('heading', { name: 'Upload pdf' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Add Document' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Choose file' })).toBeInTheDocument()
     })
   })
