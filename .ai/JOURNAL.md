@@ -9117,3 +9117,12 @@
 **Validation:**
 - `pnpm exec vitest run tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherClassroomView.test.tsx`
 - `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'tests/api/teacher/assignments-id-return.test.ts'`
+
+## 2026-04-21 — Validate Enrollment Before Assignment Auto-Grade
+
+- Updated teacher assignment auto-grade to verify every requested `student_id` is enrolled in the assignment classroom before creating missing grades or batch grading runs.
+- Added route-level regression coverage for rejecting non-enrolled single-student and batch auto-grade requests, and confirmed the missing-grade path is not called for invalid IDs.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/auto-grade/route.ts' 'tests/api/teacher/assignments-auto-grade.test.ts'`
