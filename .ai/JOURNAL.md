@@ -9209,3 +9209,24 @@
 - `pnpm exec eslint src/components/QuizDetailPanel.tsx tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
 - Manual Playwright verification on `http://localhost:3001/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests` confirmed the teacher authoring divider still resizes normally after the cleanup change (`695px` to `840.938px` markdown pane width).
 - Live student exam-mode drag re-check was not possible because the seeded `Seed Test - Unattempted Demo` student attempt is already submitted in this environment; the no-false-exit path is covered by the automated regression instead.
+## 2026-04-22 — Durable Test AI Grading Runs
+
+- Replaced synchronous teacher test auto-grading with persisted `test_ai_grading_runs` and `test_ai_grading_run_items`, plus run summary/tick routes and a claim RPC for resumable background processing.
+- Kept the question-aware grading model, but moved execution to bounded question microbatches with short retry backoff, per-question reference-answer caching on `test_questions`, and item-level failure isolation so one bad AI response no longer drops an entire question group.
+- Brought assignment-style output controls to test grading: structured JSON responses, `reasoning.effort: "minimal"`, capped output tokens with one fallback, and run-aware prompt telemetry fields.
+- Updated the teacher tests grading workspace to poll active runs, recover run state from `results`, remove the grading-strategy selector, and keep grading interactive while background work proceeds.
+- Switched the teacher test grading sidebar autosave path to the per-student bulk grades route so manual saves are atomic across a student’s dirty responses.
+- Visually verified the seeded `Test Classroom` tests tab and grading workspace across teacher desktop, teacher mobile, and student mobile captures, including the updated AI grading modal without the removed strategy control.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- Browser verification on seeded `Test Classroom` tests:
+  - teacher desktop tests tab
+  - teacher desktop grading workspace
+  - teacher desktop grading sidebar
+  - teacher desktop AI grading modal
+  - teacher mobile tests tab
+  - teacher mobile grading workspace
+  - student mobile tests tab

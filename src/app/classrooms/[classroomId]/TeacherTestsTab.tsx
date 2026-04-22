@@ -17,8 +17,8 @@ import { getQuizExitCount } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, Select, Tooltip } from '@/ui'
-import type { Classroom, Quiz, QuizFocusSummary, QuizWithStats } from '@/types'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, Tooltip } from '@/ui'
+import type { Classroom, Quiz, QuizFocusSummary, QuizWithStats, TestAiGradingRunSummary } from '@/types'
 
 interface Props {
   classroom: Classroom
@@ -60,14 +60,10 @@ interface TestGradingQuestionSummary {
 type WorkspaceState = 'list' | 'selected'
 type WorkspaceTab = 'authoring' | 'grading'
 type TestGradingSortColumn = 'first_name' | 'last_name'
-type TestAiGradingStrategy = 'balanced' | 'aggressive_batch'
 
 const GRADING_POLL_INTERVAL_MS = 15_000
-
-const TEST_AI_GRADING_STRATEGY_OPTIONS = [
-  { value: 'balanced', label: 'Balanced (Recommended)' },
-  { value: 'aggressive_batch', label: 'Aggressive Batch (Experimental)' },
-]
+const TEST_AI_GRADING_RUN_NOTE =
+  'Keep this test open while grading runs. Reopening it resumes the current progress.'
 
 const STATUS_META: Record<
   TestGradingStudentRow['status'],
@@ -128,28 +124,62 @@ function formatPoints(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
-function summarizeBatchAutoGradeErrors(rawErrors: unknown): string {
-  if (!Array.isArray(rawErrors)) return ''
+function isTestAiGradingRunActive(run: TestAiGradingRunSummary | null): boolean {
+  return !!run && (run.status === 'queued' || run.status === 'running')
+}
 
-  const counts = new Map<string, number>()
-  for (const rawError of rawErrors) {
-    if (typeof rawError !== 'string') continue
-    const trimmed = rawError.trim()
-    if (!trimmed) continue
-
-    const separatorIndex = trimmed.indexOf(': ')
-    const message = separatorIndex >= 0 ? trimmed.slice(separatorIndex + 2).trim() : trimmed
-    if (!message) continue
-
-    counts.set(message, (counts.get(message) || 0) + 1)
+function getTestAiRunPollDelayMs(run: TestAiGradingRunSummary | null): number {
+  if (!run || !isTestAiGradingRunActive(run) || !run.next_retry_at) {
+    return 2000
   }
 
-  if (counts.size === 0) return ''
+  const retryAt = new Date(run.next_retry_at).getTime()
+  if (!Number.isFinite(retryAt)) {
+    return 2000
+  }
 
-  return Array.from(counts.entries())
+  const delay = retryAt - Date.now() + 250
+  return Math.min(Math.max(delay, 1000), 10_000)
+}
+
+function formatTestAiGradingRunMessage(run: TestAiGradingRunSummary): {
+  info: string
+  error: string
+} {
+  const summaryParts: string[] = []
+
+  if (run.completed_count > 0) {
+    summaryParts.push(`Graded ${run.completed_count}`)
+  }
+  if (run.skipped_unanswered_count > 0) {
+    summaryParts.push(`${run.skipped_unanswered_count} unanswered`)
+  }
+  if (run.skipped_already_graded_count > 0) {
+    summaryParts.push(`${run.skipped_already_graded_count} already graded`)
+  }
+  if (run.failed_count > 0) {
+    summaryParts.push(`${run.failed_count} failed`)
+  }
+
+  const summary = summaryParts.length > 0
+    ? summaryParts.join(' • ')
+    : 'No grading changes were needed'
+  const errorDetails = run.error_samples
     .slice(0, 3)
-    .map(([message, count]) => (count > 1 ? `${count} students: ${message}` : message))
-    .join(' · ')
+    .map((sample) => sample.message)
+    .join('\n')
+
+  if (run.status === 'completed_with_errors' || run.status === 'failed') {
+    return {
+      info: '',
+      error: errorDetails ? `${summary}\n${errorDetails}` : summary,
+    }
+  }
+
+  return {
+    info: summary,
+    error: '',
+  }
 }
 
 export function TeacherTestsTab({
@@ -174,6 +204,7 @@ export function TeacherTestsTab({
     selectedTestId: null,
   })
   const latestGradingRequestIdRef = useRef(0)
+  const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
 
   const [tests, setTests] = useState<QuizWithStats[]>([])
   const [loading, setLoading] = useState(true)
@@ -189,6 +220,7 @@ export function TeacherTestsTab({
   const [gradingQuestions, setGradingQuestions] = useState<TestGradingQuestionSummary[]>([])
   const [gradingServerTestStatus, setGradingServerTestStatus] = useState<Quiz['status'] | null>(null)
   const [gradingServerTestId, setGradingServerTestId] = useState<string | null>(null)
+  const [testAiGradingRun, setTestAiGradingRun] = useState<TestAiGradingRunSummary | null>(null)
   const [gradingLoading, setGradingLoading] = useState(false)
   const [gradingError, setGradingError] = useState('')
   const [gradingSortColumn, setGradingSortColumn] = useState<TestGradingSortColumn>('last_name')
@@ -204,9 +236,6 @@ export function TeacherTestsTab({
   const [showPromptGuidelineModal, setShowPromptGuidelineModal] = useState(false)
   const [batchPromptGuideline, setBatchPromptGuideline] = useState('')
   const [batchPromptGuidelineDraft, setBatchPromptGuidelineDraft] = useState('')
-  const [batchGradingStrategy, setBatchGradingStrategy] = useState<TestAiGradingStrategy>('balanced')
-  const [batchGradingStrategyDraft, setBatchGradingStrategyDraft] =
-    useState<TestAiGradingStrategy>('balanced')
 
   const [statusActionError, setStatusActionError] = useState('')
   const [statusUpdating, setStatusUpdating] = useState(false)
@@ -218,6 +247,12 @@ export function TeacherTestsTab({
     () => tests.find((test) => test.id === selectedTestId) ?? null,
     [selectedTestId, tests]
   )
+  const activeTestAiRun = useMemo(() => {
+    if (!selectedTestId || !testAiGradingRun) return null
+    return testAiGradingRun.test_id === selectedTestId ? testAiGradingRun : null
+  }, [selectedTestId, testAiGradingRun])
+  const activeTestAiRunId = activeTestAiRun?.id ?? null
+  const hasActiveTestAiRun = isTestAiGradingRunActive(activeTestAiRun)
 
   const sortedGradingStudents = useMemo(
     () =>
@@ -311,6 +346,7 @@ export function TeacherTestsTab({
       setGradingQuestions([])
       setGradingServerTestStatus(null)
       setGradingServerTestId(null)
+      setTestAiGradingRun(null)
       return
     }
 
@@ -341,6 +377,7 @@ export function TeacherTestsTab({
 
       setGradingServerTestStatus(nextStatus)
       setGradingServerTestId(requestedTestId)
+      setTestAiGradingRun((data.active_ai_grading_run as TestAiGradingRunSummary | null) ?? null)
       if (nextStatus) {
         setTests((prev) =>
           prev.map((test) =>
@@ -364,6 +401,7 @@ export function TeacherTestsTab({
       setGradingError(error.message || 'Failed to load test results')
       setGradingStudents([])
       setGradingQuestions([])
+      setTestAiGradingRun(null)
     } finally {
       if (isStaleRequest()) return
       setGradingLoading(false)
@@ -445,6 +483,7 @@ export function TeacherTestsTab({
       setGradingServerTestStatus(null)
       setGradingServerTestId(null)
       setGradingLoading(false)
+      setTestAiGradingRun(null)
       clearBatchSelection()
       return
     }
@@ -603,6 +642,109 @@ export function TeacherTestsTab({
     return () => window.clearTimeout(timer)
   }, [gradingInfo])
 
+  useEffect(() => {
+    if (
+      workspaceState !== 'selected' ||
+      selectedWorkspaceTab !== 'grading' ||
+      !selectedTestId ||
+      !activeTestAiRunId ||
+      !hasActiveTestAiRun
+    ) {
+      return
+    }
+
+    let isCancelled = false
+    let timeoutId: number | undefined
+
+    const syncRun = async () => {
+      const testId = selectedTestId
+      const runId = activeTestAiRunId
+      let shouldContinue = true
+      let nextDelayMs = 2000
+
+      try {
+        const statusResponse = await fetch(
+          `${apiBasePath}/${testId}/auto-grade-runs/${runId}`,
+        )
+        const statusData = await statusResponse.json().catch(() => ({}))
+        if (!isCancelled && statusResponse.ok && statusData.run) {
+          const nextRun = statusData.run as TestAiGradingRunSummary
+          setTestAiGradingRun(nextRun)
+          if (!isTestAiGradingRunActive(nextRun)) {
+            shouldContinue = false
+            return
+          }
+
+          const statusDelayMs = getTestAiRunPollDelayMs(nextRun)
+          nextDelayMs = statusDelayMs
+          if (statusDelayMs > 2500) {
+            return
+          }
+        }
+
+        const tickResponse = await fetch(
+          `${apiBasePath}/${testId}/auto-grade-runs/${runId}/tick`,
+          {
+            method: 'POST',
+          },
+        )
+        const tickData = await tickResponse.json().catch(() => ({}))
+        if (!isCancelled && tickResponse.ok && tickData.run) {
+          const nextRun = tickData.run as TestAiGradingRunSummary
+          setTestAiGradingRun(nextRun)
+          if (!isTestAiGradingRunActive(nextRun)) {
+            shouldContinue = false
+          } else {
+            nextDelayMs = getTestAiRunPollDelayMs(nextRun)
+          }
+        }
+      } catch {
+        // Keep the run visible; the next poll cycle can recover.
+      } finally {
+        if (!isCancelled && shouldContinue) {
+          timeoutId = window.setTimeout(syncRun, nextDelayMs)
+        }
+      }
+    }
+
+    void syncRun()
+
+    return () => {
+      isCancelled = true
+      if (timeoutId) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [
+    activeTestAiRunId,
+    apiBasePath,
+    hasActiveTestAiRun,
+    selectedTestId,
+    selectedWorkspaceTab,
+    workspaceState,
+  ])
+
+  useEffect(() => {
+    if (!activeTestAiRun || hasActiveTestAiRun) return
+
+    const handledKey = `${activeTestAiRun.id}:${activeTestAiRun.status}:${activeTestAiRun.processed_count}:${activeTestAiRun.failed_count}`
+    if (handledCompletedRunKeysRef.current.has(handledKey)) return
+    handledCompletedRunKeysRef.current.add(handledKey)
+
+    const message = formatTestAiGradingRunMessage(activeTestAiRun)
+    clearBatchSelection()
+    void loadGradingRows()
+    onTestGradingDataRefresh?.()
+
+    if (message.error) {
+      setGradingError(message.error)
+      setGradingInfo('')
+    } else {
+      setGradingInfo(message.info)
+      setGradingError('')
+    }
+  }, [activeTestAiRun, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh])
+
   function handleOpenTest(test: QuizWithStats) {
     setSelectedTestId(test.id)
     setWorkspaceState('selected')
@@ -628,7 +770,6 @@ export function TeacherTestsTab({
 
   function openBatchPromptGuidelineModal() {
     setBatchPromptGuidelineDraft(batchPromptGuideline)
-    setBatchGradingStrategyDraft(batchGradingStrategy)
     setShowPromptGuidelineModal(true)
   }
 
@@ -649,31 +790,47 @@ export function TeacherTestsTab({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           student_ids: targetStudentIds,
-          grading_strategy: batchGradingStrategy,
           ...(batchPromptGuideline.trim()
             ? { prompt_guideline: batchPromptGuideline.trim() }
             : {}),
         }),
       })
       const data = await response.json()
+      if (response.status === 202 && data.run) {
+        setTestAiGradingRun(data.run as TestAiGradingRunSummary)
+        if (!options?.preserveSelection) {
+          clearBatchSelection()
+        }
+        setGradingInfo('AI grading started')
+        return
+      }
+      if (response.status === 409 && data.run) {
+        setTestAiGradingRun(data.run as TestAiGradingRunSummary)
+        throw new Error(data.error || 'Another grading run is already active')
+      }
       if (!response.ok) throw new Error(data.error || 'Auto-grade failed')
 
-      const gradedStudents = Number(data.graded_students ?? 0)
-      const skippedStudents = Number(data.skipped_students ?? 0)
-      const errorSummary = summarizeBatchAutoGradeErrors(data.errors)
-      const summaryPrefix = options?.infoPrefix || 'AI graded'
-      setGradingInfo(
-        `${summaryPrefix} ${gradedStudents} student${gradedStudents === 1 ? '' : 's'}${skippedStudents > 0 ? ` • ${skippedStudents} skipped` : ''}`
-      )
-
+      const summary = (data.summary ?? {}) as {
+        message?: string
+        skipped_unanswered_count?: number
+        skipped_already_graded_count?: number
+      }
+      const summaryParts: string[] = []
+      if (summary.message) {
+        summaryParts.push(summary.message)
+      }
+      if (Number(summary.skipped_unanswered_count ?? 0) > 0) {
+        summaryParts.push(`${summary.skipped_unanswered_count} unanswered`)
+      }
+      if (Number(summary.skipped_already_graded_count ?? 0) > 0) {
+        summaryParts.push(`${summary.skipped_already_graded_count} already graded`)
+      }
+      setGradingInfo(summaryParts.join(' • ') || 'No AI grading was needed')
       if (!options?.preserveSelection) {
         clearBatchSelection()
       }
       await loadGradingRows()
       onTestGradingDataRefresh?.()
-      if (errorSummary) {
-        setGradingError(errorSummary)
-      }
     } catch (error: any) {
       setGradingError(error.message || 'Auto-grade failed')
     } finally {
@@ -1176,6 +1333,7 @@ export function TeacherTestsTab({
                 }}
                 disabled={
                   batchSelectedCount === 0 ||
+                  hasActiveTestAiRun ||
                   isBatchAutoGrading ||
                   isBatchReturning ||
                   isBatchClearingOpenGrades
@@ -1259,6 +1417,11 @@ export function TeacherTestsTab({
         {gradingInfo && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
           <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
             {gradingInfo}
+          </div>
+        ) : null}
+        {hasActiveTestAiRun && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
+          <div className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-muted">
+            {TEST_AI_GRADING_RUN_NOTE}
           </div>
         ) : null}
 
@@ -1380,7 +1543,7 @@ export function TeacherTestsTab({
           </Button>
           <Button
             type="button"
-            disabled={isBatchAutoGrading}
+            disabled={isBatchAutoGrading || hasActiveTestAiRun}
             onClick={() => {
               setShowBatchGradeModal(false)
               void handleBatchAutoGrade()
@@ -1396,7 +1559,6 @@ export function TeacherTestsTab({
         onClose={() => {
           setShowPromptGuidelineModal(false)
           setBatchPromptGuidelineDraft(batchPromptGuideline)
-          setBatchGradingStrategyDraft(batchGradingStrategy)
         }}
         ariaLabelledBy="test-ai-prompt-guideline-title"
         maxWidth="max-w-xl"
@@ -1409,22 +1571,6 @@ export function TeacherTestsTab({
           Pika automatically uses the coding rubric for code-style questions and the regular rubric
           for other open responses.
         </p>
-        <div className="mt-4">
-          <FormField label="Grading strategy">
-            <Select
-              aria-label="Grading strategy"
-              options={TEST_AI_GRADING_STRATEGY_OPTIONS}
-              value={batchGradingStrategyDraft}
-              onChange={(event) =>
-                setBatchGradingStrategyDraft(event.target.value as TestAiGradingStrategy)
-              }
-            />
-          </FormField>
-          <p className="mt-2 text-xs text-text-muted">
-            Balanced reuses one question-level grading context per question. Aggressive Batch is
-            experimental and grades same-question responses together in one AI call.
-          </p>
-        </div>
         <div className="mt-4">
           <FormField label="Additional instructions (optional)">
             <textarea
@@ -1443,7 +1589,6 @@ export function TeacherTestsTab({
             onClick={() => {
               setShowPromptGuidelineModal(false)
               setBatchPromptGuidelineDraft(batchPromptGuideline)
-              setBatchGradingStrategyDraft(batchGradingStrategy)
             }}
           >
             Cancel
@@ -1452,7 +1597,6 @@ export function TeacherTestsTab({
             type="button"
             onClick={() => {
               setBatchPromptGuideline(batchPromptGuidelineDraft)
-              setBatchGradingStrategy(batchGradingStrategyDraft)
               setShowPromptGuidelineModal(false)
             }}
           >

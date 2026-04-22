@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { POST } from '@/app/api/teacher/tests/[id]/auto-grade/route'
 
-vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
+const { createOrResumeTestAiGradingRun } = vi.hoisted(() => ({
+  createOrResumeTestAiGradingRun: vi.fn(),
+}))
+
+const { assertTeacherOwnsTest } = vi.hoisted(() => ({
+  assertTeacherOwnsTest: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -15,49 +18,50 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/tests', () => ({
-  assertTeacherOwnsTest: vi.fn(async () => ({
-    ok: true,
-    test: {
-      id: 'test-1',
-      title: 'Unit Test',
-      classroom_id: 'classroom-1',
-      classrooms: { archived_at: null },
-    },
-  })),
+  assertTeacherOwnsTest,
 }))
 
-const prepareTestOpenResponseGradingContext = vi.fn()
-const suggestTestOpenResponseGradeWithContext = vi.fn()
-const suggestTestOpenResponseGradesBatch = vi.fn()
-const suggestTestOpenResponseGradesBatchWithContext = vi.fn()
-const getTestOpenResponseGradingModel = vi.fn(() => 'gpt-5-nano')
-const resolveReusableTestOpenResponseReferenceAnswers = vi.fn(() => ({
-  expectedCacheKey: 'cache-key',
-  cacheHit: false,
-  referenceAnswers: null,
-}))
-vi.mock('@/lib/ai-test-grading', () => ({
-  prepareTestOpenResponseGradingContext: (...args: any[]) =>
-    prepareTestOpenResponseGradingContext(...args),
-  suggestTestOpenResponseGradeWithContext: (...args: any[]) =>
-    suggestTestOpenResponseGradeWithContext(...args),
-  suggestTestOpenResponseGradesBatch: (...args: any[]) => suggestTestOpenResponseGradesBatch(...args),
-  suggestTestOpenResponseGradesBatchWithContext: (...args: any[]) =>
-    suggestTestOpenResponseGradesBatchWithContext(...args),
-  getTestOpenResponseGradingModel: () => getTestOpenResponseGradingModel(),
-  resolveReusableTestOpenResponseReferenceAnswers: (...args: any[]) =>
-    resolveReusableTestOpenResponseReferenceAnswers(...args),
+vi.mock('@/lib/server/test-ai-grading-runs', () => ({
+  createOrResumeTestAiGradingRun,
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+import { POST } from '@/app/api/teacher/tests/[id]/auto-grade/route'
 
 describe('POST /api/teacher/tests/[id]/auto-grade', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    resolveReusableTestOpenResponseReferenceAnswers.mockReturnValue({
-      expectedCacheKey: 'cache-key',
-      cacheHit: false,
-      referenceAnswers: null,
+    assertTeacherOwnsTest.mockResolvedValue({
+      ok: true,
+      test: {
+        id: 'test-1',
+        title: 'Unit Test',
+        classroom_id: 'classroom-1',
+        classrooms: { archived_at: null },
+      },
+    })
+    createOrResumeTestAiGradingRun.mockResolvedValue({
+      kind: 'created',
+      run: {
+        id: 'run-1',
+        test_id: 'test-1',
+        status: 'queued',
+        model: 'gpt-5-nano',
+        prompt_guideline_override: null,
+        requested_count: 2,
+        eligible_student_count: 2,
+        queued_response_count: 2,
+        processed_count: 0,
+        completed_count: 0,
+        skipped_unanswered_count: 0,
+        skipped_already_graded_count: 0,
+        failed_count: 0,
+        pending_count: 2,
+        next_retry_at: null,
+        error_samples: [],
+        started_at: null,
+        completed_at: null,
+        created_at: '2026-04-20T12:00:00.000Z',
+      },
     })
   })
 
@@ -66,167 +70,12 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
       method: 'POST',
       body: JSON.stringify({}),
     })
+
     const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
     const data = await response.json()
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('student_ids array is required')
-  })
-
-  it('auto-grades eligible open responses and skips non-eligible students', async () => {
-    const aiUpdates: Array<{ score: number; feedback: string; graded_by: string }> = []
-    const unansweredUpdates: Array<{
-      payload: { score: number; feedback: string; graded_by: string }
-      ids: string[]
-    }> = []
-
-    prepareTestOpenResponseGradingContext.mockResolvedValue({
-      model: 'gpt-5-nano',
-      grading_basis: 'teacher_key',
-      reference_answers: [],
-    })
-    suggestTestOpenResponseGradeWithContext.mockResolvedValue({
-      score: 4.5,
-      feedback: 'Good explanation',
-      model: 'gpt-5-nano',
-      grading_basis: 'teacher_key',
-      reference_answers: [],
-    })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') {
-        const query = {
-          eq: vi.fn().mockReturnThis(),
-        } as any
-        query.eq.mockImplementationOnce(() => query)
-        query.eq.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'q-open-1',
-              question_text: 'Explain arrays vs objects.',
-              points: 5,
-              response_monospace: true,
-              answer_key: 'Arrays are ordered lists; objects map keys to values.',
-              sample_solution: 'String[] names = {"Ada", "Grace"};',
-            },
-          ],
-          error: null,
-        }))
-        return {
-          select: vi.fn(() => query),
-        }
-      }
-
-      if (table === 'test_responses') {
-        const query = {
-          eq: vi.fn().mockReturnThis(),
-          in: vi.fn().mockReturnThis(),
-        } as any
-        query.in.mockImplementationOnce(() => query)
-        query.in.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'response-1',
-              student_id: 'student-1',
-              question_id: 'q-open-1',
-              response_text: 'Arrays are ordered.',
-            },
-            {
-              id: 'response-2',
-              student_id: 'student-2',
-              question_id: 'q-open-1',
-              response_text: '   ',
-            },
-          ],
-          error: null,
-        }))
-
-        return {
-          select: vi.fn(() => query),
-          update: vi.fn((payload: { score: number; feedback: string; graded_by: string }) => ({
-            eq: vi.fn((column: string) => {
-              if (column === 'test_id') {
-                return {
-                  in: vi.fn(async (_idColumn: string, ids: string[]) => {
-                    unansweredUpdates.push({ payload, ids })
-                    return { error: null }
-                  }),
-                }
-              }
-
-              return {
-                eq: vi.fn().mockImplementation(async () => {
-                  aiUpdates.push(payload)
-                  return { error: null }
-                }),
-              }
-            }),
-          })),
-        }
-      }
-
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-                { student_id: 'student-2', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1', 'student-2'],
-        prompt_guideline: 'Use exactly two sentences of feedback.',
-      }),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.graded_students).toBe(2)
-    expect(data.skipped_students).toBe(0)
-    expect(data.eligible_students).toBe(2)
-    expect(data.graded_responses).toBe(2)
-    expect(data.grading_strategy).toBe('balanced')
-    expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledTimes(1)
-    expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledWith(
-      expect.objectContaining({
-        maxPoints: 5,
-        responseMonospace: true,
-        answerKey: 'Arrays are ordered lists; objects map keys to values.',
-        sampleSolution: 'String[] names = {"Ada", "Grace"};',
-        promptGuidelineOverride: 'Use exactly two sentences of feedback.',
-      })
-    )
-    expect(suggestTestOpenResponseGradeWithContext).toHaveBeenCalledTimes(1)
-    expect(aiUpdates).toEqual([
-      expect.objectContaining({
-        score: 4.5,
-        feedback: 'Good explanation',
-        graded_by: 'teacher-1',
-      }),
-    ])
-    expect(unansweredUpdates).toEqual([
-      expect.objectContaining({
-        payload: expect.objectContaining({
-          score: 0,
-          feedback: 'Unanswered',
-          graded_by: 'teacher-1',
-        }),
-        ids: ['response-2'],
-      }),
-    ])
   })
 
   it('returns 400 when prompt_guideline is not a string', async () => {
@@ -237,6 +86,7 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
         prompt_guideline: 123,
       }),
     })
+
     const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
     const data = await response.json()
 
@@ -244,405 +94,59 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
     expect(data.error).toBe('prompt_guideline must be a string')
   })
 
-  it('returns 400 when grading_strategy is invalid', async () => {
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1'],
-        grading_strategy: 'nope',
-      }),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toBe('grading_strategy must be one of: balanced, aggressive_batch')
-  })
-
-  it('skips responses already graded with the current model (zero OpenAI calls)', async () => {
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') {
-        const query = { eq: vi.fn().mockReturnThis() } as any
-        query.eq.mockImplementationOnce(() => query)
-        query.eq.mockImplementationOnce(async () => ({
-          data: [{ id: 'q-open-1', question_text: 'Explain arrays.', points: 5 }],
-          error: null,
-        }))
-        return { select: vi.fn(() => query) }
-      }
-
-      if (table === 'test_responses') {
-        const query = { eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis() } as any
-        query.in.mockImplementationOnce(() => query)
-        query.in.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'response-already-graded',
-              student_id: 'student-1',
-              question_id: 'q-open-1',
-              response_text: 'Arrays are ordered.',
-              // Already graded with the same model
-              ai_model: 'gpt-5-nano',
-              graded_at: '2026-03-01T12:00:00.000Z',
-              score: 4.0,
-            },
-          ],
-          error: null,
-        }))
-        return {
-          select: vi.fn(() => query),
-          update: vi.fn(() => ({ eq: vi.fn().mockReturnThis() })),
-        }
-      }
-
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1'] }),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    // Response was already graded — counts as graded_responses
-    expect(data.graded_responses).toBe(1)
-    expect(data.graded_students).toBe(1)
-    // Zero OpenAI calls made
-    expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
-    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
-    expect(suggestTestOpenResponseGradesBatch).not.toHaveBeenCalled()
-    expect(suggestTestOpenResponseGradesBatchWithContext).not.toHaveBeenCalled()
-  })
-
-  it('regrades already-AI-graded responses when custom instructions are provided', async () => {
-    const aiUpdates: Array<{ score: number; feedback: string; graded_by: string }> = []
-
-    prepareTestOpenResponseGradingContext.mockResolvedValue({
-      model: 'gpt-5-nano',
-      grading_basis: 'teacher_key',
-      reference_answers: [],
-    })
-    suggestTestOpenResponseGradeWithContext.mockResolvedValue({
-      score: 5,
-      feedback: 'Strength: Clear answer. Next Step: keep this precision.',
-      model: 'gpt-5-nano',
-      grading_basis: 'teacher_key',
-      reference_answers: [],
-    })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') {
-        const query = { eq: vi.fn().mockReturnThis() } as any
-        query.eq.mockImplementationOnce(() => query)
-        query.eq.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'q-open-1',
-              question_text: 'Explain arrays.',
-              points: 5,
-              response_monospace: false,
-              answer_key: 'Arrays keep items in order.',
-            },
-          ],
-          error: null,
-        }))
-        return { select: vi.fn(() => query) }
-      }
-
-      if (table === 'test_responses') {
-        const query = { eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis() } as any
-        query.in.mockImplementationOnce(() => query)
-        query.in.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'response-already-graded',
-              student_id: 'student-1',
-              question_id: 'q-open-1',
-              response_text: 'Arrays are ordered.',
-              ai_model: 'gpt-5-nano',
-              graded_at: '2026-03-01T12:00:00.000Z',
-              score: 4.0,
-            },
-          ],
-          error: null,
-        }))
-        return {
-          select: vi.fn(() => query),
-          update: vi.fn((payload: { score: number; feedback: string; graded_by: string }) => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockImplementation(async () => {
-                aiUpdates.push(payload)
-                return { error: null }
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['student-1'],
-        prompt_guideline: 'Be stricter about terminology.',
-      }),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.graded_responses).toBe(1)
-    expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledTimes(1)
-    expect(suggestTestOpenResponseGradeWithContext).toHaveBeenCalledTimes(1)
-    expect(aiUpdates).toEqual([
-      expect.objectContaining({
-        score: 5,
-        feedback: 'Strength: Clear answer. Next Step: keep this precision.',
-        graded_by: 'teacher-1',
-      }),
-    ])
-  })
-
-  it('uses aggressive batch mode when requested', async () => {
-    const aiUpdates: Array<{ score: number; feedback: string; graded_by: string }> = []
-
-    prepareTestOpenResponseGradingContext.mockResolvedValue({
-      model: 'gpt-5-nano',
-      grading_basis: 'generated_reference',
-      reference_answers: ['Reference answer'],
-      reference_answers_source: 'provided',
-    })
-    suggestTestOpenResponseGradesBatchWithContext.mockResolvedValue([
-      {
-        responseId: 'response-1',
-        score: 5,
-        feedback: 'Strong answer',
-        model: 'gpt-5-nano',
-        grading_basis: 'generated_reference',
-        reference_answers: ['Reference answer'],
-      },
-      {
-        responseId: 'response-2',
-        score: 3,
-        feedback: 'Partially correct',
-        model: 'gpt-5-nano',
-        grading_basis: 'generated_reference',
-        reference_answers: ['Reference answer'],
-      },
-    ])
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') {
-        const query = { eq: vi.fn().mockReturnThis() } as any
-        query.eq.mockImplementationOnce(() => query)
-        query.eq.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'q-open-1',
-              question_text: 'Explain arrays.',
-              points: 5,
-              response_monospace: false,
-              answer_key: null,
-            },
-          ],
-          error: null,
-        }))
-        return { select: vi.fn(() => query) }
-      }
-
-      if (table === 'test_responses') {
-        const query = { eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis() } as any
-        query.in.mockImplementationOnce(() => query)
-        query.in.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'response-1',
-              student_id: 'student-1',
-              question_id: 'q-open-1',
-              response_text: 'Arrays are ordered.',
-            },
-            {
-              id: 'response-2',
-              student_id: 'student-2',
-              question_id: 'q-open-1',
-              response_text: 'Arrays store items.',
-            },
-          ],
-          error: null,
-        }))
-
-        return {
-          select: vi.fn(() => query),
-          update: vi.fn((payload: { score: number; feedback: string; graded_by: string }) => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockImplementation(async () => {
-                aiUpdates.push(payload)
-                return { error: null }
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-                { student_id: 'student-2', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
+  it('starts or resumes a background run when AI work remains', async () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
       method: 'POST',
       body: JSON.stringify({
         student_ids: ['student-1', 'student-2'],
-        grading_strategy: 'aggressive_batch',
+        prompt_guideline: 'Use one strength and one next step.',
       }),
     })
+
     const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
     const data = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(data.grading_strategy).toBe('aggressive_batch')
-    expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledTimes(1)
-    expect(suggestTestOpenResponseGradesBatchWithContext).toHaveBeenCalledTimes(1)
-    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
-    expect(aiUpdates).toHaveLength(2)
+    expect(response.status).toBe(202)
+    expect(data).toEqual({
+      mode: 'background',
+      run: expect.objectContaining({
+        id: 'run-1',
+        test_id: 'test-1',
+        requested_count: 2,
+      }),
+    })
+    expect(createOrResumeTestAiGradingRun).toHaveBeenCalledWith({
+      testId: 'test-1',
+      teacherId: 'teacher-1',
+      studentIds: ['student-1', 'student-2'],
+      promptGuidelineOverride: 'Use one strength and one next step.',
+    })
   })
 
-  it('uses batch grading in balanced mode when multiple non-empty responses share a question', async () => {
-    prepareTestOpenResponseGradingContext.mockResolvedValue({
-      model: 'gpt-5-nano',
-      grading_basis: 'teacher_key',
-      reference_answers: [],
-      reference_answers_source: 'teacher_key',
-    })
-    suggestTestOpenResponseGradesBatchWithContext.mockResolvedValue([
-      {
-        responseId: 'response-1',
-        score: 5,
-        feedback: 'Strong answer',
+  it('returns the active run when another selection is already in progress', async () => {
+    createOrResumeTestAiGradingRun.mockResolvedValueOnce({
+      kind: 'conflict',
+      run: {
+        id: 'run-2',
+        test_id: 'test-1',
+        status: 'running',
         model: 'gpt-5-nano',
-        grading_basis: 'teacher_key',
-        reference_answers: [],
+        prompt_guideline_override: null,
+        requested_count: 3,
+        eligible_student_count: 3,
+        queued_response_count: 3,
+        processed_count: 1,
+        completed_count: 1,
+        skipped_unanswered_count: 0,
+        skipped_already_graded_count: 0,
+        failed_count: 0,
+        pending_count: 2,
+        next_retry_at: null,
+        error_samples: [],
+        started_at: '2026-04-20T12:00:00.000Z',
+        completed_at: null,
+        created_at: '2026-04-20T12:00:00.000Z',
       },
-      {
-        responseId: 'response-2',
-        score: 4,
-        feedback: 'Good answer',
-        model: 'gpt-5-nano',
-        grading_basis: 'teacher_key',
-        reference_answers: [],
-      },
-    ])
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') {
-        const query = { eq: vi.fn().mockReturnThis() } as any
-        query.eq.mockImplementationOnce(() => query)
-        query.eq.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'q-open-1',
-              question_text: 'Explain arrays.',
-              points: 5,
-              response_monospace: false,
-              answer_key: 'Arrays keep items in order.',
-            },
-          ],
-          error: null,
-        }))
-        return { select: vi.fn(() => query) }
-      }
-
-      if (table === 'test_responses') {
-        const query = { eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis() } as any
-        query.in.mockImplementationOnce(() => query)
-        query.in.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'response-1',
-              student_id: 'student-1',
-              question_id: 'q-open-1',
-              response_text: 'Arrays are ordered.',
-            },
-            {
-              id: 'response-2',
-              student_id: 'student-2',
-              question_id: 'q-open-1',
-              response_text: 'Arrays store items.',
-            },
-          ],
-          error: null,
-        }))
-        return {
-          select: vi.fn(() => query),
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockResolvedValue({ error: null }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-                { student_id: 'student-2', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
@@ -651,229 +155,57 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
         student_ids: ['student-1', 'student-2'],
       }),
     })
+
     const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
     const data = await response.json()
 
-    expect(response.status).toBe(200)
-    expect(data.grading_strategy).toBe('balanced')
-    expect(suggestTestOpenResponseGradesBatchWithContext).toHaveBeenCalledTimes(1)
-    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
-  })
-
-  it('reuses cached question-level reference answers and persists newly generated ones', async () => {
-    const questionUpdates: any[] = []
-
-    resolveReusableTestOpenResponseReferenceAnswers.mockReturnValue({
-      expectedCacheKey: 'cache-key',
-      cacheHit: true,
-      referenceAnswers: ['Cached reference answer'],
-    })
-    prepareTestOpenResponseGradingContext
-      .mockResolvedValueOnce({
-        model: 'gpt-5-nano',
-        grading_basis: 'generated_reference',
-        reference_answers: ['Cached reference answer'],
-        reference_answers_source: 'provided',
-      })
-      .mockResolvedValueOnce({
-        model: 'gpt-5-nano',
-        grading_basis: 'generated_reference',
-        reference_answers: ['Fresh reference answer'],
-        reference_answers_source: 'generated',
-      })
-    suggestTestOpenResponseGradeWithContext.mockResolvedValue({
-      score: 4,
-      feedback: 'Good explanation',
-      model: 'gpt-5-nano',
-      grading_basis: 'generated_reference',
-      reference_answers: ['Cached reference answer'],
-    })
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') {
-        const query = { eq: vi.fn().mockReturnThis() } as any
-        query.eq.mockImplementationOnce(() => query)
-        query.eq.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'q-open-1',
-              question_text: 'Explain arrays.',
-              points: 5,
-              response_monospace: false,
-              answer_key: null,
-            },
-            {
-              id: 'q-open-2',
-              question_text: 'Explain objects.',
-              points: 5,
-              response_monospace: false,
-              answer_key: null,
-            },
-          ],
-          error: null,
-        }))
-
-        return {
-          select: vi.fn(() => query),
-          update: vi.fn((payload: any) => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn(async () => {
-                questionUpdates.push(payload)
-                return { error: null }
-              }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'test_responses') {
-        const query = { eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis() } as any
-        query.in.mockImplementationOnce(() => query)
-        query.in.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'response-1',
-              student_id: 'student-1',
-              question_id: 'q-open-1',
-              response_text: 'Arrays are ordered.',
-            },
-            {
-              id: 'response-2',
-              student_id: 'student-1',
-              question_id: 'q-open-2',
-              response_text: 'Objects store key/value data.',
-            },
-          ],
-          error: null,
-        }))
-        return {
-          select: vi.fn(() => query),
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              eq: vi.fn().mockResolvedValue({ error: null }),
-            })),
-          })),
-        }
-      }
-
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1'] }),
-    })
-    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
-
-    expect(response.status).toBe(200)
-    expect(prepareTestOpenResponseGradingContext).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        referenceAnswers: ['Cached reference answer'],
-        promptProfile: 'bulk',
-      })
-    )
-    expect(questionUpdates).toEqual([
-      expect.objectContaining({
-        ai_reference_cache_key: 'cache-key',
-        ai_reference_cache_answers: ['Fresh reference answer'],
-        ai_reference_cache_model: 'gpt-5-nano',
+    expect(response.status).toBe(409)
+    expect(data).toEqual({
+      error: 'Another test AI grading run is already active',
+      mode: 'background',
+      run: expect.objectContaining({
+        id: 'run-2',
+        status: 'running',
       }),
-    ])
+    })
   })
 
-  it('sanitizes upstream AI-service failures in the response errors array', async () => {
-    prepareTestOpenResponseGradingContext.mockResolvedValue({
-      model: 'gpt-5-nano',
-      grading_basis: 'teacher_key',
-      reference_answers: [],
-    })
-    suggestTestOpenResponseGradeWithContext.mockRejectedValue(
-      new Error('OpenAI returned invalid JSON (status 200, text/plain): An error occurred while processing your request.')
-    )
-
-    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
-      if (table === 'test_questions') {
-        const query = { eq: vi.fn().mockReturnThis() } as any
-        query.eq.mockImplementationOnce(() => query)
-        query.eq.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'q-open-1',
-              question_text: 'Write a Java loop.',
-              points: 5,
-              response_monospace: true,
-              answer_key: 'Use a counted for-loop and print each iteration value.',
-            },
-          ],
-          error: null,
-        }))
-        return { select: vi.fn(() => query) }
-      }
-
-      if (table === 'test_responses') {
-        const query = { eq: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis() } as any
-        query.in.mockImplementationOnce(() => query)
-        query.in.mockImplementationOnce(async () => ({
-          data: [
-            {
-              id: 'response-1',
-              student_id: 'student-1',
-              question_id: 'q-open-1',
-              response_text: 'for (int i = 0; i < 10; i++) { println(i); }',
-            },
-          ],
-          error: null,
-        }))
-        return {
-          select: vi.fn(() => query),
-          update: vi.fn(() => ({ eq: vi.fn().mockReturnThis() })),
-        }
-      }
-
-      if (table === 'test_attempts') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            in: vi.fn().mockResolvedValue({
-              data: [
-                { student_id: 'student-1', is_submitted: true, submitted_at: '2026-02-24T15:00:00.000Z' },
-              ],
-              error: null,
-            }),
-          })),
-        }
-      }
-
-      throw new Error(`Unexpected table: ${table}`)
+  it('returns a no-op summary when no AI work remains after preflight', async () => {
+    createOrResumeTestAiGradingRun.mockResolvedValueOnce({
+      kind: 'noop',
+      summary: {
+        requested_count: 2,
+        eligible_student_count: 2,
+        queued_response_count: 0,
+        skipped_unanswered_count: 1,
+        skipped_already_graded_count: 1,
+        failed_count: 0,
+        message: 'No AI grading was needed for this selection.',
+      },
     })
 
     const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
       method: 'POST',
-      body: JSON.stringify({ student_ids: ['student-1'] }),
+      body: JSON.stringify({
+        student_ids: ['student-1', 'student-2'],
+      }),
     })
+
     const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.graded_students).toBe(0)
-    expect(data.skipped_students).toBe(1)
-    expect(data.errors).toEqual([
-      'student-1: AI grading service failed for this response. Try again.',
-    ])
+    expect(data).toEqual({
+      mode: 'noop',
+      summary: {
+        requested_count: 2,
+        eligible_student_count: 2,
+        queued_response_count: 0,
+        skipped_unanswered_count: 1,
+        skipped_already_graded_count: 1,
+        failed_count: 0,
+        message: 'No AI grading was needed for this selection.',
+      },
+    })
   })
 })

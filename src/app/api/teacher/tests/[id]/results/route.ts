@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { aggregateResults, summarizeQuizFocusEvents } from '@/lib/quizzes'
 import { assertTeacherOwnsTest, isMissingTestAttemptReturnColumnsError } from '@/lib/server/tests'
+import { getActiveTestAiGradingRunSummary } from '@/lib/server/test-ai-grading-runs'
 import { normalizeTestResponses } from '@/lib/test-attempts'
 import type { QuizFocusSummary, QuizQuestion, QuizResponse } from '@/types'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -21,6 +22,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   }
   const test = access.test
   const supabase = getServiceRoleClient()
+  const activeAiGradingRun = await getActiveTestAiGradingRunSummary(testId)
 
   const { data: questions, error: questionsError } = await supabase
     .from('test_questions')
@@ -409,5 +411,6 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
       ungraded_open_responses: ungradedOpenResponses,
       returned_count: students.filter((student) => student.returned_at !== null).length,
     },
+    active_ai_grading_run: activeAiGradingRun,
   })
 })
