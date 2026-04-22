@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { TooltipProvider } from '@/ui'
@@ -274,6 +274,103 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Created Test')
     expect(screen.getByRole('button', { name: 'Authoring' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('validates and activates a draft test from authoring', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          questions: [
+            {
+              id: 'q1',
+              question_type: 'multiple_choice',
+              question_text: 'Ready to activate?',
+              options: ['Yes', 'No'],
+              correct_option: 0,
+              points: 1,
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ test: { id: 'test-1', status: 'active' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+
+    expect(await screen.findByText('Activate test?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Activate' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1', expect.objectContaining({ method: 'PATCH' }))
+    })
+
+    const patchCall = fetchMock.mock.calls.find(
+      ([url, init]: [string, RequestInit | undefined]) =>
+        url === '/api/teacher/tests/test-1' && init?.method === 'PATCH'
+    )
+    expect(patchCall).toBeTruthy()
+    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({ status: 'active' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+    })
+  })
+
+  it('confirms and closes an active test from authoring', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ test: { id: 'test-1', status: 'closed' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'closed' })] }),
+      })
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByTestId('mock-test-detail')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(await screen.findByText('Close test?')).toBeInTheDocument()
+
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1', expect.objectContaining({ method: 'PATCH' }))
+    })
+
+    const patchCall = fetchMock.mock.calls.find(
+      ([url, init]: [string, RequestInit | undefined]) =>
+        url === '/api/teacher/tests/test-1' && init?.method === 'PATCH'
+    )
+    expect(patchCall).toBeTruthy()
+    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({ status: 'closed' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Reopen' })).toBeInTheDocument()
+    })
   })
 
   it('returns to the tests list when the tests tab is clicked again', async () => {
