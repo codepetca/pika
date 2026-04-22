@@ -9163,3 +9163,23 @@
 
 **Validation:**
 - Manual migration diff review for semantic parity of the function body and permission changes.
+
+## 2026-04-22 — Fix New Test Title Placeholder Copy
+
+- Updated `QuizModal` to derive a shared assessment label so the create/edit heading and title placeholder both reflect `quiz` versus `test` correctly.
+- Added a focused component regression test to lock the new-test placeholder copy and preserve quiz copy in edit mode.
+- Visually verified the teacher new-test modal on desktop and mobile plus the student tests screen against a live dev server. Teacher mobile tests tab still has pre-existing horizontal overflow unrelated to this change.
+
+**Validation:**
+- `pnpm test tests/components/QuizModal.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- Manual Playwright verification on `http://localhost:3001/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests`
+
+## 2026-04-22 — Add Draggable Resize For Teacher Test Authoring Split
+
+- Added a draggable divider to the teacher test summary/detail authoring workspace in `QuizDetailPanel`, with local width state and double-click reset back to 50/50.
+- Clamped the markdown pane to a minimum of `360px` and the structured editor pane to a minimum of `420px`, so the allowed percentage range adjusts to the live workspace width instead of using a fixed cap.
+- Added a component regression that exercises drag-to-clamp in both directions and reset-on-double-click for the new divider.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/QuizModal.test.tsx`
+- Manual Playwright verification on `http://localhost:3002/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests` with a disposable teacher test (`Resizable divider check 1776880025837`): markdown pane width changed from `695px` to `515.688px` after dragging, and the student tests view remained visually unchanged.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown'
@@ -291,6 +291,9 @@ describe('QuizDetailPanel', () => {
       )
 
       expect(await screen.findByTestId('test-summary-detail-layout')).toBeInTheDocument()
+      expect(
+        screen.getByRole('separator', { name: 'Resize question and markdown panes' })
+      ).toBeInTheDocument()
       const editorPane = screen.getByTestId('test-question-editor-pane')
       const markdownPane = screen.getByTestId('test-question-markdown-pane')
       expect(editorPane).toBeInTheDocument()
@@ -371,6 +374,100 @@ describe('QuizDetailPanel', () => {
         expect(within(editorPane).getByTestId('question-sq2-collapsed-summary')).toHaveTextContent(
           'Which traversal visits the root node first?'
         )
+      })
+    })
+
+    it('allows dragging the summary-detail divider within the editor bounds and resets on double click', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Resizable Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Resizable Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const layout = await screen.findByTestId('test-summary-detail-layout')
+      const separator = screen.getByRole('separator', { name: 'Resize question and markdown panes' })
+      const markdownPaneWrapper = screen.getByTestId('test-question-markdown-pane').parentElement
+      const pointerListeners: {
+        move?: (event: PointerEvent) => void
+        up?: (event: PointerEvent) => void
+      } = {}
+      const originalAddEventListener = window.addEventListener.bind(window)
+
+      vi.spyOn(window, 'addEventListener').mockImplementation((type, listener, options) => {
+        if (type === 'pointermove') {
+          pointerListeners.move = listener as (event: PointerEvent) => void
+        }
+        if (type === 'pointerup') {
+          pointerListeners.up = listener as (event: PointerEvent) => void
+        }
+        return originalAddEventListener(type, listener, options)
+      })
+
+      expect(markdownPaneWrapper).toHaveStyle({ width: '50%', flexBasis: '50%' })
+
+      vi.spyOn(layout, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1200, 800))
+
+      fireEvent.pointerDown(separator)
+
+      await act(async () => {
+        pointerListeners.move?.({ clientX: 900 } as PointerEvent)
+      })
+
+      await waitFor(() => {
+        expect(markdownPaneWrapper).toHaveStyle({ width: '30%', flexBasis: '30%' })
+      })
+
+      await act(async () => {
+        pointerListeners.move?.({ clientX: 250 } as PointerEvent)
+      })
+
+      await waitFor(() => {
+        expect(markdownPaneWrapper).toHaveStyle({ width: '65%', flexBasis: '65%' })
+      })
+
+      await act(async () => {
+        pointerListeners.up?.({} as PointerEvent)
+      })
+      fireEvent.doubleClick(separator)
+
+      await waitFor(() => {
+        expect(markdownPaneWrapper).toHaveStyle({ width: '50%', flexBasis: '50%' })
       })
     })
 
