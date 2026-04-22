@@ -9087,3 +9087,13 @@
   - student desktop active test
   - student desktop maximize-warning overlay
   - student desktop restored test with preserved draft
+## 2026-04-21 — Finalize Default Assignment Grading State
+
+- Changed assignment AI grading to save successful grades as final by default, while preserving draft only when a teacher explicitly chooses draft during manual grading.
+- Auto-finalized missing or empty submissions with `Missing` feedback, zero scores, and graded metadata so batch and single-student grading flows no longer leave these students ungraded.
+- Collapsed repeated AI grading failure text into concise grouped summaries in the teacher classroom header and kept the updated grading workspace stable across desktop and mobile verification.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/ai-grading.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/lib/ai-grading.ts' 'src/lib/server/assignment-ai-grading-runs.ts' 'src/app/api/teacher/assignments/[id]/auto-grade/route.ts' 'src/components/assignment-workspace/useTeacherStudentWorkController.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'tests/api/teacher/assignments-auto-grade.test.ts' 'tests/unit/ai-grading.test.ts' 'tests/components/TeacherStudentWorkPanel.test.tsx' 'tests/components/TeacherClassroomView.test.tsx'`
+- Visual verification screenshots: `/tmp/pika-teacher-grading.png`, `/tmp/pika-teacher-grading-mobile.png`, `/tmp/pika-student-assignments.png`

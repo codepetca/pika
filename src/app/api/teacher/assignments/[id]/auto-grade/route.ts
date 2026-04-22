@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { hasGradableAssignmentSubmission } from '@/lib/ai-grading'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -6,6 +7,7 @@ import { parseContentField } from '@/lib/tiptap-content'
 import {
   createOrResumeAssignmentAiGradingRun,
   gradeAssignmentDocWithAi,
+  markAssignmentDocMissingGrade,
 } from '@/lib/server/assignment-ai-grading-runs'
 import { assertTeacherOwnsAssignment } from '@/lib/server/repo-review'
 
@@ -74,18 +76,30 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
   }
 
   if (!doc) {
+    await markAssignmentDocMissingGrade({
+      supabase,
+      assignmentId: id,
+      studentId,
+      gradedBy: user.id,
+    })
     return NextResponse.json({
-      graded_count: 0,
-      skipped_count: 1,
+      graded_count: 1,
+      skipped_count: 0,
       errors: undefined,
     })
   }
 
   const studentWork = parseContentField(doc.content)
-  if (!studentWork.content || studentWork.content.length === 0) {
+  if (!hasGradableAssignmentSubmission(studentWork)) {
+    await markAssignmentDocMissingGrade({
+      supabase,
+      assignmentId: id,
+      studentId,
+      gradedBy: user.id,
+    })
     return NextResponse.json({
-      graded_count: 0,
-      skipped_count: 1,
+      graded_count: 1,
+      skipped_count: 0,
       errors: undefined,
     })
   }
@@ -95,6 +109,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
       supabase,
       assignment,
       assignmentDoc: doc,
+      gradedBy: user.id,
       telemetry: {
         operation: 'single_grade',
         requestedStrategy: 'single',

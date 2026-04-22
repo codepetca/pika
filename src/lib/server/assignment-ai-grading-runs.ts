@@ -1,5 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { gradeStudentWork, isRetryableAssignmentAiGradingError } from '@/lib/ai-grading'
+import {
+  gradeStudentWork,
+  hasGradableAssignmentSubmission,
+  isRetryableAssignmentAiGradingError,
+} from '@/lib/ai-grading'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { analyzeAuthenticity } from '@/lib/authenticity'
 import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
@@ -18,6 +22,7 @@ import type {
 const DEFAULT_MODEL = 'gpt-5-nano'
 const RETRY_BACKOFF_SECONDS = [15, 60, 180]
 const TIMEOUT_RETRY_BACKOFF_SECONDS = [7, 20, 45]
+const MISSING_ASSIGNMENT_GRADE_FEEDBACK = 'Missing'
 
 export const ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE = 4
 export const ASSIGNMENT_AI_GRADING_ITEM_CONCURRENCY = 2
@@ -42,6 +47,7 @@ type GradeAssignmentDocWithAiOptions = {
     feedback: string | null
     authenticity_score: number | null
   }
+  gradedBy?: string | null
   requestTimeoutMs?: number
   telemetry?: {
     operation?: string
@@ -263,16 +269,52 @@ async function maybeScoreAuthenticity(
     .eq('id', assignmentDocId)
 }
 
+export async function markAssignmentDocMissingGrade(opts: {
+  supabase: ServiceRoleSupabase
+  assignmentId: string
+  studentId: string
+  gradedBy?: string | null
+}): Promise<void> {
+  const now = new Date().toISOString()
+  const { error } = await opts.supabase
+    .from('assignment_docs')
+    .upsert({
+      assignment_id: opts.assignmentId,
+      student_id: opts.studentId,
+      score_completion: 0,
+      score_thinking: 0,
+      score_workflow: 0,
+      teacher_feedback_draft: MISSING_ASSIGNMENT_GRADE_FEEDBACK,
+      teacher_feedback_draft_updated_at: now,
+      ai_feedback_suggestion: null,
+      ai_feedback_suggested_at: null,
+      ai_feedback_model: null,
+      graded_at: now,
+      graded_by: opts.gradedBy ?? 'teacher',
+    }, { onConflict: 'assignment_id,student_id' })
+
+  if (error) {
+    throw new Error(`Failed to save missing grade for student ${opts.studentId}`)
+  }
+}
+
 export async function gradeAssignmentDocWithAi({
   supabase,
   assignment,
   assignmentDoc,
+  gradedBy,
   requestTimeoutMs,
   telemetry,
 }: GradeAssignmentDocWithAiOptions): Promise<void> {
   const studentWork = parseContentField(assignmentDoc.content)
-  if (!studentWork.content || studentWork.content.length === 0) {
-    throw new Error('No gradable content found')
+  if (!hasGradableAssignmentSubmission(studentWork)) {
+    await markAssignmentDocMissingGrade({
+      supabase,
+      assignmentId: assignment.id,
+      studentId: assignmentDoc.student_id,
+      gradedBy,
+    })
+    return
   }
 
   const result = await gradeStudentWork({
@@ -293,17 +335,20 @@ export async function gradeAssignmentDocWithAi({
     },
   })
 
+  const now = new Date().toISOString()
   const { error: updateError } = await supabase
     .from('assignment_docs')
     .update({
       score_completion: result.score_completion,
       score_thinking: result.score_thinking,
       score_workflow: result.score_workflow,
+      teacher_feedback_draft: result.feedback,
+      teacher_feedback_draft_updated_at: now,
       ai_feedback_suggestion: result.feedback,
-      ai_feedback_suggested_at: new Date().toISOString(),
+      ai_feedback_suggested_at: now,
       ai_feedback_model: result.model,
-      graded_at: null,
-      graded_by: null,
+      graded_at: now,
+      graded_by: gradedBy ?? 'teacher',
     })
     .eq('id', assignmentDoc.id)
 
@@ -507,6 +552,12 @@ async function processAssignmentAiRunItem(opts: {
   }
 
   if (!assignmentDoc) {
+    await markAssignmentDocMissingGrade({
+      supabase,
+      assignmentId: run.assignment_id,
+      studentId: item.student_id,
+      gradedBy: run.triggered_by,
+    })
     await updateRunItem(supabase, item.id, {
       status: 'skipped',
       skip_reason: 'missing_doc',
@@ -519,7 +570,13 @@ async function processAssignmentAiRunItem(opts: {
   }
 
   const studentWork = parseContentField(assignmentDoc.content)
-  if (!studentWork.content || studentWork.content.length === 0) {
+  if (!hasGradableAssignmentSubmission(studentWork)) {
+    await markAssignmentDocMissingGrade({
+      supabase,
+      assignmentId: run.assignment_id,
+      studentId: item.student_id,
+      gradedBy: run.triggered_by,
+    })
     await updateRunItem(supabase, item.id, {
       status: 'skipped',
       skip_reason: 'empty_doc',
@@ -536,6 +593,7 @@ async function processAssignmentAiRunItem(opts: {
       supabase,
       assignment,
       assignmentDoc,
+      gradedBy: run.triggered_by,
       requestTimeoutMs: ASSIGNMENT_AI_GRADING_REQUEST_TIMEOUT_MS,
       telemetry: {
         operation: 'background_batch_item',
@@ -640,11 +698,20 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   let gradableCount = 0
   let skippedMissingCount = 0
   let skippedEmptyCount = 0
+  const missingGradeWrites: Promise<void>[] = []
 
   const itemRows = normalizedStudentIds.map((studentId, index) => {
     const doc = docByStudentId.get(studentId)
     if (!doc) {
       skippedMissingCount += 1
+      missingGradeWrites.push(
+        markAssignmentDocMissingGrade({
+          supabase,
+          assignmentId: opts.assignmentId,
+          studentId,
+          gradedBy: opts.teacherId,
+        }),
+      )
       return {
         assignment_id: opts.assignmentId,
         student_id: studentId,
@@ -662,8 +729,16 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
     }
 
     const parsed = parseContentField(doc.content)
-    if (!parsed.content || parsed.content.length === 0) {
+    if (!hasGradableAssignmentSubmission(parsed)) {
       skippedEmptyCount += 1
+      missingGradeWrites.push(
+        markAssignmentDocMissingGrade({
+          supabase,
+          assignmentId: opts.assignmentId,
+          studentId,
+          gradedBy: opts.teacherId,
+        }),
+      )
       return {
         assignment_id: opts.assignmentId,
         student_id: studentId,
@@ -696,6 +771,10 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
       completed_at: null,
     }
   })
+
+  if (missingGradeWrites.length > 0) {
+    await Promise.all(missingGradeWrites)
+  }
 
   const initialStatus: AssignmentAiGradingRunStatus =
     gradableCount === 0 ? 'completed' : 'queued'

@@ -4,9 +4,11 @@ import { NextRequest } from 'next/server'
 const {
   createOrResumeAssignmentAiGradingRun,
   gradeAssignmentDocWithAi,
+  markAssignmentDocMissingGrade,
 } = vi.hoisted(() => ({
   createOrResumeAssignmentAiGradingRun: vi.fn(),
   gradeAssignmentDocWithAi: vi.fn(),
+  markAssignmentDocMissingGrade: vi.fn(),
 }))
 
 const { assertTeacherOwnsAssignment } = vi.hoisted(() => ({
@@ -28,6 +30,7 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/server/assignment-ai-grading-runs', () => ({
   createOrResumeAssignmentAiGradingRun,
   gradeAssignmentDocWithAi,
+  markAssignmentDocMissingGrade,
 }))
 
 vi.mock('@/lib/server/repo-review', () => ({
@@ -59,6 +62,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       classrooms: { teacher_id: 'teacher-1' },
     })
     gradeAssignmentDocWithAi.mockResolvedValue(undefined)
+    markAssignmentDocMissingGrade.mockResolvedValue(undefined)
     createOrResumeAssignmentAiGradingRun.mockResolvedValue({
       kind: 'created',
       run: {
@@ -147,6 +151,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
           student_id: 'student-1',
           feedback: 'Earlier feedback',
         }),
+        gradedBy: 'teacher-1',
         telemetry: expect.objectContaining({
           operation: 'single_grade',
           studentId: 'student-1',
@@ -155,7 +160,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     )
   })
 
-  it('skips legacy stringified empty docs without calling the grader', async () => {
+  it('marks legacy stringified empty docs as missing without calling the grader', async () => {
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'assignment_docs') {
         return {
@@ -193,11 +198,62 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
 
     expect(response.status).toBe(200)
     expect(data).toEqual({
-      graded_count: 0,
-      skipped_count: 1,
+      graded_count: 1,
+      skipped_count: 0,
       errors: undefined,
     })
     expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
+    expect(markAssignmentDocMissingGrade).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      gradedBy: 'teacher-1',
+    })
+  })
+
+  it('creates a missing grade when no assignment doc exists', async () => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignment_docs') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: null,
+                  error: null,
+                }),
+              })),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1'],
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data).toEqual({
+      graded_count: 1,
+      skipped_count: 0,
+      errors: undefined,
+    })
+    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
+    expect(markAssignmentDocMissingGrade).toHaveBeenCalledWith({
+      supabase: mockSupabaseClient,
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      gradedBy: 'teacher-1',
+    })
   })
 
   it('starts a resumable batch run for multi-student requests', async () => {

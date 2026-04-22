@@ -248,6 +248,23 @@ function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null
   return Math.min(Math.max(delay, 1000), 10_000)
 }
 
+function summarizeAssignmentAiGradingErrors(run: AssignmentAiGradingRunSummary): string {
+  const counts = new Map<string, number>()
+
+  for (const sample of run.error_samples) {
+    const message = sample.message.trim()
+    if (!message) continue
+    counts.set(message, (counts.get(message) || 0) + 1)
+  }
+
+  if (counts.size === 0) return ''
+
+  return Array.from(counts.entries())
+    .slice(0, 3)
+    .map(([message, count]) => (count > 1 ? `${count} students: ${message}` : message))
+    .join(' · ')
+}
+
 function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary): {
   info: string
   error: string
@@ -270,15 +287,12 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
   const summary = summaryParts.length > 0
     ? summaryParts.join(' • ')
     : 'No grading changes were needed'
-  const errorDetails = run.error_samples
-    .slice(0, 3)
-    .map((sample) => sample.message)
-    .join('\n')
+  const errorSummary = summarizeAssignmentAiGradingErrors(run)
 
   if (run.status === 'completed_with_errors' || run.status === 'failed') {
     return {
       info: '',
-      error: errorDetails ? `${summary}\n${errorDetails}` : summary,
+      error: errorSummary ? `${summary}\n${errorSummary}` : summary,
     }
   }
 
