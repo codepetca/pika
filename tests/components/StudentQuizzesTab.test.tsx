@@ -889,7 +889,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(splitContainerBack.className).toContain('lg:grid-cols-[30%_70%]')
   })
 
-  it('keeps the submit footer mounted while the right pane scrolls through a long active test', async () => {
+  it('renders the submit actions after the last question in an active test', async () => {
     let fullscreenElement: Element | null = null
 
     Object.defineProperty(document, 'fullscreenElement', {
@@ -975,10 +975,12 @@ describe('StudentQuizzesTab exam mode', () => {
 
     const detailPane = screen.getByTestId('student-test-detail-pane')
     const actionFooter = within(detailPane).getByTestId('student-quiz-action-footer')
-
-    fireEvent.scroll(detailPane, { target: { scrollTop: 1200 } })
+    const questionsStack = screen.getByText('Question 12?').closest('[data-question-id="q12"]')
+      ?.parentElement
 
     expect(detailPane.className).toContain('overflow-y-auto')
+    expect(questionsStack?.lastElementChild).toBe(actionFooter)
+    expect(actionFooter.className).not.toContain('sticky')
     expect(within(actionFooter).getByRole('button', { name: 'Submit' })).toBeInTheDocument()
     expect(within(actionFooter).getByText('Answer all questions to submit')).toBeInTheDocument()
   })

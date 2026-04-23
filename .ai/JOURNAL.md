@@ -9183,3 +9183,17 @@
 **Validation:**
 - `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/QuizModal.test.tsx`
 - Manual Playwright verification on `http://localhost:3002/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests` with a disposable teacher test (`Resizable divider check 1776880025837`): markdown pane width changed from `695px` to `515.688px` after dragging, and the student tests view remained visually unchanged.
+
+## 2026-04-22 — Move Test Submit Action To The End Of The Assessment Flow
+
+- Updated `StudentQuizForm` so test assessments render the submit panel inline after the last question instead of using the sticky floating footer. Quiz assessments keep the existing sticky footer behavior.
+- Covered the new placement in `StudentQuizForm.test.tsx` and updated the active-test regression in `StudentQuizzesTab.test.tsx` to assert the submit panel now appears after the final question.
+- Visually verified both affected surfaces on the live dev server: the teacher test preview popup and the student exam-mode test flow now show the submit control at the bottom of the question stack.
+
+**Validation:**
+- `pnpm test tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec eslint src/components/StudentQuizForm.tsx tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `bash "$PIKA_WORKTREE/.codex/skills/pika-ui-verify/scripts/ui_verify.sh" 'classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests'` with `E2E_BASE_URL=http://localhost:3002`
+- Manual Playwright screenshots:
+- `/tmp/pika-teacher-test-preview-submit-end.png`
+- `/tmp/pika-student-test-submit-end.png`
