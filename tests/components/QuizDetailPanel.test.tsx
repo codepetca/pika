@@ -306,11 +306,13 @@ describe('QuizDetailPanel', () => {
 
       expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('2 questions')
       expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('9 pts')
-      expect(within(editorPane).getByRole('button', { name: 'Expand all sections' })).toBeInTheDocument()
-      expect(within(editorPane).getByRole('button', { name: 'Collapse question 1' })).toBeInTheDocument()
-      expect(within(editorPane).getByRole('button', { name: 'Expand question 2' })).toBeInTheDocument()
-      expect(within(editorPane).getByRole('button', { name: 'Duplicate question 1' })).toBeInTheDocument()
-      expect(within(editorPane).getByRole('button', { name: 'Delete question 1' })).toBeInTheDocument()
+      await waitFor(() => {
+        expect(within(editorPane).getByRole('button', { name: 'Expand all sections' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Collapse question 1' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Expand question 2' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Duplicate question 1' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Delete question 1' })).toBeInTheDocument()
+      })
       expect(within(editorPane).getByRole('button', { name: '+ MC Question' })).toHaveClass('bg-primary')
       expect(within(editorPane).getByRole('button', { name: 'Choose question type' })).toBeInTheDocument()
       expect(within(editorPane).getByLabelText('Question 1 points')).toHaveValue(6)
@@ -1257,6 +1259,7 @@ Correct Option: 2
 
     it('applies valid markdown and saves through draft endpoint', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const onQuizUpdate = vi.fn()
       fetchMock
         .mockResolvedValueOnce({
           ok: true,
@@ -1326,7 +1329,7 @@ Correct Option: 2
           quiz={testQuiz}
           classroomId="classroom-1"
           apiBasePath="/api/teacher/tests"
-          onQuizUpdate={vi.fn()}
+          onQuizUpdate={onQuizUpdate}
         />,
         { wrapper: Wrapper }
       )
@@ -1388,6 +1391,11 @@ _None_
       expect(body.content.show_results).toBe(true)
       expect(body.content.questions).toHaveLength(2)
       expect(body.documents).toEqual([])
+      expect(onQuizUpdate).toHaveBeenLastCalledWith({
+        title: 'Markdown Test Updated',
+        show_results: true,
+        questions_count: 2,
+      })
     })
 
     it('blocks apply when markdown is invalid', async () => {

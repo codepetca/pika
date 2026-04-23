@@ -9251,3 +9251,13 @@
 - `pnpm exec vitest run tests/lib/test-ai-grading-runs.test.ts`
 - `pnpm exec vitest run tests/api/teacher/test-auto-grade-runs.test.ts tests/unit/ai-test-grading.test.ts`
 - `pnpm test`
+## 2026-04-22 — Keep Test Authoring Workspace Stable Across Autosave
+
+- Changed `QuizDetailPanel` to emit a lightweight saved-summary payload (`title`, `show_results`, `questions_count`) after successful draft saves instead of only signaling a generic refresh.
+- Updated `TeacherTestsTab` to apply that payload directly to local selected-test state so adding/removing questions no longer forces a blocking full tests-list reload and spinner swap.
+- Added regression coverage for the saved-summary callback and for keeping the selected test workspace mounted after autosave, plus tightened one flaky summary-detail accordion assertion to wait for settled UI state.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- Visual verification via Playwright screenshots on `/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests`, including teacher desktop/mobile, student mobile, and a teacher interaction capture before/after autosave.

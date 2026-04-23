@@ -33,6 +33,7 @@ import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { markdownToTest, testToMarkdown, TEST_MARKDOWN_AI_SCHEMA } from '@/lib/test-markdown'
 import type {
+  AssessmentEditorSummaryUpdate,
   JsonPatchOperation,
   QuizQuestion,
   QuizWithStats,
@@ -44,7 +45,7 @@ interface Props {
   quiz: QuizWithStats
   classroomId: string
   apiBasePath?: string
-  onQuizUpdate: () => void
+  onQuizUpdate: (update?: AssessmentEditorSummaryUpdate) => void
   onRequestDelete?: () => void
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   onPendingMarkdownImportChange?: (pending: boolean) => void
@@ -95,6 +96,16 @@ function clampSummaryDetailMarkdownWidthPercent(value: number, totalWidth: numbe
   )
 
   return roundPercent(clampNumber(value, minPercent, maxPercent))
+}
+
+function summarizeDraftContent(
+  content: Pick<AssessmentEditorDraft, 'title' | 'show_results' | 'questions'>
+): AssessmentEditorSummaryUpdate {
+  return {
+    title: content.title,
+    show_results: content.show_results,
+    questions_count: content.questions.length,
+  }
 }
 
 export function QuizDetailPanel({
@@ -540,6 +551,19 @@ export function QuizDetailPanel({
           | undefined
         if (serverDraft?.content) {
           applyServerDraft(serverDraft)
+          onQuizUpdate({
+            title:
+              typeof serverDraft.content.title === 'string'
+                ? serverDraft.content.title
+                : contentDraft.title,
+            show_results:
+              typeof serverDraft.content.show_results === 'boolean'
+                ? serverDraft.content.show_results
+                : contentDraft.show_results,
+            questions_count: Array.isArray(serverDraft.content.questions)
+              ? serverDraft.content.questions.length
+              : contentDraft.questions.length,
+          })
         } else {
           draftVersionRef.current += 1
           lastSavedDraftRef.current = nextSerialized
@@ -547,8 +571,8 @@ export function QuizDetailPanel({
           setSaveStatus('saved')
           setError('')
           setConflictDraft(null)
+          onQuizUpdate(summarizeDraftContent(contentDraft))
         }
-        onQuizUpdate()
         return true
       } catch (saveError: any) {
         console.error('Error saving draft:', saveError)

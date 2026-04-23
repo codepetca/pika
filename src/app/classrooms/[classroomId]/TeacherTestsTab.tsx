@@ -17,8 +17,15 @@ import { getQuizExitCount } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, Tooltip } from '@/ui'
-import type { Classroom, Quiz, QuizFocusSummary, QuizWithStats, TestAiGradingRunSummary } from '@/types'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, Select, Tooltip } from '@/ui'
+import type {
+  AssessmentEditorSummaryUpdate,
+  Classroom,
+  Quiz,
+  QuizFocusSummary,
+  QuizWithStats,
+  TestAiGradingRunSummary,
+} from '@/types'
 
 interface Props {
   classroom: Classroom
@@ -325,6 +332,29 @@ export function TeacherTestsTab({
       potentialAiSends: ungradedResponses,
     }
   }, [batchSelectedStudents, gradingQuestions])
+
+  const applySelectedTestDraftSummary = useCallback(
+    (update: AssessmentEditorSummaryUpdate) => {
+      if (!selectedTestId) return
+
+      setTests((prev) =>
+        prev.map((test) =>
+          test.id === selectedTestId
+            ? {
+                ...test,
+                title: update.title,
+                show_results: update.show_results,
+                stats: {
+                  ...test.stats,
+                  questions_count: update.questions_count,
+                },
+              }
+            : test
+        )
+      )
+    },
+    [selectedTestId]
+  )
 
   const loadTests = useCallback(async () => {
     setLoading(true)
@@ -1461,7 +1491,11 @@ export function TeacherTestsTab({
                 quiz={selectedTest}
                 classroomId={classroom.id}
                 apiBasePath={apiBasePath}
-                onQuizUpdate={() => {
+                onQuizUpdate={(update) => {
+                  if (update) {
+                    applySelectedTestDraftSummary(update)
+                    return
+                  }
                   void loadTests()
                 }}
                 onPendingMarkdownImportChange={setHasPendingMarkdownImport}

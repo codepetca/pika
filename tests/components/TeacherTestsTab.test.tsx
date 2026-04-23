@@ -48,12 +48,18 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     showPreviewButton,
     showResultsTab,
     onPendingMarkdownImportChange,
+    onQuizUpdate,
   }: {
     quiz: QuizWithStats
     testQuestionLayout?: string
     showPreviewButton?: boolean
     showResultsTab?: boolean
     onPendingMarkdownImportChange?: (pending: boolean) => void
+    onQuizUpdate?: (update?: {
+      title: string
+      show_results: boolean
+      questions_count: number
+    }) => void
   }) => (
     <div
       data-testid="mock-test-detail"
@@ -67,6 +73,18 @@ vi.mock('@/components/QuizDetailPanel', () => ({
       </button>
       <button type="button" onClick={() => onPendingMarkdownImportChange?.(false)}>
         Clear pending markdown
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onQuizUpdate?.({
+            title: `${quiz.title} Updated`,
+            show_results: false,
+            questions_count: 0,
+          })
+        }
+      >
+        Simulate autosave update
       </button>
     </div>
   ),
@@ -261,6 +279,28 @@ describe('TeacherTestsTab', () => {
       expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
       expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
     })
+  })
+
+  it('keeps the selected workspace mounted and updates local test metadata after autosave', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate autosave update' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test Updated')
+      expect(screen.getByText('Unit Test Updated')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+    })
+
+    expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
   it('opens a newly created test directly into authoring mode', async () => {
