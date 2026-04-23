@@ -266,36 +266,62 @@ export function TestQuestionEditor({
   const openResponseEditor =
     state.question_type === 'open_response' ? (
       <div
+        data-testid={`question-${question.id}-answer-section`}
         className={
           variant === 'accordion'
-            ? 'space-y-3 border-t border-border bg-surface-2 px-4 py-4'
+            ? 'border-t border-border bg-surface p-px'
             : 'space-y-3 rounded-md border border-border bg-surface-2 px-4 py-4'
         }
       >
-        {variant === 'card' && isEditable ? (
-          <button
-            type="button"
-            onClick={() => setIsAnswerSectionOpen((prev) => !prev)}
-            className="w-full text-left text-xs font-semibold uppercase tracking-wide text-text-muted hover:text-text-default"
-          >
-            {isAnswerSectionOpen
-              ? 'Hide Grading Notes'
-              : state.answer_key.trim() || state.sample_solution.trim()
-                ? 'Grading Notes Added'
-                : 'Add Grading Notes'}
-          </button>
-        ) : (
-          <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Key</p>
-        )}
+        <div
+          className={
+            variant === 'accordion'
+              ? 'space-y-3 rounded-md bg-surface-2 px-4 py-4'
+              : ''
+          }
+        >
+          {variant === 'card' && isEditable ? (
+            <button
+              type="button"
+              onClick={() => setIsAnswerSectionOpen((prev) => !prev)}
+              className="w-full text-left text-xs font-semibold uppercase tracking-wide text-text-muted hover:text-text-default"
+            >
+              {isAnswerSectionOpen
+                ? 'Hide Grading Notes'
+                : state.answer_key.trim() || state.sample_solution.trim()
+                  ? 'Grading Notes Added'
+                  : 'Add Grading Notes'}
+            </button>
+          ) : (
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Key</p>
+          )}
 
-        {variant !== 'card' || isAnswerSectionOpen ? (
-          <div className="space-y-3">
-            {variant === 'card' && isEditable ? null : (
-              <div>
-                {variant !== 'card' ? null : (
-                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Key</p>
-                )}
-                {isEditable ? (
+          {variant !== 'card' || isAnswerSectionOpen ? (
+            <div className="space-y-3">
+              {variant === 'card' && isEditable ? null : (
+                <div>
+                  {variant !== 'card' ? null : (
+                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Key</p>
+                  )}
+                  {isEditable ? (
+                    <textarea
+                      value={state.answer_key}
+                      onChange={(event) => updateState({ answer_key: event.target.value })}
+                      onBlur={() => handleSave()}
+                      placeholder="Enter an optional answer key for AI-assisted grading..."
+                      rows={4}
+                      className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  ) : (
+                    <div className="min-h-[96px] rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default whitespace-pre-wrap">
+                      {state.answer_key || 'No answer key provided.'}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {variant === 'card' && isEditable ? (
+                <>
                   <textarea
                     value={state.answer_key}
                     onChange={(event) => updateState({ answer_key: event.target.value })}
@@ -304,37 +330,6 @@ export function TestQuestionEditor({
                     rows={4}
                     className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                ) : (
-                  <div className="min-h-[96px] rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default whitespace-pre-wrap">
-                    {state.answer_key || 'No answer key provided.'}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {variant === 'card' && isEditable ? (
-              <>
-                <textarea
-                  value={state.answer_key}
-                  onChange={(event) => updateState({ answer_key: event.target.value })}
-                  onBlur={() => handleSave()}
-                  placeholder="Enter an optional answer key for AI-assisted grading..."
-                  rows={4}
-                  className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <textarea
-                  value={state.sample_solution}
-                  onChange={(event) => updateState({ sample_solution: event.target.value })}
-                  onBlur={() => handleSave()}
-                  placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
-                  rows={6}
-                  className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </>
-            ) : (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Sample Solution</p>
-                {isEditable ? (
                   <textarea
                     value={state.sample_solution}
                     onChange={(event) => updateState({ sample_solution: event.target.value })}
@@ -343,15 +338,29 @@ export function TestQuestionEditor({
                     rows={6}
                     className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                ) : (
-                  <div className="min-h-[128px] rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default whitespace-pre-wrap">
-                    {state.sample_solution || 'No sample solution provided.'}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ) : null}
+                </>
+              ) : (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Sample Solution</p>
+                  {isEditable ? (
+                    <textarea
+                      value={state.sample_solution}
+                      onChange={(event) => updateState({ sample_solution: event.target.value })}
+                      onBlur={() => handleSave()}
+                      placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
+                      rows={6}
+                      className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  ) : (
+                    <div className="min-h-[128px] rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default whitespace-pre-wrap">
+                      {state.sample_solution || 'No sample solution provided.'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
     ) : null
 

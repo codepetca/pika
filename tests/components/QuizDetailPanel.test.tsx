@@ -306,7 +306,7 @@ describe('QuizDetailPanel', () => {
 
       expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('2 questions')
       expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('9 pts')
-      expect(within(editorPane).getByRole('button', { name: 'Expand all questions' })).toBeInTheDocument()
+      expect(within(editorPane).getByRole('button', { name: 'Expand all sections' })).toBeInTheDocument()
       expect(within(editorPane).getByRole('button', { name: 'Collapse question 1' })).toBeInTheDocument()
       expect(within(editorPane).getByRole('button', { name: 'Expand question 2' })).toBeInTheDocument()
       expect(within(editorPane).getByRole('button', { name: 'Duplicate question 1' })).toBeInTheDocument()
@@ -315,6 +315,7 @@ describe('QuizDetailPanel', () => {
       expect(within(editorPane).getByRole('button', { name: 'Choose question type' })).toBeInTheDocument()
       expect(within(editorPane).getByLabelText('Question 1 points')).toHaveValue(6)
       expect(within(editorPane).getByLabelText('Question 1 code response')).toBeChecked()
+      expect(within(editorPane).getByTestId('question-sq1-answer-section')).toHaveClass('bg-surface', 'p-px')
       expect(within(editorPane).getByTestId('question-sq2-collapsed-summary')).toHaveTextContent(
         'Which traversal visits the root node first?'
       )
@@ -350,10 +351,11 @@ describe('QuizDetailPanel', () => {
         expect(within(editorPane).getByRole('button', { name: 'Add Document' })).toBeInTheDocument()
       })
 
-      fireEvent.click(within(editorPane).getByRole('button', { name: 'Expand all questions' }))
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Expand all sections' }))
 
       await waitFor(() => {
-        expect(within(editorPane).getByRole('button', { name: 'Collapse all questions' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Collapse all sections' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Collapse documents' })).toBeInTheDocument()
         expect(within(editorPane).getByLabelText('Question 2 points')).toHaveValue(3)
         expect(within(editorPane).getByDisplayValue('Which traversal visits the root node first?')).toBeInTheDocument()
         expect(within(editorPane).queryByTestId('question-sq2-collapsed-summary')).not.toBeInTheDocument()
@@ -362,10 +364,11 @@ describe('QuizDetailPanel', () => {
         expect(within(editorPane).getByDisplayValue('Postorder')).toBeInTheDocument()
       })
 
-      fireEvent.click(within(editorPane).getByRole('button', { name: 'Collapse all questions' }))
+      fireEvent.click(within(editorPane).getByRole('button', { name: 'Collapse all sections' }))
 
       await waitFor(() => {
-        expect(within(editorPane).getByRole('button', { name: 'Expand all questions' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Expand all sections' })).toBeInTheDocument()
+        expect(within(editorPane).getByRole('button', { name: 'Expand documents' })).toBeInTheDocument()
         expect(within(editorPane).queryByDisplayValue('Explain the runtime complexity of your solution.')).not.toBeInTheDocument()
         expect(within(editorPane).queryByDisplayValue('Which traversal visits the root node first?')).not.toBeInTheDocument()
         expect(within(editorPane).getByTestId('question-sq1-collapsed-summary')).toHaveTextContent(

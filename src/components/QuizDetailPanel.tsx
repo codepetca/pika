@@ -377,6 +377,7 @@ export function QuizDetailPanel({
   const { width: summaryDetailWorkspaceWidth } = useRefRect(summaryDetailWorkspaceRef, {
     enabled: usesSummaryDetailQuestions,
   })
+  const hasInlineDocumentsCard = usesSummaryDetailQuestions
   const resolvedShowResultsTab = showResultsTab ?? !isTestsView
   const totalQuestionPoints = useMemo(
     () =>
@@ -402,6 +403,10 @@ export function QuizDetailPanel({
       ),
     [summaryDetailMarkdownWidthPercent, summaryDetailWorkspaceWidth]
   )
+  const hasCollapsibleEditorSections = questions.length > 0 || hasInlineDocumentsCard
+  const areAllEditorSectionsExpanded =
+    (questions.length === 0 || areAllQuestionsExpanded) &&
+    (!hasInlineDocumentsCard || isDocumentsCardExpanded)
 
   useEffect(() => {
     if (!isTestsView) return
@@ -941,12 +946,18 @@ export function QuizDetailPanel({
   }
 
   function handleToggleAllQuestions() {
+    const nextExpandedState = !areAllEditorSectionsExpanded
+
+    if (hasInlineDocumentsCard) {
+      setIsDocumentsCardExpanded(nextExpandedState)
+    }
+
     if (questions.length === 0) {
       setExpandedQuestionIds([])
       return
     }
 
-    setExpandedQuestionIds(areAllQuestionsExpanded ? [] : questions.map((question) => question.id))
+    setExpandedQuestionIds(nextExpandedState ? questions.map((question) => question.id) : [])
   }
 
   const clearSummaryDetailResizeListeners = useCallback(() => {
@@ -1475,12 +1486,12 @@ export function QuizDetailPanel({
                 type="button"
                 variant="ghost"
                 size="sm"
-                aria-label={areAllQuestionsExpanded ? 'Collapse all questions' : 'Expand all questions'}
+                aria-label={areAllEditorSectionsExpanded ? 'Collapse all sections' : 'Expand all sections'}
                 onClick={handleToggleAllQuestions}
-                disabled={questions.length === 0}
+                disabled={!hasCollapsibleEditorSections}
                 className="h-8 w-8 shrink-0 p-0 text-text-muted hover:text-text-default"
               >
-                {areAllQuestionsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {areAllEditorSectionsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </Button>
             </div>
           </div>

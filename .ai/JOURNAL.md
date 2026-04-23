@@ -9230,3 +9230,13 @@
   - teacher mobile tests tab
   - teacher mobile grading workspace
   - student mobile tests tab
+
+## 2026-04-23 — Summary-Detail Test Editor Section Toggles
+
+- Updated the summary-detail test editor so the header-level expand/collapse control now treats the inline documents card as part of the same collapsible surface as the questions.
+- Tightened the open-response answer area styling in the accordion editor by wrapping it in a thin `bg-surface` outline so the grading notes region reads as part of the question card instead of a separate block.
+- Extended the component test coverage to assert the new section-wide toggle labeling and the answer-section surface treatment.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- Browser verification on seeded teacher/student tests views plus focused teacher authoring screenshots
