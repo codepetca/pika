@@ -2739,7 +2739,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
   })
 
-  it('logs sustained fullscreen loss without obscuring the active test', async () => {
+  it('locks after sustained fullscreen loss when the window remains non-compliant', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -2871,8 +2871,8 @@ describe('StudentQuizzesTab exam mode', () => {
       vi.advanceTimersByTime(450)
     })
 
-    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
-    expect(screen.getByText('2 + 2 = ?')).toBeVisible()
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    expect(screen.getByText('2 + 2 = ?')).not.toBeVisible()
     expect(
       focusBodies.some(
         (body) =>
@@ -3039,7 +3039,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
   })
 
-  it('logs reduced exam mode windows without obscuring the active test', async () => {
+  it('locks after the grace window when exam mode window is reduced', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -3176,8 +3176,8 @@ describe('StudentQuizzesTab exam mode', () => {
       vi.advanceTimersByTime(450)
     })
 
-    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
-    expect(screen.getByText('2 + 2 = ?')).toBeVisible()
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    expect(screen.getByText('2 + 2 = ?')).not.toBeVisible()
     expect(
       focusBodies.some(
         (body) =>
@@ -3579,8 +3579,7 @@ describe('StudentQuizzesTab exam mode', () => {
       vi.advanceTimersByTime(450)
     })
 
-    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
-    expect(screen.getByDisplayValue('TDD clarifies expected behavior before coding.')).toBeVisible()
+    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
 
     Object.defineProperty(window, 'innerWidth', {
       configurable: true,

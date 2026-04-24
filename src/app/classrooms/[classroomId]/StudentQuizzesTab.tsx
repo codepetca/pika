@@ -109,7 +109,7 @@ function isMobileBrowserWithoutFullscreen(): boolean {
 const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 400
 const EXAM_WINDOW_MIN_WIDTH_RATIO = 0.92
 const EXAM_WINDOW_MIN_HEIGHT_RATIO = 0.88
-const EXAM_LOCK_OVERLAY_ENABLED = false
+const EXAM_LOCK_OVERLAY_ENABLED = true
 const DOCS_EXIT_SUPPRESSION_WINDOW_MS = 1200
 const UNSUPPRESSED_ROUTE_EXIT_SOURCES = new Set([
   'tab_navigation',

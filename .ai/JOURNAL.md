@@ -9298,3 +9298,15 @@
 - `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx --testNamePattern "mobile browsers without fullscreen"`
 - `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
 - Playwright mobile WebKit repro before/after patch confirmed the post-autosave `Window must be maximized in exam mode` overlay no longer appears and `PATCH /api/student/tests/:id/attempt` returns 200; screenshot saved at `test-results/mobile-exam-overlay-disabled.png`.
+
+## 2026-04-24 — Restore Exam Lock Overlay
+
+- Re-enabled the exam lock overlay for desktop/non-mobile exam mode window and fullscreen non-compliance.
+- Kept the mobile/no-Fullscreen fallback from the blank-screen fix so compact touch browsers that cannot request fullscreen are treated as compliant instead of being trapped behind the overlay.
+- Restored desktop regression expectations that sustained fullscreen loss or reduced exam windows obscure the active test, while preserving mobile regression coverage for saved-test re-entry and MC autosave.
+
+**Validation:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
+- `bash scripts/verify-env.sh`
+- Browser verification confirmed the restored desktop overlay with `exam-content-obscurer` and blocker active; screenshot saved at `test-results/desktop-exam-lock-overlay-restored.png`.
