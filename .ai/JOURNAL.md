@@ -9163,3 +9163,49 @@
 
 **Validation:**
 - Manual migration diff review for semantic parity of the function body and permission changes.
+
+## 2026-04-22 — Fix New Test Title Placeholder Copy
+
+- Updated `QuizModal` to derive a shared assessment label so the create/edit heading and title placeholder both reflect `quiz` versus `test` correctly.
+- Added a focused component regression test to lock the new-test placeholder copy and preserve quiz copy in edit mode.
+- Visually verified the teacher new-test modal on desktop and mobile plus the student tests screen against a live dev server. Teacher mobile tests tab still has pre-existing horizontal overflow unrelated to this change.
+
+**Validation:**
+- `pnpm test tests/components/QuizModal.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- Manual Playwright verification on `http://localhost:3001/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests`
+
+## 2026-04-22 — Add Draggable Resize For Teacher Test Authoring Split
+
+- Added a draggable divider to the teacher test summary/detail authoring workspace in `QuizDetailPanel`, with local width state and double-click reset back to 50/50.
+- Clamped the markdown pane to a minimum of `360px` and the structured editor pane to a minimum of `420px`, so the allowed percentage range adjusts to the live workspace width instead of using a fixed cap.
+- Added a component regression that exercises drag-to-clamp in both directions and reset-on-double-click for the new divider.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/QuizModal.test.tsx`
+- Manual Playwright verification on `http://localhost:3002/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests` with a disposable teacher test (`Resizable divider check 1776880025837`): markdown pane width changed from `695px` to `515.688px` after dragging, and the student tests view remained visually unchanged.
+
+## 2026-04-22 — Move Test Submit Action To The End Of The Assessment Flow
+
+- Updated `StudentQuizForm` so test assessments render the submit panel inline after the last question instead of using the sticky floating footer. Quiz assessments keep the existing sticky footer behavior.
+- Covered the new placement in `StudentQuizForm.test.tsx` and updated the active-test regression in `StudentQuizzesTab.test.tsx` to assert the submit panel now appears after the final question.
+- Visually verified both affected surfaces on the live dev server: the teacher test preview popup and the student exam-mode test flow now show the submit control at the bottom of the question stack.
+
+**Validation:**
+- `pnpm test tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec eslint src/components/StudentQuizForm.tsx tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `bash "$PIKA_WORKTREE/.codex/skills/pika-ui-verify/scripts/ui_verify.sh" 'classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests'` with `E2E_BASE_URL=http://localhost:3002`
+- Manual Playwright screenshots:
+- `/tmp/pika-teacher-test-preview-submit-end.png`
+- `/tmp/pika-student-test-submit-end.png`
+
+## 2026-04-23 — Harden Test Authoring Divider Cleanup
+
+- Updated the test authoring summary/detail divider in `QuizDetailPanel` to clean up drag listeners on interrupted drags, including window blur, pointer cancel, lost pointer capture, and unmount.
+- Added a focused regression in `QuizDetailPanel.test.tsx` that verifies interrupted drags remove the active listeners instead of leaving resize behavior stuck.
+- Added a student exam-mode regression in `StudentQuizzesTab.test.tsx` to assert ordinary in-window pointer dragging does not post exit or window-unmaximize focus events.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec eslint src/components/QuizDetailPanel.tsx tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- Manual Playwright verification on `http://localhost:3001/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests` confirmed the teacher authoring divider still resizes normally after the cleanup change (`695px` to `840.938px` markdown pane width).
+- Live student exam-mode drag re-check was not possible because the seeded `Seed Test - Unattempted Demo` student attempt is already submitted in this environment; the no-false-exit path is covered by the automated regression instead.

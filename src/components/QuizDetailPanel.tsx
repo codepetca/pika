@@ -19,6 +19,7 @@ import {
 import { Check, ChevronDown, ChevronUp, Copy, ExternalLink, Plus, RotateCcw, X } from 'lucide-react'
 import { Button, EmptyState, SplitButton, Tooltip, cn } from '@/ui'
 import { Spinner } from '@/components/Spinner'
+import { useRefRect } from '@/hooks/use-element-rect'
 import { canEditQuizQuestions } from '@/lib/quizzes'
 import { QuizQuestionEditor } from '@/components/QuizQuestionEditor'
 import { TestQuestionEditor } from '@/components/TestQuestionEditor'
@@ -60,6 +61,40 @@ type AssessmentEditorDraft = {
   questions: QuizQuestion[]
   source_format?: 'markdown'
   source_markdown?: string
+}
+
+const TEST_SUMMARY_DETAIL_LAYOUT = {
+  defaultMarkdownWidth: 50,
+  minMarkdownWidthPx: 360,
+  minEditorWidthPx: 420,
+} as const
+
+function roundPercent(value: number): number {
+  return Math.round(value * 10) / 10
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (max <= min) return min
+  return Math.min(max, Math.max(min, value))
+}
+
+function clampSummaryDetailMarkdownWidthPercent(value: number, totalWidth: number): number {
+  if (!Number.isFinite(value)) {
+    return TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
+  }
+
+  if (!Number.isFinite(totalWidth) || totalWidth <= 0) {
+    return roundPercent(value)
+  }
+
+  const minPercent =
+    (TEST_SUMMARY_DETAIL_LAYOUT.minMarkdownWidthPx / totalWidth) * 100
+  const maxPercent = Math.max(
+    minPercent,
+    ((totalWidth - TEST_SUMMARY_DETAIL_LAYOUT.minEditorWidthPx) / totalWidth) * 100,
+  )
+
+  return roundPercent(clampNumber(value, minPercent, maxPercent))
 }
 
 export function QuizDetailPanel({
@@ -130,6 +165,11 @@ export function QuizDetailPanel({
   const autoSyncAttemptedRef = useRef<Set<string>>(new Set())
   const previousPreviewRequestTokenRef = useRef(previewRequestToken)
   const previousQuestionIdsRef = useRef<string[]>([])
+  const summaryDetailWorkspaceRef = useRef<HTMLDivElement>(null)
+  const summaryDetailResizeCleanupRef = useRef<(() => void) | null>(null)
+  const [summaryDetailMarkdownWidthPercent, setSummaryDetailMarkdownWidthPercent] = useState<number>(
+    TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
+  )
 
   const requestCurrentWindowFullscreen = useCallback(async () => {
     const fullscreenElement = document.documentElement as HTMLElement & {
@@ -334,6 +374,9 @@ export function QuizDetailPanel({
         ? 'Editing markdown'
         : 'Markdown mirror'
   const usesSummaryDetailQuestions = isTestsView && testQuestionLayout === 'summary-detail'
+  const { width: summaryDetailWorkspaceWidth } = useRefRect(summaryDetailWorkspaceRef, {
+    enabled: usesSummaryDetailQuestions,
+  })
   const resolvedShowResultsTab = showResultsTab ?? !isTestsView
   const totalQuestionPoints = useMemo(
     () =>
@@ -351,6 +394,14 @@ export function QuizDetailPanel({
   )
   const areAllQuestionsExpanded =
     questions.length > 0 && questions.every((question) => expandedQuestionIds.includes(question.id))
+  const clampedSummaryDetailMarkdownWidthPercent = useMemo(
+    () =>
+      clampSummaryDetailMarkdownWidthPercent(
+        summaryDetailMarkdownWidthPercent,
+        summaryDetailWorkspaceWidth
+      ),
+    [summaryDetailMarkdownWidthPercent, summaryDetailWorkspaceWidth]
+  )
 
   useEffect(() => {
     if (!isTestsView) return
@@ -898,6 +949,82 @@ export function QuizDetailPanel({
     setExpandedQuestionIds(areAllQuestionsExpanded ? [] : questions.map((question) => question.id))
   }
 
+  const clearSummaryDetailResizeListeners = useCallback(() => {
+    summaryDetailResizeCleanupRef.current?.()
+    summaryDetailResizeCleanupRef.current = null
+  }, [])
+
+  const handleSummaryDetailResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!summaryDetailWorkspaceRef.current) return
+
+    clearSummaryDetailResizeListeners()
+    event.preventDefault()
+
+    const divider = event.currentTarget
+    const pointerId = event.pointerId
+    const { right, width } = summaryDetailWorkspaceRef.current.getBoundingClientRect()
+    if (width <= 0) return
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const nextMarkdownWidth = ((right - moveEvent.clientX) / width) * 100
+      setSummaryDetailMarkdownWidthPercent(
+        clampSummaryDetailMarkdownWidthPercent(nextMarkdownWidth, width)
+      )
+    }
+
+    const handleResizeEnd = () => {
+      if (summaryDetailResizeCleanupRef.current !== cleanup) return
+      summaryDetailResizeCleanupRef.current = null
+      cleanup()
+    }
+
+    const handleLostPointerCapture = () => {
+      handleResizeEnd()
+    }
+
+    const cleanup = () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handleResizeEnd)
+      window.removeEventListener('pointercancel', handleResizeEnd)
+      window.removeEventListener('blur', handleResizeEnd)
+      divider.removeEventListener('lostpointercapture', handleLostPointerCapture)
+
+      if (divider.hasPointerCapture?.(pointerId)) {
+        try {
+          divider.releasePointerCapture(pointerId)
+        } catch {
+          // Pointer capture may already be released by the browser.
+        }
+      }
+    }
+
+    summaryDetailResizeCleanupRef.current = cleanup
+
+    if (divider.setPointerCapture) {
+      try {
+        divider.setPointerCapture(pointerId)
+      } catch {
+        // Browsers may reject pointer capture for synthetic or interrupted events.
+      }
+    }
+
+    divider.addEventListener('lostpointercapture', handleLostPointerCapture)
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handleResizeEnd)
+    window.addEventListener('pointercancel', handleResizeEnd)
+    window.addEventListener('blur', handleResizeEnd)
+  }, [clearSummaryDetailResizeListeners])
+
+  const handleSummaryDetailResizeReset = useCallback(() => {
+    setSummaryDetailMarkdownWidthPercent(TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      clearSummaryDetailResizeListeners()
+    }
+  }, [clearSummaryDetailResizeListeners])
+
   function handleConflictReload() {
     if (!conflictDraft) return
     applyServerDraft({
@@ -1315,13 +1442,23 @@ export function QuizDetailPanel({
   )
 
   const testsSummaryDetailPanel = (
-    <SummaryDetailWorkspaceShell
-      orientation="row"
+    <div
+      ref={summaryDetailWorkspaceRef}
       data-testid="test-summary-detail-layout"
-      leftPaneClassName="min-h-0 bg-surface-2"
-      rightPaneClassName="min-h-0"
-      rightWidthPercent={50}
-      left={
+      className="flex h-full min-h-0 flex-1"
+    >
+      <SummaryDetailWorkspaceShell
+        className="flex-1"
+        orientation="row"
+        leftPaneClassName="min-h-0 bg-surface-2"
+        rightPaneClassName="min-h-0"
+        rightWidthPercent={clampedSummaryDetailMarkdownWidthPercent}
+        divider={{
+          label: 'Resize question and markdown panes',
+          onPointerDown: handleSummaryDetailResizeStart,
+          onDoubleClick: handleSummaryDetailResizeReset,
+        }}
+        left={
         <div data-testid="test-question-editor-pane" className="flex h-full min-h-0 flex-col">
           <div className="border-b border-border px-3 py-3">
             <div className="flex items-center justify-between gap-3">
@@ -1400,15 +1537,16 @@ export function QuizDetailPanel({
             ) : null}
           </div>
         </div>
-      }
-      right={
+        }
+        right={
         <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col" data-testid="test-question-markdown-pane">
           <div className="flex min-h-0 flex-1 flex-col p-4">
             {testsMarkdownPanel}
           </div>
         </div>
-      }
-    />
+        }
+      />
+    </div>
   )
 
   if (loading) {

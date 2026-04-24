@@ -889,7 +889,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(splitContainerBack.className).toContain('lg:grid-cols-[30%_70%]')
   })
 
-  it('keeps the submit footer mounted while the right pane scrolls through a long active test', async () => {
+  it('renders the submit actions after the last question in an active test', async () => {
     let fullscreenElement: Element | null = null
 
     Object.defineProperty(document, 'fullscreenElement', {
@@ -975,12 +975,118 @@ describe('StudentQuizzesTab exam mode', () => {
 
     const detailPane = screen.getByTestId('student-test-detail-pane')
     const actionFooter = within(detailPane).getByTestId('student-quiz-action-footer')
-
-    fireEvent.scroll(detailPane, { target: { scrollTop: 1200 } })
+    const questionsStack = screen.getByText('Question 12?').closest('[data-question-id="q12"]')
+      ?.parentElement
 
     expect(detailPane.className).toContain('overflow-y-auto')
+    expect(questionsStack?.lastElementChild).toBe(actionFooter)
+    expect(actionFooter.className).not.toContain('sticky')
     expect(within(actionFooter).getByRole('button', { name: 'Submit' })).toBeInTheDocument()
     expect(within(actionFooter).getByText('Answer all questions to submit')).toBeInTheDocument()
+  })
+
+  it('does not record exam exits for in-window pointer dragging during an active test', async () => {
+    const focusBodies: Array<Record<string, any>> = []
+    let fullscreenElement: Element | null = null
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => fullscreenElement,
+    })
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: vi.fn().mockImplementation(async () => {
+        fullscreenElement = document.documentElement
+      }),
+    })
+
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes('/api/student/tests?classroom_id=')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quizzes: [{
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            }],
+          }),
+        }
+      }
+
+      if (url.endsWith('/api/student/tests/test-1')) {
+        return {
+          ok: true,
+          json: async () => ({
+            quiz: {
+              id: 'test-1',
+              title: 'Midterm Test',
+              assessment_type: 'test',
+              status: 'active',
+              show_results: false,
+              position: 0,
+              student_status: 'not_started',
+            },
+            student_status: 'not_started',
+            questions: [
+              {
+                id: 'q1',
+                quiz_id: 'test-1',
+                question_text: '2 + 2 = ?',
+                options: ['3', '4'],
+                question_type: 'multiple_choice',
+                points: 1,
+                response_max_chars: 5000,
+                position: 0,
+              },
+            ],
+            student_responses: {},
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      if (url.includes('/api/student/tests/test-1/focus-events')) {
+        focusBodies.push(JSON.parse(String(options?.body || '{}')) as Record<string, any>)
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            focus_summary: makeFocusSummary(),
+          }),
+        }
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`)
+    })
+
+    render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText('Midterm Test'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+    await waitFor(() => {
+      expect(screen.getByText('Start this test?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('Start test'))
+
+    const detailPane = await screen.findByTestId('student-test-detail-pane')
+
+    fireEvent.pointerDown(detailPane, { clientX: 300, clientY: 320 })
+    fireEvent.pointerMove(detailPane, { clientX: 460, clientY: 320 })
+    fireEvent.pointerUp(detailPane, { clientX: 460, clientY: 320 })
+
+    expect(focusBodies).toEqual([])
   })
 
   it('suppresses iframe doc-triggered fullscreen and resize exits', async () => {

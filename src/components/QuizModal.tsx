@@ -30,6 +30,8 @@ export function QuizModal({
   const [error, setError] = useState('')
 
   const isEditMode = !!quiz
+  const isTest = (quiz?.assessment_type ?? assessmentType) === 'test'
+  const assessmentLabel = isTest ? 'Test' : 'Quiz'
 
   useEffect(() => {
     if (!isOpen) return
@@ -107,13 +109,7 @@ export function QuizModal({
       ariaLabelledBy="quiz-modal-title"
     >
       <h2 id="quiz-modal-title" className="text-xl font-bold text-text-default mb-4 flex-shrink-0">
-        {isEditMode
-          ? quiz.assessment_type === 'test'
-            ? 'Edit Test'
-            : 'Edit Quiz'
-          : assessmentType === 'test'
-            ? 'New Test'
-            : 'New Quiz'}
+        {isEditMode ? `Edit ${assessmentLabel}` : `New ${assessmentLabel}`}
       </h2>
 
       <form onSubmit={handleSubmit} className="space-y-4 flex-1 min-h-0 overflow-y-auto">
@@ -123,7 +119,7 @@ export function QuizModal({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter quiz title"
+            placeholder={`Enter ${assessmentLabel.toLowerCase()} title`}
             disabled={saving}
           />
         </FormField>
