@@ -5,13 +5,13 @@ import { Play, Square } from 'lucide-react'
 import { getAssessmentStatusLabel, getQuizStatusBadgeClass, canActivateQuiz } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { Button, ConfirmDialog, Tooltip } from '@/ui'
-import type { QuizWithStats } from '@/types'
+import type { AssessmentWorkspaceSummaryPatch, QuizWithStats } from '@/types'
 
 interface TeacherTestCardProps {
   test: QuizWithStats
   isReadOnly: boolean
   onSelect: () => void
-  onUpdate: () => void
+  onUpdate: (update: AssessmentWorkspaceSummaryPatch) => void
 }
 
 export function TeacherTestCard({
@@ -44,7 +44,20 @@ export function TeacherTestCard({
         throw new Error(data.error || 'Failed to update test')
       }
 
-      onUpdate()
+      const nextStatus =
+        data?.test?.status === 'draft' || data?.test?.status === 'active' || data?.test?.status === 'closed'
+          ? data.test.status
+          : payload.status === 'draft' || payload.status === 'active' || payload.status === 'closed'
+            ? payload.status
+            : undefined
+
+      onUpdate({
+        status: nextStatus,
+        title: typeof data?.test?.title === 'string' ? data.test.title : undefined,
+        show_results: typeof data?.test?.show_results === 'boolean' ? data.test.show_results : undefined,
+        questions_count:
+          typeof data?.test?.stats?.questions_count === 'number' ? data.test.stats.questions_count : undefined,
+      })
     } catch (error: any) {
       setActionError(error?.message || 'Failed to update test')
     } finally {

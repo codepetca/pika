@@ -20,6 +20,7 @@ import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, Select, Tooltip } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
+  AssessmentWorkspaceSummaryPatch,
   Classroom,
   Quiz,
   QuizFocusSummary,
@@ -218,6 +219,7 @@ export function TeacherTestsTab({
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState>('list')
   const [selectedWorkspaceTab, setSelectedWorkspaceTab] = useState<WorkspaceTab>('authoring')
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null)
+  const [selectedTestDraftSummary, setSelectedTestDraftSummary] = useState<AssessmentEditorSummaryUpdate | null>(null)
   const [hasPendingMarkdownImport, setHasPendingMarkdownImport] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [pendingCreatedTestId, setPendingCreatedTestId] = useState<string | null>(null)
@@ -260,6 +262,20 @@ export function TeacherTestsTab({
   }, [selectedTestId, testAiGradingRun])
   const activeTestAiRunId = activeTestAiRun?.id ?? null
   const hasActiveTestAiRun = isTestAiGradingRunActive(activeTestAiRun)
+  const selectedTestWorkspace = useMemo(() => {
+    if (!selectedTest) return null
+    if (!selectedTestDraftSummary) return selectedTest
+
+    return {
+      ...selectedTest,
+      title: selectedTestDraftSummary.title,
+      show_results: selectedTestDraftSummary.show_results,
+      stats: {
+        ...selectedTest.stats,
+        questions_count: selectedTestDraftSummary.questions_count,
+      },
+    }
+  }, [selectedTest, selectedTestDraftSummary])
 
   const sortedGradingStudents = useMemo(
     () =>
@@ -333,28 +349,38 @@ export function TeacherTestsTab({
     }
   }, [batchSelectedStudents, gradingQuestions])
 
+  const applyTestSummaryPatch = useCallback((testId: string, update: AssessmentWorkspaceSummaryPatch) => {
+    setTests((prev) =>
+      prev.map((test) => {
+        if (test.id !== testId) return test
+
+        return {
+          ...test,
+          title: typeof update.title === 'string' ? update.title : test.title,
+          show_results: typeof update.show_results === 'boolean' ? update.show_results : test.show_results,
+          status: update.status ?? test.status,
+          stats: {
+            ...test.stats,
+            questions_count:
+              typeof update.questions_count === 'number' ? update.questions_count : test.stats.questions_count,
+          },
+        }
+      })
+    )
+  }, [])
+
   const applySelectedTestDraftSummary = useCallback(
     (update: AssessmentEditorSummaryUpdate) => {
       if (!selectedTestId) return
 
-      setTests((prev) =>
-        prev.map((test) =>
-          test.id === selectedTestId
-            ? {
-                ...test,
-                title: update.title,
-                show_results: update.show_results,
-                stats: {
-                  ...test.stats,
-                  questions_count: update.questions_count,
-                },
-              }
-            : test
-        )
-      )
+      setSelectedTestDraftSummary(update)
+      applyTestSummaryPatch(selectedTestId, update)
     },
-    [selectedTestId]
+    [applyTestSummaryPatch, selectedTestId]
   )
+  const handleSelectedTestDraftSummaryChange = useCallback((update: AssessmentEditorSummaryUpdate) => {
+    setSelectedTestDraftSummary(update)
+  }, [])
 
   const loadTests = useCallback(async () => {
     setLoading(true)
@@ -454,8 +480,8 @@ export function TeacherTestsTab({
   }, [classroom.id, loadTests])
 
   useEffect(() => {
-    onSelectTest?.(workspaceState === 'selected' ? selectedTest : null)
-  }, [onSelectTest, selectedTest, workspaceState])
+    onSelectTest?.(workspaceState === 'selected' ? selectedTestWorkspace : null)
+  }, [onSelectTest, selectedTestWorkspace, workspaceState])
 
   useEffect(() => {
     gradingSelectionRef.current = {
@@ -475,6 +501,10 @@ export function TeacherTestsTab({
     setSelectedStudentId(null)
     clearBatchSelection()
   }, [clearBatchSelection, selectedTestId, tests])
+
+  useEffect(() => {
+    setSelectedTestDraftSummary(null)
+  }, [selectedTestId])
 
   useEffect(() => {
     if (!pendingCreatedTestId) return
@@ -954,7 +984,25 @@ export function TeacherTestsTab({
         throw new Error(data.error || 'Failed to update test')
       }
 
-      await loadTests()
+      const nextStatus =
+        data?.test?.status === 'draft' || data?.test?.status === 'active' || data?.test?.status === 'closed'
+          ? data.test.status
+          : payload.status === 'draft' || payload.status === 'active' || payload.status === 'closed'
+            ? payload.status
+            : undefined
+
+      applyTestSummaryPatch(selectedTestId, {
+        status: nextStatus,
+        title: typeof data?.test?.title === 'string' ? data.test.title : undefined,
+        show_results: typeof data?.test?.show_results === 'boolean' ? data.test.show_results : undefined,
+        questions_count:
+          typeof data?.test?.stats?.questions_count === 'number' ? data.test.stats.questions_count : undefined,
+      })
+
+      if (nextStatus) {
+        setGradingServerTestStatus(nextStatus)
+        setGradingServerTestId(selectedTestId)
+      }
     } catch (error: any) {
       setStatusActionError(error?.message || 'Failed to update test')
     } finally {
@@ -969,9 +1017,9 @@ export function TeacherTestsTab({
   }
 
   async function handleRequestSelectedTestActivate() {
-    if (!selectedTest || isReadOnly || statusUpdating || checkingActivation) return
+    if (!selectedTest || !selectedTestWorkspace || isReadOnly || statusUpdating || checkingActivation) return
 
-    const activation = validateSelectedTestActivation(selectedTest)
+    const activation = validateSelectedTestActivation(selectedTestWorkspace.stats.questions_count || 0)
     if (!activation.valid) {
       setStatusActionError(activation.error || 'Test cannot be activated yet')
       return
@@ -1008,17 +1056,19 @@ export function TeacherTestsTab({
     }
   }
 
-  function validateSelectedTestActivation(test: QuizWithStats): { valid: boolean; error?: string } {
-    if ((test.stats.questions_count || 0) < 1) {
+  function validateSelectedTestActivation(questionCount: number): { valid: boolean; error?: string } {
+    if (questionCount < 1) {
       return { valid: false, error: 'Test must have at least 1 question' }
     }
     return { valid: true }
   }
 
   const returnWillCloseActiveTest =
-    selectedWorkspaceTab === 'grading' && selectedTest?.status === 'active'
-  const selectedTestTitle = selectedTest?.title || 'Test'
-  const selectedActivation = selectedTest ? validateSelectedTestActivation(selectedTest) : { valid: false }
+    selectedWorkspaceTab === 'grading' && selectedTestWorkspace?.status === 'active'
+  const selectedTestTitle = selectedTestWorkspace?.title || 'Test'
+  const selectedActivation = selectedTestWorkspace
+    ? validateSelectedTestActivation(selectedTestWorkspace.stats.questions_count || 0)
+    : { valid: false }
   const isSelectedWorkspace = workspaceState === 'selected'
 
   const batchGradeDescriptionParts: string[] = []
@@ -1280,7 +1330,7 @@ export function TeacherTestsTab({
               >
                 Preview
               </Button>
-              {selectedTest?.status === 'draft' ? (
+              {selectedTestWorkspace?.status === 'draft' ? (
                 <Button
                   type="button"
                   variant="secondary"
@@ -1300,7 +1350,7 @@ export function TeacherTestsTab({
                   Open
                 </Button>
               ) : null}
-              {selectedTest?.status === 'active' ? (
+              {selectedTestWorkspace?.status === 'active' ? (
                 <Button
                   type="button"
                   variant="secondary"
@@ -1312,7 +1362,7 @@ export function TeacherTestsTab({
                   Close
                 </Button>
               ) : null}
-              {selectedTest?.status === 'closed' ? (
+              {selectedTestWorkspace?.status === 'closed' ? (
                 <Button
                   type="button"
                   variant="secondary"
@@ -1474,9 +1524,7 @@ export function TeacherTestsTab({
                 test={test}
                 isReadOnly={isReadOnly}
                 onSelect={() => handleOpenTest(test)}
-                onUpdate={() => {
-                  void loadTests()
-                }}
+                onUpdate={(update) => applyTestSummaryPatch(test.id, update)}
               />
             ))}
           </PageStack>
@@ -1491,6 +1539,7 @@ export function TeacherTestsTab({
                 quiz={selectedTest}
                 classroomId={classroom.id}
                 apiBasePath={apiBasePath}
+                onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
                 onQuizUpdate={(update) => {
                   if (update) {
                     applySelectedTestDraftSummary(update)

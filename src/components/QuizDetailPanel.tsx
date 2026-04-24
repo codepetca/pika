@@ -46,6 +46,7 @@ interface Props {
   classroomId: string
   apiBasePath?: string
   onQuizUpdate: (update?: AssessmentEditorSummaryUpdate) => void
+  onDraftSummaryChange?: (update: AssessmentEditorSummaryUpdate) => void
   onRequestDelete?: () => void
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   onPendingMarkdownImportChange?: (pending: boolean) => void
@@ -113,6 +114,7 @@ export function QuizDetailPanel({
   classroomId,
   apiBasePath = '/api/teacher/quizzes',
   onQuizUpdate,
+  onDraftSummaryChange,
   onRequestDelete,
   onRequestTestPreview,
   onPendingMarkdownImportChange,
@@ -170,6 +172,13 @@ export function QuizDetailPanel({
   const lastSavedDraftRef = useRef('')
   const saveStatusRef = useRef<'saved' | 'saving' | 'unsaved'>('saved')
   const pendingDraftRef = useRef<AssessmentEditorDraft | null>(null)
+  const saveDraftRef = useRef<
+    | ((
+        nextDraft: AssessmentEditorDraft,
+        options?: { forceFull?: boolean; documents?: TestDocument[]; sourceMarkdown?: string }
+      ) => Promise<boolean>)
+    | null
+  >(null)
   const markdownDirtyRef = useRef(false)
   const savedMarkdownRef = useRef('')
   const documentsRef = useRef(documents)
@@ -181,6 +190,7 @@ export function QuizDetailPanel({
   const [summaryDetailMarkdownWidthPercent, setSummaryDetailMarkdownWidthPercent] = useState<number>(
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
+  const loadedDraftQuizIdRef = useRef<string | null>(null)
 
   const requestCurrentWindowFullscreen = useCallback(async () => {
     const fullscreenElement = document.documentElement as HTMLElement & {
@@ -332,15 +342,17 @@ export function QuizDetailPanel({
       draftVersionRef.current = draft.version
       lastSavedDraftRef.current = JSON.stringify(nextSnapshot)
       pendingDraftRef.current = nextSnapshot
+      loadedDraftQuizIdRef.current = quiz.id
       setSaveStatus('saved')
       setError('')
       setConflictDraft(null)
     },
-    [normalizeDraftQuestions, quiz.show_results, quiz.title]
+    [normalizeDraftQuestions, quiz.id, quiz.show_results, quiz.title]
   )
 
   // Sync editTitle when quiz changes
   useEffect(() => {
+    loadedDraftQuizIdRef.current = null
     setEditTitle(quiz.title)
     setDraftShowResults(quiz.show_results)
     setIsEditingTitle(false)
@@ -359,6 +371,25 @@ export function QuizDetailPanel({
   useEffect(() => {
     autoSyncAttemptedRef.current.clear()
   }, [quiz.id])
+
+  const emitDraftSummaryChange = useCallback(
+    (content: Pick<AssessmentEditorDraft, 'title' | 'show_results' | 'questions'>) => {
+      if (!onDraftSummaryChange) return
+      onDraftSummaryChange(summarizeDraftContent(content))
+    },
+    [onDraftSummaryChange]
+  )
+
+  useEffect(() => {
+    if (!onDraftSummaryChange) return
+    if (loadedDraftQuizIdRef.current !== quiz.id) return
+
+    emitDraftSummaryChange({
+      title: editTitle,
+      show_results: draftShowResults,
+      questions,
+    })
+  }, [draftShowResults, editTitle, emitDraftSummaryChange, onDraftSummaryChange, questions, quiz.id])
 
   useEffect(() => {
     documentsRef.current = documents
@@ -762,6 +793,11 @@ export function QuizDetailPanel({
 
       const reordered = normalizeQuestionPositions(arrayMove(questions, oldIndex, newIndex))
       setQuestions(reordered)
+      emitDraftSummaryChange({
+        title: editTitle,
+        show_results: draftShowResults,
+        questions: reordered,
+      })
 
       scheduleAutosave({
         title: editTitle,
@@ -769,7 +805,7 @@ export function QuizDetailPanel({
         questions: reordered,
       })
     },
-    [draftShowResults, editTitle, isEditable, normalizeQuestionPositions, questions, scheduleAutosave]
+    [draftShowResults, editTitle, emitDraftSummaryChange, isEditable, normalizeQuestionPositions, questions, scheduleAutosave]
   )
 
   useEffect(() => {
@@ -777,14 +813,18 @@ export function QuizDetailPanel({
   }, [saveStatus])
 
   useEffect(() => {
+    saveDraftRef.current = saveDraft
+  }, [saveDraft])
+
+  useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
       if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
       if (pendingDraftRef.current && saveStatusRef.current === 'unsaved') {
-        void saveDraft(pendingDraftRef.current, { forceFull: true })
+        void saveDraftRef.current?.(pendingDraftRef.current, { forceFull: true })
       }
     }
-  }, [saveDraft])
+  }, [])
 
   async function handleTitleSave() {
     const trimmed = editTitle.trim()
@@ -881,6 +921,11 @@ export function QuizDetailPanel({
 
     const nextQuestions = normalizeQuestionPositions([...questions, nextQuestion])
     setQuestions(nextQuestions)
+    emitDraftSummaryChange({
+      title: editTitle,
+      show_results: draftShowResults,
+      questions: nextQuestions,
+    })
 
     scheduleAutosave({
       title: editTitle,
@@ -909,6 +954,7 @@ export function QuizDetailPanel({
       show_results: draftShowResults,
       questions: nextQuestions,
     }
+    emitDraftSummaryChange(nextDraft)
 
     if (options?.force) {
       scheduleSave(nextDraft, { force: true })
@@ -923,6 +969,11 @@ export function QuizDetailPanel({
       questions.filter((question) => question.id !== questionId)
     )
     setQuestions(nextQuestions)
+    emitDraftSummaryChange({
+      title: editTitle,
+      show_results: draftShowResults,
+      questions: nextQuestions,
+    })
 
     scheduleAutosave({
       title: editTitle,
@@ -955,6 +1006,11 @@ export function QuizDetailPanel({
     setExpandedQuestionIds((prev) =>
       prev.includes(questionId) ? [...prev, duplicatedQuestion.id] : prev
     )
+    emitDraftSummaryChange({
+      title: editTitle,
+      show_results: draftShowResults,
+      questions: nextQuestions,
+    })
 
     scheduleAutosave({
       title: editTitle,
@@ -1176,6 +1232,7 @@ export function QuizDetailPanel({
     setDraftShowResults(parsed.draftContent.show_results)
     setQuestions(nextQuestions)
     setDocuments(parsed.documents)
+    emitDraftSummaryChange(nextDraft)
     setMarkdownContent(nextDerivedMarkdown)
     savedMarkdownRef.current = nextDerivedMarkdown
     setIsMarkdownEditing(false)
@@ -1721,7 +1778,15 @@ export function QuizDetailPanel({
                   ref={titleInputRef}
                   type="text"
                   value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
+                  onChange={(e) => {
+                    const nextTitle = e.target.value
+                    setEditTitle(nextTitle)
+                    emitDraftSummaryChange({
+                      title: nextTitle,
+                      show_results: draftShowResults,
+                      questions,
+                    })
+                  }}
                   onKeyDown={handleTitleKeyDown}
                   onBlur={handleTitleSave}
                   disabled={savingTitle}

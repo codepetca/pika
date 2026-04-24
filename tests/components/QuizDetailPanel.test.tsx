@@ -570,6 +570,176 @@ describe('QuizDetailPanel', () => {
       })
     })
 
+    it('emits draft summary changes immediately for structured test edits before autosave completes', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      const onDraftSummaryChange = vi.fn()
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          draft: {
+            version: 1,
+            content: {
+              title: 'Two Pane Test',
+              show_results: true,
+              questions: summaryDetailQuestions,
+            },
+          },
+        }),
+      })
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          quiz: {
+            documents: [],
+          },
+        }),
+      })
+
+      const testQuiz = makeQuizWithStats({
+        assessment_type: 'test',
+        title: 'Two Pane Test',
+        stats: { total_students: 25, responded: 0, questions_count: 2 },
+      })
+
+      render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={vi.fn()}
+          onDraftSummaryChange={onDraftSummaryChange}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const editorPane = await screen.findByTestId('test-question-editor-pane')
+      await waitFor(() => {
+        expect(within(editorPane).getByTestId('test-question-editor-header-summary')).toHaveTextContent('2 questions')
+      })
+      onDraftSummaryChange.mockClear()
+
+      fireEvent.click(within(editorPane).getByRole('button', { name: '+ MC Question' }))
+
+      await waitFor(() => {
+        expect(onDraftSummaryChange).toHaveBeenLastCalledWith({
+          title: 'Two Pane Test',
+          show_results: true,
+          questions_count: 3,
+        })
+      })
+
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not force-save unsaved drafts again when callback props change before autosave fires', async () => {
+      const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+        if (url === '/api/teacher/tests/quiz-race-test/draft' && !options) {
+          return {
+            ok: true,
+            json: async () => ({
+              draft: {
+                version: 1,
+                content: {
+                  title: 'Race Test',
+                  show_results: false,
+                  questions: [],
+                },
+              },
+            }),
+          }
+        }
+
+        if (url === '/api/teacher/tests/quiz-race-test' && !options) {
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: {
+                documents: [],
+              },
+            }),
+          }
+        }
+
+        if (url === '/api/teacher/tests/quiz-race-test/draft' && options?.method === 'PATCH') {
+          const body = JSON.parse(String(options.body ?? '{}'))
+          return {
+            ok: true,
+            json: async () => ({
+              draft: {
+                version: Number(body.version ?? 1) + 1,
+                content: body.content,
+              },
+            }),
+          }
+        }
+
+        throw new Error(`Unexpected fetch: ${url} ${options?.method || 'GET'}`)
+      })
+
+      const testQuiz = makeQuizWithStats({
+        id: 'quiz-race-test',
+        assessment_type: 'test',
+        title: 'Race Test',
+        show_results: false,
+        stats: { total_students: 25, responded: 0, questions_count: 0 },
+      })
+
+      const onQuizUpdateInitial = vi.fn()
+      const { rerender } = render(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={onQuizUpdateInitial}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />,
+        { wrapper: Wrapper }
+      )
+
+      const addQuestionButton = await screen.findByRole('button', { name: '+ MC Question' })
+      fireEvent.click(addQuestionButton)
+
+      await waitFor(() => {
+        expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+      })
+
+      const onQuizUpdateNext = vi.fn()
+      rerender(
+        <QuizDetailPanel
+          quiz={testQuiz}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          onQuizUpdate={onQuizUpdateNext}
+          testQuestionLayout="summary-detail"
+          showPreviewButton={false}
+          showResultsTab={false}
+        />
+      )
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      let patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
+      expect(patchCalls).toHaveLength(0)
+
+      await new Promise((resolve) => setTimeout(resolve, 3_200))
+
+      await waitFor(() => {
+        patchCalls = fetchMock.mock.calls.filter((call: any[]) => call[1]?.method === 'PATCH')
+        expect(patchCalls).toHaveLength(1)
+      })
+
+      const patchBody = JSON.parse(String(patchCalls[0]?.[1]?.body ?? '{}'))
+      expect(String(patchCalls[0]?.[0])).toContain('/api/teacher/tests/quiz-race-test/draft')
+      expect(patchBody.version).toBe(1)
+      expect(patchBody.content?.questions).toHaveLength(1)
+    }, 10_000)
+
     it('duplicates a test question immediately below the source in summary-detail mode', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({

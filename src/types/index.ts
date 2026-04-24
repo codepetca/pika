@@ -749,6 +749,10 @@ export interface AssessmentEditorSummaryUpdate {
   questions_count: number
 }
 
+export interface AssessmentWorkspaceSummaryPatch extends Partial<AssessmentEditorSummaryUpdate> {
+  status?: QuizStatus
+}
+
 export type StudentQuizStatus = 'not_started' | 'responded' | 'can_view_results'
 
 export interface StudentQuizView extends Quiz {
