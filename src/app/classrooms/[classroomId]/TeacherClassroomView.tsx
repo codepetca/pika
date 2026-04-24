@@ -21,12 +21,9 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Circle,
-  Clock,
   LoaderCircle,
   Pencil,
   Plus,
-  RotateCcw,
   Send,
 } from 'lucide-react'
 import { Button, ConfirmDialog, SplitButton, Tooltip } from '@/ui'
@@ -36,6 +33,10 @@ import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
+import {
+  AssessmentStatusIcon,
+  type AssessmentStatusIconState,
+} from '@/components/AssessmentStatusIcon'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
 import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import {
@@ -50,7 +51,6 @@ import {
 import { RightSidebarToggle } from '@/components/layout'
 import {
   calculateAssignmentStatus,
-  getAssignmentStatusIconClass,
   getAssignmentStatusLabel,
   hasDraftSavedGrade,
 } from '@/lib/assignments'
@@ -142,9 +142,6 @@ function getRowClassName(isSelected: boolean): string {
   return 'cursor-pointer hover:bg-surface-hover'
 }
 
-const STATUS_ICON_CLASS = 'h-4 w-4'
-const LATE_CLOCK_CLASS = 'h-3 w-3'
-
 function MetricBar({ value }: { value: number }) {
   const percentage = Math.max(0, Math.min(100, Math.round(value * 100)))
   return (
@@ -166,52 +163,38 @@ function StatusIcon({
   wasLate?: boolean
   hasDraftGrade?: boolean
 }) {
-  const colorClass = getAssignmentStatusIconClass(status)
-  let iconColorClass = colorClass
-  let icon: React.ReactElement
-
-  // Determine if this status should show the late clock indicator.
-  // "late" statuses always show it; downstream statuses show it when wasLate is true.
   const showLate =
     status === 'in_progress_late' ||
     status === 'submitted_late' ||
     ((status === 'graded' || status === 'returned' || status === 'resubmitted') && wasLate)
 
-  // Pick the base icon for each status.
-  // Submitted is a circle unless draft grading has been saved.
+  let iconState: AssessmentStatusIconState
   switch (status) {
     case 'not_started':
+      iconState = 'not_started'
+      break
     case 'in_progress':
     case 'in_progress_late':
-      icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
+      iconState = 'in_progress'
       break
     case 'submitted_on_time':
     case 'submitted_late':
-      if (hasDraftGrade) {
-        iconColorClass = 'text-gray-400'
-        icon = <Check className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
-      } else {
-        icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
-      }
+      iconState = hasDraftGrade ? 'draft_graded' : 'submitted'
       break
     case 'graded':
-      iconColorClass = 'text-green-500'
-      icon = <Check className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
+      iconState = 'graded'
       break
     case 'returned':
-      icon = <Send className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
+      iconState = 'returned'
       break
     case 'resubmitted':
-      icon = <RotateCcw className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
+      iconState = 'resubmitted'
       break
     default:
-      icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
+      iconState = 'not_started'
   }
 
-  if (showLate) {
-    return <span className={`inline-flex items-center gap-0.5 ${iconColorClass}`}>{icon}<Clock className={LATE_CLOCK_CLASS} /></span>
-  }
-  return icon
+  return <AssessmentStatusIcon state={iconState} late={showLate} />
 }
 
 function getTeacherAssignmentStatusTooltipLabel(status: AssignmentStatus, wasLate: boolean): string {

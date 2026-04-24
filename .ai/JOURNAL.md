@@ -9310,3 +9310,15 @@
 - `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
 - `bash scripts/verify-env.sh`
 - Browser verification confirmed the restored desktop overlay with `exam-content-obscurer` and blocker active; screenshot saved at `test-results/desktop-exam-lock-overlay-restored.png`.
+
+## 2026-04-24 — Smooth Test Grading Poll Refreshes
+
+- Kept test grading rows mounted during background poll refreshes so the grading screen no longer drops to a full loading state while teachers are reviewing submissions.
+- Added a shared assessment status icon component and reused it from both the assignments table and test grading rows, including the submitted green circle treatment.
+- Added regression coverage for the preserved grading rows during polling and the shared submitted/returned/late status icon states.
+
+**Validation:**
+- `pnpm test -- tests/components/AssessmentStatusIcon.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
+- `bash scripts/verify-env.sh`
+- `pika-ui-verify` classroom screenshot capture passed for teacher desktop, teacher mobile, and student mobile; focused grading-page capture was not available because the current dev database has no classrooms/tests.

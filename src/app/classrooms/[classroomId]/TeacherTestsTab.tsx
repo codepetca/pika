@@ -1,12 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Circle, ClockAlert, LogOut, Play, Plus, Send, Square, Trash2 } from 'lucide-react'
+import { Check, ClockAlert, LogOut, Play, Plus, Send, Square, Trash2 } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { QuizModal } from '@/components/QuizModal'
 import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
+import { AssessmentStatusIcon, type AssessmentStatusIconState } from '@/components/AssessmentStatusIcon'
 import { useRightSidebar } from '@/components/layout'
 import {
   TEACHER_QUIZZES_UPDATED_EVENT,
@@ -17,7 +18,7 @@ import { getQuizExitCount } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, Select, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, RefreshingIndicator, Select, Tooltip } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   AssessmentWorkspaceSummaryPatch,
@@ -75,12 +76,12 @@ const TEST_AI_GRADING_RUN_NOTE =
 
 const STATUS_META: Record<
   TestGradingStudentRow['status'],
-  { label: string; className: string; icon: typeof Circle }
+  { label: string; iconState: AssessmentStatusIconState }
 > = {
-  not_started: { label: 'Not started', className: 'text-gray-400', icon: Circle },
-  in_progress: { label: 'In progress', className: 'text-yellow-500', icon: Circle },
-  submitted: { label: 'Submitted', className: 'text-green-500', icon: Check },
-  returned: { label: 'Returned', className: 'text-blue-500', icon: Send },
+  not_started: { label: 'Not started', iconState: 'not_started' },
+  in_progress: { label: 'In progress', iconState: 'in_progress' },
+  submitted: { label: 'Submitted', iconState: 'submitted' },
+  returned: { label: 'Returned', iconState: 'returned' },
 }
 
 function splitDisplayName(name: string | null): { firstName: string | null; lastName: string | null } {
@@ -231,6 +232,7 @@ export function TeacherTestsTab({
   const [gradingServerTestId, setGradingServerTestId] = useState<string | null>(null)
   const [testAiGradingRun, setTestAiGradingRun] = useState<TestAiGradingRunSummary | null>(null)
   const [gradingLoading, setGradingLoading] = useState(false)
+  const [gradingRefreshing, setGradingRefreshing] = useState(false)
   const [gradingError, setGradingError] = useState('')
   const [gradingSortColumn, setGradingSortColumn] = useState<TestGradingSortColumn>('last_name')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
@@ -396,16 +398,18 @@ export function TeacherTestsTab({
     }
   }, [classroom.id])
 
-  const loadGradingRows = useCallback(async () => {
+  const loadGradingRows = useCallback(async (options?: { preserveRows?: boolean }) => {
     if (!selectedTestId) {
       setGradingStudents([])
       setGradingQuestions([])
       setGradingServerTestStatus(null)
       setGradingServerTestId(null)
       setTestAiGradingRun(null)
+      setGradingRefreshing(false)
       return
     }
 
+    const preserveRows = options?.preserveRows ?? false
     const requestedTestId = selectedTestId
     const requestId = ++latestGradingRequestIdRef.current
     const isStaleRequest = () => {
@@ -418,7 +422,11 @@ export function TeacherTestsTab({
       )
     }
 
-    setGradingLoading(true)
+    if (preserveRows) {
+      setGradingRefreshing(true)
+    } else {
+      setGradingLoading(true)
+    }
     setGradingError('')
     try {
       const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
@@ -455,12 +463,15 @@ export function TeacherTestsTab({
     } catch (error: any) {
       if (isStaleRequest()) return
       setGradingError(error.message || 'Failed to load test results')
-      setGradingStudents([])
-      setGradingQuestions([])
-      setTestAiGradingRun(null)
+      if (!preserveRows) {
+        setGradingStudents([])
+        setGradingQuestions([])
+        setTestAiGradingRun(null)
+      }
     } finally {
       if (isStaleRequest()) return
       setGradingLoading(false)
+      setGradingRefreshing(false)
     }
   }, [selectedTestId])
 
@@ -543,6 +554,7 @@ export function TeacherTestsTab({
       setGradingServerTestStatus(null)
       setGradingServerTestId(null)
       setGradingLoading(false)
+      setGradingRefreshing(false)
       setTestAiGradingRun(null)
       clearBatchSelection()
       return
@@ -584,7 +596,7 @@ export function TeacherTestsTab({
       if (disposed || pollingInFlight || !canPollNow()) return
       pollingInFlight = true
       try {
-        await loadGradingRows()
+        await loadGradingRows({ preserveRows: true })
       } finally {
         pollingInFlight = false
       }
@@ -1103,7 +1115,10 @@ export function TeacherTestsTab({
 
   const gradingTable = (
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-      {gradingLoading ? (
+      {gradingRefreshing ? (
+        <RefreshingIndicator label="Refreshing grading rows..." className="px-3 py-2" />
+      ) : null}
+      {gradingLoading && gradingStudents.length === 0 ? (
         <div className="flex justify-center py-10">
           <Spinner />
         </div>
@@ -1186,7 +1201,6 @@ export function TeacherTestsTab({
                     ? '—'
                     : `${formatPoints(student.points_earned)}/${formatPoints(student.points_possible)}`
                 const statusMeta = STATUS_META[student.status]
-                const StatusIcon = statusMeta.icon
                 const awayCount = student.focus_summary?.away_count ?? 0
                 const awaySeconds = student.focus_summary?.away_total_seconds ?? 0
                 const awayMinutes = Math.floor(awaySeconds / 60)
@@ -1222,10 +1236,10 @@ export function TeacherTestsTab({
                     <td className="px-3 py-2">
                       <Tooltip content={statusMeta.label}>
                         <span
-                          className={`inline-flex min-w-5 cursor-help items-center justify-center text-sm font-semibold ${statusMeta.className}`}
+                          className="inline-flex min-w-5 cursor-help items-center justify-center"
                           aria-label={statusMeta.label}
                         >
-                          <StatusIcon className="h-4 w-4" />
+                          <AssessmentStatusIcon state={statusMeta.iconState} />
                         </span>
                       </Tooltip>
                     </td>
