@@ -9240,3 +9240,14 @@
 **Validation:**
 - `bash scripts/verify-env.sh`
 - Browser verification on seeded teacher/student tests views plus focused teacher authoring screenshots
+
+## 2026-04-23 — Fix Test AI Grading Microbatch Failure Isolation
+
+- Patched the test AI grading run processor so a late save failure in a batch no longer reopens or retries earlier siblings that already completed successfully.
+- Narrowed the missing-response path so only the missing run item fails; available siblings in the same microbatch continue grading instead of being dropped with the same error.
+- Added regression coverage for both cases in `tests/lib/test-ai-grading-runs.test.ts`.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/test-ai-grading-runs.test.ts`
+- `pnpm exec vitest run tests/api/teacher/test-auto-grade-runs.test.ts tests/unit/ai-test-grading.test.ts`
+- `pnpm test`

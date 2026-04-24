@@ -1068,16 +1068,10 @@ async function processQuestionBatch(opts: {
       }
     })
 
-    const missingResponseItem = batchRequests.find((entry) => !entry.responseText)
-    if (missingResponseItem) {
-      await failOrRetryItem({
-        supabase,
-        item: missingResponseItem.item,
-        attemptCount: attempts.get(missingResponseItem.item.id) ?? missingResponseItem.item.attempt_count + 1,
-        error: new Error('Response is no longer available for grading'),
-      })
-      for (const entry of batchRequests) {
-        if (entry.item.id === missingResponseItem.item.id) continue
+    const activeBatchRequests = batchRequests.filter((entry) => entry.responseText)
+    const missingResponseEntries = batchRequests.filter((entry) => !entry.responseText)
+    if (missingResponseEntries.length > 0) {
+      for (const entry of missingResponseEntries) {
         await failOrRetryItem({
           supabase,
           item: entry.item,
@@ -1085,12 +1079,15 @@ async function processQuestionBatch(opts: {
           error: new Error('Response is no longer available for grading'),
         })
       }
+    }
+
+    if (activeBatchRequests.length === 0) {
       continue
     }
 
     try {
-      if (batchItems.length === 1) {
-        const only = batchRequests[0]
+      if (activeBatchRequests.length === 1) {
+        const only = activeBatchRequests[0]
         const suggestion = await suggestTestOpenResponseGradeWithContext(
           prepared,
           only.responseText,
@@ -1125,7 +1122,7 @@ async function processQuestionBatch(opts: {
 
       const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
         prepared,
-        batchRequests.map((entry) => ({
+        activeBatchRequests.map((entry) => ({
           responseId: entry.item.response_id,
           responseText: entry.responseText,
         })),
@@ -1142,30 +1139,45 @@ async function processQuestionBatch(opts: {
         suggestions.map((suggestion) => [suggestion.responseId, suggestion]),
       )
 
-      for (const entry of batchRequests) {
+      for (const entry of activeBatchRequests) {
         const suggestion = suggestionByResponseId.get(entry.item.response_id)
         if (!suggestion) {
-          throw new Error(`AI batch grade suggestion omitted response ${entry.item.response_id}`)
+          await failOrRetryItem({
+            supabase,
+            item: entry.item,
+            attemptCount: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
+            error: new Error(`AI batch grade suggestion omitted response ${entry.item.response_id}`),
+          })
+          continue
         }
 
-        await persistSuggestionForResponse({
-          supabase,
-          testId: run.test_id,
-          responseId: entry.item.response_id,
-          teacherId: run.triggered_by,
-          suggestion,
-        })
+        try {
+          await persistSuggestionForResponse({
+            supabase,
+            testId: run.test_id,
+            responseId: entry.item.response_id,
+            teacherId: run.triggered_by,
+            suggestion,
+          })
 
-        await updateRunItem(supabase, entry.item.id, {
-          status: 'completed',
-          attempt_count: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
-          last_error_code: null,
-          last_error_message: null,
-          completed_at: new Date().toISOString(),
-        })
+          await updateRunItem(supabase, entry.item.id, {
+            status: 'completed',
+            attempt_count: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
+            last_error_code: null,
+            last_error_message: null,
+            completed_at: new Date().toISOString(),
+          })
+        } catch (error) {
+          await failOrRetryItem({
+            supabase,
+            item: entry.item,
+            attemptCount: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
+            error,
+          })
+        }
       }
     } catch (error) {
-      for (const entry of batchRequests) {
+      for (const entry of activeBatchRequests) {
         await failOrRetryItem({
           supabase,
           item: entry.item,
