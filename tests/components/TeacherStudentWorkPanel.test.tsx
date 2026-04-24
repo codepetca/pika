@@ -305,14 +305,14 @@ describe('TeacherStudentWorkPanel', () => {
 
     expect(within(gradesSection).queryByRole('button', { name: 'AI grade' })).not.toBeInTheDocument()
     const gradeModeToggle = within(gradesSection).getByTestId('grade-mode-toggle')
-    expect(within(gradeModeToggle).getByRole('button', { name: 'Draft' })).toBeInTheDocument()
-    expect(within(gradeModeToggle).getByRole('button', { name: 'Final' })).toBeInTheDocument()
+    expect(within(gradeModeToggle).getByRole('button', { name: 'Draft' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(gradeModeToggle).getByRole('button', { name: 'Final' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(gradesSection).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     const feedbackSection = screen.getByTestId('inspector-section-comments')
     expect(within(feedbackSection).getByRole('button', { name: 'Send feedback' })).toBeInTheDocument()
   })
 
-  it('autosaves valid grading edits as draft without a save button', async () => {
+  it('autosaves valid grading edits as final by default without a save button', async () => {
     const gradeBodies: Array<Record<string, unknown>> = []
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
@@ -339,14 +339,14 @@ describe('TeacherStudentWorkPanel', () => {
           ok: true,
           json: async () => ({
             doc: {
-              ...makeStudentWork('student-1', { graded: false }).doc,
+              ...makeStudentWork('student-1', { graded: true }).doc,
               score_completion: 6,
               score_thinking: 7,
               score_workflow: 8,
               teacher_feedback_draft: 'Teacher note',
               teacher_feedback_draft_updated_at: '2026-02-20T13:05:00Z',
-              graded_at: null,
-              graded_by: null,
+              graded_at: '2026-02-20T13:05:00Z',
+              graded_by: 'teacher@example.com',
             },
           }),
         })
@@ -393,13 +393,13 @@ describe('TeacherStudentWorkPanel', () => {
       score_thinking: 7,
       score_workflow: 8,
       feedback: 'Teacher note',
-      save_mode: 'draft',
+      save_mode: 'graded',
     })
-    expect(screen.getByText('Draft autosaved')).toBeInTheDocument()
+    expect(screen.getByText('Graded Feb 20, 8:05 AM')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
   })
 
-  it('autosaves feedback-only draft edits before scores are complete', async () => {
+  it('autosaves feedback-only edits after switching to draft', async () => {
     const gradeBodies: Array<Record<string, unknown>> = []
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
@@ -427,10 +427,10 @@ describe('TeacherStudentWorkPanel', () => {
           json: async () => ({
             doc: {
               ...makeStudentWork('student-1', { graded: false }).doc,
-              score_completion: null,
-              score_thinking: null,
-              score_workflow: null,
-              teacher_feedback_draft: 'Teacher note',
+              score_completion: body.score_completion ?? null,
+              score_thinking: body.score_thinking ?? null,
+              score_workflow: body.score_workflow ?? null,
+              teacher_feedback_draft: body.feedback ?? null,
               teacher_feedback_draft_updated_at: '2026-02-20T13:05:00Z',
               graded_at: null,
               graded_by: null,
@@ -459,6 +459,12 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     await screen.findByPlaceholderText('Teacher feedback draft')
+    await user.click(screen.getByRole('button', { name: 'Draft' }))
+
+    await waitFor(() => {
+      expect(gradeBodies).toHaveLength(1)
+    })
+    gradeBodies.length = 0
 
     await user.type(screen.getByPlaceholderText('Teacher feedback draft'), 'Teacher note')
 
@@ -508,10 +514,10 @@ describe('TeacherStudentWorkPanel', () => {
           json: async () => ({
             doc: {
               ...makeStudentWork('student-1', { graded: false }).doc,
-              score_completion: null,
-              score_thinking: null,
-              score_workflow: null,
-              teacher_feedback_draft: 'Teacher note',
+              score_completion: body.score_completion ?? null,
+              score_thinking: body.score_thinking ?? null,
+              score_workflow: body.score_workflow ?? null,
+              teacher_feedback_draft: body.feedback ?? null,
               teacher_feedback_draft_updated_at: '2026-02-20T13:05:00Z',
               graded_at: null,
               graded_by: null,
@@ -540,6 +546,12 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     await screen.findByPlaceholderText('Teacher feedback draft')
+    await user.click(screen.getByRole('button', { name: 'Draft' }))
+
+    await waitFor(() => {
+      expect(gradeBodies).toHaveLength(1)
+    })
+    gradeBodies.length = 0
 
     await user.type(screen.getByPlaceholderText('Teacher feedback draft'), 'Teacher note')
 

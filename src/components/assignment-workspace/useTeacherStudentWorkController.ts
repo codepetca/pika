@@ -67,8 +67,9 @@ function mergeFeedbackDraft(baseDraft: string | null | undefined, aiSuggestion: 
   return { value: `${suggestion}\n\n${base}`, hasFreshAI: true }
 }
 
-function getGradeSaveMode(doc: AssignmentDoc | null | undefined): GradeSaveMode {
-  return doc?.graded_at ? 'graded' : 'draft'
+function getInitialGradeSaveMode(doc: AssignmentDoc | null | undefined): GradeSaveMode {
+  if (doc?.graded_at) return 'graded'
+  return doc?.teacher_feedback_draft_updated_at ? 'draft' : 'graded'
 }
 
 function buildGradeSnapshot({
@@ -213,6 +214,7 @@ export function useTeacherStudentWorkController({
   const [scoreWorkflow, setScoreWorkflow] = useState('')
   const [feedbackDraft, setFeedbackDraft] = useState('')
   const [hasFreshAIDraft, setHasFreshAIDraft] = useState(false)
+  const [gradeMode, setGradeMode] = useState<GradeSaveMode>('graded')
   const [gradeSaving, setGradeSaving] = useState(false)
   const [showDraftAutosavedNotice, setShowDraftAutosavedNotice] = useState(false)
   const [gradeError, setGradeError] = useState('')
@@ -335,12 +337,13 @@ export function useTeacherStudentWorkController({
       setScoreWorkflow('')
       setFeedbackDraft('')
       setHasFreshAIDraft(false)
+      setGradeMode('graded')
       lastSavedGradeSnapshotRef.current = buildGradeSnapshot({
         scoreCompletion: '',
         scoreThinking: '',
         scoreWorkflow: '',
         feedbackDraft: '',
-        mode: 'draft',
+        mode: 'graded',
       })
       return
     }
@@ -356,12 +359,13 @@ export function useTeacherStudentWorkController({
     setScoreWorkflow(nextScoreWorkflow)
     setFeedbackDraft(mergedDraft.value)
     setHasFreshAIDraft(mergedDraft.hasFreshAI)
+    setGradeMode(getInitialGradeSaveMode(doc))
     lastSavedGradeSnapshotRef.current = buildGradeSnapshot({
       scoreCompletion: nextScoreCompletion,
       scoreThinking: nextScoreThinking,
       scoreWorkflow: nextScoreWorkflow,
       feedbackDraft: mergedDraft.value,
-      mode: getGradeSaveMode(doc),
+      mode: getInitialGradeSaveMode(doc),
     })
   }, [clearDraftAutosavedNotice])
 
@@ -552,6 +556,7 @@ export function useTeacherStudentWorkController({
         if (!response.ok) throw new Error(result.error || 'Failed to save grade')
         lastSavedGradeSnapshotRef.current = nextSnapshot
         setData((current) => (current ? { ...current, doc: result.doc } : current))
+        setGradeMode(getInitialGradeSaveMode(result.doc))
         dispatchGradeUpdated(result.doc)
         if (selectedSaveMode === 'draft') {
           flashDraftAutosavedNotice()
@@ -583,7 +588,7 @@ export function useTeacherStudentWorkController({
   useEffect(() => {
     if (!data || gradeSaving) return
 
-    const selectedSaveMode = getGradeSaveMode(data.doc)
+    const selectedSaveMode = gradeMode
     const nextSnapshot = buildGradeSnapshot({
       scoreCompletion,
       scoreThinking,
@@ -614,7 +619,7 @@ export function useTeacherStudentWorkController({
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [data, feedbackDraft, gradeSaving, persistGrade, scoreCompletion, scoreThinking, scoreWorkflow])
+  }, [data, feedbackDraft, gradeMode, gradeSaving, persistGrade, scoreCompletion, scoreThinking, scoreWorkflow])
 
   const updateScoreCompletion = useCallback((value: string) => {
     setGradeError('')
@@ -642,6 +647,7 @@ export function useTeacherStudentWorkController({
 
   const handleSetGradeMode = useCallback(
     async (selectedSaveMode: GradeSaveMode) => {
+      setGradeMode(selectedSaveMode)
       await persistGrade(selectedSaveMode, { source: 'manual' })
     },
     [persistGrade],
@@ -664,11 +670,13 @@ export function useTeacherStudentWorkController({
         setGradeError(result.errors.join(', '))
         return
       }
-      if (result.graded_count === 0) {
+      if ((result.graded_count ?? 0) === 0) {
         setGradeError('No gradable content found — the submission may be empty')
         return
       }
-      const refreshed = await loadStudentWork({ mergeFeedbackIntoDraftFrom: feedbackDraft })
+      const refreshed = await loadStudentWork({
+        mergeFeedbackIntoDraftFrom: feedbackDraft.trim() ? feedbackDraft : null,
+      })
       dispatchGradeUpdated(refreshed?.doc ?? null)
     } catch (err: any) {
       setGradeError(err.message || 'Auto-grade failed')
@@ -766,7 +774,6 @@ export function useTeacherStudentWorkController({
   }, [scoreCompletion, scoreThinking, scoreWorkflow])
 
   const totalPercent = useMemo(() => Math.round((totalScore / 30) * 100), [totalScore])
-  const gradeMode = getGradeSaveMode(data?.doc)
 
   return {
     data,

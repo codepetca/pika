@@ -193,6 +193,138 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     )
   })
 
+  it('returns graded missing work even when it was never submitted', async () => {
+    const docs = [
+      {
+        id: 'doc-1',
+        student_id: 'student-1',
+        is_submitted: false,
+        score_completion: 0,
+        score_thinking: 0,
+        score_workflow: 0,
+        teacher_feedback_draft: 'Missing',
+      },
+    ]
+
+    const assignmentDocsTable = buildAssignmentDocsTable({ docs })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assignment-1',
+                  classroom_id: 'classroom-1',
+                  classrooms: { teacher_id: 'teacher-1' },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return assignmentDocsTable.table
+      }
+
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1'],
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.returned_count).toBe(1)
+    expect(data.cleared_count).toBe(0)
+    expect(data.missing_count).toBe(0)
+
+    expect(assignmentDocsTable.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        is_submitted: false,
+        returned_at: expect.any(String),
+        feedback_returned_at: expect.any(String),
+        teacher_cleared_at: expect.any(String),
+      }),
+    )
+    expect(appendAssignmentFeedbackEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignmentId: 'assignment-1',
+        studentId: 'student-1',
+        createdBy: 'teacher-1',
+        body: 'Missing',
+      }),
+    )
+  })
+
+  it('does not re-return work that was already returned and not resubmitted', async () => {
+    const docs = [
+      {
+        id: 'doc-1',
+        student_id: 'student-1',
+        is_submitted: false,
+        returned_at: '2026-04-20T12:00:00Z',
+        score_completion: 8,
+        score_thinking: 8,
+        score_workflow: 8,
+        teacher_feedback_draft: 'Already returned',
+      },
+    ]
+
+    const assignmentDocsTable = buildAssignmentDocsTable({ docs })
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'assignment-1',
+                  classroom_id: 'classroom-1',
+                  classrooms: { teacher_id: 'teacher-1' },
+                },
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'assignment_docs') {
+        return assignmentDocsTable.table
+      }
+
+      throw new Error(`Unexpected table in test: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/return', {
+      method: 'POST',
+      body: JSON.stringify({
+        student_ids: ['student-1'],
+      }),
+    })
+
+    const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.returned_count).toBe(0)
+    expect(data.cleared_count).toBe(0)
+    expect(data.missing_count).toBe(0)
+    expect(assignmentDocsTable.update).not.toHaveBeenCalled()
+    expect(appendAssignmentFeedbackEntry).not.toHaveBeenCalled()
+  })
+
   it('returns 500 when returning docs update fails', async () => {
     const assignmentDocsTable = buildAssignmentDocsTable({
       docs: [

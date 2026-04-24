@@ -22,6 +22,7 @@ Excluded:
 - the student product
 - the main classroom shell as a whole
 - unrelated teacher tabs
+- gradebook for now
 
 ## Foundations
 
@@ -34,6 +35,19 @@ These are already foundational and should stay shared:
 | Shared page shell primitives: `PageLayout`, `PageActionBar`, `PageContent`, `PageStack` | assignments, quizzes/tests | stable | keep as primitives | now |
 | Shared classroom shell: `ThreePanelShell`, `LeftSidebar`, `RightSidebar`, `MainContent` | classroom route layer | stable cross-cutting | keep as shell primitives | now |
 
+## Stable Family Contract
+
+These interaction rules are now considered stable for the teacher work-surface family.
+
+| Pattern | Current owners | Stability | Disposition | Priority |
+| --- | --- | --- | --- | --- |
+| Formal interaction ladder: `entry` -> `summary` -> `workspace` -> `workspace_mode` -> `inspector_active` | assignments as baseline, tests/quizzes as adopters | stable | reuse as the family state model | now |
+| Summary state is full-width and content-first | assignments | stable | treat as family default | now |
+| Workspace-mode tabs are post-selection only | assignments structure, tests emerging | stable | treat as family default | now |
+| Inspector activation is selection- and mode-driven, not passive | assignments as baseline, tests grading as adopter | stable | treat as family default | now |
+| Parent tab re-click returns to summary | assignments intent, tests implementation direction | stable | treat as family default | now |
+| Ownership check across feature tab, classroom shell, and route config | family-wide diagnostic rule | stable | require in future parity work | now |
+
 ## True Primitives
 
 These are the current or proposed structural primitives for the teacher work-surface family.
@@ -43,7 +57,7 @@ These are the current or proposed structural primitives for the teacher work-sur
 | Page-shell primitives (`PageLayout`, `PageActionBar`, `PageContent`, `PageStack`) | assignments, quizzes/tests | shared already | stable | keep as primitives | now |
 | Calm empty-state container via `EmptyState` | quizzes/tests today, assignments via similar composition | intended family-wide | stable | keep as primitive | now |
 | Teacher workspace split container derived from assignments | assignment viewing/grading + shell sidebar behavior | intended for quizzes/tests later | experimental candidate | extract as new primitive | now |
-| Shared teacher work-item card variant | `SortableAssignmentCard`, `QuizCard` | partial convergence only | experimental | revisit after convergence | later |
+| Shared teacher work-item card variant | `SortableAssignmentCard`, `QuizCard`, emerging test card variants | partial convergence only | experimental | revisit after convergence | later |
 | Generic teacher list/detail container | no single owner yet | conceptually repeated | unstable | do not extract yet | never for now |
 
 ## Composed Work-Surface Patterns
@@ -66,8 +80,22 @@ These should not be extracted into primitives.
 | --- | --- | --- | --- | --- |
 | Assignment grading logic and student work fetching | `TeacherClassroomView`, assignment workspace hooks | stable | keep feature-local | now |
 | Quiz/test authoring rules, question editing, and validation | `TeacherQuizzesTab`, `QuizModal`, question editors | stable per feature | keep feature-local | now |
-| Test grading batch actions, AI grading strategy, and return flows | `TeacherQuizzesTab` | experimental | keep feature-local | now |
-| Right-sidebar open/close decisions tied to route/query behavior | `ClassroomPageClient`, layout hooks | mixed | keep feature-local until split primitive is extracted | later |
+| Test grading batch actions, AI grading strategy, and return flows | `TeacherQuizzesTab` | feature-local | keep feature-local | now |
+| Assessment-specific workspace mode state machines | assignments/tests/quizzes owners | feature-local | keep feature-local | now |
+| Right-sidebar open/close decisions tied to route/query behavior | `ClassroomPageClient`, layout hooks | mixed structural/feature-local | keep feature-local until split primitive is extracted | later |
+
+## Current Assignment Audit
+
+Assignments remain the best baseline for the family contract.
+
+Observed status:
+
+- summary is already full-width and calm
+- selected work earns complexity rather than inheriting it by default
+- inspector behavior is justified by active review work
+- page-shell primitives are already the structural baseline
+
+No major contradiction currently requires an assignment redesign before tests or quizzes adopt the canon. Future assignment changes should be targeted only when the canon exposes a clear inconsistency.
 
 ## Legacy Drift To Avoid Copying Forward
 
@@ -83,7 +111,7 @@ These are present or recently present patterns that should not be treated as reu
 
 ### Now: teacher workspace split
 
-The first extraction target is a reusable teacher workspace split derived from assignments.
+The first extraction target remains a reusable teacher workspace split derived from assignments.
 
 Responsibilities:
 
@@ -136,4 +164,4 @@ When deciding whether a pattern should be promoted or extracted, answer:
 2. Does it appear in at least two places or clearly need to?
 3. Is the API narrow enough to stay comprehensible?
 4. Would extraction simplify future work instead of hiding important differences?
-5. Should the pattern be canonized first before code extraction?
+5. Has the interaction-ladder behavior been canonized first?

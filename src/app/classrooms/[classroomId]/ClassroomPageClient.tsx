@@ -17,6 +17,7 @@ import { TeacherResourcesTab } from './TeacherResourcesTab'
 import { StudentClassResourcesSidebar } from './StudentClassResourcesSidebar'
 import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherQuizzesTab } from './TeacherQuizzesTab'
+import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentQuizzesTab } from './StudentQuizzesTab'
 import { StudentNotificationsProvider } from '@/components/StudentNotificationsProvider'
 import { ClassDaysProvider } from '@/hooks/useClassDays'
@@ -444,7 +445,7 @@ function ClassroomPageContent({
   const [gradebookClassSummary, setGradebookClassSummary] = useState<GradebookClassSummary | null>(null)
   const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
   const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
-  const [testsSidebarClickToken, setTestsSidebarClickToken] = useState(0)
+  const [testsTabClickToken, setTestsTabClickToken] = useState(0)
   const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
 
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
@@ -709,14 +710,12 @@ function ClassroomPageContent({
   useEffect(() => {
     if (!isTeacher || activeTab !== 'tests') return
     if (testGradingContext.mode === 'grading') return
-    if (selectedQuiz) return
     setRightSidebarOpen(false)
     closeMobileDrawer()
   }, [
     activeTab,
     closeMobileDrawer,
     isTeacher,
-    selectedQuiz,
     setRightSidebarOpen,
     testGradingContext.mode,
   ])
@@ -885,7 +884,7 @@ function ClassroomPageContent({
   const handleTabChange = useCallback(
     (tab: string) => {
       if (tab === 'tests') {
-        setTestsSidebarClickToken((prev) => prev + 1)
+        setTestsTabClickToken((prev) => prev + 1)
       }
       markClassroomTabSwitchStart(tab)
       navigateInClassroom((params) => {
@@ -1088,13 +1087,15 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
-                      <TeacherQuizzesTab
+                      <TeacherTestsTab
                         classroom={classroom}
-                        assessmentType="test"
-                        onSelectQuiz={handleSelectQuiz}
-                        testsSidebarClickToken={testsSidebarClickToken}
+                        testsTabClickToken={testsTabClickToken}
+                        onSelectTest={handleSelectQuiz}
                         onTestGradingDataRefresh={handleTestGradingDataRefresh}
                         onTestGradingContextChange={setTestGradingContext}
+                        onRequestDelete={() => {
+                          void handleRequestAssessmentDelete()
+                        }}
                       />
                     </TabContentTransition>
                   )}
@@ -1346,30 +1347,14 @@ function ClassroomPageContent({
               refreshToken={testGradingPanelRefreshToken}
               onSaveStateChange={setTestGradingSaveState}
             />
-          ) : isTeacher && isAssessmentTab && selectedQuiz ? (
+          ) : isTeacher && activeTab === 'quizzes' && selectedQuiz ? (
             <QuizDetailPanel
               quiz={selectedQuiz}
               classroomId={classroom.id}
               apiBasePath={assessmentApiBasePath}
               onQuizUpdate={handleQuizUpdate}
-              onRequestTestPreview={
-                activeTab === 'tests'
-                  ? (preview) => {
-                      setTeacherTestPreview(preview)
-                    }
-                  : undefined
-              }
-              onRequestDelete={
-                activeTab === 'tests'
-                  ? () => {
-                      void handleRequestAssessmentDelete()
-                    }
-                  : undefined
-              }
             />
-          ) : isTeacher &&
-            activeTab === 'tests' &&
-            testGradingContext.mode === 'authoring' ? null : isTeacher && isAssessmentTab ? (
+          ) : isTeacher && activeTab === 'tests' ? null : isTeacher && isAssessmentTab ? (
             <div className="flex h-full min-h-0 items-center p-4">
               <EmptyState
                 title={`Select a ${assessmentLabel}`}

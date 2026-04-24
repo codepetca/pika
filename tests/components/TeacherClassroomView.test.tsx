@@ -595,6 +595,115 @@ describe('TeacherClassroomView', () => {
     expect(mockClearSelection).toHaveBeenCalled()
   })
 
+  it('shows only unique true errors in the completion message and treats empty work as missing', async () => {
+    const initialRun = {
+      id: 'run-1',
+      assignment_id: 'assignment-1',
+      status: 'running',
+      model: 'gpt-5-nano',
+      requested_count: 3,
+      gradable_count: 2,
+      processed_count: 0,
+      completed_count: 0,
+      skipped_missing_count: 0,
+      skipped_empty_count: 1,
+      failed_count: 0,
+      pending_count: 3,
+      next_retry_at: null,
+      error_samples: [],
+      started_at: '2026-04-20T12:00:00Z',
+      completed_at: null,
+      created_at: '2026-04-20T12:00:00Z',
+    }
+
+    let assignmentFetchCount = 0
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        assignmentFetchCount += 1
+        return Promise.resolve({
+          ok: true,
+          json: async () =>
+            makeAssignmentDetails(
+              'assignment-1',
+              'Assignment One',
+              'student-1',
+              assignmentFetchCount === 1 ? initialRun : null,
+            ),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            run: {
+              ...initialRun,
+              processed_count: 1,
+              pending_count: 2,
+              next_retry_at: null,
+            },
+          }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/auto-grade-runs/run-1/tick') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            claimed: true,
+            run: {
+              ...initialRun,
+              status: 'completed_with_errors',
+              processed_count: 3,
+              completed_count: 0,
+              failed_count: 2,
+              pending_count: 0,
+              next_retry_at: null,
+              error_samples: [
+                {
+                  student_id: 'student-1',
+                  code: 'server',
+                  message: 'AI grading service failed for this submission. Try again.',
+                },
+                {
+                  student_id: 'student-2',
+                  code: 'server',
+                  message: 'AI grading service failed for this submission. Try again.',
+                },
+              ],
+              completed_at: '2026-04-20T12:02:00Z',
+            },
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 missing • 2 failed/)).toBeInTheDocument()
+    })
+    expect(screen.getByText(/AI grading service failed for this submission\. Try again\./)).toBeInTheDocument()
+    expect(screen.queryByText(/2 students:/)).not.toBeInTheDocument()
+  })
+
   it('waits for the next retry window before polling tick again', async () => {
     const nextRetryAt = new Date(Date.now() + 60_000).toISOString()
     let statusFetchCount = 0

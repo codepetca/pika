@@ -128,7 +128,7 @@ describe('StudentQuizForm preview mode', () => {
     })
   })
 
-  it('renders a persistent action footer with save state and submit controls', async () => {
+  it('renders test submit actions inline after the last question', async () => {
     const onSubmitted = vi.fn()
 
     render(
@@ -137,10 +137,17 @@ describe('StudentQuizForm preview mode', () => {
         questions={[
           createMockQuizQuestion({
             id: 'q1',
-            question_text: 'Which option is correct?',
+            question_text: 'Question 1?',
             options: ['A', 'B'],
             question_type: 'multiple_choice',
             position: 0,
+          }),
+          createMockQuizQuestion({
+            id: 'q2',
+            question_text: 'Question 2?',
+            options: ['C', 'D'],
+            question_type: 'multiple_choice',
+            position: 1,
           }),
         ]}
         initialResponses={{
@@ -155,9 +162,40 @@ describe('StudentQuizForm preview mode', () => {
       />
     )
 
-    const footer = screen.getByTestId('student-quiz-action-footer')
-    expect(within(footer).getByText('Saved')).toBeInTheDocument()
-    expect(within(footer).getByRole('button', { name: 'Submit' })).toBeInTheDocument()
+    const actionPanel = screen.getByTestId('student-quiz-action-footer')
+    const questionsStack = screen.getByText('Question 2?').closest('[data-question-id="q2"]')
+      ?.parentElement
+
+    expect(questionsStack?.lastElementChild).toBe(actionPanel)
+    expect(actionPanel.className).not.toContain('sticky')
+    expect(within(actionPanel).getByText('Saved')).toBeInTheDocument()
+    expect(within(actionPanel).getByRole('button', { name: 'Submit' })).toBeInTheDocument()
+    expect(within(actionPanel).getByText('Answer all questions to submit')).toBeInTheDocument()
+  })
+
+  it('keeps the sticky submit footer for quizzes', async () => {
+    const onSubmitted = vi.fn()
+
+    render(
+      <StudentQuizForm
+        quizId="quiz-footer-id"
+        questions={[
+          createMockQuizQuestion({
+            id: 'q1',
+            question_text: 'Quiz question?',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        assessmentType="quiz"
+        onSubmitted={onSubmitted}
+      />
+    )
+
+    const actionPanel = screen.getByTestId('student-quiz-action-footer')
+    expect(actionPanel.className).toContain('sticky')
+    expect(within(actionPanel).getByRole('button', { name: 'Submit' })).toBeInTheDocument()
   })
 
   it('notifies the parent when a submit fails because the test is no longer active', async () => {

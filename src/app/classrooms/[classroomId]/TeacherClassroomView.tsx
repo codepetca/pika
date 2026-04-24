@@ -37,6 +37,7 @@ import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
+import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
@@ -248,6 +249,24 @@ function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null
   return Math.min(Math.max(delay, 1000), 10_000)
 }
 
+function summarizeAssignmentAiGradingErrors(run: AssignmentAiGradingRunSummary): string {
+  const uniqueMessages: string[] = []
+  const seen = new Set<string>()
+
+  for (const sample of run.error_samples) {
+    const message = sample.message.trim()
+    if (!message || seen.has(message)) continue
+    seen.add(message)
+    uniqueMessages.push(message)
+  }
+
+  if (uniqueMessages.length === 0) return ''
+
+  return uniqueMessages
+    .slice(0, 3)
+    .join(' · ')
+}
+
 function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary): {
   info: string
   error: string
@@ -257,11 +276,9 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
   if (run.completed_count > 0) {
     summaryParts.push(`Graded ${run.completed_count}`)
   }
-  if (run.skipped_empty_count > 0) {
-    summaryParts.push(`${run.skipped_empty_count} empty`)
-  }
-  if (run.skipped_missing_count > 0) {
-    summaryParts.push(`${run.skipped_missing_count} missing`)
+  const missingCount = run.skipped_empty_count + run.skipped_missing_count
+  if (missingCount > 0) {
+    summaryParts.push(`${missingCount} missing`)
   }
   if (run.failed_count > 0) {
     summaryParts.push(`${run.failed_count} failed`)
@@ -270,15 +287,12 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
   const summary = summaryParts.length > 0
     ? summaryParts.join(' • ')
     : 'No grading changes were needed'
-  const errorDetails = run.error_samples
-    .slice(0, 3)
-    .map((sample) => sample.message)
-    .join('\n')
+  const errorSummary = summarizeAssignmentAiGradingErrors(run)
 
   if (run.status === 'completed_with_errors' || run.status === 'failed') {
     return {
       info: '',
-      error: errorDetails ? `${summary}\n${errorDetails}` : summary,
+      error: errorSummary ? `${summary}\n${errorSummary}` : summary,
     }
   }
 
@@ -1616,35 +1630,19 @@ export function TeacherClassroomView({
                   </div>
                 )
               ) : showOverviewInspector ? (
-                <div className="flex h-full min-h-0 flex-col lg:flex-row">
-                  <div className="min-h-0 flex-1 overflow-hidden">
-                    {studentTable}
-                  </div>
-                  {isDesktop && (
-                    <div className="relative hidden w-0 shrink-0 lg:block">
-                      <div
-                        role="separator"
-                        aria-orientation="vertical"
-                        aria-label="Resize table and grading panes"
-                        className="absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize bg-transparent"
-                        onPointerDown={handleOverviewInspectorResizeStart}
-                        onDoubleClick={handleOverviewInspectorResizeReset}
-                      >
-                        <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
-                      </div>
-                    </div>
-                  )}
-                  <div
-                    className="min-h-0 border-t border-border bg-surface lg:border-t-0"
-                    style={
-                      isDesktop
-                        ? ({
-                            width: `${activeWorkspaceLayout.inspectorWidth}%`,
-                            flexBasis: `${activeWorkspaceLayout.inspectorWidth}%`,
-                          } as const)
-                        : undefined
-                    }
-                  >
+                <SummaryDetailWorkspaceShell
+                  className="flex-1"
+                  orientation="responsive"
+                  leftPaneClassName="min-h-0"
+                  rightPaneClassName="min-h-0"
+                  rightWidthPercent={isDesktop ? activeWorkspaceLayout.inspectorWidth : undefined}
+                  divider={{
+                    label: 'Resize table and grading panes',
+                    onPointerDown: handleOverviewInspectorResizeStart,
+                    onDoubleClick: handleOverviewInspectorResizeReset,
+                  }}
+                  left={studentTable}
+                  right={
                     <TeacherStudentWorkPanel
                       classroomId={classroom.id}
                       assignmentId={selection.assignmentId}
@@ -1655,8 +1653,8 @@ export function TeacherClassroomView({
                       totalWidth={workspaceWidth}
                       onLoadingStateChange={setWorkspaceLoading}
                     />
-                  </div>
-                </div>
+                  }
+                />
               ) : (
                 studentTable
               )}

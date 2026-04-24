@@ -9071,3 +9071,216 @@
 - `pnpm build`
 - `pnpm run seed`
 - Seeded browser verification on `Test Classroom` → `Personal Narrative Essay` showing the new teacher AI grading note during an active batch run
+
+## 2026-04-21 — Preserve Student Test Progress Through Exam Lock Overlay
+
+- Investigated issue `#483` and confirmed the progress-loss symptom came from same-session remounting during sustained exam-mode non-compliance, not from missing draft persistence on the server.
+- Kept the active student test shell mounted while the maximize-warning overlay is active, hiding it with `visibility: hidden` and `aria-hidden` instead of swapping the pane out for an empty placeholder.
+- Updated exam-mode component coverage so lock-state assertions check that content becomes hidden rather than unmounted, and added a regression test proving an unsaved open-response draft survives the lock/unlock cycle.
+- Visually verified the seeded student test flow in `Test Classroom`, including the active test, maximize-warning overlay, and restored view with the typed response still present.
+
+**Validation:**
+- `pnpm test tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx tests/api/student/tests-id.test.ts tests/api/student/tests-attempt.test.ts`
+- Browser verification on seeded `Test Classroom` tests:
+  - teacher desktop tests tab
+  - student mobile tests tab
+  - student desktop active test
+  - student desktop maximize-warning overlay
+  - student desktop restored test with preserved draft
+## 2026-04-21 — Finalize Default Assignment Grading State
+
+- Changed assignment AI grading to save successful grades as final by default, while preserving draft only when a teacher explicitly chooses draft during manual grading.
+- Auto-finalized missing or empty submissions with `Missing` feedback, zero scores, and graded metadata so batch and single-student grading flows no longer leave these students ungraded.
+- Collapsed repeated AI grading failure text into concise grouped summaries in the teacher classroom header and kept the updated grading workspace stable across desktop and mobile verification.
+
+**Validation:**
+- `pnpm exec vitest run tests/unit/ai-grading.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/lib/ai-grading.ts' 'src/lib/server/assignment-ai-grading-runs.ts' 'src/app/api/teacher/assignments/[id]/auto-grade/route.ts' 'src/components/assignment-workspace/useTeacherStudentWorkController.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'tests/api/teacher/assignments-auto-grade.test.ts' 'tests/unit/ai-grading.test.ts' 'tests/components/TeacherStudentWorkPanel.test.tsx' 'tests/components/TeacherClassroomView.test.tsx'`
+- Visual verification screenshots: `/tmp/pika-teacher-grading.png`, `/tmp/pika-teacher-grading-mobile.png`, `/tmp/pika-student-assignments.png`
+
+## 2026-04-21 — Return Missing Assignment Grades and Simplify Run Errors
+
+- Updated assignment return handling so fully graded work can be returned even when the student never submitted, which allows `Missing` zero-point grades to reach students through the normal return flow.
+- Standardized classroom AI grading summaries to treat empty work as `missing` and show only unique true error messages instead of sampled per-student counts.
+- Added regression coverage for returning unsubmitted `Missing` grades and for the revised teacher header summary wording.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'tests/api/teacher/assignments-id-return.test.ts' 'tests/components/TeacherClassroomView.test.tsx'`
+- Visual verification screenshots: `/tmp/pika-teacher-classroom-header-desktop.png`, `/tmp/pika-teacher-classroom-header-mobile.png`, `/tmp/pika-student-classroom-mobile.png`
+
+## 2026-04-21 — Prevent Duplicate Assignment Re-Returns
+
+- Tightened the assignment return filter so already returned work is not re-returned unless the student has submitted again, while still allowing unsubmitted `Missing` grades to be returned once.
+- Added regression coverage to ensure the return route skips already returned docs instead of duplicating feedback entries or restamping return timestamps.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-id-return.test.ts tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'tests/api/teacher/assignments-id-return.test.ts'`
+
+## 2026-04-21 — Validate Enrollment Before Assignment Auto-Grade
+
+- Updated teacher assignment auto-grade to verify every requested `student_id` is enrolled in the assignment classroom before creating missing grades or batch grading runs.
+- Added route-level regression coverage for rejecting non-enrolled single-student and batch auto-grade requests, and confirmed the missing-grade path is not called for invalid IDs.
+
+**Validation:**
+- `pnpm exec vitest run tests/api/teacher/assignments-auto-grade.test.ts`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/auto-grade/route.ts' 'tests/api/teacher/assignments-auto-grade.test.ts'`
+
+## 2026-04-21 — Reorder Batch Missing-Grade Writes
+
+- Changed assignment AI grading batch setup to create the grading run and run items before writing `Missing` zero-point grades for skipped students.
+- Added direct service-level regression coverage to ensure missing-grade upserts do not happen when run creation or run-item creation fails, and to lock in the new successful ordering.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts`
+- `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
+
+## 2026-04-21 — Make Assignment AI Batch Creation Atomic
+
+- Added migration `055_assignment_ai_grading_run_atomic_rpc.sql` with `create_assignment_ai_grading_run_atomic(...)` so run creation, run-item inserts, and skipped-student `Missing` grade upserts happen in one database transaction.
+- Updated `createOrResumeAssignmentAiGradingRun()` to call the atomic RPC instead of issuing separate writes from TypeScript, added explicit migration guidance when the new RPC is unavailable, and mapped active-run unique-key races back to the intended resume/conflict response.
+- Replaced the service regression tests to assert the RPC payload, matching-run resume behavior, the race-recovery path, and the migration-055 error path.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
+
+## 2026-04-22 — Tighten Atomic RPC Access And Item Failure Handling
+
+- Restricted `create_assignment_ai_grading_run_atomic(...)` execution to `service_role` so the new security-definer RPC cannot be called directly by ordinary authenticated users.
+- Updated batch item processing so failed `Missing` grade writes on `missing_doc` or `empty_doc` items become item-level `failed` states with explicit error metadata instead of crashing the whole grading run.
+- Added regression coverage for both skipped-item failure paths to confirm the run completes with item errors rather than top-level failure.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/assignment-ai-grading-runs.test.ts tests/api/teacher/assignments-auto-grade.test.ts tests/api/teacher/assignment-auto-grade-runs.test.ts tests/api/teacher/assignments-id-return.test.ts`
+- `pnpm exec eslint 'src/lib/server/assignment-ai-grading-runs.ts' 'tests/lib/assignment-ai-grading-runs.test.ts'`
+
+## 2026-04-22 — Reshape Migration 055 For Supabase CLI Parsing
+
+- Rewrote `055_assignment_ai_grading_run_atomic_rpc.sql` as a single top-level `DO` block that dynamically creates the RPC and applies the `revoke`/`grant`, avoiding the CLI prepared-statement failure when it tries to apply the whole file at once.
+- Preserved the same RPC body and service-role-only execute permissions; this change is migration-shape only.
+
+**Validation:**
+- Manual migration diff review for semantic parity of the function body and permission changes.
+
+## 2026-04-22 — Fix New Test Title Placeholder Copy
+
+- Updated `QuizModal` to derive a shared assessment label so the create/edit heading and title placeholder both reflect `quiz` versus `test` correctly.
+- Added a focused component regression test to lock the new-test placeholder copy and preserve quiz copy in edit mode.
+- Visually verified the teacher new-test modal on desktop and mobile plus the student tests screen against a live dev server. Teacher mobile tests tab still has pre-existing horizontal overflow unrelated to this change.
+
+**Validation:**
+- `pnpm test tests/components/QuizModal.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- Manual Playwright verification on `http://localhost:3001/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests`
+
+## 2026-04-22 — Add Draggable Resize For Teacher Test Authoring Split
+
+- Added a draggable divider to the teacher test summary/detail authoring workspace in `QuizDetailPanel`, with local width state and double-click reset back to 50/50.
+- Clamped the markdown pane to a minimum of `360px` and the structured editor pane to a minimum of `420px`, so the allowed percentage range adjusts to the live workspace width instead of using a fixed cap.
+- Added a component regression that exercises drag-to-clamp in both directions and reset-on-double-click for the new divider.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/QuizModal.test.tsx`
+- Manual Playwright verification on `http://localhost:3002/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests` with a disposable teacher test (`Resizable divider check 1776880025837`): markdown pane width changed from `695px` to `515.688px` after dragging, and the student tests view remained visually unchanged.
+
+## 2026-04-22 — Move Test Submit Action To The End Of The Assessment Flow
+
+- Updated `StudentQuizForm` so test assessments render the submit panel inline after the last question instead of using the sticky floating footer. Quiz assessments keep the existing sticky footer behavior.
+- Covered the new placement in `StudentQuizForm.test.tsx` and updated the active-test regression in `StudentQuizzesTab.test.tsx` to assert the submit panel now appears after the final question.
+- Visually verified both affected surfaces on the live dev server: the teacher test preview popup and the student exam-mode test flow now show the submit control at the bottom of the question stack.
+
+**Validation:**
+- `pnpm test tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec eslint src/components/StudentQuizForm.tsx tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `bash "$PIKA_WORKTREE/.codex/skills/pika-ui-verify/scripts/ui_verify.sh" 'classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests'` with `E2E_BASE_URL=http://localhost:3002`
+- Manual Playwright screenshots:
+- `/tmp/pika-teacher-test-preview-submit-end.png`
+- `/tmp/pika-student-test-submit-end.png`
+
+## 2026-04-23 — Harden Test Authoring Divider Cleanup
+
+- Updated the test authoring summary/detail divider in `QuizDetailPanel` to clean up drag listeners on interrupted drags, including window blur, pointer cancel, lost pointer capture, and unmount.
+- Added a focused regression in `QuizDetailPanel.test.tsx` that verifies interrupted drags remove the active listeners instead of leaving resize behavior stuck.
+- Added a student exam-mode regression in `StudentQuizzesTab.test.tsx` to assert ordinary in-window pointer dragging does not post exit or window-unmaximize focus events.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec eslint src/components/QuizDetailPanel.tsx tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- Manual Playwright verification on `http://localhost:3001/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests` confirmed the teacher authoring divider still resizes normally after the cleanup change (`695px` to `840.938px` markdown pane width).
+- Live student exam-mode drag re-check was not possible because the seeded `Seed Test - Unattempted Demo` student attempt is already submitted in this environment; the no-false-exit path is covered by the automated regression instead.
+## 2026-04-22 — Durable Test AI Grading Runs
+
+- Replaced synchronous teacher test auto-grading with persisted `test_ai_grading_runs` and `test_ai_grading_run_items`, plus run summary/tick routes and a claim RPC for resumable background processing.
+- Kept the question-aware grading model, but moved execution to bounded question microbatches with short retry backoff, per-question reference-answer caching on `test_questions`, and item-level failure isolation so one bad AI response no longer drops an entire question group.
+- Brought assignment-style output controls to test grading: structured JSON responses, `reasoning.effort: "minimal"`, capped output tokens with one fallback, and run-aware prompt telemetry fields.
+- Updated the teacher tests grading workspace to poll active runs, recover run state from `results`, remove the grading-strategy selector, and keep grading interactive while background work proceeds.
+- Switched the teacher test grading sidebar autosave path to the per-student bulk grades route so manual saves are atomic across a student’s dirty responses.
+- Visually verified the seeded `Test Classroom` tests tab and grading workspace across teacher desktop, teacher mobile, and student mobile captures, including the updated AI grading modal without the removed strategy control.
+
+**Validation:**
+- `pnpm lint`
+- `pnpm test`
+- `pnpm build`
+- Browser verification on seeded `Test Classroom` tests:
+  - teacher desktop tests tab
+  - teacher desktop grading workspace
+  - teacher desktop grading sidebar
+  - teacher desktop AI grading modal
+  - teacher mobile tests tab
+  - teacher mobile grading workspace
+  - student mobile tests tab
+
+## 2026-04-23 — Summary-Detail Test Editor Section Toggles
+
+- Updated the summary-detail test editor so the header-level expand/collapse control now treats the inline documents card as part of the same collapsible surface as the questions.
+- Tightened the open-response answer area styling in the accordion editor by wrapping it in a thin `bg-surface` outline so the grading notes region reads as part of the question card instead of a separate block.
+- Extended the component test coverage to assert the new section-wide toggle labeling and the answer-section surface treatment.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- Browser verification on seeded teacher/student tests views plus focused teacher authoring screenshots
+
+## 2026-04-23 — Fix Test AI Grading Microbatch Failure Isolation
+
+- Patched the test AI grading run processor so a late save failure in a batch no longer reopens or retries earlier siblings that already completed successfully.
+- Narrowed the missing-response path so only the missing run item fails; available siblings in the same microbatch continue grading instead of being dropped with the same error.
+- Added regression coverage for both cases in `tests/lib/test-ai-grading-runs.test.ts`.
+
+**Validation:**
+- `pnpm exec vitest run tests/lib/test-ai-grading-runs.test.ts`
+- `pnpm exec vitest run tests/api/teacher/test-auto-grade-runs.test.ts tests/unit/ai-test-grading.test.ts`
+- `pnpm test`
+## 2026-04-22 — Keep Test Authoring Workspace Stable Across Autosave
+
+- Changed `QuizDetailPanel` to emit a lightweight saved-summary payload (`title`, `show_results`, `questions_count`) after successful draft saves instead of only signaling a generic refresh.
+- Updated `TeacherTestsTab` to apply that payload directly to local selected-test state so adding/removing questions no longer forces a blocking full tests-list reload and spinner swap.
+- Added regression coverage for the saved-summary callback and for keeping the selected test workspace mounted after autosave, plus tightened one flaky summary-detail accordion assertion to wait for settled UI state.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- Visual verification via Playwright screenshots on `/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests`, including teacher desktop/mobile, student mobile, and a teacher interaction capture before/after autosave.
+
+## 2026-04-23 — Make Test Authoring Header And Status Actions Update Locally
+
+- Added an immediate draft-summary callback path in `QuizDetailPanel` so structured authoring edits push `title`, `show_results`, and `questions_count` upward before autosave completes.
+- Updated `TeacherTestsTab` to keep a local selected-test draft summary for the authoring header and activation state, and stopped selected-workspace status actions from calling `loadTests()` after each patch.
+- Updated `TeacherTestCard` summary actions to apply local status patches instead of forcing a full tests-list refetch, and added regression coverage for immediate draft-state updates plus non-refetching status changes.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
+- Visual verification on `http://localhost:3001/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests`, including teacher desktop, student mobile, teacher mobile, a summary-card `Reopen` interaction, and a disposable draft where `Open` changed from disabled to enabled within 500ms after adding the first question
+
+## 2026-04-23 — Stop Duplicate First Autosaves In Test Authoring
+
+- Seeded a baseline `assessment_drafts` row during `POST /api/teacher/tests` and added rollback coverage so brand-new tests do not enter the editor without an initial draft record.
+- Fixed the real duplicate-save race in `QuizDetailPanel`: the unsaved-draft cleanup was keyed to `[saveDraft]`, so normal rerenders could trigger a forced save while the debounced autosave was still pending. The cleanup now uses a stable ref and only runs on actual unmount.
+- Added regression coverage that rerenders the editor with unsaved changes and asserts it still issues exactly one draft PATCH, matching the live duplicate-PATCH bug that previously produced the `409 Draft updated elsewhere` banner.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-draft-route.test.ts`
+- `pnpm lint --file src/components/QuizDetailPanel.tsx --file src/app/api/teacher/tests/route.ts --file tests/components/QuizDetailPanel.test.tsx --file tests/api/teacher/tests-route.test.ts`
+- Visual verification on `http://localhost:3001/classrooms/f0c8c2d8-f1e2-4a2c-ad3f-3b0caa09b106?tab=tests`
+- Live Playwright regression trace confirmed a fresh draft now makes exactly one `PATCH /api/teacher/tests/:id/draft`, shows no conflict text, and returns to `Saved`

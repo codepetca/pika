@@ -8,11 +8,11 @@ This document is the stable canon for the teacher-side work-surface family:
 
 It governs how those three tabs should feel, compose, and evolve. It does not govern:
 
-- the main classroom shell
+- the main classroom shell as a whole
 - unrelated teacher tabs such as attendance, roster, settings, gradebook, or calendar
 - the student product
 
-Assignments are the starting reference implementation for this family because they currently express the clearest summary-to-workspace flow. They are not permanent authority. If quizzes or tests produce a better pattern, this canon should be updated and assignments can then follow.
+Assignments are the current baseline source of truth for this family because they express the clearest teacher summary-to-workspace progression today. They are not permanent authority. If quizzes or tests later produce a better family pattern, this canon should be updated and assignments can then follow.
 
 ## Read Order
 
@@ -28,81 +28,247 @@ When a task touches teacher assignments, teacher quizzes, or teacher tests, read
 ## Authority Model
 
 - `stable.md` remains the source of truth for cross-cutting UI rules.
-- This file is the source of truth for teacher assignments/quizzes/tests composition and taste.
-- Experimental guidance may originate in assignments, quizzes, or tests.
+- This file is the stable authority for teacher assignments/quizzes/tests interaction structure, shell behavior, and family taste.
+- [`docs/guidance/assignment-ux-language.md`](/docs/guidance/assignment-ux-language.md) is the assignment-specific reference implementation, not a competing stable canon.
 - Nothing becomes stable for this family until this canon and the audit agree it is stable.
 
-## Stable Rules
+## Formal Interaction Ladder
 
-### 1. Teacher work surfaces begin in a quiet summary shell
+Use these state names explicitly in planning, prompts, reviews, and implementation notes:
 
-- The default teacher state is a scan-friendly list or summary surface, not a tool-heavy workspace.
-- The first visual emphasis belongs to the content list, not to toggles, segmented controls, or placeholder panels.
-- Empty states should feel calm and singular: one primary surface, one clear action, minimal framing.
+- `entry`: the teacher clicked the parent classroom tab
+- `summary`: the full-width browsing/list state with no passive inspector
+- `workspace`: a selected work item is open in the main content area
+- `workspace_mode`: a sub-mode inside the selected workspace, such as `authoring`, `grading`, `overview`, or `details`
+- `inspector_active`: a secondary pane is open because the current workspace mode and selection justify it
 
-Current grounding:
+Defaults for this family:
 
-- [`src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`](/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx)
-- [`src/components/SortableAssignmentCard.tsx`](/src/components/SortableAssignmentCard.tsx)
+- sub-routes inside these tabs are workspace states by default, not URL states
+- top tabs belong inside selected workspaces, not in passive entry states
+- the right sidebar is a tool, not default chrome
+- re-clicking the parent nav tab should return the surface to `summary`
 
-### 2. Action bars stay stable, sparse, and subordinate to content
+## State Rules
+
+### 1. `entry`
+
+What the teacher sees:
+
+- the shared classroom shell with the family tab activated
+- a browsing-oriented first impression, not a dense authoring or grading workspace
+
+Allowed:
+
+- a sparse action bar
+- a full-width list or empty state
+- existing shell framing from the classroom route
+
+Must not appear:
+
+- a passive blank detail pane
+- an already-open inspector with no active selection
+- top tabs that imply a selected workspace before anything is selected
+
+Advances when:
+
+- the tab finishes loading and resolves into `summary`
+
+### 2. `summary`
+
+What the teacher sees:
+
+- one calm browsing surface
+- content-first cards, rows, or equivalent summary items
+- a stable, restrained top action bar
+
+Allowed:
+
+- one obvious primary action such as `New Assignment`, `New Test`, or `New Quiz`
+- quiet secondary controls when they are needed and visually subordinate
+- a single quiet `EmptyState`
+
+Must not appear:
+
+- a reserved placeholder pane
+- a visibly empty right column
+- workspace-mode tabs
+- controls that visually outrank the content list
+
+Advances when:
+
+- the teacher selects a work item
+- a summary action intentionally opens focused work
+
+### 3. `workspace`
+
+What the teacher sees:
+
+- the same outer shell, now centered on a selected item
+- denser content only because the teacher chose to work inside that item
+
+Allowed:
+
+- a selected-item title
+- context-aware actions
+- a main-pane editor, table, or review surface
+
+Must not appear:
+
+- summary-only placeholder messaging
+- a new shell language unrelated to the summary shell
+
+Advances when:
+
+- the teacher leaves the selected item and returns to `summary`
+- the workspace exposes a deeper `workspace_mode`
+
+### 4. `workspace_mode`
+
+What the teacher sees:
+
+- a selected workspace with top-level sub-modes only when they unlock materially different work
+
+Allowed:
+
+- tabs such as `Authoring` and `Grading`
+- mode-specific action bars
+- different main-pane surfaces for different kinds of work
+
+Must not appear:
+
+- workspace tabs before a selection exists
+- decorative or redundant mode switches that do not represent real workflow changes
+- mode chrome that visually dominates the selected content
+
+Advances when:
+
+- the teacher switches modes inside the selected workspace
+- the current mode and selection justify `inspector_active`
+
+### 5. `inspector_active`
+
+What the teacher sees:
+
+- a secondary pane that is actively supporting the current work
+
+Allowed:
+
+- grading inspectors
+- contextual review panes
+- split or resizable layouts when both panes are being used
+
+Must not appear:
+
+- a passive inspector before the current mode needs it
+- an inspector opened only to preserve layout symmetry
+- a secondary pane with no active contextual value
+
+Advances when:
+
+- the teacher selects the row, student, or sub-item that requires side-by-side work
+- the teacher closes, clears, or exits that focused selection and returns to the previous state
+
+## Shell And Chrome Rules
+
+### Action bar density
 
 - Use the shared page-shell composition already present in teacher assignments: `PageLayout`, `PageActionBar`, `PageContent`, `PageStack`.
-- The primary create/edit action may be prominent, but surrounding controls should remain restrained.
-- Mode controls are allowed only when they unlock a materially different teacher workflow. They should not visually outrank the list itself.
+- Summary states get a sparse action bar with one clear primary action and minimal surrounding chrome.
+- Workspace states may add contextual controls, but the shell should remain recognizable across nearby states.
+- Workspace-mode controls are justified only when they unlock genuinely different work.
 
-Current grounding:
+### Main-content width
 
-- [`src/components/PageLayout.tsx`](/src/components/PageLayout.tsx)
-- [`src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`](/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx)
-- [`src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx`](/src/app/classrooms/[classroomId]/TeacherQuizzesTab.tsx)
+- Summary states use the available main-content width.
+- Do not leave a silent empty column beside the browsing surface.
+- Do not preserve future detail space in a passive state.
 
-### 3. Card language stays compact, descriptive, and reusable
+### Selected-workspace gutters
 
-- Teacher work-item cards should surface the title, key status, time context, and the minimum metadata needed to decide what to open next.
-- Metadata density should stay restrained. Avoid secondary badges, helper copy, or action clusters that make cards feel like mini dashboards.
-- New shared card variants are acceptable only if assignments, quizzes, and tests converge on the same structure.
+- Summary states should keep the normal page rhythm from `PageContent` and `PageStack`.
+- Selected workspaces that render a primary panel shell, split shell, or top-mounted workspace tabs should remove outer `PageContent` gutter padding.
+- In those selected workspaces, the workspace container should sit flush with the main content bounds so the tabs and pane boundaries touch the container edge.
+- Extra outer gutter padding around a selected workspace shell is drift, not family polish.
 
-Current grounding:
+### Right-sidebar default behavior
 
-- [`src/components/SortableAssignmentCard.tsx`](/src/components/SortableAssignmentCard.tsx)
-- [`src/components/QuizCard.tsx`](/src/components/QuizCard.tsx)
+- The right sidebar should be closed or visually inactive by default in `entry` and `summary`.
+- Open the inspector only when the current workspace mode and current selection justify active side-by-side work.
+- Desktop split layouts are workspace tools, not default family chrome.
 
-### 4. Summary-to-detail progression should feel deliberate
+### Top-tab justification
 
-- The teacher should move from summary to focused work only after a real selection or workflow transition.
-- Passive browsing states should not reserve large empty detail panes purely to preserve structure.
-- Split or inspector layouts are justified only when the teacher is actively reviewing work, grading, authoring in detail, or comparing primary content with contextual inspection.
+- Top tabs are allowed only inside `workspace` as `workspace_mode` selectors.
+- They must represent real workflow changes.
+- They should not be the first visual emphasis in a browsing state.
 
-Current grounding:
+### Hard failures
 
-- [`src/app/classrooms/[classroomId]/TeacherClassroomView.tsx`](/src/app/classrooms/[classroomId]/TeacherClassroomView.tsx)
-- [`src/components/TeacherStudentWorkPanel.tsx`](/src/components/TeacherStudentWorkPanel.tsx)
-- [`src/app/classrooms/[classroomId]/ClassroomPageClient.tsx`](/src/app/classrooms/[classroomId]/ClassroomPageClient.tsx)
+Treat these as family-level hard failures:
 
-### 5. Split and resizable layouts are workspace tools, not default chrome
+- a passive blank pane before selection
+- a visibly empty right column after placeholder content is removed
+- workspace-mode tabs shown before selection
+- summary chrome that visually dominates the list
+- a selected workspace shell wrapped in extra outer gutters when the panel or tabs should sit flush
 
-- A split workspace is appropriate when the teacher is actively working in both panes.
-- A split workspace is not appropriate as a passive no-selection scaffold.
-- Width, collapse, and resize behavior should be structural and reusable. Business logic must stay outside the shared layout primitive.
-- The first extraction target for this family is a reusable teacher workspace split derived from assignments.
+## Card And Spacing Rules
 
-Current grounding:
+Teacher work-item cards and summary rows should follow assignment-family scanning priorities:
 
-- [`src/components/layout/ThreePanelShell.tsx`](/src/components/layout/ThreePanelShell.tsx)
-- [`src/components/layout/RightSidebar.tsx`](/src/components/layout/RightSidebar.tsx)
-- [`src/lib/layout-config.ts`](/src/lib/layout-config.ts)
+- title first
+- muted secondary metadata
+- compact status treatment
+- quiet row actions
+- modest vertical rhythm via `PageContent` and `PageStack`
 
-### 6. Tone and copy stay plain, product-like, and low-drama
+Card language should stay compact, descriptive, and reusable:
 
-- Prefer short labels and direct status language over decorative copy.
-- Empty and no-selection states should explain the next action without sounding instructional for the sake of it.
-- Reuse Toronto-aware date language and existing status terms where possible.
+- surface the minimum metadata needed to decide what to open next
+- avoid helper copy, badge piles, or action clusters that make each item feel like a mini dashboard
+- preserve a strong left-to-right reading order with the title as the strongest text
 
-Current grounding:
+Spacing should stay calm:
 
-- [`docs/guidance/ui/stable.md`](/docs/guidance/ui/stable.md)
-- [`docs/core/design.md`](/docs/core/design.md)
+- modest action-bar spacing
+- clear but not oversized separation between cards or rows
+- enough padding for readability without feeling loose
+- in selected panel-based workspaces, earn density by removing outer gutters rather than nesting padded boxes inside padded boxes
+
+## Ownership Checklist
+
+If a screen shows unwanted pane or chrome behavior, check ownership in this order before editing:
+
+1. the feature tab component
+2. the surrounding classroom shell
+3. route and layout config
+
+Typical ownership examples:
+
+- summary/workspace transitions often live in the feature tab component
+- passive no-selection panes may live in `ClassroomPageClient`
+- persistent blank columns may be owned by route config in `src/lib/layout-config.ts`
+
+Do not paper over an outer-shell problem only inside the local tab component.
+
+## Reuse Boundaries
+
+Keep these reusable:
+
+- shell/state rules
+- page-shell primitives
+- stable split-workspace structure when it is truly structural
+- future shared card variants only after real convergence
+
+Keep these feature-local:
+
+- grading behavior
+- quiz/test authoring rules and validation
+- assignment grading logic
+- assessment-specific state machines and domain controls
+
+Do not introduce a generic assessment mega-shell that tries to own assignments, quizzes, and tests in one abstraction.
 
 ## Componentization Rules
 
@@ -135,6 +301,20 @@ For this teacher work-surface family:
   - assessment-specific domain controls
   - authoring rules and validation logic
 
+## Documentation Checklist
+
+Use this checklist when changing or reviewing teacher-family UX:
+
+- full-width summary by default
+- no passive inspector before selection
+- selected workspace earns complexity
+- workspace tabs only after selection
+- inspector opens only for active comparative or review work
+- parent tab click returns to `summary`
+- page-shell primitives are reused
+- semantic tokens remain in app code
+- owner check covers feature tab, classroom shell, and layout config
+
 ## Lifecycle
 
 Every teacher work-surface pattern should be classified as one of:
@@ -157,6 +337,7 @@ The weekly promotion-review automation should be used to surface promotion candi
 
 Any meaningful teacher assignments/quizzes/tests UX change should update this canon when it changes:
 
+- the interaction ladder
 - shell structure
 - action hierarchy
 - card anatomy

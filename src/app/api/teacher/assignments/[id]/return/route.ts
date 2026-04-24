@@ -8,6 +8,22 @@ import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/ass
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+function hasReturnableAssignmentGrade(doc: {
+  score_completion: number | null
+  score_thinking: number | null
+  score_workflow: number | null
+  is_submitted?: boolean | null
+  returned_at?: string | null
+}) {
+  const hasFullGrade = doc.score_completion != null
+    && doc.score_thinking != null
+    && doc.score_workflow != null
+
+  if (!hasFullGrade) return false
+
+  return !!doc.is_submitted || !doc.returned_at
+}
+
 async function updateAssignmentDocsForStudents(opts: {
   supabase: ReturnType<typeof getServiceRoleClient>
   assignmentId: string
@@ -67,13 +83,15 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
     return NextResponse.json({ error: 'Failed to load docs for return' }, { status: 500 })
   }
 
-  const clearableDocs = (docs || []).filter((doc) => doc.is_submitted)
-  const eligibleDocs = clearableDocs.filter((doc) =>
-    doc.score_completion != null
-    && doc.score_thinking != null
-    && doc.score_workflow != null
-  )
+  const loadedDocs = docs || []
+  const clearableDocs = loadedDocs.filter((doc) => doc.is_submitted)
+  const eligibleDocs = loadedDocs.filter(hasReturnableAssignmentGrade)
   const eligibleDocIds = new Set(eligibleDocs.map((doc) => doc.id))
+  const actionableDocIds = new Set(
+    loadedDocs
+      .filter((doc) => doc.is_submitted || eligibleDocIds.has(doc.id) || !!doc.returned_at)
+      .map((doc) => doc.id),
+  )
   const ungradedDocs = clearableDocs.filter((doc) => !eligibleDocIds.has(doc.id))
 
   const now = new Date().toISOString()
@@ -171,7 +189,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
 
   const returnedCount = eligibleDocs.length
   const clearedCount = clearableDocs.length
-  const missingCount = Math.max(student_ids.length - clearableDocs.length, 0)
+  const missingCount = Math.max(student_ids.length - actionableDocIds.size, 0)
 
   return NextResponse.json({
     returned_count: returnedCount,
