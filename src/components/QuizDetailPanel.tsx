@@ -167,7 +167,7 @@ export function QuizDetailPanel({
   const previousQuestionIdsRef = useRef<string[]>([])
   const summaryDetailWorkspaceRef = useRef<HTMLDivElement>(null)
   const summaryDetailResizeCleanupRef = useRef<(() => void) | null>(null)
-  const [summaryDetailMarkdownWidthPercent, setSummaryDetailMarkdownWidthPercent] = useState(
+  const [summaryDetailMarkdownWidthPercent, setSummaryDetailMarkdownWidthPercent] = useState<number>(
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
 
