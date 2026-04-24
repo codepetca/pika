@@ -87,9 +87,29 @@ function isFullscreenActive(): boolean {
   return typeof document !== 'undefined' && Boolean(document.fullscreenElement)
 }
 
+function isFullscreenApiSupported(): boolean {
+  if (typeof document === 'undefined') return false
+  const fullscreenElement = document.documentElement as FullscreenCapableElement
+  return typeof fullscreenElement?.requestFullscreen === 'function'
+}
+
+function isMobileBrowserWithoutFullscreen(): boolean {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false
+  if (isFullscreenApiSupported()) return false
+
+  const maxTouchPoints = window.navigator?.maxTouchPoints ?? 0
+  const hasCoarsePointer =
+    typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
+  const hasTouchInput = maxTouchPoints > 0 || hasCoarsePointer
+  const compactViewport = Math.min(window.innerWidth, window.innerHeight) <= 1024
+
+  return hasTouchInput && compactViewport
+}
+
 const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 400
 const EXAM_WINDOW_MIN_WIDTH_RATIO = 0.92
 const EXAM_WINDOW_MIN_HEIGHT_RATIO = 0.88
+const EXAM_LOCK_OVERLAY_ENABLED = false
 const DOCS_EXIT_SUPPRESSION_WINDOW_MS = 1200
 const UNSUPPRESSED_ROUTE_EXIT_SOURCES = new Set([
   'tab_navigation',
@@ -129,11 +149,13 @@ function getExamWindowComplianceSnapshot(): ExamWindowComplianceSnapshot {
   const availHeight = window.screen?.availHeight || innerHeight
   const widthRatio = availWidth > 0 ? innerWidth / availWidth : 1
   const heightRatio = availHeight > 0 ? innerHeight / availHeight : 1
+  const mobileFullscreenFallback = isMobileBrowserWithoutFullscreen()
 
   return {
     isFullscreen,
     isCompliant:
       isFullscreen ||
+      mobileFullscreenFallback ||
       (widthRatio >= EXAM_WINDOW_MIN_WIDTH_RATIO && heightRatio >= EXAM_WINDOW_MIN_HEIGHT_RATIO),
     widthRatio,
     heightRatio,
@@ -1089,7 +1111,8 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     const awayCount = focusSummary?.away_count ?? 0
     const routeExitAttempts = focusSummary?.route_exit_attempts ?? 0
     const windowUnmaximizeAttempts = focusSummary?.window_unmaximize_attempts ?? 0
-    const showNotMaximizedWarning = showCurrentTestInfoPanel && !isWindowCompliantStable
+    const showNotMaximizedWarning =
+      EXAM_LOCK_OVERLAY_ENABLED && showCurrentTestInfoPanel && !isWindowCompliantStable
     const iframeDocs = allowedDocs.filter((doc) => doc.source !== 'text' && Boolean(doc.url))
     const selectedTestTitle = hasSelectedQuiz ? selectedQuiz.quiz.title : ''
     const selectedTestPanelTitle = isViewingResults
