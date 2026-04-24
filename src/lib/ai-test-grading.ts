@@ -16,14 +16,119 @@ import {
 
 const DEFAULT_MODEL = 'gpt-5-nano'
 const MAX_REFERENCE_ANSWERS = 3
+const RETRYABLE_STATUS_CODES = new Set([408, 409, 429, 500, 502, 503, 504])
+const TEST_AI_REASONING_EFFORT = 'minimal'
+const TEST_AI_REQUEST_TIMEOUT_MS = 25_000
+const TEST_AI_REFERENCE_MAX_OUTPUT_TOKENS = 220
+const TEST_AI_REFERENCE_FALLBACK_MAX_OUTPUT_TOKENS = 420
+const TEST_AI_SINGLE_MAX_OUTPUT_TOKENS = 220
+const TEST_AI_SINGLE_FALLBACK_MAX_OUTPUT_TOKENS = 420
+const TEST_AI_BATCH_MAX_OUTPUT_TOKENS = 600
+const TEST_AI_BATCH_FALLBACK_MAX_OUTPUT_TOKENS = 900
 
 export type TestOpenResponsePromptProfile = 'manual' | 'bulk'
 type ReferenceAnswerSource = 'teacher_key' | 'provided' | 'generated'
+
+const TEST_REFERENCE_ANSWERS_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    reference_answers: {
+      type: 'array',
+      items: {
+        type: 'string',
+        minLength: 1,
+      },
+      minItems: 1,
+      maxItems: MAX_REFERENCE_ANSWERS,
+    },
+  },
+  required: ['reference_answers'],
+  additionalProperties: false,
+} as const
+
+const TEST_SINGLE_GRADE_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    score: {
+      type: 'number',
+    },
+    feedback: {
+      type: 'string',
+      minLength: 1,
+    },
+  },
+  required: ['score', 'feedback'],
+  additionalProperties: false,
+} as const
+
+const TEST_BATCH_GRADE_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    results: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          response_id: {
+            type: 'string',
+            minLength: 1,
+          },
+          score: {
+            type: 'number',
+          },
+          feedback: {
+            type: 'string',
+            minLength: 1,
+          },
+        },
+        required: ['response_id', 'score', 'feedback'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['results'],
+  additionalProperties: false,
+} as const
+
+export type TestAiErrorKind =
+  | 'config'
+  | 'timeout'
+  | 'network'
+  | 'rate_limit'
+  | 'server'
+  | 'bad_response'
+  | 'invalid_output'
+
+export class TestAiGradingError extends Error {
+  readonly kind: TestAiErrorKind
+  readonly retryable: boolean
+  readonly statusCode: number | null
+
+  constructor(opts: {
+    kind: TestAiErrorKind
+    message: string
+    retryable: boolean
+    statusCode?: number | null
+  }) {
+    super(opts.message)
+    this.name = 'TestAiGradingError'
+    this.kind = opts.kind
+    this.retryable = opts.retryable
+    this.statusCode = opts.statusCode ?? null
+  }
+}
+
+export function isRetryableTestAiGradingError(error: unknown): error is TestAiGradingError {
+  return error instanceof TestAiGradingError && error.retryable
+}
 
 export interface TestOpenResponseTelemetryContext {
   feature: 'test_auto_grade' | 'test_ai_suggest'
   requestedStrategy?: string | null
   resolvedStrategy?: string | null
+  runId?: string | null
+  studentId?: string | null
+  attempt?: number | null
 }
 
 export interface TestOpenResponsePreparedContext {
@@ -71,6 +176,17 @@ export interface TestOpenResponseBatchSuggestion extends TestOpenResponseSuggest
   responseId: string
 }
 
+function getOpenAIKey(): string | null {
+  const key = process.env.OPENAI_API_KEY
+  if (!key) return null
+  const trimmed = key.trim()
+  return trimmed || null
+}
+
+export function getTestOpenResponseGradingModel(): string {
+  return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+}
+
 function summarizeResponseBody(bodyText: string): string {
   const normalized = bodyText.replace(/\s+/g, ' ').trim()
   if (!normalized) return ''
@@ -86,20 +202,13 @@ function buildInvalidJsonErrorMessage(res: Response, bodyText: string): string {
     : `OpenAI returned invalid JSON (status ${res.status}, ${contentType})`
 }
 
-function getOpenAIKey(): string | null {
-  const key = process.env.OPENAI_API_KEY
-  if (!key) return null
-  const trimmed = key.trim()
-  return trimmed || null
-}
-
-export function getTestOpenResponseGradingModel(): string {
-  return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
-}
-
 function extractOutputText(payload: any): string | null {
   if (typeof payload?.output_text === 'string' && payload.output_text.trim()) {
     return payload.output_text.trim()
+  }
+
+  if (payload?.output_parsed && typeof payload.output_parsed === 'object') {
+    return JSON.stringify(payload.output_parsed)
   }
 
   const output = payload?.output
@@ -111,6 +220,12 @@ function extractOutputText(payload: any): string | null {
     for (const block of content) {
       if (block?.type === 'output_text' && typeof block?.text === 'string' && block.text.trim()) {
         return block.text.trim()
+      }
+      if (block?.parsed && typeof block.parsed === 'object') {
+        return JSON.stringify(block.parsed)
+      }
+      if (block?.json && typeof block.json === 'object') {
+        return JSON.stringify(block.json)
       }
     }
   }
@@ -132,59 +247,253 @@ function parseJsonFromOutputText(outputText: string, parseErrorMessage: string):
   }
 }
 
+function extractParsedOutput(payload: any): any | null {
+  if (payload?.output_parsed && typeof payload.output_parsed === 'object') {
+    return payload.output_parsed
+  }
+
+  const output = payload?.output
+  if (!Array.isArray(output)) return null
+
+  for (const item of output) {
+    const content = item?.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block?.parsed && typeof block.parsed === 'object') {
+        return block.parsed
+      }
+      if (block?.json && typeof block.json === 'object') {
+        return block.json
+      }
+    }
+  }
+
+  return null
+}
+
+function isMaxOutputIncomplete(payload: any): boolean {
+  return (
+    payload?.status === 'incomplete' &&
+    payload?.incomplete_details?.reason === 'max_output_tokens'
+  )
+}
+
+function buildOpenAIJsonBody(opts: {
+  model: string
+  systemPrompt: string
+  userPrompt: string
+  schemaName: string
+  schema: Record<string, unknown>
+  maxOutputTokens: number
+}) {
+  return {
+    model: opts.model,
+    input: [
+      {
+        role: 'system',
+        content: [{ type: 'input_text', text: opts.systemPrompt }],
+      },
+      {
+        role: 'user',
+        content: [{ type: 'input_text', text: opts.userPrompt }],
+      },
+    ],
+    reasoning: {
+      effort: TEST_AI_REASONING_EFFORT,
+    },
+    max_output_tokens: opts.maxOutputTokens,
+    text: {
+      format: {
+        type: 'json_schema',
+        name: opts.schemaName,
+        strict: true,
+        schema: opts.schema,
+      },
+    },
+  }
+}
+
+async function fetchOpenAIJsonPayload(opts: {
+  apiKey: string
+  model: string
+  systemPrompt: string
+  userPrompt: string
+  schemaName: string
+  schema: Record<string, unknown>
+  maxOutputTokens: number
+  requestTimeoutMs?: number
+}): Promise<any> {
+  let res: Response
+  try {
+    res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${opts.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(buildOpenAIJsonBody(opts)),
+      signal:
+        opts.requestTimeoutMs && opts.requestTimeoutMs > 0
+          ? AbortSignal.timeout(opts.requestTimeoutMs)
+          : undefined,
+    })
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === 'AbortError' || error.name === 'TimeoutError')
+    ) {
+      throw new TestAiGradingError({
+        kind: 'timeout',
+        message: 'OpenAI grading request timed out',
+        retryable: true,
+      })
+    }
+
+    throw new TestAiGradingError({
+      kind: 'network',
+      message: error instanceof Error ? error.message : 'OpenAI request failed',
+      retryable: true,
+    })
+  }
+
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => '')
+    const statusCode = res.status
+    const retryable = RETRYABLE_STATUS_CODES.has(statusCode)
+    const kind: TestAiErrorKind =
+      statusCode === 429
+        ? 'rate_limit'
+        : retryable
+          ? 'server'
+          : statusCode === 401 || statusCode === 403
+            ? 'config'
+            : 'bad_response'
+
+    throw new TestAiGradingError({
+      kind,
+      message: `OpenAI request failed (${statusCode}): ${bodyText}`,
+      retryable,
+      statusCode,
+    })
+  }
+
+  const fallbackBodyTextPromise =
+    typeof res.clone === 'function'
+      ? res.clone().text().catch(() => '')
+      : Promise.resolve('')
+
+  try {
+    return await res.json()
+  } catch {
+    const bodyText = await fallbackBodyTextPromise
+    throw new TestAiGradingError({
+      kind: 'bad_response',
+      message: buildInvalidJsonErrorMessage(res, bodyText),
+      retryable: false,
+      statusCode: res.status,
+    })
+  }
+}
+
+function toTestAiGradingError(error: unknown): TestAiGradingError {
+  if (error instanceof TestAiGradingError) {
+    return error
+  }
+
+  if (
+    error instanceof Error &&
+    (error.name === 'AbortError' || error.name === 'TimeoutError')
+  ) {
+    return new TestAiGradingError({
+      kind: 'timeout',
+      message: 'OpenAI grading request timed out',
+      retryable: true,
+    })
+  }
+
+  if (error instanceof Error) {
+    return new TestAiGradingError({
+      kind: 'bad_response',
+      message: error.message,
+      retryable: false,
+    })
+  }
+
+  return new TestAiGradingError({
+    kind: 'bad_response',
+    message: 'Unknown grading error',
+    retryable: false,
+  })
+}
+
 async function callOpenAIForJson(opts: {
   apiKey: string
   model: string
   systemPrompt: string
   userPrompt: string
   parseErrorMessage: string
+  schemaName: string
+  schema: Record<string, unknown>
+  maxOutputTokens: number
+  fallbackMaxOutputTokens: number
+  requestTimeoutMs?: number
 }): Promise<{ parsed: any; usage: OpenAIResponseUsage }> {
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${opts.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: opts.model,
-      input: [
-        {
-          role: 'system',
-          content: [{ type: 'input_text', text: opts.systemPrompt }],
-        },
-        {
-          role: 'user',
-          content: [{ type: 'input_text', text: opts.userPrompt }],
-        },
-      ],
-    }),
-  })
-
-  if (!res.ok) {
-    const bodyText = await res.text().catch(() => '')
-    throw new Error(`OpenAI request failed (${res.status}): ${bodyText}`)
-  }
-
-  const fallbackBodyTextPromise = typeof res.clone === 'function'
-    ? res.clone().text().catch(() => '')
-    : Promise.resolve('')
-
-  let payload: any
   try {
-    payload = await res.json()
-  } catch {
-    const bodyText = await fallbackBodyTextPromise
-    throw new Error(buildInvalidJsonErrorMessage(res, bodyText))
-  }
+    let payload = await fetchOpenAIJsonPayload({
+      apiKey: opts.apiKey,
+      model: opts.model,
+      systemPrompt: opts.systemPrompt,
+      userPrompt: opts.userPrompt,
+      schemaName: opts.schemaName,
+      schema: opts.schema,
+      maxOutputTokens: opts.maxOutputTokens,
+      requestTimeoutMs: opts.requestTimeoutMs ?? TEST_AI_REQUEST_TIMEOUT_MS,
+    })
 
-  const outputText = extractOutputText(payload)
-  if (!outputText) {
-    throw new Error('OpenAI response missing output text')
-  }
+    if (isMaxOutputIncomplete(payload)) {
+      payload = await fetchOpenAIJsonPayload({
+        apiKey: opts.apiKey,
+        model: opts.model,
+        systemPrompt: opts.systemPrompt,
+        userPrompt: opts.userPrompt,
+        schemaName: opts.schemaName,
+        schema: opts.schema,
+        maxOutputTokens: opts.fallbackMaxOutputTokens,
+        requestTimeoutMs: opts.requestTimeoutMs ?? TEST_AI_REQUEST_TIMEOUT_MS,
+      })
+    }
 
-  return {
-    parsed: parseJsonFromOutputText(outputText, opts.parseErrorMessage),
-    usage: extractOpenAIResponseUsage(payload),
+    if (isMaxOutputIncomplete(payload)) {
+      throw new TestAiGradingError({
+        kind: 'bad_response',
+        message: 'OpenAI response incomplete: max_output_tokens',
+        retryable: false,
+      })
+    }
+
+    const parsedOutput = extractParsedOutput(payload)
+    if (parsedOutput && typeof parsedOutput === 'object') {
+      return {
+        parsed: parsedOutput,
+        usage: extractOpenAIResponseUsage(payload),
+      }
+    }
+
+    const outputText = extractOutputText(payload)
+    if (!outputText) {
+      throw new TestAiGradingError({
+        kind: 'bad_response',
+        message: 'OpenAI response missing structured output',
+        retryable: false,
+      })
+    }
+
+    return {
+      parsed: parseJsonFromOutputText(outputText, opts.parseErrorMessage),
+      usage: extractOpenAIResponseUsage(payload),
+    }
+  } catch (error) {
+    throw toTestAiGradingError(error)
   }
 }
 
@@ -374,6 +683,9 @@ function logTestPromptTelemetry(input: {
     operation: input.operation,
     model: input.prepared.model,
     promptProfile: input.prepared.promptProfile,
+    runId: input.telemetryContext.runId ?? null,
+    studentId: input.telemetryContext.studentId ?? null,
+    attempt: input.telemetryContext.attempt ?? null,
     requestedStrategy: input.telemetryContext.requestedStrategy ?? null,
     resolvedStrategy: input.telemetryContext.resolvedStrategy ?? null,
     questionType: input.prepared.isCodingQuestion ? 'coding' : 'non-coding',
@@ -458,6 +770,7 @@ async function generateReferenceAnswers(opts: {
   isCodingQuestion: boolean
   promptProfile: TestOpenResponsePromptProfile
   telemetryContext: TestOpenResponseTelemetryContext
+  requestTimeoutMs?: number
 }): Promise<string[]> {
   const codingGuidance = opts.isCodingQuestion
     ? `
@@ -487,6 +800,11 @@ Max points: ${opts.maxPoints}`
     systemPrompt,
     userPrompt,
     parseErrorMessage: 'Failed to parse AI reference answers',
+    schemaName: 'test_reference_answers',
+    schema: TEST_REFERENCE_ANSWERS_JSON_SCHEMA,
+    maxOutputTokens: TEST_AI_REFERENCE_MAX_OUTPUT_TOKENS,
+    fallbackMaxOutputTokens: TEST_AI_REFERENCE_FALLBACK_MAX_OUTPUT_TOKENS,
+    requestTimeoutMs: opts.requestTimeoutMs,
   })
 
   const referenceAnswers = normalizeReferenceAnswers(parsed?.reference_answers)
@@ -704,6 +1022,7 @@ export async function prepareTestOpenResponseGradingContext(input: {
   promptGuidelineOverride?: string | null
   promptProfile?: TestOpenResponsePromptProfile
   telemetryContext?: TestOpenResponseTelemetryContext
+  requestTimeoutMs?: number
 }): Promise<TestOpenResponsePreparedContext> {
   const model = getTestOpenResponseGradingModel()
   const maxPoints = Math.max(0, input.maxPoints)
@@ -763,6 +1082,7 @@ export async function prepareTestOpenResponseGradingContext(input: {
       requestedStrategy: promptProfile === 'bulk' ? 'balanced' : 'manual',
       resolvedStrategy: 'reference_generation',
     },
+    requestTimeoutMs: input.requestTimeoutMs,
   })
 
   return buildTestOpenResponsePreparedContext({
@@ -798,7 +1118,8 @@ function normalizeSuggestedScore(
 export async function suggestTestOpenResponseGradeWithContext(
   prepared: TestOpenResponsePreparedContext,
   responseText: string,
-  telemetryContext?: TestOpenResponseTelemetryContext
+  telemetryContext?: TestOpenResponseTelemetryContext,
+  requestTimeoutMs?: number,
 ): Promise<TestOpenResponseSuggestion> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
@@ -813,6 +1134,11 @@ export async function suggestTestOpenResponseGradeWithContext(
     systemPrompt: prepared.systemPrompt,
     userPrompt,
     parseErrorMessage: 'Failed to parse AI grade suggestion',
+    schemaName: 'test_single_grade',
+    schema: TEST_SINGLE_GRADE_JSON_SCHEMA,
+    maxOutputTokens: TEST_AI_SINGLE_MAX_OUTPUT_TOKENS,
+    fallbackMaxOutputTokens: TEST_AI_SINGLE_FALLBACK_MAX_OUTPUT_TOKENS,
+    requestTimeoutMs,
   })
 
   if (telemetryContext) {
@@ -849,7 +1175,8 @@ export async function suggestTestOpenResponseGradeWithContext(
 export async function suggestTestOpenResponseGradesBatchWithContext(
   prepared: TestOpenResponsePreparedContext,
   responses: TestOpenResponseBatchRequest[],
-  telemetryContext?: TestOpenResponseTelemetryContext
+  telemetryContext?: TestOpenResponseTelemetryContext,
+  requestTimeoutMs?: number,
 ): Promise<TestOpenResponseBatchSuggestion[]> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
@@ -866,6 +1193,11 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     systemPrompt,
     userPrompt,
     parseErrorMessage: 'Failed to parse AI batch grade suggestions',
+    schemaName: 'test_batch_grade',
+    schema: TEST_BATCH_GRADE_JSON_SCHEMA,
+    maxOutputTokens: TEST_AI_BATCH_MAX_OUTPUT_TOKENS,
+    fallbackMaxOutputTokens: TEST_AI_BATCH_FALLBACK_MAX_OUTPUT_TOKENS,
+    requestTimeoutMs,
   })
 
   if (telemetryContext) {
@@ -929,9 +1261,15 @@ export async function suggestTestOpenResponseGrade(input: {
   promptGuidelineOverride?: string | null
   promptProfile?: TestOpenResponsePromptProfile
   telemetryContext?: TestOpenResponseTelemetryContext
+  requestTimeoutMs?: number
 }): Promise<TestOpenResponseSuggestion> {
   const prepared = await prepareTestOpenResponseGradingContext(input)
-  return suggestTestOpenResponseGradeWithContext(prepared, input.responseText, input.telemetryContext)
+  return suggestTestOpenResponseGradeWithContext(
+    prepared,
+    input.responseText,
+    input.telemetryContext,
+    input.requestTimeoutMs,
+  )
 }
 
 export async function suggestTestOpenResponseGradesBatch(input: {
@@ -947,7 +1285,13 @@ export async function suggestTestOpenResponseGradesBatch(input: {
   promptProfile?: TestOpenResponsePromptProfile
   telemetryContext?: TestOpenResponseTelemetryContext
   responses: TestOpenResponseBatchRequest[]
+  requestTimeoutMs?: number
 }): Promise<TestOpenResponseBatchSuggestion[]> {
   const prepared = await prepareTestOpenResponseGradingContext(input)
-  return suggestTestOpenResponseGradesBatchWithContext(prepared, input.responses, input.telemetryContext)
+  return suggestTestOpenResponseGradesBatchWithContext(
+    prepared,
+    input.responses,
+    input.telemetryContext,
+    input.requestTimeoutMs,
+  )
 }

@@ -226,4 +226,117 @@ describe('PATCH /api/teacher/tests/[id]/students/[studentId]/grades', () => {
     expect(secondPayload.ai_grading_basis).toBeUndefined()
     expect(secondPayload.ai_model).toBeUndefined()
   })
+
+  it('supports mixed multiple-choice and open-response saves, including clears', async () => {
+    const upsertSpy = vi.fn(async () => ({ error: null }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { student_id: 'student-1' },
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  id: 'question-mc-1',
+                  question_type: 'multiple_choice',
+                  points: 2,
+                },
+                {
+                  id: 'question-open-1',
+                  question_type: 'open_response',
+                  points: 5,
+                },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  question_id: 'question-mc-1',
+                  selected_option: 1,
+                  response_text: null,
+                  submitted_at: '2026-03-08T12:00:00.000Z',
+                },
+                {
+                  question_id: 'question-open-1',
+                  selected_option: null,
+                  response_text: 'Original response',
+                  submitted_at: '2026-03-08T12:00:00.000Z',
+                },
+              ],
+              error: null,
+            }),
+          })),
+          upsert: upsertSpy,
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/students/student-1/grades', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          grades: [
+            {
+              question_id: 'question-mc-1',
+              score: 2,
+            },
+            {
+              question_id: 'question-open-1',
+              clear_grade: true,
+            },
+          ],
+        }),
+      }),
+      { params: Promise.resolve({ id: 'test-1', studentId: 'student-1' }) }
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.saved_count).toBe(2)
+    expect(upsertSpy).toHaveBeenCalledTimes(1)
+    expect(upsertSpy).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          question_id: 'question-mc-1',
+          selected_option: 1,
+          score: 2,
+          feedback: null,
+          ai_grading_basis: null,
+        }),
+        expect.objectContaining({
+          question_id: 'question-open-1',
+          response_text: 'Original response',
+          score: null,
+          feedback: null,
+          graded_at: null,
+          graded_by: null,
+        }),
+      ],
+      { onConflict: 'question_id,student_id' }
+    )
+  })
 })

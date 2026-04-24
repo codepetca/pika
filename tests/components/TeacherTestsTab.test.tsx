@@ -109,6 +109,7 @@ function makeResultsResponse(overrides?: {
   students?: Array<Record<string, unknown>>
   questions?: Array<Record<string, unknown>>
   quizStatus?: QuizWithStats['status']
+  activeRun?: Record<string, unknown> | null
 }) {
   return {
     ok: true,
@@ -152,6 +153,7 @@ function makeResultsResponse(overrides?: {
             },
           },
         ],
+      active_ai_grading_run: overrides?.activeRun ?? null,
     }),
   }
 }
@@ -734,6 +736,136 @@ describe('TeacherTestsTab', () => {
       student_ids: ['student-1'],
       close_test: true,
     })
+  })
+
+  it('starts a background AI grading run, polls it, and refreshes rows on completion', async () => {
+    const activeRun = {
+      id: 'run-1',
+      test_id: 'test-1',
+      status: 'running',
+      model: 'gpt-5-nano',
+      prompt_guideline_override: null,
+      requested_count: 1,
+      eligible_student_count: 1,
+      queued_response_count: 1,
+      processed_count: 0,
+      completed_count: 0,
+      skipped_unanswered_count: 0,
+      skipped_already_graded_count: 0,
+      failed_count: 0,
+      pending_count: 1,
+      next_retry_at: null,
+      error_samples: [],
+      started_at: '2026-04-20T12:00:00.000Z',
+      completed_at: null,
+      created_at: '2026-04-20T12:00:00.000Z',
+    }
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+
+        if (url === `/api/teacher/tests?classroom_id=${classroom.id}`) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+          })
+        }
+
+        if (url === '/api/teacher/tests/test-1/results') {
+          return Promise.resolve(makeResultsResponse({ activeRun: null }))
+        }
+
+        if (url === '/api/teacher/tests/test-1/auto-grade' && init?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            status: 202,
+            json: async () => ({
+              mode: 'background',
+              run: activeRun,
+            }),
+          })
+        }
+
+        if (url === '/api/teacher/tests/test-1/auto-grade-runs/run-1') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              run: activeRun,
+            }),
+          })
+        }
+
+        if (url === '/api/teacher/tests/test-1/auto-grade-runs/run-1/tick') {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              claimed: true,
+              run: {
+                ...activeRun,
+                status: 'completed',
+                processed_count: 1,
+                completed_count: 1,
+                pending_count: 0,
+                completed_at: '2026-04-20T12:01:00.000Z',
+              },
+            }),
+          })
+        }
+
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ error: `Unhandled fetch: ${url}` }),
+        })
+      })
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
+    fireEvent.click(screen.getByRole('button', { name: 'AI Grade' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Grade with AI' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('AI grading started')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Graded 1')).toBeInTheDocument()
+    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/teacher/tests/test-1/auto-grade-runs/run-1/tick',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('keeps the AI prompt modal but removes the grading strategy selector', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValue(makeResultsResponse())
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+    await screen.findByText('Alice Zephyr')
+
+    fireEvent.click(screen.getByRole('button', { name: 'AI Prompt' }))
+
+    expect(await screen.findByRole('heading', { name: 'AI Prompt' })).toBeInTheDocument()
+    expect(screen.getByText(/Pika automatically uses the coding rubric/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Grading strategy')).not.toBeInTheDocument()
+    expect(screen.queryByText('Grading strategy')).not.toBeInTheDocument()
   })
 
   it('reloads the list once when the update event fires', async () => {

@@ -316,6 +316,87 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(systemPrompt).toContain('Additional teacher instructions:')
   })
 
+  it('uses structured output with minimal reasoning and the single-response output cap', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        output_parsed: { score: 4, feedback: 'Clear explanation with one missing detail.' },
+      }),
+    })
+
+    await suggestTestOpenResponseGrade({
+      testTitle: 'Unit 1 Test',
+      questionText: 'Explain osmosis.',
+      responseText: 'Water moves across the membrane.',
+      maxPoints: 5,
+      answerKey: 'Water moves across a semipermeable membrane down its concentration gradient.',
+    })
+
+    const gradingRequest = fetchMock.mock.calls[0]?.[1]
+    const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
+
+    expect(gradingBody.reasoning).toEqual({ effort: 'minimal' })
+    expect(gradingBody.max_output_tokens).toBe(220)
+    expect(gradingBody.text?.format).toMatchObject({
+      type: 'json_schema',
+      name: 'test_single_grade',
+      strict: true,
+    })
+  })
+
+  it('retries batch grading once with a larger output cap when the first response is incomplete', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'incomplete',
+          incomplete_details: { reason: 'max_output_tokens' },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          output_parsed: {
+            results: [
+              {
+                response_id: 'response-1',
+                score: 4,
+                feedback: 'Good explanation. Add one key vocabulary word.',
+              },
+            ],
+          },
+        }),
+      })
+
+    const prepared = buildTestOpenResponsePreparedContext({
+      testTitle: 'Unit 1 Test',
+      questionText: 'Explain osmosis.',
+      maxPoints: 5,
+      answerKey: 'Water moves across a semipermeable membrane down its concentration gradient.',
+      promptProfile: 'bulk',
+    })
+
+    const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
+      prepared,
+      [{ responseId: 'response-1', responseText: 'Water moves across the membrane.' }],
+      {
+        feature: 'test_auto_grade',
+        requestedStrategy: 'background_chunked',
+        resolvedStrategy: 'batch',
+        runId: 'run-1',
+        studentId: 'student-1',
+        attempt: 1,
+      },
+    )
+
+    expect(suggestions).toHaveLength(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_output_tokens).toBe(600)
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_output_tokens).toBe(900)
+  })
+
   it('keeps rounded integer scores within fractional max points', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
