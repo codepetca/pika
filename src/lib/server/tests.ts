@@ -28,8 +28,8 @@ type AccessResult<T> =
 export function isMissingTestAttemptReturnColumnsError(error: {
   code?: string
   message?: string
-  details?: string
-  hint?: string
+  details?: string | null
+  hint?: string | null
 } | null | undefined): boolean {
   if (!error) return false
   const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()
@@ -40,8 +40,8 @@ export function isMissingTestAttemptReturnColumnsError(error: {
 export function isMissingTestResponseAiColumnsError(error: {
   code?: string
   message?: string
-  details?: string
-  hint?: string
+  details?: string | null
+  hint?: string | null
 } | null | undefined): boolean {
   if (!error) return false
   const combined = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`.toLowerCase()

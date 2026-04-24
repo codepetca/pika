@@ -341,6 +341,7 @@ export function TestStudentGradingPanel({
     try {
       const canonicalDraftsByResponseId = new Map<string, GradeDraft>()
       const updatedAnswersByQuestionId = new Map<string, Pick<TestAnswerDetail, 'score' | 'feedback' | 'graded_at'>>()
+      const gradesPayload: Array<Record<string, unknown>> = []
 
       for (const item of dirtyResponses) {
         const draft = gradeDrafts[item.responseId]
@@ -351,39 +352,24 @@ export function TestStudentGradingPanel({
         }
         const payload =
           score.kind === 'empty'
-            ? { clear_grade: true }
+            ? { question_id: item.questionId, clear_grade: true }
             : item.questionType === 'open_response'
-              ? { score: score.value, feedback: normalizedFeedback }
-              : { score: score.value }
+              ? { question_id: item.questionId, score: score.value, feedback: normalizedFeedback }
+              : { question_id: item.questionId, score: score.value }
 
-        const res = await fetch(`${apiBasePath}/${testId}/responses/${item.responseId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Failed to save grades')
+        gradesPayload.push(payload)
 
-        const responseRow = data?.response as
-          | { score?: number | null; feedback?: string | null; graded_at?: string | null }
-          | undefined
-        const savedScore = typeof responseRow?.score === 'number'
-          ? responseRow.score
-          : score.kind === 'value'
+        const savedScore =
+          score.kind === 'value'
             ? score.value
             : null
-        const savedFeedback = typeof responseRow?.feedback === 'string'
-          ? responseRow.feedback
-          : score.kind === 'empty'
+        const savedFeedback =
+          score.kind === 'empty'
             ? ''
             : item.questionType === 'open_response'
               ? normalizedFeedback
               : ''
-        const savedGradedAt = typeof responseRow?.graded_at === 'string'
-          ? responseRow.graded_at
-          : score.kind === 'empty'
-            ? null
-            : new Date().toISOString()
+        const savedGradedAt = score.kind === 'empty' ? null : new Date().toISOString()
 
         canonicalDraftsByResponseId.set(item.responseId, {
           score: savedScore == null ? '' : String(savedScore),
@@ -395,6 +381,14 @@ export function TestStudentGradingPanel({
           graded_at: savedGradedAt,
         })
       }
+
+      const res = await fetch(`${apiBasePath}/${testId}/students/${selectedStudent.student_id}/grades`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grades: gradesPayload }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save grades')
 
       if (canonicalDraftsByResponseId.size > 0) {
         setGradeDrafts((prev) => {

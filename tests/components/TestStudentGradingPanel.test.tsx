@@ -158,19 +158,20 @@ describe('TestStudentGradingPanel save-all grading', () => {
           json: async () => makeResultsPayload(persistedScore, persistedFeedback),
         })
       }
-      if (url.endsWith('/api/teacher/tests/test-1/responses/response-1') && init?.method === 'PATCH') {
+      if (url.endsWith('/api/teacher/tests/test-1/students/student-1/grades') && init?.method === 'PATCH') {
         const body = JSON.parse(String(init.body || '{}')) as Record<string, unknown>
         patchBodies.push(body)
-        if (body.clear_grade === true) {
+        const grade = Array.isArray(body.grades) ? (body.grades[0] as Record<string, unknown>) : null
+        if (grade?.clear_grade === true) {
           persistedScore = null
           persistedFeedback = null
         } else {
-          persistedScore = Number(body.score)
-          persistedFeedback = typeof body.feedback === 'string' ? body.feedback : null
+          persistedScore = Number(grade?.score)
+          persistedFeedback = typeof grade?.feedback === 'string' ? grade.feedback : null
         }
         return Promise.resolve({
           ok: true,
-          json: async () => ({ response: { id: 'response-1' } }),
+          json: async () => ({ saved_count: 1 }),
         })
       }
       return Promise.resolve({
@@ -218,8 +219,13 @@ describe('TestStudentGradingPanel save-all grading', () => {
     await waitFor(() => {
       expect(patchBodies).toEqual([
         expect.objectContaining({
-          score: 4,
-          feedback: '',
+          grades: [
+            expect.objectContaining({
+              question_id: 'q-open-1',
+              score: 4,
+              feedback: '',
+            }),
+          ],
         }),
       ])
     })
@@ -262,26 +268,22 @@ describe('TestStudentGradingPanel save-all grading', () => {
         })
       }
 
-      if (url.endsWith('/api/teacher/tests/test-1/responses/response-mc-1') && init?.method === 'PATCH') {
+      if (url.endsWith('/api/teacher/tests/test-1/students/student-1/grades') && init?.method === 'PATCH') {
         const body = JSON.parse(String(init.body || '{}')) as Record<string, unknown>
         patchCalls.push({ url, body })
-        persistedMcScore = Number(body.score)
+        const grades = Array.isArray(body.grades) ? (body.grades as Array<Record<string, unknown>>) : []
+        const mcGrade = grades.find((grade) => grade.question_id === 'q-mc-1')
+        const openGrade = grades.find((grade) => grade.question_id === 'q-open-1')
+        if (mcGrade) {
+          persistedMcScore = Number(mcGrade.score)
+        }
+        if (openGrade && openGrade.clear_grade !== true) {
+          persistedOpenScore = Number(openGrade.score)
+          persistedOpenFeedback = typeof openGrade.feedback === 'string' ? openGrade.feedback : null
+        }
         return Promise.resolve({
           ok: true,
-          json: async () => ({ response: { id: 'response-mc-1', score: persistedMcScore } }),
-        })
-      }
-
-      if (url.endsWith('/api/teacher/tests/test-1/responses/response-open-1') && init?.method === 'PATCH') {
-        const body = JSON.parse(String(init.body || '{}')) as Record<string, unknown>
-        patchCalls.push({ url, body })
-        persistedOpenScore = Number(body.score)
-        persistedOpenFeedback = typeof body.feedback === 'string' ? body.feedback : null
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            response: { id: 'response-open-1', score: persistedOpenScore, feedback: persistedOpenFeedback },
-          }),
+          json: async () => ({ saved_count: grades.length }),
         })
       }
 
@@ -318,8 +320,12 @@ describe('TestStudentGradingPanel save-all grading', () => {
       expect(patchCalls).toHaveLength(1)
     })
     expect(patchCalls[0]).toMatchObject({
-      url: expect.stringContaining('/responses/response-mc-1'),
-      body: { score: 1 },
+      url: expect.stringContaining('/students/student-1/grades'),
+      body: {
+        grades: [
+          { question_id: 'q-mc-1', score: 1 },
+        ],
+      },
     })
   })
 
@@ -411,14 +417,14 @@ describe('TestStudentGradingPanel save-all grading', () => {
           json: async () => makeResultsPayload(persistedScore, persistedFeedback),
         })
       }
-      if (url.endsWith('/api/teacher/tests/test-1/responses/response-1') && init?.method === 'PATCH') {
+      if (url.endsWith('/api/teacher/tests/test-1/students/student-1/grades') && init?.method === 'PATCH') {
         const body = JSON.parse(String(init.body || '{}')) as Record<string, unknown>
         patchBodies.push(body)
         persistedScore = null
         persistedFeedback = null
         return Promise.resolve({
           ok: true,
-          json: async () => ({ response: { id: 'response-1' } }),
+          json: async () => ({ saved_count: 1 }),
         })
       }
       return Promise.resolve({
@@ -450,7 +456,7 @@ describe('TestStudentGradingPanel save-all grading', () => {
 
     await waitFor(() => {
       expect(patchBodies).toEqual([
-        { clear_grade: true },
+        { grades: [{ question_id: 'q-open-1', clear_grade: true }] },
       ])
     })
   })
@@ -502,11 +508,11 @@ describe('TestStudentGradingPanel save-all grading', () => {
           json: async () => makeResultsPayload(null, null),
         })
       }
-      if (url.endsWith('/api/teacher/tests/test-1/responses/response-1') && init?.method === 'PATCH') {
+      if (url.endsWith('/api/teacher/tests/test-1/students/student-1/grades') && init?.method === 'PATCH') {
         patchBodies.push(JSON.parse(String(init.body || '{}')) as Record<string, unknown>)
         return Promise.resolve({
           ok: true,
-          json: async () => ({ response: { id: 'response-1', score: 4, feedback: 'Great detail.' } }),
+          json: async () => ({ saved_count: 1 }),
         })
       }
       return Promise.resolve({
@@ -541,6 +547,14 @@ describe('TestStudentGradingPanel save-all grading', () => {
     await waitFor(() => {
       expect(patchBodies).toHaveLength(1)
     })
-    expect(patchBodies[0]).toMatchObject({ score: 4, feedback: 'Great detail.' })
+    expect(patchBodies[0]).toMatchObject({
+      grades: [
+        {
+          question_id: 'q-open-1',
+          score: 4,
+          feedback: 'Great detail.',
+        },
+      ],
+    })
   })
 })

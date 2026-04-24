@@ -9,8 +9,9 @@ export const revalidate = 0
 
 type GradePayload = {
   question_id: string
-  score: number
-  feedback: string
+  score: number | null
+  feedback: string | null
+  clear_grade: boolean
   ai_grading_basis?: 'teacher_key' | 'generated_reference' | null
   ai_reference_answers?: string[] | null
   ai_model?: string | null
@@ -20,9 +21,19 @@ function normalizeGradePayload(raw: unknown): GradePayload | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   const record = raw as Record<string, unknown>
   const questionId = typeof record.question_id === 'string' ? record.question_id.trim() : ''
-  const score = Number(record.score)
-  const feedback = typeof record.feedback === 'string' ? record.feedback.trim() : ''
-  if (!questionId || !Number.isFinite(score) || score < 0 || !feedback) return null
+  const clearGrade = record.clear_grade === true
+  if (!questionId) return null
+  if (record.clear_grade !== undefined && typeof record.clear_grade !== 'boolean') return null
+
+  let score: number | null = null
+  let feedback: string | null = null
+  if (!clearGrade) {
+    const parsedScore = Number(record.score)
+    if (!Number.isFinite(parsedScore) || parsedScore < 0) return null
+    score = Math.round(parsedScore * 100) / 100
+    const normalizedFeedback = typeof record.feedback === 'string' ? record.feedback.trim() : ''
+    feedback = normalizedFeedback || null
+  }
 
   let aiGradingBasis: 'teacher_key' | 'generated_reference' | null | undefined
   if (record.ai_grading_basis !== undefined) {
@@ -73,8 +84,9 @@ function normalizeGradePayload(raw: unknown): GradePayload | null {
 
   return {
     question_id: questionId,
-    score: Math.round(score * 100) / 100,
+    score,
     feedback,
+    clear_grade: clearGrade,
     ai_grading_basis: aiGradingBasis,
     ai_reference_answers: aiReferenceAnswers,
     ai_model: aiModel,
@@ -150,18 +162,24 @@ export const PATCH = withErrorHandler('BulkSaveTeacherTestGrades', async (reques
   const questionMap = new Map((questionRows || []).map((row) => [row.id, row]))
   for (const grade of grades) {
     const question = questionMap.get(grade.question_id)
-    if (!question || question.question_type !== 'open_response') {
-      return NextResponse.json({ error: 'Only open-response questions can be graded manually' }, { status: 400 })
+    if (!question) {
+      return NextResponse.json({ error: 'One or more questions were not found for this test' }, { status: 400 })
     }
     const maxScore = Number(question.points ?? 0)
-    if (grade.score > maxScore) {
+    if (grade.score != null && grade.score > maxScore) {
       return NextResponse.json({ error: `score cannot exceed ${maxScore}` }, { status: 400 })
+    }
+    if (question.question_type !== 'open_response' && grade.ai_grading_basis !== undefined) {
+      return NextResponse.json(
+        { error: 'AI grading metadata is only supported for open-response questions' },
+        { status: 400 },
+      )
     }
   }
 
   const { data: existingRows, error: existingRowsError } = await supabase
     .from('test_responses')
-    .select('question_id, response_text, submitted_at')
+    .select('question_id, selected_option, response_text, submitted_at')
     .eq('test_id', testId)
     .eq('student_id', studentId)
     .in('question_id', questionIds)
@@ -176,32 +194,60 @@ export const PATCH = withErrorHandler('BulkSaveTeacherTestGrades', async (reques
 
   const upsertRows = grades.map((grade) => {
     const existing = existingByQuestionId.get(grade.question_id)
+    const question = questionMap.get(grade.question_id)!
     const responseText =
       typeof existing?.response_text === 'string'
         ? existing.response_text
-        : ''
+        : question.question_type === 'open_response'
+          ? ''
+          : null
     const submittedAt =
       typeof existing?.submitted_at === 'string' && existing.submitted_at
         ? existing.submitted_at
         : gradedAt
+    const selectedOption =
+      typeof existing?.selected_option === 'number'
+        ? existing.selected_option
+        : null
+
+    if (grade.clear_grade) {
+      return {
+        test_id: testId,
+        question_id: grade.question_id,
+        student_id: studentId,
+        selected_option: selectedOption,
+        response_text: responseText,
+        score: null,
+        feedback: null,
+        graded_at: null,
+        graded_by: null,
+        submitted_at: submittedAt,
+        ai_grading_basis: null,
+        ai_reference_answers: null,
+        ai_model: null,
+      }
+    }
 
     return {
       test_id: testId,
       question_id: grade.question_id,
       student_id: studentId,
-      selected_option: null,
+      selected_option: selectedOption,
       response_text: responseText,
       score: grade.score,
-      feedback: grade.feedback,
+      feedback: question.question_type === 'open_response' ? grade.feedback : null,
       graded_at: gradedAt,
       graded_by: user.id,
       submitted_at: submittedAt,
-      ai_grading_basis: grade.ai_grading_basis ?? null,
+      ai_grading_basis:
+        question.question_type === 'open_response'
+          ? (grade.ai_grading_basis ?? null)
+          : null,
       ai_reference_answers:
-        grade.ai_grading_basis === 'generated_reference'
+        question.question_type === 'open_response' && grade.ai_grading_basis === 'generated_reference'
           ? (grade.ai_reference_answers ?? [])
           : null,
-      ai_model: grade.ai_model ?? null,
+      ai_model: question.question_type === 'open_response' ? (grade.ai_model ?? null) : null,
     }
   })
 

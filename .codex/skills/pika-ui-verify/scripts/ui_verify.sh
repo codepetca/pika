@@ -4,7 +4,7 @@ set -euo pipefail
 
 PAGE="${1:-}"
 WORKTREE="${PIKA_WORKTREE:-$PWD}"
-BASE_URL="http://localhost:3000"
+BASE_URL="${E2E_BASE_URL:-http://localhost:3000}"
 AUTH_DIR="$WORKTREE/.auth"
 OUT_DIR="/tmp"
 
@@ -23,7 +23,8 @@ echo "Pika UI Verify — $URL"
 echo "=========================="
 
 # Check dev server
-if ! curl -sf "$BASE_URL/api/auth/me" > /dev/null 2>&1; then
+HTTP_CODE="$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/api/auth/me" || true)"
+if [[ "$HTTP_CODE" == "000" || -z "$HTTP_CODE" ]]; then
   echo -e "${FAIL} Dev server not running at $BASE_URL"
   echo "   Run: pnpm -C \"$WORKTREE\" dev"
   exit 1
@@ -35,7 +36,7 @@ for role in teacher student; do
   AUTH_FILE="$AUTH_DIR/${role}.json"
   if [[ ! -f "$AUTH_FILE" ]]; then
     echo -e "${INFO} Auth state missing for $role — running e2e:auth"
-    pnpm -C "$WORKTREE" e2e:auth
+    E2E_BASE_URL="$BASE_URL" pnpm -C "$WORKTREE" e2e:auth
     break
   fi
 done

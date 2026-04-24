@@ -1,6 +1,6 @@
 # Assessment UX Evaluation
 
-Use this guide to verify that the new assignment-parity docs actually cause a fresh AI to produce assessment screens that match the existing assignments system.
+Use this guide to verify that the current teacher-family canon and parity prompts actually cause a fresh AI to produce assessment screens that match the assignment-derived system.
 
 This is a **rubric-and-screenshot** evaluation flow, not a pixel diff.
 
@@ -13,10 +13,11 @@ Passing means:
 - the resulting screen reads as the same product family as assignments at a glance
 - the code reuses the expected page primitives
 - the evaluator can explain parity using the rubric instead of relying on vague taste
+- failures can be described in terms of the formal interaction ladder, not only aesthetics
 
 Minor aesthetic evolution is acceptable. The pass condition is family consistency, not pixel identity.
 
-## Reference and Target Artifacts
+## Reference And Target Artifacts
 
 Capture screenshots with:
 
@@ -43,12 +44,31 @@ Use the assignment images as the reference set. Use the assessment images as the
 
 If you are intentionally testing a “same family, slightly evolved” direction, use the same rubric. The question is still whether the target reads as a descendant of assignments rather than a separate tool.
 
+## Interaction-Ladder Reference
+
+Use the teacher-family canon state names when logging failures:
+
+- `entry`
+- `summary`
+- `workspace`
+- `workspace_mode`
+- `inspector_active`
+
+When a target fails, say which layer drifted. Examples:
+
+- `summary` incorrectly reserves a passive inspector
+- `workspace_mode` tabs appear before selection
+- `inspector_active` opens too early
+
+This keeps failures structural rather than taste-based.
+
 ## Blind-Run Validation Workflow
 
 Run the docs in a fresh AI session with only:
 
+- `docs/guidance/ui/teacher-work-surfaces.md`
 - `docs/guidance/assignment-ux-language.md`
-- `.codex/prompts/assessment-ux-parity.md`
+- `.codex/prompts/assessment-ux-family-parity.md`
 - the target task request
 
 Do not provide prior design discussion or hidden context.
@@ -88,7 +108,6 @@ If the fresh AI never reaches implementation and spends the run reacquiring unre
 
 Also count it as a prompt-scoping failure if the fresh AI only inspects the local tab component while the visible no-selection shell actually lives in a surrounding container such as `ClassroomPageClient`.
 Also count it as a prompt-scoping failure if the persistent blank column is owned by route-level layout configuration such as `tests-teacher` in `src/lib/layout-config.ts` and the challenge packet never points the fresh AI there.
-
 Also count it as an execution-packet failure if the prompt names App Router files with bracketed path segments but does not tell the fresh AI to quote those paths in shell commands. In this repo, that causes `zsh` glob failures before implementation even starts.
 
 ## Rubric
@@ -129,6 +148,8 @@ The run fails immediately if any of these appear:
 - The empty state is materially noisier than assignments.
 - Controls or mode toggles visually dominate the screen before content.
 - The layout introduces a structural pattern that does not exist in assignments for the analogous state.
+- `workspace_mode` tabs appear before the surface is in `workspace`.
+- `inspector_active` occurs without the current mode and selection justifying it.
 
 ## Required Code Review Checks
 
@@ -140,8 +161,9 @@ Before approving a blind-run result, confirm the implementation reuses expected 
 - `PageStack`
 - `EmptyState`
 - semantic tokens instead of bespoke raw-theme styling
+- owner check across feature tab, classroom shell, and route config when pane or chrome issues are involved
 
-If the screenshots look close but the code invented a new shell or component family, treat that as drift and update the docs/prompt.
+If the screenshots look close but the code invented a new shell or component family, treat that as drift and update the docs or prompt.
 
 ## Failure Logging
 
@@ -149,24 +171,27 @@ Every failed run should produce a short note with:
 
 - challenge name
 - screenshot pair reviewed
+- interaction-ladder layer that drifted
 - rubric scores
 - hard failures, if any
 - whether the AI actually reached implementation
 - exact drift observed
 - whether the wrong owning component was targeted
 - where the docs were insufficient:
-  - UX system rule missing
+  - interaction rule missing
   - prompt instruction missing
   - primitive checklist missing
+  - owner-check instruction missing
 
 ## Iteration Rules
 
 Update the **UX spec** when the failure is system-level:
 
-- state progression is unclear
+- interaction-ladder progression is unclear
 - split-pane rules are underspecified
 - empty-state tone is underspecified
 - card or shell language is underspecified
+- inspector activation rules are underspecified
 
 Update the **parity prompt** when the failure is execution-level:
 
@@ -174,5 +199,6 @@ Update the **parity prompt** when the failure is execution-level:
 - the AI invented a new layout even though the spec was clear
 - the AI ignored primitive reuse
 - the AI needed stronger “must not introduce” constraints
+- the AI did not verify the owning component for the visible problem
 
 Do not call the guidance “working” after one success. Require repeatable passes across the full challenge set.

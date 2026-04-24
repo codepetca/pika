@@ -61,6 +61,7 @@ export function StudentQuizForm({
     apiBasePath.includes('/tests') ||
     enableDraftAutosave ||
     questions.some((question) => question.question_type === 'open_response')
+  const isTestAssessment = assessmentType === 'test' || apiBasePath.includes('/tests')
 
   const [responses, setResponses] = useState<TestResponses>(
     normalizeTestResponses(initialResponses)
@@ -92,6 +93,42 @@ export function StudentQuizForm({
   })
   const saveStatusLabel =
     saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Unsaved changes'
+
+  const submitActions = (
+    <div
+      data-testid="student-quiz-action-footer"
+      className={
+        isTestAssessment
+          ? 'rounded-xl border border-border bg-surface p-4 shadow-sm'
+          : 'sticky bottom-0 z-10 mt-auto rounded-lg border border-border bg-surface p-3 shadow-sm'
+      }
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          {shouldAutosave && (
+            <p className="text-xs text-text-muted">{saveStatusLabel}</p>
+          )}
+          {!allAnswered && (
+            <p className="text-sm text-text-muted">Answer all questions to submit</p>
+          )}
+        </div>
+        <Button
+          onClick={() => {
+            if (flaggedQuestions.length > 0) {
+              setShowFlaggedWarning(true)
+            } else {
+              setShowConfirm(true)
+            }
+          }}
+          disabled={isInteractionLocked || !allAnswered || submitting}
+          className="w-full sm:min-w-[10rem] sm:w-auto"
+        >
+          Submit
+        </Button>
+      </div>
+    </div>
+  )
+
   useEffect(() => {
     const normalized = normalizeTestResponses(initialResponses)
     setResponses(normalized)
@@ -534,36 +571,11 @@ export function StudentQuizForm({
               {previewSubmitMessage}
             </div>
           )}
+
+          {isTestAssessment ? submitActions : null}
         </div>
 
-        <div
-          data-testid="student-quiz-action-footer"
-          className="sticky bottom-0 z-10 mt-auto rounded-lg border border-border bg-surface p-3 shadow-sm"
-        >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              {shouldAutosave && (
-                <p className="text-xs text-text-muted">{saveStatusLabel}</p>
-              )}
-              {!allAnswered && (
-                <p className="text-sm text-text-muted">Answer all questions to submit</p>
-              )}
-            </div>
-            <Button
-              onClick={() => {
-                if (flaggedQuestions.length > 0) {
-                  setShowFlaggedWarning(true)
-                } else {
-                  setShowConfirm(true)
-                }
-              }}
-              disabled={isInteractionLocked || !allAnswered || submitting}
-              className="w-full sm:min-w-[10rem] sm:w-auto"
-            >
-              Submit
-            </Button>
-          </div>
-        </div>
+        {isTestAssessment ? null : submitActions}
       </div>
 
       <ConfirmDialog

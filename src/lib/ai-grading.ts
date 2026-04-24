@@ -238,6 +238,13 @@ function formatArtifactLabel(artifact: AssignmentArtifact): string {
   }
 }
 
+export function hasGradableAssignmentSubmission(studentWork: TiptapContent): boolean {
+  const studentText = extractPlainText(studentWork).trim()
+  const artifacts = extractAssignmentArtifacts(studentWork)
+
+  return studentText.length > 0 || artifacts.length > 0
+}
+
 function buildStudentSubmissionText(studentWork: TiptapContent): string {
   const studentText = extractPlainText(studentWork).trim()
   const artifacts = extractAssignmentArtifacts(studentWork)
@@ -258,7 +265,7 @@ function buildStudentSubmissionText(studentWork: TiptapContent): string {
     sections.push(`Attached Artifacts:\n${artifactLines.join('\n')}`)
   }
 
-  if (sections.length === 0) {
+  if (!hasGradableAssignmentSubmission(studentWork)) {
     throw new Error('Student work is empty')
   }
 

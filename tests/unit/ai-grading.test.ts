@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { gradeStudentWork } from '@/lib/ai-grading'
+import { gradeStudentWork, hasGradableAssignmentSubmission } from '@/lib/ai-grading'
 
 describe('gradeStudentWork prompt rules', () => {
   const originalApiKey = process.env.OPENAI_API_KEY
@@ -243,5 +243,33 @@ describe('gradeStudentWork prompt rules', () => {
     expect(secondBody.max_output_tokens).toBe(420)
     expect(firstBody.reasoning).toEqual({ effort: 'minimal' })
     expect(secondBody.reasoning).toEqual({ effort: 'minimal' })
+  })
+})
+
+describe('hasGradableAssignmentSubmission', () => {
+  it('returns false for structurally present but empty content', () => {
+    expect(hasGradableAssignmentSubmission({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: '   ' }],
+        },
+      ],
+    })).toBe(false)
+  })
+
+  it('returns true when submission includes an attached artifact', () => {
+    expect(hasGradableAssignmentSubmission({
+      type: 'doc',
+      content: [
+        {
+          type: 'image',
+          attrs: {
+            src: 'https://cdn.example.com/submission-images/final-site.png',
+          },
+        },
+      ],
+    })).toBe(true)
   })
 })
