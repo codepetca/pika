@@ -9251,3 +9251,36 @@
 - `pnpm exec vitest run tests/lib/test-ai-grading-runs.test.ts`
 - `pnpm exec vitest run tests/api/teacher/test-auto-grade-runs.test.ts tests/unit/ai-test-grading.test.ts`
 - `pnpm test`
+## 2026-04-22 — Keep Test Authoring Workspace Stable Across Autosave
+
+- Changed `QuizDetailPanel` to emit a lightweight saved-summary payload (`title`, `show_results`, `questions_count`) after successful draft saves instead of only signaling a generic refresh.
+- Updated `TeacherTestsTab` to apply that payload directly to local selected-test state so adding/removing questions no longer forces a blocking full tests-list reload and spinner swap.
+- Added regression coverage for the saved-summary callback and for keeping the selected test workspace mounted after autosave, plus tightened one flaky summary-detail accordion assertion to wait for settled UI state.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint`
+- Visual verification via Playwright screenshots on `/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests`, including teacher desktop/mobile, student mobile, and a teacher interaction capture before/after autosave.
+
+## 2026-04-23 — Make Test Authoring Header And Status Actions Update Locally
+
+- Added an immediate draft-summary callback path in `QuizDetailPanel` so structured authoring edits push `title`, `show_results`, and `questions_count` upward before autosave completes.
+- Updated `TeacherTestsTab` to keep a local selected-test draft summary for the authoring header and activation state, and stopped selected-workspace status actions from calling `loadTests()` after each patch.
+- Updated `TeacherTestCard` summary actions to apply local status patches instead of forcing a full tests-list refetch, and added regression coverage for immediate draft-state updates plus non-refetching status changes.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/QuizDetailPanel.test.tsx`
+- `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
+- Visual verification on `http://localhost:3001/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests`, including teacher desktop, student mobile, teacher mobile, a summary-card `Reopen` interaction, and a disposable draft where `Open` changed from disabled to enabled within 500ms after adding the first question
+
+## 2026-04-23 — Stop Duplicate First Autosaves In Test Authoring
+
+- Seeded a baseline `assessment_drafts` row during `POST /api/teacher/tests` and added rollback coverage so brand-new tests do not enter the editor without an initial draft record.
+- Fixed the real duplicate-save race in `QuizDetailPanel`: the unsaved-draft cleanup was keyed to `[saveDraft]`, so normal rerenders could trigger a forced save while the debounced autosave was still pending. The cleanup now uses a stable ref and only runs on actual unmount.
+- Added regression coverage that rerenders the editor with unsaved changes and asserts it still issues exactly one draft PATCH, matching the live duplicate-PATCH bug that previously produced the `409 Draft updated elsewhere` banner.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/api/teacher/tests-route.test.ts tests/api/teacher/tests-draft-route.test.ts`
+- `pnpm lint --file src/components/QuizDetailPanel.tsx --file src/app/api/teacher/tests/route.ts --file tests/components/QuizDetailPanel.test.tsx --file tests/api/teacher/tests-route.test.ts`
+- Visual verification on `http://localhost:3001/classrooms/f0c8c2d8-f1e2-4a2c-ad3f-3b0caa09b106?tab=tests`
+- Live Playwright regression trace confirmed a fresh draft now makes exactly one `PATCH /api/teacher/tests/:id/draft`, shows no conflict text, and returns to `Saved`

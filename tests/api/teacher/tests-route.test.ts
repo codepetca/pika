@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET } from '@/app/api/teacher/tests/route'
+import { GET, POST } from '@/app/api/teacher/tests/route'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -334,5 +334,167 @@ describe('GET /api/teacher/tests', () => {
     expect(data.quizzes).toHaveLength(1)
     expect(data.quizzes[0].stats.total_students).toBe(2)
     expect(data.quizzes[0].stats.responded).toBe(2)
+  })
+})
+
+describe('POST /api/teacher/tests', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('creates a new test at the next position and seeds an initial draft row', async () => {
+    const deleteEqSpy = vi.fn().mockResolvedValue({ error: null })
+    const deleteSpy = vi.fn(() => ({
+      eq: deleteEqSpy,
+    }))
+    const assessmentDraftInsertSpy = vi.fn((payload: Record<string, unknown>) => ({
+      select: vi.fn(() => ({
+        single: vi.fn().mockResolvedValue({
+          data: { id: 'draft-1', ...payload },
+          error: null,
+        }),
+      })),
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { position: 2 },
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          })),
+          insert: vi.fn((payload: Record<string, unknown>) => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'test-1',
+                  show_results: false,
+                  documents: null,
+                  ...payload,
+                },
+                error: null,
+              }),
+            })),
+          })),
+          delete: deleteSpy,
+        }
+      }
+
+      if (table === 'assessment_drafts') {
+        return {
+          insert: assessmentDraftInsertSpy,
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests', {
+        method: 'POST',
+        body: JSON.stringify({ classroom_id: 'classroom-1', title: ' New Test ' }),
+      })
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(data.quiz.position).toBe(3)
+    expect(data.quiz.title).toBe('New Test')
+    expect(assessmentDraftInsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assessment_type: 'test',
+        assessment_id: 'test-1',
+        classroom_id: 'classroom-1',
+        version: 1,
+        created_by: 'teacher-1',
+        updated_by: 'teacher-1',
+        content: {
+          title: 'New Test',
+          show_results: false,
+          questions: [],
+          source_format: 'markdown',
+        },
+      })
+    )
+    expect(deleteSpy).not.toHaveBeenCalled()
+  })
+
+  it('rolls back the new test when the assessment drafts table is unavailable', async () => {
+    const deleteEqSpy = vi.fn().mockResolvedValue({ error: null })
+    const deleteSpy = vi.fn(() => ({
+      eq: deleteEqSpy,
+    }))
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'tests') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => ({
+                limit: vi.fn(() => ({
+                  maybeSingle: vi.fn().mockResolvedValue({
+                    data: { position: 0 },
+                    error: null,
+                  }),
+                })),
+              })),
+            })),
+          })),
+          insert: vi.fn((payload: Record<string, unknown>) => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: {
+                  id: 'test-1',
+                  show_results: false,
+                  documents: null,
+                  ...payload,
+                },
+                error: null,
+              }),
+            })),
+          })),
+          delete: deleteSpy,
+        }
+      }
+
+      if (table === 'assessment_drafts') {
+        return {
+          insert: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: {
+                  code: 'PGRST205',
+                  message: 'relation "assessment_drafts" does not exist',
+                },
+              }),
+            })),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests', {
+        method: 'POST',
+        body: JSON.stringify({ classroom_id: 'classroom-1', title: 'Draftless Test' }),
+      })
+    )
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('Assessment drafts require migration 045 to be applied')
+    expect(deleteSpy).toHaveBeenCalledTimes(1)
+    expect(deleteEqSpy).toHaveBeenCalledWith('id', 'test-1')
   })
 })

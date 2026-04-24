@@ -5,6 +5,8 @@ import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/l
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import { hasMeaningfulTestResponse } from '@/lib/test-responses'
 import {
+  buildTestDraftContentFromRows,
+  createAssessmentDraft,
   isMissingAssessmentDraftsError,
   validateTestDraftContent,
   type TestDraftContent,
@@ -209,6 +211,43 @@ export const POST = withErrorHandler('CreateTeacherTest', async (request) => {
     }
     console.error('Error creating test:', error)
     return NextResponse.json({ error: 'Failed to create test' }, { status: 500 })
+  }
+
+  const initialDraftContent = buildTestDraftContentFromRows(
+    {
+      title: test.title,
+      show_results: test.show_results,
+    },
+    []
+  )
+
+  const { draft: createdDraft, error: draftError } = await createAssessmentDraft<TestDraftContent>(
+    supabase,
+    {
+      assessmentType: 'test',
+      assessmentId: test.id,
+      classroomId: classroom_id,
+      userId: user.id,
+      content: initialDraftContent,
+    }
+  )
+
+  if (draftError || !createdDraft) {
+    console.error('Error creating initial test draft:', draftError)
+
+    const { error: cleanupError } = await supabase.from('tests').delete().eq('id', test.id)
+    if (cleanupError) {
+      console.error('Error cleaning up test after draft creation failure:', cleanupError)
+    }
+
+    if (isMissingAssessmentDraftsError(draftError)) {
+      return NextResponse.json(
+        { error: 'Assessment drafts require migration 045 to be applied' },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json({ error: 'Failed to create test draft' }, { status: 500 })
   }
 
   return NextResponse.json(

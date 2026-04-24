@@ -743,6 +743,16 @@ export interface QuizWithStats extends Quiz {
   }
 }
 
+export interface AssessmentEditorSummaryUpdate {
+  title: string
+  show_results: boolean
+  questions_count: number
+}
+
+export interface AssessmentWorkspaceSummaryPatch extends Partial<AssessmentEditorSummaryUpdate> {
+  status?: QuizStatus
+}
+
 export type StudentQuizStatus = 'not_started' | 'responded' | 'can_view_results'
 
 export interface StudentQuizView extends Quiz {

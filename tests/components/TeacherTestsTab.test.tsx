@@ -48,12 +48,24 @@ vi.mock('@/components/QuizDetailPanel', () => ({
     showPreviewButton,
     showResultsTab,
     onPendingMarkdownImportChange,
+    onDraftSummaryChange,
+    onQuizUpdate,
   }: {
     quiz: QuizWithStats
     testQuestionLayout?: string
     showPreviewButton?: boolean
     showResultsTab?: boolean
     onPendingMarkdownImportChange?: (pending: boolean) => void
+    onDraftSummaryChange?: (update: {
+      title: string
+      show_results: boolean
+      questions_count: number
+    }) => void
+    onQuizUpdate?: (update?: {
+      title: string
+      show_results: boolean
+      questions_count: number
+    }) => void
   }) => (
     <div
       data-testid="mock-test-detail"
@@ -67,6 +79,30 @@ vi.mock('@/components/QuizDetailPanel', () => ({
       </button>
       <button type="button" onClick={() => onPendingMarkdownImportChange?.(false)}>
         Clear pending markdown
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onDraftSummaryChange?.({
+            title: `${quiz.title} Draft`,
+            show_results: false,
+            questions_count: 0,
+          })
+        }
+      >
+        Simulate draft change
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          onQuizUpdate?.({
+            title: `${quiz.title} Updated`,
+            show_results: false,
+            questions_count: 0,
+          })
+        }
+      >
+        Simulate autosave update
       </button>
     </div>
   ),
@@ -263,6 +299,49 @@ describe('TeacherTestsTab', () => {
     })
   })
 
+  it('updates the authoring header and activation state immediately from local draft changes', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate draft change' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Unit Test Draft')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+    })
+
+    expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('keeps the selected workspace mounted and updates saved test metadata after autosave', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
+    expect(screen.getByRole('button', { name: 'Open' })).toBeEnabled()
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate autosave update' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test Updated')
+      expect(screen.getByText('Unit Test Updated')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Open' })).toBeDisabled()
+    })
+
+    expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
   it('opens a newly created test directly into authoring mode', async () => {
     mockTestsResponse([])
     renderTab()
@@ -303,10 +382,6 @@ describe('TeacherTestsTab', () => {
         ok: true,
         json: async () => ({ test: { id: 'test-1', status: 'active' } }),
       })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
-      })
 
     renderTab()
 
@@ -332,6 +407,7 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
     })
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
   it('confirms and closes an active test from authoring', async () => {
@@ -343,10 +419,6 @@ describe('TeacherTestsTab', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ test: { id: 'test-1', status: 'closed' } }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'closed' })] }),
       })
 
     renderTab()
@@ -373,6 +445,48 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Reopen' })).toBeInTheDocument()
     })
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('updates summary-card status actions locally without refetching the full list', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          questions: [
+            {
+              id: 'q1',
+              question_type: 'multiple_choice',
+              question_text: 'Ready to activate?',
+              options: ['Yes', 'No'],
+              correct_option: 0,
+              points: 1,
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ test: { id: 'test-1', status: 'active' } }),
+      })
+
+    renderTab()
+
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open test' })).toBeEnabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open test' }))
+    expect(await screen.findByText('Activate test?')).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Activate' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Close test' })).toBeInTheDocument()
+    })
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
   it('returns to the tests list when the tests tab is clicked again', async () => {
