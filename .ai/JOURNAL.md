@@ -9284,3 +9284,17 @@
 - `pnpm lint --file src/components/QuizDetailPanel.tsx --file src/app/api/teacher/tests/route.ts --file tests/components/QuizDetailPanel.test.tsx --file tests/api/teacher/tests-route.test.ts`
 - Visual verification on `http://localhost:3001/classrooms/f0c8c2d8-f1e2-4a2c-ad3f-3b0caa09b106?tab=tests`
 - Live Playwright regression trace confirmed a fresh draft now makes exactly one `PATCH /api/teacher/tests/:id/draft`, shows no conflict text, and returns to `Saved`
+
+## 2026-04-24 — Fix Mobile Exam Mode Blank Screen On MC Selection
+
+- Reproduced the reported refresh/re-enter blank screen on an iPhone WebKit profile: the MC draft save succeeded, but mobile WebKit cannot enter fullscreen and reports a viewport height below the desktop maximized-window threshold, causing the exam lock overlay to hide the form.
+- Updated student test exam-window compliance so compact touch browsers without Fullscreen API support use the mobile fallback instead of the desktop maximized-window ratio check.
+- Disabled the exam lock overlay gate while preserving exam-mode telemetry, so non-compliant window/fullscreen events can still be logged without hiding or blocking active test content.
+- Added regression coverage for re-entering a saved test on a mobile/no-fullscreen browser, selecting a different MC choice, avoiding the obscurer overlay, and preserving the draft autosave.
+- Created and cleaned up a temporary Codex repro classroom/test fixture in the dev database for browser verification.
+
+**Validation:**
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm vitest run tests/components/StudentQuizzesTab.test.tsx --testNamePattern "mobile browsers without fullscreen"`
+- `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
+- Playwright mobile WebKit repro before/after patch confirmed the post-autosave `Window must be maximized in exam mode` overlay no longer appears and `PATCH /api/student/tests/:id/attempt` returns 200; screenshot saved at `test-results/mobile-exam-overlay-disabled.png`.

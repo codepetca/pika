@@ -2739,7 +2739,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
   })
 
-  it('locks after sustained fullscreen loss when the window remains non-compliant', async () => {
+  it('logs sustained fullscreen loss without obscuring the active test', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -2871,8 +2871,8 @@ describe('StudentQuizzesTab exam mode', () => {
       vi.advanceTimersByTime(450)
     })
 
-    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
-    expect(screen.getByText('2 + 2 = ?')).not.toBeVisible()
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    expect(screen.getByText('2 + 2 = ?')).toBeVisible()
     expect(
       focusBodies.some(
         (body) =>
@@ -3039,7 +3039,7 @@ describe('StudentQuizzesTab exam mode', () => {
     expect(focusBodies.filter((body) => body.event_type === 'window_unmaximize_attempt')).toHaveLength(0)
   })
 
-  it('locks after the grace window when exam mode window is reduced', async () => {
+  it('logs reduced exam mode windows without obscuring the active test', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -3176,8 +3176,8 @@ describe('StudentQuizzesTab exam mode', () => {
       vi.advanceTimersByTime(450)
     })
 
-    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
-    expect(screen.getByText('2 + 2 = ?')).not.toBeVisible()
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    expect(screen.getByText('2 + 2 = ?')).toBeVisible()
     expect(
       focusBodies.some(
         (body) =>
@@ -3187,7 +3187,209 @@ describe('StudentQuizzesTab exam mode', () => {
     ).toBe(true)
   })
 
-  it('preserves unsaved in-progress test answers when the maximize lock overlay appears and clears', async () => {
+  it('keeps mobile browsers without fullscreen support usable after re-entering a saved test', async () => {
+    const requestFullscreenDescriptor = Object.getOwnPropertyDescriptor(
+      document.documentElement,
+      'requestFullscreen'
+    )
+    const maxTouchPointsDescriptor = Object.getOwnPropertyDescriptor(
+      window.navigator,
+      'maxTouchPoints'
+    )
+    let savedResponses: Record<string, unknown> = {
+      q1: { question_type: 'multiple_choice', selected_option: 2 },
+    }
+
+    try {
+      Object.defineProperty(document, 'fullscreenElement', {
+        configurable: true,
+        get: () => null,
+      })
+      Object.defineProperty(document.documentElement, 'requestFullscreen', {
+        configurable: true,
+        value: undefined,
+      })
+      Object.defineProperty(window.navigator, 'maxTouchPoints', {
+        configurable: true,
+        value: 5,
+      })
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        writable: true,
+        value: 390,
+      })
+      Object.defineProperty(window, 'innerHeight', {
+        configurable: true,
+        writable: true,
+        value: 664,
+      })
+      Object.defineProperty(window.screen, 'availWidth', {
+        configurable: true,
+        value: 390,
+      })
+      Object.defineProperty(window.screen, 'availHeight', {
+        configurable: true,
+        value: 844,
+      })
+
+      fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+        if (url.includes('/api/student/tests?classroom_id=')) {
+          return {
+            ok: true,
+            json: async () => ({
+              quizzes: [{
+                id: 'test-1',
+                title: 'Midterm Test',
+                assessment_type: 'test',
+                status: 'active',
+                show_results: false,
+                position: 0,
+                student_status: 'not_started',
+              }],
+            }),
+          }
+        }
+
+        if (url.includes('/api/student/tests/test-1/session-status')) {
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: {
+                id: 'test-1',
+                status: 'active',
+                assessment_type: 'test',
+                student_status: 'not_started',
+                returned_at: null,
+              },
+              student_status: 'not_started',
+              returned_at: null,
+              can_continue: true,
+              message: null,
+            }),
+          }
+        }
+
+        if (url.includes('/api/student/tests/test-1') && !url.includes('/session-status') && !url.includes('/focus-events') && !url.includes('/attempt')) {
+          return {
+            ok: true,
+            json: async () => ({
+              quiz: {
+                id: 'test-1',
+                title: 'Midterm Test',
+                assessment_type: 'test',
+                status: 'active',
+                show_results: false,
+                position: 0,
+                student_status: 'not_started',
+              },
+              student_status: 'not_started',
+              questions: [
+                {
+                  id: 'q1',
+                  quiz_id: 'test-1',
+                  question_text: 'Which HTTP method is usually used for partial updates?',
+                  options: ['GET', 'POST', 'PATCH', 'DELETE'],
+                  question_type: 'multiple_choice',
+                  points: 1,
+                  response_max_chars: 5000,
+                  position: 0,
+                },
+              ],
+              student_responses: savedResponses,
+              focus_summary: makeFocusSummary(),
+            }),
+          }
+        }
+
+        if (url.includes('/api/student/tests/test-1/attempt') && options?.method === 'PATCH') {
+          const body = JSON.parse(String(options.body || '{}')) as { responses?: Record<string, unknown> }
+          savedResponses = body.responses || {}
+          return {
+            ok: true,
+            json: async () => ({
+              attempt: {
+                id: 'attempt-1',
+                responses: savedResponses,
+                is_submitted: false,
+              },
+            }),
+          }
+        }
+
+        if (url.includes('/api/student/tests/test-1/focus-events')) {
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              focus_summary: makeFocusSummary(),
+            }),
+          }
+        }
+
+        throw new Error(`Unexpected fetch call: ${url}`)
+      })
+
+      render(<StudentQuizzesTab classroom={classroom} assessmentType="test" />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Midterm Test')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByText('Midterm Test'))
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Start the Test' })).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Start the Test' }))
+      await waitFor(() => {
+        expect(screen.getByText('Start this test?')).toBeInTheDocument()
+      })
+
+      vi.useFakeTimers()
+      fireEvent.click(screen.getByText('Start test'))
+
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(screen.getByText('Which HTTP method is usually used for partial updates?')).toBeInTheDocument()
+      expect(screen.getByText('PATCH').closest('label')).toHaveClass('border-primary')
+
+      fireEvent.click(screen.getByText('GET'))
+
+      await act(async () => {
+        vi.advanceTimersByTime(450)
+        await Promise.resolve()
+      })
+
+      expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+      expect(screen.getByText('Which HTTP method is usually used for partial updates?')).toBeVisible()
+      expect(screen.getByText('GET').closest('label')).toHaveClass('border-primary')
+
+      await act(async () => {
+        vi.advanceTimersByTime(5_000)
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+
+      expect(savedResponses).toEqual({
+        q1: { question_type: 'multiple_choice', selected_option: 0 },
+      })
+    } finally {
+      if (requestFullscreenDescriptor) {
+        Object.defineProperty(document.documentElement, 'requestFullscreen', requestFullscreenDescriptor)
+      } else {
+        delete (document.documentElement as HTMLElement & { requestFullscreen?: unknown }).requestFullscreen
+      }
+
+      if (maxTouchPointsDescriptor) {
+        Object.defineProperty(window.navigator, 'maxTouchPoints', maxTouchPointsDescriptor)
+      } else {
+        delete (window.navigator as Navigator & { maxTouchPoints?: unknown }).maxTouchPoints
+      }
+    }
+  })
+
+  it('preserves unsaved in-progress test answers when exam window compliance changes', async () => {
     let fullscreenElement: Element | null = null
     let savedResponses: Record<string, unknown> = {}
     const focusBodies: Array<Record<string, any>> = []
@@ -3377,7 +3579,8 @@ describe('StudentQuizzesTab exam mode', () => {
       vi.advanceTimersByTime(450)
     })
 
-    expect(screen.getByTestId('exam-content-obscurer')).toBeInTheDocument()
+    expect(screen.queryByTestId('exam-content-obscurer')).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue('TDD clarifies expected behavior before coding.')).toBeVisible()
 
     Object.defineProperty(window, 'innerWidth', {
       configurable: true,
