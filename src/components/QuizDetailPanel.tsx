@@ -166,6 +166,7 @@ export function QuizDetailPanel({
   const previousPreviewRequestTokenRef = useRef(previewRequestToken)
   const previousQuestionIdsRef = useRef<string[]>([])
   const summaryDetailWorkspaceRef = useRef<HTMLDivElement>(null)
+  const summaryDetailResizeCleanupRef = useRef<(() => void) | null>(null)
   const [summaryDetailMarkdownWidthPercent, setSummaryDetailMarkdownWidthPercent] = useState(
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
@@ -948,10 +949,19 @@ export function QuizDetailPanel({
     setExpandedQuestionIds(areAllQuestionsExpanded ? [] : questions.map((question) => question.id))
   }
 
+  const clearSummaryDetailResizeListeners = useCallback(() => {
+    summaryDetailResizeCleanupRef.current?.()
+    summaryDetailResizeCleanupRef.current = null
+  }, [])
+
   const handleSummaryDetailResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (!summaryDetailWorkspaceRef.current) return
 
+    clearSummaryDetailResizeListeners()
     event.preventDefault()
+
+    const divider = event.currentTarget
+    const pointerId = event.pointerId
     const { right, width } = summaryDetailWorkspaceRef.current.getBoundingClientRect()
     if (width <= 0) return
 
@@ -962,18 +972,58 @@ export function QuizDetailPanel({
       )
     }
 
-    const handlePointerUp = () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
+    const handleResizeEnd = () => {
+      if (summaryDetailResizeCleanupRef.current !== cleanup) return
+      summaryDetailResizeCleanupRef.current = null
+      cleanup()
     }
 
+    const handleLostPointerCapture = () => {
+      handleResizeEnd()
+    }
+
+    const cleanup = () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handleResizeEnd)
+      window.removeEventListener('pointercancel', handleResizeEnd)
+      window.removeEventListener('blur', handleResizeEnd)
+      divider.removeEventListener('lostpointercapture', handleLostPointerCapture)
+
+      if (divider.hasPointerCapture?.(pointerId)) {
+        try {
+          divider.releasePointerCapture(pointerId)
+        } catch {
+          // Pointer capture may already be released by the browser.
+        }
+      }
+    }
+
+    summaryDetailResizeCleanupRef.current = cleanup
+
+    if (divider.setPointerCapture) {
+      try {
+        divider.setPointerCapture(pointerId)
+      } catch {
+        // Browsers may reject pointer capture for synthetic or interrupted events.
+      }
+    }
+
+    divider.addEventListener('lostpointercapture', handleLostPointerCapture)
     window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-  }, [])
+    window.addEventListener('pointerup', handleResizeEnd)
+    window.addEventListener('pointercancel', handleResizeEnd)
+    window.addEventListener('blur', handleResizeEnd)
+  }, [clearSummaryDetailResizeListeners])
 
   const handleSummaryDetailResizeReset = useCallback(() => {
     setSummaryDetailMarkdownWidthPercent(TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth)
   }, [])
+
+  useEffect(() => {
+    return () => {
+      clearSummaryDetailResizeListeners()
+    }
+  }, [clearSummaryDetailResizeListeners])
 
   function handleConflictReload() {
     if (!conflictDraft) return

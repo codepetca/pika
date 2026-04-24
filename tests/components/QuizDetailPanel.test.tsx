@@ -377,7 +377,7 @@ describe('QuizDetailPanel', () => {
       })
     })
 
-    it('allows dragging the summary-detail divider within the editor bounds and resets on double click', async () => {
+    it('cleans up interrupted summary-detail drags and resets on double click', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -426,8 +426,11 @@ describe('QuizDetailPanel', () => {
       const pointerListeners: {
         move?: (event: PointerEvent) => void
         up?: (event: PointerEvent) => void
+        cancel?: (event: PointerEvent) => void
+        blur?: (event: Event) => void
       } = {}
       const originalAddEventListener = window.addEventListener.bind(window)
+      const originalRemoveEventListener = window.removeEventListener.bind(window)
 
       vi.spyOn(window, 'addEventListener').mockImplementation((type, listener, options) => {
         if (type === 'pointermove') {
@@ -436,7 +439,28 @@ describe('QuizDetailPanel', () => {
         if (type === 'pointerup') {
           pointerListeners.up = listener as (event: PointerEvent) => void
         }
+        if (type === 'pointercancel') {
+          pointerListeners.cancel = listener as (event: PointerEvent) => void
+        }
+        if (type === 'blur') {
+          pointerListeners.blur = listener as (event: Event) => void
+        }
         return originalAddEventListener(type, listener, options)
+      })
+      vi.spyOn(window, 'removeEventListener').mockImplementation((type, listener, options) => {
+        if (type === 'pointermove' && pointerListeners.move === listener) {
+          pointerListeners.move = undefined
+        }
+        if (type === 'pointerup' && pointerListeners.up === listener) {
+          pointerListeners.up = undefined
+        }
+        if (type === 'pointercancel' && pointerListeners.cancel === listener) {
+          pointerListeners.cancel = undefined
+        }
+        if (type === 'blur' && pointerListeners.blur === listener) {
+          pointerListeners.blur = undefined
+        }
+        return originalRemoveEventListener(type, listener, options)
       })
 
       expect(markdownPaneWrapper).toHaveStyle({ width: '50%', flexBasis: '50%' })
@@ -444,6 +468,10 @@ describe('QuizDetailPanel', () => {
       vi.spyOn(layout, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1200, 800))
 
       fireEvent.pointerDown(separator)
+      expect(pointerListeners.move).toBeTypeOf('function')
+      expect(pointerListeners.up).toBeTypeOf('function')
+      expect(pointerListeners.cancel).toBeTypeOf('function')
+      expect(pointerListeners.blur).toBeTypeOf('function')
 
       await act(async () => {
         pointerListeners.move?.({ clientX: 900 } as PointerEvent)
@@ -462,8 +490,14 @@ describe('QuizDetailPanel', () => {
       })
 
       await act(async () => {
-        pointerListeners.up?.({} as PointerEvent)
+        pointerListeners.blur?.(new Event('blur'))
       })
+
+      expect(pointerListeners.move).toBeUndefined()
+      expect(pointerListeners.up).toBeUndefined()
+      expect(pointerListeners.cancel).toBeUndefined()
+      expect(pointerListeners.blur).toBeUndefined()
+
       fireEvent.doubleClick(separator)
 
       await waitFor(() => {

@@ -9197,3 +9197,15 @@
 - Manual Playwright screenshots:
 - `/tmp/pika-teacher-test-preview-submit-end.png`
 - `/tmp/pika-student-test-submit-end.png`
+
+## 2026-04-23 — Harden Test Authoring Divider Cleanup
+
+- Updated the test authoring summary/detail divider in `QuizDetailPanel` to clean up drag listeners on interrupted drags, including window blur, pointer cancel, lost pointer capture, and unmount.
+- Added a focused regression in `QuizDetailPanel.test.tsx` that verifies interrupted drags remove the active listeners instead of leaving resize behavior stuck.
+- Added a student exam-mode regression in `StudentQuizzesTab.test.tsx` to assert ordinary in-window pointer dragging does not post exit or window-unmaximize focus events.
+
+**Validation:**
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm exec eslint src/components/QuizDetailPanel.tsx tests/components/QuizDetailPanel.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- Manual Playwright verification on `http://localhost:3001/classrooms/ed6bbfe1-5bb8-4173-a8e0-a2d7644db2d7?tab=tests` confirmed the teacher authoring divider still resizes normally after the cleanup change (`695px` to `840.938px` markdown pane width).
+- Live student exam-mode drag re-check was not possible because the seeded `Seed Test - Unattempted Demo` student attempt is already submitted in this environment; the no-false-exit path is covered by the automated regression instead.
