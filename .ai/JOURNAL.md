@@ -9390,3 +9390,16 @@
 - `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'src/app/api/teacher/assignments/[id]/route.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'src/lib/assignments.ts' 'tests/api/teacher/assignments-id-return.test.ts' 'tests/api/teacher/assignments-id.test.ts' 'tests/components/TeacherClassroomView.test.tsx' 'tests/unit/assignments.test.ts'`
 - `pnpm exec tsc --noEmit`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments'`
+
+## 2026-04-26 — Disable Assignment Return When Nothing Is Returnable
+
+- Disabled the teacher batch Return button when the selected students are only already-returned and/or partial-rubric blocked rows.
+- Added the tooltip copy `Nothing returnable selected` and kept missing no-doc students actionable because the return flow creates zero-grade returned docs for them.
+- Added component coverage for the disabled no-op return state.
+
+**Validation:**
+- `pnpm test`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments'`

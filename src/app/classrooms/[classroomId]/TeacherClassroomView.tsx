@@ -1183,6 +1183,14 @@ export function TeacherClassroomView({
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
   const workspaceActionLabelSuffix = batchSelectedCount > 0 ? ` (${batchSelectedCount})` : ''
+  const hasReturnableSelection =
+    batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
+  const isReturnDisabled =
+    isReturning || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
+  const returnTooltipContent =
+    batchSelectedCount > 0 && !hasReturnableSelection
+      ? 'Nothing returnable selected'
+      : `Return${workspaceActionLabelSuffix}`
   const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
@@ -1476,21 +1484,23 @@ export function TeacherClassroomView({
                   />
                 </Tooltip>
 
-                <Tooltip content={`Return${workspaceActionLabelSuffix}`}>
-                  <Button
-                    type="button"
-                    variant="subtle"
-                    size="sm"
-                    className="px-4"
-                    onClick={() => {
-                      setShowReturnConfirm(true)
-                    }}
-                    disabled={isReturning || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
-                    aria-label={`Return${workspaceActionLabelSuffix}`}
-                  >
-                    <Send className="h-4 w-4" aria-hidden="true" />
-                    <span>Return</span>
-                  </Button>
+                <Tooltip content={returnTooltipContent}>
+                  <span className="inline-flex">
+                    <Button
+                      type="button"
+                      variant="subtle"
+                      size="sm"
+                      className="px-4"
+                      onClick={() => {
+                        setShowReturnConfirm(true)
+                      }}
+                      disabled={isReturnDisabled}
+                      aria-label={`Return${workspaceActionLabelSuffix}`}
+                    >
+                      <Send className="h-4 w-4" aria-hidden="true" />
+                      <span>Return</span>
+                    </Button>
+                  </span>
                 </Tooltip>
               </>
             ) : (

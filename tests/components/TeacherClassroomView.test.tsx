@@ -54,7 +54,9 @@ vi.mock('@/ui', () => ({
       {label}
     </button>
   ),
-  Tooltip: ({ children }: any) => <>{children}</>,
+  Tooltip: ({ children, content }: any) => (
+    <span data-tooltip={typeof content === 'string' ? content : undefined}>{children}</span>
+  ),
 }))
 
 vi.mock('@/hooks/useDelayedBusy', () => ({
@@ -931,6 +933,95 @@ describe('TeacherClassroomView', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('disables batch return when selected students have nothing returnable', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1').assignment,
+            students: [
+              {
+                student_id: 'student-1',
+                student_email: 'student-1@example.com',
+                student_first_name: 'student-1',
+                student_last_name: 'Student',
+                status: 'submitted_on_time',
+                student_updated_at: '2026-04-10T12:00:00Z',
+                artifacts: [],
+                doc: {
+                  is_submitted: false,
+                  submitted_at: '2026-04-09T12:00:00Z',
+                  updated_at: '2026-04-09T12:00:00Z',
+                  score_completion: 7,
+                  score_thinking: 7,
+                  score_workflow: 7,
+                  graded_at: '2026-04-09T13:00:00Z',
+                  returned_at: '2026-04-09T14:00:00Z',
+                  teacher_cleared_at: '2026-04-09T14:00:00Z',
+                  feedback_returned_at: '2026-04-09T14:00:00Z',
+                },
+              },
+              {
+                student_id: 'student-2',
+                student_email: 'student-2@example.com',
+                student_first_name: 'student-2',
+                student_last_name: 'Student',
+                status: 'submitted_on_time',
+                student_updated_at: '2026-04-10T12:00:00Z',
+                artifacts: [],
+                doc: {
+                  is_submitted: false,
+                  submitted_at: null,
+                  updated_at: '2026-04-10T12:00:00Z',
+                  score_completion: 8,
+                  score_thinking: null,
+                  score_workflow: 9,
+                  graded_at: null,
+                  returned_at: null,
+                  teacher_cleared_at: null,
+                  feedback_returned_at: null,
+                },
+              },
+            ],
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+    })
+
+    const returnButton = screen.getByRole('button', { name: /Return/i })
+    expect(returnButton).toBeDisabled()
+    expect(returnButton.closest('[data-tooltip]')).toHaveAttribute('data-tooltip', 'Nothing returnable selected')
+
+    fireEvent.click(returnButton)
+    expect(screen.queryByText(/Return work to 2 selected student/)).not.toBeInTheDocument()
   })
 
   it('keeps blocked students selected and clears returned, created, and already-returned students after a mixed batch return', async () => {
