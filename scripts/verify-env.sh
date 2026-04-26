@@ -27,20 +27,37 @@ if [[ "$NODE_MAJOR" -ne 24 ]]; then
 fi
 echo "✅ Node.js $NODE_VERSION"
 
-if ! command -v npm >/dev/null 2>&1; then
-  echo "❌ npm not found"
-  echo "   Install Node.js with npm"
-  exit 1
-fi
-echo "✅ npm available"
+PACKAGE_MANAGER="$(node -p "const p=require('./package.json'); (p.packageManager || 'npm').split('@')[0]")"
+PM_CMD=()
 
-PM_CMD="npm"
-if command -v corepack >/dev/null 2>&1; then
-  # Prefer pnpm via Corepack when the repo declares a packageManager.
-  if node -e "const p=require('./package.json'); process.exit(p.packageManager ? 0 : 1)" >/dev/null 2>&1; then
-    PM_CMD="corepack pnpm"
-  fi
-fi
+case "$PACKAGE_MANAGER" in
+  pnpm)
+    if command -v pnpm >/dev/null 2>&1; then
+      PM_CMD=(pnpm)
+      echo "✅ pnpm available"
+    elif command -v corepack >/dev/null 2>&1; then
+      PM_CMD=(corepack pnpm)
+      echo "✅ corepack pnpm available"
+    else
+      echo "❌ pnpm not found"
+      echo "   Install pnpm or enable Corepack for the declared package manager"
+      exit 1
+    fi
+    ;;
+  npm)
+    if ! command -v npm >/dev/null 2>&1; then
+      echo "❌ npm not found"
+      echo "   Install Node.js with npm"
+      exit 1
+    fi
+    PM_CMD=(npm)
+    echo "✅ npm available"
+    ;;
+  *)
+    echo "❌ Unsupported package manager in package.json: $PACKAGE_MANAGER"
+    exit 1
+    ;;
+esac
 
 if [[ ! -d ".ai" ]]; then
   echo "❌ .ai/ directory not found"
@@ -57,22 +74,22 @@ fi
 
 if [[ ! -d "node_modules" ]]; then
   echo "❌ node_modules not found"
-  echo "   Install dependencies: $PM_CMD install"
+  echo "   Install dependencies: ${PM_CMD[*]} install"
   exit 1
 fi
 echo "✅ Dependencies installed"
 
 echo "Running tests..."
-$PM_CMD test
+"${PM_CMD[@]}" test
 echo "✅ Tests passing"
 
 if [[ "$MODE" == "--full" ]]; then
   echo "Running lint..."
-  $PM_CMD run lint
+  "${PM_CMD[@]}" run lint
   echo "✅ Lint passing"
 
   echo "Running build..."
-  $PM_CMD run build
+  "${PM_CMD[@]}" run build
   echo "✅ Build successful"
 fi
 

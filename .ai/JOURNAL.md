@@ -9368,3 +9368,14 @@
   - Coverage: 214 test files / 1844 tests passed.
   - Lint: passed with the existing `src/components/TestDocumentsEditor.tsx` hook dependency warning.
   - Diff check: clean.
+
+## 2026-04-26 — Align Package Manager Guidance
+
+- Updated `scripts/verify-env.sh` to honor the package manager declared in `package.json` instead of requiring `npm` up front.
+- The verifier now prefers `pnpm` directly, falls back to `corepack pnpm` when available, and only checks `npm` when the repo declares npm.
+- Updated `.ai/features.json` verification commands from `npm` to `pnpm` and refreshed its `lastUpdated` metadata.
+
+**Validation:**
+- `node scripts/features.mjs validate`
+- `pnpm install`
+- `bash scripts/verify-env.sh`
