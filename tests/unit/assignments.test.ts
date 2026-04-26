@@ -11,7 +11,9 @@ import {
   getAssignmentStatusBadgeClass,
   getAssignmentStatusIconClass,
   getAssignmentRubricState,
+  getAssignmentFullReturnAt,
   hasDraftSavedGrade,
+  isAssignmentAlreadyReturnedWithoutResubmission,
   isAssignmentReturnable,
   formatDueDate,
   isPastDue,
@@ -713,6 +715,33 @@ describe('assignment utilities', () => {
 
       expect(getAssignmentRubricState(doc)).toBe('partial')
       expect(isAssignmentReturnable(doc)).toBe(false)
+    })
+  })
+
+  describe('assignment return helpers', () => {
+    it('uses the latest full-return timestamp', () => {
+      expect(getAssignmentFullReturnAt({
+        returned_at: '2026-04-20T12:00:00.000Z',
+        teacher_cleared_at: '2026-04-20T13:00:00.000Z',
+      })).toBe('2026-04-20T13:00:00.000Z')
+    })
+
+    it('treats returned work without a newer submission as already returned', () => {
+      expect(isAssignmentAlreadyReturnedWithoutResubmission({
+        is_submitted: false,
+        submitted_at: '2026-04-20T12:00:00.000Z',
+        returned_at: '2026-04-20T13:00:00.000Z',
+        teacher_cleared_at: '2026-04-20T13:00:00.000Z',
+      })).toBe(true)
+    })
+
+    it('does not treat resubmitted work as already returned', () => {
+      expect(isAssignmentAlreadyReturnedWithoutResubmission({
+        is_submitted: true,
+        submitted_at: '2026-04-21T12:00:00.000Z',
+        returned_at: '2026-04-20T13:00:00.000Z',
+        teacher_cleared_at: '2026-04-20T13:00:00.000Z',
+      })).toBe(false)
     })
   })
 

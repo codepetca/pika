@@ -136,6 +136,12 @@ vi.mock('@/lib/assignments', () => ({
     if (filledCount === 3) return 'complete'
     return 'partial'
   }),
+  isAssignmentAlreadyReturnedWithoutResubmission: vi.fn((doc: any) => {
+    if (!doc?.returned_at && !doc?.teacher_cleared_at) return false
+    const returnedAt = new Date(doc.teacher_cleared_at || doc.returned_at).getTime()
+    if (!doc.is_submitted || !doc.submitted_at) return true
+    return new Date(doc.submitted_at).getTime() <= returnedAt
+  }),
   getAssignmentStatusIconClass: vi.fn(() => ''),
   getAssignmentStatusLabel: vi.fn(() => 'Submitted'),
   hasDraftSavedGrade: vi.fn(() => false),
@@ -927,9 +933,9 @@ describe('TeacherClassroomView', () => {
     }
   })
 
-  it('keeps blocked and missing students selected after a mixed batch return', async () => {
-    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2', 'student-3'])
-    mockStudentSelectionState.selectedCount = 3
+  it('keeps blocked students selected and clears returned, created, and already-returned students after a mixed batch return', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2', 'student-3', 'student-4'])
+    mockStudentSelectionState.selectedCount = 4
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
@@ -995,6 +1001,27 @@ describe('TeacherClassroomView', () => {
                 artifacts: [],
                 doc: null,
               },
+              {
+                student_id: 'student-4',
+                student_email: 'student-4@example.com',
+                student_first_name: 'student-4',
+                student_last_name: 'Student',
+                status: 'returned',
+                student_updated_at: '2026-04-09T12:00:00Z',
+                artifacts: [],
+                doc: {
+                  is_submitted: false,
+                  submitted_at: '2026-04-09T12:00:00Z',
+                  updated_at: '2026-04-09T12:00:00Z',
+                  score_completion: 7,
+                  score_thinking: 7,
+                  score_workflow: 7,
+                  graded_at: '2026-04-09T13:00:00Z',
+                  returned_at: '2026-04-09T14:00:00Z',
+                  teacher_cleared_at: '2026-04-09T14:00:00Z',
+                  feedback_returned_at: '2026-04-09T14:00:00Z',
+                },
+              },
             ],
           }),
         })
@@ -1005,13 +1032,16 @@ describe('TeacherClassroomView', () => {
         return Promise.resolve({
           ok: true,
           json: async () => ({
-            returned_count: 1,
-            cleared_count: 1,
-            returned_student_ids: ['student-1'],
+            returned_count: 2,
+            cleared_count: 2,
+            created_count: 1,
+            returned_student_ids: ['student-1', 'student-3'],
             blocked_count: 1,
             blocked_student_ids: ['student-2'],
-            missing_count: 1,
-            missing_student_ids: ['student-3'],
+            already_returned_count: 1,
+            already_returned_student_ids: ['student-4'],
+            missing_count: 0,
+            missing_student_ids: [],
           }),
         })
       }
@@ -1035,12 +1065,14 @@ describe('TeacherClassroomView', () => {
     expect(
       screen.getByText(/partial rubric drafts and must be completed or cleared before return/i),
     ).toBeInTheDocument()
+    expect(screen.getByText(/create returned 0\/0\/0 documents/i)).toBeInTheDocument()
+    expect(screen.getByText(/already returned and will be skipped/i)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Return' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Returned 1 • Blocked 1 partial-rubric draft • 1 with no work yet')).toBeInTheDocument()
+      expect(screen.getByText('Returned 2 • Created 1 zero-grade return • Skipped 1 already returned • Blocked 1 partial-rubric draft')).toBeInTheDocument()
     })
-    expect(mockSetSelection).toHaveBeenCalledWith(['student-2', 'student-3'])
+    expect(mockSetSelection).toHaveBeenCalledWith(['student-2'])
   })
 })

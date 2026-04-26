@@ -2,12 +2,22 @@ import { Assignment, AssignmentDoc, AssignmentStatus, AssignmentStats } from '@/
 import { formatInTimeZone } from 'date-fns-tz'
 
 type AssignmentStatDoc = Pick<AssignmentDoc, 'is_submitted' | 'submitted_at' | 'returned_at' | 'teacher_cleared_at'>
-type AssignmentRubricDoc = Pick<AssignmentDoc, 'score_completion' | 'score_thinking' | 'score_workflow'>
+type AssignmentRubricDoc = {
+  score_completion?: number | null
+  score_thinking?: number | null
+  score_workflow?: number | null
+}
+type AssignmentReturnDoc = {
+  is_submitted?: boolean | null
+  submitted_at?: string | null
+  returned_at?: string | null
+  teacher_cleared_at?: string | null
+}
 
 export type AssignmentRubricState = 'blank' | 'partial' | 'complete'
 
-function getAssignmentFullReturnAt(
-  doc: Pick<AssignmentDoc, 'teacher_cleared_at' | 'returned_at'>
+export function getAssignmentFullReturnAt(
+  doc: Pick<AssignmentReturnDoc, 'teacher_cleared_at' | 'returned_at'>
 ): string | null {
   const timestamps = [doc.teacher_cleared_at, doc.returned_at].filter((value): value is string => typeof value === 'string')
   if (timestamps.length === 0) return null
@@ -38,6 +48,18 @@ export function isAssignmentReturnable(
 ): boolean {
   const rubricState = getAssignmentRubricState(doc)
   return rubricState === 'blank' || rubricState === 'complete'
+}
+
+export function isAssignmentAlreadyReturnedWithoutResubmission(
+  doc: AssignmentReturnDoc | null | undefined
+): boolean {
+  if (!doc) return false
+
+  const fullReturnAt = getAssignmentFullReturnAt(doc)
+  if (!fullReturnAt) return false
+  if (!doc.is_submitted || !doc.submitted_at) return true
+
+  return new Date(doc.submitted_at).getTime() <= new Date(fullReturnAt).getTime()
 }
 
 /**
