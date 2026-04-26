@@ -9322,3 +9322,49 @@
 - `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
 - `bash scripts/verify-env.sh`
 - `pika-ui-verify` classroom screenshot capture passed for teacher desktop, teacher mobile, and student mobile; focused grading-page capture was not available because the current dev database has no classrooms/tests.
+## 2026-04-22 (codex)
+- Expanded test hardening for low-coverage utility areas:
+  - Added `tests/unit/classroom-ux-metrics.test.ts` for tab-switch metric tracking behavior and edge cases.
+  - Added `tests/unit/server-classroom-order.test.ts` for Supabase query fallback/position logic.
+  - Added `tests/unit/repo-review-validation.test.ts` for schema defaults and validation failures.
+- Verified new tests pass with targeted Vitest run.
+
+## 2026-04-22 (codex follow-up review)
+- Reviewed and tightened the new coverage tests from the previous PR:
+  - Added stronger query-chain assertions in `server-classroom-order` tests (teacher filter, archived filter, ordering calls, and limit usage).
+  - Added `afterEach(vi.restoreAllMocks)` in classroom UX metrics tests to avoid mock leakage.
+  - Expanded repo-review validation coverage for defaulted `commit_emails` and invalid email rejection.
+- Re-ran the targeted test suite and confirmed all tests pass.
+
+## 2026-04-24 (codex)
+- Moved cloud-applied coverage test changes out of the hub checkout and into `codex/classroom-coverage-local`.
+- Created the worktree from `origin/main`, linked the shared `.env.local`, and installed dependencies.
+- Verified the worktree with `bash scripts/verify-env.sh` (210 test files / 1814 tests passed).
+
+## 2026-04-25 (codex)
+- Reviewed the codebase for additional test coverage opportunities in `codex/classroom-coverage-local`.
+- Ran `bash scripts/verify-env.sh` and `pnpm test:coverage`; both completed with the full Vitest suite passing.
+- Current measured coverage is 74.28% statements, 60.95% branches, and 86.25% functions across `src/lib`, `src/ui`, and `src/app/api/**/route.ts`.
+- Highest-value uncovered areas identified: repo-review assignment routes/helpers, teacher assignment reorder, attendance CSV/export success paths, roster GET/PATCH/error paths, class-day server helpers, and assignment-doc submit authenticity/history paths.
+
+## 2026-04-25 (codex follow-up)
+- Added targeted tests for the coverage opportunities identified earlier:
+  - Repo-review artifact run route and assignment repo target helpers.
+  - Assignment reorder route validation, ownership, mismatch, success, and failure paths.
+  - Attendance/export success paths with sorted students and CSV assertions.
+  - Roster GET/PATCH success and validation paths.
+  - Server class-day generation/upsert helpers.
+  - Assignment doc submit success, history, authenticity, and non-fatal side-effect failures.
+- Verification:
+  - Targeted test run: 9 test files / 41 tests passed.
+  - `bash scripts/verify-env.sh`: 214 test files / 1844 tests passed.
+  - `pnpm test:coverage`: 77.02% statements, 63.72% branches, 89.6% functions.
+  - `pnpm lint`: passed with the existing `src/components/TestDocumentsEditor.tsx` hook dependency warning.
+
+## 2026-04-26 (codex)
+- Re-reviewed the added coverage tests before commit.
+- Tightened Supabase mock reset setup in the new/expanded test files to prevent stale mock implementations from leaking into future tests.
+- Re-ran `pnpm test:coverage`, `pnpm lint`, and `git diff --check`:
+  - Coverage: 214 test files / 1844 tests passed.
+  - Lint: passed with the existing `src/components/TestDocumentsEditor.tsx` hook dependency warning.
+  - Diff check: clean.
