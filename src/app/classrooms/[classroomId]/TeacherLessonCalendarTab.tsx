@@ -15,6 +15,7 @@ import type { Classroom, LessonPlan, TiptapContent, Assignment, Announcement } f
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 import { normalizeLessonPlanMarkdown } from '@/lib/lesson-plan-content'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 
 /**
  * Returns true if the content change is identical to the last value emitted
@@ -47,7 +48,7 @@ export interface CalendarSidebarState {
 interface Props {
   classroom: Classroom
   onSidebarStateChange?: (state: CalendarSidebarState | null) => void
-  onNavigateToAssignments?: () => void
+  onNavigateToAssignments?: (assignmentId?: string | null) => void
   onNavigateToAnnouncements?: () => void
 }
 
@@ -166,8 +167,15 @@ export function TeacherLessonCalendarTab({
   useEffect(() => {
     async function loadAssignments() {
       try {
-        const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
-        const data = await res.json()
+        const data = await fetchJSONWithCache<{ assignments?: Assignment[] }>(
+          `teacher-assignments:${classroom.id}`,
+          async () => {
+            const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+            if (!res.ok) throw new Error('Failed to load assignments')
+            return res.json()
+          },
+          20_000,
+        )
         setAssignments(data.assignments || [])
       } catch (err) {
         console.error('Error loading assignments:', err)
@@ -179,6 +187,7 @@ export function TeacherLessonCalendarTab({
     const handleAssignmentsUpdated = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (!detail?.classroomId || detail.classroomId === classroom.id) {
+        invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
         loadAssignments()
       }
     }
@@ -192,8 +201,15 @@ export function TeacherLessonCalendarTab({
   useEffect(() => {
     async function loadAnnouncements() {
       try {
-        const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
-        const data = await res.json()
+        const data = await fetchJSONWithCache<{ announcements?: Announcement[] }>(
+          `teacher-announcements:${classroom.id}`,
+          async () => {
+            const res = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
+            if (!res.ok) throw new Error('Failed to load announcements')
+            return res.json()
+          },
+          20_000,
+        )
         setAnnouncements(data.announcements || [])
       } catch (err) {
         console.error('Error loading announcements:', err)
@@ -438,7 +454,7 @@ export function TeacherLessonCalendarTab({
           detail: { classroomId: classroom.id, value: assignment.id },
         })
       )
-      onNavigateToAssignments()
+      onNavigateToAssignments(assignment.id)
     },
     [onNavigateToAssignments, classroom.id]
   )

@@ -23,8 +23,10 @@ After the startup set above, load task-specific docs:
 |---|---|
 | Any non-trivial code change | [`docs/core/architecture.md`](./core/architecture.md) |
 | UI or UX work | [`docs/core/design.md`](./core/design.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
+| Teacher assignments, quizzes, or tests work-surface shell/layout work | [`docs/guidance/ui/teacher-work-surfaces.md`](./guidance/ui/teacher-work-surfaces.md), [`docs/guidance/assignment-ux-language.md`](./guidance/assignment-ux-language.md), [`docs/guidance/ui/audit-teacher-work-surfaces.md`](./guidance/ui/audit-teacher-work-surfaces.md) |
 | TDD, coverage, or test design | [`docs/core/tests.md`](./core/tests.md) |
 | Setup, runtime, or deployment questions | [`docs/core/project-context.md`](./core/project-context.md) |
+| Workspace state, grading runs, exam mode, or runtime platform risk | [`docs/guidance/dev-flow-risk-checklists.md`](./guidance/dev-flow-risk-checklists.md) |
 | Multi-agent delegation | [`docs/core/agents.md`](./core/agents.md) |
 | Product status or phase questions | [`docs/core/roadmap.md`](./core/roadmap.md) |
 | GitHub issue work | [`docs/workflow/handle-issue.md`](./workflow/handle-issue.md) |
@@ -45,6 +47,7 @@ Inspect or modify source only after the startup set and the docs required by you
 - UI primitives: import from `@/ui`; use semantic tokens in app code instead of raw `dark:` classes
 - Migrations: AI may create or edit migration files, but humans apply them manually
 - Workflow: do non-trivial work in a bound worktree, plan before coding, and keep `.ai/JOURNAL.md` append-only
+- Risk profile: for non-trivial work, declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform` in the plan
 
 ## Prompt And Command Map
 
