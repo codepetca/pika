@@ -611,6 +611,38 @@ describe('TeacherTestsTab', () => {
     expect(params.get('testStudentId')).toBeNull()
   })
 
+  it('replaces the selected test history entry when switching workspace modes', async () => {
+    const updateSearchParams = vi.fn()
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+
+    renderTab({
+      selectedTestId: 'test-1',
+      selectedTestMode: 'authoring',
+      updateSearchParams,
+    })
+
+    await screen.findByTestId('mock-test-detail')
+    updateSearchParams.mockClear()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Grading' }))
+
+    await waitFor(() => {
+      expect(updateSearchParams).toHaveBeenCalledWith(expect.any(Function), { replace: true })
+    })
+
+    const params = new URLSearchParams('tab=tests&testId=test-1&testMode=authoring')
+    updateSearchParams.mock.calls[0][0](params)
+    expect(params.get('testId')).toBe('test-1')
+    expect(params.get('testMode')).toBe('grading')
+    expect(params.get('testStudentId')).toBeNull()
+  })
+
   it('models Browser Back by following controlled test params back to summary', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
     const view = renderTab({ selectedTestId: 'test-1', selectedTestMode: 'authoring' })
