@@ -173,6 +173,36 @@ describe('StudentQuizForm preview mode', () => {
     expect(within(actionPanel).getByText('Answer all questions to submit')).toBeInTheDocument()
   })
 
+  it('keeps multiple-choice radios anchored inside their option labels', async () => {
+    const onSubmitted = vi.fn()
+
+    render(
+      <StudentQuizForm
+        quizId="test-radio-position-id"
+        questions={[
+          createMockQuizQuestion({
+            id: 'q1',
+            question_text: 'Which option is correct?',
+            options: ['A', 'B'],
+            question_type: 'multiple_choice',
+            position: 0,
+          }),
+        ]}
+        assessmentType="test"
+        previewMode
+        onSubmitted={onSubmitted}
+      />
+    )
+
+    const optionLabel = screen.getByText('A').closest('label')
+    const radio = within(optionLabel!).getByRole('radio')
+
+    expect(optionLabel).toHaveClass('relative')
+    expect(radio).not.toHaveClass('sr-only')
+    expect(radio).toHaveClass('absolute')
+    expect(radio).toHaveClass('left-3')
+  })
+
   it('keeps the sticky submit footer for quizzes', async () => {
     const onSubmitted = vi.fn()
 
