@@ -527,7 +527,7 @@ export function StudentQuizForm({
                           return (
                             <label
                               key={optionIndex}
-                              className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                              className={`relative flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                                 isSelected
                                   ? 'border-primary bg-primary/5'
                                   : 'border-border hover:bg-surface-hover'
@@ -539,10 +539,10 @@ export function StudentQuizForm({
                                 checked={isSelected}
                                 disabled={isInteractionLocked}
                                 onChange={() => handleOptionSelect(question.id, optionIndex)}
-                                className="sr-only"
+                                className="peer absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 cursor-pointer opacity-0 disabled:cursor-not-allowed"
                               />
                               <span
-                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 ${
                                   isSelected ? 'border-primary' : 'border-border'
                                 }`}
                               >
