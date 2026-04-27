@@ -9449,3 +9449,8 @@
 - `bash .codex/skills/pika-audit/scripts/audit.sh`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1`
 - Targeted Playwright Back-flow check on teacher assignments verified Back from `Student2` returned to `Student1` within `tab=assignments`.
+## 2026-04-26 — Teacher work-surface canon adoption guidance
+
+- Added explicit AI routing for teacher assignments/quizzes/tests shell and layout tasks in `docs/ai-instructions.md`.
+- Expanded `docs/guidance/ui/teacher-work-surfaces.md` with an implemented primitive map, assignment-only reuse boundaries, an AI adoption contract, and a tests/quizzes migration template.
+- Verified the environment with `PATH=/opt/homebrew/bin:$PATH bash scripts/verify-env.sh`; all 218 test files and 1861 tests passed before the docs-only patch.

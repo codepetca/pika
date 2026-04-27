@@ -23,6 +23,7 @@ After the startup set above, load task-specific docs:
 |---|---|
 | Any non-trivial code change | [`docs/core/architecture.md`](./core/architecture.md) |
 | UI or UX work | [`docs/core/design.md`](./core/design.md), [`docs/guidance/ui/README.md`](./guidance/ui/README.md), [`docs/guidance/ui/stable.md`](./guidance/ui/stable.md), [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md) |
+| Teacher assignments, quizzes, or tests work-surface shell/layout work | [`docs/guidance/ui/teacher-work-surfaces.md`](./guidance/ui/teacher-work-surfaces.md), [`docs/guidance/assignment-ux-language.md`](./guidance/assignment-ux-language.md), [`docs/guidance/ui/audit-teacher-work-surfaces.md`](./guidance/ui/audit-teacher-work-surfaces.md) |
 | TDD, coverage, or test design | [`docs/core/tests.md`](./core/tests.md) |
 | Setup, runtime, or deployment questions | [`docs/core/project-context.md`](./core/project-context.md) |
 | Workspace state, grading runs, exam mode, or runtime platform risk | [`docs/guidance/dev-flow-risk-checklists.md`](./guidance/dev-flow-risk-checklists.md) |
