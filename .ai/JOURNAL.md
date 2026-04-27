@@ -9500,3 +9500,18 @@
 - `E2E_BASE_URL=http://localhost:3000 pnpm e2e:verify assessment-ux-parity`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=quizzes"`
+
+## 2026-04-27 — Issue 512 Teacher Assessment URL-State Hardening
+
+- Added Chromium Playwright coverage for teacher Tests and Quizzes URL-state flows: deep links, selected assessment params, grading mode, selected test student, browser Back unwinding, and active nav re-click summary resets.
+- Changed teacher Tests mode switches to replace the selected test history entry, so Back from a selected grading student clears `testStudentId` and then returns to the Tests summary.
+- Added component coverage for the replace-on-mode-switch behavior and reused existing async grading coverage in the standard verifier.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx`
+- `E2E_BASE_URL=http://localhost:3100 pnpm exec playwright test e2e/teacher-assessment-url-state.spec.ts --project=chromium-desktop`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `pnpm exec tsc --noEmit`
+- `bash scripts/verify-env.sh` (218 files, 1886 tests)
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=quizzes"`

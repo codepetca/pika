@@ -403,7 +403,10 @@ export function TeacherTestsTab({
 
   const switchTestWorkspaceMode = useCallback((nextMode: WorkspaceTab) => {
     if (!selectedTestId) return
-    navigateTestWorkspace({ testId: selectedTestId, mode: nextMode, studentId: null })
+    navigateTestWorkspace(
+      { testId: selectedTestId, mode: nextMode, studentId: null },
+      { replace: true },
+    )
   }, [navigateTestWorkspace, selectedTestId])
 
   const selectGradingStudent = useCallback((studentId: string | null) => {
