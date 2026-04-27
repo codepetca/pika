@@ -9412,3 +9412,40 @@
 - `pnpm test tests/components/TeacherClassroomView.test.tsx`
 - `pnpm exec eslint 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' tests/components/TeacherClassroomView.test.tsx`
 - `pnpm exec tsc --noEmit`
+## 2026-04-25 - Teacher Work-Surface Shell Refactor
+
+- Added dev-flow risk guidance for workspace-state, async-grading, exam-mode, and runtime-platform work, and routed non-trivial risk-profile declaration through AI session/TDD/audit prompts.
+- Extracted the assignment teacher work surface in layers: outer `TeacherWorkSurfaceShell`, workspace `TeacherWorkSurfaceModeBar`, reusable `TeacherWorkspaceSplit`, and assignment-local `TeacherAssignmentStudentTable`.
+- Migrated teacher assignments to the new structural pieces while leaving assignment loading, selection, grading, AI run, return, modal, and route/query behavior in `TeacherClassroomView`.
+- Updated `TeacherStudentWorkPanel` to use the shared teacher workspace split for individual-mode content/inspector panes.
+- Tightened the local Pika audit rule so cached read fetchers are not mistaken for uncached component reads while raw mutation fetches remain allowed.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (210 files, 1804 tests)
+- `pnpm exec vitest run tests/components/TeacherWorkspaceSplit.test.tsx tests/components/TeacherWorkSurfaceModeBar.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"` remained blocked because seeded teacher and student auth both returned `POST /api/auth/login 401`, so screenshots could not be captured in this local environment.
+## 2026-04-26 — Teacher work-surface canon fixes
+
+- Tightened `TeacherWorkspaceSplit` so the shared split primitive clamps inspector width changes with generic structural constraints instead of relying only on assignment-specific layout code.
+- Upgraded `TeacherWorkSurfaceModeBar` from pressed buttons to typed tab semantics with keyboard navigation, making it safer to reuse across selected workspaces.
+- Added an explicit `workspaceFrame` variant to `TeacherWorkSurfaceShell` so attached-tab and standalone selected workspaces are deliberate API choices.
+- Verified with focused component tests, full `verify-env.sh`, lint, build, audit, and teacher assignment visual captures.
+
+## 2026-04-26 — Teacher assignment browser-back workspace state
+
+- Made teacher assignment selection and selected-student inspection URL-backed with `assignmentId` and `assignmentStudentId`, so browser Back unwinds the assignment workspace before leaving the Assignments tab.
+- Kept cookies as a persistence fallback only; URL-controlled assignment views now suppress stale assignment cookies and sidebar/calendar assignment links write the routed state.
+- Added regression coverage for stale-cookie suppression, assignment selection history, default selected-student URL replacement, and student-row history updates.
+- Converted repeated assignment/announcement/result reads in the newly touched route files to the shared request cache and updated the audit rule to recognize `prefetchJSON` as cache-backed.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/NavItems.test.tsx`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `pnpm exec tsc --noEmit`
+- `bash scripts/verify-env.sh` (210 files, 1811 tests)
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1`
+- Targeted Playwright Back-flow check on teacher assignments verified Back from `Student2` returned to `Student1` within `tab=assignments`.

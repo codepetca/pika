@@ -183,9 +183,14 @@ export function NavItems({
     setAssignmentsExpanded(cookieValue !== 'collapsed')
   }, [classroomId, role])
 
-  // Load teacher assignment selection from cookie
+  // Teacher assignment selection is URL-backed when the assignments tab is active.
   useEffect(() => {
     if (role !== 'teacher') return
+    if (activeTab === 'assignments') {
+      setActiveAssignmentId(assignmentId)
+      return
+    }
+
     const selectionCookieName = `teacherAssignmentsSelection:${classroomId}`
     const selection = readCookie(selectionCookieName)
     if (!selection || selection === 'summary') {
@@ -193,7 +198,7 @@ export function NavItems({
       return
     }
     setActiveAssignmentId(selection)
-  }, [classroomId, role, activeTab])
+  }, [activeTab, assignmentId, classroomId, role])
 
   // Student assignment selection from URL
   useEffect(() => {
@@ -276,11 +281,20 @@ export function NavItems({
     writeCookie(`pika_sidebar_assignments:${classroomId}`, next ? 'expanded' : 'collapsed')
   }
 
-  function setAssignmentsSelectionCookie(assignmentId: string | null) {
+  function setTeacherAssignmentsSelection(assignmentId: string | null) {
     const name = `teacherAssignmentsSelection:${classroomId}`
     const value = assignmentId ? assignmentId : 'summary'
     writeCookie(name, value)
     setActiveAssignmentId(assignmentId)
+    updateSearchParams((params) => {
+      params.set('tab', 'assignments')
+      if (assignmentId) {
+        params.set('assignmentId', assignmentId)
+      } else {
+        params.delete('assignmentId')
+      }
+      params.delete('assignmentStudentId')
+    })
     window.dispatchEvent(
       new CustomEvent(TEACHER_ASSIGNMENTS_SELECTION_EVENT, {
         detail: { classroomId, value },
@@ -297,6 +311,7 @@ export function NavItems({
       } else {
         params.delete('assignmentId')
       }
+      params.delete('assignmentStudentId')
     })
   }
 
@@ -412,7 +427,7 @@ export function NavItems({
                 onClick={(event) => {
                   event.preventDefault()
                   onTabChange('assignments')
-                  setAssignmentsSelectionCookie(null)
+                  setTeacherAssignmentsSelection(null)
                   onNavigate()
                 }}
                 onMouseEnter={() => handleTabIntent('assignments')}
@@ -463,7 +478,7 @@ export function NavItems({
                         <button
                           type="button"
                           onClick={() => {
-                            setAssignmentsSelectionCookie(assignment.id)
+                            setTeacherAssignmentsSelection(assignment.id)
                             onTabChange('assignments')
                             onNavigate()
                           }}

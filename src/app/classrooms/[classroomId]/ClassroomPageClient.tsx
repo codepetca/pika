@@ -48,7 +48,7 @@ import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
 import { ConfirmDialog, EmptyState, TabContentTransition } from '@/ui'
 import { PageDensityProvider } from '@/components/PageLayout'
-import { prefetchJSON } from '@/lib/request-cache'
+import { fetchJSONWithCache, prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import type {
   Classroom,
@@ -248,6 +248,7 @@ function ClassroomPageContent({
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const isTeacher = user.role === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
+  const assignmentStudentIdParam = searchParams.get('assignmentStudentId')
   const sectionParam = searchParams.get('section')
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
@@ -541,7 +542,8 @@ function ClassroomPageContent({
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
-    abortControllerRef.current = new AbortController()
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
 
     setMarkdownError(null)
     setMarkdownWarning(null)
@@ -549,10 +551,17 @@ function ClassroomPageContent({
     setMarkdownLoading(true)
 
     try {
-      const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`, {
-        signal: abortControllerRef.current.signal,
-      })
-      const data = await res.json()
+      const data = await fetchJSONWithCache<{ assignments?: Assignment[] }>(
+        `teacher-assignments:${classroom.id}`,
+        async () => {
+          const res = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`, {
+            signal: abortController.signal,
+          })
+          if (!res.ok) throw new Error('Failed to load assignments')
+          return res.json()
+        },
+        20_000,
+      )
       const assignments = (data.assignments || []) as Assignment[]
       setAssignmentsCache(assignments)
 
@@ -891,6 +900,7 @@ function ClassroomPageContent({
         params.set('tab', tab)
         if (tab !== 'assignments') {
           params.delete('assignmentId')
+          params.delete('assignmentStudentId')
         }
         if (tab !== 'resources' && tab !== 'settings') {
           params.delete('section')
@@ -952,8 +962,15 @@ function ClassroomPageContent({
     if (!selectedQuiz) return
 
     try {
-      const res = await fetch(`${assessmentApiBasePath}/${selectedQuiz.id}/results`)
-      const data = await res.json()
+      const data = await fetchJSONWithCache<{ stats?: { responded?: number } }>(
+        `teacher-assessment-results:${assessmentLabel}:${selectedQuiz.id}`,
+        async () => {
+          const res = await fetch(`${assessmentApiBasePath}/${selectedQuiz.id}/results`)
+          if (!res.ok) throw new Error('Failed to load assessment results')
+          return res.json()
+        },
+        0,
+      )
       setPendingAssessmentDelete({
         quiz: selectedQuiz,
         responsesCount: Number(data?.stats?.responded || 0),
@@ -1073,6 +1090,9 @@ function ClassroomPageContent({
                         onSelectAssignment={handleSelectAssignment}
                         onViewModeChange={handleViewModeChange}
                         isActive={activeTab === 'assignments'}
+                        selectedAssignmentId={assignmentIdParam}
+                        selectedAssignmentStudentId={assignmentStudentIdParam}
+                        updateSearchParams={navigateInClassroom}
                       />
                     </TabContentTransition>
                   )}
@@ -1104,12 +1124,23 @@ function ClassroomPageContent({
                       <TeacherLessonCalendarTab
                         classroom={classroom}
                         onSidebarStateChange={setCalendarSidebarState}
-                        onNavigateToAssignments={() => handleTabChange('assignments')}
+                        onNavigateToAssignments={(assignmentId) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'assignments')
+                            if (assignmentId) {
+                              params.set('assignmentId', assignmentId)
+                            } else {
+                              params.delete('assignmentId')
+                            }
+                            params.delete('assignmentStudentId')
+                          })
+                        }
                         onNavigateToAnnouncements={() =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'resources')
                             params.delete('section')
                             params.delete('assignmentId')
+                            params.delete('assignmentStudentId')
                           })
                         }
                       />
@@ -1182,6 +1213,7 @@ function ClassroomPageContent({
                             } else {
                               params.delete('assignmentId')
                             }
+                            params.delete('assignmentStudentId')
                           })
                         }
                         onNavigateToAnnouncements={() =>

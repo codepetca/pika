@@ -72,8 +72,15 @@ while IFS= read -r file; do
   # e) fetchJSON without cache in client components
   if [[ "$file" == src/components/* || "$file" == src/app/classrooms/* ]]; then
     while IFS=: read -r lineno _; do
-      report_violation "uncached-fetch" "$file:$lineno" "consider fetchJSONWithCache from @/lib/request-cache for repeated fetches"
-    done < <(grep -n "fetch('" "$FULL" 2>/dev/null || grep -n 'fetch(`' "$FULL" 2>/dev/null || true)
+      if sed -n "$((lineno - 4 < 1 ? 1 : lineno - 4)),$((lineno - 1))p" "$FULL" | grep -Eq 'fetchJSONWithCache|prefetchJSON'; then
+        continue
+      fi
+      # Raw fetch is allowed for one-off mutations; cache guidance targets repeated reads.
+      if sed -n "${lineno},$((lineno + 6))p" "$FULL" | grep -q 'method:'; then
+        continue
+      fi
+      report_violation "uncached-fetch" "$file:$lineno" "consider fetchJSONWithCache from @/lib/request-cache for repeated reads"
+    done < <(grep -n "fetch('" "$FULL" 2>/dev/null || true; grep -n 'fetch(`' "$FULL" 2>/dev/null || true)
   fi
 
 done <<< "$ALL_FILES"
