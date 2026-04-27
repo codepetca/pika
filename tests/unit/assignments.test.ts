@@ -719,6 +719,10 @@ describe('assignment utilities', () => {
   })
 
   describe('assignment return helpers', () => {
+    it('does not treat a missing doc as already returned', () => {
+      expect(isAssignmentAlreadyReturnedWithoutResubmission(null)).toBe(false)
+    })
+
     it('uses the latest full-return timestamp', () => {
       expect(getAssignmentFullReturnAt({
         returned_at: '2026-04-20T12:00:00.000Z',
