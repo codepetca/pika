@@ -29,6 +29,7 @@ Scan changed TypeScript files for codebase violations before committing. Catches
 | `dark-class` | `dark:` class outside `src/ui/` | Use semantic tokens from `docs/core/design.md` |
 | `duplicate-parseContentField` | Local `parseContentField` function | Import from `@/lib/tiptap-content` |
 | `console-log` | `console.log(` in non-test production code | Use `console.error`/`warn` or structured logging |
+| `uncached-fetch` | Raw read `fetch()` in classroom/client components | Use `fetchJSONWithCache`; raw mutation fetches are allowed |
 
 ## Script
 

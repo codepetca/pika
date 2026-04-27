@@ -21,12 +21,9 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Circle,
-  Clock,
   LoaderCircle,
   Pencil,
   Plus,
-  RotateCcw,
   Send,
 } from 'lucide-react'
 import { Button, ConfirmDialog, SplitButton, Tooltip } from '@/ui'
@@ -35,32 +32,33 @@ import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
-import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
+import {
+  TeacherAssignmentStudentTable,
+  type TeacherAssignmentStudentRow,
+} from '@/components/assignment-workspace/TeacherAssignmentStudentTable'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
-import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
+import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
+import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
+import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
   ACTIONBAR_ICON_BUTTON_CLASSNAME,
   ACTIONBAR_BUTTON_PRIMARY_CLASSNAME,
   ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME,
-  PageActionBar,
-  PageContent,
-  PageLayout,
   PageStack,
 } from '@/components/PageLayout'
 import { RightSidebarToggle } from '@/components/layout'
 import {
   calculateAssignmentStatus,
-  getAssignmentStatusIconClass,
-  getAssignmentStatusLabel,
-  hasDraftSavedGrade,
+  getAssignmentRubricState,
+  isAssignmentAlreadyReturnedWithoutResubmission,
 } from '@/lib/assignments'
 import { useAssignmentGradingLayout } from '@/hooks/use-assignment-grading-layout'
 import {
+  ASSIGNMENT_GRADING_LAYOUT,
   getAssignmentWorkspaceStudentCookieName,
   parseAssignmentWorkspaceStudentId,
   type AssignmentWorkspaceMode,
 } from '@/lib/assignment-grading-layout'
-import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { isVisibleAtNow } from '@/lib/scheduling'
 import type {
   Classroom,
@@ -72,18 +70,6 @@ import type {
   TiptapContent,
 } from '@/types'
 import {
-  DataTable,
-  DataTableBody,
-  DataTableCell,
-  DataTableHead,
-  DataTableHeaderCell,
-  DataTableRow,
-  EmptyStateRow,
-  KeyboardNavigableTable,
-  SortableHeaderCell,
-  TableCard,
-} from '@/components/DataTable'
-import {
   TEACHER_ASSIGNMENTS_SELECTION_EVENT,
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
   TEACHER_GRADE_UPDATED_EVENT,
@@ -92,9 +78,7 @@ import {
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
-import type { AssignmentArtifact } from '@/lib/assignment-artifacts'
 import { readCookie, writeCookie } from '@/lib/cookies'
-import { useWindowSize } from '@/hooks/use-window-size'
 
 interface AssignmentWithStats extends Assignment {
   stats: AssignmentStats
@@ -102,25 +86,11 @@ interface AssignmentWithStats extends Assignment {
 
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
 
-interface StudentSubmissionRow {
-  student_id: string
-  student_email: string
-  student_first_name: string | null
-  student_last_name: string | null
-  status: AssignmentStatus
-  student_updated_at?: string | null
-  artifacts: AssignmentArtifact[]
-  doc: {
-    submitted_at?: string | null
-    updated_at?: string | null
-    score_completion?: number | null
-    score_thinking?: number | null
-    score_workflow?: number | null
-    graded_at?: string | null
-    returned_at?: string | null
-    feedback_returned_at?: string | null
-  } | null
-}
+type StudentSubmissionRow = TeacherAssignmentStudentRow
+type UpdateSearchParamsFn = (
+  updater: (params: URLSearchParams) => void,
+  options?: { replace?: boolean },
+) => void
 
 export type AssignmentViewMode = 'summary' | 'assignment'
 
@@ -129,21 +99,14 @@ interface Props {
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onViewModeChange?: (mode: AssignmentViewMode) => void
   isActive?: boolean
+  selectedAssignmentId?: string | null
+  selectedAssignmentStudentId?: string | null
+  updateSearchParams?: UpdateSearchParamsFn
 }
 
 function isScheduledAssignment(assignment: Assignment): boolean {
   return !assignment.is_draft && !!assignment.released_at && !isVisibleAtNow(assignment.released_at)
 }
-
-function getRowClassName(isSelected: boolean): string {
-  if (isSelected) {
-    return 'cursor-pointer border-l-2 border-l-primary bg-surface-selected shadow-sm'
-  }
-  return 'cursor-pointer hover:bg-surface-hover'
-}
-
-const STATUS_ICON_CLASS = 'h-4 w-4'
-const LATE_CLOCK_CLASS = 'h-3 w-3'
 
 function MetricBar({ value }: { value: number }) {
   const percentage = Math.max(0, Math.min(100, Math.round(value * 100)))
@@ -157,78 +120,19 @@ function MetricBar({ value }: { value: number }) {
   )
 }
 
-function StatusIcon({
-  status,
-  wasLate,
-  hasDraftGrade = false,
-}: {
-  status: AssignmentStatus
-  wasLate?: boolean
-  hasDraftGrade?: boolean
-}) {
-  const colorClass = getAssignmentStatusIconClass(status)
-  let iconColorClass = colorClass
-  let icon: React.ReactElement
-
-  // Determine if this status should show the late clock indicator.
-  // "late" statuses always show it; downstream statuses show it when wasLate is true.
-  const showLate =
-    status === 'in_progress_late' ||
-    status === 'submitted_late' ||
-    ((status === 'graded' || status === 'returned' || status === 'resubmitted') && wasLate)
-
-  // Pick the base icon for each status.
-  // Submitted is a circle unless draft grading has been saved.
-  switch (status) {
-    case 'not_started':
-    case 'in_progress':
-    case 'in_progress_late':
-      icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
-      break
-    case 'submitted_on_time':
-    case 'submitted_late':
-      if (hasDraftGrade) {
-        iconColorClass = 'text-gray-400'
-        icon = <Check className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
-      } else {
-        icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
-      }
-      break
-    case 'graded':
-      iconColorClass = 'text-green-500'
-      icon = <Check className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
-      break
-    case 'returned':
-      icon = <Send className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
-      break
-    case 'resubmitted':
-      icon = <RotateCcw className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
-      break
-    default:
-      icon = <Circle className={`${STATUS_ICON_CLASS} ${iconColorClass}`} />
-  }
-
-  if (showLate) {
-    return <span className={`inline-flex items-center gap-0.5 ${iconColorClass}`}>{icon}<Clock className={LATE_CLOCK_CLASS} /></span>
-  }
-  return icon
-}
-
-function getTeacherAssignmentStatusTooltipLabel(status: AssignmentStatus, wasLate: boolean): string {
-  const baseLabel = getAssignmentStatusLabel(status)
-  if (!wasLate) return baseLabel
-
-  if (status === 'graded' || status === 'returned' || status === 'resubmitted') {
-    return `${baseLabel} (late)`
-  }
-
-  return baseLabel
-}
-
 function getStudentDisplayName(row: StudentSubmissionRow | null): string | null {
   if (!row) return null
   const fullName = [row.student_first_name, row.student_last_name].filter(Boolean).join(' ').trim()
   return fullName || row.student_email || null
+}
+
+function getBatchReturnEligibility(
+  doc: StudentSubmissionRow['doc']
+): 'missing' | 'blocked' | 'already_returned' | 'returnable' {
+  if (!doc) return 'missing'
+  if (getAssignmentRubricState(doc) === 'partial') return 'blocked'
+  if (isAssignmentAlreadyReturnedWithoutResubmission(doc)) return 'already_returned'
+  return 'returnable'
 }
 
 function isAssignmentAiGradingRunActive(run: AssignmentAiGradingRunSummary | null): boolean {
@@ -310,10 +214,12 @@ export function TeacherClassroomView({
   onSelectAssignment,
   onViewModeChange,
   isActive = true,
+  selectedAssignmentId: selectedAssignmentIdProp,
+  selectedAssignmentStudentId,
+  updateSearchParams,
 }: Props) {
   const isReadOnly = !!classroom.archived_at
-  const { width: viewportWidth } = useWindowSize()
-  const isDesktop = viewportWidth >= DESKTOP_BREAKPOINT
+  const isUrlSelectionControlled = selectedAssignmentIdProp !== undefined
 
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
   const [classDays, setClassDays] = useState<ClassDay[]>([])
@@ -362,6 +268,7 @@ export function TeacherClassroomView({
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const workspaceContainerRef = useRef<HTMLDivElement | null>(null)
   const defaultedWorkspaceKeyRef = useRef<string | null>(null)
+  const syncedStudentUrlKeyRef = useRef<string | null>(null)
   const [workspaceWidth, setWorkspaceWidth] = useState(0)
 
   // Batch grading state
@@ -386,21 +293,28 @@ export function TeacherClassroomView({
       setLoading(true)
     }
     try {
-      const [assignmentsData, classDaysRes] = await Promise.all([
-        fetchJSONWithCache(
-          `teacher-assignments:${classroom.id}`,
-          async () => {
-            const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
-            if (!response.ok) throw new Error('Failed to load assignments')
-            return response.json()
-          },
-          20_000,
-        ),
-        fetch(`/api/classrooms/${classroom.id}/class-days`),
-      ])
-      const classDaysData = await classDaysRes.json().catch(() => ({ class_days: [] }))
-      setAssignments(assignmentsData.assignments || [])
-      setClassDays(classDaysData.class_days || [])
+	      const [assignmentsData, classDaysRes] = await Promise.all([
+	        fetchJSONWithCache(
+	          `teacher-assignments:${classroom.id}`,
+	          async () => {
+	            const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
+	            if (!response.ok) throw new Error('Failed to load assignments')
+	            return response.json()
+	          },
+	          20_000,
+	        ),
+	        fetchJSONWithCache(
+	          `class-days:${classroom.id}`,
+	          async () => {
+	            const response = await fetch(`/api/classrooms/${classroom.id}/class-days`)
+	            if (!response.ok) return { class_days: [] }
+	            return response.json().catch(() => ({ class_days: [] }))
+	          },
+	          20_000,
+	        ),
+	      ])
+	      setAssignments(assignmentsData.assignments || [])
+	      setClassDays(classDaysRes.class_days || [])
       setHasLoadedOnce(true)
       window.dispatchEvent(
         new CustomEvent(TEACHER_ASSIGNMENTS_UPDATED_EVENT, {
@@ -481,6 +395,7 @@ export function TeacherClassroomView({
   )
 
   useEffect(() => {
+    if (isUrlSelectionControlled) return
     if (loading) return
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     const value = readCookie(cookieName)
@@ -500,10 +415,41 @@ export function TeacherClassroomView({
     } else {
       setSelection({ mode: 'assignment', assignmentId: value })
     }
-  }, [assignments, classroom.id, loading])
+  }, [assignments, classroom.id, isUrlSelectionControlled, loading])
+
+  useEffect(() => {
+    if (!isUrlSelectionControlled) return
+    if (loading) return
+
+    const cookieName = `teacherAssignmentsSelection:${classroom.id}`
+    const value = selectedAssignmentIdProp
+    if (!value || value === 'summary') {
+      writeCookie(cookieName, 'summary')
+      setSelection({ mode: 'summary' })
+      return
+    }
+
+    const assignment = assignments.find((a) => a.id === value)
+    if (!assignment) {
+      writeCookie(cookieName, 'summary')
+      setSelection({ mode: 'summary' })
+      return
+    }
+
+    // Draft/scheduled assignments open the editor for release controls.
+    if (assignment.is_draft || isScheduledAssignment(assignment)) {
+      setEditAssignment(assignment)
+      writeCookie(cookieName, 'summary')
+      setSelection({ mode: 'summary' })
+    } else {
+      writeCookie(cookieName, value)
+      setSelection({ mode: 'assignment', assignmentId: value })
+    }
+  }, [assignments, classroom.id, isUrlSelectionControlled, loading, selectedAssignmentIdProp])
 
   useEffect(() => {
     function onSelectionEvent(e: Event) {
+      if (isUrlSelectionControlled) return
       const event = e as CustomEvent<{ classroomId?: string; value?: string }>
       if (!event.detail) return
       if (event.detail.classroomId !== classroom.id) return
@@ -529,7 +475,7 @@ export function TeacherClassroomView({
 
     window.addEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
     return () => window.removeEventListener(TEACHER_ASSIGNMENTS_SELECTION_EVENT, onSelectionEvent)
-  }, [assignments, classroom.id])
+  }, [assignments, classroom.id, isUrlSelectionControlled])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
@@ -542,15 +488,22 @@ export function TeacherClassroomView({
 
     const assignmentId = selection.assignmentId
 
-    async function loadSelectedAssignment() {
-      setSelectedAssignmentLoading(true)
-      setSelectedAssignmentError('')
-      try {
-        const response = await fetch(`/api/teacher/assignments/${assignmentId}`)
-        const data = await response.json()
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to load assignment')
-        }
+	    async function loadSelectedAssignment() {
+	      setSelectedAssignmentLoading(true)
+	      setSelectedAssignmentError('')
+	      try {
+	        const data = await fetchJSONWithCache(
+	          `teacher-assignment-detail:${assignmentId}:${refreshCounter}`,
+	          async () => {
+	            const response = await fetch(`/api/teacher/assignments/${assignmentId}`)
+	            const payload = await response.json()
+	            if (!response.ok) {
+	              throw new Error(payload.error || 'Failed to load assignment')
+	            }
+	            return payload
+	          },
+	          2_000,
+	        )
 
         setSelectedAssignmentData({
           assignment: data.assignment,
@@ -639,12 +592,44 @@ export function TeacherClassroomView({
     loadAssignments()
   }
 
-  function setSelectionAndPersist(next: TeacherAssignmentSelection) {
+  const setSelectionAndPersist = useCallback((
+    next: TeacherAssignmentSelection,
+    options: { updateUrl?: boolean; replace?: boolean } = {},
+  ) => {
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     const cookieValue = next.mode === 'summary' ? 'summary' : next.assignmentId
     writeCookie(cookieName, cookieValue)
     setSelection(next)
-  }
+    if (options.updateUrl === false || !updateSearchParams) return
+
+    updateSearchParams((params) => {
+      params.set('tab', 'assignments')
+      if (next.mode === 'assignment') {
+        params.set('assignmentId', next.assignmentId)
+      } else {
+        params.delete('assignmentId')
+      }
+      params.delete('assignmentStudentId')
+    }, { replace: options.replace })
+  }, [classroom.id, updateSearchParams])
+
+  const setSelectedStudentAndNavigate = useCallback((
+    studentId: string | null,
+    options: { updateUrl?: boolean; replace?: boolean } = {},
+  ) => {
+    setSelectedStudentId(studentId)
+    if (options.updateUrl === false || !updateSearchParams || selection.mode !== 'assignment') return
+
+    updateSearchParams((params) => {
+      params.set('tab', 'assignments')
+      params.set('assignmentId', selection.assignmentId)
+      if (studentId) {
+        params.set('assignmentStudentId', studentId)
+      } else {
+        params.delete('assignmentStudentId')
+      }
+    }, { replace: options.replace })
+  }, [selection, updateSearchParams])
 
   const sortedStudents = useMemo(() => {
     if (!selectedAssignmentData) return []
@@ -697,6 +682,7 @@ export function TeacherClassroomView({
     toggleSelectAll: batchToggleSelectAll,
     allSelected: batchAllSelected,
     clearSelection: batchClearSelection,
+    setSelection: batchSetSelection,
     selectedCount: batchSelectedCount,
   } = useStudentSelection(studentRowIds)
 
@@ -708,24 +694,33 @@ export function TeacherClassroomView({
     batchClearSelection()
   }, [batchClearSelection, selectedAssignmentKey, selection.mode])
 
-  const batchSelectedGradedCount = useMemo(() => {
-    if (currentStudentRows.length === 0) return 0
-    let graded = 0
+  const batchSelectedReturnSummary = useMemo(() => {
+    let returnableCount = 0
+    let blockedCount = 0
+    let missingCount = 0
+    let alreadyReturnedCount = 0
+
     for (const student of currentStudentRows) {
-      const doc = student.doc
-      const hasDraftScores = !!(
-        doc &&
-        doc.score_completion != null &&
-        doc.score_thinking != null &&
-        doc.score_workflow != null
-      )
-      if (batchSelectedIds.has(student.student_id) && (doc?.graded_at || hasDraftScores)) {
-        graded += 1
+      if (!batchSelectedIds.has(student.student_id)) continue
+
+      switch (getBatchReturnEligibility(student.doc)) {
+        case 'returnable':
+          returnableCount += 1
+          break
+        case 'blocked':
+          blockedCount += 1
+          break
+        case 'missing':
+          missingCount += 1
+          break
+        case 'already_returned':
+          alreadyReturnedCount += 1
+          break
       }
     }
-    return graded
+
+    return { returnableCount, blockedCount, missingCount, alreadyReturnedCount }
   }, [batchSelectedIds, currentStudentRows])
-  const batchSelectedUngradedCount = batchSelectedCount - batchSelectedGradedCount
 
   useEffect(() => {
     if (!info) return
@@ -908,11 +903,47 @@ export function TeacherClassroomView({
       if (!res.ok) throw new Error(data.error || 'Return failed')
       const returnedCount = Number(data.returned_count ?? 0)
       const clearedCount = Number(data.cleared_count ?? returnedCount)
+      const createdCount = Number(data.created_count ?? 0)
+      const blockedCount = Number(data.blocked_count ?? 0)
+      const alreadyReturnedCount = Number(data.already_returned_count ?? 0)
       const missingCount = Number(data.missing_count ?? 0)
-      setInfo(
-        `Cleared ${clearedCount} mailbox item(s)${returnedCount > 0 ? ` • ${returnedCount} returned with grades` : ''}${missingCount > 0 ? ` • ${missingCount} no work yet` : ''}`
+      const returnedStudentIds = Array.isArray(data.returned_student_ids)
+        ? data.returned_student_ids.filter((value: unknown): value is string => typeof value === 'string')
+        : []
+      const alreadyReturnedStudentIds = Array.isArray(data.already_returned_student_ids)
+        ? data.already_returned_student_ids.filter((value: unknown): value is string => typeof value === 'string')
+        : []
+      const completedStudentIds = new Set([...returnedStudentIds, ...alreadyReturnedStudentIds])
+      const remainingSelectedIds = Array.from(batchSelectedIds).filter(
+        (studentId) => !completedStudentIds.has(studentId)
       )
-      batchClearSelection()
+      if (remainingSelectedIds.length > 0) {
+        batchSetSelection(remainingSelectedIds)
+      } else {
+        batchClearSelection()
+      }
+
+      const updatedCount = Math.max(0, returnedCount - createdCount)
+      const summaryParts: string[] = []
+      if (updatedCount > 0) {
+        summaryParts.push(`Returned ${updatedCount}`)
+      }
+      if (createdCount > 0) {
+        summaryParts.push(`Created ${createdCount} zero-grade return${createdCount === 1 ? '' : 's'}`)
+      }
+      if (alreadyReturnedCount > 0) {
+        summaryParts.push(`Skipped ${alreadyReturnedCount} already returned`)
+      }
+      if (blockedCount > 0) {
+        summaryParts.push(`Blocked ${blockedCount} partial-rubric draft${blockedCount === 1 ? '' : 's'}`)
+      }
+      if (missingCount > 0) {
+        summaryParts.push(`${missingCount} unavailable`)
+      }
+      if (returnedCount === 0 && clearedCount > 0) {
+        summaryParts.push(`Cleared ${clearedCount}`)
+      }
+      setInfo(summaryParts.join(' • '))
       setShowReturnConfirm(false)
       // Reload assignment data to refresh statuses/grades
       setRefreshCounter((c) => c + 1)
@@ -938,13 +969,47 @@ export function TeacherClassroomView({
 
   const handleGoPrevStudent = useCallback(() => {
     if (selectedStudentIndex <= 0) return
-    setSelectedStudentId(currentStudentRows[selectedStudentIndex - 1].student_id)
-  }, [currentStudentRows, selectedStudentIndex])
+    setSelectedStudentAndNavigate(currentStudentRows[selectedStudentIndex - 1].student_id)
+  }, [currentStudentRows, selectedStudentIndex, setSelectedStudentAndNavigate])
 
   const handleGoNextStudent = useCallback(() => {
     if (selectedStudentIndex === -1 || selectedStudentIndex >= currentStudentRows.length - 1) return
-    setSelectedStudentId(currentStudentRows[selectedStudentIndex + 1].student_id)
-  }, [currentStudentRows, selectedStudentIndex])
+    setSelectedStudentAndNavigate(currentStudentRows[selectedStudentIndex + 1].student_id)
+  }, [currentStudentRows, selectedStudentIndex, setSelectedStudentAndNavigate])
+
+  useEffect(() => {
+    if (!isUrlSelectionControlled) return
+    if (selection.mode !== 'assignment') {
+      syncedStudentUrlKeyRef.current = null
+      return
+    }
+
+    const nextStudentId = parseAssignmentWorkspaceStudentId(selectedAssignmentStudentId ?? null)
+    const syncKey = `${selection.assignmentId}:${nextStudentId ?? 'none'}`
+    if (syncedStudentUrlKeyRef.current === syncKey) return
+
+    if (nextStudentId && !currentStudentRows.some((student) => student.student_id === nextStudentId)) {
+      if (selectedAssignmentLoading || currentStudentRows.length === 0) return
+      syncedStudentUrlKeyRef.current = syncKey
+      defaultedWorkspaceKeyRef.current = null
+      setSelectedStudentId(null)
+      updateSearchParams?.((params) => {
+        params.delete('assignmentStudentId')
+      }, { replace: true })
+      return
+    }
+
+    syncedStudentUrlKeyRef.current = syncKey
+    defaultedWorkspaceKeyRef.current = null
+    setSelectedStudentId(nextStudentId)
+  }, [
+    currentStudentRows,
+    isUrlSelectionControlled,
+    selectedAssignmentLoading,
+    selectedAssignmentStudentId,
+    selection,
+    updateSearchParams,
+  ])
 
   useEffect(() => {
     if (selection.mode !== 'assignment' || !activeSelectedStudentId) return
@@ -992,7 +1057,7 @@ export function TeacherClassroomView({
       const nextStudentId = resolveDetailsStudentId()
       if (!nextStudentId) return
       setIndividualHeaderMeta(null)
-      setSelectedStudentId(nextStudentId)
+      setSelectedStudentAndNavigate(nextStudentId, { replace: true })
     } else {
       setIndividualHeaderMeta(null)
     }
@@ -1003,6 +1068,7 @@ export function TeacherClassroomView({
     assignmentGradingLayout,
     assignmentWorkspaceMode,
     resolveDetailsStudentId,
+    setSelectedStudentAndNavigate,
     updateModeLayout,
   ])
 
@@ -1020,7 +1086,7 @@ export function TeacherClassroomView({
     const nextStudentId = resolveDetailsStudentId()
     if (nextStudentId) {
       defaultedWorkspaceKeyRef.current = workspaceKey
-      setSelectedStudentId(nextStudentId)
+      setSelectedStudentAndNavigate(nextStudentId, { replace: true })
     }
   }, [
     activeSelectedAssignmentData,
@@ -1028,6 +1094,7 @@ export function TeacherClassroomView({
     assignmentWorkspaceMode,
     resolveDetailsStudentId,
     selectedAssignmentLoading,
+    setSelectedStudentAndNavigate,
     selection,
   ])
 
@@ -1038,13 +1105,13 @@ export function TeacherClassroomView({
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        setSelectedStudentId(null)
+        setSelectedStudentAndNavigate(null)
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [assignmentWorkspaceMode, selectedStudentId])
+  }, [assignmentWorkspaceMode, selectedStudentId, setSelectedStudentAndNavigate])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') {
@@ -1143,212 +1210,186 @@ export function TeacherClassroomView({
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
   const workspaceActionLabelSuffix = batchSelectedCount > 0 ? ` (${batchSelectedCount})` : ''
+  const hasReturnableSelection =
+    batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
+  const isReturnDisabled =
+    isReturning || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
+  const returnTooltipContent =
+    batchSelectedCount > 0 && !hasReturnableSelection
+      ? 'Nothing returnable selected'
+      : `Return${workspaceActionLabelSuffix}`
   const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
 
-  function handleOverviewInspectorResizeStart(event: React.PointerEvent<HTMLDivElement>) {
-    if (!workspaceContainerRef.current) return
-
-    event.preventDefault()
-    const { right, width } = workspaceContainerRef.current.getBoundingClientRect()
-    if (width <= 0) return
-
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      const nextInspectorWidth = ((right - moveEvent.clientX) / width) * 100
-      updateModeLayout('overview', (current) => ({
-        ...current,
-        inspectorCollapsed: false,
-        inspectorWidth: nextInspectorWidth,
-      }))
-    }
-
-    const handlePointerUp = () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove)
-    window.addEventListener('pointerup', handlePointerUp)
-  }
-
-  function handleOverviewInspectorResizeReset() {
-    updateModeLayout('overview', (current) => ({
-      ...current,
-      inspectorCollapsed: false,
-      inspectorWidth: 50,
-    }))
-  }
+  const studentBusyOverlay = showAssignmentAiRunOverlay || isArtifactRepoAnalyzing || isReturning ? (
+    <div className="absolute inset-0 z-10 flex items-start justify-center rounded-md bg-surface/70 px-4 pt-4">
+      <div className="flex max-w-[24rem] flex-col gap-1 rounded-2xl border border-border bg-surface px-3 py-2 text-xs leading-tight text-text-muted shadow-sm sm:max-w-[28rem] sm:text-sm">
+        <div className="flex items-center gap-2">
+          <Spinner />
+          <span>
+            {showAssignmentAiRunOverlay
+              ? assignmentAiRunOverlayLabel
+              : isArtifactRepoAnalyzing
+                ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+                : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
+          </span>
+        </div>
+        {showAssignmentAiRunOverlay ? (
+          <p className="pl-6 text-[11px] leading-tight text-text-muted sm:text-xs">
+            {ASSIGNMENT_AI_GRADING_RUN_NOTE}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  ) : null
 
   const studentTable = (
-    <div className="flex h-full min-h-0 flex-col">
-      <KeyboardNavigableTable
-        ref={tableContainerRef}
-        rowKeys={currentStudentRows.map((student) => student.student_id)}
-        selectedKey={activeSelectedStudentId}
-        onSelectKey={setSelectedStudentId}
-        onDeselect={() => setSelectedStudentId(null)}
-      >
-        <TableCard chrome="flush">
-          {selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError) ? (
-            <div className="flex justify-center py-10">
-              <Spinner />
-            </div>
-          ) : selectedAssignmentError ? (
-            <div className="p-4 text-sm text-danger">
-              {selectedAssignmentError}
-            </div>
-          ) : (
-            <div className="relative">
-              {(showAssignmentAiRunOverlay || isArtifactRepoAnalyzing || isReturning) && (
-                <div className="absolute inset-0 z-10 flex items-start justify-center rounded-md bg-surface/70 px-4 pt-4">
-                  <div className="flex max-w-[24rem] flex-col gap-1 rounded-2xl border border-border bg-surface px-3 py-2 text-xs leading-tight text-text-muted shadow-sm sm:max-w-[28rem] sm:text-sm">
-                    <div className="flex items-center gap-2">
-                      <Spinner />
-                      <span>
-                        {showAssignmentAiRunOverlay
-                          ? assignmentAiRunOverlayLabel
-                          : isArtifactRepoAnalyzing
-                            ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-                            : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
-                      </span>
-                    </div>
-                    {showAssignmentAiRunOverlay ? (
-                      <p className="pl-6 text-[11px] leading-tight text-text-muted sm:text-xs">
-                        {ASSIGNMENT_AI_GRADING_RUN_NOTE}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-              <DataTable density={showOverviewInspector ? 'tight' : 'compact'}>
-                <DataTableHead>
-                  <DataTableRow>
-                    <DataTableHeaderCell className="w-10">
-                      <input
-                        type="checkbox"
-                        checked={batchAllSelected}
-                        onChange={batchToggleSelectAll}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                        aria-label="Select all students"
-                      />
-                    </DataTableHeaderCell>
-                    <SortableHeaderCell
-                      label="First Name"
-                      isActive={sortColumn === 'first'}
-                      direction={sortDirection}
-                      onClick={() => toggleSort('first')}
-                      className="w-[7rem]"
-                    />
-                    <SortableHeaderCell
-                      label="Last Name"
-                      isActive={sortColumn === 'last'}
-                      direction={sortDirection}
-                      onClick={() => toggleSort('last')}
-                      className="w-[7rem]"
-                    />
-                    <SortableHeaderCell
-                      label="Status"
-                      isActive={sortColumn === 'status'}
-                      direction={sortDirection}
-                      onClick={() => toggleSort('status')}
-                      className="w-[4.5rem]"
-                    />
-                    <DataTableHeaderCell className="w-[4.75rem]">Grade</DataTableHeaderCell>
-                    <DataTableHeaderCell className="w-[11rem]">Artifacts</DataTableHeaderCell>
-                  </DataTableRow>
-                </DataTableHead>
-                <DataTableBody>
-                  {currentStudentRows.map((student) => {
-                    const isSelected = activeSelectedStudentId === student.student_id
-                    const totalScore =
-                      student.doc?.score_completion != null &&
-                      student.doc?.score_thinking != null &&
-                      student.doc?.score_workflow != null
-                        ? student.doc.score_completion + student.doc.score_thinking + student.doc.score_workflow
-                        : null
-                    const hasDraftGrade = hasDraftSavedGrade(student.doc ? {
-                      graded_at: student.doc.graded_at ?? null,
-                      score_completion: student.doc.score_completion ?? null,
-                      score_thinking: student.doc.score_thinking ?? null,
-                      score_workflow: student.doc.score_workflow ?? null,
-                    } : null)
-                    const wasLate = !!(
-                      student.doc?.submitted_at &&
-                      dueAtMs &&
-                      new Date(student.doc.submitted_at).getTime() > dueAtMs
-                    )
+    <TeacherAssignmentStudentTable
+      rows={currentStudentRows}
+      selectedStudentId={activeSelectedStudentId}
+      onSelectStudent={(studentId) => {
+        if (assignmentWorkspaceMode === 'details') {
+          setIndividualHeaderMeta(null)
+        }
+        setSelectedStudentAndNavigate(studentId)
+      }}
+      onDeselectStudent={() => setSelectedStudentAndNavigate(null)}
+      tableRef={tableContainerRef}
+      selectedIds={batchSelectedIds}
+      onToggleSelect={batchToggleSelect}
+      onToggleSelectAll={batchToggleSelectAll}
+      allSelected={batchAllSelected}
+      sortColumn={sortColumn}
+      sortDirection={sortDirection}
+      onToggleSort={toggleSort}
+      dueAtMs={dueAtMs}
+      density={showOverviewInspector ? 'tight' : 'compact'}
+      loading={selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError)}
+      error={selectedAssignmentError}
+      busyOverlay={studentBusyOverlay}
+    />
+  )
 
-                    return (
-                      <DataTableRow
-                        key={student.student_id}
-                        className={getRowClassName(isSelected)}
-                        onClick={() => {
-                          if (assignmentWorkspaceMode === 'details') {
-                            setIndividualHeaderMeta(null)
-                          }
-                          setSelectedStudentId(student.student_id)
-                        }}
-                      >
-                        <DataTableCell>
-                          <input
-                            type="checkbox"
-                            checked={batchSelectedIds.has(student.student_id)}
-                            onChange={() => batchToggleSelect(student.student_id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-                            aria-label={`Select ${student.student_first_name ?? ''} ${student.student_last_name ?? ''}`}
-                          />
-                        </DataTableCell>
-                        <DataTableCell className="w-[7rem] max-w-[7rem] truncate">
-                          {student.student_first_name ? (
-                            <Tooltip content={`${student.student_first_name} ${student.student_last_name ?? ''}`}>
-                              <span>{student.student_first_name}</span>
-                            </Tooltip>
-                          ) : '—'}
-                        </DataTableCell>
-                        <DataTableCell className="w-[7rem] max-w-[7rem] truncate">
-                          {student.student_last_name ? (
-                            <Tooltip content={student.student_last_name}>
-                              <span>{student.student_last_name}</span>
-                            </Tooltip>
-                          ) : '—'}
-                        </DataTableCell>
-                        <DataTableCell className="w-[4.5rem]">
-                          <Tooltip content={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
-                            <span className="inline-flex" role="img" aria-label={getTeacherAssignmentStatusTooltipLabel(student.status, wasLate)}>
-                              <StatusIcon
-                                status={student.status}
-                                wasLate={wasLate}
-                                hasDraftGrade={hasDraftGrade}
-                              />
-                            </span>
-                          </Tooltip>
-                        </DataTableCell>
-                        <DataTableCell className="w-[4.75rem] whitespace-nowrap text-text-muted">
-                          {totalScore !== null ? `${Math.round((totalScore / 30) * 100)}` : '—'}
-                        </DataTableCell>
-                        <DataTableCell className="w-[11rem] max-w-[11rem] align-top">
-                          <AssignmentArtifactsCell
-                            artifacts={student.artifacts || []}
-                            isCompact={showOverviewInspector}
-                          />
-                        </DataTableCell>
-                      </DataTableRow>
-                    )
-                  })}
-                  {sortedStudents.length === 0 && (
-                    <EmptyStateRow colSpan={6} message="No students enrolled" />
-                  )}
-                </DataTableBody>
-              </DataTable>
-            </div>
-          )}
-        </TableCard>
-      </KeyboardNavigableTable>
+  const workspaceModeCenter = assignmentWorkspaceMode === 'overview' ? (
+    <>
+      <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
+        <SplitButton
+          label={
+            <span className="inline-flex items-center gap-2">
+              <Check className="h-4 w-4" aria-hidden="true" />
+              <span>AI Grade</span>
+            </span>
+          }
+          onPrimaryClick={() => {
+            void handleBatchAutoGrade()
+          }}
+          options={[
+            {
+              id: 'repo-analysis',
+              label: (
+                <span className="inline-flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                  <span>Repo analysis</span>
+                </span>
+              ),
+              onSelect: () => {
+                void handleBatchArtifactRepoAnalyze()
+              },
+              disabled: isArtifactRepoAnalyzing || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
+            },
+          ]}
+          disabled={isAutoGrading || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
+          className="inline-flex"
+          toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
+          menuPlacement="down"
+          primaryButtonProps={{
+            'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
+          }}
+        />
+      </Tooltip>
+
+      <Tooltip content={returnTooltipContent}>
+        <span className="inline-flex">
+          <Button
+            type="button"
+            variant="subtle"
+            size="sm"
+            className="px-4"
+            onClick={() => {
+              setShowReturnConfirm(true)
+            }}
+            disabled={isReturnDisabled}
+            aria-label={`Return${workspaceActionLabelSuffix}`}
+          >
+            <Send className="h-4 w-4" aria-hidden="true" />
+            <span>Return</span>
+          </Button>
+        </span>
+      </Tooltip>
+    </>
+  ) : (
+    <>
+      <div
+        className="min-w-0 max-w-[18rem] truncate text-center text-sm font-medium text-text-default"
+        title={selectedStudentDisplayName ?? undefined}
+      >
+        {selectedStudentDisplayName ?? 'No student selected'}
+      </div>
+      {individualCharacterCountLabel && (
+        <div className="shrink-0 text-xs text-text-muted" aria-label={individualCharacterCountLabel}>
+          {individualCharacterCountLabel}
+        </div>
+      )}
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+          onClick={handleGoPrevStudent}
+          disabled={!canGoPrevStudent}
+          aria-label="Previous student"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
+          onClick={handleGoNextStudent}
+          disabled={!canGoNextStudent}
+          aria-label="Next student"
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
+    </>
+  )
+
+  const workspaceModeStatus = workspaceLoading ? (
+    <div aria-live="polite" className="inline-flex items-center gap-1 text-xs text-text-muted">
+      <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+      <span>Updating</span>
     </div>
+  ) : null
+
+  const workspaceModeTrailing = (
+    <Tooltip content="Edit assignment">
+      <button
+        type="button"
+        className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex max-w-[22rem] items-center gap-2`}
+        onClick={() => {
+          if (activeSelectedAssignmentData) {
+            setEditAssignment(activeSelectedAssignmentData.assignment)
+          }
+        }}
+        disabled={!canEditAssignment}
+        aria-label="Edit assignment"
+        title={selectedAssignmentTitle}
+      >
+        <span className="truncate">{selectedAssignmentTitle}</span>
+        <Pencil className="h-4 w-4 shrink-0" aria-hidden="true" />
+      </button>
+    </Tooltip>
   )
 
   const primaryButtons =
@@ -1364,303 +1405,163 @@ export function TeacherClassroomView({
         <span>New</span>
       </button>
     ) : (
-      <div className="flex w-full flex-wrap items-center gap-2 sm:min-h-[2.75rem]">
-        <div className="mb-[-1px] flex items-end gap-1 self-end">
-          <button
-            type="button"
-            className={[
-              assignmentWorkspaceMode === 'overview'
-                ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
-                : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
-              'min-h-10 px-3 py-2 text-sm font-medium transition-colors',
-            ].join(' ')}
-            onClick={() => handleSwitchWorkspaceMode('overview')}
-            aria-pressed={assignmentWorkspaceMode === 'overview'}
-          >
-            Class
-          </button>
-          <button
-            type="button"
-            className={[
-              assignmentWorkspaceMode === 'details'
-                ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
-                : 'rounded-t-lg border border-transparent bg-surface-2 text-text-muted hover:bg-surface-hover hover:text-text-default',
-              !canOpenDetails ? 'cursor-not-allowed opacity-50 hover:bg-surface-2 hover:text-text-muted' : '',
-              'min-h-10 px-3 py-2 text-sm font-medium transition-colors',
-            ].join(' ')}
-            onClick={() => handleSwitchWorkspaceMode('details')}
-            aria-pressed={assignmentWorkspaceMode === 'details'}
-            disabled={!canOpenDetails}
-          >
-            Individual
-          </button>
-        </div>
-
-        <div className="flex min-w-0 basis-full justify-center sm:basis-auto sm:flex-1">
-          <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:gap-3">
-            {assignmentWorkspaceMode === 'overview' ? (
-              <>
-                <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
-                  <SplitButton
-                    label={
-                      <span className="inline-flex items-center gap-2">
-                        <Check className="h-4 w-4" aria-hidden="true" />
-                        <span>AI Grade</span>
-                      </span>
-                    }
-                    onPrimaryClick={() => {
-                      void handleBatchAutoGrade()
-                    }}
-                    options={[
-                      {
-                        id: 'repo-analysis',
-                        label: (
-                          <span className="inline-flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                            <span>Repo analysis</span>
-                          </span>
-                        ),
-                        onSelect: () => {
-                          void handleBatchArtifactRepoAnalyze()
-                        },
-                        disabled: isArtifactRepoAnalyzing || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
-                      },
-                    ]}
-                    disabled={isAutoGrading || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
-                    className="inline-flex"
-                    toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
-                    menuPlacement="down"
-                    primaryButtonProps={{
-                      'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
-                    }}
-                  />
-                </Tooltip>
-
-                <Tooltip content={`Return${workspaceActionLabelSuffix}`}>
-                  <Button
-                    type="button"
-                    variant="subtle"
-                    size="sm"
-                    className="px-4"
-                    onClick={() => {
-                      setShowReturnConfirm(true)
-                    }}
-                    disabled={isReturning || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
-                    aria-label={`Return${workspaceActionLabelSuffix}`}
-                  >
-                    <Send className="h-4 w-4" aria-hidden="true" />
-                    <span>Return</span>
-                  </Button>
-                </Tooltip>
-              </>
-            ) : (
-              <>
-                <div
-                  className="min-w-0 max-w-[18rem] truncate text-center text-sm font-medium text-text-default"
-                  title={selectedStudentDisplayName ?? undefined}
-                >
-                  {selectedStudentDisplayName ?? 'No student selected'}
-                </div>
-                {individualCharacterCountLabel && (
-                  <div className="shrink-0 text-xs text-text-muted" aria-label={individualCharacterCountLabel}>
-                    {individualCharacterCountLabel}
-                  </div>
-                )}
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-                    onClick={handleGoPrevStudent}
-                    disabled={!canGoPrevStudent}
-                    aria-label="Previous student"
-                  >
-                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className={ACTIONBAR_ICON_BUTTON_CLASSNAME}
-                    onClick={handleGoNextStudent}
-                    disabled={!canGoNextStudent}
-                    aria-label="Next student"
-                  >
-                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </div>
-              </>
-            )}
-
-            {workspaceLoading && (
-              <div aria-live="polite" className="inline-flex items-center gap-1 text-xs text-text-muted">
-                <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                <span>Updating</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1 sm:ml-auto sm:gap-2">
-          <Tooltip content="Edit assignment">
-            <button
-              type="button"
-              className={`${ACTIONBAR_ICON_BUTTON_WIDE_CLASSNAME} inline-flex max-w-[22rem] items-center gap-2`}
-              onClick={() => {
-                if (activeSelectedAssignmentData) {
-                  setEditAssignment(activeSelectedAssignmentData.assignment)
-                }
-              }}
-              disabled={!canEditAssignment}
-              aria-label="Edit assignment"
-              title={selectedAssignmentTitle}
-            >
-              <span className="truncate">{selectedAssignmentTitle}</span>
-              <Pencil className="h-4 w-4 shrink-0" aria-hidden="true" />
-            </button>
-          </Tooltip>
-        </div>
-      </div>
+      <TeacherWorkSurfaceModeBar
+        modes={[
+          { id: 'overview', label: 'Class' },
+          { id: 'details', label: 'Individual', disabled: !canOpenDetails },
+        ]}
+        activeMode={assignmentWorkspaceMode}
+        onModeChange={(mode) => handleSwitchWorkspaceMode(mode as AssignmentWorkspaceMode)}
+        center={workspaceModeCenter}
+        status={workspaceModeStatus}
+        trailing={workspaceModeTrailing}
+      />
     )
 
   const showMobileToggle = selection.mode === 'summary'
+  const selectedAssignmentId = selection.mode === 'assignment' ? selection.assignmentId : null
+
+  const feedback = (
+    <>
+      {error && (
+        <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          {error}
+        </div>
+      )}
+      {info && (
+        <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
+          {info}
+        </div>
+      )}
+    </>
+  )
+
+  const summaryContent = showSummarySpinner ? (
+    <div className="flex justify-center py-8">
+      <Spinner />
+    </div>
+  ) : assignments.length === 0 ? (
+    <div className="py-6 text-center text-sm text-text-muted">
+      No assignments yet
+    </div>
+  ) : (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={assignments.map((assignment) => assignment.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <PageStack>
+          {assignments.map((assignment) => (
+            <SortableAssignmentCard
+              key={assignment.id}
+              assignment={assignment}
+              isReadOnly={isReadOnly}
+              isDragDisabled={isReordering}
+              onSelect={() => {
+                if (assignment.is_draft || isScheduledAssignment(assignment)) {
+                  setEditAssignment(assignment)
+                } else {
+                  setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })
+                }
+              }}
+              onEdit={() => setEditAssignment(assignment)}
+              onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
+            />
+          ))}
+        </PageStack>
+      </SortableContext>
+    </DndContext>
+  )
+
+  const workspaceContent = selectedAssignmentId == null ? null : assignmentWorkspaceMode === 'details' ? (
+    activeSelectedStudentId ? (
+      <TeacherStudentWorkPanel
+        classroomId={classroom.id}
+        assignmentId={selectedAssignmentId}
+        studentId={activeSelectedStudentId}
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={activeWorkspaceLayout.inspectorWidth}
+        totalWidth={workspaceWidth}
+        onLayoutChange={(next) => updateModeLayout('details', next)}
+        onLoadingStateChange={setWorkspaceLoading}
+        onGoPrevStudent={handleGoPrevStudent}
+        onGoNextStudent={handleGoNextStudent}
+        canGoPrevStudent={canGoPrevStudent}
+        canGoNextStudent={canGoNextStudent}
+        onDetailsMetaChange={setIndividualHeaderMeta}
+      />
+    ) : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
+      <div className="flex flex-1 items-center justify-center py-12">
+        <Spinner />
+      </div>
+    ) : selectedAssignmentError ? (
+      <div className="flex flex-1 items-center justify-center p-4 text-sm text-danger">
+        {selectedAssignmentError}
+      </div>
+    ) : (
+      <div className="flex flex-1 items-center justify-center text-sm text-text-muted">
+        No student submissions yet.
+      </div>
+    )
+  ) : showOverviewInspector ? (
+    <TeacherWorkspaceSplit
+      className="flex-1"
+      primaryClassName="min-h-0"
+      inspectorClassName="min-h-0"
+      inspectorCollapsed={false}
+      inspectorWidth={activeWorkspaceLayout.inspectorWidth}
+      minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
+      minPrimaryPx={ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx}
+      onInspectorCollapsedChange={(collapsed) => {
+        updateModeLayout('overview', (current) => ({
+          ...current,
+          inspectorCollapsed: collapsed,
+        }))
+      }}
+      onInspectorWidthChange={(nextInspectorWidth) => {
+        updateModeLayout('overview', (current) => ({
+          ...current,
+          inspectorCollapsed: false,
+          inspectorWidth: nextInspectorWidth,
+        }))
+      }}
+      dividerLabel="Resize table and grading panes"
+      primary={studentTable}
+      inspector={
+        <TeacherStudentWorkPanel
+          classroomId={classroom.id}
+          assignmentId={selectedAssignmentId}
+          studentId={activeSelectedStudentId}
+          mode="overview"
+          inspectorCollapsed={false}
+          inspectorWidth={activeWorkspaceLayout.inspectorWidth}
+          totalWidth={workspaceWidth}
+          onLoadingStateChange={setWorkspaceLoading}
+        />
+      }
+    />
+  ) : (
+    studentTable
+  )
 
   return (
-    <PageLayout className="flex h-full min-h-0 flex-col">
-      <PageActionBar
+    <>
+      <TeacherWorkSurfaceShell
+        state={selection.mode === 'summary' ? 'summary' : 'workspace'}
         primary={primaryButtons}
         actions={[]}
         trailing={showMobileToggle ? <RightSidebarToggle /> : undefined}
-        className={selection.mode === 'summary' ? '' : 'pl-0 pr-2'}
+        feedback={feedback}
+        summary={summaryContent}
+        workspace={workspaceContent}
+        workspaceFrame="attachedTabs"
+        workspaceRef={workspaceContainerRef}
       />
-
-      <PageContent
-        className={
-          selection.mode === 'summary'
-            ? 'flex flex-col gap-3'
-            : 'px-0 flex min-h-0 flex-1 flex-col gap-3 pt-0'
-        }
-      >
-        {error && (
-          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-            {error}
-          </div>
-        )}
-        {info && (
-          <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
-            {info}
-          </div>
-        )}
-
-        {selection.mode === 'summary' ? (
-          <div>
-            {showSummarySpinner ? (
-              <div className="flex justify-center py-8">
-                <Spinner />
-              </div>
-            ) : assignments.length === 0 ? (
-              <div className="py-6 text-center text-sm text-text-muted">
-                No assignments yet
-              </div>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={assignments.map((assignment) => assignment.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <PageStack>
-                    {assignments.map((assignment) => (
-                      <SortableAssignmentCard
-                        key={assignment.id}
-                        assignment={assignment}
-                        isReadOnly={isReadOnly}
-                        isDragDisabled={isReordering}
-                        onSelect={() => {
-                          if (assignment.is_draft || isScheduledAssignment(assignment)) {
-                            setEditAssignment(assignment)
-                          } else {
-                            setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })
-                          }
-                        }}
-                        onEdit={() => setEditAssignment(assignment)}
-                        onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
-                      />
-                    ))}
-                  </PageStack>
-                </SortableContext>
-              </DndContext>
-            )}
-          </div>
-        ) : (
-          <div className="flex min-h-0 flex-1 overflow-hidden rounded-b-lg border border-border bg-surface">
-            <div
-              ref={workspaceContainerRef}
-              className="flex h-full min-h-0 flex-1 flex-col overflow-hidden"
-            >
-              {assignmentWorkspaceMode === 'details' ? (
-                activeSelectedStudentId ? (
-                  <TeacherStudentWorkPanel
-                    classroomId={classroom.id}
-                    assignmentId={selection.assignmentId}
-                    studentId={activeSelectedStudentId}
-                    mode="details"
-                    inspectorCollapsed={false}
-                    inspectorWidth={activeWorkspaceLayout.inspectorWidth}
-                    totalWidth={workspaceWidth}
-                    onLayoutChange={(next) => updateModeLayout('details', next)}
-                    onLoadingStateChange={setWorkspaceLoading}
-                    onGoPrevStudent={handleGoPrevStudent}
-                    onGoNextStudent={handleGoNextStudent}
-                    canGoPrevStudent={canGoPrevStudent}
-                    canGoNextStudent={canGoNextStudent}
-                    onDetailsMetaChange={setIndividualHeaderMeta}
-                  />
-                ) : selectedAssignmentLoading || (selection.mode === 'assignment' && !activeSelectedAssignmentData && !selectedAssignmentError) ? (
-                  <div className="flex flex-1 items-center justify-center py-12">
-                    <Spinner />
-                  </div>
-                ) : selectedAssignmentError ? (
-                  <div className="flex flex-1 items-center justify-center p-4 text-sm text-danger">
-                    {selectedAssignmentError}
-                  </div>
-                ) : (
-                  <div className="flex flex-1 items-center justify-center text-sm text-text-muted">
-                    No student submissions yet.
-                  </div>
-                )
-              ) : showOverviewInspector ? (
-                <SummaryDetailWorkspaceShell
-                  className="flex-1"
-                  orientation="responsive"
-                  leftPaneClassName="min-h-0"
-                  rightPaneClassName="min-h-0"
-                  rightWidthPercent={isDesktop ? activeWorkspaceLayout.inspectorWidth : undefined}
-                  divider={{
-                    label: 'Resize table and grading panes',
-                    onPointerDown: handleOverviewInspectorResizeStart,
-                    onDoubleClick: handleOverviewInspectorResizeReset,
-                  }}
-                  left={studentTable}
-                  right={
-                    <TeacherStudentWorkPanel
-                      classroomId={classroom.id}
-                      assignmentId={selection.assignmentId}
-                      studentId={activeSelectedStudentId}
-                      mode="overview"
-                      inspectorCollapsed={false}
-                      inspectorWidth={activeWorkspaceLayout.inspectorWidth}
-                      totalWidth={workspaceWidth}
-                      onLoadingStateChange={setWorkspaceLoading}
-                    />
-                  }
-                />
-              ) : (
-                studentTable
-              )}
-            </div>
-          </div>
-        )}
 
       <ConfirmDialog
         isOpen={!!pendingDelete}
@@ -1679,7 +1580,7 @@ export function TeacherClassroomView({
       <ConfirmDialog
         isOpen={showReturnConfirm}
         title={`Return work to ${batchSelectedCount} selected student(s)?`}
-        description={`This clears the assignment mailbox for the selected students. ${batchSelectedGradedCount} ready item(s) will also be returned to students now.${batchSelectedUngradedCount > 0 ? ` ${batchSelectedUngradedCount} not-yet-graded item(s) will be cleared from the mailbox only.` : ''}`}
+        description={`Returning will mark ${batchSelectedReturnSummary.returnableCount} existing student document(s) as returned now, even if the work was never submitted. ${batchSelectedReturnSummary.missingCount > 0 ? `${batchSelectedReturnSummary.missingCount} selected student(s) have no work yet; Pika will create returned 0/0/0 documents for them without marking them submitted. ` : ''}${batchSelectedReturnSummary.alreadyReturnedCount > 0 ? `${batchSelectedReturnSummary.alreadyReturnedCount} selected student(s) were already returned and will be skipped. ` : ''}${batchSelectedReturnSummary.blockedCount > 0 ? `${batchSelectedReturnSummary.blockedCount} selected student(s) have partial rubric drafts and must be completed or cleared before return.` : ''}`.trim()}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"
         isConfirmDisabled={isReturning}
@@ -1710,8 +1611,7 @@ export function TeacherClassroomView({
           setIsCreateModalOpen(false)
         }}
       />
-      </PageContent>
-    </PageLayout>
+    </>
   )
 }
 

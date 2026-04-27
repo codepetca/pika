@@ -270,6 +270,76 @@ Keep these feature-local:
 
 Do not introduce a generic assessment mega-shell that tries to own assignments, quizzes, and tests in one abstraction.
 
+## Implemented Primitive Map
+
+The assignment refactor created stable structural primitives, plus assignment-local implementations that demonstrate how to compose them. Future tests/quizzes/gradebook work should use this map instead of inferring reuse from filenames alone.
+
+Stable structural primitives:
+
+| Component | Use for | Do not put here |
+|---|---|---|
+| `TeacherWorkSurfaceShell` | page layout, summary/workspace state, action bar placement, feedback placement, selected-workspace frame | data loading, routing/query behavior, selection state, grading state, assessment status, return behavior |
+| `TeacherWorkSurfaceModeBar<TMode>` | selected-workspace mode tabs with tab semantics and keyboard movement | domain-specific mode state machines, assessment-specific labels baked into the primitive |
+| `TeacherWorkspaceSplit` | bounded primary/inspector split panes when both panes are active work surfaces | grading behavior, student selection, assignment-specific width policy beyond generic min/max constraints |
+
+Assignment-local reference implementations:
+
+| Component | Role | Reuse boundary |
+|---|---|---|
+| `TeacherAssignmentStudentTable` | assignment student-status table with selection, artifacts, assignment statuses, and assignment grade summary | copy the table rhythm only after creating a domain-specific table for tests/quizzes; do not import it outside assignment work |
+| `TeacherStudentWorkPanel` | assignment document review surface that composes content preview with an inspector | use as a behavioral reference, not as a generic assessment panel |
+| `TeacherWorkInspector` | assignment grading/history/repo/comments inspector | assignment-only; tests/quizzes need their own inspector if their data and controls differ |
+| `useTeacherStudentWorkController` | assignment document loading, grading, autosave, history, repo analysis, and feedback return orchestration | assignment-only business logic |
+
+Stable hierarchy for teacher work tabs:
+
+```tsx
+<FeatureTeacherTab>
+  <TeacherWorkSurfaceShell
+    state={isSummary ? 'summary' : 'workspace'}
+    primary={summaryOrWorkspaceActionBar}
+    feedback={featureFeedback}
+    summary={featureSummary}
+    workspace={featureWorkspace}
+    workspaceFrame="attachedTabs | standalone"
+  />
+</FeatureTeacherTab>
+```
+
+Inside `workspace`, use `TeacherWorkSurfaceModeBar` only when the selected item has real workflow modes. Use `TeacherWorkspaceSplit` only when a current selection makes side-by-side work useful.
+
+## AI Adoption Contract
+
+Use this language when asking an AI agent to migrate tests, quizzes, or another teacher work tab:
+
+```text
+Use the assignment tab as the reference implementation, but do not copy assignment-specific components or logic.
+
+Reuse `TeacherWorkSurfaceShell`, `TeacherWorkSurfaceModeBar`, and `TeacherWorkspaceSplit` for structural shell behavior.
+
+Create domain-specific inner components for this tab. Do not import `TeacherAssignmentStudentTable`, `TeacherStudentWorkPanel`, `TeacherWorkInspector`, or `useTeacherStudentWorkController` unless the task is assignment work.
+
+Preserve the teacher work-surface ladder: summary -> selected workspace -> optional workspace mode -> optional active inspector.
+
+Keep data loading, routing/query behavior, selection state, grading state, return behavior, draft state, browser-event handling, and assessment-specific mode logic in the feature tab or feature-specific hooks, not in the shared shell primitives.
+
+Stop and reassess if a shared primitive needs props named after assignment, quiz, test, gradebook, student grading, AI runs, return flow, rubric, attempt, artifact, or assessment status.
+```
+
+## Tests And Quizzes Migration Template
+
+For future teacher tests/quizzes work, migrate in this order:
+
+1. Identify the existing states in the formal ladder: `summary`, `workspace`, `workspace_mode`, and `inspector_active`.
+2. Replace only the outer page rhythm with `TeacherWorkSurfaceShell`.
+3. Move selected-item mode controls into `TeacherWorkSurfaceModeBar` if the modes are real workflow changes.
+4. Use `TeacherWorkspaceSplit` only for active side-by-side review, grading, or authoring work.
+5. Extract feature-specific inner pieces under a feature-specific path such as `src/components/test-workspace/` or `src/components/quiz-workspace/`.
+6. Add focused component tests for shell state, mode tabs, split bounds, selected-workspace behavior, and browser-back behavior.
+7. Run UI verification against the migrated tab and compare it to the pre-refactor screenshots before migrating another tab.
+
+Do not migrate tests and quizzes in the same pass unless assignment parity has already been accepted and the first non-assignment migration has passed visual review.
+
 ## Componentization Rules
 
 Not every recurring UI idea should become a primitive.

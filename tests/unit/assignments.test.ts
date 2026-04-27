@@ -10,7 +10,11 @@ import {
   getAssignmentStatusLabel,
   getAssignmentStatusBadgeClass,
   getAssignmentStatusIconClass,
+  getAssignmentRubricState,
+  getAssignmentFullReturnAt,
   hasDraftSavedGrade,
+  isAssignmentAlreadyReturnedWithoutResubmission,
+  isAssignmentReturnable,
   formatDueDate,
   isPastDue,
   formatRelativeDueDate,
@@ -671,6 +675,77 @@ describe('assignment utilities', () => {
 
     it('should return gray for invalid status', () => {
       expect(getAssignmentStatusIconClass('invalid_status' as any)).toBe('text-gray-400')
+    })
+  })
+
+  describe('assignment rubric helpers', () => {
+    it('returns null rubric state for a missing doc', () => {
+      expect(getAssignmentRubricState(null)).toBeNull()
+      expect(isAssignmentReturnable(null)).toBe(false)
+    })
+
+    it('treats a fully blank rubric as returnable', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: null,
+        score_thinking: null,
+        score_workflow: null,
+      })
+
+      expect(getAssignmentRubricState(doc)).toBe('blank')
+      expect(isAssignmentReturnable(doc)).toBe(true)
+    })
+
+    it('treats a fully completed rubric as returnable, including zeroes', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: 0,
+        score_thinking: 0,
+        score_workflow: 0,
+      })
+
+      expect(getAssignmentRubricState(doc)).toBe('complete')
+      expect(isAssignmentReturnable(doc)).toBe(true)
+    })
+
+    it('treats partial rubric drafts as blocked from return', () => {
+      const doc = createMockAssignmentDoc({
+        score_completion: 8,
+        score_thinking: null,
+        score_workflow: 6,
+      })
+
+      expect(getAssignmentRubricState(doc)).toBe('partial')
+      expect(isAssignmentReturnable(doc)).toBe(false)
+    })
+  })
+
+  describe('assignment return helpers', () => {
+    it('does not treat a missing doc as already returned', () => {
+      expect(isAssignmentAlreadyReturnedWithoutResubmission(null)).toBe(false)
+    })
+
+    it('uses the latest full-return timestamp', () => {
+      expect(getAssignmentFullReturnAt({
+        returned_at: '2026-04-20T12:00:00.000Z',
+        teacher_cleared_at: '2026-04-20T13:00:00.000Z',
+      })).toBe('2026-04-20T13:00:00.000Z')
+    })
+
+    it('treats returned work without a newer submission as already returned', () => {
+      expect(isAssignmentAlreadyReturnedWithoutResubmission({
+        is_submitted: false,
+        submitted_at: '2026-04-20T12:00:00.000Z',
+        returned_at: '2026-04-20T13:00:00.000Z',
+        teacher_cleared_at: '2026-04-20T13:00:00.000Z',
+      })).toBe(true)
+    })
+
+    it('does not treat resubmitted work as already returned', () => {
+      expect(isAssignmentAlreadyReturnedWithoutResubmission({
+        is_submitted: true,
+        submitted_at: '2026-04-21T12:00:00.000Z',
+        returned_at: '2026-04-20T13:00:00.000Z',
+        teacher_cleared_at: '2026-04-20T13:00:00.000Z',
+      })).toBe(false)
     })
   })
 

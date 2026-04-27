@@ -9310,3 +9310,147 @@
 - `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
 - `bash scripts/verify-env.sh`
 - Browser verification confirmed the restored desktop overlay with `exam-content-obscurer` and blocker active; screenshot saved at `test-results/desktop-exam-lock-overlay-restored.png`.
+
+## 2026-04-24 — Smooth Test Grading Poll Refreshes
+
+- Kept test grading rows mounted during background poll refreshes so the grading screen no longer drops to a full loading state while teachers are reviewing submissions.
+- Added a shared assessment status icon component and reused it from both the assignments table and test grading rows, including the submitted green circle treatment.
+- Added regression coverage for the preserved grading rows during polling and the shared submitted/returned/late status icon states.
+
+**Validation:**
+- `pnpm test -- tests/components/AssessmentStatusIcon.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint` (existing warning remains in `src/components/TestDocumentsEditor.tsx`)
+- `bash scripts/verify-env.sh`
+- `pika-ui-verify` classroom screenshot capture passed for teacher desktop, teacher mobile, and student mobile; focused grading-page capture was not available because the current dev database has no classrooms/tests.
+## 2026-04-22 (codex)
+- Expanded test hardening for low-coverage utility areas:
+  - Added `tests/unit/classroom-ux-metrics.test.ts` for tab-switch metric tracking behavior and edge cases.
+  - Added `tests/unit/server-classroom-order.test.ts` for Supabase query fallback/position logic.
+  - Added `tests/unit/repo-review-validation.test.ts` for schema defaults and validation failures.
+- Verified new tests pass with targeted Vitest run.
+
+## 2026-04-22 (codex follow-up review)
+- Reviewed and tightened the new coverage tests from the previous PR:
+  - Added stronger query-chain assertions in `server-classroom-order` tests (teacher filter, archived filter, ordering calls, and limit usage).
+  - Added `afterEach(vi.restoreAllMocks)` in classroom UX metrics tests to avoid mock leakage.
+  - Expanded repo-review validation coverage for defaulted `commit_emails` and invalid email rejection.
+- Re-ran the targeted test suite and confirmed all tests pass.
+
+## 2026-04-24 (codex)
+- Moved cloud-applied coverage test changes out of the hub checkout and into `codex/classroom-coverage-local`.
+- Created the worktree from `origin/main`, linked the shared `.env.local`, and installed dependencies.
+- Verified the worktree with `bash scripts/verify-env.sh` (210 test files / 1814 tests passed).
+
+## 2026-04-25 (codex)
+- Reviewed the codebase for additional test coverage opportunities in `codex/classroom-coverage-local`.
+- Ran `bash scripts/verify-env.sh` and `pnpm test:coverage`; both completed with the full Vitest suite passing.
+- Current measured coverage is 74.28% statements, 60.95% branches, and 86.25% functions across `src/lib`, `src/ui`, and `src/app/api/**/route.ts`.
+- Highest-value uncovered areas identified: repo-review assignment routes/helpers, teacher assignment reorder, attendance CSV/export success paths, roster GET/PATCH/error paths, class-day server helpers, and assignment-doc submit authenticity/history paths.
+
+## 2026-04-25 (codex follow-up)
+- Added targeted tests for the coverage opportunities identified earlier:
+  - Repo-review artifact run route and assignment repo target helpers.
+  - Assignment reorder route validation, ownership, mismatch, success, and failure paths.
+  - Attendance/export success paths with sorted students and CSV assertions.
+  - Roster GET/PATCH success and validation paths.
+  - Server class-day generation/upsert helpers.
+  - Assignment doc submit success, history, authenticity, and non-fatal side-effect failures.
+- Verification:
+  - Targeted test run: 9 test files / 41 tests passed.
+  - `bash scripts/verify-env.sh`: 214 test files / 1844 tests passed.
+  - `pnpm test:coverage`: 77.02% statements, 63.72% branches, 89.6% functions.
+  - `pnpm lint`: passed with the existing `src/components/TestDocumentsEditor.tsx` hook dependency warning.
+
+## 2026-04-26 (codex)
+- Re-reviewed the added coverage tests before commit.
+- Tightened Supabase mock reset setup in the new/expanded test files to prevent stale mock implementations from leaking into future tests.
+- Re-ran `pnpm test:coverage`, `pnpm lint`, and `git diff --check`:
+  - Coverage: 214 test files / 1844 tests passed.
+  - Lint: passed with the existing `src/components/TestDocumentsEditor.tsx` hook dependency warning.
+  - Diff check: clean.
+
+## 2026-04-26 — Align Package Manager Guidance
+
+- Updated `scripts/verify-env.sh` to honor the package manager declared in `package.json` instead of requiring `npm` up front.
+- The verifier now prefers `pnpm` directly, falls back to `corepack pnpm` when available, and only checks `npm` when the repo declares npm.
+- Updated `.ai/features.json` verification commands from `npm` to `pnpm` and refreshed its `lastUpdated` metadata.
+
+**Validation:**
+- `node scripts/features.mjs validate`
+- `pnpm install`
+- `bash scripts/verify-env.sh`
+## 2026-04-26 — Revise Assignment Return For Missing And Already-Returned Work
+
+- Updated assignment return so enrolled students with no assignment doc get a returned 0/0/0 doc without being marked submitted.
+- Added already-returned-without-resubmission detection so repeated return attempts skip unchanged returned docs while allowing later student resubmissions to be returned again.
+- Updated teacher return confirmation/success messaging and assignment detail rows to support the revised selection behavior.
+
+**Validation:**
+- `pnpm test`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'src/app/api/teacher/assignments/[id]/route.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'src/lib/assignments.ts' 'tests/api/teacher/assignments-id-return.test.ts' 'tests/api/teacher/assignments-id.test.ts' 'tests/components/TeacherClassroomView.test.tsx' 'tests/unit/assignments.test.ts'`
+- `pnpm exec tsc --noEmit`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments'`
+
+## 2026-04-26 — Disable Assignment Return When Nothing Is Returnable
+
+- Disabled the teacher batch Return button when the selected students are only already-returned and/or partial-rubric blocked rows.
+- Added the tooltip copy `Nothing returnable selected` and kept missing no-doc students actionable because the return flow creates zero-grade returned docs for them.
+- Added component coverage for the disabled no-op return state.
+
+**Validation:**
+- `pnpm test`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments'`
+
+## 2026-04-27 — Clarify Assignment Return Success Counts
+
+- Changed the teacher return success message so existing returned docs and newly created zero-grade returns are counted separately without double-counting created docs.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`
+## 2026-04-25 - Teacher Work-Surface Shell Refactor
+
+- Added dev-flow risk guidance for workspace-state, async-grading, exam-mode, and runtime-platform work, and routed non-trivial risk-profile declaration through AI session/TDD/audit prompts.
+- Extracted the assignment teacher work surface in layers: outer `TeacherWorkSurfaceShell`, workspace `TeacherWorkSurfaceModeBar`, reusable `TeacherWorkspaceSplit`, and assignment-local `TeacherAssignmentStudentTable`.
+- Migrated teacher assignments to the new structural pieces while leaving assignment loading, selection, grading, AI run, return, modal, and route/query behavior in `TeacherClassroomView`.
+- Updated `TeacherStudentWorkPanel` to use the shared teacher workspace split for individual-mode content/inspector panes.
+- Tightened the local Pika audit rule so cached read fetchers are not mistaken for uncached component reads while raw mutation fetches remain allowed.
+
+**Validation:**
+- `bash scripts/verify-env.sh` (210 files, 1804 tests)
+- `pnpm exec vitest run tests/components/TeacherWorkspaceSplit.test.tsx tests/components/TeacherWorkSurfaceModeBar.test.tsx tests/components/TeacherAssignmentStudentTable.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `pnpm build`
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms"` remained blocked because seeded teacher and student auth both returned `POST /api/auth/login 401`, so screenshots could not be captured in this local environment.
+## 2026-04-26 — Teacher work-surface canon fixes
+
+- Tightened `TeacherWorkspaceSplit` so the shared split primitive clamps inspector width changes with generic structural constraints instead of relying only on assignment-specific layout code.
+- Upgraded `TeacherWorkSurfaceModeBar` from pressed buttons to typed tab semantics with keyboard navigation, making it safer to reuse across selected workspaces.
+- Added an explicit `workspaceFrame` variant to `TeacherWorkSurfaceShell` so attached-tab and standalone selected workspaces are deliberate API choices.
+- Verified with focused component tests, full `verify-env.sh`, lint, build, audit, and teacher assignment visual captures.
+
+## 2026-04-26 — Teacher assignment browser-back workspace state
+
+- Made teacher assignment selection and selected-student inspection URL-backed with `assignmentId` and `assignmentStudentId`, so browser Back unwinds the assignment workspace before leaving the Assignments tab.
+- Kept cookies as a persistence fallback only; URL-controlled assignment views now suppress stale assignment cookies and sidebar/calendar assignment links write the routed state.
+- Added regression coverage for stale-cookie suppression, assignment selection history, default selected-student URL replacement, and student-row history updates.
+- Converted repeated assignment/announcement/result reads in the newly touched route files to the shared request cache and updated the audit rule to recognize `prefetchJSON` as cache-backed.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/NavItems.test.tsx`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `pnpm exec tsc --noEmit`
+- `bash scripts/verify-env.sh` (210 files, 1811 tests)
+- `bash .codex/skills/pika-audit/scripts/audit.sh`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1`
+- Targeted Playwright Back-flow check on teacher assignments verified Back from `Student2` returned to `Student1` within `tab=assignments`.
+## 2026-04-26 — Teacher work-surface canon adoption guidance
+
+- Added explicit AI routing for teacher assignments/quizzes/tests shell and layout tasks in `docs/ai-instructions.md`.
+- Expanded `docs/guidance/ui/teacher-work-surfaces.md` with an implemented primitive map, assignment-only reuse boundaries, an AI adoption contract, and a tests/quizzes migration template.
+- Verified the environment with `PATH=/opt/homebrew/bin:$PATH bash scripts/verify-env.sh`; all 218 test files and 1861 tests passed before the docs-only patch.

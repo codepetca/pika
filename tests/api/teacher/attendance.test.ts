@@ -35,6 +35,7 @@ const mockSupabaseClient = { from: vi.fn() }
 describe('GET /api/teacher/attendance', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSupabaseClient.from = vi.fn()
   })
 
   it('should return 401 when not authenticated', async () => {
@@ -92,5 +93,112 @@ describe('GET /api/teacher/attendance', () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/attendance?classroom_id=classroom-999')
     const response = await GET(request)
     expect(response.status).toBe(404)
+  })
+
+  it('returns attendance records and sorted class-day dates for an owned classroom', async () => {
+    const { computeAttendanceRecords } = await import('@/lib/attendance')
+    ;(computeAttendanceRecords as any).mockReturnValueOnce([
+      {
+        student_id: 'student-1',
+        student_email: 'a@example.com',
+        summary: { present: 1, absent: 0 },
+        dates: { '2026-04-20': 'present' },
+      },
+    ])
+
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table === 'classrooms') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: { teacher_id: 'teacher-1' }, error: null }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'class_days') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn().mockResolvedValue({
+                data: [
+                  { date: '2026-04-20', is_class_day: true },
+                  { date: '2026-04-21', is_class_day: false },
+                  { date: '2026-04-22', is_class_day: true },
+                ],
+                error: null,
+              }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'classroom_enrollments') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                { student_id: 'student-2', users: { id: 'student-2', email: 'b@example.com' } },
+                { student_id: 'student-1', users: { id: 'student-1', email: 'a@example.com' } },
+              ],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'student_profiles') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [{ user_id: 'student-1', first_name: 'Ada', last_name: 'Lovelace' }],
+              error: null,
+            }),
+          })),
+        }
+      }
+
+      if (table === 'entries') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [{ id: 'entry-1' }], error: null }),
+          })),
+        }
+      }
+
+      throw new Error(`Unexpected table: ${table}`)
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/attendance?classroom_id=classroom-1')
+    const response = await GET(request)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data).toEqual({
+      attendance: [
+        {
+          student_id: 'student-1',
+          student_email: 'a@example.com',
+          summary: { present: 1, absent: 0 },
+          dates: { '2026-04-20': 'present' },
+        },
+      ],
+      dates: ['2026-04-20', '2026-04-22'],
+      classroom_id: 'classroom-1',
+    })
+    expect(computeAttendanceRecords).toHaveBeenCalledWith(
+      [
+        { id: 'student-1', email: 'a@example.com', first_name: 'Ada', last_name: 'Lovelace' },
+        { id: 'student-2', email: 'b@example.com', first_name: '', last_name: '' },
+      ],
+      [
+        { date: '2026-04-20', is_class_day: true },
+        { date: '2026-04-21', is_class_day: false },
+        { date: '2026-04-22', is_class_day: true },
+      ],
+      [{ id: 'entry-1' }],
+      expect.any(String),
+    )
   })
 })
