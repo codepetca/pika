@@ -41,12 +41,10 @@ import {
   TEACHER_ASSIGNMENTS_UPDATED_EVENT,
   TEACHER_QUIZZES_UPDATED_EVENT,
 } from '@/lib/events'
-import { QuizDetailPanel } from '@/components/QuizDetailPanel'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
-import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { StudentLogHistory } from '@/components/StudentLogHistory'
 import { LogSummary } from './LogSummary'
-import { ConfirmDialog, EmptyState, TabContentTransition } from '@/ui'
+import { ConfirmDialog, TabContentTransition } from '@/ui'
 import { PageDensityProvider } from '@/components/PageLayout'
 import { fetchJSONWithCache, prefetchJSON } from '@/lib/request-cache'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
@@ -249,6 +247,14 @@ function ClassroomPageContent({
   const isTeacher = user.role === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
   const assignmentStudentIdParam = searchParams.get('assignmentStudentId')
+  const quizIdParam = activeTab === 'quizzes' ? searchParams.get('quizId') : null
+  const testIdParam = activeTab === 'tests' ? searchParams.get('testId') : null
+  const rawTestModeParam = searchParams.get('testMode')
+  const testModeParam =
+    activeTab === 'tests' && (rawTestModeParam === 'authoring' || rawTestModeParam === 'grading')
+      ? rawTestModeParam
+      : null
+  const testStudentIdParam = activeTab === 'tests' ? searchParams.get('testStudentId') : null
   const sectionParam = searchParams.get('section')
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
@@ -328,6 +334,41 @@ function ClassroomPageContent({
     },
     [activeTab, requestExamModeNavigation, searchParams, updateSearchParams]
   )
+
+  useEffect(() => {
+    if (!isTeacher || activeTab !== 'tests') return
+
+    const hasInvalidMode =
+      rawTestModeParam !== null && rawTestModeParam !== 'authoring' && rawTestModeParam !== 'grading'
+    const hasDanglingMode = !testIdParam && rawTestModeParam !== null
+    const hasDanglingStudent =
+      testStudentIdParam !== null && (!testIdParam || testModeParam !== 'grading')
+
+    if (!hasInvalidMode && !hasDanglingMode && !hasDanglingStudent) return
+
+    navigateInClassroom((params) => {
+      if (!testIdParam) {
+        params.delete('testMode')
+        params.delete('testStudentId')
+        return
+      }
+
+      if (hasInvalidMode) {
+        params.delete('testMode')
+      }
+      if (testModeParam !== 'grading') {
+        params.delete('testStudentId')
+      }
+    }, { replace: true })
+  }, [
+    activeTab,
+    isTeacher,
+    navigateInClassroom,
+    rawTestModeParam,
+    testIdParam,
+    testModeParam,
+    testStudentIdParam,
+  ])
 
   useEffect(() => {
     if (isTeacher) return
@@ -417,37 +458,16 @@ function ClassroomPageContent({
     responsesCount: number
   } | null>(null)
   const [isDeletingAssessment, setIsDeletingAssessment] = useState(false)
-  const [testGradingContext, setTestGradingContext] = useState<{
-    mode: 'authoring' | 'grading'
-    testId: string | null
-    studentId: string | null
-    studentName: string | null
-  }>({
-    mode: 'authoring',
-    testId: null,
-    studentId: null,
-    studentName: null,
-  })
   const [teacherTestPreview, setTeacherTestPreview] = useState<{
     testId: string
     title: string | null
   } | null>(null)
-  const [testGradingSaveState, setTestGradingSaveState] = useState<{
-    canSave: boolean
-    isSaving: boolean
-    status: 'idle' | 'unsaved' | 'saving' | 'saved'
-  }>({
-    canSave: false,
-    isSaving: false,
-    status: 'idle',
-  })
   const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
   const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
   const [gradebookClassSummary, setGradebookClassSummary] = useState<GradebookClassSummary | null>(null)
   const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
   const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
   const [testsTabClickToken, setTestsTabClickToken] = useState(0)
-  const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
 
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
     setSelectedQuiz(quiz)
@@ -456,13 +476,6 @@ function ClassroomPageContent({
   useEffect(() => {
     if (activeTab === 'quizzes' || activeTab === 'tests') {
       setSelectedQuiz(null)
-      setTestGradingContext({
-        mode: 'authoring',
-        testId: null,
-        studentId: null,
-        studentName: null,
-      })
-      setTestGradingSaveState({ canSave: false, isSaving: false, status: 'idle' })
     }
   }, [activeTab])
 
@@ -478,16 +491,6 @@ function ClassroomPageContent({
     if (selectedQuiz.id === teacherTestPreview.testId) return
     setTeacherTestPreview(null)
   }, [selectedQuiz, teacherTestPreview])
-
-  const handleQuizUpdate = useCallback(() => {
-    window.dispatchEvent(
-      new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
-    )
-  }, [classroom.id])
-
-  const handleTestGradingDataRefresh = useCallback(() => {
-    setTestGradingPanelRefreshToken((prev) => prev + 1)
-  }, [])
 
   const handleSelectGradebookStudent = useCallback((student: GradebookStudentSummary | null) => {
     setSelectedGradebookStudent(student)
@@ -688,10 +691,6 @@ function ClassroomPageContent({
   useEffect(() => {
     if (isTeacher && activeTab === 'assignments') {
       setRightSidebarWidth('50%')
-    } else if (isTeacher && activeTab === 'quizzes') {
-      setRightSidebarWidth('50%')
-    } else if (isTeacher && activeTab === 'tests') {
-      setRightSidebarWidth('60%')
     } else if (isTeacher && activeTab === 'gradebook') {
       setRightSidebarWidth(420)
     } else if (activeTab === 'resources') {
@@ -714,19 +713,6 @@ function ClassroomPageContent({
     assignmentViewMode,
     setRightSidebarOpen,
     closeMobileDrawer,
-  ])
-
-  useEffect(() => {
-    if (!isTeacher || activeTab !== 'tests') return
-    if (testGradingContext.mode === 'grading') return
-    setRightSidebarOpen(false)
-    closeMobileDrawer()
-  }, [
-    activeTab,
-    closeMobileDrawer,
-    isTeacher,
-    setRightSidebarOpen,
-    testGradingContext.mode,
   ])
 
   useEffect(() => {
@@ -905,12 +891,20 @@ function ClassroomPageContent({
         if (tab !== 'resources' && tab !== 'settings') {
           params.delete('section')
         }
+        if (tab !== 'tests' || activeTab === 'tests') {
+          params.delete('testId')
+          params.delete('testMode')
+          params.delete('testStudentId')
+        }
+        if (tab !== 'quizzes' || activeTab === 'quizzes') {
+          params.delete('quizId')
+        }
       })
       window.requestAnimationFrame(() => {
         markClassroomTabSwitchReady(tab)
       })
     },
-    [navigateInClassroom]
+    [activeTab, navigateInClassroom]
   )
 
   useEffect(() => {
@@ -923,6 +917,7 @@ function ClassroomPageContent({
   const isAssessmentTab = activeTab === 'quizzes' || activeTab === 'tests'
   const assessmentLabel = activeTab === 'tests' ? 'test' : 'quiz'
   const assessmentApiBasePath = activeTab === 'tests' ? '/api/teacher/tests' : '/api/teacher/quizzes'
+  const pendingAssessmentLabel = pendingAssessmentDelete?.quiz.assessment_type === 'test' ? 'test' : 'quiz'
   const examHeaderData = useMemo(() => {
     if (
       isTeacher ||
@@ -946,10 +941,6 @@ function ClassroomPageContent({
     studentTestExamMode.exitsCount,
     studentTestExamMode.testTitle,
   ])
-  const gradingTestId =
-    activeTab === 'tests'
-      ? (testGradingContext.testId || selectedQuiz?.id || null)
-      : null
   const pageDensity = isTeacher ? 'teacher' : 'student'
   const mainContentClassName =
     activeTab === 'calendar'
@@ -986,21 +977,34 @@ function ClassroomPageContent({
   async function handleConfirmAssessmentDelete() {
     if (!pendingAssessmentDelete) return
 
+    const deleteIsTest = pendingAssessmentDelete.quiz.assessment_type === 'test'
+    const deleteApiBasePath = deleteIsTest ? '/api/teacher/tests' : '/api/teacher/quizzes'
+    const deleteLabel = deleteIsTest ? 'test' : 'quiz'
+
     setIsDeletingAssessment(true)
     try {
-      const res = await fetch(`${assessmentApiBasePath}/${pendingAssessmentDelete.quiz.id}`, { method: 'DELETE' })
+      const res = await fetch(`${deleteApiBasePath}/${pendingAssessmentDelete.quiz.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || `Failed to delete ${assessmentLabel}`)
+        throw new Error(data.error || `Failed to delete ${deleteLabel}`)
       }
 
       setSelectedQuiz(null)
+      navigateInClassroom((params) => {
+        if (deleteIsTest) {
+          params.delete('testId')
+          params.delete('testMode')
+          params.delete('testStudentId')
+        } else {
+          params.delete('quizId')
+        }
+      }, { replace: true })
       window.dispatchEvent(
         new CustomEvent(TEACHER_QUIZZES_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
       )
       setPendingAssessmentDelete(null)
     } catch (error) {
-      console.error(`Error deleting ${assessmentLabel}:`, error)
+      console.error(`Error deleting ${deleteLabel}:`, error)
     } finally {
       setIsDeletingAssessment(false)
     }
@@ -1101,7 +1105,12 @@ function ClassroomPageContent({
                       <TeacherQuizzesTab
                         classroom={classroom}
                         assessmentType="quiz"
+                        selectedQuizId={quizIdParam}
+                        updateSearchParams={navigateInClassroom}
                         onSelectQuiz={handleSelectQuiz}
+                        onRequestDelete={() => {
+                          void handleRequestAssessmentDelete()
+                        }}
                       />
                     </TabContentTransition>
                   )}
@@ -1110,9 +1119,11 @@ function ClassroomPageContent({
                       <TeacherTestsTab
                         classroom={classroom}
                         testsTabClickToken={testsTabClickToken}
+                        selectedTestId={testIdParam}
+                        selectedTestMode={testModeParam}
+                        selectedTestStudentId={testStudentIdParam}
+                        updateSearchParams={navigateInClassroom}
                         onSelectTest={handleSelectQuiz}
-                        onTestGradingDataRefresh={handleTestGradingDataRefresh}
-                        onTestGradingContextChange={setTestGradingContext}
                         onRequestDelete={() => {
                           void handleRequestAssessmentDelete()
                         }}
@@ -1249,21 +1260,6 @@ function ClassroomPageContent({
               ? selectedGradebookStudent
                 ? `${selectedGradebookStudent.student_first_name || ''} ${selectedGradebookStudent.student_last_name || ''}`.trim() || selectedGradebookStudent.student_email
                 : 'Gradebook'
-              : isTeacher &&
-                activeTab === 'tests' &&
-                testGradingContext.mode === 'grading'
-              ? (
-                <span className="relative flex w-full items-center">
-                  <span className="truncate pr-2 text-sm font-semibold text-text-default">
-                    {testGradingContext.studentName || 'Test Grading'}
-                  </span>
-                  {selectedQuiz?.title && (
-                    <span className="pointer-events-none absolute left-1/2 max-w-[70%] -translate-x-1/2 truncate text-center text-xs text-text-muted">
-                      {selectedQuiz.title}
-                    </span>
-                  )}
-                </span>
-              )
               : isTeacher && isAssessmentTab
               ? ''
               : isTeacher && activeTab === 'assignments'
@@ -1309,40 +1305,6 @@ function ClassroomPageContent({
               >
                 {calendarSidebarState.bulkSaving ? 'Saving...' : 'Save'}
               </button>
-            ) : isTeacher &&
-              activeTab === 'tests' &&
-              testGradingContext.mode === 'grading' &&
-              testGradingContext.studentId ? (
-              testGradingSaveState.status !== 'idle' ? (
-                <span
-                  className={[
-                    'px-1 text-xs',
-                    testGradingSaveState.status === 'saved'
-                      ? 'text-success font-medium'
-                      : testGradingSaveState.status === 'saving'
-                        ? 'text-text-muted'
-                        : 'text-warning',
-                  ].join(' ')}
-                >
-                  {testGradingSaveState.status === 'saved'
-                    ? 'Saved'
-                    : testGradingSaveState.status === 'saving'
-                      ? 'Saving...'
-                      : 'Unsaved'}
-                </span>
-              ) : null
-            ) : isTeacher &&
-              activeTab === 'quizzes' &&
-              selectedQuiz ? (
-              <button
-                type="button"
-                onClick={() => {
-                  void handleRequestAssessmentDelete()
-                }}
-                className="px-2 py-1 text-xs rounded border border-danger text-danger hover:bg-danger-bg disabled:opacity-50"
-              >
-                Delete
-              </button>
             ) : undefined
           }
         >
@@ -1368,37 +1330,8 @@ function ClassroomPageContent({
             <TeacherClassResourcesSidebar classroom={classroom} />
           ) : activeTab === 'resources' ? (
             <StudentClassResourcesSidebar classroom={classroom} />
-          ) : isTeacher &&
-            activeTab === 'tests' &&
-            testGradingContext.mode === 'grading' &&
-            gradingTestId ? (
-            <TestStudentGradingPanel
-              testId={gradingTestId}
-              selectedStudentId={testGradingContext.studentId}
-              apiBasePath={assessmentApiBasePath}
-              refreshToken={testGradingPanelRefreshToken}
-              onSaveStateChange={setTestGradingSaveState}
-            />
-          ) : isTeacher && activeTab === 'quizzes' && selectedQuiz ? (
-            <QuizDetailPanel
-              quiz={selectedQuiz}
-              classroomId={classroom.id}
-              apiBasePath={assessmentApiBasePath}
-              onQuizUpdate={handleQuizUpdate}
-            />
-          ) : isTeacher && activeTab === 'tests' ? null : isTeacher && isAssessmentTab ? (
-            <div className="flex h-full min-h-0 items-center p-4">
-              <EmptyState
-                title={`Select a ${assessmentLabel}`}
-                description={
-                  activeTab === 'tests'
-                    ? 'Choose a test to review settings, questions, and grading details.'
-                    : 'Choose a quiz to review settings, questions, and response details.'
-                }
-                className="w-full"
-                tone="muted"
-              />
-            </div>
+          ) : isTeacher && isAssessmentTab ? (
+            null
           ) : isTeacher && activeTab === 'gradebook' && selectedGradebookStudent ? (
             <div className="space-y-4 p-4">
               {gradebookStudentDetailError && (
@@ -1609,10 +1542,10 @@ function ClassroomPageContent({
 
       <ConfirmDialog
         isOpen={!!pendingAssessmentDelete}
-        title={`Delete ${assessmentLabel}?`}
+        title={`Delete ${pendingAssessmentLabel}?`}
         description={
           pendingAssessmentDelete && pendingAssessmentDelete.responsesCount > 0
-            ? `This ${assessmentLabel} has ${pendingAssessmentDelete.responsesCount} response${pendingAssessmentDelete.responsesCount === 1 ? '' : 's'}. Deleting it will permanently remove all student responses.`
+            ? `This ${pendingAssessmentLabel} has ${pendingAssessmentDelete.responsesCount} response${pendingAssessmentDelete.responsesCount === 1 ? '' : 's'}. Deleting it will permanently remove all student responses.`
             : 'This action cannot be undone.'
         }
         confirmLabel={isDeletingAssessment ? 'Deleting...' : 'Delete'}
