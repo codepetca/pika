@@ -9468,3 +9468,18 @@
 - `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
 - Targeted Playwright student active-test screenshot after selecting an MC option
+
+## 2026-04-27 — Anchor Student MC Radios To Prevent Test Shell Scroll
+
+- Reproduced the remaining blank-screen issue with a long test containing code open-response questions before the first MC question.
+- Found that the `sr-only` radio input could receive focus outside the split-pane flow and scroll the whole page, leaving most of the fixed-height test shell above the viewport.
+- Replaced the `sr-only` MC radio positioning with an invisible radio anchored inside a relative option label, preserving keyboard focus styling without window scroll jumps.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `git diff --check`
+- `pnpm test`
+- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
+- Reproduced the provided long Unit 5-style test in Playwright and confirmed MC selection keeps `window.scrollY` at 0 with no blank area
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
