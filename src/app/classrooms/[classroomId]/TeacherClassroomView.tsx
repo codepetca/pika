@@ -935,8 +935,11 @@ export function TeacherClassroomView({
         batchClearSelection()
       }
 
+      const updatedCount = Math.max(0, returnedCount - createdCount)
       const summaryParts: string[] = []
-      summaryParts.push(`Returned ${returnedCount}`)
+      if (updatedCount > 0) {
+        summaryParts.push(`Returned ${updatedCount}`)
+      }
       if (createdCount > 0) {
         summaryParts.push(`Created ${createdCount} zero-grade return${createdCount === 1 ? '' : 's'}`)
       }

@@ -9403,3 +9403,12 @@
 - `pnpm exec eslint 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' tests/components/TeacherClassroomView.test.tsx`
 - `pnpm exec tsc --noEmit`
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments'`
+
+## 2026-04-27 — Clarify Assignment Return Success Counts
+
+- Changed the teacher return success message so existing returned docs and newly created zero-grade returns are counted separately without double-counting created docs.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`

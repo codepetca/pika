@@ -1162,7 +1162,7 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Return' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Returned 2 • Created 1 zero-grade return • Skipped 1 already returned • Blocked 1 partial-rubric draft')).toBeInTheDocument()
+      expect(screen.getByText('Returned 1 • Created 1 zero-grade return • Skipped 1 already returned • Blocked 1 partial-rubric draft')).toBeInTheDocument()
     })
     expect(mockSetSelection).toHaveBeenCalledWith(['student-2'])
   })
