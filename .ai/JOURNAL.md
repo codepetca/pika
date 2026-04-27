@@ -9454,3 +9454,17 @@
 - Added explicit AI routing for teacher assignments/quizzes/tests shell and layout tasks in `docs/ai-instructions.md`.
 - Expanded `docs/guidance/ui/teacher-work-surfaces.md` with an implemented primitive map, assignment-only reuse boundaries, an AI adoption contract, and a tests/quizzes migration template.
 - Verified the environment with `PATH=/opt/homebrew/bin:$PATH bash scripts/verify-env.sh`; all 218 test files and 1861 tests passed before the docs-only patch.
+
+## 2026-04-27 — Student Test MC Transient Resize Lock Fix
+
+- Traced the student MC blank-screen regression to the Apr 21 exam-mode window-compliance changes, where transient answer-click resize signals could hide the mounted active test behind the lock overlay.
+- Added an in-test interaction guard so a `window_resize` immediately following a test-form pointer/key interaction gets a short delayed confirmation instead of blanking the active test immediately.
+- Added regression coverage proving an MC answer tap remains visible, selected, and does not log a window-unmaximize attempt when the resize is transient.
+
+**Validation:**
+- `pnpm exec vitest run tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `git diff --check`
+- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
+- Targeted Playwright student active-test screenshot after selecting an MC option
