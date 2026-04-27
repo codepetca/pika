@@ -9483,3 +9483,20 @@
 - `E2E_BASE_URL=http://localhost:3000 pnpm e2e:auth`
 - Reproduced the provided long Unit 5-style test in Playwright and confirmed MC selection keeps `window.scrollY` at 0 with no blank area
 - `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
+
+## 2026-04-27 — Issue 505 Teacher Tests/Quizzes Work-Surface Shell
+
+- Migrated teacher tests to `TeacherWorkSurfaceShell`, with the authoring/grading mode bar and grading student inspector contained inside the tests workspace split.
+- Reworked teacher quizzes as a quiz-only work surface with URL-controlled selected quiz state and delete in the selected workspace.
+- Routed `testId`, `testMode`, `testStudentId`, and `quizId` through classroom search params, including active-tab re-click summary resets and stale param replacement.
+- Disabled external right sidebars for teacher tests/quizzes and updated coverage for the layout-provider expectation.
+
+**Validation:**
+- `pnpm test tests/components/TeacherTestsTab.test.tsx tests/components/TeacherQuizzesTab.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherWorkSurfaceModeBar.test.tsx tests/components/TeacherWorkspaceSplit.test.tsx`
+- `pnpm test tests/components/ThreePanelProvider.test.tsx tests/unit/layout-config.test.ts`
+- `pnpm lint` (existing `TestDocumentsEditor` hook dependency warning remains)
+- `pnpm exec tsc --noEmit`
+- `bash scripts/verify-env.sh` (218 files, 1885 tests)
+- `E2E_BASE_URL=http://localhost:3000 pnpm e2e:verify assessment-ux-parity`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests"`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=quizzes"`

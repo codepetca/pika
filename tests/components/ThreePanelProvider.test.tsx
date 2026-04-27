@@ -21,6 +21,7 @@ function TestHarness({ initialRouteKey }: { initialRouteKey: RouteKey }) {
       <button onClick={() => setRouteKey('today')}>go-today</button>
       <button onClick={() => setRouteKey('assignments-student')}>go-assignments</button>
       <button onClick={() => setRouteKey('quizzes-teacher')}>go-quizzes</button>
+      <button onClick={() => setRouteKey('resources-teacher')}>go-resources</button>
       <button onClick={() => setRouteKey('roster')}>go-roster</button>
       <ThreePanelProvider
         routeKey={routeKey}
@@ -101,12 +102,25 @@ describe('ThreePanelProvider right sidebar sync on routeKey change', () => {
     })
     expect(screen.getByTestId('open').textContent).toBe('false')
 
-    // Go to quizzes-teacher (enabled, defaultOpen: true)
+    // Go to resources-teacher (enabled, defaultOpen: true)
     act(() => {
-      screen.getByText('go-quizzes').click()
+      screen.getByText('go-resources').click()
     })
     expect(screen.getByTestId('enabled').textContent).toBe('true')
     expect(screen.getByTestId('open').textContent).toBe('true')
+  })
+
+  it('keeps the external sidebar disabled for teacher quizzes', () => {
+    render(<TestHarness initialRouteKey="today" />)
+
+    expect(screen.getByTestId('open').textContent).toBe('true')
+
+    act(() => {
+      screen.getByText('go-quizzes').click()
+    })
+
+    expect(screen.getByTestId('enabled').textContent).toBe('false')
+    expect(screen.getByTestId('open').textContent).toBe('false')
   })
 
   it('closes sidebar when switching from today to an enabled tab with defaultOpen: false', () => {
