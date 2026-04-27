@@ -175,6 +175,7 @@ describe('GET /api/teacher/assignments/[id]', () => {
       { type: 'image', url: 'https://cdn.example.com/submission-images/shot.png' },
     ])
     expect(data.students[0].doc).toEqual({
+      is_submitted: true,
       submitted_at: submittedAt,
       updated_at: updatedAt,
       score_completion: 9,
@@ -182,10 +183,8 @@ describe('GET /api/teacher/assignments/[id]', () => {
       score_workflow: 7,
       graded_at: '2026-03-10T12:00:00.000Z',
       returned_at: null,
-      feedback_returned_at: undefined,
     })
     expect(data.students[0].doc).not.toHaveProperty('content')
-    expect(data.students[0].doc).not.toHaveProperty('is_submitted')
     expect(data.active_ai_grading_run).toBeNull()
   })
 })

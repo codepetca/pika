@@ -1,12 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
 import { useTeacherStudentWorkController } from '@/components/assignment-workspace/useTeacherStudentWorkController'
-import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
+import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import {
   ASSIGNMENT_GRADING_LAYOUT,
   clampAssignmentWorkspacePaneLayout,
@@ -14,8 +14,6 @@ import {
   type AssignmentWorkspacePaneLayout,
 } from '@/lib/assignment-grading-layout'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
-import { useWindowSize } from '@/hooks/use-window-size'
-import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 
 interface TeacherStudentWorkPanelProps {
   classroomId: string
@@ -54,7 +52,6 @@ export function TeacherStudentWorkPanel({
   canGoNextStudent = false,
   onDetailsMetaChange,
 }: TeacherStudentWorkPanelProps) {
-  const workspaceRef = useRef<HTMLDivElement | null>(null)
   const {
     data,
     error,
@@ -100,8 +97,6 @@ export function TeacherStudentWorkPanel({
     studentId,
     onLoadingStateChange,
   })
-  const { width: viewportWidth } = useWindowSize()
-  const isDesktop = viewportWidth >= DESKTOP_BREAKPOINT
   const layout = useMemo(
     () =>
       clampAssignmentWorkspacePaneLayout(
@@ -125,42 +120,6 @@ export function TeacherStudentWorkPanel({
     },
     [onLayoutChange],
   )
-
-  const handleInspectorResizeStart = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!workspaceRef.current) return
-
-      event.preventDefault()
-      const { right, width } = workspaceRef.current.getBoundingClientRect()
-      if (width <= 0) return
-
-      const handlePointerMove = (moveEvent: PointerEvent) => {
-        const nextInspectorWidth = ((right - moveEvent.clientX) / width) * 100
-        updateLayout((current) => ({
-          ...current,
-          inspectorCollapsed: false,
-          inspectorWidth: nextInspectorWidth,
-        }))
-      }
-
-      const handlePointerUp = () => {
-        window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('pointerup', handlePointerUp)
-      }
-
-      window.addEventListener('pointermove', handlePointerMove)
-      window.addEventListener('pointerup', handlePointerUp)
-    },
-    [updateLayout],
-  )
-
-  const handleInspectorResizeReset = useCallback(() => {
-    updateLayout((current) => ({
-      ...current,
-      inspectorCollapsed: false,
-      inspectorWidth: 50,
-    }))
-  }, [updateLayout])
 
   useEffect(() => {
     if (mode !== 'details' || showInitialSpinner || error || !data) {
@@ -198,9 +157,6 @@ export function TeacherStudentWorkPanel({
   }
 
   const displayContent = previewContent || data.doc?.content
-  const studentDisplayName = data.student.name?.trim() || data.student.email
-  const characterCount =
-    displayContent && !isEmpty(displayContent) ? countCharacters(displayContent) : 0
   const inspector = (
     <TeacherWorkInspector
       data={data}
@@ -246,55 +202,59 @@ export function TeacherStudentWorkPanel({
   }
 
   return (
-    <div ref={workspaceRef} className="relative flex h-full min-h-0 flex-col">
-      <SummaryDetailWorkspaceShell
-        className="flex-1"
-        orientation="responsive"
-        leftPaneClassName={`flex min-h-0 flex-col ${
-          previewEntry ? 'outline outline-2 outline-primary outline-offset-[-2px]' : ''
-        }`}
-        rightVisible={!layout.inspectorCollapsed}
-        rightPaneClassName="flex min-h-0 flex-col"
-        rightWidthPercent={!layout.inspectorCollapsed && isDesktop ? layout.inspectorWidth : undefined}
-        divider={
-          layout.inspectorCollapsed
-            ? undefined
-            : {
-                label: 'Resize content and grading panes',
-                onPointerDown: handleInspectorResizeStart,
-                onDoubleClick: handleInspectorResizeReset,
-              }
-        }
-        left={
-          <>
-            {previewEntry && (
-              <div
-                data-testid="individual-content-header"
-                className="border-b border-border bg-surface px-4 py-2 text-sm"
-              >
-                <div className="text-xs font-medium text-primary">
-                  Previewing save from{' '}
-                  {formatInTimeZone(
-                    new Date(previewEntry.created_at),
-                    'America/Toronto',
-                    'MMM d, h:mm a',
-                  )}
-                </div>
+    <TeacherWorkspaceSplit
+      className="flex-1"
+      primaryClassName={`flex min-h-0 flex-col ${
+        previewEntry ? 'outline outline-2 outline-primary outline-offset-[-2px]' : ''
+      }`}
+      inspectorClassName="flex min-h-0 flex-col"
+      inspectorCollapsed={layout.inspectorCollapsed}
+      inspectorWidth={layout.inspectorWidth}
+      minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
+      minPrimaryPx={ASSIGNMENT_GRADING_LAYOUT.detailsPrimaryMinPx}
+      onInspectorCollapsedChange={(collapsed) => {
+        updateLayout((current) => ({
+          ...current,
+          inspectorCollapsed: collapsed,
+        }))
+      }}
+      onInspectorWidthChange={(nextInspectorWidth) => {
+        updateLayout((current) => ({
+          ...current,
+          inspectorCollapsed: false,
+          inspectorWidth: nextInspectorWidth,
+        }))
+      }}
+      dividerLabel="Resize content and grading panes"
+      primary={
+        <>
+          {previewEntry && (
+            <div
+              data-testid="individual-content-header"
+              className="border-b border-border bg-surface px-4 py-2 text-sm"
+            >
+              <div className="text-xs font-medium text-primary">
+                Previewing save from{' '}
+                {formatInTimeZone(
+                  new Date(previewEntry.created_at),
+                  'America/Toronto',
+                  'MMM d, h:mm a',
+                )}
               </div>
-            )}
-            {displayContent && !isEmpty(displayContent) ? (
-              <div className="min-h-0 flex-1 overflow-auto">
-                <RichTextViewer content={displayContent} fillHeight chrome="flush" />
-              </div>
-            ) : (
-              <div className="flex h-32 items-center justify-center text-text-muted">
-                No work submitted yet
-              </div>
-            )}
-          </>
-        }
-        right={inspector}
-      />
-    </div>
+            </div>
+          )}
+          {displayContent && !isEmpty(displayContent) ? (
+            <div className="min-h-0 flex-1 overflow-auto">
+              <RichTextViewer content={displayContent} fillHeight chrome="flush" />
+            </div>
+          ) : (
+            <div className="flex h-32 items-center justify-center text-text-muted">
+              No work submitted yet
+            </div>
+          )}
+        </>
+      }
+      inspector={inspector}
+    />
   )
 }

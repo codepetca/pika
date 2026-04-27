@@ -3,26 +3,14 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { appendAssignmentFeedbackEntry } from '@/lib/server/assignment-feedback'
 import { withErrorHandler } from '@/lib/api-handler'
+import {
+  getAssignmentRubricState,
+  isAssignmentAlreadyReturnedWithoutResubmission,
+} from '@/lib/assignments'
 import { isMissingAssignmentTeacherClearedAtColumnError } from '@/lib/server/assignments'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-
-function hasReturnableAssignmentGrade(doc: {
-  score_completion: number | null
-  score_thinking: number | null
-  score_workflow: number | null
-  is_submitted?: boolean | null
-  returned_at?: string | null
-}) {
-  const hasFullGrade = doc.score_completion != null
-    && doc.score_thinking != null
-    && doc.score_workflow != null
-
-  if (!hasFullGrade) return false
-
-  return !!doc.is_submitted || !doc.returned_at
-}
 
 async function updateAssignmentDocsForStudents(opts: {
   supabase: ReturnType<typeof getServiceRoleClient>
@@ -40,7 +28,39 @@ async function updateAssignmentDocsForStudents(opts: {
   return error
 }
 
-// POST /api/teacher/assignments/[id]/return - Return graded work to students
+async function insertZeroReturnedAssignmentDocsForStudents(opts: {
+  supabase: ReturnType<typeof getServiceRoleClient>
+  assignmentId: string
+  studentIds: string[]
+  now: string
+  includeTeacherClearedAt: boolean
+}) {
+  const { supabase, assignmentId, studentIds, now, includeTeacherClearedAt } = opts
+  const rows = studentIds.map((studentId) => ({
+    assignment_id: assignmentId,
+    student_id: studentId,
+    content: { type: 'doc', content: [] },
+    is_submitted: false,
+    submitted_at: null,
+    score_completion: 0,
+    score_thinking: 0,
+    score_workflow: 0,
+    feedback: null,
+    graded_at: now,
+    graded_by: 'teacher',
+    returned_at: now,
+    feedback_returned_at: now,
+    ...(includeTeacherClearedAt ? { teacher_cleared_at: now } : {}),
+  }))
+
+  const { error } = await supabase
+    .from('assignment_docs')
+    .insert(rows)
+
+  return error
+}
+
+// POST /api/teacher/assignments/[id]/return - Return assignment work to students
 export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
@@ -83,25 +103,27 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
     return NextResponse.json({ error: 'Failed to load docs for return' }, { status: 500 })
   }
 
-  const loadedDocs = docs || []
-  const clearableDocs = loadedDocs.filter((doc) => doc.is_submitted)
-  const eligibleDocs = loadedDocs.filter(hasReturnableAssignmentGrade)
-  const eligibleDocIds = new Set(eligibleDocs.map((doc) => doc.id))
-  const actionableDocIds = new Set(
-    loadedDocs
-      .filter((doc) => doc.is_submitted || eligibleDocIds.has(doc.id) || !!doc.returned_at)
-      .map((doc) => doc.id),
-  )
-  const ungradedDocs = clearableDocs.filter((doc) => !eligibleDocIds.has(doc.id))
+  const existingDocs = docs || []
+  const blockedDocs = existingDocs.filter((doc) => getAssignmentRubricState(doc) === 'partial')
+  const nonPartialDocs = existingDocs.filter((doc) => getAssignmentRubricState(doc) !== 'partial')
+  const alreadyReturnedDocs = nonPartialDocs.filter((doc) => isAssignmentAlreadyReturnedWithoutResubmission(doc))
+  const returnableDocs = nonPartialDocs.filter((doc) => !isAssignmentAlreadyReturnedWithoutResubmission(doc))
+  const existingStudentIds = new Set(existingDocs.map((doc) => doc.student_id))
+  const returnableStudentIds = returnableDocs.map((doc) => doc.student_id)
+  const alreadyReturnedStudentIds = alreadyReturnedDocs.map((doc) => doc.student_id)
+  const blockedStudentIds = blockedDocs.map((doc) => doc.student_id)
+  const missingStudentIds = student_ids.filter((studentId) => !existingStudentIds.has(studentId))
 
   const now = new Date().toISOString()
   let mailboxTrackingAvailable = true
+  let createdStudentIds: string[] = []
+  let uncreatedMissingStudentIds: string[] = missingStudentIds
 
-  if (eligibleDocs.length > 0) {
+  if (returnableDocs.length > 0) {
     let updateError = await updateAssignmentDocsForStudents({
       supabase,
       assignmentId: id,
-      studentIds: eligibleDocs.map((doc) => doc.student_id),
+      studentIds: returnableStudentIds,
       values: {
         is_submitted: false,
         teacher_cleared_at: now,
@@ -115,7 +137,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
       updateError = await updateAssignmentDocsForStudents({
         supabase,
         assignmentId: id,
-        studentIds: eligibleDocs.map((doc) => doc.student_id),
+        studentIds: returnableStudentIds,
         values: {
           is_submitted: false,
           returned_at: now,
@@ -130,7 +152,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
     }
 
     await Promise.all(
-      eligibleDocs
+      returnableDocs
         .filter((doc) => typeof doc.teacher_feedback_draft === 'string' && doc.teacher_feedback_draft.trim())
         .map((doc) =>
           appendAssignmentFeedbackEntry({
@@ -145,7 +167,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
     )
 
     await Promise.all(
-      eligibleDocs
+      returnableDocs
         .filter((doc) => typeof doc.teacher_feedback_draft === 'string' && doc.teacher_feedback_draft.trim())
         .map((doc) =>
           supabase
@@ -158,43 +180,70 @@ export const POST = withErrorHandler('PostTeacherAssignmentReturn', async (reque
     )
   }
 
-  if (ungradedDocs.length > 0) {
-    let reopenError = await updateAssignmentDocsForStudents({
-      supabase,
-      assignmentId: id,
-      studentIds: ungradedDocs.map((doc) => doc.student_id),
-      values: {
-        is_submitted: false,
-        ...(mailboxTrackingAvailable ? { teacher_cleared_at: now } : {}),
-      },
-    })
+  if (missingStudentIds.length > 0) {
+    const { data: enrollments, error: enrollmentError } = await supabase
+      .from('classroom_enrollments')
+      .select('student_id')
+      .eq('classroom_id', assignment.classroom_id)
+      .in('student_id', missingStudentIds)
 
-    if (isMissingAssignmentTeacherClearedAtColumnError(reopenError)) {
-      mailboxTrackingAvailable = false
-      reopenError = await updateAssignmentDocsForStudents({
-        supabase,
-        assignmentId: id,
-        studentIds: ungradedDocs.map((doc) => doc.student_id),
-        values: {
-          is_submitted: false,
-        },
-      })
+    if (enrollmentError) {
+      console.error('Error loading enrollments for return:', enrollmentError)
+      return NextResponse.json({ error: 'Failed to load enrollments for return' }, { status: 500 })
     }
 
-    if (reopenError) {
-      console.error('Error reopening ungraded assignment docs:', reopenError)
-      return NextResponse.json({ error: 'Failed to clear assignment mailbox' }, { status: 500 })
+    const enrolledMissingStudentIds = new Set((enrollments || []).map((enrollment) => enrollment.student_id))
+    createdStudentIds = missingStudentIds.filter((studentId) => enrolledMissingStudentIds.has(studentId))
+    uncreatedMissingStudentIds = missingStudentIds.filter((studentId) => !enrolledMissingStudentIds.has(studentId))
+
+    if (createdStudentIds.length > 0) {
+      let insertError = await insertZeroReturnedAssignmentDocsForStudents({
+        supabase,
+        assignmentId: id,
+        studentIds: createdStudentIds,
+        now,
+        includeTeacherClearedAt: true,
+      })
+
+      if (isMissingAssignmentTeacherClearedAtColumnError(insertError)) {
+        mailboxTrackingAvailable = false
+        insertError = await insertZeroReturnedAssignmentDocsForStudents({
+          supabase,
+          assignmentId: id,
+          studentIds: createdStudentIds,
+          now,
+          includeTeacherClearedAt: false,
+        })
+      }
+
+      if (insertError) {
+        console.error('Error creating zero returned assignment docs:', insertError)
+        return NextResponse.json({ error: 'Failed to create returned docs' }, { status: 500 })
+      }
     }
   }
 
-  const returnedCount = eligibleDocs.length
-  const clearedCount = clearableDocs.length
-  const missingCount = Math.max(student_ids.length - actionableDocIds.size, 0)
+  const returnedStudentIds = [...returnableStudentIds, ...createdStudentIds]
+  const returnedCount = returnedStudentIds.length
+  const clearedCount = returnedCount
+  const blockedCount = blockedDocs.length
+  const missingCount = uncreatedMissingStudentIds.length
+  const alreadyReturnedCount = alreadyReturnedDocs.length
+  const createdCount = createdStudentIds.length
 
   return NextResponse.json({
     returned_count: returnedCount,
     cleared_count: clearedCount,
+    updated_count: returnableDocs.length,
+    created_count: createdCount,
+    created_student_ids: createdStudentIds,
+    returned_student_ids: returnedStudentIds,
+    blocked_count: blockedCount,
+    blocked_student_ids: blockedStudentIds,
+    already_returned_count: alreadyReturnedCount,
+    already_returned_student_ids: alreadyReturnedStudentIds,
     missing_count: missingCount,
+    missing_student_ids: uncreatedMissingStudentIds,
     mailbox_tracking_available: mailboxTrackingAvailable,
   })
 })

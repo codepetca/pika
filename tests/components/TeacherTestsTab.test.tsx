@@ -624,6 +624,84 @@ describe('TeacherTestsTab', () => {
     })
   })
 
+  it('keeps grading rows visible while a background poll refreshes', async () => {
+    let intervalCallback: (() => void) | null = null
+    let resolvePoll:
+      | ((value: { ok: boolean; json: () => Promise<any> }) => void)
+      | null = null
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    })
+    vi.spyOn(document, 'hasFocus').mockImplementation(() => true)
+    vi.spyOn(window, 'setInterval').mockImplementation(((callback: TimerHandler) => {
+      intervalCallback = callback as () => void
+      return 1
+    }) as typeof window.setInterval)
+
+    const pollResultsPromise = new Promise<{ ok: boolean; json: () => Promise<any> }>((resolve) => {
+      resolvePoll = resolve
+    })
+
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse())
+      .mockImplementationOnce(() => pollResultsPromise as unknown as Promise<Response>)
+
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    fireEvent.click(screen.getByRole('button', { name: 'Grading' }))
+
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByText('3/5')).toBeInTheDocument()
+    expect(screen.getByTestId('assessment-status-icon-submitted')).toHaveClass('text-success')
+
+    await act(async () => {
+      intervalCallback?.()
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('Alice Zephyr')).toBeInTheDocument()
+    expect(screen.getByText('3/5')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Refreshing grading rows...')
+
+    await act(async () => {
+      resolvePoll?.(
+        makeResultsResponse({
+          students: [
+            {
+              student_id: 'student-1',
+              name: 'Alice Zephyr',
+              first_name: 'Alice',
+              last_name: 'Zephyr',
+              email: 'alice@example.com',
+              status: 'submitted',
+              submitted_at: null,
+              last_activity_at: '2026-04-17T18:20:00.000Z',
+              points_earned: 4,
+              points_possible: 5,
+              percent: 80,
+              graded_open_responses: 1,
+              ungraded_open_responses: 0,
+              focus_summary: null,
+            },
+          ],
+        })
+      )
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('4/5')).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('does not start polling when the server reports the test is closed', async () => {
     let visibilityState: DocumentVisibilityState = 'visible'
     let hasFocus = true
