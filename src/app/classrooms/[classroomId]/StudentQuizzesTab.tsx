@@ -110,6 +110,7 @@ const EXAM_WINDOW_COMPLIANCE_GRACE_MS = 400
 const EXAM_WINDOW_MIN_WIDTH_RATIO = 0.92
 const EXAM_WINDOW_MIN_HEIGHT_RATIO = 0.88
 const EXAM_LOCK_OVERLAY_ENABLED = true
+const EXAM_FORM_INTERACTION_RESIZE_SUPPRESSION_MS = 1500
 const DOCS_EXIT_SUPPRESSION_WINDOW_MS = 1200
 const UNSUPPRESSED_ROUTE_EXIT_SOURCES = new Set([
   'tab_navigation',
@@ -235,6 +236,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
   const pendingNonCompliantSourceRef = useRef<'fullscreen_exit' | 'window_resize' | null>(null)
   const lastRouteExitRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
   const lastWindowSignalRef = useRef<{ source: string; loggedAtMs: number } | null>(null)
+  const lastExamFormInteractionAtRef = useRef(0)
   const findIntentUntilRef = useRef(0)
   const findSuppressionUntilRef = useRef(0)
   const docsInteractionSuppressionUntilRef = useRef(0)
@@ -296,6 +298,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
       clearPendingNonCompliantTimeout()
       lastRouteExitRef.current = null
       lastWindowSignalRef.current = null
+      lastExamFormInteractionAtRef.current = 0
       findIntentUntilRef.current = 0
       findSuppressionUntilRef.current = 0
       docsInteractionSuppressionUntilRef.current = 0
@@ -491,6 +494,11 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     docsInteractionSuppressionUntilRef.current = Date.now() + DOCS_EXIT_SUPPRESSION_WINDOW_MS
   }, [isTestsView])
 
+  const markExamFormInteraction = useCallback(() => {
+    if (!focusEnabledRef.current || !isTestsView) return
+    lastExamFormInteractionAtRef.current = Date.now()
+  }, [isTestsView])
+
   const shouldSuppressForDocInteraction = useCallback((source?: string) => {
     if (!focusEnabledRef.current || !isTestsView) return false
     if (source && UNSUPPRESSED_ROUTE_EXIT_SOURCES.has(source)) return false
@@ -622,6 +630,35 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     if (snapshot.isCompliant) {
       clearPendingNonCompliantTimeout()
       setIsWindowCompliantStable(true)
+      return snapshot
+    }
+
+    const now = Date.now()
+    const resizeFollowedExamInteraction =
+      source === 'window_resize' &&
+      isWindowCompliantStableRef.current &&
+      now - lastExamFormInteractionAtRef.current <= EXAM_FORM_INTERACTION_RESIZE_SUPPRESSION_MS
+
+    if (resizeFollowedExamInteraction) {
+      clearPendingNonCompliantTimeout()
+      setIsWindowCompliantStable(true)
+      pendingNonCompliantSourceRef.current = source
+      pendingNonCompliantTimeoutRef.current = window.setTimeout(() => {
+        pendingNonCompliantTimeoutRef.current = null
+        const confirmedSource = pendingNonCompliantSourceRef.current
+        pendingNonCompliantSourceRef.current = null
+        const confirmedSnapshot = getExamWindowComplianceSnapshot()
+        applyWindowComplianceSnapshot(confirmedSnapshot)
+
+        if (confirmedSnapshot.isCompliant) {
+          setIsWindowCompliantStable(true)
+          return
+        }
+
+        if (confirmedSource) {
+          confirmNonCompliantWindow(confirmedSource, confirmedSnapshot)
+        }
+      }, EXAM_FORM_INTERACTION_RESIZE_SUPPRESSION_MS)
       return snapshot
     }
 
@@ -1340,6 +1377,8 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                     } ${
                       showNotMaximizedWarning ? 'border-warning bg-warning-bg/20' : ''
                     }`}
+                    onPointerDownCapture={markExamFormInteraction}
+                    onKeyDownCapture={markExamFormInteraction}
                   >
                     {selectedQuizId && loadingQuiz ? (
                       <div className="flex justify-center py-12">
