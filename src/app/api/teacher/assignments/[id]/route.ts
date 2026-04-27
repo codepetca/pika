@@ -120,6 +120,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
       student_updated_at: doc ? (studentUpdatedAtByDocId.get(doc.id) ?? null) : null,
       doc: doc
         ? {
+            is_submitted: doc.is_submitted,
             submitted_at: doc.submitted_at,
             updated_at: doc.updated_at,
             score_completion: doc.score_completion,
@@ -127,6 +128,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
             score_workflow: doc.score_workflow,
             graded_at: doc.graded_at,
             returned_at: doc.returned_at,
+            teacher_cleared_at: doc.teacher_cleared_at,
             feedback_returned_at: doc.feedback_returned_at,
           }
         : null,

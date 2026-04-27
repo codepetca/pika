@@ -9379,3 +9379,36 @@
 - `node scripts/features.mjs validate`
 - `pnpm install`
 - `bash scripts/verify-env.sh`
+## 2026-04-26 — Revise Assignment Return For Missing And Already-Returned Work
+
+- Updated assignment return so enrolled students with no assignment doc get a returned 0/0/0 doc without being marked submitted.
+- Added already-returned-without-resubmission detection so repeated return attempts skip unchanged returned docs while allowing later student resubmissions to be returned again.
+- Updated teacher return confirmation/success messaging and assignment detail rows to support the revised selection behavior.
+
+**Validation:**
+- `pnpm test`
+- `pnpm exec eslint 'src/app/api/teacher/assignments/[id]/return/route.ts' 'src/app/api/teacher/assignments/[id]/route.ts' 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' 'src/lib/assignments.ts' 'tests/api/teacher/assignments-id-return.test.ts' 'tests/api/teacher/assignments-id.test.ts' 'tests/components/TeacherClassroomView.test.tsx' 'tests/unit/assignments.test.ts'`
+- `pnpm exec tsc --noEmit`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments'`
+
+## 2026-04-26 — Disable Assignment Return When Nothing Is Returnable
+
+- Disabled the teacher batch Return button when the selected students are only already-returned and/or partial-rubric blocked rows.
+- Added the tooltip copy `Nothing returnable selected` and kept missing no-doc students actionable because the return flow creates zero-grade returned docs for them.
+- Added component coverage for the disabled no-op return state.
+
+**Validation:**
+- `pnpm test`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`
+- `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh 'classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments'`
+
+## 2026-04-27 — Clarify Assignment Return Success Counts
+
+- Changed the teacher return success message so existing returned docs and newly created zero-grade returns are counted separately without double-counting created docs.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec eslint 'src/app/classrooms/[classroomId]/TeacherClassroomView.tsx' tests/components/TeacherClassroomView.test.tsx`
+- `pnpm exec tsc --noEmit`

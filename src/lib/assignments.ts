@@ -2,9 +2,22 @@ import { Assignment, AssignmentDoc, AssignmentStatus, AssignmentStats } from '@/
 import { formatInTimeZone } from 'date-fns-tz'
 
 type AssignmentStatDoc = Pick<AssignmentDoc, 'is_submitted' | 'submitted_at' | 'returned_at' | 'teacher_cleared_at'>
+type AssignmentRubricDoc = {
+  score_completion?: number | null
+  score_thinking?: number | null
+  score_workflow?: number | null
+}
+type AssignmentReturnDoc = {
+  is_submitted?: boolean | null
+  submitted_at?: string | null
+  returned_at?: string | null
+  teacher_cleared_at?: string | null
+}
 
-function getAssignmentFullReturnAt(
-  doc: Pick<AssignmentDoc, 'teacher_cleared_at' | 'returned_at'>
+export type AssignmentRubricState = 'blank' | 'partial' | 'complete'
+
+export function getAssignmentFullReturnAt(
+  doc: Pick<AssignmentReturnDoc, 'teacher_cleared_at' | 'returned_at'>
 ): string | null {
   const timestamps = [doc.teacher_cleared_at, doc.returned_at].filter((value): value is string => typeof value === 'string')
   if (timestamps.length === 0) return null
@@ -12,6 +25,41 @@ function getAssignmentFullReturnAt(
   return timestamps.reduce((latest, current) =>
     new Date(current).getTime() > new Date(latest).getTime() ? current : latest
   )
+}
+
+export function getAssignmentRubricState(
+  doc: AssignmentRubricDoc | null | undefined
+): AssignmentRubricState | null {
+  if (!doc) return null
+
+  const filledCount = [
+    doc.score_completion,
+    doc.score_thinking,
+    doc.score_workflow,
+  ].filter((value) => value !== null && value !== undefined).length
+
+  if (filledCount === 0) return 'blank'
+  if (filledCount === 3) return 'complete'
+  return 'partial'
+}
+
+export function isAssignmentReturnable(
+  doc: AssignmentRubricDoc | null | undefined
+): boolean {
+  const rubricState = getAssignmentRubricState(doc)
+  return rubricState === 'blank' || rubricState === 'complete'
+}
+
+export function isAssignmentAlreadyReturnedWithoutResubmission(
+  doc: AssignmentReturnDoc | null | undefined
+): boolean {
+  if (!doc) return false
+
+  const fullReturnAt = getAssignmentFullReturnAt(doc)
+  if (!fullReturnAt) return false
+  if (!doc.is_submitted || !doc.submitted_at) return true
+
+  return new Date(doc.submitted_at).getTime() <= new Date(fullReturnAt).getTime()
 }
 
 /**
