@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup, act, within } from '@testing-library/react'
 import { TeacherSettingsTab } from '@/app/classrooms/[classroomId]/TeacherSettingsTab'
 import { TooltipProvider } from '@/ui'
 import type { Classroom } from '@/types'
@@ -273,6 +273,60 @@ describe('TeacherSettingsTab - Allow Joining', () => {
     const [url, options] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/teacher/classrooms/cls-123')
     expect(JSON.parse(options.body)).toEqual({ allowEnrollment: false })
+  })
+})
+
+describe('TeacherSettingsTab - Classroom Blueprint Promotion', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+    mockPush.mockClear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    cleanup()
+  })
+
+  it('opens the create classroom blueprint dialog with the classroom title prefilled', () => {
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Classroom Blueprint' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('heading', { name: 'Create Classroom Blueprint' })).toBeInTheDocument()
+    expect(within(dialog).getByPlaceholderText('Grade 11 Computer Science')).toHaveValue('Test Course')
+  })
+
+  it('creates a classroom blueprint and redirects into the blueprint workspace', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        blueprint_id: 'b-1',
+        redirect_url: '/teacher/blueprints?blueprint=b-1&fromClassroom=cls-123',
+      }),
+    })
+
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Classroom Blueprint' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByPlaceholderText('Grade 11 Computer Science'), { target: { value: 'Reusable Draft' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create Blueprint' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/classrooms/cls-123/blueprint', expect.objectContaining({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Reusable Draft' }),
+    }))
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/teacher/blueprints?blueprint=b-1&fromClassroom=cls-123')
+    })
   })
 })
 

@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { createClassroomSchema } from '@/lib/validations/teacher'
 import { getNextTeacherClassroomPosition, listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
+import { hydrateClassroomRecord } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -48,7 +49,9 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
     throw new ApiError(500, 'Failed to fetch classrooms')
   }
 
-  return NextResponse.json({ classrooms })
+  return NextResponse.json({
+    classrooms: (classrooms || []).map((classroom) => hydrateClassroomRecord(classroom as Record<string, any>)),
+  })
 })
 
 // POST /api/teacher/classrooms - Create classroom
@@ -82,5 +85,5 @@ export const POST = withErrorHandler('CreateClassroom', async (request: NextRequ
     throw new ApiError(500, 'Failed to create classroom')
   }
 
-  return NextResponse.json({ classroom }, { status: 201 })
+  return NextResponse.json({ classroom: hydrateClassroomRecord(classroom as Record<string, any>) }, { status: 201 })
 })

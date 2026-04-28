@@ -52,4 +52,11 @@ describe('TeacherClassroomsIndex', () => {
     expect(await screen.findByText('Archived')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '+ New' })).toBeInTheDocument()
   })
+
+  it('does not show a Blueprints button in the bottom action bar', async () => {
+    render(<TeacherClassroomsIndex initialClassrooms={[]} />)
+
+    expect(screen.queryByRole('button', { name: 'Blueprints' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+ New' })).toBeInTheDocument()
+  })
 })

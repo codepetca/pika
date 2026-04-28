@@ -68,9 +68,21 @@ export function TestDocumentsEditor({
 
   useEffect(() => {
     if (!externalAddRequest) return
-    openAddModal(externalAddRequest.mode)
+    if (!isEditable || saving || uploading) return
+    setError('')
+    setActiveAddTab(externalAddRequest.mode)
+    setLinkTitle('')
+    setLinkUrl('')
+    setTextTitle('')
+    setTextContent('')
+    setUploadTitle('')
+    setSelectedUploadFile(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+    setActiveModal('add')
     onExternalAddRequestHandled?.()
-  }, [externalAddRequest, onExternalAddRequestHandled])
+  }, [externalAddRequest, isEditable, onExternalAddRequestHandled, saving, uploading])
 
   useEffect(() => {
     const interval = window.setInterval(() => {

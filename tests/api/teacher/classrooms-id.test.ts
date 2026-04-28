@@ -9,12 +9,16 @@ import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
-vi.mock('@/lib/server/classrooms', () => ({
-  assertTeacherOwnsClassroom: vi.fn(async () => ({
-    ok: true,
-    classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
-  })),
-}))
+vi.mock('@/lib/server/classrooms', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/server/classrooms')>('@/lib/server/classrooms')
+  return {
+    ...actual,
+    assertTeacherOwnsClassroom: vi.fn(async () => ({
+      ok: true,
+      classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
+    })),
+  }
+})
 vi.mock('@/lib/server/classroom-order', () => ({
   getNextTeacherClassroomPosition: vi.fn(),
 }))
@@ -180,6 +184,19 @@ describe('PATCH /api/teacher/classrooms/[id]', () => {
 
     const data = await response.json()
     expect(data.error).toBe('Classroom is not archived')
+  })
+
+  it('should require a slug before publishing the actual course website', async () => {
+    const request = new NextRequest('http://localhost:3000/api/teacher/classrooms/c-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ actualSitePublished: true }),
+    })
+
+    const response = await PATCH(request, { params: { id: 'c-1' } })
+    expect(response.status).toBe(400)
+
+    const data = await response.json()
+    expect(data.error).toBe('A public slug is required before publishing the actual course website')
   })
 })
 

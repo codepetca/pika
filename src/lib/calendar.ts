@@ -5,6 +5,9 @@ import type { Semester, SemesterRange } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
 const NOON_UTC_HOUR = 12
+const ontarioHolidayCalendar = new Holidays('CA', 'ON')
+ontarioHolidayCalendar.setTimezone(TIMEZONE)
+const publicHolidayCache = new Map<number, string[]>()
 
 // Semester date ranges
 export const SEMESTER_RANGES: Record<Semester, SemesterRange> = {
@@ -23,30 +26,27 @@ export const SEMESTER_RANGES: Record<Semester, SemesterRange> = {
  * Uses date-holidays library for automatic calculation
  */
 export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
-  const hd = new Holidays('CA', 'ON') // Canada, Ontario
-  hd.setTimezone(TIMEZONE)
   const holidays: string[] = []
+  const normalizedStartDate = toUtcNoon(startDate)
+  const normalizedEndDate = toUtcNoon(endDate)
+  const startDateKey = formatInTimeZone(normalizedStartDate, TIMEZONE, 'yyyy-MM-dd')
+  const endDateKey = formatInTimeZone(normalizedEndDate, TIMEZONE, 'yyyy-MM-dd')
 
-  // Get all holidays in the date range
-  const allDates = getUtcNoonRange(startDate, endDate)
+  const startYear = normalizedStartDate.getUTCFullYear()
+  const endYear = normalizedEndDate.getUTCFullYear()
+  const startMonth = normalizedStartDate.getUTCMonth()
+  const endMonth = normalizedEndDate.getUTCMonth()
 
-  allDates.forEach(date => {
-    const dateHolidays = hd.isHoliday(date)
-    if (dateHolidays) {
-      // Only include public/statutory holidays, not observances
-      const hasPublicHoliday = dateHolidays.some(h => h.type === 'public')
-      if (hasPublicHoliday) {
-        holidays.push(formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd'))
+  for (let year = startYear; year <= endYear; year++) {
+    for (const holiday of getPublicOntarioHolidaysForYear(year)) {
+      if (holiday >= startDateKey && holiday <= endDateKey) {
+        holidays.push(holiday)
       }
     }
-  })
+  }
 
   // Add school-specific breaks (Winter Break and March Break)
   // These are not statutory holidays but are days when school is closed
-  const startYear = startDate.getUTCFullYear()
-  const endYear = endDate.getUTCFullYear()
-  const startMonth = startDate.getUTCMonth()
-  const endMonth = endDate.getUTCMonth()
 
   // Winter Break: Dec 22 - Jan 3 (approximately)
   // Check if date range includes December
@@ -94,7 +94,7 @@ export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
     }
   }
 
-  return [...new Set(holidays)] // Remove duplicates
+  return [...new Set(holidays)]
 }
 
 /**
@@ -111,8 +111,8 @@ export function getSemesterDates(semester: Semester, year: number): { start: Dat
     endYear = year + 1
   }
 
-  const start = parse(`${startYear}-${range.start}`, 'yyyy-MM-dd', new Date())
-  const end = parse(`${endYear}-${range.end}`, 'yyyy-MM-dd', new Date())
+  const start = toUtcNoon(parse(`${startYear}-${range.start}`, 'yyyy-MM-dd', new Date()))
+  const end = toUtcNoon(parse(`${endYear}-${range.end}`, 'yyyy-MM-dd', new Date()))
 
   return { start, end }
 }
@@ -152,14 +152,15 @@ export function generateClassDays(semester: Semester, year: number): string[] {
  * Determines which semester a date belongs to
  */
 export function getSemesterForDate(date: Date, year: number): Semester | null {
+  const normalizedDate = toUtcNoon(date)
   const sem1 = getSemesterDates('semester1', year)
   const sem2 = getSemesterDates('semester2', year)
 
-  if (date >= sem1.start && date <= sem1.end) {
+  if (normalizedDate >= sem1.start && normalizedDate <= sem1.end) {
     return 'semester1'
   }
 
-  if (date >= sem2.start && date <= sem2.end) {
+  if (normalizedDate >= sem2.start && normalizedDate <= sem2.end) {
     return 'semester2'
   }
 
@@ -207,4 +208,28 @@ function getUtcNoonRange(startDate: Date, endDate: Date): Date[] {
   }
 
   return dates
+}
+
+function getPublicOntarioHolidaysForYear(year: number): string[] {
+  const cached = publicHolidayCache.get(year)
+  if (cached) return cached
+
+  const holidays = ontarioHolidayCalendar
+    .getHolidays(year)
+    .filter((holiday) => holiday.type === 'public')
+    .map((holiday) => {
+      if (typeof holiday.date === 'string' && holiday.date.length > 0) {
+        return holiday.date.split(' ')[0]
+      }
+
+      if (holiday.start instanceof Date) {
+        return formatInTimeZone(holiday.start, TIMEZONE, 'yyyy-MM-dd')
+      }
+
+      return String(holiday.date).split(' ')[0]
+    })
+
+  const deduped = [...new Set(holidays)]
+  publicHolidayCache.set(year, deduped)
+  return deduped
 }
