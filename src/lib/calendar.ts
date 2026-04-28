@@ -27,13 +27,15 @@ export const SEMESTER_RANGES: Record<Semester, SemesterRange> = {
  */
 export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
   const holidays: string[] = []
-  const startDateKey = formatInTimeZone(startDate, TIMEZONE, 'yyyy-MM-dd')
-  const endDateKey = formatInTimeZone(endDate, TIMEZONE, 'yyyy-MM-dd')
+  const normalizedStartDate = toUtcNoon(startDate)
+  const normalizedEndDate = toUtcNoon(endDate)
+  const startDateKey = formatInTimeZone(normalizedStartDate, TIMEZONE, 'yyyy-MM-dd')
+  const endDateKey = formatInTimeZone(normalizedEndDate, TIMEZONE, 'yyyy-MM-dd')
 
-  const startYear = startDate.getUTCFullYear()
-  const endYear = endDate.getUTCFullYear()
-  const startMonth = startDate.getUTCMonth()
-  const endMonth = endDate.getUTCMonth()
+  const startYear = normalizedStartDate.getUTCFullYear()
+  const endYear = normalizedEndDate.getUTCFullYear()
+  const startMonth = normalizedStartDate.getUTCMonth()
+  const endMonth = normalizedEndDate.getUTCMonth()
 
   for (let year = startYear; year <= endYear; year++) {
     for (const holiday of getPublicOntarioHolidaysForYear(year)) {
@@ -109,8 +111,8 @@ export function getSemesterDates(semester: Semester, year: number): { start: Dat
     endYear = year + 1
   }
 
-  const start = parse(`${startYear}-${range.start}`, 'yyyy-MM-dd', new Date())
-  const end = parse(`${endYear}-${range.end}`, 'yyyy-MM-dd', new Date())
+  const start = toUtcNoon(parse(`${startYear}-${range.start}`, 'yyyy-MM-dd', new Date()))
+  const end = toUtcNoon(parse(`${endYear}-${range.end}`, 'yyyy-MM-dd', new Date()))
 
   return { start, end }
 }
@@ -150,14 +152,15 @@ export function generateClassDays(semester: Semester, year: number): string[] {
  * Determines which semester a date belongs to
  */
 export function getSemesterForDate(date: Date, year: number): Semester | null {
+  const normalizedDate = toUtcNoon(date)
   const sem1 = getSemesterDates('semester1', year)
   const sem2 = getSemesterDates('semester2', year)
 
-  if (date >= sem1.start && date <= sem1.end) {
+  if (normalizedDate >= sem1.start && normalizedDate <= sem1.end) {
     return 'semester1'
   }
 
-  if (date >= sem2.start && date <= sem2.end) {
+  if (normalizedDate >= sem2.start && normalizedDate <= sem2.end) {
     return 'semester2'
   }
 
@@ -215,6 +218,10 @@ function getPublicOntarioHolidaysForYear(year: number): string[] {
     .getHolidays(year)
     .filter((holiday) => holiday.type === 'public')
     .map((holiday) => {
+      if (typeof holiday.date === 'string' && holiday.date.length > 0) {
+        return holiday.date.split(' ')[0]
+      }
+
       if (holiday.start instanceof Date) {
         return formatInTimeZone(holiday.start, TIMEZONE, 'yyyy-MM-dd')
       }

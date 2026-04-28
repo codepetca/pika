@@ -9574,3 +9574,16 @@
 
 **Validation:**
 - `pnpm lint`
+
+## 2026-04-27 — Fix CI-only class-day coverage failure
+
+**Completed:**
+- Fixed a timezone-sensitive calendar bug that shifted `YYYY-MM-DD` ranges by a day on UTC runners by normalizing semester and holiday range inputs to UTC noon in `src/lib/calendar.ts`.
+- Hardened Ontario public holiday extraction to prefer the explicit `date-holidays` date string before falling back to `start`.
+- Added a regression test covering the Good Friday exclusion path for a custom April date range in `tests/unit/calendar.test.ts`.
+
+**Validation:**
+- `pnpm vitest run tests/unit/calendar.test.ts tests/unit/server-class-days.test.ts --reporter=dot`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test:coverage`
