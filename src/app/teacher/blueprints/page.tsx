@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, FormField, Input } from '@/ui'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Spinner } from '@/components/Spinner'
@@ -73,6 +73,7 @@ function emptyDraftState(): DraftState {
 
 export default function TeacherBlueprintsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const [blueprints, setBlueprints] = useState<CourseBlueprint[]>([])
   const [selectedBlueprintId, setSelectedBlueprintId] = useState<string | null>(null)
@@ -111,6 +112,8 @@ export default function TeacherBlueprintsPage() {
   const [mergeSelection, setMergeSelection] = useState<Record<string, boolean>>({})
   const [mergeLoading, setMergeLoading] = useState(false)
   const [mergeApplying, setMergeApplying] = useState(false)
+  const preferredBlueprintId = searchParams.get('blueprint')
+  const fromClassroomId = searchParams.get('fromClassroom')
 
   const counts = useMemo(() => {
     if (!detail) return null
@@ -121,6 +124,14 @@ export default function TeacherBlueprintsPage() {
       lesson_templates: detail.lesson_templates.length,
     }
   }, [detail])
+
+  const entryNotice = useMemo(() => {
+    if (!fromClassroomId || !preferredBlueprintId || selectedBlueprintId !== preferredBlueprintId) return ''
+    const classroomTitle = detail?.linked_classrooms.find((classroom) => classroom.id === fromClassroomId)?.title
+    return classroomTitle
+      ? `Blueprint created from ${classroomTitle}. Review and refine it here before publishing or exporting.`
+      : 'Blueprint created from classroom content. Review and refine it here before publishing or exporting.'
+  }, [detail, fromClassroomId, preferredBlueprintId, selectedBlueprintId])
 
   async function loadBlueprints(preferredId?: string) {
     setLoadingList(true)
@@ -186,8 +197,8 @@ export default function TeacherBlueprintsPage() {
   }
 
   useEffect(() => {
-    loadBlueprints()
-  }, [])
+    loadBlueprints(preferredBlueprintId || undefined)
+  }, [preferredBlueprintId])
 
   useEffect(() => {
     if (!selectedBlueprintId) {
@@ -263,7 +274,10 @@ export default function TeacherBlueprintsPage() {
         const response = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}/assessments/bulk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ assessments: parsed.assessments }),
+          body: JSON.stringify({
+            assessments: parsed.assessments,
+            assessmentType: activeTab === 'quizzes' ? 'quiz' : 'test',
+          }),
         })
         const data = await response.json().catch(() => ({}))
         if (!response.ok) {
@@ -526,6 +540,12 @@ export default function TeacherBlueprintsPage() {
 
         {error ? (
           <div className="mb-4 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{error}</div>
+        ) : null}
+
+        {entryNotice ? (
+          <div className="mb-4 rounded-md border border-border bg-info-bg px-3 py-2 text-sm text-text-default">
+            {entryNotice}
+          </div>
         ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]">

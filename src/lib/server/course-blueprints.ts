@@ -5,6 +5,8 @@ import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { buildLessonPlanContentFields } from '@/lib/lesson-plan-content'
 import { markdownToTiptapContent } from '@/lib/limited-markdown'
 import { generateClassDaysForClassroom } from '@/lib/server/class-days'
+import { loadClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
+import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { getTodayInToronto } from '@/lib/timezone'
 import {
   buildCourseBlueprintExportBundle,
@@ -41,6 +43,20 @@ type BlueprintOwnershipResult =
 
 function getSupabase() {
   return getServiceRoleClient()
+}
+
+async function rollbackClassroomCreation(supabase: SupabaseClient, classroomId: string) {
+  const { error } = await supabase.from('classrooms').delete().eq('id', classroomId)
+  if (error) {
+    console.error('Failed to rollback classroom creation:', error)
+  }
+}
+
+async function rollbackBlueprintCreation(supabase: SupabaseClient, blueprintId: string) {
+  const { error } = await supabase.from('course_blueprints').delete().eq('id', blueprintId)
+  if (error) {
+    console.error('Failed to rollback course blueprint creation:', error)
+  }
 }
 
 export function hydrateCourseBlueprint(row: Record<string, any>): CourseBlueprint {
@@ -252,6 +268,23 @@ export async function updateCourseBlueprint(
   const ownership = await assertTeacherOwnsCourseBlueprint(teacherId, blueprintId)
   if (!ownership.ok) return ownership
 
+  const effectivePlannedSiteSlug =
+    updates.planned_site_slug !== undefined
+      ? updates.planned_site_slug
+      : ownership.blueprint.planned_site_slug
+  const effectivePlannedSitePublished =
+    updates.planned_site_published !== undefined
+      ? updates.planned_site_published
+      : ownership.blueprint.planned_site_published
+
+  if (effectivePlannedSitePublished && !effectivePlannedSiteSlug) {
+    return {
+      ok: false as const,
+      status: 400,
+      error: 'A planned site slug is required before publishing the planned site',
+    }
+  }
+
   const supabase = getSupabase()
   if (updates.planned_site_slug) {
     const { data: slugConflict, error: slugError } = await supabase
@@ -381,7 +414,10 @@ export async function syncCourseBlueprintAssessments(
     content: QuizDraftContent | TestDraftContent
     documents: TestDocument[]
     position: number
-  }>
+  }>,
+  options?: {
+    replaceTypes?: Array<'quiz' | 'test'>
+  }
 ) {
   const ownership = await assertTeacherOwnsCourseBlueprint(teacherId, blueprintId)
   if (!ownership.ok) return ownership
@@ -389,7 +425,7 @@ export async function syncCourseBlueprintAssessments(
   const supabase = getSupabase()
   const { data: existingAssessments, error: existingAssessmentsError } = await supabase
     .from('course_blueprint_assessments')
-    .select('id')
+    .select('id, assessment_type')
     .eq('course_blueprint_id', blueprintId)
 
   if (existingAssessmentsError) {
@@ -399,9 +435,14 @@ export async function syncCourseBlueprintAssessments(
   const creates = assessments.filter((assessment) => !assessment.id)
   const updates = assessments.filter((assessment) => assessment.id)
   const incomingIds = new Set(updates.map((assessment) => assessment.id!))
+  const replaceTypes = options?.replaceTypes ? new Set(options.replaceTypes) : null
   const deleteIds = (existingAssessments || [])
+    .filter((assessment) => {
+      const assessmentType = assessment.assessment_type as 'quiz' | 'test'
+      if (replaceTypes && !replaceTypes.has(assessmentType)) return false
+      return !incomingIds.has(assessment.id as string)
+    })
     .map((assessment) => assessment.id as string)
-    .filter((id) => !incomingIds.has(id))
 
   if (deleteIds.length > 0) {
     const { error } = await supabase
@@ -537,6 +578,7 @@ export async function importCourseBlueprintBundle(teacherId: string, bundle: Cou
     return { ok: false as const, status: 400, error: 'Invalid course package', errors: parsed.errors }
   }
 
+  const supabase = getSupabase()
   const blueprint = await createCourseBlueprint(teacherId, {
     title: parsed.blueprint.title,
     subject: parsed.blueprint.subject,
@@ -545,26 +587,139 @@ export async function importCourseBlueprintBundle(teacherId: string, bundle: Cou
     term_template: parsed.blueprint.term_template,
   })
 
-  const updateResult = await updateCourseBlueprint(teacherId, blueprint.id, {
-    overview_markdown: parsed.blueprint.overview_markdown,
-    outline_markdown: parsed.blueprint.outline_markdown,
-    resources_markdown: parsed.blueprint.resources_markdown,
-    planned_site_slug: parsed.blueprint.planned_site_slug,
-    planned_site_published: parsed.blueprint.planned_site_published,
-    planned_site_config: parsed.blueprint.planned_site_config,
-  } as Partial<CourseBlueprint>)
-  if (!updateResult.ok) return updateResult
+  try {
+    const updateResult = await updateCourseBlueprint(teacherId, blueprint.id, {
+      overview_markdown: parsed.blueprint.overview_markdown,
+      outline_markdown: parsed.blueprint.outline_markdown,
+      resources_markdown: parsed.blueprint.resources_markdown,
+      planned_site_slug: parsed.blueprint.planned_site_slug,
+      planned_site_published: parsed.blueprint.planned_site_published,
+      planned_site_config: parsed.blueprint.planned_site_config,
+    } as Partial<CourseBlueprint>)
+    if (!updateResult.ok) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return updateResult
+    }
 
-  const assignmentsResult = await syncCourseBlueprintAssignments(teacherId, blueprint.id, parsed.assignments)
-  if (!assignmentsResult.ok) return assignmentsResult
+    const assignmentsResult = await syncCourseBlueprintAssignments(teacherId, blueprint.id, parsed.assignments)
+    if (!assignmentsResult.ok) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return assignmentsResult
+    }
 
-  const assessmentsResult = await syncCourseBlueprintAssessments(teacherId, blueprint.id, parsed.assessments)
-  if (!assessmentsResult.ok) return assessmentsResult
+    const assessmentsResult = await syncCourseBlueprintAssessments(teacherId, blueprint.id, parsed.assessments)
+    if (!assessmentsResult.ok) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return assessmentsResult
+    }
 
-  const lessonsResult = await syncCourseBlueprintLessonTemplates(teacherId, blueprint.id, parsed.lesson_templates)
-  if (!lessonsResult.ok) return lessonsResult
+    const lessonsResult = await syncCourseBlueprintLessonTemplates(teacherId, blueprint.id, parsed.lesson_templates)
+    if (!lessonsResult.ok) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return lessonsResult
+    }
 
-  return { ok: true as const, blueprint }
+    return { ok: true as const, blueprint }
+  } catch (error) {
+    await rollbackBlueprintCreation(supabase, blueprint.id)
+    throw error
+  }
+}
+
+export async function createCourseBlueprintFromClassroom(
+  teacherId: string,
+  classroomId: string,
+  input: { title?: string }
+) {
+  const classroomAccess = await assertTeacherCanMutateClassroom(teacherId, classroomId)
+  if (!classroomAccess.ok) return classroomAccess
+
+  const sourceResult = await loadClassroomBlueprintSource(teacherId, classroomId, {
+    lessonTemplateTitleMode: 'generic',
+  })
+  if (!sourceResult.ok) return sourceResult
+
+  const source = sourceResult.source
+  const blueprintTitle = input.title?.trim() || source.classroom.title
+  const supabase = getSupabase()
+  const blueprint = await createCourseBlueprint(teacherId, {
+    title: blueprintTitle,
+    subject: '',
+    grade_level: '',
+    course_code: '',
+    term_template: '',
+  })
+
+  try {
+    const updateResult = await updateCourseBlueprint(teacherId, blueprint.id, {
+      overview_markdown: source.classroom.course_overview_markdown,
+      outline_markdown: source.classroom.course_outline_markdown,
+      resources_markdown: source.resources_markdown,
+    } as Partial<CourseBlueprint>)
+    if (!updateResult.ok) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return updateResult
+    }
+
+    const assignmentsResult = await syncCourseBlueprintAssignments(teacherId, blueprint.id, source.assignments)
+    if (!assignmentsResult.ok) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return assignmentsResult
+    }
+
+    const assessmentsResult = await syncCourseBlueprintAssessments(teacherId, blueprint.id, [
+      ...source.quizzes,
+      ...source.tests,
+    ])
+    if (!assessmentsResult.ok) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return assessmentsResult
+    }
+
+    const lessonTemplatesResult = await syncCourseBlueprintLessonTemplates(
+      teacherId,
+      blueprint.id,
+      source.lesson_templates
+    )
+    if (!lessonTemplatesResult.ok) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return lessonTemplatesResult
+    }
+
+    const detailResult = await getCourseBlueprintDetail(teacherId, blueprint.id)
+    if (!detailResult.detail) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return {
+        ok: false as const,
+        status: detailResult.status || 500,
+        error: detailResult.error || 'Failed to load new course blueprint',
+      }
+    }
+
+    const blueprintBundle = buildCourseBlueprintExportBundle(detailResult.detail)
+    const { error: classroomUpdateError } = await supabase
+      .from('classrooms')
+      .update({
+        source_blueprint_id: blueprint.id,
+        source_blueprint_origin: {
+          blueprint_id: detailResult.detail.id,
+          blueprint_title: detailResult.detail.title,
+          package_manifest_version: blueprintBundle.manifest.version,
+          package_exported_at: blueprintBundle.manifest.exported_at,
+        },
+      })
+      .eq('id', classroomId)
+
+    if (classroomUpdateError) {
+      await rollbackBlueprintCreation(supabase, blueprint.id)
+      return { ok: false as const, status: 500, error: 'Failed to link classroom to the new blueprint' }
+    }
+
+    return { ok: true as const, blueprint: detailResult.detail }
+  } catch (error) {
+    await rollbackBlueprintCreation(supabase, blueprint.id)
+    throw error
+  }
 }
 
 export async function importCourseBlueprintArchive(teacherId: string, archive: ArrayBuffer | Uint8Array) {
@@ -584,7 +739,7 @@ async function cloneBlueprintIntoClassroom(
   classroom: { id: string; start_date: string | null }
 ) {
   if (blueprintDetail.resources_markdown.trim()) {
-    await supabase.from('classroom_resources').upsert(
+    const { error } = await supabase.from('classroom_resources').upsert(
       {
         classroom_id: classroom.id,
         content: markdownToTiptapContent(blueprintDetail.resources_markdown),
@@ -593,6 +748,7 @@ async function cloneBlueprintIntoClassroom(
       },
       { onConflict: 'classroom_id' }
     )
+    if (error) throw new Error('Failed to clone blueprint resources')
   }
 
   if (blueprintDetail.assignments.length > 0) {
@@ -788,34 +944,45 @@ export async function createClassroomFromBlueprint(
     return { ok: false as const, status: 500, error: 'Failed to create classroom' }
   }
 
-  const classDaysResult = await generateClassDaysForClassroom({
-    classroomId: classroom.id,
-    semester: input.semester,
-    year: input.year,
-    startDate: input.start_date,
-    endDate: input.end_date,
-  })
+  try {
+    const classDaysResult = await generateClassDaysForClassroom({
+      classroomId: classroom.id,
+      semester: input.semester,
+      year: input.year,
+      startDate: input.start_date,
+      endDate: input.end_date,
+    })
 
-  if (!classDaysResult.ok) {
-    return { ok: false as const, status: classDaysResult.status, error: classDaysResult.error }
-  }
+    if (!classDaysResult.ok) {
+      await rollbackClassroomCreation(supabase, classroom.id)
+      return { ok: false as const, status: classDaysResult.status, error: classDaysResult.error }
+    }
 
-  const { data: refreshedClassroom } = await supabase
-    .from('classrooms')
-    .select('*')
-    .eq('id', classroom.id)
-    .single()
+    const { data: refreshedClassroom, error: refreshedClassroomError } = await supabase
+      .from('classrooms')
+      .select('*')
+      .eq('id', classroom.id)
+      .single()
 
-  const lessonMapping = await cloneBlueprintIntoClassroom(
-    supabase,
-    teacherId,
-    detailResult.detail,
-    { id: classroom.id, start_date: refreshedClassroom?.start_date ?? null }
-  )
+    if (refreshedClassroomError) {
+      await rollbackClassroomCreation(supabase, classroom.id)
+      return { ok: false as const, status: 500, error: 'Failed to load newly created classroom' }
+    }
 
-  return {
-    ok: true as const,
-    classroom: refreshedClassroom || classroom,
-    lesson_mapping: lessonMapping,
+    const lessonMapping = await cloneBlueprintIntoClassroom(
+      supabase,
+      teacherId,
+      detailResult.detail,
+      { id: classroom.id, start_date: refreshedClassroom?.start_date ?? null }
+    )
+
+    return {
+      ok: true as const,
+      classroom: refreshedClassroom || classroom,
+      lesson_mapping: lessonMapping,
+    }
+  } catch (error) {
+    await rollbackClassroomCreation(supabase, classroom.id)
+    throw error
   }
 }

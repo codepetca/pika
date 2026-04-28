@@ -52,6 +52,14 @@ export const updateCourseBlueprintSchema = z.object({
   planned_site_published: z.boolean().optional(),
   planned_site_config: plannedSiteConfigSchema.optional(),
   position: z.number().int().optional(),
+}).superRefine((value, ctx) => {
+  if (value.planned_site_published && value.planned_site_slug === null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'A planned site slug is required before publishing the planned site',
+      path: ['planned_site_slug'],
+    })
+  }
 })
 
 export const createClassroomFromBlueprintSchema = z.object({
@@ -62,6 +70,10 @@ export const createClassroomFromBlueprintSchema = z.object({
   year: z.number().int().optional(),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+})
+
+export const createCourseBlueprintFromClassroomSchema = z.object({
+  title: z.string().min(1, 'Title is required').optional(),
 })
 
 export const courseBlueprintAiSuggestSchema = z.object({
@@ -86,6 +98,14 @@ export const updateClassroomPublishingSchema = z.object({
   actualSiteConfig: actualSiteConfigSchema.optional(),
   courseOverviewMarkdown: z.string().optional(),
   courseOutlineMarkdown: z.string().optional(),
+}).superRefine((value, ctx) => {
+  if (value.actualSitePublished && value.actualSiteSlug === null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'A public slug is required before publishing the actual course website',
+      path: ['actualSiteSlug'],
+    })
+  }
 })
 
 export const blueprintMergeSuggestionQuerySchema = z.object({

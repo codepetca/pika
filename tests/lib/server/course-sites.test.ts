@@ -308,6 +308,20 @@ describe('course-sites server helpers', () => {
       expect.arrayContaining([expect.objectContaining({ title: 'Essay' })])
     )
     expect(mockSyncAssessments).toHaveBeenCalledTimes(2)
+    expect(mockSyncAssessments).toHaveBeenNthCalledWith(
+      1,
+      'teacher-1',
+      'b-1',
+      expect.arrayContaining([expect.objectContaining({ title: 'Quiz 1' })]),
+      { replaceTypes: ['quiz'] }
+    )
+    expect(mockSyncAssessments).toHaveBeenNthCalledWith(
+      2,
+      'teacher-1',
+      'b-1',
+      expect.arrayContaining([expect.objectContaining({ title: 'Unit Test' })]),
+      { replaceTypes: ['test'] }
+    )
     expect(mockSyncLessons).toHaveBeenCalledWith(
       'teacher-1',
       'b-1',

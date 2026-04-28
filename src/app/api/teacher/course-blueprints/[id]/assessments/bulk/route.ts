@@ -14,7 +14,12 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintAssessmentsBulk'
     return NextResponse.json({ error: 'assessments array is required' }, { status: 400 })
   }
 
-  const result = await syncCourseBlueprintAssessments(user.id, id, body.assessments)
+  const result = await syncCourseBlueprintAssessments(user.id, id, body.assessments, {
+    replaceTypes:
+      body.assessmentType === 'quiz' || body.assessmentType === 'test'
+        ? [body.assessmentType]
+        : undefined,
+  })
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })
   }

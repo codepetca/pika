@@ -9540,3 +9540,29 @@
 - Local runtime use of `/teacher/blueprints` still requires the new migration to be applied through the normal human-run Supabase workflow.
 
 **Status:** Flat course blueprint v1 is implemented, validated, and ready for draft PR review.
+
+## 2026-04-27 — Archive split and blueprint hardening follow-up
+
+**Context:** Rebased `codex/course-blueprints-v1` onto `origin/main`, fixed three blueprint review findings, then narrowed the branch by removing the portable classroom-archive export/restore feature after product direction changed.
+
+**Completed:**
+- Rebased the feature worktree onto `origin/main` and resequenced the branch migrations to `057_course_blueprints.sql` and `058_course_blueprint_publication_and_provenance.sql`.
+- Fixed assessment-sync data loss by making quiz-only and test-only replacement explicit in blueprint merge/apply, AI apply, and bulk assessment save flows.
+- Hardened classroom blueprint source loading so nested `assessment_drafts`, `quiz_questions`, and `test_questions` failures surface as errors instead of silently degrading promoted/exported content.
+- Enforced publish-without-slug rejection for both planned course sites and actual classroom course sites at the validation and server-helper layers.
+- Removed the portable classroom archive feature from the branch: deleted archive API routes, archive package/server helpers, archive types/tests, and the archive UI card from classroom settings.
+- Opened follow-up issue `#515` for blueprint workflow polish, naming/copy cleanup, external file-contract documentation, and a clean smoke pass without archive scope.
+
+**Validation:**
+- `pnpm test tests/api/teacher/course-blueprint-publication-routes.test.ts tests/components/TeacherSettingsTab.test.tsx tests/api/teacher/classrooms-id.test.ts tests/lib/server/course-blueprints.test.ts tests/lib/server/course-sites.test.ts tests/lib/server/classroom-blueprint-source.test.ts tests/lib/validations/teacher.test.ts --reporter=dot`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test`
+- Visual verification with direct Playwright login screenshots for:
+  - `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=settings` teacher desktop
+  - `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=settings` teacher mobile
+  - student mobile access sanity check on the same route
+
+**Notes:**
+- The direct `ui_verify.sh` storage-state flow hit a stale access mismatch for the classroom settings route, so final screenshot verification used a direct Playwright login instead.
+- Existing soft classroom archive behavior from `main` remains intact; only the new portable snapshot export/restore feature was removed from this branch.

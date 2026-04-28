@@ -9,6 +9,8 @@ export type ClassroomAccessRecord = {
   id: string
   teacher_id: string
   archived_at: string | null
+  actual_site_slug: string | null
+  actual_site_published: boolean
 }
 
 export function hydrateClassroomRecord(row: Record<string, any>): Classroom {
@@ -37,7 +39,7 @@ export async function assertTeacherOwnsClassroom(
   const supabase = getServiceRoleClient()
   const { data: classroom, error } = await supabase
     .from('classrooms')
-    .select('id, teacher_id, archived_at')
+    .select('id, teacher_id, archived_at, actual_site_slug, actual_site_published')
     .eq('id', classroomId)
     .single()
 

@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState, useId, useRef } from 'react'
+import { useMemo, useState, useId } from 'react'
+import { useRouter } from 'next/navigation'
 import { Info } from 'lucide-react'
-import { Button, ConfirmDialog, Input, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, FormField, Input, Tooltip } from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
@@ -29,6 +30,7 @@ export function TeacherSettingsTab({
   sectionParam,
   onSectionChange = () => {},
 }: Props) {
+  const router = useRouter()
   const section: SettingsSection = sectionParam === 'class-days' ? 'class-days' : 'general'
   const allowEnrollmentId = useId()
   const titleId = useId()
@@ -36,7 +38,6 @@ export function TeacherSettingsTab({
   const actualOverviewId = useId()
   const actualOutlineId = useId()
   const isReadOnly = !!classroom.archived_at
-  const archiveImportRef = useRef<HTMLInputElement | null>(null)
   const [title, setTitle] = useState(classroom.title)
   const [titleSaving, setTitleSaving] = useState(false)
   const [titleError, setTitleError] = useState<string>('')
@@ -68,9 +69,10 @@ export function TeacherSettingsTab({
   const [siteSaving, setSiteSaving] = useState(false)
   const [siteError, setSiteError] = useState('')
   const [siteSuccess, setSiteSuccess] = useState('')
-  const [archiveBusy, setArchiveBusy] = useState(false)
-  const [archiveError, setArchiveError] = useState('')
-  const [archiveSuccess, setArchiveSuccess] = useState('')
+  const [showCreateBlueprintDialog, setShowCreateBlueprintDialog] = useState(false)
+  const [blueprintTitle, setBlueprintTitle] = useState(classroom.title)
+  const [blueprintBusy, setBlueprintBusy] = useState(false)
+  const [blueprintError, setBlueprintError] = useState('')
 
   const origin = useMemo(() => {
     if (typeof window === 'undefined') return ''
@@ -235,59 +237,37 @@ export function TeacherSettingsTab({
     }
   }
 
-  async function exportArchive() {
-    setArchiveBusy(true)
-    setArchiveError('')
-    setArchiveSuccess('')
-    try {
-      const response = await fetch(`/api/teacher/classrooms/${classroom.id}/archive`)
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to export classroom archive')
-      }
-      const blob = await response.blob()
-      const contentDisposition = response.headers.get('content-disposition') || ''
-      const fileNameMatch = contentDisposition.match(/filename="([^"]+)"/i)
-      const fileName =
-        fileNameMatch?.[1] || `${classroom.title.replace(/\s+/g, '-').toLowerCase()}.classroom-archive.tar`
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = fileName
-      link.click()
-      URL.revokeObjectURL(url)
-      setArchiveSuccess('Classroom archive exported.')
-      setTimeout(() => setArchiveSuccess(''), 2000)
-    } catch (err: any) {
-      setArchiveError(err.message || 'Failed to export classroom archive')
-    } finally {
-      setArchiveBusy(false)
-    }
+  function openCreateBlueprintDialog() {
+    setBlueprintTitle(classroom.title)
+    setBlueprintError('')
+    setShowCreateBlueprintDialog(true)
   }
 
-  async function importArchiveFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setArchiveBusy(true)
-    setArchiveError('')
-    setArchiveSuccess('')
+  function closeCreateBlueprintDialog() {
+    if (blueprintBusy) return
+    setBlueprintError('')
+    setShowCreateBlueprintDialog(false)
+  }
+
+  async function createBlueprintFromClassroom() {
+    if (isReadOnly) return
+    setBlueprintBusy(true)
+    setBlueprintError('')
     try {
-      const response = await fetch('/api/teacher/classrooms/archive/import', {
+      const response = await fetch(`/api/teacher/classrooms/${classroom.id}/blueprint`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-tar' },
-        body: await file.arrayBuffer(),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: blueprintTitle.trim() || classroom.title }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to restore classroom archive')
+        throw new Error(data.error || 'Failed to create classroom blueprint')
       }
-      setArchiveSuccess('Classroom archive restored as a new archived classroom.')
-      setTimeout(() => setArchiveSuccess(''), 2000)
+      router.push(data.redirect_url || `/teacher/blueprints?blueprint=${data.blueprint_id}&fromClassroom=${classroom.id}`)
     } catch (err: any) {
-      setArchiveError(err.message || 'Failed to restore classroom archive')
+      setBlueprintError(err.message || 'Failed to create classroom blueprint')
     } finally {
-      setArchiveBusy(false)
-      if (event.target) event.target.value = ''
+      setBlueprintBusy(false)
     }
   }
 
@@ -321,14 +301,6 @@ export function TeacherSettingsTab({
 
       {section === 'general' ? (
         <PageContent className="space-y-4 pt-0">
-            <input
-              ref={archiveImportRef}
-              type="file"
-              accept="application/x-tar,.tar"
-              className="hidden"
-              onChange={importArchiveFile}
-            />
-
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <label htmlFor={titleId} className="text-sm font-semibold text-text-default">
@@ -605,30 +577,28 @@ export function TeacherSettingsTab({
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <div className="text-sm font-semibold text-text-default">Archive & Restore</div>
-                <Tooltip content="Export a full classroom snapshot or restore one as a new archived classroom" side="right">
+                <div className="text-sm font-semibold text-text-default">Course Reuse</div>
+                <Tooltip content="Create a reusable blueprint draft from this classroom’s teacher-authored course content" side="right">
                   <span className="text-text-muted cursor-help">
                     <Info size={14} />
                   </span>
                 </Tooltip>
               </div>
 
+              <p className="text-sm text-text-muted">
+                Turn this classroom’s overview, outline, resources, assignments, assessments, and lesson plans into a reusable course blueprint.
+              </p>
+
               <div className="flex flex-wrap gap-3">
-                <Button type="button" variant="secondary" onClick={exportArchive} disabled={archiveBusy}>
-                  {archiveBusy ? 'Working…' : 'Export Archive'}
-                </Button>
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => archiveImportRef.current?.click()}
-                  disabled={archiveBusy || isReadOnly}
+                  onClick={openCreateBlueprintDialog}
+                  disabled={blueprintBusy || isReadOnly}
                 >
-                  Restore Archive
+                  {blueprintBusy ? 'Working…' : 'Create Classroom Blueprint'}
                 </Button>
               </div>
-
-              {archiveError && <div className="text-sm text-danger">{archiveError}</div>}
-              {archiveSuccess && <div className="text-sm text-success">{archiveSuccess}</div>}
             </div>
 
             <ConfirmDialog
@@ -643,6 +613,59 @@ export function TeacherSettingsTab({
               onCancel={() => (isRegenerating || isReadOnly ? null : setShowRegenerateConfirm(false))}
               onConfirm={regenerateJoinCode}
             />
+
+            <DialogPanel
+              isOpen={showCreateBlueprintDialog}
+              onClose={closeCreateBlueprintDialog}
+              maxWidth="max-w-xl"
+              className="p-6"
+              ariaLabelledBy="create-classroom-blueprint-title"
+            >
+              <h2 id="create-classroom-blueprint-title" className="mb-4 text-xl font-bold text-text-default">
+                Create Classroom Blueprint
+              </h2>
+
+              <div className="space-y-4">
+                <FormField label="Blueprint Title" required>
+                  <Input
+                    value={blueprintTitle}
+                    onChange={(e) => setBlueprintTitle(e.target.value)}
+                    disabled={blueprintBusy}
+                    placeholder="Grade 11 Computer Science"
+                  />
+                </FormField>
+
+                <div className="rounded-md border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
+                  This copies the classroom overview, outline, resources, assignments, quizzes, tests, and lesson plans into a new reusable blueprint draft. Students, submissions, grades, and attendance are not included.
+                </div>
+
+                {blueprintError ? (
+                  <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                    {blueprintError}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={closeCreateBlueprintDialog}
+                  className="flex-1"
+                  disabled={blueprintBusy}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={createBlueprintFromClassroom}
+                  className="flex-1"
+                  disabled={blueprintBusy || !blueprintTitle.trim()}
+                >
+                  {blueprintBusy ? 'Creating…' : 'Create Blueprint'}
+                </Button>
+              </div>
+            </DialogPanel>
           </PageContent>
       ) : (
         <PageContent>

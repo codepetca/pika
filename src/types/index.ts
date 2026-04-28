@@ -965,16 +965,6 @@ export interface BlueprintMergeSuggestionSet {
   suggestions: BlueprintMergeSuggestion[]
 }
 
-export interface ClassroomArchiveManifest {
-  version: string
-  exported_at: string
-  classroom_title: string
-  class_code: string
-  term_label: string | null
-  teacher_id: string
-  source_blueprint_origin: ClassroomBlueprintOrigin | null
-}
-
 export interface GradebookSettings {
   classroom_id: string
   use_weights: boolean

@@ -5,6 +5,9 @@ import type { Semester, SemesterRange } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
 const NOON_UTC_HOUR = 12
+const ontarioHolidayCalendar = new Holidays('CA', 'ON')
+ontarioHolidayCalendar.setTimezone(TIMEZONE)
+const publicHolidayCache = new Map<number, string[]>()
 
 // Semester date ranges
 export const SEMESTER_RANGES: Record<Semester, SemesterRange> = {
@@ -23,30 +26,25 @@ export const SEMESTER_RANGES: Record<Semester, SemesterRange> = {
  * Uses date-holidays library for automatic calculation
  */
 export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
-  const hd = new Holidays('CA', 'ON') // Canada, Ontario
-  hd.setTimezone(TIMEZONE)
   const holidays: string[] = []
+  const startDateKey = formatInTimeZone(startDate, TIMEZONE, 'yyyy-MM-dd')
+  const endDateKey = formatInTimeZone(endDate, TIMEZONE, 'yyyy-MM-dd')
 
-  // Get all holidays in the date range
-  const allDates = getUtcNoonRange(startDate, endDate)
-
-  allDates.forEach(date => {
-    const dateHolidays = hd.isHoliday(date)
-    if (dateHolidays) {
-      // Only include public/statutory holidays, not observances
-      const hasPublicHoliday = dateHolidays.some(h => h.type === 'public')
-      if (hasPublicHoliday) {
-        holidays.push(formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd'))
-      }
-    }
-  })
-
-  // Add school-specific breaks (Winter Break and March Break)
-  // These are not statutory holidays but are days when school is closed
   const startYear = startDate.getUTCFullYear()
   const endYear = endDate.getUTCFullYear()
   const startMonth = startDate.getUTCMonth()
   const endMonth = endDate.getUTCMonth()
+
+  for (let year = startYear; year <= endYear; year++) {
+    for (const holiday of getPublicOntarioHolidaysForYear(year)) {
+      if (holiday >= startDateKey && holiday <= endDateKey) {
+        holidays.push(holiday)
+      }
+    }
+  }
+
+  // Add school-specific breaks (Winter Break and March Break)
+  // These are not statutory holidays but are days when school is closed
 
   // Winter Break: Dec 22 - Jan 3 (approximately)
   // Check if date range includes December
@@ -94,7 +92,7 @@ export function getOntarioHolidays(startDate: Date, endDate: Date): string[] {
     }
   }
 
-  return [...new Set(holidays)] // Remove duplicates
+  return [...new Set(holidays)]
 }
 
 /**
@@ -207,4 +205,24 @@ function getUtcNoonRange(startDate: Date, endDate: Date): Date[] {
   }
 
   return dates
+}
+
+function getPublicOntarioHolidaysForYear(year: number): string[] {
+  const cached = publicHolidayCache.get(year)
+  if (cached) return cached
+
+  const holidays = ontarioHolidayCalendar
+    .getHolidays(year)
+    .filter((holiday) => holiday.type === 'public')
+    .map((holiday) => {
+      if (holiday.start instanceof Date) {
+        return formatInTimeZone(holiday.start, TIMEZONE, 'yyyy-MM-dd')
+      }
+
+      return String(holiday.date).split(' ')[0]
+    })
+
+  const deduped = [...new Set(holidays)]
+  publicHolidayCache.set(year, deduped)
+  return deduped
 }

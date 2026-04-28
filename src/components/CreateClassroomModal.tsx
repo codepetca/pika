@@ -1,13 +1,16 @@
 'use client'
 
-import { useEffect, useId, useState } from 'react'
-import { Input, Button, DialogPanel, FormField } from '@/ui'
+import { useEffect, useId, useRef, useState } from 'react'
+import { Input, Button, DialogPanel, FormField, SplitButton } from '@/ui'
 import { format } from 'date-fns'
 import type { CourseBlueprint } from '@/types'
 
-type WizardStep = 'name' | 'calendar'
+type WizardStep = 'name' | 'blueprint' | 'calendar'
 type CalendarMode = 'preset' | 'custom'
 type Semester = 'semester1' | 'semester2'
+type CreationMode = 'blank' | 'blueprint'
+
+const CHOOSE_FILE_OPTION = '__choose-file__'
 
 interface CreateClassroomModalProps {
   isOpen: boolean
@@ -24,10 +27,12 @@ export function CreateClassroomModal({
 }: CreateClassroomModalProps) {
   const startMonthId = useId()
   const endMonthId = useId()
+  const importInputRef = useRef<HTMLInputElement | null>(null)
 
   const [step, setStep] = useState<WizardStep>('name')
   const [title, setTitle] = useState('')
   const [availableBlueprints, setAvailableBlueprints] = useState<CourseBlueprint[]>([])
+  const [creationMode, setCreationMode] = useState<CreationMode>(initialBlueprintId ? 'blueprint' : 'blank')
   const [selectedBlueprintId, setSelectedBlueprintId] = useState(initialBlueprintId || '')
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('preset')
   const [selectedSemester, setSelectedSemester] = useState<Semester>('semester1')
@@ -40,10 +45,12 @@ export function CreateClassroomModal({
   const [endYear, setEndYear] = useState(currentYear + 1)
 
   const [loading, setLoading] = useState(false)
+  const [importingBlueprint, setImportingBlueprint] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!isOpen) return
+    setCreationMode(initialBlueprintId ? 'blueprint' : 'blank')
     setSelectedBlueprintId(initialBlueprintId || '')
     fetch('/api/teacher/course-blueprints')
       .then((response) => response.json().catch(() => ({})))
@@ -81,10 +88,70 @@ export function CreateClassroomModal({
   function resetForm() {
     setStep('name')
     setTitle('')
+    setCreationMode(initialBlueprintId ? 'blueprint' : 'blank')
     setSelectedBlueprintId(initialBlueprintId || '')
     setCalendarMode('preset')
     setSelectedSemester('semester1')
     setError('')
+  }
+
+  function proceedFromName(nextMode: CreationMode) {
+    setCreationMode(nextMode)
+    if (nextMode === 'blank' && !initialBlueprintId) {
+      setSelectedBlueprintId('')
+      setStep('calendar')
+    } else {
+      setStep('blueprint')
+    }
+    setError('')
+  }
+
+  function proceedFromBlueprintSource() {
+    setStep('calendar')
+    setError('')
+  }
+
+  async function handleImportBlueprintFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setImportingBlueprint(true)
+    setError('')
+
+    try {
+      const isJsonBundle = file.name.toLowerCase().endsWith('.json')
+      const response = isJsonBundle
+        ? await (async () => {
+            const text = await file.text()
+            const bundle = JSON.parse(text)
+            return fetch('/api/teacher/course-blueprints/import', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(bundle),
+            })
+          })()
+        : await fetch('/api/teacher/course-blueprints/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-tar' },
+            body: await file.arrayBuffer(),
+          })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.errors?.join('\n') || data.error || 'Failed to load blueprint file')
+      }
+
+      const blueprint = data.blueprint as CourseBlueprint
+      setAvailableBlueprints((current) => {
+        const withoutImported = current.filter((item) => item.id !== blueprint.id)
+        return [blueprint, ...withoutImported]
+      })
+      setSelectedBlueprintId(blueprint.id)
+    } catch (err: any) {
+      setError(err.message || 'Failed to load blueprint file')
+    } finally {
+      setImportingBlueprint(false)
+      if (event.target) event.target.value = ''
+    }
   }
 
   async function handleCreate() {
@@ -165,6 +232,12 @@ export function CreateClassroomModal({
   }
 
   const { semester1Year, semester2Year } = getSemesterYears()
+  const progressSteps: WizardStep[] =
+    creationMode === 'blueprint' || step === 'blueprint'
+      ? ['name', 'blueprint', 'calendar']
+      : ['name', 'calendar']
+  const canContinueFromBlueprintStep = !!selectedBlueprintId
+  const isBusy = loading || importingBlueprint
 
   return (
     <DialogPanel
@@ -179,8 +252,23 @@ export function CreateClassroomModal({
       <div className="flex-1 min-h-0 overflow-y-auto">
         {/* Progress Indicator */}
         <div className="flex items-center mb-6">
-          <div className={`flex-1 h-1 rounded ${step === 'name' ? 'bg-primary' : 'bg-info-bg'}`} />
-          <div className={`flex-1 h-1 rounded ml-2 ${step === 'calendar' ? 'bg-primary' : 'bg-surface-2'}`} />
+          {progressSteps.map((progressStep, index) => {
+            const currentIndex = progressSteps.indexOf(step)
+            const progressIndex = progressSteps.indexOf(progressStep)
+            const isActive = progressIndex === currentIndex
+            const isComplete = progressIndex < currentIndex
+
+            return (
+              <div
+                key={progressStep}
+                className={[
+                  'flex-1 h-1 rounded',
+                  index === 0 ? '' : 'ml-2',
+                  isActive ? 'bg-primary' : isComplete ? 'bg-info-bg' : 'bg-surface-2',
+                ].join(' ')}
+              />
+            )
+          })}
         </div>
 
         {/* Step 1: Name */}
@@ -197,27 +285,49 @@ export function CreateClassroomModal({
                 autoFocus
               />
             </FormField>
-
-            {availableBlueprints.length > 0 ? (
-              <FormField label="Start From Blueprint" hint="Optional. Blueprints copy reusable course content into the new classroom.">
-                <select
-                  value={selectedBlueprintId}
-                  onChange={(e) => setSelectedBlueprintId(e.target.value)}
-                  className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">Blank classroom</option>
-                  {availableBlueprints.map((blueprint) => (
-                    <option key={blueprint.id} value={blueprint.id}>
-                      {blueprint.title}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-            ) : null}
           </div>
         )}
 
-        {/* Step 2: Calendar */}
+        {step === 'blueprint' && (
+          <div>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".tar,.json,.course-package.tar"
+              className="hidden"
+              aria-label="Load blueprint file"
+              onChange={handleImportBlueprintFile}
+            />
+            <FormField label="Blueprint" required>
+              <select
+                value={selectedBlueprintId}
+                onChange={(e) => {
+                  const nextValue = e.target.value
+                  if (nextValue === CHOOSE_FILE_OPTION) {
+                    importInputRef.current?.click()
+                    return
+                  }
+                  setSelectedBlueprintId(nextValue)
+                  setError('')
+                }}
+                disabled={isBusy}
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <option value="">Select a blueprint</option>
+                {availableBlueprints.map((blueprint) => (
+                  <option key={blueprint.id} value={blueprint.id}>
+                    {blueprint.title}
+                  </option>
+                ))}
+                <option value={CHOOSE_FILE_OPTION}>
+                  {importingBlueprint ? 'Loading file...' : 'Choose file...'}
+                </option>
+              </select>
+            </FormField>
+          </div>
+        )}
+
+        {/* Final Step: Calendar */}
         {step === 'calendar' && (
           <div>
             <label className="block text-sm font-medium text-text-muted mb-3">
@@ -347,30 +457,72 @@ export function CreateClassroomModal({
         <Button
           type="button"
           variant="secondary"
-          onClick={step === 'name' ? handleClose : () => {
-            setStep('name')
-            setError('')
-          }}
-          disabled={loading}
+          onClick={
+            step === 'name'
+              ? handleClose
+              : () => {
+                  if (step === 'calendar') {
+                    setStep(creationMode === 'blueprint' ? 'blueprint' : 'name')
+                  } else {
+                    setStep('name')
+                  }
+                  setError('')
+                }
+          }
+          disabled={isBusy}
           className="flex-1"
         >
           {step === 'name' ? 'Cancel' : 'Back'}
         </Button>
-        <Button
-          type="button"
-          onClick={() => {
-            if (step === 'name' && title) {
-              setStep('calendar')
-              setError('')
-            } else if (step === 'calendar') {
-              handleCreate()
-            }
-          }}
-          disabled={loading || (step === 'name' && !title)}
-          className="flex-1"
-        >
-          {loading ? 'Creating...' : step === 'calendar' ? 'Create' : 'Next'}
-        </Button>
+        {step === 'name' ? (
+          <SplitButton
+            label="Next"
+            onPrimaryClick={() => {
+              if (!title) return
+              proceedFromName(initialBlueprintId ? 'blueprint' : 'blank')
+            }}
+            options={[
+              {
+                id: 'from-blueprint',
+                label: 'From Blueprint',
+                onSelect: () => {
+                  if (!title) return
+                  proceedFromName('blueprint')
+                },
+              },
+            ]}
+            disabled={isBusy || !title}
+            className="flex-1"
+            size="md"
+            toggleAriaLabel="Choose classroom creation path"
+            menuPlacement="up"
+            primaryButtonProps={{
+              className: 'min-w-0 flex-1 justify-center',
+            }}
+          />
+        ) : step === 'blueprint' ? (
+          <Button
+            type="button"
+            onClick={proceedFromBlueprintSource}
+            disabled={isBusy || !canContinueFromBlueprintStep}
+            className="flex-1"
+          >
+            Next
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            onClick={() => {
+              if (step === 'calendar') {
+                handleCreate()
+              }
+            }}
+            disabled={isBusy || (creationMode === 'blueprint' && !selectedBlueprintId)}
+            className="flex-1"
+          >
+            {loading ? 'Creating...' : 'Create'}
+          </Button>
+        )}
       </div>
     </DialogPanel>
   )

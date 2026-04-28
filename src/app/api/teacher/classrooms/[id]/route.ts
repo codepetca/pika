@@ -117,6 +117,18 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
     )
   }
 
+  const effectiveActualSiteSlug =
+    actualSiteSlug !== undefined ? actualSiteSlug : ownership.classroom.actual_site_slug
+  const effectiveActualSitePublished =
+    actualSitePublished !== undefined ? actualSitePublished : ownership.classroom.actual_site_published
+
+  if (effectiveActualSitePublished && !effectiveActualSiteSlug) {
+    return NextResponse.json(
+      { error: 'A public slug is required before publishing the actual course website' },
+      { status: 400 }
+    )
+  }
+
   const updates: any = {}
   if (title !== undefined) updates.title = title
   if (classCode !== undefined) updates.class_code = classCode

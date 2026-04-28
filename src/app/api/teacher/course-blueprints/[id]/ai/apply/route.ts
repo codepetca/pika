@@ -57,7 +57,10 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintAiApply', async 
     if (parsed.errors.length > 0) {
       return NextResponse.json({ errors: parsed.errors }, { status: 400 })
     }
-    const result = await syncCourseBlueprintAssessments(user.id, id, parsed.assessments as any)
+    const assessmentType = target === 'quizzes' ? 'quiz' : 'test'
+    const result = await syncCourseBlueprintAssessments(user.id, id, parsed.assessments as any, {
+      replaceTypes: [assessmentType],
+    })
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status })
     }
