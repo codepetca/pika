@@ -9644,3 +9644,25 @@
 - `pnpm lint`
 - `pnpm test` (233 files, 1941 tests)
 - `pnpm build`
+
+## 2026-04-28 — Gradebook tabs and tests category
+
+**Completed:**
+- Rebased the gradebook work onto current `origin/main` in the `codex/gradebook-tabs-refactor` worktree; prior gradebook branches had no commits ahead of `main`.
+- Refactored the teacher gradebook to use the shared teacher work-surface tab bar and summary/detail workspace shell used by assignments/tests.
+- Added `Grades` and `Settings` gradebook subtabs, with the Grades view using a 50/50 desktop split between the student table and summary/detail pane.
+- Added Tests as a first-class gradebook category across settings, class/student summaries, final-grade calculation, API payload types, and gradebook settings persistence.
+- Hardened settings loading so real `gradebook_settings` read failures return an error instead of silently falling back to defaults.
+- Added component coverage for the controlled gradebook tabs and the three Settings category weights.
+- Added migration `supabase/migrations/059_add_gradebook_tests_weight.sql` for `gradebook_settings.tests_weight`.
+
+**Validation:**
+- `pnpm test tests/unit/gradebook.test.ts tests/api/teacher/gradebook.test.ts tests/hooks/useGradebookData.test.ts tests/unit/layout-config.test.ts`
+- `pnpm test tests/components/TeacherGradebookTab.test.tsx tests/api/teacher/gradebook.test.ts tests/unit/gradebook.test.ts tests/hooks/useGradebookData.test.ts tests/unit/layout-config.test.ts`
+- `pnpm lint`
+- `pnpm test` (234 files, 1947 tests)
+- `pnpm build`
+- Pika UI verification for teacher gradebook Grades and Settings:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
