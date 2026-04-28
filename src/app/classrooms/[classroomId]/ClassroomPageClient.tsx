@@ -32,7 +32,7 @@ import {
   useMobileDrawer,
   useRightSidebar,
 } from '@/components/layout'
-import { DESKTOP_BREAKPOINT, getRouteKeyFromTab } from '@/lib/layout-config'
+import { getRouteKeyFromTab } from '@/lib/layout-config'
 import { RichTextViewer } from '@/components/editor'
 import { Spinner } from '@/components/Spinner'
 import {
@@ -55,9 +55,6 @@ import type {
   TiptapContent,
   Assignment,
   QuizWithStats,
-  GradebookStudentSummary,
-  GradebookStudentDetail,
-  GradebookClassSummary,
 } from '@/types'
 
 interface UserInfo {
@@ -104,23 +101,6 @@ interface PendingExamNavigation {
   source: string
   nextTab: string | null
   navigate: () => void
-}
-
-function formatTorontoDateShort(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    timeZone: 'America/Toronto',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-function formatPoints(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2)
-}
-
-function formatPercent1(value: number | null): string {
-  if (value == null) return '—'
-  return `${value.toFixed(1)} %`
 }
 
 export function ClassroomPageClient({
@@ -242,7 +222,7 @@ function ClassroomPageContent({
   searchParams: URLSearchParams
   updateSearchParams: UpdateSearchParamsFn
 }) {
-  const { openLeft, openRight, close: closeMobileDrawer } = useMobileDrawer()
+  const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
   const { setWidth: setRightSidebarWidth, isOpen: isRightSidebarOpen, setOpen: setRightSidebarOpen } = useRightSidebar()
   const isTeacher = user.role === 'teacher'
   const assignmentIdParam = searchParams.get('assignmentId')
@@ -256,6 +236,7 @@ function ClassroomPageContent({
       : null
   const testStudentIdParam = activeTab === 'tests' ? searchParams.get('testStudentId') : null
   const sectionParam = searchParams.get('section')
+  const gradebookSectionParam = searchParams.get('gradebookSection')
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
   }))
@@ -462,11 +443,6 @@ function ClassroomPageContent({
     testId: string
     title: string | null
   } | null>(null)
-  const [selectedGradebookStudent, setSelectedGradebookStudent] = useState<GradebookStudentSummary | null>(null)
-  const [gradebookStudentDetail, setGradebookStudentDetail] = useState<GradebookStudentDetail | null>(null)
-  const [gradebookClassSummary, setGradebookClassSummary] = useState<GradebookClassSummary | null>(null)
-  const [gradebookStudentDetailLoading, setGradebookStudentDetailLoading] = useState(false)
-  const [gradebookStudentDetailError, setGradebookStudentDetailError] = useState('')
   const [testsTabClickToken, setTestsTabClickToken] = useState(0)
 
   const handleSelectQuiz = useCallback((quiz: QuizWithStats | null) => {
@@ -491,10 +467,6 @@ function ClassroomPageContent({
     if (selectedQuiz.id === teacherTestPreview.testId) return
     setTeacherTestPreview(null)
   }, [selectedQuiz, teacherTestPreview])
-
-  const handleSelectGradebookStudent = useCallback((student: GradebookStudentSummary | null) => {
-    setSelectedGradebookStudent(student)
-  }, [])
 
   // State for markdown mode (teacher assignments tab - summary view only)
   const [assignmentViewMode, setAssignmentViewMode] = useState<AssignmentViewMode>('summary')
@@ -691,8 +663,6 @@ function ClassroomPageContent({
   useEffect(() => {
     if (isTeacher && activeTab === 'assignments') {
       setRightSidebarWidth('50%')
-    } else if (isTeacher && activeTab === 'gradebook') {
-      setRightSidebarWidth(420)
     } else if (activeTab === 'resources') {
       setRightSidebarWidth('50%')
     }
@@ -720,61 +690,6 @@ function ClassroomPageContent({
       setRightSidebarOpen(false)
     }
   }, [activeTab, setRightSidebarOpen])
-
-  useEffect(() => {
-    if (activeTab !== 'gradebook') {
-      setSelectedGradebookStudent(null)
-      setGradebookStudentDetail(null)
-      setGradebookClassSummary(null)
-      setGradebookStudentDetailError('')
-      setGradebookStudentDetailLoading(false)
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    if (!isTeacher || activeTab !== 'gradebook' || !selectedGradebookStudent) return
-    const selectedStudentId = selectedGradebookStudent.student_id
-
-    if (window.innerWidth < DESKTOP_BREAKPOINT) {
-      openRight()
-    } else {
-      setRightSidebarOpen(true)
-    }
-
-    let cancelled = false
-
-    async function loadStudentDetail() {
-      setGradebookStudentDetailLoading(true)
-      setGradebookStudentDetailError('')
-      try {
-        const response = await fetch(
-          `/api/teacher/gradebook?classroom_id=${classroom.id}&student_id=${selectedStudentId}`
-        )
-        const data = await response.json()
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to load gradebook details')
-        }
-
-        if (!cancelled) {
-          setGradebookStudentDetail((data.selected_student as GradebookStudentDetail | null) || null)
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          setGradebookStudentDetail(null)
-          setGradebookStudentDetailError(err.message || 'Failed to load gradebook details')
-        }
-      } finally {
-        if (!cancelled) {
-          setGradebookStudentDetailLoading(false)
-        }
-      }
-    }
-
-    loadStudentDetail()
-    return () => {
-      cancelled = true
-    }
-  }, [isTeacher, activeTab, selectedGradebookStudent, classroom.id, setRightSidebarOpen, openRight])
 
   const prefetchTabData = useCallback((tab: string) => {
     const now = Date.now()
@@ -1079,12 +994,16 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.gradebook && (
                     <TabContentTransition isActive={activeTab === 'gradebook'}>
-                  <TeacherGradebookTab
-                    classroom={classroom}
-                    selectedStudentId={selectedGradebookStudent?.student_id ?? null}
-                    onSelectStudent={handleSelectGradebookStudent}
-                    onClassSummaryChange={setGradebookClassSummary}
-                  />
+                      <TeacherGradebookTab
+                        classroom={classroom}
+                        sectionParam={gradebookSectionParam}
+                        onSectionChange={(section) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'gradebook')
+                            params.set('gradebookSection', section)
+                          })
+                        }
+                      />
                     </TabContentTransition>
                   )}
                   {mountedTabs.assignments && (
@@ -1256,10 +1175,6 @@ function ClassroomPageContent({
               ? 'Assignments'
               : isTeacher && activeTab === 'calendar' && calendarSidebarState
               ? 'Calendar'
-              : isTeacher && activeTab === 'gradebook'
-              ? selectedGradebookStudent
-                ? `${selectedGradebookStudent.student_first_name || ''} ${selectedGradebookStudent.student_last_name || ''}`.trim() || selectedGradebookStudent.student_email
-                : 'Gradebook'
               : isTeacher && isAssessmentTab
               ? ''
               : isTeacher && activeTab === 'assignments'
@@ -1332,159 +1247,6 @@ function ClassroomPageContent({
             <StudentClassResourcesSidebar classroom={classroom} />
           ) : isTeacher && isAssessmentTab ? (
             null
-          ) : isTeacher && activeTab === 'gradebook' && selectedGradebookStudent ? (
-            <div className="space-y-4 p-4">
-              {gradebookStudentDetailError && (
-                <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-                  {gradebookStudentDetailError}
-                </div>
-              )}
-              {gradebookStudentDetailLoading ? (
-                <div className="flex justify-center py-8">
-                  <Spinner />
-                </div>
-              ) : (
-                <>
-                  <div className="rounded-md border border-border bg-surface-2 p-3">
-                    <div className="text-xs text-text-muted">Overall</div>
-                    <div className="mt-1 text-lg font-semibold text-text-default">
-                      {formatPercent1(gradebookStudentDetail?.final_percent ?? null)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-semibold text-text-default">Assignments</h3>
-                    {gradebookStudentDetail?.assignments?.length ? (
-                      <div className="mt-2 space-y-2">
-                        {gradebookStudentDetail.assignments.map((item) => (
-                          <div
-                            key={item.assignment_id}
-                            className={[
-                              'rounded-md border px-3 py-2',
-                              item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
-                            ].join(' ')}
-                          >
-                            <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3">
-                              <div className="min-w-0">
-                                <div className="truncate text-sm text-text-default">{item.title}</div>
-                                <div className="text-xs text-text-muted">
-                                  {`Due ${formatTorontoDateShort(item.due_at)}${item.is_draft ? ' . Draft' : ''}`}
-                                  {!item.is_graded ? ` . No grade (${formatPoints(item.possible)} pts)` : ''}
-                                </div>
-                              </div>
-                              <div className="text-right text-sm font-semibold tabular-nums text-text-default">
-                                {item.is_graded && item.earned != null
-                                  ? `${formatPoints(item.earned)}/${formatPoints(item.possible)}`
-                                  : '—'}
-                              </div>
-                              <div className="text-right text-sm font-semibold tabular-nums text-text-default">
-                                {item.is_graded && item.percent != null ? `${item.percent.toFixed(1)}%` : '—'}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-sm text-text-muted">No assignments yet.</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-semibold text-text-default">Quizzes</h3>
-                    {gradebookStudentDetail?.quizzes?.length ? (
-                      <div className="mt-2 space-y-2">
-                        {gradebookStudentDetail.quizzes.map((item) => (
-                          <div key={item.quiz_id} className="rounded-md border border-border px-3 py-2">
-                            <div className="text-sm text-text-default">{item.title}</div>
-                            <div className="text-xs text-text-muted">
-                              <span className="font-semibold text-text-default">
-                                {formatPoints(item.earned)}/{formatPoints(item.possible)}
-                              </span>
-                              {' . '}
-                              <span className="font-semibold text-text-default">{formatPercent1(item.percent)}</span>
-                              {item.is_manual_override ? ' • Manual override' : ''}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-sm text-text-muted">No scored quizzes yet.</p>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          ) : isTeacher && activeTab === 'gradebook' ? (
-            <div className="space-y-4 p-4">
-              <div className="rounded-md border border-border bg-surface-2 p-3">
-                <div className="text-lg font-semibold text-text-default">
-                  {formatPercent1(gradebookClassSummary?.average_final_percent ?? null)}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-text-default">Assignments</h3>
-                {gradebookClassSummary?.assignments?.length ? (
-                  <div className="mt-2 space-y-2">
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3 px-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                      <div />
-                      <div className="text-right">Avg</div>
-                      <div className="text-right">Med</div>
-                      <div className="text-right">#</div>
-                    </div>
-                    {gradebookClassSummary.assignments.map((item) => (
-                      <div
-                        key={item.assignment_id}
-                        className={[
-                          'rounded-md border px-3 py-2',
-                          item.is_draft ? 'border-border-strong bg-surface-2' : 'border-border bg-surface',
-                        ].join(' ')}
-                      >
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate text-sm text-text-default">{item.title}</div>
-                            <div className="text-xs text-text-muted">
-                              {`Due ${formatTorontoDateShort(item.due_at)}${item.is_draft ? ' . Draft' : ''}`}
-                            </div>
-                          </div>
-                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
-                            {item.average_percent != null ? item.average_percent.toFixed(1) : '—'}
-                          </div>
-                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
-                            {item.median_percent != null ? item.median_percent.toFixed(1) : '—'}
-                          </div>
-                          <div className="text-right text-sm font-semibold tabular-nums text-text-default">
-                            {item.graded_count}/{gradebookClassSummary.total_students}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-text-muted">No assignments yet.</p>
-                )}
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-text-default">Quizzes</h3>
-                {gradebookClassSummary?.quizzes?.length ? (
-                  <div className="mt-2 space-y-2">
-                    {gradebookClassSummary.quizzes.map((item) => (
-                      <div key={item.quiz_id} className="rounded-md border border-border px-3 py-2">
-                        <div className="text-sm text-text-default">{item.title}</div>
-                        <div className="text-xs text-text-muted">
-                          {item.status || 'unknown'} • {item.average_percent != null
-                            ? `Avg ${formatPercent1(item.average_percent)} • Scored ${item.scored_count}/${gradebookClassSummary.total_students}`
-                            : `No scored responses • Scored ${item.scored_count}/${gradebookClassSummary.total_students}`}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-sm text-text-muted">No quizzes yet.</p>
-                )}
-              </div>
-            </div>
           ) : isTeacher && activeTab === 'attendance' && selectedStudentId ? (
             <StudentLogHistory
               studentId={selectedStudentId}

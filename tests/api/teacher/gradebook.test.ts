@@ -16,7 +16,12 @@ type GradebookFixture = {
   quizQuestions?: Array<any>
   quizResponses?: Array<any>
   quizOverrides?: Array<any>
-  settings?: { use_weights: boolean; assignments_weight: number; quizzes_weight: number } | null
+  tests?: Array<any>
+  testQuestions?: Array<any>
+  testResponses?: Array<any>
+  testAttempts?: Array<any>
+  settings?: { use_weights: boolean; assignments_weight: number; quizzes_weight: number; tests_weight?: number } | null
+  settingsError?: { code?: string; message?: string; details?: string; hint?: string } | null
 }
 
 function buildMockFrom(fixture: GradebookFixture) {
@@ -40,7 +45,7 @@ function buildMockFrom(fixture: GradebookFixture) {
           eq: vi.fn(() => ({
             maybeSingle: vi.fn().mockResolvedValue({
               data: fixture.settings ?? null,
-              error: null,
+              error: fixture.settingsError ?? null,
             }),
           })),
         })),
@@ -154,6 +159,54 @@ function buildMockFrom(fixture: GradebookFixture) {
       }
     }
 
+    if (table === 'tests') {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn().mockResolvedValue({
+            data: fixture.tests ?? [],
+            error: null,
+          }),
+        })),
+      }
+    }
+
+    if (table === 'test_questions') {
+      return {
+        select: vi.fn(() => ({
+          in: vi.fn().mockResolvedValue({
+            data: fixture.testQuestions ?? [],
+            error: null,
+          }),
+        })),
+      }
+    }
+
+    if (table === 'test_responses') {
+      return {
+        select: vi.fn(() => ({
+          in: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: fixture.testResponses ?? [],
+              error: null,
+            }),
+          })),
+        })),
+      }
+    }
+
+    if (table === 'test_attempts') {
+      return {
+        select: vi.fn(() => ({
+          in: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: fixture.testAttempts ?? [],
+              error: null,
+            }),
+          })),
+        })),
+      }
+    }
+
     throw new Error(`Unexpected table in test: ${table}`)
   })
 }
@@ -245,6 +298,64 @@ describe('GET /api/teacher/gradebook', () => {
         is_manual_override: false,
       },
     ])
+    expect(body.selected_student.tests).toEqual([])
+  })
+
+  it('includes fully scored tests in grade calculations and class summary', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      tests: [{ id: 't1', title: 'Unit Test', status: 'closed', include_in_final: true }],
+      testQuestions: [
+        { id: 'tq1', test_id: 't1', points: 5 },
+        { id: 'tq2', test_id: 't1', points: 5 },
+      ],
+      testResponses: [
+        { test_id: 't1', question_id: 'tq1', student_id: 'student-1', score: 5 },
+        { test_id: 't1', question_id: 'tq2', student_id: 'student-1', score: 3 },
+      ],
+      testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true }],
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.students[0].tests_percent).toBe(80)
+    expect(body.students[0].final_percent).toBe(80)
+    expect(body.selected_student.tests).toEqual([
+      {
+        test_id: 't1',
+        title: 'Unit Test',
+        earned: 8,
+        possible: 10,
+        percent: 80,
+        status: 'closed',
+      },
+    ])
+    expect(body.class_summary.tests).toEqual([
+      {
+        test_id: 't1',
+        title: 'Unit Test',
+        status: 'closed',
+        possible: 10,
+        scored_count: 1,
+        average_percent: 80,
+      },
+    ])
+    expect(body.totals.tests).toBe(1)
+  })
+
+  it('returns 500 when gradebook settings cannot be loaded', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      settingsError: { message: 'database unavailable' },
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1')
+    const response = await GET(request)
+    const body = await response.json()
+
+    expect(response.status).toBe(500)
+    expect(body.error).toBe('Failed to load gradebook settings')
   })
 
   it('includes all assignments (graded/ungraded/future) in selected student details by assignment order', async () => {
@@ -496,6 +607,42 @@ describe('GET /api/teacher/gradebook', () => {
         }
       }
 
+      if (table === 'tests') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_questions') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({ data: [], error: null }),
+          })),
+        }
+      }
+
+      if (table === 'test_responses') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() => ({
+              in: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          })),
+        }
+      }
+
+      if (table === 'test_attempts') {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() => ({
+              in: vi.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          })),
+        }
+      }
+
       throw new Error(`Unexpected table in test: ${table}`)
     })
 
@@ -535,7 +682,7 @@ describe('PATCH /api/teacher/gradebook', () => {
           upsert: vi.fn(() => ({
             select: vi.fn(() => ({
               single: vi.fn().mockResolvedValue({
-                data: { use_weights: false, assignments_weight: 10, quizzes_weight: 20 },
+                data: { use_weights: false, assignments_weight: 10, quizzes_weight: 20, tests_weight: 30 },
                 error: null,
               }),
             })),
@@ -553,6 +700,7 @@ describe('PATCH /api/teacher/gradebook', () => {
         use_weights: false,
         assignments_weight: 10,
         quizzes_weight: 20,
+        tests_weight: 30,
       }),
     })
 
@@ -564,6 +712,7 @@ describe('PATCH /api/teacher/gradebook', () => {
       use_weights: false,
       assignments_weight: 10,
       quizzes_weight: 20,
+      tests_weight: 30,
     })
   })
 })
