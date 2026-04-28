@@ -9587,3 +9587,29 @@
 - `pnpm lint`
 - `pnpm build`
 - `pnpm test:coverage`
+
+## 2026-04-28 — Issue #515 course blueprint workflow polish
+
+**Completed:**
+- Kept `Course Blueprint` as the teacher-facing reusable plan name and made `Course Package` the portable file name across the blueprint workspace, classroom creation flow, and classroom settings promotion flow.
+- Tightened teacher workflow copy for importing/exporting packages, using a blueprint for a classroom, saving a classroom as a course blueprint, planned-site publishing, AI drafting, and classroom update review.
+- Added a compact package contract panel to the selected blueprint workspace and improved the workspace layout so the sidebar no longer stretches into an empty column and metadata fields have room for real course names.
+- Documented the official `.course-package.tar` contract in `docs/guidance/course-blueprint-packages.md`, including included/excluded data and the repo/Codex/Claude round trip.
+- Added tests covering the updated classroom creation copy, settings promotion copy, blueprint workspace actions, and package documentation contract.
+
+**Validation:**
+- `pnpm test tests/components/CreateClassroomModal.test.tsx tests/components/TeacherSettingsTab.test.tsx tests/components/TeacherBlueprintsPage.test.tsx tests/unit/course-blueprint-package-docs.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- `pnpm test` (233 files, 1938 tests)
+- `pnpm test tests/components/TeacherBlueprintsPage.test.tsx`
+- Pika UI verification for `/teacher/blueprints` via `bash .codex/skills/pika-ui-verify/scripts/ui_verify.sh "teacher/blueprints"`; local Supabase is missing course blueprint migrations, so selected-workspace verification used Playwright API mocks instead of applying migrations.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-blueprint-selected.png`
+  - `/tmp/pika-teacher-blueprint-selected-mobile.png`
+  - `/tmp/pika-teacher-blueprint-selected-dark.png`
+  - `/tmp/pika-teacher-settings-blueprint.png`
+  - `/tmp/pika-teacher-settings-blueprint-mobile.png`

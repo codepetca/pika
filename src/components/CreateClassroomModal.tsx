@@ -137,7 +137,7 @@ export function CreateClassroomModal({
 
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(data.errors?.join('\n') || data.error || 'Failed to load blueprint file')
+        throw new Error(data.errors?.join('\n') || data.error || 'Failed to import course package')
       }
 
       const blueprint = data.blueprint as CourseBlueprint
@@ -147,7 +147,7 @@ export function CreateClassroomModal({
       })
       setSelectedBlueprintId(blueprint.id)
     } catch (err: any) {
-      setError(err.message || 'Failed to load blueprint file')
+      setError(err.message || 'Failed to import course package')
     } finally {
       setImportingBlueprint(false)
       if (event.target) event.target.value = ''
@@ -295,10 +295,10 @@ export function CreateClassroomModal({
               type="file"
               accept=".tar,.json,.course-package.tar"
               className="hidden"
-              aria-label="Load blueprint file"
+              aria-label="Import course package file"
               onChange={handleImportBlueprintFile}
             />
-            <FormField label="Blueprint" required>
+            <FormField label="Course Blueprint" required>
               <select
                 value={selectedBlueprintId}
                 onChange={(e) => {
@@ -313,14 +313,14 @@ export function CreateClassroomModal({
                 disabled={isBusy}
                 className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <option value="">Select a blueprint</option>
+                <option value="">Select a course blueprint</option>
                 {availableBlueprints.map((blueprint) => (
                   <option key={blueprint.id} value={blueprint.id}>
                     {blueprint.title}
                   </option>
                 ))}
                 <option value={CHOOSE_FILE_OPTION}>
-                  {importingBlueprint ? 'Loading file...' : 'Choose file...'}
+                  {importingBlueprint ? 'Importing package...' : 'Import course package...'}
                 </option>
               </select>
             </FormField>
@@ -484,7 +484,7 @@ export function CreateClassroomModal({
             options={[
               {
                 id: 'from-blueprint',
-                label: 'From Blueprint',
+                label: 'From Course Blueprint',
                 onSelect: () => {
                   if (!title) return
                   proceedFromName('blueprint')

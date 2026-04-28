@@ -287,17 +287,17 @@ describe('TeacherSettingsTab - Classroom Blueprint Promotion', () => {
     cleanup()
   })
 
-  it('opens the create classroom blueprint dialog with the classroom title prefilled', () => {
+  it('opens the save-as-course-blueprint dialog with the classroom title prefilled', () => {
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create Classroom Blueprint' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
 
     const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByRole('heading', { name: 'Create Classroom Blueprint' })).toBeInTheDocument()
+    expect(within(dialog).getByRole('heading', { name: 'Save Classroom as Course Blueprint' })).toBeInTheDocument()
     expect(within(dialog).getByPlaceholderText('Grade 11 Computer Science')).toHaveValue('Test Course')
   })
 
-  it('creates a classroom blueprint and redirects into the blueprint workspace', async () => {
+  it('saves a classroom as a course blueprint and redirects into the blueprint workspace', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -309,10 +309,10 @@ describe('TeacherSettingsTab - Classroom Blueprint Promotion', () => {
 
     render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create Classroom Blueprint' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save as Course Blueprint' }))
     const dialog = screen.getByRole('dialog')
     fireEvent.change(within(dialog).getByPlaceholderText('Grade 11 Computer Science'), { target: { value: 'Reusable Draft' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Create Blueprint' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save Blueprint' }))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1)

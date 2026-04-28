@@ -15,7 +15,16 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/components/PageLayout', () => ({
   PageLayout: ({ children }: any) => <div>{children}</div>,
   PageContent: ({ children }: any) => <div>{children}</div>,
-  PageActionBar: ({ primary }: any) => <div>{primary}</div>,
+  PageActionBar: ({ primary, actions = [] }: any) => (
+    <div>
+      {primary}
+      {actions.map((action: any) => (
+        <button key={action.id} type="button" onClick={action.onSelect}>
+          {action.label}
+        </button>
+      ))}
+    </div>
+  ),
 }))
 
 vi.mock('@/components/CreateBlueprintModal', () => ({
@@ -117,13 +126,21 @@ describe('TeacherBlueprintsPage', () => {
     cleanup()
   })
 
-  it('selects the blueprint from the query param and shows the classroom-origin notice', async () => {
+  it('selects the blueprint from the query param and shows workflow-oriented package actions', async () => {
     render(<TeacherBlueprintsPage />)
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('Blueprint Two')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Blueprint created from Semester 2. Review and refine it here before publishing or exporting.')).toBeInTheDocument()
+    expect(screen.getByText('Course Blueprint')).toBeInTheDocument()
+    expect(screen.getByText('Build, publish, export, and reuse course packages.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New Course Blueprint' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Import Course Package' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Use for Classroom' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export Course Package' })).toBeInTheDocument()
+    expect(screen.getByText('Course blueprint saved from Semester 2. Review it here, then use it for another classroom or export the course package.')).toBeInTheDocument()
+    expect(screen.getByText('Portable Course Package')).toBeInTheDocument()
+    expect(screen.getByText(/Exports a .course-package.tar file with manifest.json and editable Markdown files./)).toBeInTheDocument()
   })
 })
