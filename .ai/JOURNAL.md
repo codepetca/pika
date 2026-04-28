@@ -9566,3 +9566,11 @@
 **Notes:**
 - The direct `ui_verify.sh` storage-state flow hit a stale access mismatch for the classroom settings route, so final screenshot verification used a direct Playwright login instead.
 - Existing soft classroom archive behavior from `main` remains intact; only the new portable snapshot export/restore feature was removed from this branch.
+
+## 2026-04-27 — Final lint cleanup before merge
+
+**Completed:**
+- Removed the lingering `react-hooks/exhaustive-deps` warning in `src/components/TestDocumentsEditor.tsx` by inlining the one-shot external add-modal effect logic instead of closing over `openAddModal`.
+
+**Validation:**
+- `pnpm lint`
