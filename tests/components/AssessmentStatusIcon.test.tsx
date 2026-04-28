@@ -18,6 +18,12 @@ describe('AssessmentStatusIcon', () => {
     expect(screen.getByTestId('assessment-status-icon-returned')).toHaveClass('text-primary')
   })
 
+  it('renders resubmitted as the warning resubmission icon', () => {
+    render(<AssessmentStatusIcon state="resubmitted" />)
+
+    expect(screen.getByTestId('assessment-status-icon-resubmitted')).toHaveClass('text-warning')
+  })
+
   it('adds a late clock without changing the base status', () => {
     render(<AssessmentStatusIcon state="submitted" late />)
 
