@@ -9613,3 +9613,18 @@
   - `/tmp/pika-teacher-blueprint-selected-dark.png`
   - `/tmp/pika-teacher-settings-blueprint.png`
   - `/tmp/pika-teacher-settings-blueprint-mobile.png`
+
+## 2026-04-28 — Clarify resubmitted assignment status
+
+**Completed:**
+- Made the teacher assignment student table show `resubmitted` rows as a compact warning `Resub` chip instead of an icon-only status, so teachers can distinguish a returned-then-resubmitted row even when the grade column still has a score.
+- Added component coverage for the resubmitted chip and the shared resubmission status icon.
+
+**Validation:**
+- `pnpm test tests/components/TeacherAssignmentStudentTable.test.tsx tests/components/AssessmentStatusIcon.test.tsx`
+- `pnpm lint`
+- `pnpm test` (233 files, 1940 tests)
+- Visual verification with Playwright route-mocked assignment data for:
+  - `/tmp/pika-teacher-resubmitted-status.png`
+  - `/tmp/pika-teacher-resubmitted-status-mobile.png`
+  - `/tmp/pika-student-assignments-mobile.png`
