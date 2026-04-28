@@ -30,6 +30,7 @@ After the startup set above, load task-specific docs:
 | Multi-agent delegation | [`docs/core/agents.md`](./core/agents.md) |
 | Product status or phase questions | [`docs/core/roadmap.md`](./core/roadmap.md) |
 | GitHub issue work | [`docs/workflow/handle-issue.md`](./workflow/handle-issue.md) |
+| Course blueprint package import/export | [`docs/guidance/course-blueprint-packages.md`](./guidance/course-blueprint-packages.md) |
 | Feature-specific behavior | `docs/guidance/*.md` or the closest focused spec |
 
 Inspect or modify source only after the startup set and the docs required by your task are loaded.

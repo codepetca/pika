@@ -52,9 +52,9 @@ const TAB_LABELS: Record<EditorTab, string> = {
   quizzes: 'Quizzes',
   tests: 'Tests',
   'lesson-plans': 'Lesson Plans',
-  copilot: 'Copilot',
+  copilot: 'AI Drafting',
   publish: 'Publish',
-  sync: 'Sync',
+  sync: 'Classroom Updates',
 }
 
 type DraftState = Record<Exclude<EditorTab, 'copilot' | 'publish' | 'sync'>, string>
@@ -129,8 +129,8 @@ export default function TeacherBlueprintsPage() {
     if (!fromClassroomId || !preferredBlueprintId || selectedBlueprintId !== preferredBlueprintId) return ''
     const classroomTitle = detail?.linked_classrooms.find((classroom) => classroom.id === fromClassroomId)?.title
     return classroomTitle
-      ? `Blueprint created from ${classroomTitle}. Review and refine it here before publishing or exporting.`
-      : 'Blueprint created from classroom content. Review and refine it here before publishing or exporting.'
+      ? `Course blueprint saved from ${classroomTitle}. Review it here, then use it for another classroom or export the course package.`
+      : 'Course blueprint saved from classroom content. Review it here, then use it for another classroom or export the course package.'
   }, [detail, fromClassroomId, preferredBlueprintId, selectedBlueprintId])
 
   async function loadBlueprints(preferredId?: string) {
@@ -381,12 +381,12 @@ export default function TeacherBlueprintsPage() {
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to apply classroom changes back into the blueprint')
+        throw new Error(data.error || 'Failed to save classroom changes to the course blueprint')
       }
       await loadDetail(selectedBlueprintId)
       await loadMergeSuggestions(mergeClassroomId)
     } catch (err: any) {
-      setError(err.message || 'Failed to apply classroom changes back into the blueprint')
+      setError(err.message || 'Failed to save classroom changes to the course blueprint')
     } finally {
       setMergeApplying(false)
     }
@@ -510,19 +510,19 @@ export default function TeacherBlueprintsPage() {
         primary={
           <div>
             <div className="text-sm font-medium text-text-default">Course Blueprints</div>
-            <div className="text-xs text-text-muted">Reusable course packages for new classrooms</div>
+            <div className="text-xs text-text-muted">Build, publish, export, and reuse course packages.</div>
           </div>
         }
         actions={[
           { id: 'back-classrooms', label: 'Classrooms', onSelect: () => router.push('/classrooms') },
-          { id: 'new-blueprint', label: 'New blueprint', onSelect: () => setShowCreate(true) },
-          { id: 'import-package', label: 'Import package', onSelect: () => importInputRef.current?.click() },
+          { id: 'new-blueprint', label: 'New Course Blueprint', onSelect: () => setShowCreate(true) },
+          { id: 'import-package', label: 'Import Course Package', onSelect: () => importInputRef.current?.click() },
           ...(selectedBlueprintId
             ? [
-                { id: 'create-classroom', label: 'Create classroom', onSelect: () => setShowCreateClassroom(true) },
-                { id: 'export-package', label: 'Export package', onSelect: handleExport },
+                { id: 'create-classroom', label: 'Use for Classroom', primary: true, onSelect: () => setShowCreateClassroom(true) },
+                { id: 'export-package', label: 'Export Course Package', onSelect: handleExport },
                 ...(plannedSite.published && plannedSite.slug
-                  ? [{ id: 'open-planned-site', label: 'Open planned site', onSelect: () => window.open(`/planned/${plannedSite.slug}`, '_blank') }]
+                  ? [{ id: 'open-planned-site', label: 'Open Planned Site', onSelect: () => window.open(`/planned/${plannedSite.slug}`, '_blank') }]
                   : []),
               ]
             : []),
@@ -549,7 +549,7 @@ export default function TeacherBlueprintsPage() {
         ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]">
-          <aside className="rounded-card border border-border bg-surface p-4">
+          <aside className="self-start rounded-card border border-border bg-surface p-4">
             {loadingList ? (
               <div className="flex justify-center py-8">
                 <Spinner />
@@ -558,7 +558,7 @@ export default function TeacherBlueprintsPage() {
               <div className="space-y-3 text-center">
                 <p className="text-sm text-text-muted">No course blueprints yet.</p>
                 <Button type="button" onClick={() => setShowCreate(true)}>
-                  Create Blueprint
+                  Create Course Blueprint
                 </Button>
               </div>
             ) : (
@@ -597,7 +597,7 @@ export default function TeacherBlueprintsPage() {
               )
             ) : (
               <div className="space-y-5">
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <FormField label="Title">
                     <Input value={meta.title} onChange={(e) => setMeta((current) => ({ ...current, title: e.target.value }))} />
                   </FormField>
@@ -617,13 +617,26 @@ export default function TeacherBlueprintsPage() {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" variant="secondary" onClick={saveMetadata} disabled={saving}>
-                    Save Metadata
+                    Save Details
                   </Button>
                   {counts ? (
                     <div className="text-xs text-text-muted">
                       {counts.assignments} assignments • {counts.quizzes} quizzes • {counts.tests} tests • {counts.lesson_templates} lesson templates
                     </div>
                   ) : null}
+                </div>
+
+                <div className="rounded-card border border-border bg-surface-2 p-4">
+                  <div className="text-sm font-semibold text-text-default">Course Blueprint</div>
+                  <div className="mt-1 text-sm text-text-muted">
+                    Edit the plan here, use it to create a classroom, or export a portable course package.
+                  </div>
+                  <div className="mt-3 rounded-md border border-border bg-surface px-3 py-2 text-sm">
+                    <div className="font-medium text-text-default">Portable Course Package</div>
+                    <div className="mt-1 text-text-muted">
+                      Exports a .course-package.tar file with manifest.json and editable Markdown files.
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -646,7 +659,7 @@ export default function TeacherBlueprintsPage() {
                 {activeTab === 'publish' ? (
                   <div className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-[minmax(0,1fr),auto]">
-                      <FormField label="Planned Site Slug" hint="Leave blank to keep the planned site private.">
+                      <FormField label="Planned Course Site Slug" hint="Leave blank to keep the planned site private.">
                         <Input
                           value={plannedSite.slug}
                           onChange={(e) =>
@@ -680,7 +693,7 @@ export default function TeacherBlueprintsPage() {
                         }
                         className="h-4 w-4"
                       />
-                      Publish this planned course site using the slug above
+                        Publish this planned course site
                     </label>
 
                     <div className="rounded-card border border-border bg-surface-2 p-4">
@@ -709,13 +722,13 @@ export default function TeacherBlueprintsPage() {
 
                     {plannedSite.published && plannedSite.slug ? (
                       <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
-                        Planned site URL: <a className="text-primary underline" href={`/planned/${plannedSite.slug}`} target="_blank" rel="noreferrer">{`/planned/${plannedSite.slug}`}</a>
+                        Planned course site: <a className="text-primary underline" href={`/planned/${plannedSite.slug}`} target="_blank" rel="noreferrer">{`/planned/${plannedSite.slug}`}</a>
                       </div>
                     ) : null}
 
                     <div className="flex justify-end">
                       <Button type="button" onClick={savePlannedSite} disabled={saving}>
-                        {saving ? 'Saving...' : 'Save Publishing'}
+                        {saving ? 'Saving...' : 'Save Planned Site'}
                       </Button>
                     </div>
                   </div>
@@ -728,7 +741,7 @@ export default function TeacherBlueprintsPage() {
                     ) : (
                       <>
                         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr),auto]">
-                          <FormField label="Linked Classroom" hint="Compare this live classroom against the reusable blueprint.">
+                          <FormField label="Classroom" hint="Review classroom changes before saving them to this course blueprint.">
                             <select
                               value={mergeClassroomId}
                               onChange={(e) => {
@@ -746,7 +759,7 @@ export default function TeacherBlueprintsPage() {
                           </FormField>
                           <div className="flex items-end">
                             <Button type="button" variant="secondary" onClick={() => loadMergeSuggestions()} disabled={mergeLoading || !mergeClassroomId}>
-                              {mergeLoading ? 'Comparing...' : 'Load Suggestions'}
+                              {mergeLoading ? 'Reviewing...' : 'Review Changes'}
                             </Button>
                           </div>
                         </div>
@@ -755,7 +768,7 @@ export default function TeacherBlueprintsPage() {
                           <div className="space-y-4">
                             {mergeSuggestions.suggestions.length === 0 ? (
                               <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
-                                No blueprint drift detected for this classroom.
+                                No classroom changes to save for this course blueprint.
                               </div>
                             ) : (
                               <>
@@ -784,8 +797,8 @@ export default function TeacherBlueprintsPage() {
                                           <div className="font-medium text-text-default">
                                             {item.label} • {item.operation}
                                           </div>
-                                          <div className="mt-1 text-text-muted">Blueprint: {item.current_summary}</div>
-                                          <div className="text-text-muted">Classroom: {item.proposed_summary}</div>
+                                          <div className="mt-1 text-text-muted">Current blueprint: {item.current_summary}</div>
+                                          <div className="text-text-muted">Classroom version: {item.proposed_summary}</div>
                                         </div>
                                       ))}
                                     </div>
@@ -801,7 +814,7 @@ export default function TeacherBlueprintsPage() {
 
                                 <div className="flex justify-end">
                                   <Button type="button" onClick={applyMergeSuggestions} disabled={mergeApplying}>
-                                    {mergeApplying ? 'Applying...' : 'Apply Selected Changes'}
+                                    {mergeApplying ? 'Saving...' : 'Save Selected Updates'}
                                   </Button>
                                 </div>
                               </>
@@ -814,7 +827,7 @@ export default function TeacherBlueprintsPage() {
                 ) : activeTab === 'copilot' ? (
                   <div className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-[220px,minmax(0,1fr)]">
-                      <FormField label="Copilot Target">
+                      <FormField label="Draft Section">
                         <select
                           value={aiTarget}
                           onChange={(e) => setAiTarget(e.target.value as CopilotTarget)}
@@ -829,17 +842,17 @@ export default function TeacherBlueprintsPage() {
                           <option value="lesson-plans">Lesson Plans</option>
                         </select>
                       </FormField>
-                      <FormField label="Teacher Prompt">
+                      <FormField label="Direction">
                         <Input value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Focus on a coding-heavy semester with weekly checkpoints." />
                       </FormField>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" onClick={() => runCopilot('analyze')} disabled={aiBusy}>
-                        {aiBusy ? 'Working...' : 'Analyze Blueprint'}
+                        {aiBusy ? 'Working...' : 'Review Course Blueprint'}
                       </Button>
                       <Button type="button" variant="secondary" onClick={() => runCopilot(aiTarget)} disabled={aiBusy}>
-                        Generate Preview
+                        Draft Preview
                       </Button>
                       {aiPreview ? (
                         <Button type="button" variant="secondary" onClick={applyCopilotPreview} disabled={aiBusy}>

@@ -261,11 +261,11 @@ export function TeacherSettingsTab({
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create classroom blueprint')
+        throw new Error(data.error || 'Failed to save classroom as a course blueprint')
       }
       router.push(data.redirect_url || `/teacher/blueprints?blueprint=${data.blueprint_id}&fromClassroom=${classroom.id}`)
     } catch (err: any) {
-      setBlueprintError(err.message || 'Failed to create classroom blueprint')
+      setBlueprintError(err.message || 'Failed to save classroom as a course blueprint')
     } finally {
       setBlueprintBusy(false)
     }
@@ -577,8 +577,8 @@ export function TeacherSettingsTab({
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <div className="text-sm font-semibold text-text-default">Course Reuse</div>
-                <Tooltip content="Create a reusable blueprint draft from this classroom’s teacher-authored course content" side="right">
+                <div className="text-sm font-semibold text-text-default">Course Blueprint</div>
+                <Tooltip content="Save this classroom's teacher-authored course content as a reusable course blueprint" side="right">
                   <span className="text-text-muted cursor-help">
                     <Info size={14} />
                   </span>
@@ -586,7 +586,7 @@ export function TeacherSettingsTab({
               </div>
 
               <p className="text-sm text-text-muted">
-                Turn this classroom’s overview, outline, resources, assignments, assessments, and lesson plans into a reusable course blueprint.
+                Save the classroom overview, outline, resources, assignments, quizzes, tests, and lesson plans as a reusable course blueprint. Students, submissions, grades, and attendance stay out of the blueprint.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -596,7 +596,7 @@ export function TeacherSettingsTab({
                   onClick={openCreateBlueprintDialog}
                   disabled={blueprintBusy || isReadOnly}
                 >
-                  {blueprintBusy ? 'Working…' : 'Create Classroom Blueprint'}
+                  {blueprintBusy ? 'Working...' : 'Save as Course Blueprint'}
                 </Button>
               </div>
             </div>
@@ -622,11 +622,11 @@ export function TeacherSettingsTab({
               ariaLabelledBy="create-classroom-blueprint-title"
             >
               <h2 id="create-classroom-blueprint-title" className="mb-4 text-xl font-bold text-text-default">
-                Create Classroom Blueprint
+                Save Classroom as Course Blueprint
               </h2>
 
               <div className="space-y-4">
-                <FormField label="Blueprint Title" required>
+                <FormField label="Course Blueprint Title" required>
                   <Input
                     value={blueprintTitle}
                     onChange={(e) => setBlueprintTitle(e.target.value)}
@@ -636,7 +636,7 @@ export function TeacherSettingsTab({
                 </FormField>
 
                 <div className="rounded-md border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
-                  This copies the classroom overview, outline, resources, assignments, quizzes, tests, and lesson plans into a new reusable blueprint draft. Students, submissions, grades, and attendance are not included.
+                  The course blueprint will include teacher-authored course content only. Students, submissions, grades, attendance, join codes, and roster data are not included.
                 </div>
 
                 {blueprintError ? (
@@ -662,7 +662,7 @@ export function TeacherSettingsTab({
                   className="flex-1"
                   disabled={blueprintBusy || !blueprintTitle.trim()}
                 >
-                  {blueprintBusy ? 'Creating…' : 'Create Blueprint'}
+                  {blueprintBusy ? 'Saving...' : 'Save Blueprint'}
                 </Button>
               </div>
             </DialogPanel>

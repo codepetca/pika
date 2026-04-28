@@ -63,7 +63,7 @@ describe('CreateClassroomModal', () => {
   }
 
   function getBlueprintSelect() {
-    return screen.getByRole('combobox', { name: /blueprint/i })
+    return screen.getByRole('combobox', { name: /course blueprint/i })
   }
 
   async function openBlueprintSourceStep(title = 'Career Studies - Period 1') {
@@ -72,7 +72,7 @@ describe('CreateClassroomModal', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose classroom creation path' }))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'From Blueprint' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'From Course Blueprint' }))
   }
 
   it('keeps the primary Next path as a blank-classroom flow', async () => {
@@ -89,7 +89,7 @@ describe('CreateClassroomModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
     expect(await screen.findByText('Choose Calendar')).toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: /blueprint/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /course blueprint/i })).not.toBeInTheDocument()
   })
 
   it('routes From Blueprint through a separate source step before calendar selection', async () => {
@@ -97,7 +97,7 @@ describe('CreateClassroomModal', () => {
 
     await openBlueprintSourceStep()
 
-    expect(await screen.findByRole('combobox', { name: /blueprint/i })).toBeInTheDocument()
+    expect(await screen.findByRole('combobox', { name: /course blueprint/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
 
     fireEvent.change(getBlueprintSelect(), {
@@ -120,7 +120,7 @@ describe('CreateClassroomModal', () => {
     renderModal()
     await openBlueprintSourceStep()
 
-    expect(screen.getByRole('combobox', { name: /blueprint/i })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /course blueprint/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
   })
 
@@ -143,11 +143,13 @@ describe('CreateClassroomModal', () => {
     renderModal()
     await openBlueprintSourceStep()
 
-    const fileInput = screen.getByLabelText('Load blueprint file')
+    const fileInput = screen.getByLabelText('Import course package file')
     const file = new File(['bundle'], 'course-package.tar', { type: 'application/x-tar' })
     Object.defineProperty(file, 'arrayBuffer', {
       value: async () => new TextEncoder().encode('bundle').buffer,
     })
+    expect(screen.getByRole('option', { name: 'Import course package...' })).toBeInTheDocument()
+
     fireEvent.change(getBlueprintSelect(), { target: { value: '__choose-file__' } })
     fireEvent.change(fileInput, { target: { files: [file] } })
 
@@ -169,7 +171,7 @@ describe('CreateClassroomModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
-    const blueprintSelect = await screen.findByRole('combobox', { name: /blueprint/i })
+    const blueprintSelect = await screen.findByRole('combobox', { name: /course blueprint/i })
     expect(blueprintSelect).toHaveValue(mockBlueprint.id)
     expect(screen.getByRole('button', { name: 'Next' })).not.toBeDisabled()
   })
