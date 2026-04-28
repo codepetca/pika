@@ -1231,21 +1231,24 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     })
   }
 
-  return responses.map((response) => {
+  const suggestions: TestOpenResponseBatchSuggestion[] = []
+  for (const response of responses) {
     const result = resultsById.get(response.responseId)
     if (!result) {
-      throw new Error(`AI batch grade suggestion omitted response ${response.responseId}`)
+      continue
     }
 
-    return {
+    suggestions.push({
       responseId: response.responseId,
       score: result.score,
       feedback: result.feedback,
       model: prepared.model,
       grading_basis: prepared.grading_basis,
       reference_answers: prepared.reference_answers,
-    }
-  })
+    })
+  }
+
+  return suggestions
 }
 
 export async function suggestTestOpenResponseGrade(input: {
