@@ -357,6 +357,110 @@ describe('tickTestAiGradingRun', () => {
     expect(suggestTestOpenResponseGradesBatchWithContext).toHaveBeenCalledTimes(1)
   })
 
+  it('retries only the response omitted from a batch suggestion', async () => {
+    const { items, responses } = buildTickHarness({
+      responseRows: [
+        { id: 'response-1', response_text: 'Answer one' },
+        { id: 'response-2', response_text: 'Answer two' },
+      ],
+    })
+
+    suggestTestOpenResponseGradesBatchWithContext.mockResolvedValue([
+      {
+        responseId: 'response-1',
+        score: 5,
+        feedback: 'Correct.',
+        model: 'gpt-5-nano',
+        grading_basis: 'teacher_key',
+        reference_answers: ['Use a hash map.'],
+      },
+    ])
+
+    const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    expect(result.claimed).toBe(true)
+    expect(result.run.status).toBe('running')
+    expect(result.run.completed_count).toBe(1)
+    expect(result.run.failed_count).toBe(0)
+    expect(items[0]).toEqual(
+      expect.objectContaining({
+        status: 'completed',
+        attempt_count: 1,
+      }),
+    )
+    expect(items[1]).toEqual(
+      expect.objectContaining({
+        status: 'queued',
+        attempt_count: 1,
+        last_error_code: 'invalid_output',
+        last_error_message: 'AI grading service failed for this response. Try again.',
+      }),
+    )
+    expect(items[1].next_retry_at).toEqual(expect.any(String))
+    expect(responses.get('response-1')).toEqual(
+      expect.objectContaining({
+        score: 5,
+        feedback: 'Correct.',
+      }),
+    )
+  })
+
+  it('fails only the omitted response after retries are exhausted without exposing the response id', async () => {
+    const { items, responses } = buildTickHarness({
+      responseRows: [
+        { id: 'response-1', response_text: 'Answer one' },
+        { id: 'response-2', response_text: 'Answer two' },
+      ],
+    })
+    items[1].attempt_count = 2
+
+    suggestTestOpenResponseGradesBatchWithContext.mockResolvedValue([
+      {
+        responseId: 'response-1',
+        score: 5,
+        feedback: 'Correct.',
+        model: 'gpt-5-nano',
+        grading_basis: 'teacher_key',
+        reference_answers: ['Use a hash map.'],
+      },
+    ])
+
+    const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    expect(result.claimed).toBe(true)
+    expect(result.run.status).toBe('completed_with_errors')
+    expect(result.run.completed_count).toBe(1)
+    expect(result.run.failed_count).toBe(1)
+    expect(items[0]).toEqual(
+      expect.objectContaining({
+        status: 'completed',
+        attempt_count: 1,
+      }),
+    )
+    expect(items[1]).toEqual(
+      expect.objectContaining({
+        status: 'failed',
+        attempt_count: 3,
+        last_error_code: 'invalid_output',
+        last_error_message: 'AI grading service failed for this response. Try again.',
+      }),
+    )
+    expect(result.run.error_samples).toEqual([
+      expect.objectContaining({
+        student_id: 'student-2',
+        code: 'invalid_output',
+        message: 'AI grading service failed for this response. Try again.',
+      }),
+    ])
+    expect(result.run.error_samples[0]?.message).not.toContain('response-2')
+    expect(responses.get('response-1')).toEqual(
+      expect.objectContaining({
+        score: 5,
+        feedback: 'Correct.',
+      }),
+    )
+  })
+
   it('fails only the missing response item and still grades available siblings', async () => {
     const { items, responses } = buildTickHarness({
       responseRows: [{ id: 'response-1', response_text: 'Answer one' }],

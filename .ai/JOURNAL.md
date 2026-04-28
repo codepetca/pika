@@ -9628,3 +9628,19 @@
   - `/tmp/pika-teacher-resubmitted-status.png`
   - `/tmp/pika-teacher-resubmitted-status-mobile.png`
   - `/tmp/pika-student-assignments-mobile.png`
+## 2026-04-28 — Test AI batch grading omitted response fix
+
+**Context:** A teacher test AI grading run reported `Graded 15 • 4 failed` with repeated `AI batch grade suggestion omitted response ...` messages after grading practice tests where several students had not attempted.
+
+**Completed:**
+- Fixed test AI batch grading so a model omission for one response no longer fails the whole microbatch.
+- Kept available batch suggestions and lets the run processor retry only the omitted response.
+- Mapped exhausted omitted-response failures to the generic teacher-facing AI grading service error instead of exposing internal response IDs.
+- Added unit coverage for partial batch suggestions and run-state coverage for retry and exhausted-retry behavior.
+
+**Validation:**
+- `pnpm test tests/unit/ai-test-grading.test.ts`
+- `pnpm test tests/lib/test-ai-grading-runs.test.ts`
+- `pnpm lint`
+- `pnpm test` (233 files, 1941 tests)
+- `pnpm build`
