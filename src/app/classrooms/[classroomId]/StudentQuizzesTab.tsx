@@ -359,7 +359,7 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
     setPendingStartTestId(null)
     setActiveDoc(null)
     setRemoteClosureNotice({
-      title: 'This test is now closed.',
+      title: 'This test is closed.',
       description: getRemoteClosureDescription(nextStudentStatus, options?.message),
     })
     focusSessionIdRef.current = null

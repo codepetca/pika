@@ -363,14 +363,14 @@ describe('StudentQuizzesTab exam mode', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('This test is now closed.')).toBeInTheDocument()
+      expect(screen.getByText('This test is closed.')).toBeInTheDocument()
     })
     expect(screen.getByText('Your current work has been submitted.')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Return to tests' }))
 
     await waitFor(() => {
-      expect(screen.queryByText('This test is now closed.')).not.toBeInTheDocument()
+      expect(screen.queryByText('This test is closed.')).not.toBeInTheDocument()
       expect(screen.getByText('This test is closed')).toBeInTheDocument()
     })
   })
@@ -478,7 +478,7 @@ describe('StudentQuizzesTab exam mode', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('This test is now closed.')).toBeInTheDocument()
+      expect(screen.getByText('This test is closed.')).toBeInTheDocument()
     })
     expect(screen.getByText('Your current work has been submitted. Results are now available from the tests list.')).toBeInTheDocument()
   })
