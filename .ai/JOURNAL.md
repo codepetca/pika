@@ -9700,3 +9700,12 @@
   - `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx tests/components/TeacherTestsTab.test.tsx`
   - `pnpm lint`
   - `pnpm exec tsc --noEmit --pretty false --project tsconfig.json --incremental false`
+
+## 2026-04-29 — Explicit source-visible license
+
+**Completed:**
+- Added a root `LICENSE` file reserving all rights to Stewart Chan and identifying Pika as a CodePet project.
+- Added a README license section that states the repository is publicly visible for review/evaluation only and links to `LICENSE`.
+
+**Validation:**
+- `bash "$PIKA_WORKTREE/scripts/verify-env.sh"` (235 files, 1951 tests)
