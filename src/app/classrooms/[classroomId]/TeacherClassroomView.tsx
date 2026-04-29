@@ -305,6 +305,7 @@ export function TeacherClassroomView({
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
   const [showGradeSelectedConfirm, setShowGradeSelectedConfirm] = useState(false)
+  const [isApplyGradeOptionHighlighted, setIsApplyGradeOptionHighlighted] = useState(false)
   const [gradeSelectedTemplate, setGradeSelectedTemplate] =
     useState<TeacherAssignmentGradeTemplate | null>(null)
   const [gradeSelectedRefreshCounter, setGradeSelectedRefreshCounter] = useState(0)
@@ -1363,6 +1364,9 @@ export function TeacherClassroomView({
   const showOverviewInspector =
     assignmentWorkspaceMode === 'overview' &&
     !!activeSelectedStudentId
+  const highlightedInspectorSections = isApplyGradeOptionHighlighted
+    ? (['grades', 'comments'] as const)
+    : undefined
   const canOpenDetails =
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
@@ -1450,12 +1454,14 @@ export function TeacherClassroomView({
             {
               id: 'grade-selected',
               label: (
-                <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
                   <Copy className="h-4 w-4" aria-hidden="true" />
-                  <span>Apply Grade</span>
+                  <span>Apply Grade to Selected Students</span>
                 </span>
               ),
+              onHoverChange: setIsApplyGradeOptionHighlighted,
               onSelect: () => {
+                setIsApplyGradeOptionHighlighted(false)
                 setShowGradeSelectedConfirm(true)
               },
               disabled: isGradeSelectedDisabled,
@@ -1732,6 +1738,7 @@ export function TeacherClassroomView({
           studentId={activeSelectedStudentId}
           refreshKey={gradeSelectedRefreshCounter}
           mode="overview"
+          highlightedInspectorSections={highlightedInspectorSections}
           inspectorCollapsed={false}
           inspectorWidth={activeWorkspaceLayout.inspectorWidth}
           totalWidth={workspaceWidth}
@@ -1777,7 +1784,7 @@ export function TeacherClassroomView({
         isOpen={showGradeSelectedConfirm}
         title={`Apply grade to ${batchSelectedCount} selected student(s)?`}
         description={`This applies the open student's scores and feedback draft to the checked student(s), overwriting their saved scores and feedback drafts. It will not return feedback to students.`}
-        confirmLabel={isGradeSelectedSaving ? 'Applying...' : 'Apply Grade'}
+        confirmLabel={isGradeSelectedSaving ? 'Applying...' : 'Apply Grade to Selected Students'}
         cancelLabel="Cancel"
         isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedDisabled}
         isCancelDisabled={isGradeSelectedSaving}

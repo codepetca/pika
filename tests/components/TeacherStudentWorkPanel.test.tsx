@@ -1086,6 +1086,29 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByTestId('rich-text-viewer')).not.toBeInTheDocument()
   })
 
+  it('highlights requested inspector sections', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="overview"
+        highlightedInspectorSections={['grades', 'comments']}
+      />,
+    )
+
+    await screen.findByTestId('grading-inspector-pane')
+
+    expect(screen.getByTestId('inspector-section-history')).not.toHaveAttribute('data-highlighted')
+    expect(screen.getByTestId('inspector-section-repo')).not.toHaveAttribute('data-highlighted')
+    expect(screen.getByTestId('inspector-section-grades')).toHaveAttribute('data-highlighted', 'true')
+    expect(screen.getByTestId('inspector-section-comments')).toHaveAttribute('data-highlighted', 'true')
+  })
+
   it('keeps prior content visible while the next student loads', async () => {
     const deferredStudent2 = createDeferred<any>()
 

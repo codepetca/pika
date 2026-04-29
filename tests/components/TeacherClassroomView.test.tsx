@@ -63,6 +63,10 @@ vi.mock('@/ui', () => ({
           type="button"
           onClick={option.onSelect}
           disabled={option.disabled}
+          onMouseEnter={() => option.onHoverChange?.(true)}
+          onMouseLeave={() => option.onHoverChange?.(false)}
+          onFocus={() => option.onHoverChange?.(true)}
+          onBlur={() => option.onHoverChange?.(false)}
         >
           {option.label}
         </button>
@@ -132,6 +136,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
     mode,
     onDetailsMetaChange,
     onGradeTemplateChange,
+    highlightedInspectorSections = [],
   }: any) => {
     useEffect(() => {
       onDetailsMetaChange?.(
@@ -156,7 +161,14 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
       )
     }, [mode, onGradeTemplateChange, studentId])
 
-    return <div data-testid="teacher-work-panel">{`${mode}:${assignmentId}:${studentId}`}</div>
+    return (
+      <div
+        data-testid="teacher-work-panel"
+        data-highlighted-sections={highlightedInspectorSections.join(',')}
+      >
+        {`${mode}:${assignmentId}:${studentId}`}
+      </div>
+    )
   },
 }))
 
@@ -918,7 +930,7 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    const gradeSelectedOption = screen.getByRole('button', { name: 'Apply Grade' })
+    const gradeSelectedOption = screen.getByRole('button', { name: 'Apply Grade to Selected Students' })
     await waitFor(() => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
@@ -928,7 +940,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByText(/applies the open student's scores and feedback draft/)).toBeInTheDocument()
     expect(screen.getByText(/It will not return feedback to students/)).toBeInTheDocument()
 
-    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Apply Grade' })
+    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Apply Grade to Selected Students' })
     fireEvent.click(gradeSelectedButtons[gradeSelectedButtons.length - 1])
 
     await waitFor(() => {
@@ -947,7 +959,55 @@ describe('TeacherClassroomView', () => {
     expect(await screen.findByText('Applied grade to 2 selected students')).toBeInTheDocument()
   })
 
-  it('keeps checked students selected when Apply Grade fails', async () => {
+  it('highlights grade and feedback cards while hovering Apply Grade to Selected Students', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        const details = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+        details.students.push({
+          student_id: 'student-2',
+          student_email: 'student-2@example.com',
+          student_first_name: 'student-2',
+          student_last_name: 'Student',
+          status: 'submitted_on_time',
+          student_updated_at: '2026-04-10T12:00:00Z',
+          artifacts: [],
+          doc: null,
+        })
+        return Promise.resolve({
+          ok: true,
+          json: async () => details,
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    const workPanel = await screen.findByTestId('teacher-work-panel')
+    const applyGradeOption = screen.getByRole('button', { name: 'Apply Grade to Selected Students' })
+    await waitFor(() => {
+      expect(applyGradeOption).not.toBeDisabled()
+    })
+
+    fireEvent.mouseEnter(applyGradeOption)
+    expect(workPanel).toHaveAttribute('data-highlighted-sections', 'grades,comments')
+
+    fireEvent.mouseLeave(applyGradeOption)
+    expect(workPanel).toHaveAttribute('data-highlighted-sections', '')
+  })
+
+  it('keeps checked students selected when Apply Grade to Selected Students fails', async () => {
     mockStudentSelectionState.selectedIds = new Set(['student-1'])
     mockStudentSelectionState.selectedCount = 1
 
@@ -983,8 +1043,8 @@ describe('TeacherClassroomView', () => {
     })
 
     mockClearSelection.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: 'Apply Grade' }))
-    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Apply Grade' })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Grade to Selected Students' }))
+    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Apply Grade to Selected Students' })
     fireEvent.click(gradeSelectedButtons[gradeSelectedButtons.length - 1])
 
     expect(await screen.findByText('Batch save failed')).toBeInTheDocument()

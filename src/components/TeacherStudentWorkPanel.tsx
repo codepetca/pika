@@ -14,6 +14,7 @@ import {
   type AssignmentWorkspacePaneLayout,
 } from '@/lib/assignment-grading-layout'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import type { InspectorSectionId } from '@/components/assignment-workspace/types'
 
 interface TeacherStudentWorkPanelProps {
   classroomId: string
@@ -37,6 +38,7 @@ interface TeacherStudentWorkPanelProps {
   inspectorEditMode?: boolean
   onDetailsMetaChange?: (meta: { studentName: string; characterCount: number } | null) => void
   onGradeTemplateChange?: (template: TeacherAssignmentGradeTemplate | null) => void
+  highlightedInspectorSections?: readonly InspectorSectionId[]
 }
 
 export interface TeacherAssignmentGradeTemplate {
@@ -66,6 +68,7 @@ export function TeacherStudentWorkPanel({
   inspectorEditMode = false,
   onDetailsMetaChange,
   onGradeTemplateChange,
+  highlightedInspectorSections = [],
 }: TeacherStudentWorkPanelProps) {
   const {
     data,
@@ -248,6 +251,7 @@ export function TeacherStudentWorkPanel({
       gradeSaving={gradeSaving}
       showDraftAutosavedNotice={showDraftAutosavedNotice}
       repoAnalyzing={repoAnalyzing}
+      highlightedSections={highlightedInspectorSections}
       expandedSections={expandedSections}
       visibleSections={visibleSections}
       editMode={inspectorEditMode}

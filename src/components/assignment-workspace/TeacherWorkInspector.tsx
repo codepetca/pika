@@ -177,6 +177,7 @@ function InspectorSection({
   onToggle,
   onVisibleChange,
   action,
+  highlighted = false,
   children,
 }: {
   id: InspectorSectionId
@@ -188,10 +189,12 @@ function InspectorSection({
   onToggle: () => void
   onVisibleChange: () => void
   action?: ReactNode
+  highlighted?: boolean
   children?: ReactNode
 }) {
   const contentId = `assignment-inspector-section-${id}`
   const effectiveExpanded = visible && expanded
+  const isHighlighted = visible && highlighted
   const handleHeaderToggle = () => {
     if (!visible) return
     onToggle()
@@ -200,11 +203,14 @@ function InspectorSection({
   return (
     <section
       data-testid={`inspector-section-${id}`}
+      data-highlighted={isHighlighted ? 'true' : undefined}
       className={[
-        'overflow-hidden rounded-lg border transition-colors',
-        visible
-          ? 'border-border bg-surface'
-          : 'border-dashed border-border bg-surface-2',
+        'overflow-hidden rounded-lg border transition-[border-color,background-color,box-shadow]',
+        isHighlighted
+          ? 'border-primary bg-info-bg shadow-sm ring-1 ring-primary/30'
+          : visible
+            ? 'border-border bg-surface'
+            : 'border-dashed border-border bg-surface-2',
       ].join(' ')}
     >
       <div
@@ -491,6 +497,7 @@ export function TeacherWorkInspector({
   gradeSaving,
   showDraftAutosavedNotice,
   repoAnalyzing,
+  highlightedSections = [],
   expandedSections,
   visibleSections,
   editMode = false,
@@ -530,6 +537,7 @@ export function TeacherWorkInspector({
   gradeSaving: boolean
   showDraftAutosavedNotice: boolean
   repoAnalyzing: boolean
+  highlightedSections?: readonly InspectorSectionId[]
   expandedSections: InspectorSectionId[]
   visibleSections: InspectorSectionId[]
   editMode?: boolean
@@ -814,6 +822,7 @@ export function TeacherWorkInspector({
                   expanded={expandedSections.includes(section.id)}
                   visible={visible}
                   editMode={editMode}
+                  highlighted={highlightedSections.includes(section.id)}
                   summary={section.summary}
                   action={section.action}
                   onToggle={() => onToggleSection(section.id)}

@@ -10011,3 +10011,22 @@
 - Manual Playwright screenshots for the assignment workspace `Apply Grade` menu and confirmation dialog:
   - `/tmp/pika-apply-grade-menu.png`
   - `/tmp/pika-apply-grade-dialog.png`
+
+## 2026-04-29 — Highlight Apply Grade source cards
+
+**Completed:**
+- Renamed the teacher-facing batch menu option to `Apply Grade to Selected Students`.
+- Highlighted the grade and feedback inspector cards while the batch menu option is hovered or focused, making the copied source fields explicit before confirmation.
+- Added split-button hover state plumbing and component coverage for the highlighted inspector sections.
+
+**Validation:**
+- `pnpm test` during session start (235 files, 1955 tests)
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshot for the assignment workspace hover highlight:
+  - `/tmp/pika-apply-grade-selected-hover-highlight.png`

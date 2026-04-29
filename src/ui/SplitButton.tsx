@@ -2,6 +2,7 @@
 
 import { ChevronDown } from 'lucide-react'
 import {
+  useCallback,
   useEffect,
   useId,
   useRef,
@@ -17,6 +18,7 @@ export interface SplitButtonOption {
   label: ReactNode
   onSelect: () => void
   disabled?: boolean
+  onHoverChange?: (hovered: boolean) => void
 }
 
 export interface SplitButtonProps {
@@ -49,19 +51,28 @@ export function SplitButton({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const menuId = useId()
 
+  const clearOptionHover = useCallback(() => {
+    options.forEach((option) => option.onHoverChange?.(false))
+  }, [options])
+
+  const closeMenu = useCallback(() => {
+    clearOptionHover()
+    setIsOpen(false)
+  }, [clearOptionHover])
+
   useEffect(() => {
     if (!isOpen) return
 
     function handleClickOutside(event: MouseEvent) {
       if (!containerRef.current) return
       if (!containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
+        closeMenu()
       }
     }
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        setIsOpen(false)
+        closeMenu()
       }
     }
 
@@ -71,10 +82,10 @@ export function SplitButton({
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleEscape)
     }
-  }, [isOpen])
+  }, [closeMenu, isOpen])
 
   function handleOptionSelect(onSelect: () => void) {
-    setIsOpen(false)
+    closeMenu()
     onSelect()
   }
 
@@ -101,7 +112,10 @@ export function SplitButton({
         aria-label={toggleAriaLabel}
         onClick={(event) => {
           event.stopPropagation()
-          setIsOpen((prev) => !prev)
+          setIsOpen((prev) => {
+            if (prev) clearOptionHover()
+            return !prev
+          })
         }}
         disabled={disabled || options.length === 0}
         className="rounded-l-none border-l border-black/15 px-3"
@@ -125,6 +139,10 @@ export function SplitButton({
               type="button"
               role="menuitem"
               disabled={option.disabled}
+              onMouseEnter={() => option.onHoverChange?.(true)}
+              onMouseLeave={() => option.onHoverChange?.(false)}
+              onFocus={() => option.onHoverChange?.(true)}
+              onBlur={() => option.onHoverChange?.(false)}
               onClick={(event) => {
                 event.stopPropagation()
                 handleOptionSelect(option.onSelect)
