@@ -21,6 +21,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
   LoaderCircle,
   Pencil,
   Plus,
@@ -36,7 +37,10 @@ import {
   TeacherAssignmentStudentTable,
   type TeacherAssignmentStudentRow,
 } from '@/components/assignment-workspace/TeacherAssignmentStudentTable'
-import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
+import {
+  TeacherStudentWorkPanel,
+  type TeacherAssignmentGradeTemplate,
+} from '@/components/TeacherStudentWorkPanel'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { TeacherEditModeControls } from '@/components/teacher-work-surface/TeacherEditModeControls'
 import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
@@ -87,6 +91,10 @@ interface AssignmentWithStats extends Assignment {
 type TeacherAssignmentSelection = { mode: 'summary' } | { mode: 'assignment'; assignmentId: string }
 
 type StudentSubmissionRow = TeacherAssignmentStudentRow
+type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
+  student_id: string
+  updated_at?: string | null
+}
 type UpdateSearchParamsFn = (
   updater: (params: URLSearchParams) => void,
   options?: { replace?: boolean },
@@ -152,6 +160,24 @@ function getAssignmentAiRunPollDelayMs(run: AssignmentAiGradingRunSummary | null
 
   const delay = retryAt - Date.now() + 250
   return Math.min(Math.max(delay, 1000), 10_000)
+}
+
+function isGradeSelectedScoreValueValid(value: string, allowBlank: boolean): boolean {
+  const trimmed = value.trim()
+  if (allowBlank && !trimmed) return true
+  const parsed = Number(trimmed)
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 10
+}
+
+function isGradeSelectedTemplateValid(template: TeacherAssignmentGradeTemplate | null): boolean {
+  if (!template) return false
+
+  const allowBlank = template.gradeMode === 'draft'
+  return [
+    template.scoreCompletion,
+    template.scoreThinking,
+    template.scoreWorkflow,
+  ].every((value) => isGradeSelectedScoreValueValid(value, allowBlank))
 }
 
 function summarizeAssignmentAiGradingErrors(run: AssignmentAiGradingRunSummary): string {
@@ -273,10 +299,15 @@ export function TeacherClassroomView({
 
   // Batch grading state
   const [isAutoGrading, setIsAutoGrading] = useState(false)
+  const [isGradeSelectedSaving, setIsGradeSelectedSaving] = useState(false)
   const [isArtifactRepoAnalyzing, setIsArtifactRepoAnalyzing] = useState(false)
   const [isReturning, setIsReturning] = useState(false)
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
+  const [showGradeSelectedConfirm, setShowGradeSelectedConfirm] = useState(false)
+  const [gradeSelectedTemplate, setGradeSelectedTemplate] =
+    useState<TeacherAssignmentGradeTemplate | null>(null)
+  const [gradeSelectedRefreshCounter, setGradeSelectedRefreshCounter] = useState(0)
   const [refreshCounter, setRefreshCounter] = useState(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const wasActiveRef = useRef(isActive)
@@ -732,6 +763,9 @@ export function TeacherClassroomView({
     setSelection: batchSetSelection,
     selectedCount: batchSelectedCount,
   } = useStudentSelection(studentRowIds)
+  const handleGradeTemplateChange = useCallback((template: TeacherAssignmentGradeTemplate | null) => {
+    setGradeSelectedTemplate(template)
+  }, [])
 
   useEffect(() => {
     if (selection.mode !== 'assignment') return
@@ -1001,6 +1035,82 @@ export function TeacherClassroomView({
     }
   }
 
+  async function handleGradeSelected() {
+    if (!selectedAssignmentData || !gradeSelectedTemplate || batchSelectedCount === 0) return
+
+    if (!isGradeSelectedTemplateValid(gradeSelectedTemplate)) {
+      setError('Scores must be blank or integers 0–10')
+      return
+    }
+
+    const studentIds = Array.from(batchSelectedIds)
+    setBatchProgressCount(studentIds.length)
+    setIsGradeSelectedSaving(true)
+    setError('')
+    setInfo('')
+    try {
+      const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/grade-selected`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_ids: studentIds,
+          score_completion: gradeSelectedTemplate.scoreCompletion,
+          score_thinking: gradeSelectedTemplate.scoreThinking,
+          score_workflow: gradeSelectedTemplate.scoreWorkflow,
+          feedback: gradeSelectedTemplate.feedbackDraft,
+          save_mode: gradeSelectedTemplate.gradeMode,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to copy grade')
+
+      const updatedDocs: GradeSelectedUpdatedDoc[] = Array.isArray(data.docs)
+        ? data.docs.filter((doc: unknown): doc is GradeSelectedUpdatedDoc =>
+            !!doc && typeof doc === 'object' && typeof (doc as { student_id?: unknown }).student_id === 'string'
+          )
+        : []
+      const docsByStudentId = new Map<string, GradeSelectedUpdatedDoc>(
+        updatedDocs.map((doc) => [doc.student_id, doc])
+      )
+
+      if (docsByStudentId.size > 0) {
+        setSelectedAssignmentData((prev) => {
+          if (!prev || prev.assignment.id !== selectedAssignmentData.assignment.id) return prev
+
+          const nextStudents = prev.students.map((student) => {
+            const updatedDoc = docsByStudentId.get(student.student_id)
+            if (!updatedDoc) return student
+
+            return {
+              ...student,
+              doc: {
+                ...(student.doc ?? {}),
+                ...updatedDoc,
+              },
+              status: calculateAssignmentStatus(prev.assignment, updatedDoc as any),
+              student_updated_at: updatedDoc.updated_at ?? student.student_updated_at,
+            }
+          })
+
+          return { ...prev, students: nextStudents }
+        })
+      }
+
+      const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
+      setInfo(`Copied grade to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
+      setShowGradeSelectedConfirm(false)
+      batchClearSelection()
+
+      if (activeSelectedStudentId && docsByStudentId.has(activeSelectedStudentId)) {
+        setGradeSelectedRefreshCounter((count) => count + 1)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to copy grade')
+    } finally {
+      setIsGradeSelectedSaving(false)
+    }
+  }
+
   const selectedStudentIndex = useMemo(() => {
     if (!selectedStudentId) return -1
     return currentStudentRows.findIndex((student) => student.student_id === selectedStudentId)
@@ -1261,7 +1371,22 @@ export function TeacherClassroomView({
   const hasReturnableSelection =
     batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
   const isReturnDisabled =
-    isReturning || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
+    isReturning || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
+  const returnTooltipContent =
+    batchSelectedCount > 0 && !hasReturnableSelection
+      ? 'Nothing returnable selected'
+      : `Return${workspaceActionLabelSuffix}`
+  const gradeSelectedTemplateIsValid = isGradeSelectedTemplateValid(gradeSelectedTemplate)
+  const isGradeSelectedDisabled =
+    isGradeSelectedSaving ||
+    isAutoGrading ||
+    hasActiveAssignmentAiRun ||
+    isArtifactRepoAnalyzing ||
+    isReturning ||
+    isReadOnly ||
+    batchSelectedCount === 0 ||
+    !gradeSelectedTemplate ||
+    !gradeSelectedTemplateIsValid
   const showAssignmentAiRunOverlay = isAutoGrading || hasActiveAssignmentAiRun
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
@@ -1272,7 +1397,9 @@ export function TeacherClassroomView({
       ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
       : isReturning
         ? `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-        : ''
+        : isGradeSelectedSaving
+          ? `Copying grade to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+          : ''
   useOverlayMessage(!!activeWorkMessage, activeWorkMessage, { tone: 'loading' })
 
   const studentBusyOverlay = activeWorkMessage ? (
@@ -1308,52 +1435,73 @@ export function TeacherClassroomView({
 
   const workspaceModeCenter = assignmentWorkspaceMode === 'overview' ? (
     <>
-      <SplitButton
-        label={
-          <span className="inline-flex items-center gap-2">
-            <Check className="h-4 w-4" aria-hidden="true" />
-            <span>AI Grade</span>
-          </span>
-        }
-        onPrimaryClick={() => {
-          void handleBatchAutoGrade()
-        }}
-        options={[
-          {
-            id: 'repo-analysis',
-            label: (
-              <span className="inline-flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                <span>Repo analysis</span>
-              </span>
-            ),
-            onSelect: () => {
-              void handleBatchArtifactRepoAnalyze()
+      <Tooltip content={`Grade${workspaceActionLabelSuffix}`}>
+        <SplitButton
+          label={
+            <span className="inline-flex items-center gap-2">
+              <Check className="h-4 w-4" aria-hidden="true" />
+              <span>AI Grade</span>
+            </span>
+          }
+          onPrimaryClick={() => {
+            void handleBatchAutoGrade()
+          }}
+          options={[
+            {
+              id: 'grade-selected',
+              label: (
+                <span className="inline-flex items-center gap-2">
+                  <Copy className="h-4 w-4" aria-hidden="true" />
+                  <span>Copy Grade</span>
+                </span>
+              ),
+              onSelect: () => {
+                setShowGradeSelectedConfirm(true)
+              },
+              disabled: isGradeSelectedDisabled,
             },
-            disabled: isArtifactRepoAnalyzing || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
-          },
-          {
-            id: 'return',
-            label: (
-              <span className="inline-flex items-center gap-2">
-                <Send className="h-4 w-4" aria-hidden="true" />
-                <span>Return</span>
-              </span>
-            ),
-            onSelect: () => {
+            {
+              id: 'repo-analysis',
+              label: (
+                <span className="inline-flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                  <span>Repo analysis</span>
+                </span>
+              ),
+              onSelect: () => {
+                void handleBatchArtifactRepoAnalyze()
+              },
+              disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
+            },
+          ]}
+          disabled={isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
+          className="inline-flex"
+          toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
+          menuPlacement="down"
+          primaryButtonProps={{
+            'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
+          }}
+        />
+      </Tooltip>
+
+      <Tooltip content={returnTooltipContent}>
+        <span className="inline-flex">
+          <Button
+            type="button"
+            variant="subtle"
+            size="sm"
+            className="px-4"
+            onClick={() => {
               setShowReturnConfirm(true)
-            },
-            disabled: isReturnDisabled,
-          },
-        ]}
-        disabled={isAutoGrading || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
-        className="inline-flex"
-        toggleAriaLabel={`More grading actions${workspaceActionLabelSuffix}`}
-        menuPlacement="down"
-        primaryButtonProps={{
-          'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
-        }}
-      />
+            }}
+            disabled={isReturnDisabled}
+            aria-label={`Return${workspaceActionLabelSuffix}`}
+          >
+            <Send className="h-4 w-4" aria-hidden="true" />
+            <span>Return</span>
+          </Button>
+        </span>
+      </Tooltip>
     </>
   ) : (
     <>
@@ -1582,12 +1730,14 @@ export function TeacherClassroomView({
           classroomId={classroom.id}
           assignmentId={selectedAssignmentId}
           studentId={activeSelectedStudentId}
+          refreshKey={gradeSelectedRefreshCounter}
           mode="overview"
           inspectorCollapsed={false}
           inspectorWidth={activeWorkspaceLayout.inspectorWidth}
           totalWidth={workspaceWidth}
           inspectorEditMode={assignmentEditMode}
           onLoadingStateChange={setWorkspaceLoading}
+          onGradeTemplateChange={handleGradeTemplateChange}
         />
       }
     />
@@ -1622,6 +1772,18 @@ export function TeacherClassroomView({
         onConfirm={deleteAssignment}
       />
 
+
+      <ConfirmDialog
+        isOpen={showGradeSelectedConfirm}
+        title={`Copy grade to ${batchSelectedCount} selected student(s)?`}
+        description={`This copies the open student's scores and feedback draft to the checked student(s), overwriting their saved scores and feedback drafts. It will not return feedback to students.`}
+        confirmLabel={isGradeSelectedSaving ? 'Copying...' : 'Copy Grade'}
+        cancelLabel="Cancel"
+        isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedDisabled}
+        isCancelDisabled={isGradeSelectedSaving}
+        onCancel={() => (isGradeSelectedSaving ? null : setShowGradeSelectedConfirm(false))}
+        onConfirm={handleGradeSelected}
+      />
 
       <ConfirmDialog
         isOpen={showReturnConfirm}

@@ -9962,3 +9962,36 @@
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
+## 2026-04-29 — Assignment grade selected batch action
+
+**Completed:**
+- Added a teacher assignment `Grade Selected` action to the existing `AI Grade` split-button menu, gated by checked student rows and an active right-side grader template.
+- Added a confirmation dialog that calls out selected count and saved score/feedback draft overwrites without returning feedback to students.
+- Added `POST /api/teacher/assignments/[id]/grade-selected` with shared grade payload parsing/upsert logic reused by the existing single-student grade route.
+- Patched assignment rows locally after batch save, refreshed the active inspector in place, showed a success banner, and cleared checkbox selection only on success.
+- Added API and component coverage for batch validation, grade upserts, confirmation flow, request payloads, success row patching, and error selection preservation.
+
+**Validation:**
+- `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `pnpm test` (235 files, 1955 tests)
+- `pnpm build`
+- Visual verification attempted with the local dev server, but blocked because seeded teacher/student auth was unavailable and `pnpm seed` failed during Supabase-backed test account creation.
+
+## 2026-04-29 — Rename assignment batch copy action
+
+**Completed:**
+- Renamed the teacher-facing assignment batch action from `Grade Selected` to `Copy Grade`.
+- Updated the confirmation dialog, busy text, success text, and error fallback to describe copying the open student's grade and feedback draft to checked students.
+- Kept the existing batch save route and copy behavior unchanged.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms` with generated teacher/student auth screenshots.
+- Manual Playwright screenshots for the assignment workspace `Copy Grade` menu and confirmation dialog:
+  - `/tmp/pika-copy-grade-menu.png`
+  - `/tmp/pika-copy-grade-dialog.png`
+  - `/tmp/pika-copy-grade-mobile-menu.png`
+  - `/tmp/pika-copy-grade-mobile-dialog.png`

@@ -225,11 +225,13 @@ export function useTeacherStudentWorkController({
   classroomId,
   assignmentId,
   studentId,
+  refreshKey = 0,
   onLoadingStateChange,
 }: {
   classroomId: string
   assignmentId: string
   studentId: string
+  refreshKey?: number
   onLoadingStateChange?: (loading: boolean) => void
 }): TeacherStudentWorkController {
   const studentLoadRequestIdRef = useRef(0)
@@ -478,7 +480,7 @@ export function useTeacherStudentWorkController({
 
   useEffect(() => {
     void loadStudentWork()
-  }, [loadStudentWork])
+  }, [loadStudentWork, refreshKey])
 
   useEffect(() => {
     const requestId = ++historyLoadRequestIdRef.current

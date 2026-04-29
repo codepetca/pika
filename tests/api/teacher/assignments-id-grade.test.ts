@@ -46,9 +46,9 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
       if (table === 'assignment_docs') {
         return {
           upsert: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
+            select: vi.fn().mockResolvedValue({
+              data: [
+                {
                   id: 'doc-1',
                   assignment_id: 'assignment-1',
                   student_id: 'student-1',
@@ -56,9 +56,9 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
                   score_thinking: 0,
                   score_workflow: 0,
                 },
-                error: null,
-              }),
-            })),
+              ],
+              error: null,
+            }),
           })),
         }
       }
@@ -174,12 +174,12 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
 
       if (table === 'assignment_docs') {
         return {
-          upsert: vi.fn((payload: Record<string, unknown>) => {
-            capturedUpsertPayload = payload
+          upsert: vi.fn((payload: Record<string, unknown> | Array<Record<string, unknown>>) => {
+            capturedUpsertPayload = Array.isArray(payload) ? payload[0] : payload
             return {
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
+              select: vi.fn().mockResolvedValue({
+                data: [
+                  {
                     id: 'doc-1',
                     assignment_id: 'assignment-1',
                     student_id: 'student-1',
@@ -190,9 +190,9 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
                     graded_at: null,
                     graded_by: null,
                   },
-                  error: null,
-                }),
-              })),
+                ],
+                error: null,
+              }),
             }
           }),
         }
@@ -259,12 +259,12 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
 
       if (table === 'assignment_docs') {
         return {
-          upsert: vi.fn((payload: Record<string, unknown>) => {
-            capturedUpsertPayload = payload
+          upsert: vi.fn((payload: Record<string, unknown> | Array<Record<string, unknown>>) => {
+            capturedUpsertPayload = Array.isArray(payload) ? payload[0] : payload
             return {
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
+              select: vi.fn().mockResolvedValue({
+                data: [
+                  {
                     id: 'doc-1',
                     assignment_id: 'assignment-1',
                     student_id: 'student-1',
@@ -275,9 +275,9 @@ describe('POST /api/teacher/assignments/[id]/grade', () => {
                     graded_at: null,
                     graded_by: null,
                   },
-                  error: null,
-                }),
-              })),
+                ],
+                error: null,
+              }),
             }
           }),
         }
