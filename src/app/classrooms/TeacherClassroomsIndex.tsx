@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useRouter, usePathname } from 'next/navigation'
-import { Archive, CircleDot, Plus } from 'lucide-react'
+import { Archive, CircleDot, LoaderCircle, Plus } from 'lucide-react'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { Button, ConfirmDialog } from '@/ui'
 import { Spinner } from '@/components/Spinner'
@@ -50,6 +50,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const [isLoadingArchived, setIsLoadingArchived] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
   const [draggingClassroomId, setDraggingClassroomId] = useState<string | null>(null)
+  const [openingClassroomId, setOpeningClassroomId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -282,6 +283,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   const hasActiveClassrooms = activeClassrooms.length > 0
   const showBottomCreateButton = hasActiveClassrooms || view === 'archived'
 
+  const openClassroom = useCallback((classroom: Classroom) => {
+    setOpeningClassroomId(classroom.id)
+    router.push(`/classrooms/${classroom.id}?tab=attendance`)
+  }, [router])
+
   return (
     <PageLayout className="mx-auto max-w-2xl">
       <PageContent className="pb-36">
@@ -339,8 +345,10 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                     <SortableClassroomRow
                       key={classroom.id}
                       classroom={classroom}
-                      isDragDisabled={isReordering}
-                      onOpen={() => router.push(`/classrooms/${classroom.id}?tab=attendance`)}
+                      isDragDisabled={isReordering || openingClassroomId !== null}
+                      isDisabled={openingClassroomId !== null}
+                      isOpening={openingClassroomId === classroom.id}
+                      onOpen={() => openClassroom(classroom)}
                       onArchive={() => setPendingAction({ mode: 'archive', classroom })}
                     />
                   ))}
@@ -360,8 +368,13 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                   <button
                     type="button"
                     data-testid="classroom-card"
-                    onClick={() => router.push(`/classrooms/${c.id}?tab=attendance`)}
-                    className="-m-1.5 min-w-0 rounded-control p-1.5 text-left transition-colors hover:bg-surface-accent"
+                    onClick={() => openClassroom(c)}
+                    disabled={openingClassroomId !== null}
+                    aria-busy={openingClassroomId === c.id}
+                    className={[
+                      '-m-1.5 min-w-0 rounded-control p-1.5 text-left transition-colors',
+                      openingClassroomId === c.id ? 'cursor-wait bg-surface-accent' : 'hover:bg-surface-accent',
+                    ].join(' ')}
                   >
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <div className="text-base font-semibold text-text-default">{c.title}</div>
@@ -372,6 +385,12 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                     <div className="mt-1 text-sm text-text-muted">
                       Code: <span className="font-mono tracking-[0.18em]">{c.class_code}</span>
                     </div>
+                    {openingClassroomId === c.id && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                        <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                        Opening classroom...
+                      </div>
+                    )}
                   </button>
                   <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                     <Button
@@ -379,6 +398,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                       variant="surface"
                       size="xs"
                       onClick={() => setPendingAction({ mode: 'restore', classroom: c })}
+                      disabled={openingClassroomId !== null}
                     >
                       Restore
                     </Button>
@@ -388,6 +408,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
                       size="xs"
                       onClick={() => setPendingAction({ mode: 'delete', classroom: c })}
                       className="text-danger hover:bg-danger-bg"
+                      disabled={openingClassroomId !== null}
                     >
                       Delete
                     </Button>
@@ -451,7 +472,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
         onSuccess={(created) => {
           setShowCreate(false)
           setActiveClassrooms((prev) => [created, ...prev])
-          router.push(`/classrooms/${created.id}?tab=attendance`)
+          openClassroom(created)
         }}
       />
 

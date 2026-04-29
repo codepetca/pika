@@ -3,8 +3,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TeacherClassroomsIndex } from '@/app/classrooms/TeacherClassroomsIndex'
 import { createMockClassroom } from '../helpers/mocks'
 
+const push = vi.hoisted(() => vi.fn())
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
   usePathname: () => '/classrooms',
 }))
 
@@ -13,6 +15,7 @@ describe('TeacherClassroomsIndex', () => {
 
   beforeEach(() => {
     fetchMock = vi.fn()
+    push.mockReset()
     vi.stubGlobal('fetch', fetchMock)
   })
 
@@ -58,5 +61,29 @@ describe('TeacherClassroomsIndex', () => {
 
     expect(screen.queryByRole('button', { name: 'Blueprints' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '+ New' })).toBeInTheDocument()
+  })
+
+  it('shows immediate feedback while opening a classroom', async () => {
+    const classrooms = [createMockClassroom({ id: 'c1', title: 'Math 101' })]
+    render(<TeacherClassroomsIndex initialClassrooms={classrooms} />)
+
+    const openButton = screen.getByRole('button', { name: /^Math 101/ })
+    fireEvent.click(openButton)
+
+    expect(push).toHaveBeenCalledWith('/classrooms/c1?tab=attendance')
+    expect(openButton).toBeDisabled()
+    expect(screen.getByText('Opening classroom...')).toBeInTheDocument()
+  })
+
+  it('prevents opening another classroom while navigation is pending', async () => {
+    const classrooms = [
+      createMockClassroom({ id: 'c1', title: 'Math 101' }),
+      createMockClassroom({ id: 'c2', title: 'Science 101' }),
+    ]
+    render(<TeacherClassroomsIndex initialClassrooms={classrooms} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /^Math 101/ }))
+
+    expect(screen.getByRole('button', { name: /^Science 101/ })).toBeDisabled()
   })
 })

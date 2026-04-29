@@ -9709,3 +9709,20 @@
 
 **Validation:**
 - `bash "$PIKA_WORKTREE/scripts/verify-env.sh"` (235 files, 1951 tests)
+## 2026-04-29 — Classroom navigation pending feedback
+
+**Completed:**
+- Added immediate `Opening classroom...` feedback after teacher and student classroom cards are clicked, with the selected row disabled while the route advances.
+- Added matching pending feedback to the classroom switch dropdown and prevented duplicate classroom-switch clicks during navigation.
+- Confirmed the classroom picker already navigates directly to `/classrooms/:id`, so the local `Compiling /classrooms` delay remains a `next dev` route compilation artifact.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomsIndex.test.tsx tests/components/StudentClassroomsIndex.test.tsx tests/components/ClassroomDropdown.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-opening.png`
+  - `/tmp/pika-student-opening.png`

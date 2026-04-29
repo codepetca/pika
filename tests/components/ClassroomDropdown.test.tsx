@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { ClassroomDropdown } from '@/components/ClassroomDropdown'
 
@@ -78,6 +78,23 @@ describe('ClassroomDropdown', () => {
     pointerClick(screen.getByRole('option', { name: /Gamma/ }))
 
     expect(push).toHaveBeenCalledWith('/classrooms/class-3?tab=attendance')
+  })
+
+  it('shows immediate feedback after selecting a classroom', () => {
+    render(
+      <ClassroomDropdown
+        classrooms={classrooms}
+        currentClassroomId="class-2"
+        currentTab="attendance"
+      />
+    )
+
+    pointerClick(screen.getByRole('button', { name: 'Select classroom' }))
+    pointerClick(screen.getByRole('option', { name: /Gamma/ }))
+
+    const trigger = screen.getByRole('button', { name: 'Select classroom' })
+    expect(within(trigger).getByText('Opening Gamma...')).toBeInTheDocument()
+    expect(trigger).toBeDisabled()
   })
 
   it('skips the current classroom during keyboard navigation', () => {
