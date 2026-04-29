@@ -2010,22 +2010,25 @@ function QuizPreview({ questions, isTestsView }: { questions: QuizQuestion[]; is
               {question.options.map((option, optionIndex) => {
                 const isSelected = selected[question.id] === optionIndex
                 return (
-                  <label
+                  <div
                     key={optionIndex}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                       isSelected
                         ? 'border-primary bg-primary/5'
                         : 'border-border hover:bg-surface-hover'
                     }`}
+                    onClick={() => setSelected((prev) => ({ ...prev, [question.id]: optionIndex }))}
                   >
                     <input
                       type="radio"
                       name={`preview-${question.id}`}
                       checked={isSelected}
+                      aria-label={option}
                       onChange={() => setSelected((prev) => ({ ...prev, [question.id]: optionIndex }))}
                       className="sr-only"
                     />
                     <span
+                      aria-hidden="true"
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                         isSelected ? 'border-primary' : 'border-border'
                       }`}
@@ -2034,8 +2037,8 @@ function QuizPreview({ questions, isTestsView }: { questions: QuizQuestion[]; is
                         <span className="w-2.5 h-2.5 rounded-full bg-primary" />
                       )}
                     </span>
-                    <span className="text-text-default">{option}</span>
-                  </label>
+                    <QuestionMarkdown content={option} className="min-w-0 flex-1" />
+                  </div>
                 )
               })}
             </div>

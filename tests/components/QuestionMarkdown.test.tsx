@@ -27,6 +27,18 @@ describe('QuestionMarkdown', () => {
     expect(screen.getByText('const x = 42;')).toBeInTheDocument()
   })
 
+  it('renders language-tagged code blocks without showing fence markers', () => {
+    render(
+      <QuestionMarkdown
+        content={`\`\`\`java\npublic class Main {}\n\`\`\``}
+      />
+    )
+
+    expect(screen.getByText('public class Main {}')).toBeInTheDocument()
+    expect(screen.queryByText(/```/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/java/)).not.toBeInTheDocument()
+  })
+
   it('does not render unsafe links as anchors', () => {
     render(<QuestionMarkdown content="[click me](javascript:alert(1))" />)
 

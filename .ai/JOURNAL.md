@@ -9923,3 +9923,22 @@
   - `/tmp/pika-teacher-mobile.png`
   - `/tmp/pika-settings-show-markdown-off.png`
   - `/tmp/pika-settings-show-markdown-on.png`
+## 2026-04-29 — Exam markdown rendering fix
+
+**Completed:**
+- Made exam-mode text documents render through the shared limited markdown renderer instead of a raw `<pre>`, preserving document interaction suppression for focus telemetry.
+- Made multiple-choice options render markdown in the student test form and teacher preview, so inline code and fenced code blocks no longer show literal markdown backticks.
+- Added regression coverage for language-tagged fenced code, markdown MC options, and text-document markdown inside the student exam flow.
+
+**Validation:**
+- `pnpm test tests/components/QuestionMarkdown.test.tsx tests/components/StudentQuizForm.test.tsx tests/components/StudentQuizzesTab.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=tests` on this branch at `http://localhost:3010`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Focused markdown visual checks after seeding and then restoring the local active test with markdown document/option examples:
+  - `/tmp/pika-student-exam-markdown-3010.png`
+  - `/tmp/pika-teacher-preview-markdown-3010.png`
+- Follow-up: removed the `scripts/seed-tests.ts` smoke-data change to avoid seed failures in databases missing existing test document migrations; markdown smoke coverage remains in component tests and the local visual check.
