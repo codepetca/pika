@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Input, Button, FormField } from '@/ui'
+import { AppMessageFallback, Input, Button, FormField, useAppMessage } from '@/ui'
 
 function VerifySignupForm() {
   const router = useRouter()
@@ -13,7 +13,7 @@ function VerifySignupForm() {
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [resendSuccess, setResendSuccess] = useState(false)
+  const { showMessage } = useAppMessage()
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -48,9 +48,7 @@ function VerifySignupForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      setResendSuccess(true)
-      // Hide success message after 3 seconds
-      setTimeout(() => setResendSuccess(false), 3000)
+      showMessage({ text: 'Code sent', tone: 'success' })
     } catch (err) {
       setError('Failed to resend code')
     }
@@ -99,12 +97,6 @@ function VerifySignupForm() {
           </Button>
         </form>
 
-        {resendSuccess && (
-          <div className="mt-4 bg-success-bg border border-success text-text-default px-4 py-3 rounded-lg">
-            New verification code sent!
-          </div>
-        )}
-
         <div className="mt-4 text-center">
           <button
             onClick={handleResendCode}
@@ -120,7 +112,7 @@ function VerifySignupForm() {
 
 export default function VerifySignupPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<AppMessageFallback />}>
       <VerifySignupForm />
     </Suspense>
   )

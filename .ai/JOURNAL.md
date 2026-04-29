@@ -9666,3 +9666,37 @@
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
+
+## 2026-04-29 — Top-center transient app messages
+
+**Completed:**
+- Added the shared `AppMessageProvider` overlay primitive in `/ui` and mounted it from the root layout.
+- Migrated transient success, copy, refreshing, auth resend, and grading progress/completion messages out of inline page flow.
+- Repositioned the message pill into the center of the 48px global title bar and added animated ellipsis dots for loading-tone messages.
+- Removed the attempted fade-in/fade-out animation after browser verification still did not produce a convincing visible effect in product use.
+- Opened follow-up issue https://github.com/codepetca/pika/issues/523 to revisit title-bar message animation separately.
+- Kept blocking errors, validation, empty states, confirmations, and editor save-state context inline.
+- Updated `/ui` docs and component tests for the overlay behavior.
+
+**Validation:**
+- `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx tests/components/TeacherTestsTab.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm lint`
+- `bash "$PIKA_WORKTREE/scripts/verify-env.sh"` (235 files, 1951 tests)
+- Pika UI verification for classroom assignments and assignment grading workspace:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual auth resend overlay verification:
+  - `/tmp/pika-auth-resend-overlay.png`
+  - `/tmp/pika-auth-resend-overlay-mobile.png`
+- Manual title-bar overlay verification:
+  - `/tmp/pika-header-overlay-desktop.png`
+  - `/tmp/pika-header-overlay-mobile.png`
+  - `/tmp/pika-header-overlay-fade.png`
+  - `/tmp/pika-header-overlay-soft-fade.png`
+  - `/tmp/pika-header-overlay-extra-slow-fade.png`
+  - `/tmp/pika-header-overlay-slow-fade-working.png`
+- After removing the fade attempt:
+  - `pnpm test tests/ui/AppMessage.test.tsx tests/ui/StatusPrimitives.test.tsx tests/components/TeacherTestsTab.test.tsx`
+  - `pnpm lint`
+  - `pnpm exec tsc --noEmit --pretty false --project tsconfig.json --incremental false`

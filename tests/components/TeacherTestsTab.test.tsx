@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { useEffect, type ReactNode } from 'react'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
-import { TooltipProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { createMockClassroom, createMockQuiz } from '../helpers/mocks'
 import type { QuizWithStats } from '@/types'
@@ -135,7 +135,11 @@ vi.mock('@/components/TestStudentGradingPanel', () => ({
 }))
 
 function Wrapper({ children }: { children: ReactNode }) {
-  return <TooltipProvider>{children}</TooltipProvider>
+  return (
+    <AppMessageProvider>
+      <TooltipProvider>{children}</TooltipProvider>
+    </AppMessageProvider>
+  )
 }
 
 function makeTest(overrides: Partial<QuizWithStats> = {}): QuizWithStats {
@@ -832,7 +836,9 @@ describe('TeacherTestsTab', () => {
 
     expect(screen.getByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.getByText('3/5')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Refreshing grading rows...')
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent('Refreshing grades')
+    })
 
     await act(async () => {
       resolvePoll?.(
@@ -863,7 +869,9 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByText('4/5')).toBeInTheDocument()
     })
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
   })
 
   it('does not start polling when the server reports the test is closed', async () => {
@@ -1185,7 +1193,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Grade with AI' }))
 
     await waitFor(() => {
-      expect(screen.getByText('AI grading started')).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent(/grading/i)
     })
 
     await act(async () => {
@@ -1194,7 +1202,7 @@ describe('TeacherTestsTab', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText('Graded 1')).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent('Graded 1')
     })
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/teacher/tests/test-1/auto-grade-runs/run-1/tick',

@@ -3,7 +3,7 @@
 import { useMemo, useState, useId } from 'react'
 import { useRouter } from 'next/navigation'
 import { Info } from 'lucide-react'
-import { Button, ConfirmDialog, DialogPanel, FormField, Input, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, FormField, Input, Tooltip, useAppMessage } from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
@@ -41,22 +41,17 @@ export function TeacherSettingsTab({
   const [title, setTitle] = useState(classroom.title)
   const [titleSaving, setTitleSaving] = useState(false)
   const [titleError, setTitleError] = useState<string>('')
-  const [titleSuccess, setTitleSuccess] = useState<string>('')
   const [joinCode, setJoinCode] = useState(classroom.class_code)
   const [allowEnrollment, setAllowEnrollment] = useState<boolean>(classroom.allow_enrollment)
   const [saving, setSaving] = useState(false)
   const [enrollmentError, setEnrollmentError] = useState<string>('')
-  const [enrollmentSuccess, setEnrollmentSuccess] = useState<string>('')
   const [joinCodeError, setJoinCodeError] = useState<string>('')
-  const [joinCodeSuccess, setJoinCodeSuccess] = useState<string>('')
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
-  const [copyNotice, setCopyNotice] = useState<string>('')
   const [lessonPlanVisibility, setLessonPlanVisibility] = useState<LessonPlanVisibility>(
     classroom.lesson_plan_visibility || 'current_week'
   )
   const [visibilityError, setVisibilityError] = useState<string>('')
-  const [visibilitySuccess, setVisibilitySuccess] = useState<string>('')
   const [visibilitySaving, setVisibilitySaving] = useState(false)
   const visibilityId = useId()
   const [actualSiteSlug, setActualSiteSlug] = useState(classroom.actual_site_slug || '')
@@ -68,7 +63,6 @@ export function TeacherSettingsTab({
   const [courseOutlineMarkdown, setCourseOutlineMarkdown] = useState(classroom.course_outline_markdown || '')
   const [siteSaving, setSiteSaving] = useState(false)
   const [siteError, setSiteError] = useState('')
-  const [siteSuccess, setSiteSuccess] = useState('')
   const [showCreateBlueprintDialog, setShowCreateBlueprintDialog] = useState(false)
   const [blueprintTitle, setBlueprintTitle] = useState(classroom.title)
   const [blueprintBusy, setBlueprintBusy] = useState(false)
@@ -79,6 +73,7 @@ export function TeacherSettingsTab({
     return window.location.origin
   }, [])
   const joinLink = `${origin}/join/${joinCode}`
+  const { showMessage } = useAppMessage()
 
   async function copy(text: string) {
     try {
@@ -90,8 +85,7 @@ export function TeacherSettingsTab({
 
   async function copyWithNotice(label: string, text: string) {
     await copy(text)
-    setCopyNotice(`${label} copied to clipboard.`)
-    setTimeout(() => setCopyNotice(''), 2000)
+    showMessage({ text: `${label} copied`, tone: 'success' })
   }
 
   async function saveTitle() {
@@ -106,7 +100,6 @@ export function TeacherSettingsTab({
     }
     setTitleSaving(true)
     setTitleError('')
-    setTitleSuccess('')
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
         method: 'PATCH',
@@ -118,8 +111,7 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to update course name')
       }
       setTitle(data.classroom?.title || trimmed)
-      setTitleSuccess('Course name updated.')
-      setTimeout(() => setTitleSuccess(''), 2000)
+      showMessage({ text: 'Course name updated', tone: 'success' })
     } catch (err: any) {
       setTitleError(err.message || 'Failed to update course name')
     } finally {
@@ -131,7 +123,6 @@ export function TeacherSettingsTab({
     if (isReadOnly) return
     setSaving(true)
     setEnrollmentError('')
-    setEnrollmentSuccess('')
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
         method: 'PATCH',
@@ -143,8 +134,7 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to update settings')
       }
       setAllowEnrollment(!!data.classroom?.allow_enrollment)
-      setEnrollmentSuccess('Settings saved.')
-      setTimeout(() => setEnrollmentSuccess(''), 2000)
+      showMessage({ text: 'Settings saved', tone: 'success' })
     } catch (err: any) {
       setEnrollmentError(err.message || 'Failed to update settings')
     } finally {
@@ -156,7 +146,6 @@ export function TeacherSettingsTab({
     if (isReadOnly) return
     setIsRegenerating(true)
     setJoinCodeError('')
-    setJoinCodeSuccess('')
     try {
       const newCode = generateJoinCode()
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
@@ -169,7 +158,7 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to regenerate join code')
       }
       setJoinCode(data.classroom?.class_code || newCode)
-      setJoinCodeSuccess('Join code regenerated.')
+      showMessage({ text: 'Join code regenerated', tone: 'success' })
     } catch (err: any) {
       setJoinCodeError(err.message || 'Failed to regenerate join code')
     } finally {
@@ -182,7 +171,6 @@ export function TeacherSettingsTab({
     if (isReadOnly) return
     setVisibilitySaving(true)
     setVisibilityError('')
-    setVisibilitySuccess('')
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
         method: 'PATCH',
@@ -194,7 +182,7 @@ export function TeacherSettingsTab({
         throw new Error(data.error || 'Failed to update visibility setting')
       }
       setLessonPlanVisibility(data.classroom?.lesson_plan_visibility || value)
-      setVisibilitySuccess('Calendar visibility updated.')
+      showMessage({ text: 'Visibility updated', tone: 'success' })
     } catch (err: any) {
       setVisibilityError(err.message || 'Failed to update visibility setting')
     } finally {
@@ -206,7 +194,6 @@ export function TeacherSettingsTab({
     if (isReadOnly) return
     setSiteSaving(true)
     setSiteError('')
-    setSiteSuccess('')
     try {
       const res = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
         method: 'PATCH',
@@ -228,8 +215,7 @@ export function TeacherSettingsTab({
       setActualSiteConfig(data.classroom?.actual_site_config || actualSiteConfig)
       setCourseOverviewMarkdown(data.classroom?.course_overview_markdown || courseOverviewMarkdown)
       setCourseOutlineMarkdown(data.classroom?.course_outline_markdown || courseOutlineMarkdown)
-      setSiteSuccess('Actual course site settings saved.')
-      setTimeout(() => setSiteSuccess(''), 2000)
+      showMessage({ text: 'Website settings saved', tone: 'success' })
     } catch (err: any) {
       setSiteError(err.message || 'Failed to save actual course site settings')
     } finally {
@@ -332,7 +318,6 @@ export function TeacherSettingsTab({
                 {titleSaving && <span className="text-sm text-text-muted self-center">Saving...</span>}
               </div>
               {titleError && <div className="text-sm text-danger">{titleError}</div>}
-              {titleSuccess && <div className="text-sm text-success">{titleSuccess}</div>}
             </div>
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
@@ -391,10 +376,7 @@ export function TeacherSettingsTab({
               </div>
 
               {joinCodeError && <div className="text-sm text-danger">{joinCodeError}</div>}
-              {joinCodeSuccess && <div className="text-sm text-success">{joinCodeSuccess}</div>}
               {enrollmentError && <div className="text-sm text-danger">{enrollmentError}</div>}
-              {enrollmentSuccess && <div className="text-sm text-success">{enrollmentSuccess}</div>}
-              {copyNotice && <div className="text-xs text-info">{copyNotice}</div>}
             </div>
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
@@ -426,7 +408,6 @@ export function TeacherSettingsTab({
               </div>
 
               {visibilityError && <div className="text-sm text-danger">{visibilityError}</div>}
-              {visibilitySuccess && <div className="text-sm text-success">{visibilitySuccess}</div>}
             </div>
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-4">
@@ -572,7 +553,6 @@ export function TeacherSettingsTab({
               </div>
 
               {siteError && <div className="text-sm text-danger">{siteError}</div>}
-              {siteSuccess && <div className="text-sm text-success">{siteSuccess}</div>}
             </div>
 
             <div className="bg-surface rounded-lg border border-border p-4 space-y-3">

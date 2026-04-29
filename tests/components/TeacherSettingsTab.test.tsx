@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup, act, within } from '@testing-library/react'
 import { TeacherSettingsTab } from '@/app/classrooms/[classroomId]/TeacherSettingsTab'
-import { TooltipProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 import type { Classroom } from '@/types'
 import type { ReactNode } from 'react'
 
@@ -30,7 +30,11 @@ const mockClassroom: Classroom = {
 }
 
 function Wrapper({ children }: { children: ReactNode }) {
-  return <TooltipProvider>{children}</TooltipProvider>
+  return (
+    <AppMessageProvider>
+      <TooltipProvider>{children}</TooltipProvider>
+    </AppMessageProvider>
+  )
 }
 
 describe('TeacherSettingsTab - Course Name Editing', () => {
@@ -135,7 +139,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     fireEvent.blur(input)
 
     await waitFor(() => {
-      expect(screen.getByText('Course name updated.')).toBeInTheDocument()
+      expect(screen.getByText('Course name updated')).toBeInTheDocument()
     })
   })
 
@@ -153,7 +157,7 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
     fireEvent.blur(input)
 
     await waitFor(() => {
-      expect(screen.getByText('Course name updated.')).toBeInTheDocument()
+      expect(screen.getByText('Course name updated')).toBeInTheDocument()
     })
     expect(mockRefresh).not.toHaveBeenCalled()
   })
@@ -266,7 +270,7 @@ describe('TeacherSettingsTab - Allow Joining', () => {
     fireEvent.click(checkbox)
 
     await waitFor(() => {
-      expect(screen.getByText('Settings saved.')).toBeInTheDocument()
+      expect(screen.getByText('Settings saved')).toBeInTheDocument()
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -355,21 +359,21 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     fireEvent.change(input, { target: { value: 'New Name' } })
     fireEvent.blur(input)
 
-    // Advance microtasks to let the fetch resolve, but not the 2s timeout
+    // Advance microtasks to let the fetch resolve, but not the timeout
     await act(async () => {
       await Promise.resolve()
     })
 
     // Success message should appear
-    expect(screen.getByText('Course name updated.')).toBeInTheDocument()
+    expect(screen.getByText('Course name updated')).toBeInTheDocument()
 
-    // Advance time by 2 seconds to trigger the auto-clear
+    // Advance time to trigger the short auto-clear
     await act(async () => {
-      vi.advanceTimersByTime(2000)
+      vi.advanceTimersByTime(1800)
     })
 
     // Success message should be gone
-    expect(screen.queryByText('Course name updated.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Course name updated')).not.toBeInTheDocument()
   })
 
   it('auto-clears enrollment success message after 2 seconds', async () => {
@@ -384,20 +388,20 @@ describe('TeacherSettingsTab - Success message auto-clear', () => {
     const checkbox = screen.getByLabelText('Allow joining')
     fireEvent.click(checkbox)
 
-    // Advance microtasks to let the fetch resolve, but not the 2s timeout
+    // Advance microtasks to let the fetch resolve, but not the timeout
     await act(async () => {
       await Promise.resolve()
     })
 
     // Success message should appear
-    expect(screen.getByText('Settings saved.')).toBeInTheDocument()
+    expect(screen.getByText('Settings saved')).toBeInTheDocument()
 
-    // Advance time by 2 seconds to trigger the auto-clear
+    // Advance time to trigger the short auto-clear
     await act(async () => {
-      vi.advanceTimersByTime(2000)
+      vi.advanceTimersByTime(1800)
     })
 
     // Success message should be gone
-    expect(screen.queryByText('Settings saved.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Settings saved')).not.toBeInTheDocument()
   })
 })

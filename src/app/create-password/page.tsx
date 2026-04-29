@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Input, Button, FormField } from '@/ui'
+import { AppMessageFallback, Input, Button, FormField } from '@/ui'
 
 function CreatePasswordForm() {
   const router = useRouter()
@@ -96,7 +96,7 @@ function CreatePasswordForm() {
 
 export default function CreatePasswordPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<AppMessageFallback />}>
       <CreatePasswordForm />
     </Suspense>
   )

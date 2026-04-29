@@ -10,6 +10,8 @@ const mockToggleSelect = vi.fn()
 const mockToggleSelectAll = vi.fn()
 const mockClearSelection = vi.fn()
 const mockSetSelection = vi.fn()
+const mockShowMessage = vi.fn()
+const mockUseOverlayMessage = vi.fn()
 const mockStudentSelectionState = {
   selectedIds: new Set<string>(),
   allSelected: false,
@@ -57,6 +59,8 @@ vi.mock('@/ui', () => ({
   Tooltip: ({ children, content }: any) => (
     <span data-tooltip={typeof content === 'string' ? content : undefined}>{children}</span>
   ),
+  useAppMessage: () => ({ showMessage: mockShowMessage, clearMessage: vi.fn() }),
+  useOverlayMessage: (...args: any[]) => mockUseOverlayMessage(...args),
 }))
 
 vi.mock('@/hooks/useDelayedBusy', () => ({
@@ -304,6 +308,8 @@ describe('TeacherClassroomView', () => {
     mockToggleSelectAll.mockReset()
     mockClearSelection.mockReset()
     mockSetSelection.mockReset()
+    mockShowMessage.mockReset()
+    mockUseOverlayMessage.mockReset()
     mockStudentSelectionState.selectedIds = new Set<string>()
     mockStudentSelectionState.allSelected = false
     mockStudentSelectionState.selectedCount = 0
@@ -819,7 +825,7 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
-      expect(screen.getByText('Graded 1 • 1 missing')).toBeInTheDocument()
+      expect(mockShowMessage).toHaveBeenCalledWith({ text: 'Graded 1 • 1 missing', tone: 'info' })
     })
     expect(mockClearSelection).toHaveBeenCalled()
   })
@@ -1015,9 +1021,11 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(statusFetchCount).toBeGreaterThan(0)
     })
-    expect(
-      screen.getByText('Keep this assignment open while grading runs. Reopening it resumes the current progress.'),
-    ).toBeInTheDocument()
+    expect(mockUseOverlayMessage).toHaveBeenCalledWith(
+      true,
+      expect.stringMatching(/Grading \d+ of 2 students/),
+      { tone: 'loading' },
+    )
     expect(tickFetchCount).toBe(0)
   })
 
@@ -1129,7 +1137,7 @@ describe('TeacherClassroomView', () => {
         await Promise.resolve()
       })
 
-      expect(screen.getByText('Graded 2')).toBeInTheDocument()
+      expect(mockShowMessage).toHaveBeenCalledWith({ text: 'Graded 2', tone: 'info' })
       expect(tickFetchCount).toBe(2)
     } finally {
       vi.useRealTimers()
@@ -1363,7 +1371,10 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Return' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Returned 1 • Created 1 zero-grade return • Skipped 1 already returned • Blocked 1 partial-rubric draft')).toBeInTheDocument()
+      expect(mockShowMessage).toHaveBeenCalledWith({
+        text: 'Returned 1 • Created 1 zero-grade return • Skipped 1 already returned • Blocked 1 partial-rubric draft',
+        tone: 'info',
+      })
     })
     expect(mockSetSelection).toHaveBeenCalledWith(['student-2'])
   })

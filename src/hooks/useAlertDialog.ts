@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import type { AlertDialogState, AlertDialogVariant } from '@/ui'
+import { useAppMessage, type AlertDialogState, type AlertDialogVariant } from '@/ui'
 
 const INITIAL_STATE: AlertDialogState = { isOpen: false, title: '' }
 
 export function useAlertDialog() {
   const [state, setState] = useState<AlertDialogState>(INITIAL_STATE)
+  const { showMessage } = useAppMessage()
 
   const showAlert = useCallback((
     title: string,
@@ -26,8 +27,11 @@ export function useAlertDialog() {
   }, [])
 
   const showSuccess = useCallback((title: string, description?: string) => {
-    showAlert(title, { description, variant: 'success', autoDismiss: true })
-  }, [showAlert])
+    showMessage({
+      text: title.trim() || description?.trim() || 'Done',
+      tone: 'success',
+    })
+  }, [showMessage])
 
   const showError = useCallback((title: string, description?: string) => {
     showAlert(title, { description, variant: 'error' })

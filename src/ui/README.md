@@ -9,7 +9,7 @@ This directory contains the canonical UI primitives for the Pika application.
 ## Quick Start
 
 ```tsx
-import { Button, Input, Select, FormField, AlertDialog, ConfirmDialog, Card, Tooltip } from '@/ui'
+import { Button, Input, Select, FormField, AlertDialog, ConfirmDialog, Card, Tooltip, useAppMessage } from '@/ui'
 
 // Form controls are always wrapped by FormField
 <FormField label="Email" error={errors.email} required>
@@ -135,6 +135,38 @@ interface TooltipProps {
 }
 ```
 
+### AppMessage
+
+`AppMessageProvider` is mounted from the root layout and owns the one-at-a-time message overlay centered in the global title bar. Use it only for short transient feedback such as loading, refreshing, progress, copy, and success notices. Keep validation, blocking errors, empty states, confirmations, and persistent editor save state inline. Loading-tone messages animate a trailing ellipsis, so pass copy without static dots when possible.
+
+```typescript
+type AppMessageTone = 'loading' | 'info' | 'success' | 'warning'
+
+interface ShowAppMessageOptions {
+  text: string
+  tone?: AppMessageTone
+  durationMs?: number
+}
+
+function useAppMessage(): {
+  showMessage: (options: ShowAppMessageOptions) => string
+  clearMessage: (id?: string) => void
+}
+
+function useOverlayMessage(
+  active: boolean,
+  text: string,
+  options?: { tone?: AppMessageTone; delayMs?: number }
+): void
+```
+
+```tsx
+const { showMessage } = useAppMessage()
+showMessage({ text: 'Copied', tone: 'success' })
+
+useOverlayMessage(isRefreshing, 'Refreshing', { tone: 'loading' })
+```
+
 ---
 
 ## Design System Policies (AI Rails)
@@ -245,7 +277,8 @@ These are NOT part of the `/ui` design system:
 
 - **Tiptap primitives**: Stay in `tiptap-ui-primitive/`
 - **Textarea**: Use native `<textarea>` wrapped by FormField
-- **Toast/Tabs**: Not implemented yet
+- **Toast stacks**: Use `AppMessage` instead; stacked toasts are intentionally not implemented
+- **Tabs**: Not implemented yet
 - **App-specific components**: ClassroomDropdown, UserMenu, etc.
 
 ---

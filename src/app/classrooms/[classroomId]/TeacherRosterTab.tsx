@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { Button, ConfirmDialog } from '@/ui'
+import { Button, ConfirmDialog, useAppMessage } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { ACTIONBAR_BUTTON_SECONDARY_CLASSNAME, PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -83,7 +83,7 @@ export function TeacherRosterTab({ classroom }: Props) {
 
   // Selection state
   const [isEmailMenuOpen, setEmailMenuOpen] = useState(false)
-  const [copiedMessage, setCopiedMessage] = useState<string | null>(null)
+  const { showMessage } = useAppMessage()
 
   // Counselor email editing state
   const [editingCounselorId, setEditingCounselorId] = useState<string | null>(null)
@@ -180,8 +180,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     const text = emails.join(', ')
     try {
       await navigator.clipboard.writeText(text)
-      setCopiedMessage(`${label} copied!`)
-      setTimeout(() => setCopiedMessage(null), 2000)
+      showMessage({ text: `${label} copied`, tone: 'success' })
     } catch {
       // Fallback for older browsers
       const textarea = document.createElement('textarea')
@@ -190,8 +189,7 @@ export function TeacherRosterTab({ classroom }: Props) {
       textarea.select()
       document.execCommand('copy')
       document.body.removeChild(textarea)
-      setCopiedMessage(`${label} copied!`)
-      setTimeout(() => setCopiedMessage(null), 2000)
+      showMessage({ text: `${label} copied`, tone: 'success' })
     }
     setEmailMenuOpen(false)
   }
@@ -397,11 +395,6 @@ export function TeacherRosterTab({ classroom }: Props) {
                       </div>
                     </div>
                     </div>
-                  </div>
-                )}
-                {copiedMessage && (
-                  <div className="absolute left-0 top-full mt-1 px-3 py-2 rounded-md bg-success-bg text-success text-sm z-20">
-                    {copiedMessage}
                   </div>
                 )}
               </div>
