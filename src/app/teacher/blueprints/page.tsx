@@ -888,7 +888,7 @@ export default function TeacherBlueprintsPage() {
                       </div>
                     ) : aiPreview ? (
                       <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
-                        Markdown preview is hidden by your user menu setting.
+                        Markdown preview is hidden by your display setting.
                       </div>
                     ) : null}
                   </div>
@@ -908,7 +908,7 @@ export default function TeacherBlueprintsPage() {
                     </div>
                   ) : (
                     <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
-                      Markdown editing is hidden by your user menu setting.
+                      Markdown editing is hidden by your display setting.
                     </div>
                   )
                 )}

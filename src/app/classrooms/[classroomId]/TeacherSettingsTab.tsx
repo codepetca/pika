@@ -38,8 +38,9 @@ export function TeacherSettingsTab({
   const actualSiteSlugId = useId()
   const actualOverviewId = useId()
   const actualOutlineId = useId()
+  const showMarkdownId = useId()
   const isReadOnly = !!classroom.archived_at
-  const { showMarkdown } = useMarkdownPreference()
+  const { showMarkdown, mounted: markdownMounted, setShowMarkdown } = useMarkdownPreference()
   const [title, setTitle] = useState(classroom.title)
   const [titleSaving, setTitleSaving] = useState(false)
   const [titleError, setTitleError] = useState<string>('')
@@ -412,6 +413,21 @@ export function TeacherSettingsTab({
               {visibilityError && <div className="text-sm text-danger">{visibilityError}</div>}
             </div>
 
+            <div className="bg-surface rounded-lg border border-border p-4 space-y-3">
+              <div className="text-sm font-semibold text-text-default">Display</div>
+
+              <label htmlFor={showMarkdownId} className="flex items-center gap-3 text-sm text-text-default">
+                <input
+                  id={showMarkdownId}
+                  type="checkbox"
+                  checked={markdownMounted ? showMarkdown : true}
+                  onChange={(event) => setShowMarkdown(event.target.checked)}
+                  className="h-4 w-4"
+                />
+                Show markdown
+              </label>
+            </div>
+
             <div className="bg-surface rounded-lg border border-border p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <div className="text-sm font-semibold text-text-default">Actual Course Website</div>
@@ -538,7 +554,7 @@ export function TeacherSettingsTab({
                 </>
               ) : (
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
-                  Website overview and outline editing is hidden by your user menu setting.
+                  Website overview and outline editing is hidden by your display setting.
                 </div>
               )}
 

@@ -9901,3 +9901,25 @@
   - `/tmp/pika-assignment-modal-markdown-hidden.png`
   - `/tmp/pika-settings-markdown-hidden.png`
   - `/tmp/pika-calendar-markdown-hidden.png`
+
+## 2026-04-29 — Move markdown display setting into classroom settings
+
+**Completed:**
+- Moved the `Show markdown` preference out of the top-right account menu and into the teacher classroom Settings → General tab.
+- Added a compact Display card above Actual Course Website so the markdown setting lives with the classroom settings gear flow.
+- Updated hidden-markdown copy to refer to the display setting instead of the user menu.
+
+**Validation:**
+- `bash scripts/verify-env.sh`
+- `pnpm test tests/components/TeacherSettingsTab.test.tsx tests/components/UserMenu.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=settings`.
+- Interactive Playwright check for toggling `Show markdown` off/on from Settings → General.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-settings-show-markdown-off.png`
+  - `/tmp/pika-settings-show-markdown-on.png`

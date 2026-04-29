@@ -69,7 +69,23 @@ describe('TeacherSettingsTab - Course Name Editing', () => {
       expect(screen.queryByLabelText('Website overview')).not.toBeInTheDocument()
     })
     expect(screen.queryByLabelText('Website outline')).not.toBeInTheDocument()
-    expect(screen.getByText('Website overview and outline editing is hidden by your user menu setting.')).toBeInTheDocument()
+    expect(screen.getByText('Website overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
+  })
+
+  it('persists the show markdown display setting from the general settings tab', async () => {
+    render(<TeacherSettingsTab classroom={mockClassroom} />, { wrapper: Wrapper })
+
+    const markdownToggle = await screen.findByRole('checkbox', { name: 'Show markdown' })
+    expect(markdownToggle).toBeChecked()
+
+    fireEvent.click(markdownToggle)
+
+    await waitFor(() => {
+      expect(markdownToggle).not.toBeChecked()
+    })
+    expect(window.localStorage.getItem('pika_show_markdown')).toBe('false')
+    expect(screen.queryByLabelText('Website overview')).not.toBeInTheDocument()
+    expect(screen.getByText('Website overview and outline editing is hidden by your display setting.')).toBeInTheDocument()
   })
 
   it('saves on blur when value has changed', async () => {
