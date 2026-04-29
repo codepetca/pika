@@ -485,6 +485,7 @@ function ClassroomPageContent({
 
   // Track previous states for detecting transitions
   const prevSidebarOpenRef = useRef(false)
+  const prevAssignmentMarkdownAutoOpenReadyRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const markdownStaleRef = useRef(true) // Start stale so first open loads
 
@@ -585,19 +586,10 @@ function ClassroomPageContent({
 
   const handleAssignmentsEditModeChange = useCallback((active: boolean) => {
     setAssignmentEditMode(active)
+  }, [])
 
-    if (!active || !showMarkdown || !isTeacher || activeTab !== 'assignments' || assignmentViewMode !== 'summary') {
-      return
-    }
-
-    openAssignmentsMarkdownPanel()
-  }, [
-    activeTab,
-    assignmentViewMode,
-    isTeacher,
-    openAssignmentsMarkdownPanel,
-    showMarkdown,
-  ])
+  const assignmentMarkdownAutoOpenReady =
+    showMarkdown && isTeacher && activeTab === 'assignments' && assignmentEditMode && assignmentViewMode === 'summary'
 
   // Detect sidebar close for assignments tab. Markdown mode opens by default when summary edit mode starts.
   useEffect(() => {
@@ -617,22 +609,12 @@ function ClassroomPageContent({
   }, [isRightSidebarOpen, isTeacher, activeTab, assignmentEditMode, assignmentViewMode, showMarkdown])
 
   useEffect(() => {
-    if (!showMarkdown) return
-    if (!isTeacher || activeTab !== 'assignments') return
-    if (!assignmentEditMode || assignmentViewMode !== 'summary') return
-    if (isMarkdownMode && isRightSidebarOpen) return
+    const wasReady = prevAssignmentMarkdownAutoOpenReadyRef.current
+    prevAssignmentMarkdownAutoOpenReadyRef.current = assignmentMarkdownAutoOpenReady
 
+    if (!assignmentMarkdownAutoOpenReady || wasReady) return
     openAssignmentsMarkdownPanel()
-  }, [
-    activeTab,
-    assignmentEditMode,
-    assignmentViewMode,
-    isMarkdownMode,
-    isRightSidebarOpen,
-    isTeacher,
-    openAssignmentsMarkdownPanel,
-    showMarkdown,
-  ])
+  }, [assignmentMarkdownAutoOpenReady, openAssignmentsMarkdownPanel])
 
   useEffect(() => {
     if (!isTeacher || activeTab === 'assignments') return

@@ -60,10 +60,13 @@ vi.mock('@/components/layout', async () => {
     MainContent: ({ children }: any) => <main>{children}</main>,
     NavItems: () => <nav />,
     RightSidebar: ({ children, headerActions, title }: any) => {
-      const { isRightOpen } = useLayoutContext()
+      const { isRightOpen, setRightOpen } = useLayoutContext()
       if (!isRightOpen) return null
       return (
         <aside aria-label={title || 'Right sidebar'}>
+          <button type="button" onClick={() => setRightOpen(false)}>
+            Close panel
+          </button>
           {headerActions}
           {children}
         </aside>
@@ -261,6 +264,26 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
     })
+  })
+
+  it('does not reopen assignment markdown after the teacher manually closes the panel', async () => {
+    renderClient()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set assignment edit active' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Markdown editor: ## Assignment One')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close panel' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
+    expect(mockFetchJSONWithCache).toHaveBeenCalledTimes(1)
   })
 
   it('clears assignment edit and markdown mode when route navigation leaves assignments', async () => {
