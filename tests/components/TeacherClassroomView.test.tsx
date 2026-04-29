@@ -918,17 +918,17 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    const gradeSelectedOption = screen.getByRole('button', { name: 'Copy Grade' })
+    const gradeSelectedOption = screen.getByRole('button', { name: 'Apply Grade' })
     await waitFor(() => {
       expect(gradeSelectedOption).not.toBeDisabled()
     })
 
     fireEvent.click(gradeSelectedOption)
-    expect(screen.getByText('Copy grade to 2 selected student(s)?')).toBeInTheDocument()
-    expect(screen.getByText(/copies the open student's scores and feedback draft/)).toBeInTheDocument()
+    expect(screen.getByText('Apply grade to 2 selected student(s)?')).toBeInTheDocument()
+    expect(screen.getByText(/applies the open student's scores and feedback draft/)).toBeInTheDocument()
     expect(screen.getByText(/It will not return feedback to students/)).toBeInTheDocument()
 
-    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Copy Grade' })
+    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Apply Grade' })
     fireEvent.click(gradeSelectedButtons[gradeSelectedButtons.length - 1])
 
     await waitFor(() => {
@@ -944,10 +944,10 @@ describe('TeacherClassroomView', () => {
       save_mode: 'graded',
     })
     expect(mockClearSelection).toHaveBeenCalled()
-    expect(await screen.findByText('Copied grade to 2 selected students')).toBeInTheDocument()
+    expect(await screen.findByText('Applied grade to 2 selected students')).toBeInTheDocument()
   })
 
-  it('keeps checked students selected when Copy Grade fails', async () => {
+  it('keeps checked students selected when Apply Grade fails', async () => {
     mockStudentSelectionState.selectedIds = new Set(['student-1'])
     mockStudentSelectionState.selectedCount = 1
 
@@ -983,8 +983,8 @@ describe('TeacherClassroomView', () => {
     })
 
     mockClearSelection.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: 'Copy Grade' }))
-    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Copy Grade' })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Grade' }))
+    const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Apply Grade' })
     fireEvent.click(gradeSelectedButtons[gradeSelectedButtons.length - 1])
 
     expect(await screen.findByText('Batch save failed')).toBeInTheDocument()

@@ -9995,3 +9995,19 @@
   - `/tmp/pika-copy-grade-dialog.png`
   - `/tmp/pika-copy-grade-mobile-menu.png`
   - `/tmp/pika-copy-grade-mobile-dialog.png`
+
+## 2026-04-29 — Rename assignment batch action to Apply Grade
+
+**Completed:**
+- Renamed the teacher-facing assignment batch action from `Copy Grade` to `Apply Grade`.
+- Updated confirmation, busy, success, and fallback error text to use apply-grade language while preserving the same save-only behavior.
+- Updated component coverage for the revised label and dialog copy.
+
+**Validation:**
+- `pnpm test` during session start (235 files, 1955 tests)
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Manual Playwright screenshots for the assignment workspace `Apply Grade` menu and confirmation dialog:
+  - `/tmp/pika-apply-grade-menu.png`
+  - `/tmp/pika-apply-grade-dialog.png`

@@ -1062,7 +1062,7 @@ export function TeacherClassroomView({
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to copy grade')
+      if (!res.ok) throw new Error(data.error || 'Failed to apply grade')
 
       const updatedDocs: GradeSelectedUpdatedDoc[] = Array.isArray(data.docs)
         ? data.docs.filter((doc: unknown): doc is GradeSelectedUpdatedDoc =>
@@ -1097,7 +1097,7 @@ export function TeacherClassroomView({
       }
 
       const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
-      setInfo(`Copied grade to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
+      setInfo(`Applied grade to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
       setShowGradeSelectedConfirm(false)
       batchClearSelection()
 
@@ -1105,7 +1105,7 @@ export function TeacherClassroomView({
         setGradeSelectedRefreshCounter((count) => count + 1)
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to copy grade')
+      setError(err.message || 'Failed to apply grade')
     } finally {
       setIsGradeSelectedSaving(false)
     }
@@ -1398,7 +1398,7 @@ export function TeacherClassroomView({
       : isReturning
         ? `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
         : isGradeSelectedSaving
-          ? `Copying grade to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+          ? `Applying grade to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
           : ''
   useOverlayMessage(!!activeWorkMessage, activeWorkMessage, { tone: 'loading' })
 
@@ -1452,7 +1452,7 @@ export function TeacherClassroomView({
               label: (
                 <span className="inline-flex items-center gap-2">
                   <Copy className="h-4 w-4" aria-hidden="true" />
-                  <span>Copy Grade</span>
+                  <span>Apply Grade</span>
                 </span>
               ),
               onSelect: () => {
@@ -1775,9 +1775,9 @@ export function TeacherClassroomView({
 
       <ConfirmDialog
         isOpen={showGradeSelectedConfirm}
-        title={`Copy grade to ${batchSelectedCount} selected student(s)?`}
-        description={`This copies the open student's scores and feedback draft to the checked student(s), overwriting their saved scores and feedback drafts. It will not return feedback to students.`}
-        confirmLabel={isGradeSelectedSaving ? 'Copying...' : 'Copy Grade'}
+        title={`Apply grade to ${batchSelectedCount} selected student(s)?`}
+        description={`This applies the open student's scores and feedback draft to the checked student(s), overwriting their saved scores and feedback drafts. It will not return feedback to students.`}
+        confirmLabel={isGradeSelectedSaving ? 'Applying...' : 'Apply Grade'}
         cancelLabel="Cancel"
         isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedDisabled}
         isCancelDisabled={isGradeSelectedSaving}
