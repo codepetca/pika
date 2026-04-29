@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Copy } from 'lucide-react'
 import { Button, Tooltip, useAppMessage } from '@/ui'
+import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
@@ -16,6 +17,7 @@ interface Props {
 
 export function TeacherCalendarTab({ classroom }: Props) {
   const isReadOnly = !!classroom.archived_at
+  const { showMarkdown } = useMarkdownPreference()
   const { classDays: contextClassDays, isLoading: contextLoading } = useClassDaysContext()
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
@@ -208,16 +210,18 @@ export function TeacherCalendarTab({ classroom }: Props) {
               <div className="text-xs text-text-muted">
                 {isReadOnly ? 'Read-only mode' : 'Click on date to toggle class days'}
               </div>
-              <Tooltip content="Copy class days as markdown">
-                <button
-                  type="button"
-                  onClick={copyClassDays}
-                  className="flex items-center gap-1 px-2 py-1 text-xs text-text-muted hover:text-text-default hover:bg-surface-hover rounded transition-colors"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy</span>
-                </button>
-              </Tooltip>
+              {showMarkdown ? (
+                <Tooltip content="Copy class days as markdown">
+                  <button
+                    type="button"
+                    onClick={copyClassDays}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-text-muted hover:text-text-default hover:bg-surface-hover rounded transition-colors"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </button>
+                </Tooltip>
+              ) : null}
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

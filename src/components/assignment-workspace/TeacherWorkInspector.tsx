@@ -171,54 +171,112 @@ function InspectorSection({
   id,
   title,
   expanded,
+  visible,
+  editMode,
   summary,
   onToggle,
+  onVisibleChange,
   action,
   children,
 }: {
   id: InspectorSectionId
   title: string
   expanded: boolean
+  visible: boolean
+  editMode: boolean
   summary?: ReactNode
   onToggle: () => void
+  onVisibleChange: () => void
   action?: ReactNode
   children?: ReactNode
 }) {
   const contentId = `assignment-inspector-section-${id}`
+  const effectiveExpanded = visible && expanded
+  const handleHeaderToggle = () => {
+    if (!visible) return
+    onToggle()
+  }
 
   return (
     <section
       data-testid={`inspector-section-${id}`}
-      className="overflow-hidden rounded-lg border border-border bg-surface"
+      className={[
+        'overflow-hidden rounded-lg border transition-colors',
+        visible
+          ? 'border-border bg-surface'
+          : 'border-dashed border-border bg-surface-2',
+      ].join(' ')}
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,19rem)] items-center gap-3 p-3">
-        <button
-          type="button"
-          className="min-w-0 text-left"
-          aria-label={title}
-          aria-expanded={expanded}
-          aria-controls={contentId}
-          onClick={onToggle}
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            {expanded ? (
-              <ChevronDown className="h-4 w-4 text-text-muted" aria-hidden="true" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-text-muted" aria-hidden="true" />
-            )}
-            <span className="shrink-0 text-sm font-semibold text-text-default">{title}</span>
-          </div>
-        </button>
+      <div
+        role="button"
+        tabIndex={visible ? 0 : -1}
+        aria-label={title}
+        aria-expanded={effectiveExpanded}
+        aria-controls={contentId}
+        aria-disabled={!visible}
+        className={[
+          'grid grid-cols-[minmax(0,1fr)_minmax(0,19rem)] items-center gap-3 p-3',
+          visible ? 'cursor-pointer' : 'cursor-default',
+        ].join(' ')}
+        onClick={(event) => {
+          const target = event.target
+          if (
+            target instanceof HTMLElement &&
+            target.closest('[data-inspector-header-control="true"]')
+          ) {
+            return
+          }
+          handleHeaderToggle()
+        }}
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return
+          if (event.key !== 'Enter' && event.key !== ' ') return
+          event.preventDefault()
+          handleHeaderToggle()
+        }}
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          {editMode ? (
+            <input
+              type="checkbox"
+              checked={visible}
+              onChange={onVisibleChange}
+              aria-label={`Show ${title} card`}
+              data-inspector-header-control="true"
+              className="h-4 w-4 shrink-0 rounded border-border text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            />
+          ) : null}
+          {effectiveExpanded ? (
+            <ChevronDown className="h-4 w-4 text-text-muted" aria-hidden="true" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-text-muted" aria-hidden="true" />
+          )}
+          <span
+            className={[
+              'shrink-0 text-sm font-semibold',
+              visible ? 'text-text-default' : 'text-text-muted',
+            ].join(' ')}
+          >
+            {title}
+          </span>
+        </div>
         <div className="min-w-0">
-          {(summary || (expanded && action)) ? (
+          {visible && (summary || (effectiveExpanded && action)) ? (
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
               <div className="min-w-0">{summary}</div>
-              {expanded && action ? <div className="shrink-0">{action}</div> : null}
+              {effectiveExpanded && action ? (
+                <div
+                  className="shrink-0"
+                  data-inspector-header-control="true"
+                >
+                  {action}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
       </div>
-      <AnimatedSectionContent id={contentId} expanded={expanded}>
+      <AnimatedSectionContent id={contentId} expanded={effectiveExpanded}>
         {children}
       </AnimatedSectionContent>
     </section>
@@ -434,7 +492,10 @@ export function TeacherWorkInspector({
   showDraftAutosavedNotice,
   repoAnalyzing,
   expandedSections,
+  visibleSections,
+  editMode = false,
   onToggleSection,
+  onToggleSectionVisibility,
   handleReturnFeedback,
   handleSetGradeMode,
   handleAnalyzeRepo,
@@ -470,7 +531,10 @@ export function TeacherWorkInspector({
   showDraftAutosavedNotice: boolean
   repoAnalyzing: boolean
   expandedSections: InspectorSectionId[]
+  visibleSections: InspectorSectionId[]
+  editMode?: boolean
   onToggleSection: (section: InspectorSectionId) => void
+  onToggleSectionVisibility: (section: InspectorSectionId) => void
   handleReturnFeedback: () => Promise<void>
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
   handleAnalyzeRepo: () => Promise<void>
@@ -737,19 +801,28 @@ export function TeacherWorkInspector({
     >
       <div className="flex-1 overflow-y-auto">
         <div>
-          {sections.map((section) => (
-            <InspectorSection
-              key={section.id}
-              id={section.id}
-              title={section.title}
-              expanded={expandedSections.includes(section.id)}
-              summary={section.summary}
-              action={section.action}
-              onToggle={() => onToggleSection(section.id)}
-            >
-              {section.content}
-            </InspectorSection>
-          ))}
+          {sections
+            .filter((section) => editMode || visibleSections.includes(section.id))
+            .map((section) => {
+              const visible = visibleSections.includes(section.id)
+
+              return (
+                <InspectorSection
+                  key={section.id}
+                  id={section.id}
+                  title={section.title}
+                  expanded={expandedSections.includes(section.id)}
+                  visible={visible}
+                  editMode={editMode}
+                  summary={section.summary}
+                  action={section.action}
+                  onToggle={() => onToggleSection(section.id)}
+                  onVisibleChange={() => onToggleSectionVisibility(section.id)}
+                >
+                  {section.content}
+                </InspectorSection>
+              )
+            })}
         </div>
       </div>
 

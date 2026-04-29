@@ -5,6 +5,7 @@ import type { KeyboardEvent, ReactNode, RefObject } from 'react'
 import { Input, Button } from '@/ui'
 import { DateActionBar } from '@/components/DateActionBar'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { BoldIcon } from '@/components/tiptap-icons/bold-icon'
 import { Code2Icon } from '@/components/tiptap-icons/code2-icon'
 import { ItalicIcon } from '@/components/tiptap-icons/italic-icon'
@@ -64,6 +65,7 @@ export function AssignmentForm({
 }: AssignmentFormProps) {
   const instructionsRef = useRef<HTMLTextAreaElement>(null)
   const titleFieldId = useId()
+  const { showMarkdown } = useMarkdownPreference()
 
   function applyWrapFormatting(prefix: string, suffix = prefix) {
     const textarea = instructionsRef.current
@@ -220,34 +222,61 @@ export function AssignmentForm({
               {markdownWarning}
             </div>
           )}
-          <div className="grid min-h-[400px] gap-0 md:grid-cols-2 lg:min-h-[460px]">
-            <div className="flex h-full min-h-0 flex-col border-b border-border md:border-b-0 md:border-r md:border-border">
-              <div className="flex flex-wrap gap-1 border-b border-border bg-surface px-2 py-2">
-                <Button type="button" variant="ghost" size="sm" onClick={onInstructionsUndo} disabled={disabled || !canUndoInstructions} className="h-8 w-8 px-0" aria-label="Undo" title="Undo">
-                  <Undo2Icon className="h-4 w-4" aria-hidden="true" />
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={onInstructionsRedo} disabled={disabled || !canRedoInstructions} className="h-8 w-8 px-0" aria-label="Redo" title="Redo">
-                  <Redo2Icon className="h-4 w-4" aria-hidden="true" />
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => applyLinePrefix('### ')} disabled={disabled} className="h-8 w-8 px-0 text-sm font-bold" aria-label="Heading" title="Heading">
-                  H
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('**')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Bold" title="Bold">
-                  <BoldIcon className="h-4 w-4" aria-hidden="true" />
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('*')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Italic" title="Italic">
-                  <ItalicIcon className="h-4 w-4" aria-hidden="true" />
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => applyLinePrefix('- ')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Bullet list" title="Bullet list">
-                  <ListIcon className="h-4 w-4" aria-hidden="true" />
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => applyLinkFormatting()} disabled={disabled} className="h-8 w-8 px-0" aria-label="Link" title="Link">
-                  <LinkIcon className="h-4 w-4" aria-hidden="true" />
-                </Button>
-                <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('`')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Inline code" title="Inline code">
-                  <Code2Icon className="h-4 w-4" aria-hidden="true" />
-                </Button>
+          {showMarkdown ? (
+            <div className="grid min-h-[400px] gap-0 md:grid-cols-2 lg:min-h-[460px]">
+              <div className="flex h-full min-h-0 flex-col border-b border-border md:border-b-0 md:border-r md:border-border">
+                <div className="flex flex-wrap gap-1 border-b border-border bg-surface px-2 py-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={onInstructionsUndo} disabled={disabled || !canUndoInstructions} className="h-8 w-8 px-0" aria-label="Undo" title="Undo">
+                    <Undo2Icon className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={onInstructionsRedo} disabled={disabled || !canRedoInstructions} className="h-8 w-8 px-0" aria-label="Redo" title="Redo">
+                    <Redo2Icon className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => applyLinePrefix('### ')} disabled={disabled} className="h-8 w-8 px-0 text-sm font-bold" aria-label="Heading" title="Heading">
+                    H
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('**')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Bold" title="Bold">
+                    <BoldIcon className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('*')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Italic" title="Italic">
+                    <ItalicIcon className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => applyLinePrefix('- ')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Bullet list" title="Bullet list">
+                    <ListIcon className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => applyLinkFormatting()} disabled={disabled} className="h-8 w-8 px-0" aria-label="Link" title="Link">
+                    <LinkIcon className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => applyWrapFormatting('`')} disabled={disabled} className="h-8 w-8 px-0" aria-label="Inline code" title="Inline code">
+                    <Code2Icon className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+                <textarea
+                  ref={instructionsRef}
+                  value={instructionsMarkdown}
+                  onChange={(e) => onInstructionsMarkdownChange(e.target.value)}
+                  onKeyDown={handleInstructionsKeyDown}
+                  onBlur={onBlur}
+                  placeholder="Assignment instructions"
+                  disabled={disabled}
+                  spellCheck={false}
+                  className="h-full min-h-[360px] w-full flex-1 resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0 lg:min-h-[420px]"
+                />
               </div>
+              <div className="bg-page">
+                <div className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+                  Preview
+                </div>
+                <div className="min-h-[360px] px-3 pb-3 lg:min-h-[420px]">
+                  <LimitedMarkdown
+                    content={instructionsMarkdown}
+                    emptyPlaceholder={<div className="text-sm text-text-muted">No assignment details provided.</div>}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="min-h-[400px] lg:min-h-[460px]">
               <textarea
                 ref={instructionsRef}
                 value={instructionsMarkdown}
@@ -256,22 +285,10 @@ export function AssignmentForm({
                 onBlur={onBlur}
                 placeholder="Assignment instructions"
                 disabled={disabled}
-                spellCheck={false}
-                className="h-full min-h-[360px] w-full flex-1 resize-none border-0 bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-0 lg:min-h-[420px]"
+                className="min-h-[400px] w-full resize-none border-0 bg-surface p-3 text-sm leading-6 text-text-default focus:outline-none focus:ring-0 lg:min-h-[460px]"
               />
             </div>
-            <div className="bg-page">
-              <div className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-                Preview
-              </div>
-              <div className="min-h-[360px] px-3 pb-3 lg:min-h-[420px]">
-                <LimitedMarkdown
-                  content={instructionsMarkdown}
-                  emptyPlaceholder={<div className="text-sm text-text-muted">No assignment details provided.</div>}
-                />
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

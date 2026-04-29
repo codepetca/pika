@@ -2,7 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, PenSquare, Trash2 } from 'lucide-react'
+import { GripVertical, Trash2 } from 'lucide-react'
 import { formatDueDate } from '@/lib/assignments'
 import { isVisibleAtNow } from '@/lib/scheduling'
 import { Button, Tooltip } from '@/ui'
@@ -16,7 +16,8 @@ interface SortableAssignmentCardProps {
   assignment: AssignmentWithStats
   isReadOnly: boolean
   isDragDisabled?: boolean
-  onSelect: () => void
+  editMode: boolean
+  onOpen: () => void
   onEdit: () => void
   onDelete: () => void
 }
@@ -38,10 +39,12 @@ export function SortableAssignmentCard({
   assignment,
   isReadOnly,
   isDragDisabled = false,
-  onSelect,
+  editMode,
+  onOpen,
   onEdit,
   onDelete,
 }: SortableAssignmentCardProps) {
+  const showEditActions = editMode && !isReadOnly
   const {
     attributes,
     listeners,
@@ -49,7 +52,7 @@ export function SortableAssignmentCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: assignment.id, disabled: isReadOnly || isDragDisabled })
+  } = useSortable({ id: assignment.id, disabled: isReadOnly || isDragDisabled || !editMode })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -65,11 +68,19 @@ export function SortableAssignmentCard({
     isScheduled && assignment.released_at
       ? formatScheduledRelease(assignment.released_at)
       : ''
+  const handleCardAction = () => {
+    if (editMode) {
+      onEdit()
+    } else {
+      onOpen()
+    }
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      onClick={handleCardAction}
       className={[
         'w-full rounded-card border p-3.5 text-left shadow-elevated',
         isDraft || isScheduled
@@ -80,11 +91,18 @@ export function SortableAssignmentCard({
           : isDraft || isScheduled
             ? 'transition hover:border-border-strong hover:bg-surface-3'
             : 'transition hover:-translate-y-px hover:border-border-strong hover:bg-surface-accent hover:shadow-panel',
+        'cursor-pointer',
       ].join(' ')}
     >
-      <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3">
-        {/* Drag handle */}
-        {!isReadOnly && (
+      <div
+        className={[
+          'grid items-center gap-3',
+          showEditActions
+            ? 'grid-cols-[auto_minmax(0,1fr)_auto]'
+            : 'grid-cols-[minmax(0,1fr)]',
+        ].join(' ')}
+      >
+        {showEditActions && (
           <button
             type="button"
             className={[
@@ -97,65 +115,54 @@ export function SortableAssignmentCard({
             {...listeners}
             aria-label="Drag to reorder"
             disabled={isDragDisabled}
+            onClick={(e) => e.stopPropagation()}
           >
             <GripVertical className="h-5 w-5" aria-hidden="true" />
           </button>
         )}
 
-        {/* Left: Title and due date */}
         <button
           type="button"
-          onClick={onSelect}
-          className="min-w-0 text-left"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleCardAction()
+          }}
+          className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left"
+          aria-label={editMode ? `Edit ${assignment.title}` : assignment.title}
         >
-          <h3 className={[
-            'font-medium truncate',
-            isDraft || isScheduled ? 'text-text-muted' : 'text-text-default'
-          ].join(' ')}>
-            {assignment.title}
-          </h3>
-          <p className="text-xs text-text-muted">
-            Due: {formatDueDate(assignment.due_at)}
-          </p>
-          {isScheduled && (
-            <p className="text-xs text-warning">{scheduledOpenLabel}</p>
-          )}
+          <span className="min-w-0">
+            <span className={[
+              'block truncate font-medium',
+              isDraft || isScheduled ? 'text-text-muted' : 'text-text-default'
+            ].join(' ')}>
+              {assignment.title}
+            </span>
+            <span className="block text-xs text-text-muted">
+              Due: {formatDueDate(assignment.due_at)}
+            </span>
+            {isScheduled && (
+              <span className="block text-xs text-warning">{scheduledOpenLabel}</span>
+            )}
+          </span>
+
+          <span className="whitespace-nowrap px-2 text-center">
+            {isDraft ? (
+              <span className="inline-flex items-center rounded-badge bg-surface-3 px-2.5 py-1 text-xs font-semibold text-text-muted">
+                Draft
+              </span>
+            ) : isScheduled ? (
+              <span className="inline-flex items-center rounded-badge bg-warning-bg px-2.5 py-1 text-xs font-semibold text-warning">
+                Scheduled
+              </span>
+            ) : (
+              <span className="text-sm text-text-muted">
+                {assignment.stats.submitted}/{assignment.stats.total_students}
+              </span>
+            )}
+          </span>
         </button>
 
-        {/* Middle: Status */}
-        <div className="whitespace-nowrap px-4 text-center">
-          {isDraft ? (
-            <span className="inline-flex items-center rounded-badge bg-surface-3 px-2.5 py-1 text-xs font-semibold text-text-muted">
-              Draft
-            </span>
-          ) : isScheduled ? (
-            <span className="inline-flex items-center rounded-badge bg-warning-bg px-2.5 py-1 text-xs font-semibold text-warning">
-              Scheduled
-            </span>
-          ) : (
-            <span className="text-sm text-text-muted">
-              {assignment.stats.submitted}/{assignment.stats.total_students}
-            </span>
-          )}
-        </div>
-
-        {/* Right: Action buttons */}
-        <div className="flex items-center gap-1">
-          <Tooltip content="Edit assignment">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-1.5"
-              aria-label={`Edit ${assignment.title}`}
-              disabled={isReadOnly}
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit()
-              }}
-            >
-              <PenSquare className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </Tooltip>
+        {showEditActions && (
           <Tooltip content="Delete assignment">
             <Button
               variant="ghost"
@@ -171,7 +178,7 @@ export function SortableAssignmentCard({
               <Trash2 className="h-4 w-4" aria-hidden="true" />
             </Button>
           </Tooltip>
-        </div>
+        )}
       </div>
     </div>
   )

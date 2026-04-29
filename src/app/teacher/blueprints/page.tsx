@@ -7,6 +7,7 @@ import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
 import { Spinner } from '@/components/Spinner'
 import { CreateBlueprintModal } from '@/components/CreateBlueprintModal'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
+import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import {
   courseBlueprintAssignmentsToMarkdown,
   markdownToCourseBlueprintAssignments,
@@ -74,6 +75,7 @@ function emptyDraftState(): DraftState {
 export default function TeacherBlueprintsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { showMarkdown } = useMarkdownPreference()
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const [blueprints, setBlueprints] = useState<CourseBlueprint[]>([])
   const [selectedBlueprintId, setSelectedBlueprintId] = useState<string | null>(null)
@@ -802,7 +804,7 @@ export default function TeacherBlueprintsPage() {
                                         </div>
                                       ))}
                                     </div>
-                                    {suggestion.preview_markdown ? (
+                                    {showMarkdown && suggestion.preview_markdown ? (
                                       <textarea
                                         readOnly
                                         value={suggestion.preview_markdown}
@@ -875,7 +877,7 @@ export default function TeacherBlueprintsPage() {
                       </div>
                     ) : null}
 
-                    {aiPreview ? (
+                    {aiPreview && showMarkdown ? (
                       <div className="space-y-2">
                         <div className="text-sm font-semibold text-text-default">Preview: {TAB_LABELS[aiPreview.target]}</div>
                         <textarea
@@ -884,21 +886,31 @@ export default function TeacherBlueprintsPage() {
                           className="min-h-[420px] w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                       </div>
+                    ) : aiPreview ? (
+                      <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                        Markdown preview is hidden by your display setting.
+                      </div>
                     ) : null}
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    <textarea
-                      value={drafts[activeTab]}
-                      onChange={(e) => setDrafts((current) => ({ ...current, [activeTab]: e.target.value }))}
-                      className="min-h-[520px] w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                    <div className="flex justify-end">
-                      <Button type="button" onClick={saveCurrentTab} disabled={saving}>
-                        {saving ? 'Saving...' : `Save ${TAB_LABELS[activeTab]}`}
-                      </Button>
+                  showMarkdown ? (
+                    <div className="space-y-3">
+                      <textarea
+                        value={drafts[activeTab]}
+                        onChange={(e) => setDrafts((current) => ({ ...current, [activeTab]: e.target.value }))}
+                        className="min-h-[520px] w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <div className="flex justify-end">
+                        <Button type="button" onClick={saveCurrentTab} disabled={saving}>
+                          {saving ? 'Saving...' : `Save ${TAB_LABELS[activeTab]}`}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="rounded-card border border-border bg-surface-2 p-4 text-sm text-text-muted">
+                      Markdown editing is hidden by your display setting.
+                    </div>
+                  )
                 )}
               </div>
             )}

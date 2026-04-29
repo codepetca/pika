@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.scss'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { ProgressBarProvider } from '@/components/ProgressBarProvider'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 
@@ -36,13 +37,15 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-page">
         <ThemeProvider>
-          <TooltipProvider>
-            <AppMessageProvider>
-              <ProgressBarProvider>
-                {children}
-              </ProgressBarProvider>
-            </AppMessageProvider>
-          </TooltipProvider>
+          <MarkdownPreferenceProvider>
+            <TooltipProvider>
+              <AppMessageProvider>
+                <ProgressBarProvider>
+                  {children}
+                </ProgressBarProvider>
+              </AppMessageProvider>
+            </TooltipProvider>
+          </MarkdownPreferenceProvider>
         </ThemeProvider>
       </body>
     </html>

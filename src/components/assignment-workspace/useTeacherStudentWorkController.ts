@@ -18,12 +18,18 @@ type GradeSaveMode = 'draft' | 'graded'
 
 const SECTION_ORDER: InspectorSectionId[] = ['history', 'repo', 'grades', 'comments']
 const DEFAULT_EXPANDED_SECTIONS: InspectorSectionId[] = ['grades', 'comments']
+const DEFAULT_VISIBLE_SECTIONS: InspectorSectionId[] = SECTION_ORDER
 const INSPECTOR_SECTIONS_COOKIE_PREFIX = 'pika_teacher_student_work_sections'
+const INSPECTOR_VISIBLE_SECTIONS_COOKIE_PREFIX = 'pika_teacher_student_work_visible_sections'
 const GRADE_AUTOSAVE_DELAY_MS = 900
 const DRAFT_AUTOSAVED_NOTICE_MS = 2500
 
 function getInspectorSectionsCookieName(classroomId: string) {
   return `${INSPECTOR_SECTIONS_COOKIE_PREFIX}:${classroomId}`
+}
+
+function getInspectorVisibleSectionsCookieName(classroomId: string) {
+  return `${INSPECTOR_VISIBLE_SECTIONS_COOKIE_PREFIX}:${classroomId}`
 }
 
 function parseExpandedSections(rawValue: string | null | undefined): InspectorSectionId[] {
@@ -53,6 +59,35 @@ function parseExpandedSections(rawValue: string | null | undefined): InspectorSe
 }
 
 function serializeExpandedSections(sections: InspectorSectionId[]): string {
+  return SECTION_ORDER.filter((section) => sections.includes(section)).join(',')
+}
+
+function parseVisibleSections(rawValue: string | null | undefined): InspectorSectionId[] {
+  if (rawValue == null) return DEFAULT_VISIBLE_SECTIONS
+  if (rawValue.trim() === '') return []
+
+  const parts = rawValue
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+
+  const valid = new Set<InspectorSectionId>(SECTION_ORDER)
+  const nextSections: InspectorSectionId[] = []
+
+  for (const part of parts) {
+    if (!valid.has(part as InspectorSectionId)) {
+      return DEFAULT_VISIBLE_SECTIONS
+    }
+    const section = part as InspectorSectionId
+    if (!nextSections.includes(section)) {
+      nextSections.push(section)
+    }
+  }
+
+  return SECTION_ORDER.filter((section) => nextSections.includes(section))
+}
+
+function serializeVisibleSections(sections: InspectorSectionId[]): string {
   return SECTION_ORDER.filter((section) => sections.includes(section)).join(',')
 }
 
@@ -167,6 +202,7 @@ export interface TeacherStudentWorkController {
   totalScore: number
   totalPercent: number
   expandedSections: InspectorSectionId[]
+  visibleSections: InspectorSectionId[]
   setScoreCompletion: (value: string) => void
   setScoreThinking: (value: string) => void
   setScoreWorkflow: (value: string) => void
@@ -177,6 +213,8 @@ export interface TeacherStudentWorkController {
   handleHistoryMouseLeave: () => void
   handleAIDraftAcknowledge: () => void
   toggleSection: (section: InspectorSectionId) => void
+  collapseAllSections: () => void
+  toggleSectionVisibility: (section: InspectorSectionId) => void
   handleAutoGrade: () => Promise<void>
   handleReturnFeedback: () => Promise<void>
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
@@ -224,10 +262,14 @@ export function useTeacherStudentWorkController({
   const [expandedSections, setExpandedSections] = useState<InspectorSectionId[]>(() =>
     parseExpandedSections(readCookie(getInspectorSectionsCookieName(classroomId))),
   )
+  const [visibleSections, setVisibleSections] = useState<InspectorSectionId[]>(() =>
+    parseVisibleSections(readCookie(getInspectorVisibleSectionsCookieName(classroomId))),
+  )
   const showInitialSpinner = useDelayedBusy(loading && !data)
 
   useEffect(() => {
     setExpandedSections(parseExpandedSections(readCookie(getInspectorSectionsCookieName(classroomId))))
+    setVisibleSections(parseVisibleSections(readCookie(getInspectorVisibleSectionsCookieName(classroomId))))
   }, [classroomId])
 
   const persistExpandedSections = useCallback(
@@ -251,6 +293,35 @@ export function useTeacherStudentWorkController({
       })
     },
     [persistExpandedSections],
+  )
+
+  const collapseAllSections = useCallback(() => {
+    const next: InspectorSectionId[] = []
+    persistExpandedSections(next)
+    setExpandedSections(next)
+  }, [persistExpandedSections])
+
+  const persistVisibleSections = useCallback(
+    (sections: InspectorSectionId[]) => {
+      writeCookie(
+        getInspectorVisibleSectionsCookieName(classroomId),
+        serializeVisibleSections(sections),
+      )
+    },
+    [classroomId],
+  )
+
+  const toggleSectionVisibility = useCallback(
+    (section: InspectorSectionId) => {
+      setVisibleSections((current) => {
+        const next = current.includes(section)
+          ? current.filter((value) => value !== section)
+          : SECTION_ORDER.filter((value) => value === section || current.includes(value))
+        persistVisibleSections(next)
+        return next
+      })
+    },
+    [persistVisibleSections],
   )
 
   const clearDraftAutosavedNotice = useCallback(() => {
@@ -803,6 +874,7 @@ export function useTeacherStudentWorkController({
     totalScore,
     totalPercent,
     expandedSections,
+    visibleSections,
     setScoreCompletion: updateScoreCompletion,
     setScoreThinking: updateScoreThinking,
     setScoreWorkflow: updateScoreWorkflow,
@@ -813,6 +885,8 @@ export function useTeacherStudentWorkController({
     handleHistoryMouseLeave,
     handleAIDraftAcknowledge: () => setHasFreshAIDraft(false),
     toggleSection,
+    collapseAllSections,
+    toggleSectionVisibility,
     handleAutoGrade,
     handleReturnFeedback,
     handleSetGradeMode,
