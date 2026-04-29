@@ -9726,3 +9726,178 @@
   - `/tmp/pika-teacher-mobile.png`
   - `/tmp/pika-teacher-opening.png`
   - `/tmp/pika-student-opening.png`
+## 2026-04-28 — Teacher assignments edit-mode pilot
+
+**Completed:**
+- Added the shared `TeacherEditModeControls` action-bar control for temporary teacher work-surface edit mode.
+- Updated teacher assignments so normal mode keeps `New`, navigation, grading, return, and status workflows visible while hiding reorder, delete, and bulk markdown code affordances.
+- Moved assignment bulk markdown entry behind edit-mode `Code`, gated parent markdown/sidebar opening on assignment edit mode, and reset edit mode on assignment workspace/tab changes.
+- Updated assignment summary cards so normal clicks open the workspace when possible, draft/scheduled cards still open the editor, and edit-mode clicks open the assignment editor with drag/delete visible.
+- Hid the selected-assignment title edit affordance until edit mode is active.
+- Added experimental guidance for the reusable teacher edit-mode pattern.
+- Fixed a small mobile header overflow exposed during assignment mobile verification by hiding the date/time on narrow screens.
+
+**Validation:**
+- `pnpm test tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm lint`
+- `bash scripts/verify-env.sh` (`pnpm test`: 237 files, 1958 tests)
+- `pnpm e2e:auth`
+- Applied pending local Supabase migrations 057-059 with `supabase db push --local` to unblock visual verification against the local dev DB.
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-assignments-summary-normal.png`
+  - `/tmp/pika-teacher-assignments-summary-edit.png`
+  - `/tmp/pika-teacher-assignments-code-sidebar.png`
+  - `/tmp/pika-teacher-assignments-code-sidebar-dark.png`
+  - `/tmp/pika-teacher-assignment-workspace-normal.png`
+  - `/tmp/pika-teacher-assignment-workspace-edit.png`
+  - `/tmp/pika-teacher-assignments-mobile-390-after-header-fix.png`
+  - `/tmp/pika-student-assignments-mobile-390-after-header-fix.png`
+
+## 2026-04-29 — Teacher assignment workspace edit refinements
+
+**Completed:**
+- Moved the selected-assignment Class-mode `Return` action into the centered `AI Grade` split-button menu and removed the standalone Return button.
+- Added edit-mode visibility checkboxes to the grading inspector cards so teachers can hide cards such as `Repo` from normal mode while keeping hidden card headers available in edit mode.
+- Persisted inspector card visibility per classroom in client cookies alongside the existing expanded-section state.
+- Updated the experimental teacher edit-mode guidance with the inspector card visibility rule.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm test tests/components/TeacherWorkSurfaceShell.test.tsx`
+- `pnpm lint`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-workspace-split-return.png`
+  - `/tmp/pika-assignment-workspace-edit-inspector.png`
+  - `/tmp/pika-assignment-workspace-hidden-repo.png`
+  - `/tmp/pika-assignment-workspace-repo-hidden-normal.png`
+  - `/tmp/pika-assignment-workspace-mobile.png`
+
+## 2026-04-29 — Center assignment summary New action
+
+**Completed:**
+- Centered the teacher assignment summary `+ New` button in the action bar while keeping edit controls anchored on the right.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx`
+- `pnpm lint`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-student.png`
+
+## 2026-04-29 — Inspector edit-mode collapse behavior
+
+**Completed:**
+- Collapsed all right-pane assignment inspector cards when entering assignment edit mode.
+- Expanded the inspector card header click target so clicking anywhere in the top card header area toggles collapse/expand, while visibility checkboxes and card actions keep their own behavior.
+
+**Validation:**
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-workspace-edit-collapsed.png`
+  - `/tmp/pika-assignment-workspace-header-click-expanded-after-wait.png`
+
+## 2026-04-29 — Assignment edit mode route and Escape reset
+
+**Completed:**
+- Reset assignment edit mode when the teacher leaves the assignments route/tab or the assignment workspace changes.
+- Added Escape handling so assignment edit mode exits from summary and selected-assignment workspace views, while preserving Escape behavior inside inputs and editors.
+- Kept assignment markdown/sidebar cleanup scoped to assignment markdown state so other tabs do not lose their own right-sidebar state after navigation.
+- Tightened the mobile assignment action bar by making the edit-mode Code action icon-only below the `sm` breakpoint.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Interactive Playwright checks for summary edit mode, Code sidebar, Escape reset, route-away reset, selected-assignment workspace edit mode, and mobile edit mode.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-edit-mode.png`
+  - `/tmp/pika-teacher-code-sidebar.png`
+  - `/tmp/pika-teacher-workspace-normal.png`
+  - `/tmp/pika-teacher-workspace-edit.png`
+  - `/tmp/pika-teacher-mobile-edit-mode.png`
+
+## 2026-04-29 — Assignment summary edit mode opens markdown by default
+
+**Completed:**
+- Removed the assignment-list edit-mode `Code` action.
+- Updated assignment summary edit mode so entering edit mode automatically opens the existing bulk markdown editor in the right split pane.
+- Kept Done, Escape, workspace changes, and route changes closing assignment markdown/edit state.
+- Updated experimental teacher edit-mode guidance to make the automatic markdown split the assignment pilot rule.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherEditModeControls.test.tsx`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Interactive Playwright checks for automatic desktop split, removed Code action, Escape reset, route-away reset, and mobile markdown drawer.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-teacher-edit-mode-auto-markdown.png`
+  - `/tmp/pika-teacher-mobile-edit-auto-markdown.png`
+
+## 2026-04-29 — Actionbar top spacing balance
+
+**Completed:**
+- Increased the shared compact header/actionbar top spacing token from 2px to 12px so the actionbar has symmetric visual breathing room above and below it.
+
+**Validation:**
+- `pnpm test tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Visual screenshots reviewed:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-edit-spacing-auto-markdown.png`
+
+## 2026-04-29 — Global markdown visibility preference
+
+**Completed:**
+- Added a main user-menu `Show markdown` checkbox backed by local storage.
+- Gated markdown/source surfaces across assignment edit split view, assignment instruction modals, lesson calendar markdown sidebar, lesson calendar cell rendering/shortcuts, class-day markdown copy, quiz markdown tabs/splits, classroom website markdown fields, and teacher blueprint markdown editors/previews.
+- Kept assignment edit mode functional when markdown is hidden: edit affordances remain visible, but the markdown pane stays closed until the setting is re-enabled.
+
+**Validation:**
+- `pnpm test tests/components/UserMenu.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm test tests/components/QuizDetailPanel.test.tsx tests/components/LessonCalendar.test.tsx tests/components/TeacherBlueprintsPage.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx`
+- `pnpm test tests/components/AssignmentModal.test.tsx tests/components/TeacherSettingsTab.test.tsx`
+- `pnpm test tests/components/UserMenu.test.tsx tests/components/ClassroomPageClientAssignmentsEditMode.test.tsx tests/components/QuizDetailPanel.test.tsx tests/components/LessonCalendar.test.tsx tests/components/TeacherBlueprintsPage.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherWorkSurfaceShell.test.tsx tests/components/TeacherEditModeControls.test.tsx tests/components/SortableAssignmentCard.test.tsx tests/components/AssignmentModal.test.tsx tests/components/TeacherSettingsTab.test.tsx` (124 tests)
+- `pnpm lint`
+- `pnpm exec tsc --noEmit --pretty false`
+- `git diff --check`
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=assignments`.
+- Pika UI verification for `/classrooms/c2055846-3dab-41ef-acc7-e3d478ecf5c1?tab=calendar`.
+- Interactive Playwright checks for assignment edit mode with markdown hidden and re-enabled.
+- Interactive Playwright checks for hidden markdown in assignment instructions, classroom website settings, and lesson calendar cells.
+- Visual screenshots reviewed:
+  - `/tmp/pika-markdown-hidden-assignment-edit-clean.png`
+  - `/tmp/pika-markdown-shown-assignment-edit-clean.png`
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+  - `/tmp/pika-assignment-modal-markdown-hidden.png`
+  - `/tmp/pika-settings-markdown-hidden.png`
+  - `/tmp/pika-calendar-markdown-hidden.png`

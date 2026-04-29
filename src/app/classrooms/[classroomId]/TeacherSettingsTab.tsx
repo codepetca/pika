@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Info } from 'lucide-react'
 import { Button, ConfirmDialog, DialogPanel, FormField, Input, Tooltip, useAppMessage } from '@/ui'
 import { PageContent, PageLayout } from '@/components/PageLayout'
+import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG, slugifyCourseSiteValue } from '@/lib/course-site-publishing'
 import { TeacherCalendarTab } from './TeacherCalendarTab'
 import type { ActualCourseSiteConfig, Classroom, LessonPlanVisibility } from '@/types'
@@ -38,6 +39,7 @@ export function TeacherSettingsTab({
   const actualOverviewId = useId()
   const actualOutlineId = useId()
   const isReadOnly = !!classroom.archived_at
+  const { showMarkdown } = useMarkdownPreference()
   const [title, setTitle] = useState(classroom.title)
   const [titleSaving, setTitleSaving] = useState(false)
   const [titleError, setTitleError] = useState<string>('')
@@ -506,31 +508,39 @@ export function TeacherSettingsTab({
                 </select>
               </div>
 
-              <div>
-                <label htmlFor={actualOverviewId} className="mb-2 block text-sm text-text-muted">
-                  Website overview
-                </label>
-                <textarea
-                  id={actualOverviewId}
-                  value={courseOverviewMarkdown}
-                  onChange={(e) => setCourseOverviewMarkdown(e.target.value)}
-                  disabled={siteSaving || isReadOnly}
-                  className="min-h-[140px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {showMarkdown ? (
+                <>
+                  <div>
+                    <label htmlFor={actualOverviewId} className="mb-2 block text-sm text-text-muted">
+                      Website overview
+                    </label>
+                    <textarea
+                      id={actualOverviewId}
+                      value={courseOverviewMarkdown}
+                      onChange={(e) => setCourseOverviewMarkdown(e.target.value)}
+                      disabled={siteSaving || isReadOnly}
+                      className="min-h-[140px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-              <div>
-                <label htmlFor={actualOutlineId} className="mb-2 block text-sm text-text-muted">
-                  Website outline
-                </label>
-                <textarea
-                  id={actualOutlineId}
-                  value={courseOutlineMarkdown}
-                  onChange={(e) => setCourseOutlineMarkdown(e.target.value)}
-                  disabled={siteSaving || isReadOnly}
-                  className="min-h-[160px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+                  <div>
+                    <label htmlFor={actualOutlineId} className="mb-2 block text-sm text-text-muted">
+                      Website outline
+                    </label>
+                    <textarea
+                      id={actualOutlineId}
+                      value={courseOutlineMarkdown}
+                      onChange={(e) => setCourseOutlineMarkdown(e.target.value)}
+                      disabled={siteSaving || isReadOnly}
+                      className="min-h-[160px] w-full rounded-md border border-border bg-surface-2 px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
+                  Website overview and outline editing is hidden by your user menu setting.
+                </div>
+              )}
 
               {actualSitePublished && actualSiteSlug ? (
                 <div className="text-sm text-text-muted">

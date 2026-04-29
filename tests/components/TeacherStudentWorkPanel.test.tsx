@@ -225,6 +225,8 @@ function mockFetchByStudent(
 function clearInspectorSectionsCookies() {
   document.cookie = 'pika_teacher_student_work_sections%3Aclassroom-1=; Path=/; Max-Age=0; SameSite=Lax'
   document.cookie = 'pika_teacher_student_work_sections%3Aclassroom-2=; Path=/; Max-Age=0; SameSite=Lax'
+  document.cookie = 'pika_teacher_student_work_visible_sections%3Aclassroom-1=; Path=/; Max-Age=0; SameSite=Lax'
+  document.cookie = 'pika_teacher_student_work_visible_sections%3Aclassroom-2=; Path=/; Max-Age=0; SameSite=Lax'
 }
 
 function writeInspectorSectionsCookie(classroomId: string, value: string) {
@@ -310,6 +312,98 @@ describe('TeacherStudentWorkPanel', () => {
     expect(within(gradesSection).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     const feedbackSection = screen.getByTestId('inspector-section-comments')
     expect(within(feedbackSection).getByRole('button', { name: 'Send feedback' })).toBeInTheDocument()
+  })
+
+  it('uses edit-mode checkboxes to hide inspector cards outside edit mode', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+
+    const user = userEvent.setup()
+    const panelProps = {
+      classroomId: 'classroom-1',
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      mode: 'details' as const,
+      inspectorCollapsed: false,
+      inspectorWidth: 40,
+      totalWidth: 1200,
+    }
+    const { rerender } = render(
+      <TeacherStudentWorkPanel
+        {...panelProps}
+        inspectorEditMode
+      />,
+    )
+
+    const repoSection = await screen.findByTestId('inspector-section-repo')
+    const repoVisibility = within(repoSection).getByRole('checkbox', { name: 'Show Repo card' })
+    expect(repoVisibility).toBeChecked()
+    expect(within(repoSection).getByText('No repo linked')).toBeInTheDocument()
+
+    await user.click(repoVisibility)
+
+    expect(repoVisibility).not.toBeChecked()
+    expect(within(repoSection).queryByText('No repo linked')).not.toBeInTheDocument()
+
+    rerender(<TeacherStudentWorkPanel {...panelProps} />)
+
+    expect(screen.queryByTestId('inspector-section-repo')).not.toBeInTheDocument()
+
+    rerender(
+      <TeacherStudentWorkPanel
+        {...panelProps}
+        inspectorEditMode
+      />,
+    )
+
+    const hiddenRepoSection = screen.getByTestId('inspector-section-repo')
+    const hiddenRepoVisibility = within(hiddenRepoSection).getByRole('checkbox', {
+      name: 'Show Repo card',
+    })
+    expect(hiddenRepoVisibility).not.toBeChecked()
+
+    await user.click(hiddenRepoVisibility)
+
+    expect(hiddenRepoVisibility).toBeChecked()
+
+    rerender(<TeacherStudentWorkPanel {...panelProps} />)
+
+    expect(screen.getByTestId('inspector-section-repo')).toBeInTheDocument()
+  })
+
+  it('collapses inspector cards when edit mode is entered', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+
+    const panelProps = {
+      classroomId: 'classroom-1',
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      mode: 'details' as const,
+      inspectorCollapsed: false,
+      inspectorWidth: 40,
+      totalWidth: 1200,
+    }
+    const { rerender } = render(<TeacherStudentWorkPanel {...panelProps} />)
+
+    expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Teacher feedback draft')).toBeInTheDocument()
+
+    rerender(
+      <TeacherStudentWorkPanel
+        {...panelProps}
+        inspectorEditMode
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Grade' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Feedback' })).toHaveAttribute('aria-expanded', 'false')
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
+    })
+    expect(screen.queryByPlaceholderText('Teacher feedback draft')).not.toBeInTheDocument()
   })
 
   it('autosaves valid grading edits as final by default without a save button', async () => {
@@ -776,6 +870,32 @@ describe('TeacherStudentWorkPanel', () => {
     expect(within(repoSection).getByText('Contribution')).toBeInTheDocument()
     expect(within(repoSection).getByText('Consistency')).toBeInTheDocument()
     expect(within(repoSection).getByText('Iteration')).toBeInTheDocument()
+  })
+
+  it('toggles collapsed cards when clicking the header summary area', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    const repoSection = await screen.findByTestId('inspector-section-repo')
+    expect(within(repoSection).queryByRole('button', { name: 'Analyze Repo' })).not.toBeInTheDocument()
+
+    await user.click(within(repoSection).getByText('No repo linked'))
+
+    expect(within(repoSection).getByRole('button', { name: 'Analyze Repo' })).toBeInTheDocument()
   })
 
   it('updates the individual-mode preview when hovering a history entry', async () => {

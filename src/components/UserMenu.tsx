@@ -2,8 +2,9 @@
 
 import { useCallback, useState } from 'react'
 import Link from 'next/link'
-import { UserCircle, LogOut, Moon, Sun, Bug } from 'lucide-react'
+import { Check, UserCircle, LogOut, Moon, Sun, Bug } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { useDropdownNav } from '@/hooks/use-dropdown-nav'
 import { FeedbackDialog } from '@/components/FeedbackDialog'
 
@@ -70,12 +71,18 @@ function getInitials(firstName?: string | null, lastName?: string | null): strin
  */
 export function UserMenu({ user }: UserMenuProps) {
   const { theme, mounted, toggleTheme } = useTheme()
+  const { showMarkdown, mounted: markdownMounted, toggleShowMarkdown } = useMarkdownPreference()
   const [showFeedback, setShowFeedback] = useState(false)
 
   const handleThemeToggle = useCallback(() => {
     toggleTheme()
     // Don't close menu when toggling theme
   }, [toggleTheme])
+
+  const handleMarkdownToggle = useCallback(() => {
+    toggleShowMarkdown()
+    // Keep the menu open while changing display preferences.
+  }, [toggleShowMarkdown])
 
   const {
     isOpen,
@@ -91,7 +98,7 @@ export function UserMenu({ user }: UserMenuProps) {
     itemRefs,
     containerRef,
   } = useDropdownNav({
-    itemCount: 3, // theme toggle, feedback, logout
+    itemCount: 4, // theme toggle, markdown visibility, feedback, logout
   })
 
   if (!user) {
@@ -191,15 +198,44 @@ export function UserMenu({ user }: UserMenuProps) {
           {mounted ? (theme === 'dark' ? 'Light mode' : 'Dark mode') : 'Toggle theme'}
         </button>
 
-        {/* Send Feedback */}
+        {/* Markdown visibility */}
         <button
           id={getItemId(1)}
           ref={(el) => { itemRefs.current[1] = el }}
-          onClick={() => { setIsOpen(false); setShowFeedback(true) }}
+          onClick={handleMarkdownToggle}
           onMouseEnter={() => setFocusedIndex(1)}
           onKeyDown={handleItemKeyDown}
           className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
             focusedIndex === 1
+              ? 'bg-surface-2'
+              : 'hover:bg-surface-hover'
+          }`}
+          role="menuitemcheckbox"
+          aria-checked={markdownMounted ? showMarkdown : true}
+          tabIndex={isOpen ? 0 : -1}
+        >
+          <span
+            className={`flex h-4 w-4 items-center justify-center rounded border ${
+              markdownMounted && showMarkdown
+                ? 'border-primary bg-primary text-text-inverse'
+                : 'border-border-strong bg-surface'
+            }`}
+            aria-hidden="true"
+          >
+            {markdownMounted && showMarkdown ? <Check className="h-3 w-3" /> : null}
+          </span>
+          Show markdown
+        </button>
+
+        {/* Send Feedback */}
+        <button
+          id={getItemId(2)}
+          ref={(el) => { itemRefs.current[2] = el }}
+          onClick={() => { setIsOpen(false); setShowFeedback(true) }}
+          onMouseEnter={() => setFocusedIndex(2)}
+          onKeyDown={handleItemKeyDown}
+          className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
+            focusedIndex === 2
               ? 'bg-surface-2'
               : 'hover:bg-surface-hover'
           }`}
@@ -212,14 +248,14 @@ export function UserMenu({ user }: UserMenuProps) {
 
         {/* Logout */}
         <Link
-          id={getItemId(2)}
-          ref={(el) => { itemRefs.current[2] = el }}
+          id={getItemId(3)}
+          ref={(el) => { itemRefs.current[3] = el }}
           href="/logout"
           onClick={() => setIsOpen(false)}
-          onMouseEnter={() => setFocusedIndex(2)}
+          onMouseEnter={() => setFocusedIndex(3)}
           onKeyDown={handleItemKeyDown}
           className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-text-muted transition-colors focus:outline-none ${
-            focusedIndex === 2
+            focusedIndex === 3
               ? 'bg-surface-2'
               : 'hover:bg-surface-hover'
           }`}
