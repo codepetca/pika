@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Copy } from 'lucide-react'
-import { Button, Tooltip } from '@/ui'
+import { Button, Tooltip, useAppMessage } from '@/ui'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import type { ClassDay, Classroom } from '@/types'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, parseISO } from 'date-fns'
@@ -20,11 +20,10 @@ export function TeacherCalendarTab({ classroom }: Props) {
   const [classDays, setClassDays] = useState<ClassDay[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
-  const [success, setSuccess] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [saving, setSaving] = useState(false)
-  const [copyNotice, setCopyNotice] = useState<string>('')
+  const { showMessage } = useAppMessage()
 
   // Sync from shared context (used for initial load and after event-driven refreshes)
   useEffect(() => {
@@ -70,7 +69,6 @@ export function TeacherCalendarTab({ classroom }: Props) {
     if (isReadOnly) return
     setSaving(true)
     setError('')
-    setSuccess('')
     try {
       const res = await fetch(`/api/classrooms/${classroom.id}/class-days`, {
         method: 'POST',
@@ -84,7 +82,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
       if (!res.ok) {
         throw new Error(data.error || 'Failed to generate class days')
       }
-      setSuccess(`Generated ${data.count ?? 0} class days.`)
+      showMessage({ text: `Generated ${data.count ?? 0} days`, tone: 'success' })
       // Notify context and other components to refresh class days
       window.dispatchEvent(new CustomEvent(CLASS_DAYS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     } catch (err: any) {
@@ -101,21 +99,18 @@ export function TeacherCalendarTab({ classroom }: Props) {
       .sort()
 
     if (activeClassDays.length === 0) {
-      setCopyNotice('No class days to copy')
-      setTimeout(() => setCopyNotice(''), 2000)
+      showMessage({ text: 'No class days to copy', tone: 'warning' })
       return
     }
 
     const markdown = activeClassDays.map(date => `- ${date}`).join('\n')
     await navigator.clipboard.writeText(markdown)
-    setCopyNotice('Copied!')
-    setTimeout(() => setCopyNotice(''), 2000)
+    showMessage({ text: 'Copied', tone: 'success' })
   }
 
   async function toggleDay(date: string, isClassDay: boolean) {
     if (isReadOnly) return
     setError('')
-    setSuccess('')
     try {
       const res = await fetch(`/api/classrooms/${classroom.id}/class-days`, {
         method: 'PATCH',
@@ -188,10 +183,9 @@ export function TeacherCalendarTab({ classroom }: Props) {
         </div>
       )}
 
-      {(error || success) && (
+      {error && (
         <div className="space-y-2 mb-4">
-          {error && <div className="text-sm text-danger">{error}</div>}
-          {success && <div className="text-sm text-success">{success}</div>}
+          <div className="text-sm text-danger">{error}</div>
         </div>
       )}
 
@@ -221,7 +215,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                   className="flex items-center gap-1 px-2 py-1 text-xs text-text-muted hover:text-text-default hover:bg-surface-hover rounded transition-colors"
                 >
                   <Copy className="w-3.5 h-3.5" />
-                  <span>{copyNotice || 'Copy'}</span>
+                  <span>Copy</span>
                 </button>
               </Tooltip>
             </div>

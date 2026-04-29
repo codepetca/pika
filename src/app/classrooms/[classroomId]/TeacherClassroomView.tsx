@@ -26,7 +26,7 @@ import {
   Plus,
   Send,
 } from 'lucide-react'
-import { Button, ConfirmDialog, SplitButton, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -206,9 +206,6 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
   }
 }
 
-const ASSIGNMENT_AI_GRADING_RUN_NOTE =
-  'Keep this assignment open while grading runs. Reopening it resumes the current progress.'
-
 export function TeacherClassroomView({
   classroom,
   onSelectAssignment,
@@ -282,6 +279,7 @@ export function TeacherClassroomView({
   const wasActiveRef = useRef(isActive)
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
   const showSummarySpinner = useDelayedBusy(loading && assignments.length === 0)
+  const { showMessage } = useAppMessage()
   const {
     layout: assignmentGradingLayout,
     updateModeLayout,
@@ -724,9 +722,9 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (!info) return
-    const timer = setTimeout(() => setInfo(''), 4000)
-    return () => clearTimeout(timer)
-  }, [info])
+    showMessage({ text: info, tone: 'info' })
+    setInfo('')
+  }, [info, showMessage])
 
   useEffect(() => {
     if (!selectedAssignmentKey || !activeAssignmentAiRunId || !hasActiveAssignmentAiRun) return
@@ -1222,27 +1220,17 @@ export function TeacherClassroomView({
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+  const activeWorkMessage = showAssignmentAiRunOverlay
+    ? assignmentAiRunOverlayLabel
+    : isArtifactRepoAnalyzing
+      ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+      : isReturning
+        ? `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
+        : ''
+  useOverlayMessage(!!activeWorkMessage, activeWorkMessage, { tone: 'loading' })
 
-  const studentBusyOverlay = showAssignmentAiRunOverlay || isArtifactRepoAnalyzing || isReturning ? (
-    <div className="absolute inset-0 z-10 flex items-start justify-center rounded-md bg-surface/70 px-4 pt-4">
-      <div className="flex max-w-[24rem] flex-col gap-1 rounded-2xl border border-border bg-surface px-3 py-2 text-xs leading-tight text-text-muted shadow-sm sm:max-w-[28rem] sm:text-sm">
-        <div className="flex items-center gap-2">
-          <Spinner />
-          <span>
-            {showAssignmentAiRunOverlay
-              ? assignmentAiRunOverlayLabel
-              : isArtifactRepoAnalyzing
-                ? `Analyzing repos for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
-                : `Returning to ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`}
-          </span>
-        </div>
-        {showAssignmentAiRunOverlay ? (
-          <p className="pl-6 text-[11px] leading-tight text-text-muted sm:text-xs">
-            {ASSIGNMENT_AI_GRADING_RUN_NOTE}
-          </p>
-        ) : null}
-      </div>
-    </div>
+  const studentBusyOverlay = activeWorkMessage ? (
+    <div className="absolute inset-0 z-10 rounded-md bg-surface/30" aria-hidden="true" />
   ) : null
 
   const studentTable = (
@@ -1426,11 +1414,6 @@ export function TeacherClassroomView({
       {error && (
         <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
           {error}
-        </div>
-      )}
-      {info && (
-        <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
-          {info}
         </div>
       )}
     </>

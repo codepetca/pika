@@ -1,24 +1,32 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { RefreshingIndicator, TabContentTransition } from '@/ui'
+import { AppMessageProvider, RefreshingIndicator, TabContentTransition } from '@/ui'
 
 describe('status primitives', () => {
-  it('renders the refreshing indicator with the default polite status label', () => {
-    render(<RefreshingIndicator />)
+  it('renders the refreshing indicator through the fixed overlay status label', async () => {
+    render(
+      <AppMessageProvider>
+        <RefreshingIndicator />
+      </AppMessageProvider>,
+    )
 
-    const status = screen.getByRole('status')
+    const status = await screen.findByRole('status')
     expect(status).toHaveAttribute('aria-live', 'polite')
-    expect(status).toHaveTextContent('Refreshing...')
-    expect(status.className).toContain('text-text-muted')
+    expect(status).toHaveTextContent('Refreshing')
+    expect(screen.getByTestId('app-message-overlay')).toHaveClass('fixed', 'pointer-events-none')
   })
 
-  it('renders the refreshing indicator with a custom label and class name', () => {
-    render(<RefreshingIndicator label="Syncing grades..." className="mb-2" />)
+  it('renders the refreshing indicator with a custom overlay label without layout classes', async () => {
+    render(
+      <AppMessageProvider>
+        <RefreshingIndicator label="Syncing grades" className="mb-2" />
+      </AppMessageProvider>,
+    )
 
-    const status = screen.getByRole('status')
-    expect(status).toHaveTextContent('Syncing grades...')
-    expect(status.className).toContain('mb-2')
+    const status = await screen.findByRole('status')
+    expect(status).toHaveTextContent('Syncing grades')
+    expect(screen.getByTestId('app-message-overlay')).not.toHaveClass('mb-2')
   })
 
   it('shows active tab content with visible transition classes', () => {

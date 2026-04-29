@@ -20,6 +20,14 @@ export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip'
 export { RefreshingIndicator } from './RefreshingIndicator'
 export { TabContentTransition } from './TabContentTransition'
 export { SplitButton, type SplitButtonProps, type SplitButtonOption } from './SplitButton'
+export {
+  AppMessageFallback,
+  AppMessageProvider,
+  useAppMessage,
+  useOverlayMessage,
+  type AppMessageTone,
+  type ShowAppMessageOptions,
+} from './AppMessage'
 
 // Utilities
 export { cn } from './utils'

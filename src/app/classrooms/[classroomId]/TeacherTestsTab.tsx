@@ -21,7 +21,7 @@ import { getQuizExitCount } from '@/lib/quizzes'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
 import { compareByNameFields } from '@/lib/table-sort'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
-import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, RefreshingIndicator, Select, Tooltip } from '@/ui'
+import { Button, ConfirmDialog, DialogPanel, EmptyState, FormField, RefreshingIndicator, Select, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import type {
   AssessmentEditorSummaryUpdate,
   AssessmentWorkspaceSummaryPatch,
@@ -87,8 +87,6 @@ type WorkspaceTab = 'authoring' | 'grading'
 type TestGradingSortColumn = 'first_name' | 'last_name'
 
 const GRADING_POLL_INTERVAL_MS = 15_000
-const TEST_AI_GRADING_RUN_NOTE =
-  'Keep this test open while grading runs. Reopening it resumes the current progress.'
 
 const STATUS_META: Record<
   TestGradingStudentRow['status'],
@@ -235,6 +233,7 @@ export function TeacherTestsTab({
   const handledCompletedRunKeysRef = useRef<Set<string>>(new Set())
 
   const [tests, setTests] = useState<QuizWithStats[]>([])
+  const { showMessage } = useAppMessage()
   const [loading, setLoading] = useState(true)
   const [internalSelectedWorkspaceTab, setInternalSelectedWorkspaceTab] = useState<WorkspaceTab>('authoring')
   const [internalSelectedTestId, setInternalSelectedTestId] = useState<string | null>(null)
@@ -813,22 +812,6 @@ export function TeacherTestsTab({
   ])
 
   useEffect(() => {
-    if (!gradingWarning) return
-    if (batchSelectedCount > 0) {
-      setGradingWarning('')
-      return
-    }
-    const timer = window.setTimeout(() => setGradingWarning(''), 3000)
-    return () => window.clearTimeout(timer)
-  }, [batchSelectedCount, gradingWarning])
-
-  useEffect(() => {
-    if (!gradingInfo) return
-    const timer = window.setTimeout(() => setGradingInfo(''), 4000)
-    return () => window.clearTimeout(timer)
-  }, [gradingInfo])
-
-  useEffect(() => {
     if (
       workspaceState !== 'selected' ||
       selectedWorkspaceTab !== 'grading' ||
@@ -927,10 +910,11 @@ export function TeacherTestsTab({
       setGradingError(message.error)
       setGradingInfo('')
     } else {
-      setGradingInfo(message.info)
+      showMessage({ text: message.info, tone: 'info' })
+      setGradingInfo('')
       setGradingError('')
     }
-  }, [activeTestAiRun, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh])
+  }, [activeTestAiRun, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
 
   function handleOpenTest(test: QuizWithStats) {
     navigateTestWorkspace({ testId: test.id, mode: 'authoring', studentId: null })
@@ -985,7 +969,7 @@ export function TeacherTestsTab({
         if (!options?.preserveSelection) {
           clearBatchSelection()
         }
-        setGradingInfo('AI grading started')
+        showMessage({ text: 'Grading started', tone: 'info' })
         return
       }
       if (response.status === 409 && data.run) {
@@ -1009,7 +993,8 @@ export function TeacherTestsTab({
       if (Number(summary.skipped_already_graded_count ?? 0) > 0) {
         summaryParts.push(`${summary.skipped_already_graded_count} already graded`)
       }
-      setGradingInfo(summaryParts.join(' • ') || 'No AI grading was needed')
+      showMessage({ text: summaryParts.join(' • ') || 'No AI grading was needed', tone: 'info' })
+      setGradingInfo('')
       if (!options?.preserveSelection) {
         clearBatchSelection()
       }
@@ -1232,7 +1217,7 @@ export function TeacherTestsTab({
   const gradingTable = (
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
       {gradingRefreshing ? (
-        <RefreshingIndicator label="Refreshing grading rows..." className="px-3 py-2" />
+        <RefreshingIndicator label="Refreshing grades" className="px-3 py-2" />
       ) : null}
       {gradingLoading && gradingStudents.length === 0 ? (
         <div className="flex justify-center py-10">
@@ -1563,6 +1548,53 @@ export function TeacherTestsTab({
       </span>
     ) : null
 
+  const activeTestGradingMessage =
+    workspaceState === 'selected' && selectedWorkspaceTab === 'grading'
+      ? hasActiveTestAiRun && activeTestAiRun
+        ? `Grading ${Math.min(activeTestAiRun.processed_count, activeTestAiRun.requested_count)} of ${activeTestAiRun.requested_count} students…`
+        : isBatchAutoGrading
+          ? 'Starting grading…'
+          : isBatchReturning
+            ? 'Returning work…'
+            : isBatchClearingOpenGrades
+              ? 'Clearing grades…'
+              : ''
+      : ''
+  useOverlayMessage(!!activeTestGradingMessage, activeTestGradingMessage, { tone: 'loading' })
+
+  useEffect(() => {
+    if (!gradingWarning) return
+    if (batchSelectedCount > 0) {
+      setGradingWarning('')
+      return
+    }
+    if (workspaceState === 'selected' && selectedWorkspaceTab === 'grading' && !activeTestGradingMessage) {
+      showMessage({ text: gradingWarning, tone: 'warning' })
+    }
+    setGradingWarning('')
+  }, [
+    activeTestGradingMessage,
+    batchSelectedCount,
+    gradingWarning,
+    selectedWorkspaceTab,
+    showMessage,
+    workspaceState,
+  ])
+
+  useEffect(() => {
+    if (!gradingInfo) return
+    if (workspaceState === 'selected' && selectedWorkspaceTab === 'grading' && !activeTestGradingMessage) {
+      showMessage({ text: gradingInfo, tone: 'info' })
+    }
+    setGradingInfo('')
+  }, [
+    activeTestGradingMessage,
+    gradingInfo,
+    selectedWorkspaceTab,
+    showMessage,
+    workspaceState,
+  ])
+
   const workspaceModeTrailing = (
     <div
       className="min-w-0 max-w-[22rem] truncate text-right text-sm font-medium text-text-default"
@@ -1607,21 +1639,6 @@ export function TeacherTestsTab({
       {gradingError && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
         <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
           {gradingError}
-        </div>
-      ) : null}
-      {gradingWarning && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
-        <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-          {gradingWarning}
-        </div>
-      ) : null}
-      {gradingInfo && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
-        <div className="rounded-md border border-primary bg-info-bg px-3 py-2 text-sm text-info">
-          {gradingInfo}
-        </div>
-      ) : null}
-      {hasActiveTestAiRun && workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? (
-        <div className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-muted">
-          {TEST_AI_GRADING_RUN_NOTE}
         </div>
       ) : null}
     </>
