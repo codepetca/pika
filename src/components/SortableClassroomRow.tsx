@@ -3,12 +3,14 @@
 import type { ReactNode } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Archive, GripVertical } from 'lucide-react'
+import { Archive, GripVertical, LoaderCircle } from 'lucide-react'
 import type { Classroom } from '@/types'
 
 interface SortableClassroomRowProps {
   classroom: Classroom
   isDragDisabled?: boolean
+  isDisabled?: boolean
+  isOpening?: boolean
   onOpen: () => void
   onArchive: () => void
 }
@@ -18,6 +20,8 @@ interface ClassroomRowFrameProps {
   dragHandle: ReactNode
   action: ReactNode
   onOpen?: () => void
+  isDisabled?: boolean
+  isOpening?: boolean
   className?: string
 }
 
@@ -26,8 +30,12 @@ function ClassroomRowFrame({
   dragHandle,
   action,
   onOpen,
+  isDisabled = false,
+  isOpening = false,
   className = '',
 }: ClassroomRowFrameProps) {
+  const isOpenDisabled = isDisabled || isOpening
+
   return (
     <div
       className={[
@@ -42,7 +50,12 @@ function ClassroomRowFrame({
       <button
         type="button"
         onClick={onOpen}
-        className="col-start-2 row-start-1 min-w-0 rounded-control -m-1.5 ml-1 p-1.5 text-left transition-colors hover:bg-surface-accent sm:ml-2"
+        disabled={isOpenDisabled}
+        aria-busy={isOpening}
+        className={[
+          'col-start-2 row-start-1 min-w-0 rounded-control -m-1.5 ml-1 p-1.5 text-left transition-colors sm:ml-2',
+          isOpening ? 'cursor-wait bg-surface-accent' : isDisabled ? 'cursor-wait' : 'hover:bg-surface-accent',
+        ].join(' ')}
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <div className="min-w-0 text-base font-semibold text-text-default">
@@ -55,6 +68,12 @@ function ClassroomRowFrame({
         <div className="mt-1 text-sm text-text-muted">
           Code: <span className="font-mono tracking-[0.18em]">{classroom.class_code}</span>
         </div>
+        {isOpening && (
+          <div className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            Opening classroom...
+          </div>
+        )}
       </button>
 
       <div className="col-start-3 row-start-1 flex items-center justify-end">
@@ -88,6 +107,8 @@ export function ClassroomRowGhost({ classroom }: { classroom: Classroom }) {
 export function SortableClassroomRow({
   classroom,
   isDragDisabled = false,
+  isDisabled = false,
+  isOpening = false,
   onOpen,
   onArchive,
 }: SortableClassroomRowProps) {
@@ -118,6 +139,8 @@ export function SortableClassroomRow({
       <ClassroomRowFrame
         classroom={classroom}
         onOpen={onOpen}
+        isDisabled={isDisabled}
+        isOpening={isOpening}
         dragHandle={
           <button
             type="button"
@@ -130,7 +153,7 @@ export function SortableClassroomRow({
             {...attributes}
             {...listeners}
             aria-label={`Drag to reorder ${classroom.title}`}
-            disabled={isDragDisabled}
+            disabled={isDragDisabled || isDisabled || isOpening}
           >
             <GripVertical className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -142,6 +165,7 @@ export function SortableClassroomRow({
             className="inline-flex h-6 w-6 -mr-1 items-center justify-center rounded-control text-text-muted transition-colors hover:text-text-default"
             aria-label={`Archive ${classroom.title}`}
             title={`Archive ${classroom.title}`}
+            disabled={isDisabled || isOpening}
           >
             <Archive className="h-4 w-4" aria-hidden="true" />
           </button>
