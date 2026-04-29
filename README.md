@@ -42,6 +42,15 @@ node scripts/features.mjs next
 - **Styling**: Tailwind CSS
 - **Testing**: Vitest + React Testing Library
 
+## License
+
+Copyright (c) 2026 Stewart Chan. All rights reserved.
+
+Pika is a CodePet project. This repository is publicly visible for review and
+evaluation only. No permission is granted to use, copy, modify, distribute,
+host, commercialize, or create derivative works without prior written
+permission. See [LICENSE](./LICENSE).
+
 ## Prerequisites
 
 - Node.js 24.x
