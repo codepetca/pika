@@ -525,23 +525,31 @@ export function StudentQuizForm({
                           const isSelected = selectedOption === optionIndex
 
                           return (
-                            <label
+                            <div
                               key={optionIndex}
+                              data-question-option
                               className={`relative flex items-center gap-3 p-3 rounded-lg border transition-colors ${
                                 isSelected
                                   ? 'border-primary bg-primary/5'
                                   : 'border-border hover:bg-surface-hover'
                               } ${isInteractionLocked ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
+                              onClick={() => {
+                                if (!isInteractionLocked) {
+                                  handleOptionSelect(question.id, optionIndex)
+                                }
+                              }}
                             >
                               <input
                                 type="radio"
                                 name={`question-${question.id}`}
                                 checked={isSelected}
                                 disabled={isInteractionLocked}
+                                aria-label={option}
                                 onChange={() => handleOptionSelect(question.id, optionIndex)}
                                 className="peer absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 cursor-pointer opacity-0 disabled:cursor-not-allowed"
                               />
                               <span
+                                aria-hidden="true"
                                 className={`w-5 h-5 rounded-full border-2 flex items-center justify-center peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 ${
                                   isSelected ? 'border-primary' : 'border-border'
                                 }`}
@@ -550,8 +558,8 @@ export function StudentQuizForm({
                                   <span className="w-2.5 h-2.5 rounded-full bg-primary" />
                                 )}
                               </span>
-                              <span className="text-text-default">{option}</span>
-                            </label>
+                              <QuestionMarkdown content={option} className="min-w-0 flex-1" />
+                            </div>
                           )
                         })}
                       </div>

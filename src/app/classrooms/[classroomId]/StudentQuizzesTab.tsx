@@ -5,6 +5,7 @@ import { ChevronLeft, ClockAlert, LogOut, Maximize } from 'lucide-react'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Spinner } from '@/components/Spinner'
 import { PageContent, PageLayout, PageStack } from '@/components/PageLayout'
+import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import {
   getQuizExitCount,
   getQuizStatusBadgeClass,
@@ -1321,15 +1322,11 @@ export function StudentQuizzesTab({ classroom, assessmentType, isActive = true }
                             </div>
 
                             {activeDoc?.source === 'text' ? (
-                              <div
-                                className="scrollbar-hover min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-surface-2 p-3"
-                                onMouseUp={handleTextDocPointerUp}
+                              <TestTextDocumentViewer
+                                content={activeDoc.content || ''}
                                 onKeyUp={handleTextDocPointerUp}
-                              >
-                                <pre className="whitespace-pre-wrap break-words text-sm text-text-default">
-                                  {activeDoc.content || ''}
-                                </pre>
-                              </div>
+                                onMouseUp={handleTextDocPointerUp}
+                              />
                             ) : iframeDocs.length > 0 ? (
                               <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
                                 {iframeDocs.map((doc) => {

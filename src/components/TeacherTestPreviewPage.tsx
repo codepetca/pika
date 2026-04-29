@@ -5,6 +5,7 @@ import { ChevronLeft, Maximize, X } from 'lucide-react'
 import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { StudentQuizForm } from '@/components/StudentQuizForm'
+import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TEACHER_QUIZZES_UPDATED_EVENT } from '@/lib/events'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import type { QuizQuestion, TestDocument } from '@/types'
@@ -478,11 +479,10 @@ export function TeacherTestPreviewPage({
                   </div>
 
                   {activeDoc?.source === 'text' ? (
-                    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-surface-2 p-3 scrollbar-none">
-                      <pre className="whitespace-pre-wrap break-words text-sm text-text-default">
-                        {activeDoc.content || ''}
-                      </pre>
-                    </div>
+                    <TestTextDocumentViewer
+                      className="scrollbar-none"
+                      content={activeDoc.content || ''}
+                    />
                   ) : iframeDocs.length > 0 ? (
                     <div className="relative min-h-0 flex-1 overflow-hidden bg-white">
                       {iframeDocs.map((doc) => {
