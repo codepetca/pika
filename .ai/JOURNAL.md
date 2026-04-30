@@ -10065,9 +10065,11 @@
 - Split the assignment grading batch menu into `Apply Grade to Selected Students` and `Apply Comments to Selected Students`.
 - Scoped the batch grade API with `apply_target` so grade application updates only scores/graded state, while comments application updates only the teacher comment draft.
 - Updated confirmation copy, hover highlighting, and component/API coverage for the separate grade and comments flows.
+- Preserved the `origin/main` behavior that keeps `Return` inside the `AI Grade` split menu instead of as a separate action-bar button.
 
 **Validation:**
 - `pnpm test tests/components/TeacherClassroomView.test.tsx tests/api/teacher/assignments-grade-selected.test.ts`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
 - `pnpm lint`
 - `pnpm build`
 - Pika UI verification script for `/classrooms`:
@@ -10076,3 +10078,4 @@
   - `/tmp/pika-teacher-mobile.png`
 - Manual Playwright screenshot for the assignment workspace split menu:
   - `/tmp/pika-assignment-apply-menu.png`
+  - `/tmp/pika-return-in-split-menu.png`

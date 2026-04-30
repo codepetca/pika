@@ -28,7 +28,7 @@ import {
   Plus,
   Send,
 } from 'lucide-react'
-import { Button, ConfirmDialog, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { ConfirmDialog, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import { useStudentSelection } from '@/hooks/useStudentSelection'
 import { Spinner } from '@/components/Spinner'
@@ -1388,10 +1388,6 @@ export function TeacherClassroomView({
     batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
   const isReturnDisabled =
     isReturning || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
-  const returnTooltipContent =
-    batchSelectedCount > 0 && !hasReturnableSelection
-      ? 'Nothing returnable selected'
-      : `Return${workspaceActionLabelSuffix}`
   const gradeSelectedTemplateIsValid = isGradeSelectedTemplateValid(gradeSelectedTemplate)
   const isApplyGradeSelectedDisabled =
     isGradeSelectedSaving ||
@@ -1523,6 +1519,19 @@ export function TeacherClassroomView({
               },
               disabled: isArtifactRepoAnalyzing || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0,
             },
+            {
+              id: 'return',
+              label: (
+                <span className="inline-flex items-center gap-2">
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                  <span>Return</span>
+                </span>
+              ),
+              onSelect: () => {
+                setShowReturnConfirm(true)
+              },
+              disabled: isReturnDisabled,
+            },
           ]}
           disabled={isAutoGrading || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0}
           className="inline-flex"
@@ -1532,25 +1541,6 @@ export function TeacherClassroomView({
             'aria-label': `AI Grade${workspaceActionLabelSuffix}`,
           }}
         />
-      </Tooltip>
-
-      <Tooltip content={returnTooltipContent}>
-        <span className="inline-flex">
-          <Button
-            type="button"
-            variant="subtle"
-            size="sm"
-            className="px-4"
-            onClick={() => {
-              setShowReturnConfirm(true)
-            }}
-            disabled={isReturnDisabled}
-            aria-label={`Return${workspaceActionLabelSuffix}`}
-          >
-            <Send className="h-4 w-4" aria-hidden="true" />
-            <span>Return</span>
-          </Button>
-        </span>
       </Tooltip>
     </>
   ) : (
