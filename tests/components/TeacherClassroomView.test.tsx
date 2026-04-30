@@ -956,7 +956,12 @@ describe('TeacherClassroomView', () => {
       save_mode: 'graded',
     })
     expect(mockClearSelection).toHaveBeenCalled()
-    expect(await screen.findByText('Applied grade to 2 selected students')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(mockShowMessage).toHaveBeenCalledWith({
+        text: 'Applied grade to 2 selected students',
+        tone: 'info',
+      })
+    })
   })
 
   it('highlights grade and feedback cards while hovering Apply Grade to Selected Students', async () => {

@@ -175,7 +175,7 @@ export function TeacherStudentWorkPanel({
   }, [onGradeTemplateChange])
 
   useEffect(() => {
-    if (mode !== 'overview' || showInitialSpinner || error || !data) {
+    if (mode !== 'overview' || showInitialSpinner || error || !data || data.student.id !== studentId) {
       onGradeTemplateChange?.(null)
       return
     }

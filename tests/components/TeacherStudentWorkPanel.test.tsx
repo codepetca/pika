@@ -1109,6 +1109,94 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.getByTestId('inspector-section-comments')).toHaveAttribute('data-highlighted', 'true')
   })
 
+  it('clears the grade template while the next overview student loads', async () => {
+    const deferredStudent2 = createDeferred<any>()
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.includes('/api/teacher/assignments/assignment-1/students/student-1')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeStudentWork('student-1', {
+            graded: true,
+            teacherFeedbackDraft: 'Student 1 feedback',
+          }),
+        })
+      }
+
+      if (url.includes('/api/teacher/assignments/assignment-1/students/student-2')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => deferredStudent2.promise,
+        })
+      }
+
+      if (url.includes('/api/assignment-docs/') && url.includes('/history')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ history: [] }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch in test: ${url}` }),
+      })
+    })
+
+    const onGradeTemplateChange = vi.fn()
+    const { rerender } = render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="overview"
+        onGradeTemplateChange={onGradeTemplateChange}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(onGradeTemplateChange).toHaveBeenCalledWith(expect.objectContaining({
+        studentId: 'student-1',
+        feedbackDraft: 'Student 1 feedback',
+      }))
+    })
+
+    onGradeTemplateChange.mockClear()
+
+    rerender(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-2"
+        mode="overview"
+        onGradeTemplateChange={onGradeTemplateChange}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(onGradeTemplateChange).toHaveBeenLastCalledWith(null)
+    })
+
+    expect(onGradeTemplateChange).not.toHaveBeenCalledWith(expect.objectContaining({
+      studentId: 'student-2',
+      feedbackDraft: 'Student 1 feedback',
+    }))
+
+    deferredStudent2.resolve(makeStudentWork('student-2', {
+      graded: true,
+      teacherFeedbackDraft: 'Student 2 feedback',
+    }))
+
+    await waitFor(() => {
+      expect(onGradeTemplateChange).toHaveBeenCalledWith(expect.objectContaining({
+        studentId: 'student-2',
+        feedbackDraft: 'Student 2 feedback',
+      }))
+    })
+  })
+
   it('keeps prior content visible while the next student loads', async () => {
     const deferredStudent2 = createDeferred<any>()
 

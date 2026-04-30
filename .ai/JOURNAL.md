@@ -10030,3 +10030,14 @@
   - `/tmp/pika-teacher-mobile.png`
 - Manual Playwright screenshot for the assignment workspace hover highlight:
   - `/tmp/pika-apply-grade-selected-hover-highlight.png`
+
+## 2026-04-30 — Fix Apply Grade stale source during student switches
+
+**Completed:**
+- Cleared the assignment grade template while the overview inspector still holds the prior student's loaded data during a next-student fetch.
+- Added component regression coverage that switches from one overview student to another with a deferred load and verifies the batch apply source is cleared until the new student's data arrives.
+
+**Validation:**
+- `bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"` (235 files / 1958 tests before the focused regression was added)
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-grade.test.ts tests/ui/SplitButton.test.tsx`
+- `pnpm lint`
