@@ -437,7 +437,7 @@ function AutoGrowFeedbackTextarea({
         'min-h-[10rem] w-full overflow-hidden rounded border px-2 py-1 text-sm text-text-default',
         hasFreshAIDraft ? 'border-primary bg-info-bg' : 'border-border bg-surface',
       ].join(' ')}
-      placeholder="Teacher feedback draft"
+      placeholder="Teacher comment draft"
     />
   )
 }
@@ -733,7 +733,7 @@ export function TeacherWorkInspector({
     },
     {
       id: 'comments',
-      title: 'Feedback',
+      title: 'Comments',
       summary: null,
       content: (
         <div className="space-y-3">
@@ -765,7 +765,7 @@ export function TeacherWorkInspector({
                 ) : (
                   <>
                     <Send className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>Send feedback</span>
+                    <span>Send comment</span>
                   </>
                 )}
               </Button>
@@ -775,7 +775,7 @@ export function TeacherWorkInspector({
           {feedbackEntries.length > 0 ? (
             <div className="space-y-2">
               <div className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                Feedback Sent
+                Comments Sent
               </div>
               <div className="rounded border border-border bg-surface p-3">
                 <div className="space-y-3">

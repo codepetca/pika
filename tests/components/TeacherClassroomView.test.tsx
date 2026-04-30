@@ -937,8 +937,8 @@ describe('TeacherClassroomView', () => {
 
     fireEvent.click(gradeSelectedOption)
     expect(screen.getByText('Apply grade to 2 selected student(s)?')).toBeInTheDocument()
-    expect(screen.getByText(/applies the open student's scores and feedback draft/)).toBeInTheDocument()
-    expect(screen.getByText(/It will not return feedback to students/)).toBeInTheDocument()
+    expect(screen.getByText(/applies the open student's scores and comment draft/)).toBeInTheDocument()
+    expect(screen.getByText(/It will not return comments to students/)).toBeInTheDocument()
 
     const gradeSelectedButtons = screen.getAllByRole('button', { name: 'Apply Grade to Selected Students' })
     fireEvent.click(gradeSelectedButtons[gradeSelectedButtons.length - 1])
@@ -964,7 +964,7 @@ describe('TeacherClassroomView', () => {
     })
   })
 
-  it('highlights grade and feedback cards while hovering Apply Grade to Selected Students', async () => {
+  it('highlights grade and comments cards while hovering Apply Grade to Selected Students', async () => {
     mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
     mockStudentSelectionState.selectedCount = 2
 

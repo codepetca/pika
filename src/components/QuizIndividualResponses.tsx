@@ -339,7 +339,7 @@ export function QuizIndividualResponses({
                           onChange={(event) => updateDraft(answer.response_id, { feedback: event.target.value })}
                           rows={3}
                           className="w-full rounded-md border border-border bg-surface px-3 py-2 text-xs text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="Feedback (optional)"
+                          placeholder="Comment (optional)"
                         />
                       </div>
                       <div className="flex items-center gap-2">

@@ -10041,3 +10041,20 @@
 - `bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"` (235 files / 1958 tests before the focused regression was added)
 - `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-grade.test.ts tests/ui/SplitButton.test.tsx`
 - `pnpm lint`
+
+## 2026-04-30 — Rename grading feedback copy to comments
+
+**Completed:**
+- Renamed visible assignment grading feedback copy to comment/comments language in the teacher inspector, Apply Grade confirmation, return-comment validation, and student returned-comments panel.
+- Updated related quiz/test grading placeholders from `Feedback (optional)` to `Comment (optional)`.
+- Left internal API/database names and the app-level `Send Feedback` product-feedback dialog unchanged.
+
+**Validation:**
+- `pnpm test` (241 files / 1992 tests)
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx tests/components/TestStudentGradingPanel.test.tsx tests/api/teacher/assignments-id-feedback-return.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`

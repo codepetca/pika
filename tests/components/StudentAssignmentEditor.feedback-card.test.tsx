@@ -105,7 +105,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     })
   }
 
-  it('shows returned feedback card for feedback-only (no scores)', async () => {
+  it('shows returned comments card for comments-only (no scores)', async () => {
     mockLoadResponses(
       makeDoc({
         feedback: 'Teacher comment only.',
@@ -119,7 +119,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
 
     await waitFor(() => {
-      expect(screen.getByText('Feedback')).toBeInTheDocument()
+      expect(screen.getByText('Comments')).toBeInTheDocument()
     })
     expect(screen.getByText('Teacher comment only.')).toBeInTheDocument()
     expect(screen.getByText('Grades will appear after your teacher returns them.')).toBeInTheDocument()
@@ -139,13 +139,13 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
 
     await waitFor(() => {
-      expect(screen.getByText('Feedback')).toBeInTheDocument()
+      expect(screen.getByText('Comments')).toBeInTheDocument()
     })
     expect(screen.getByText('Completion')).toBeInTheDocument()
     expect(screen.queryByText('Thinking')).not.toBeInTheDocument()
     expect(screen.queryByText('Workflow')).not.toBeInTheDocument()
     expect(screen.queryByText('Total')).not.toBeInTheDocument()
-    expect(screen.getByText('No feedback provided yet.')).toBeInTheDocument()
+    expect(screen.getByText('No comments provided yet.')).toBeInTheDocument()
   })
 
   it('shows full score set and total percent when all scores exist', async () => {
@@ -161,7 +161,7 @@ describe('StudentAssignmentEditor feedback card rendering', () => {
     render(<StudentAssignmentEditor classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
 
     await waitFor(() => {
-      expect(screen.getByText('Feedback')).toBeInTheDocument()
+      expect(screen.getByText('Comments')).toBeInTheDocument()
     })
     expect(screen.getByText('Completion')).toBeInTheDocument()
     expect(screen.getByText('Thinking')).toBeInTheDocument()

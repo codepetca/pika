@@ -1783,7 +1783,7 @@ export function TeacherClassroomView({
       <ConfirmDialog
         isOpen={showGradeSelectedConfirm}
         title={`Apply grade to ${batchSelectedCount} selected student(s)?`}
-        description={`This applies the open student's scores and feedback draft to the checked student(s), overwriting their saved scores and feedback drafts. It will not return feedback to students.`}
+        description={`This applies the open student's scores and comment draft to the checked student(s), overwriting their saved scores and comment drafts. It will not return comments to students.`}
         confirmLabel={isGradeSelectedSaving ? 'Applying...' : 'Apply Grade to Selected Students'}
         cancelLabel="Cancel"
         isConfirmDisabled={isGradeSelectedSaving || isGradeSelectedDisabled}
