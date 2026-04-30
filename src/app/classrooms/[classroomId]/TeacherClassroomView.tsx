@@ -700,6 +700,7 @@ export function TeacherClassroomView({
     options: { updateUrl?: boolean; replace?: boolean } = {},
   ) => {
     setSelectedStudentId(studentId)
+    setGradeSelectedConfirmTarget(null)
     if (options.updateUrl === false || !updateSearchParams || selection.mode !== 'assignment') return
 
     updateSearchParams((params) => {
@@ -1041,6 +1042,12 @@ export function TeacherClassroomView({
 
   async function handleGradeSelected(applyTarget: GradeSelectedApplyTarget) {
     if (!selectedAssignmentData || !gradeSelectedTemplate || batchSelectedCount === 0) return
+
+    if (gradeSelectedTemplate.studentId !== activeSelectedStudentId || gradeSelectedTemplate.studentId !== selectedStudentId) {
+      setGradeSelectedTemplate(null)
+      setGradeSelectedConfirmTarget(null)
+      return
+    }
 
     if (applyTarget === 'grade' && !isGradeSelectedTemplateValid(gradeSelectedTemplate)) {
       setError('Scores must be blank or integers 0–10')
@@ -1388,7 +1395,12 @@ export function TeacherClassroomView({
     batchSelectedReturnSummary.returnableCount + batchSelectedReturnSummary.missingCount > 0
   const isReturnDisabled =
     isReturning || isGradeSelectedSaving || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
-  const gradeSelectedTemplateIsValid = isGradeSelectedTemplateValid(gradeSelectedTemplate)
+  const activeGradeSelectedTemplate =
+    gradeSelectedTemplate?.studentId === activeSelectedStudentId &&
+    gradeSelectedTemplate.studentId === selectedStudentId
+      ? gradeSelectedTemplate
+      : null
+  const gradeSelectedTemplateIsValid = isGradeSelectedTemplateValid(activeGradeSelectedTemplate)
   const isApplyGradeSelectedDisabled =
     isGradeSelectedSaving ||
     isAutoGrading ||
@@ -1397,7 +1409,7 @@ export function TeacherClassroomView({
     isReturning ||
     isReadOnly ||
     batchSelectedCount === 0 ||
-    !gradeSelectedTemplate ||
+    !activeGradeSelectedTemplate ||
     !gradeSelectedTemplateIsValid
   const isApplyCommentsSelectedDisabled =
     isGradeSelectedSaving ||
@@ -1407,7 +1419,7 @@ export function TeacherClassroomView({
     isReturning ||
     isReadOnly ||
     batchSelectedCount === 0 ||
-    !gradeSelectedTemplate
+    !activeGradeSelectedTemplate
   const isGradeSelectedConfirmDisabled =
     gradeSelectedConfirmTarget === 'grade'
       ? isApplyGradeSelectedDisabled

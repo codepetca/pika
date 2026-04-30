@@ -10113,3 +10113,14 @@
   - `/tmp/pika-teacher-mobile.png`
 - Manual Playwright screenshot for the shortened apply confirmation:
   - `/tmp/pika-apply-dialog-short-copy.png`
+
+## 2026-04-30 — Guard stale apply source in parent
+
+**Completed:**
+- Added a parent-side source match for assignment apply grade/apply comments actions.
+- Disabled apply actions and blocked confirmation submits unless the saved template belongs to the active selected student.
+- Closed any open apply confirmation when selecting another student.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
