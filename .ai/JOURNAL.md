@@ -10096,3 +10096,20 @@
   - `/tmp/pika-teacher-mobile.png`
 - Manual Playwright screenshot for the assignment apply confirmation dialog:
   - `/tmp/pika-apply-confirm-label.png`
+
+## 2026-04-30 — Shorten apply dialog descriptions
+
+**Completed:**
+- Replaced the assignment apply grade/apply comments confirmation descriptions with concise current-student copy.
+- Removed the “It will not…” caveat text from the apply confirmation dialog.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshot for the shortened apply confirmation:
+  - `/tmp/pika-apply-dialog-short-copy.png`

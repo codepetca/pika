@@ -936,8 +936,7 @@ describe('TeacherClassroomView', () => {
 
     fireEvent.click(gradeSelectedOption)
     expect(screen.getByText('Apply grade to 2 selected student(s)?')).toBeInTheDocument()
-    expect(screen.getByText(/applies the open student's scores to the checked student/)).toBeInTheDocument()
-    expect(screen.getByText(/It will not change comment drafts or return comments to students/)).toBeInTheDocument()
+    expect(screen.getByText("The current student's grading will be applied to the selected students.")).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
 
@@ -1038,7 +1037,7 @@ describe('TeacherClassroomView', () => {
 
     fireEvent.click(commentsSelectedOption)
     expect(screen.getByText('Apply comments to 2 selected student(s)?')).toBeInTheDocument()
-    expect(screen.getByText(/applies the open student's comment draft/)).toBeInTheDocument()
+    expect(screen.getByText("The current student's comments will be applied to the selected students.")).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
 

@@ -1823,8 +1823,8 @@ export function TeacherClassroomView({
         }
         description={
           gradeSelectedConfirmTarget === 'comments'
-            ? `This applies the open student's comment draft to the checked student(s), overwriting their saved comment drafts. It will not return comments to students.`
-            : `This applies the open student's scores to the checked student(s), overwriting their saved scores. It will not change comment drafts or return comments to students.`
+            ? `The current student's comments will be applied to the selected students.`
+            : `The current student's grading will be applied to the selected students.`
         }
         confirmLabel={
           isGradeSelectedSaving
