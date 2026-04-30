@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import {
   Calendar,
   CircleHelp,
@@ -12,18 +12,13 @@ import {
   PenSquare,
   SquarePercent,
   Users,
-  ChevronDown,
   type LucideIcon,
 } from 'lucide-react'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { Tooltip } from '@/ui'
-import { readCookie, writeCookie } from '@/lib/cookies'
-import { fetchJSONWithCache } from '@/lib/request-cache'
-import {
-  TEACHER_ASSIGNMENTS_SELECTION_EVENT,
-  TEACHER_ASSIGNMENTS_UPDATED_EVENT,
-} from '@/lib/events'
+import { writeCookie } from '@/lib/cookies'
+import { TEACHER_ASSIGNMENTS_SELECTION_EVENT } from '@/lib/events'
 
 // ============================================================================
 // Types
@@ -45,12 +40,6 @@ type NavItem = {
   id: ClassroomNavItemId
   label: string
   icon: LucideIcon
-}
-
-type SidebarAssignment = {
-  id: string
-  title: string
-  hasViewed?: boolean
 }
 
 // ============================================================================
@@ -118,8 +107,6 @@ export interface NavItemsProps {
   classroomId: string
   role: 'student' | 'teacher'
   activeTab: string
-  isReadOnly?: boolean
-  assignmentId: string | null
   onTabChange: (tab: ClassroomNavItemId) => void
   onTabIntent?: (tab: ClassroomNavItemId) => void
   updateSearchParams: (updater: (params: URLSearchParams) => void, options?: { replace?: boolean }) => void
@@ -129,8 +116,6 @@ export function NavItems({
   classroomId,
   role,
   activeTab,
-  isReadOnly = false,
-  assignmentId,
   onTabChange,
   onTabIntent = () => {},
   updateSearchParams,
@@ -159,133 +144,15 @@ export function NavItems({
     !notifications?.loading &&
     (notifications?.unreadAnnouncementsCount ?? 0) > 0
 
-  const [assignments, setAssignments] = useState<SidebarAssignment[]>([])
-  const [assignmentsExpanded, setAssignmentsExpanded] = useState(true)
-  const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null)
-
   const items = useMemo(() => getItems(role), [role])
   const handleTabIntent = useCallback((tab: ClassroomNavItemId) => {
     onTabIntent(tab)
   }, [onTabIntent])
 
-  // Mark an assignment as viewed (optimistic update for students)
-  const markAssignmentViewed = useCallback((assignmentId: string) => {
-    setAssignments((prev) =>
-      prev.map((a) => (a.id === assignmentId ? { ...a, hasViewed: true } : a))
-    )
-  }, [])
-
-  // Load teacher assignments expanded state from cookie
-  useEffect(() => {
-    if (role !== 'teacher') return
-    const cookieName = `pika_sidebar_assignments:${classroomId}`
-    const cookieValue = readCookie(cookieName)
-    setAssignmentsExpanded(cookieValue !== 'collapsed')
-  }, [classroomId, role])
-
-  // Teacher assignment selection is URL-backed when the assignments tab is active.
-  useEffect(() => {
-    if (role !== 'teacher') return
-    if (activeTab === 'assignments') {
-      setActiveAssignmentId(assignmentId)
-      return
-    }
-
-    const selectionCookieName = `teacherAssignmentsSelection:${classroomId}`
-    const selection = readCookie(selectionCookieName)
-    if (!selection || selection === 'summary') {
-      setActiveAssignmentId(null)
-      return
-    }
-    setActiveAssignmentId(selection)
-  }, [activeTab, assignmentId, classroomId, role])
-
-  // Student assignment selection from URL
-  useEffect(() => {
-    if (role !== 'student') return
-    if (activeTab !== 'assignments') {
-      setActiveAssignmentId(null)
-      return
-    }
-    setActiveAssignmentId(assignmentId)
-  }, [activeTab, assignmentId, role])
-
-  // Load teacher assignments
-  const loadTeacherAssignments = useCallback(async () => {
-    try {
-      const key = `teacher-assignments:${classroomId}`
-      const data = await fetchJSONWithCache(key, async () => {
-        const response = await fetch(`/api/teacher/assignments?classroom_id=${classroomId}`)
-        if (!response.ok) throw new Error('Failed to load teacher assignments')
-        return response.json()
-      }, 20_000)
-      setAssignments(
-        (data.assignments || []).map((a: { id: string; title: string }) => ({
-          id: a.id,
-          title: a.title,
-        }))
-      )
-    } catch {
-      setAssignments([])
-    }
-  }, [classroomId])
-
-  useEffect(() => {
-    if (role !== 'teacher') return
-    loadTeacherAssignments()
-  }, [loadTeacherAssignments, role])
-
-  // Listen for teacher assignments updates
-  useEffect(() => {
-    if (role !== 'teacher') return
-    function onAssignmentsUpdated(event: Event) {
-      const detail = (event as CustomEvent<{ classroomId?: string }>).detail
-      if (!detail || detail.classroomId !== classroomId) return
-      loadTeacherAssignments()
-    }
-    window.addEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, onAssignmentsUpdated)
-    return () =>
-      window.removeEventListener(TEACHER_ASSIGNMENTS_UPDATED_EVENT, onAssignmentsUpdated)
-  }, [classroomId, loadTeacherAssignments, role])
-
-  // Load student assignments
-  useEffect(() => {
-    if (role !== 'student') return
-    async function loadAssignments() {
-      try {
-        const key = `student-assignments:${classroomId}`
-        const data = await fetchJSONWithCache(key, async () => {
-          const response = await fetch(`/api/student/assignments?classroom_id=${classroomId}`)
-          if (!response.ok) throw new Error('Failed to load student assignments')
-          return response.json()
-        }, 20_000)
-        setAssignments(
-          (data.assignments || []).map(
-            (a: { id: string; title: string; doc?: { viewed_at?: string | null } }) => ({
-              id: a.id,
-              title: a.title,
-              hasViewed: a.doc?.viewed_at !== null && a.doc?.viewed_at !== undefined,
-            })
-          )
-        )
-      } catch {
-        setAssignments([])
-      }
-    }
-    loadAssignments()
-  }, [classroomId, role])
-
-  function toggleAssignmentsExpanded() {
-    const next = !assignmentsExpanded
-    setAssignmentsExpanded(next)
-    writeCookie(`pika_sidebar_assignments:${classroomId}`, next ? 'expanded' : 'collapsed')
-  }
-
   function setTeacherAssignmentsSelection(assignmentId: string | null) {
     const name = `teacherAssignmentsSelection:${classroomId}`
     const value = assignmentId ? assignmentId : 'summary'
     writeCookie(name, value)
-    setActiveAssignmentId(assignmentId)
     updateSearchParams((params) => {
       params.set('tab', 'assignments')
       if (assignmentId) {
@@ -303,7 +170,6 @@ export function NavItems({
   }
 
   function setStudentAssignmentsSelection(assignmentId: string | null) {
-    setActiveAssignmentId(assignmentId)
     updateSearchParams((params) => {
       params.set('tab', 'assignments')
       if (assignmentId) {
@@ -321,8 +187,6 @@ export function NavItems({
 
   const activeItemClass = 'bg-surface-selected text-text-default shadow-sm'
   const inactiveItemClass = 'text-text-muted hover:bg-surface-hover hover:text-text-default'
-  const activeNestedItemClass = 'border border-primary bg-surface-selected text-text-default shadow-sm'
-  const inactiveNestedItemClass = 'border border-transparent text-text-muted hover:bg-surface-hover hover:text-text-default'
   const itemRadiusClass = 'rounded-control'
 
   // Determine layout class based on collapsed state
@@ -336,169 +200,6 @@ export function NavItems({
         const Icon = item.icon
         const href = tabHref(classroomId, item.id)
         const layoutClass = getLayoutClass(!isExpanded)
-
-        // Student assignments with nested list (always shown)
-        if (role === 'student' && item.id === 'assignments') {
-          const canShowNested = isExpanded
-          const assignmentsAriaLabel = showAssignmentsPulse
-            ? `${item.label} (new activity)`
-            : item.label
-
-          const studentAssignmentsLink = (
-              <a
-                href={href}
-                onClick={(event) => {
-                  event.preventDefault()
-                  onTabChange('assignments')
-                  setStudentAssignmentsSelection(null)
-                  onNavigate()
-                }}
-                onMouseEnter={() => handleTabIntent('assignments')}
-                onFocus={() => handleTabIntent('assignments')}
-                aria-current={isActive ? 'page' : undefined}
-                aria-label={assignmentsAriaLabel}
-                className={[
-                  'group flex items-center text-base font-medium transition-colors',
-                  itemRadiusClass,
-                  layoutClass,
-                  isActive ? activeItemClass : inactiveItemClass,
-                ].join(' ')}
-              >
-                <NavIconWithDot Icon={Icon} showDot={showAssignmentsPulse} />
-                {isExpanded && <span className="truncate">{item.label}</span>}
-                {!isExpanded && <span className="sr-only">{item.label}</span>}
-              </a>
-            )
-
-          return (
-            <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
-              {!isExpanded ? (
-                <Tooltip content={item.label}>{studentAssignmentsLink}</Tooltip>
-              ) : (
-                studentAssignmentsLink
-              )}
-
-              {canShowNested && assignments && assignments.length > 0 && (
-                <div className="pl-10 pr-3 space-y-1">
-                  {assignments.map((assignment) => {
-                    const isAssignmentActive =
-                      activeTab === 'assignments' && activeAssignmentId === assignment.id
-                    const isUnviewed = assignment.hasViewed === false
-
-                    return (
-                      <Tooltip key={assignment.id} content={assignment.title}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!assignment.hasViewed) {
-                              markAssignmentViewed(assignment.id)
-                            }
-                            setStudentAssignmentsSelection(assignment.id)
-                            onNavigate()
-                          }}
-                          className={[
-                            'w-full rounded-control border px-2.5 py-2 text-left text-sm transition-colors',
-                            isAssignmentActive
-                              ? activeNestedItemClass
-                              : isUnviewed
-                                ? 'border-transparent bg-info-bg font-medium text-primary hover:bg-info-bg-hover'
-                                : inactiveNestedItemClass,
-                          ].join(' ')}
-                        >
-                          <span className="truncate block">{assignment.title}</span>
-                        </button>
-                      </Tooltip>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )
-        }
-
-        // Teacher assignments with expandable nested list
-        if (role === 'teacher' && item.id === 'assignments') {
-          const canShowNested = isExpanded
-          const isExpandedState = assignmentsExpanded
-
-          const teacherAssignmentsLink = (
-              <a
-                href={href}
-                onClick={(event) => {
-                  event.preventDefault()
-                  onTabChange('assignments')
-                  setTeacherAssignmentsSelection(null)
-                  onNavigate()
-                }}
-                onMouseEnter={() => handleTabIntent('assignments')}
-                onFocus={() => handleTabIntent('assignments')}
-                aria-current={isActive ? 'page' : undefined}
-                aria-expanded={canShowNested ? isExpandedState : undefined}
-                aria-label={item.label}
-                className={[
-                  'group flex items-center text-base font-medium transition-colors',
-                  itemRadiusClass,
-                  layoutClass,
-                  isActive ? activeItemClass : inactiveItemClass,
-                ].join(' ')}
-              >
-                <Icon className="h-6 w-6 flex-shrink-0" aria-hidden="true" />
-                {isExpanded && (
-                  <>
-                    <span className="truncate">{item.label}</span>
-                    <ChevronDown
-                      className={[
-                        'h-4 w-4 ml-auto text-text-muted transition-transform',
-                        isExpandedState ? 'rotate-0' : '-rotate-90',
-                      ].join(' ')}
-                      aria-hidden="true"
-                    />
-                  </>
-                )}
-                {!isExpanded && <span className="sr-only">{item.label}</span>}
-              </a>
-            )
-
-          return (
-            <div key={item.id} className={canShowNested ? 'space-y-1' : undefined}>
-              {!isExpanded ? (
-                <Tooltip content={item.label}>{teacherAssignmentsLink}</Tooltip>
-              ) : (
-                teacherAssignmentsLink
-              )}
-
-              {canShowNested && isExpandedState && assignments && assignments.length > 0 && (
-                <div className="space-y-1 pl-10 pr-1">
-                  {assignments.map((assignment) => {
-                    const isAssignmentActive =
-                      activeTab === 'assignments' && activeAssignmentId === assignment.id
-
-                    return (
-                      <Tooltip key={assignment.id} content={assignment.title}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTeacherAssignmentsSelection(assignment.id)
-                            onTabChange('assignments')
-                            onNavigate()
-                          }}
-                          className={[
-                            'w-full rounded-control border px-2.5 py-2 text-left text-sm transition-colors',
-                            isAssignmentActive
-                              ? activeNestedItemClass
-                              : inactiveNestedItemClass,
-                          ].join(' ')}
-                        >
-                          <span className="truncate block">{assignment.title}</span>
-                        </button>
-                      </Tooltip>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )
-        }
 
         // Regular nav items
         const shouldPulse =
@@ -514,6 +215,16 @@ export function NavItems({
             href={href}
             onClick={(event) => {
               event.preventDefault()
+              if (item.id === 'assignments') {
+                onTabChange('assignments')
+                if (role === 'teacher') {
+                  setTeacherAssignmentsSelection(null)
+                } else {
+                  setStudentAssignmentsSelection(null)
+                }
+                onNavigate()
+                return
+              }
               onTabChange(item.id)
               onNavigate()
             }}
