@@ -296,11 +296,11 @@ describe('TeacherStudentWorkPanel', () => {
     expect(within(gradesSection).getByText('0%')).toBeInTheDocument()
     expect(within(gradesSection).getByText('Total')).toBeInTheDocument()
     expect(within(gradesSection).getByText('30')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Feedback' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Comments' })).toBeInTheDocument()
     expect(screen.queryByText('No draft')).not.toBeInTheDocument()
 
     expect(screen.getByLabelText('Completion score')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Teacher feedback draft')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Analyze Repo' })).not.toBeInTheDocument()
@@ -311,7 +311,7 @@ describe('TeacherStudentWorkPanel', () => {
     expect(within(gradeModeToggle).getByRole('button', { name: 'Final' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(gradesSection).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     const feedbackSection = screen.getByTestId('inspector-section-comments')
-    expect(within(feedbackSection).getByRole('button', { name: 'Send feedback' })).toBeInTheDocument()
+    expect(within(feedbackSection).getByRole('button', { name: 'Send comment' })).toBeInTheDocument()
   })
 
   it('uses edit-mode checkboxes to hide inspector cards outside edit mode', async () => {
@@ -389,7 +389,7 @@ describe('TeacherStudentWorkPanel', () => {
     const { rerender } = render(<TeacherStudentWorkPanel {...panelProps} />)
 
     expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Teacher feedback draft')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
 
     rerender(
       <TeacherStudentWorkPanel
@@ -399,11 +399,11 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Grade' })).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByRole('button', { name: 'Feedback' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Comments' })).toHaveAttribute('aria-expanded', 'false')
     await waitFor(() => {
       expect(screen.queryByLabelText('Completion score')).not.toBeInTheDocument()
     })
-    expect(screen.queryByPlaceholderText('Teacher feedback draft')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Teacher comment draft')).not.toBeInTheDocument()
   })
 
   it('autosaves valid grading edits as final by default without a save button', async () => {
@@ -470,7 +470,7 @@ describe('TeacherStudentWorkPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Set Completion score to 6' }))
     await user.click(screen.getByRole('button', { name: 'Set Thinking score to 7' }))
     await user.click(screen.getByRole('button', { name: 'Set Workflow score to 8' }))
-    fireEvent.change(screen.getByPlaceholderText('Teacher feedback draft'), {
+    fireEvent.change(screen.getByPlaceholderText('Teacher comment draft'), {
       target: { value: 'Teacher note' },
     })
 
@@ -493,7 +493,7 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
   })
 
-  it('autosaves feedback-only edits after switching to draft', async () => {
+  it('autosaves comment-only edits after switching to draft', async () => {
     const gradeBodies: Array<Record<string, unknown>> = []
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
@@ -552,7 +552,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    await screen.findByPlaceholderText('Teacher feedback draft')
+    await screen.findByPlaceholderText('Teacher comment draft')
     await user.click(screen.getByRole('button', { name: 'Draft' }))
 
     await waitFor(() => {
@@ -560,7 +560,7 @@ describe('TeacherStudentWorkPanel', () => {
     })
     gradeBodies.length = 0
 
-    await user.type(screen.getByPlaceholderText('Teacher feedback draft'), 'Teacher note')
+    await user.type(screen.getByPlaceholderText('Teacher comment draft'), 'Teacher note')
 
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 1100))
@@ -639,7 +639,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    await screen.findByPlaceholderText('Teacher feedback draft')
+    await screen.findByPlaceholderText('Teacher comment draft')
     await user.click(screen.getByRole('button', { name: 'Draft' }))
 
     await waitFor(() => {
@@ -647,7 +647,7 @@ describe('TeacherStudentWorkPanel', () => {
     })
     gradeBodies.length = 0
 
-    await user.type(screen.getByPlaceholderText('Teacher feedback draft'), 'Teacher note')
+    await user.type(screen.getByPlaceholderText('Teacher comment draft'), 'Teacher note')
 
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 1100))
@@ -804,7 +804,7 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Teacher feedback draft')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
   })
@@ -828,7 +828,7 @@ describe('TeacherStudentWorkPanel', () => {
     )
 
     expect(await screen.findByLabelText('Completion score')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Teacher feedback draft')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Teacher comment draft')).toBeInTheDocument()
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
   })
 
@@ -1001,16 +1001,16 @@ describe('TeacherStudentWorkPanel', () => {
     expect(await screen.findByText('Returned feedback body')).toBeInTheDocument()
     expect(screen.getByText('Returned feedback body')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Feedback' }))
+    await user.click(screen.getByRole('button', { name: 'Comments' }))
 
     await waitFor(() => {
-      expect(screen.queryByPlaceholderText('Teacher feedback draft')).not.toBeInTheDocument()
+      expect(screen.queryByPlaceholderText('Teacher comment draft')).not.toBeInTheDocument()
     })
     expect(screen.queryByText('Draft present')).not.toBeInTheDocument()
     expect(screen.queryByText('1 returned')).not.toBeInTheDocument()
   })
 
-  it('prepends AI feedback suggestion into the feedback draft and marks it as an AI draft until focus', async () => {
+  it('prepends AI comment suggestion into the comment draft and marks it as an AI draft until focus', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -1051,7 +1051,7 @@ describe('TeacherStudentWorkPanel', () => {
       />,
     )
 
-    const draft = await screen.findByPlaceholderText('Teacher feedback draft')
+    const draft = await screen.findByPlaceholderText('Teacher comment draft')
     expect(draft).toHaveValue('AI feedback suggestion\n\nTeacher note')
     expect(draft).toHaveClass('border-primary')
     expect(draft).toHaveClass('bg-info-bg')
@@ -1084,6 +1084,117 @@ describe('TeacherStudentWorkPanel', () => {
 
     expect(await screen.findByTestId('grading-inspector-pane')).toBeInTheDocument()
     expect(screen.queryByTestId('rich-text-viewer')).not.toBeInTheDocument()
+  })
+
+  it('highlights requested inspector sections', async () => {
+    mockFetchByStudent({
+      'student-1': { graded: false },
+    })
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="overview"
+        highlightedInspectorSections={['grades', 'comments']}
+      />,
+    )
+
+    await screen.findByTestId('grading-inspector-pane')
+
+    expect(screen.getByTestId('inspector-section-history')).not.toHaveAttribute('data-highlighted')
+    expect(screen.getByTestId('inspector-section-repo')).not.toHaveAttribute('data-highlighted')
+    expect(screen.getByTestId('inspector-section-grades')).toHaveAttribute('data-highlighted', 'true')
+    expect(screen.getByTestId('inspector-section-comments')).toHaveAttribute('data-highlighted', 'true')
+  })
+
+  it('clears the grade template while the next overview student loads', async () => {
+    const deferredStudent2 = createDeferred<any>()
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.includes('/api/teacher/assignments/assignment-1/students/student-1')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeStudentWork('student-1', {
+            graded: true,
+            teacherFeedbackDraft: 'Student 1 feedback',
+          }),
+        })
+      }
+
+      if (url.includes('/api/teacher/assignments/assignment-1/students/student-2')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => deferredStudent2.promise,
+        })
+      }
+
+      if (url.includes('/api/assignment-docs/') && url.includes('/history')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ history: [] }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch in test: ${url}` }),
+      })
+    })
+
+    const onGradeTemplateChange = vi.fn()
+    const { rerender } = render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="overview"
+        onGradeTemplateChange={onGradeTemplateChange}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(onGradeTemplateChange).toHaveBeenCalledWith(expect.objectContaining({
+        studentId: 'student-1',
+        feedbackDraft: 'Student 1 feedback',
+      }))
+    })
+
+    onGradeTemplateChange.mockClear()
+
+    rerender(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-2"
+        mode="overview"
+        onGradeTemplateChange={onGradeTemplateChange}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(onGradeTemplateChange).toHaveBeenLastCalledWith(null)
+    })
+
+    expect(onGradeTemplateChange).not.toHaveBeenCalledWith(expect.objectContaining({
+      studentId: 'student-2',
+      feedbackDraft: 'Student 1 feedback',
+    }))
+
+    deferredStudent2.resolve(makeStudentWork('student-2', {
+      graded: true,
+      teacherFeedbackDraft: 'Student 2 feedback',
+    }))
+
+    await waitFor(() => {
+      expect(onGradeTemplateChange).toHaveBeenCalledWith(expect.objectContaining({
+        studentId: 'student-2',
+        feedbackDraft: 'Student 2 feedback',
+      }))
+    })
   })
 
   it('keeps prior content visible while the next student loads', async () => {

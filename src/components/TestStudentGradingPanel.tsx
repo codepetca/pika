@@ -675,7 +675,7 @@ export function TestStudentGradingPanel({
                       onBlur={flushAutosave}
                       rows={1}
                       className="h-9 w-full overflow-hidden resize-none rounded-md border border-border bg-surface px-3 py-1 text-base leading-tight text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Feedback (optional)"
+                      placeholder="Comment (optional)"
                     />
                     <SplitScoreInput
                       ariaLabel={`Q${index + 1} score`}

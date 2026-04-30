@@ -9962,3 +9962,165 @@
   - `/tmp/pika-teacher.png`
   - `/tmp/pika-student.png`
   - `/tmp/pika-teacher-mobile.png`
+## 2026-04-29 — Assignment grade selected batch action
+
+**Completed:**
+- Added a teacher assignment `Grade Selected` action to the existing `AI Grade` split-button menu, gated by checked student rows and an active right-side grader template.
+- Added a confirmation dialog that calls out selected count and saved score/feedback draft overwrites without returning feedback to students.
+- Added `POST /api/teacher/assignments/[id]/grade-selected` with shared grade payload parsing/upsert logic reused by the existing single-student grade route.
+- Patched assignment rows locally after batch save, refreshed the active inspector in place, showed a success banner, and cleared checkbox selection only on success.
+- Added API and component coverage for batch validation, grade upserts, confirmation flow, request payloads, success row patching, and error selection preservation.
+
+**Validation:**
+- `pnpm test tests/api/teacher/assignments-id-grade.test.ts tests/api/teacher/assignments-grade-selected.test.ts tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `pnpm test` (235 files, 1955 tests)
+- `pnpm build`
+- Visual verification attempted with the local dev server, but blocked because seeded teacher/student auth was unavailable and `pnpm seed` failed during Supabase-backed test account creation.
+
+## 2026-04-29 — Rename assignment batch copy action
+
+**Completed:**
+- Renamed the teacher-facing assignment batch action from `Grade Selected` to `Copy Grade`.
+- Updated the confirmation dialog, busy text, success text, and error fallback to describe copying the open student's grade and feedback draft to checked students.
+- Kept the existing batch save route and copy behavior unchanged.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms` with generated teacher/student auth screenshots.
+- Manual Playwright screenshots for the assignment workspace `Copy Grade` menu and confirmation dialog:
+  - `/tmp/pika-copy-grade-menu.png`
+  - `/tmp/pika-copy-grade-dialog.png`
+  - `/tmp/pika-copy-grade-mobile-menu.png`
+  - `/tmp/pika-copy-grade-mobile-dialog.png`
+
+## 2026-04-29 — Rename assignment batch action to Apply Grade
+
+**Completed:**
+- Renamed the teacher-facing assignment batch action from `Copy Grade` to `Apply Grade`.
+- Updated confirmation, busy, success, and fallback error text to use apply-grade language while preserving the same save-only behavior.
+- Updated component coverage for the revised label and dialog copy.
+
+**Validation:**
+- `pnpm test` during session start (235 files, 1955 tests)
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Manual Playwright screenshots for the assignment workspace `Apply Grade` menu and confirmation dialog:
+  - `/tmp/pika-apply-grade-menu.png`
+  - `/tmp/pika-apply-grade-dialog.png`
+
+## 2026-04-29 — Highlight Apply Grade source cards
+
+**Completed:**
+- Renamed the teacher-facing batch menu option to `Apply Grade to Selected Students`.
+- Highlighted the grade and feedback inspector cards while the batch menu option is hovered or focused, making the copied source fields explicit before confirmation.
+- Added split-button hover state plumbing and component coverage for the highlighted inspector sections.
+
+**Validation:**
+- `pnpm test` during session start (235 files, 1955 tests)
+- `pnpm test tests/ui/SplitButton.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshot for the assignment workspace hover highlight:
+  - `/tmp/pika-apply-grade-selected-hover-highlight.png`
+
+## 2026-04-30 — Fix Apply Grade stale source during student switches
+
+**Completed:**
+- Cleared the assignment grade template while the overview inspector still holds the prior student's loaded data during a next-student fetch.
+- Added component regression coverage that switches from one overview student to another with a deferred load and verifies the batch apply source is cleared until the new student's data arrives.
+
+**Validation:**
+- `bash "$PIKA_WORKTREE/.codex/skills/pika-session-start/scripts/session_start.sh"` (235 files / 1958 tests before the focused regression was added)
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx tests/api/teacher/assignments-grade-selected.test.ts tests/api/teacher/assignments-id-grade.test.ts tests/ui/SplitButton.test.tsx`
+- `pnpm lint`
+
+## 2026-04-30 — Rename grading feedback copy to comments
+
+**Completed:**
+- Renamed visible assignment grading feedback copy to comment/comments language in the teacher inspector, Apply Grade confirmation, return-comment validation, and student returned-comments panel.
+- Updated related quiz/test grading placeholders from `Feedback (optional)` to `Comment (optional)`.
+- Left internal API/database names and the app-level `Send Feedback` product-feedback dialog unchanged.
+
+**Validation:**
+- `pnpm test` (241 files / 1992 tests)
+- `pnpm test tests/components/TeacherStudentWorkPanel.test.tsx tests/components/TeacherClassroomView.test.tsx tests/components/StudentAssignmentEditor.feedback-card.test.tsx tests/components/TestStudentGradingPanel.test.tsx tests/api/teacher/assignments-id-feedback-return.test.ts`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+
+## 2026-04-30 — Split apply grade and comments batch actions
+
+**Completed:**
+- Split the assignment grading batch menu into `Apply Grade to Selected Students` and `Apply Comments to Selected Students`.
+- Scoped the batch grade API with `apply_target` so grade application updates only scores/graded state, while comments application updates only the teacher comment draft.
+- Updated confirmation copy, hover highlighting, and component/API coverage for the separate grade and comments flows.
+- Preserved the `origin/main` behavior that keeps `Return` inside the `AI Grade` split menu instead of as a separate action-bar button.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/api/teacher/assignments-grade-selected.test.ts`
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshot for the assignment workspace split menu:
+  - `/tmp/pika-assignment-apply-menu.png`
+  - `/tmp/pika-return-in-split-menu.png`
+
+## 2026-04-30 — Shorten apply confirmation label
+
+**Completed:**
+- Changed the assignment batch apply confirmation button label to `Apply` for both grade and comments apply flows.
+- Updated component coverage to confirm the generic apply button drives the existing score-only and comments-only requests.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshot for the assignment apply confirmation dialog:
+  - `/tmp/pika-apply-confirm-label.png`
+
+## 2026-04-30 — Shorten apply dialog descriptions
+
+**Completed:**
+- Replaced the assignment apply grade/apply comments confirmation descriptions with concise current-student copy.
+- Removed the “It will not…” caveat text from the apply confirmation dialog.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx`
+- `pnpm lint`
+- `pnpm build`
+- Pika UI verification script for `/classrooms`:
+  - `/tmp/pika-teacher.png`
+  - `/tmp/pika-student.png`
+  - `/tmp/pika-teacher-mobile.png`
+- Manual Playwright screenshot for the shortened apply confirmation:
+  - `/tmp/pika-apply-dialog-short-copy.png`
+
+## 2026-04-30 — Guard stale apply source in parent
+
+**Completed:**
+- Added a parent-side source match for assignment apply grade/apply comments actions.
+- Disabled apply actions and blocked confirmation submits unless the saved template belongs to the active selected student.
+- Closed any open apply confirmation when selecting another student.
+
+**Validation:**
+- `pnpm test tests/components/TeacherClassroomView.test.tsx tests/components/TeacherStudentWorkPanel.test.tsx`
+- `pnpm lint`

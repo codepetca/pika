@@ -225,11 +225,13 @@ export function useTeacherStudentWorkController({
   classroomId,
   assignmentId,
   studentId,
+  refreshKey = 0,
   onLoadingStateChange,
 }: {
   classroomId: string
   assignmentId: string
   studentId: string
+  refreshKey?: number
   onLoadingStateChange?: (loading: boolean) => void
 }): TeacherStudentWorkController {
   const studentLoadRequestIdRef = useRef(0)
@@ -478,7 +480,7 @@ export function useTeacherStudentWorkController({
 
   useEffect(() => {
     void loadStudentWork()
-  }, [loadStudentWork])
+  }, [loadStudentWork, refreshKey])
 
   useEffect(() => {
     const requestId = ++historyLoadRequestIdRef.current
@@ -761,7 +763,7 @@ export function useTeacherStudentWorkController({
 
     const trimmed = feedbackDraft.trim()
     if (!trimmed) {
-      setGradeError('Feedback draft is required before returning feedback')
+      setGradeError('Comment draft is required before returning comments')
       return
     }
 
@@ -777,7 +779,7 @@ export function useTeacherStudentWorkController({
         }),
       })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Failed to return feedback')
+      if (!response.ok) throw new Error(result.error || 'Failed to return comments')
 
       setData((current) =>
         current
@@ -791,7 +793,7 @@ export function useTeacherStudentWorkController({
       populateGradeForm(result.doc)
       dispatchGradeUpdated(result.doc)
     } catch (err: any) {
-      setGradeError(err.message || 'Failed to return feedback')
+      setGradeError(err.message || 'Failed to return comments')
     } finally {
       setFeedbackReturning(false)
     }

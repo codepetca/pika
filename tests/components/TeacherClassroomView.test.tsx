@@ -63,6 +63,10 @@ vi.mock('@/ui', () => ({
           type="button"
           onClick={option.onSelect}
           disabled={option.disabled}
+          onMouseEnter={() => option.onHoverChange?.(true)}
+          onMouseLeave={() => option.onHoverChange?.(false)}
+          onFocus={() => option.onHoverChange?.(true)}
+          onBlur={() => option.onHoverChange?.(false)}
         >
           {option.label}
         </button>
@@ -126,16 +130,45 @@ vi.mock('@/components/AssignmentArtifactsCell', () => ({
 }))
 
 vi.mock('@/components/TeacherStudentWorkPanel', () => ({
-  TeacherStudentWorkPanel: ({ assignmentId, studentId, mode, onDetailsMetaChange }: any) => {
+  TeacherStudentWorkPanel: ({
+    assignmentId,
+    studentId,
+    mode,
+    onDetailsMetaChange,
+    onGradeTemplateChange,
+    highlightedInspectorSections = [],
+  }: any) => {
     useEffect(() => {
       onDetailsMetaChange?.(
         mode === 'details'
-          ? { studentName: `${studentId} Student`, characterCount: 17 }
-          : null,
+        ? { studentName: `${studentId} Student`, characterCount: 17 }
+        : null,
       )
     }, [mode, onDetailsMetaChange, studentId])
 
-    return <div data-testid="teacher-work-panel">{`${mode}:${assignmentId}:${studentId}`}</div>
+    useEffect(() => {
+      onGradeTemplateChange?.(
+        mode === 'overview'
+          ? {
+              studentId,
+              scoreCompletion: '7',
+              scoreThinking: '8',
+              scoreWorkflow: '9',
+              feedbackDraft: 'Use this feedback for the selected students.',
+              gradeMode: 'graded',
+            }
+          : null,
+      )
+    }, [mode, onGradeTemplateChange, studentId])
+
+    return (
+      <div
+        data-testid="teacher-work-panel"
+        data-highlighted-sections={highlightedInspectorSections.join(',')}
+      >
+        {`${mode}:${assignmentId}:${studentId}`}
+      </div>
+    )
   },
 }))
 
@@ -822,6 +855,307 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
     expect(screen.getByRole('button', { name: 'Edit assignment' })).toBeInTheDocument()
+  })
+
+  it('copies the active inspector grade to checked students after confirmation', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+
+    const gradeSelectedBodies: Array<Record<string, unknown>> = []
+    const details = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    details.students.push({
+      student_id: 'student-2',
+      student_email: 'student-2@example.com',
+      student_first_name: 'student-2',
+      student_last_name: 'Student',
+      status: 'submitted_on_time',
+      student_updated_at: '2026-04-10T12:00:00Z',
+      artifacts: [],
+      doc: {
+        submitted_at: '2026-04-10T12:00:00Z',
+        updated_at: '2026-04-10T12:00:00Z',
+        score_completion: null,
+        score_thinking: null,
+        score_workflow: null,
+        graded_at: null,
+        returned_at: null,
+        feedback_returned_at: null,
+      },
+    })
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => details,
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/grade-selected') {
+        const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+        gradeSelectedBodies.push(body)
+        const studentIds = body.student_ids as string[]
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            updated_count: studentIds.length,
+            updated_student_ids: studentIds,
+            docs: studentIds.map((studentId) => ({
+              student_id: studentId,
+              score_completion: 7,
+              score_thinking: 8,
+              score_workflow: 9,
+              graded_at: '2026-04-12T12:00:00Z',
+              graded_by: 'teacher',
+              updated_at: '2026-04-12T12:00:00Z',
+            })),
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+    })
+
+    const gradeSelectedOption = screen.getByRole('button', { name: 'Apply Grade to Selected Students' })
+    await waitFor(() => {
+      expect(gradeSelectedOption).not.toBeDisabled()
+    })
+
+    fireEvent.click(gradeSelectedOption)
+    expect(screen.getByText('Apply grade to 2 selected student(s)?')).toBeInTheDocument()
+    expect(screen.getByText("The current student's grading will be applied to the selected students.")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+
+    await waitFor(() => {
+      expect(gradeSelectedBodies).toHaveLength(1)
+    })
+
+    expect(gradeSelectedBodies[0]).toEqual({
+      student_ids: ['student-1', 'student-2'],
+      apply_target: 'grade',
+      score_completion: '7',
+      score_thinking: '8',
+      score_workflow: '9',
+      save_mode: 'graded',
+    })
+    expect(mockClearSelection).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockShowMessage).toHaveBeenCalledWith({
+        text: 'Applied grade to 2 selected students',
+        tone: 'info',
+      })
+    })
+  })
+
+  it('copies the active inspector comments to checked students after confirmation', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+
+    const gradeSelectedBodies: Array<Record<string, unknown>> = []
+    const details = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    details.students.push({
+      student_id: 'student-2',
+      student_email: 'student-2@example.com',
+      student_first_name: 'student-2',
+      student_last_name: 'Student',
+      status: 'submitted_on_time',
+      student_updated_at: '2026-04-10T12:00:00Z',
+      artifacts: [],
+      doc: {
+        submitted_at: '2026-04-10T12:00:00Z',
+        updated_at: '2026-04-10T12:00:00Z',
+        score_completion: null,
+        score_thinking: null,
+        score_workflow: null,
+        graded_at: null,
+        returned_at: null,
+        feedback_returned_at: null,
+      },
+    })
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => details,
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/grade-selected') {
+        const body = JSON.parse(String(init?.body || '{}')) as Record<string, unknown>
+        gradeSelectedBodies.push(body)
+        const studentIds = body.student_ids as string[]
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            updated_count: studentIds.length,
+            updated_student_ids: studentIds,
+            docs: studentIds.map((studentId) => ({
+              student_id: studentId,
+              teacher_feedback_draft: 'Use this feedback for the selected students.',
+              teacher_feedback_draft_updated_at: '2026-04-12T12:00:00Z',
+              updated_at: '2026-04-12T12:00:00Z',
+            })),
+          }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+    })
+
+    const commentsSelectedOption = screen.getByRole('button', { name: 'Apply Comments to Selected Students' })
+    await waitFor(() => {
+      expect(commentsSelectedOption).not.toBeDisabled()
+    })
+
+    fireEvent.click(commentsSelectedOption)
+    expect(screen.getByText('Apply comments to 2 selected student(s)?')).toBeInTheDocument()
+    expect(screen.getByText("The current student's comments will be applied to the selected students.")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+
+    await waitFor(() => {
+      expect(gradeSelectedBodies).toHaveLength(1)
+    })
+
+    expect(gradeSelectedBodies[0]).toEqual({
+      student_ids: ['student-1', 'student-2'],
+      apply_target: 'comments',
+      feedback: 'Use this feedback for the selected students.',
+    })
+    expect(mockClearSelection).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockShowMessage).toHaveBeenCalledWith({
+        text: 'Applied comments to 2 selected students',
+        tone: 'info',
+      })
+    })
+  })
+
+  it('highlights the matching inspector card while hovering apply menu actions', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        const details = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+        details.students.push({
+          student_id: 'student-2',
+          student_email: 'student-2@example.com',
+          student_first_name: 'student-2',
+          student_last_name: 'Student',
+          status: 'submitted_on_time',
+          student_updated_at: '2026-04-10T12:00:00Z',
+          artifacts: [],
+          doc: null,
+        })
+        return Promise.resolve({
+          ok: true,
+          json: async () => details,
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    const workPanel = await screen.findByTestId('teacher-work-panel')
+    const applyGradeOption = screen.getByRole('button', { name: 'Apply Grade to Selected Students' })
+    const applyCommentsOption = screen.getByRole('button', { name: 'Apply Comments to Selected Students' })
+    await waitFor(() => {
+      expect(applyGradeOption).not.toBeDisabled()
+      expect(applyCommentsOption).not.toBeDisabled()
+    })
+
+    fireEvent.mouseEnter(applyGradeOption)
+    expect(workPanel).toHaveAttribute('data-highlighted-sections', 'grades')
+
+    fireEvent.mouseLeave(applyGradeOption)
+    expect(workPanel).toHaveAttribute('data-highlighted-sections', '')
+
+    fireEvent.mouseEnter(applyCommentsOption)
+    expect(workPanel).toHaveAttribute('data-highlighted-sections', 'comments')
+
+    fireEvent.mouseLeave(applyCommentsOption)
+    expect(workPanel).toHaveAttribute('data-highlighted-sections', '')
+  })
+
+  it('keeps checked students selected when Apply Grade to Selected Students fails', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1'])
+    mockStudentSelectionState.selectedCount = 1
+
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1/grade-selected') {
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({ error: 'Batch save failed' }),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
+    })
+
+    mockClearSelection.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Grade to Selected Students' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+
+    expect(await screen.findByText('Batch save failed')).toBeInTheDocument()
+    expect(mockClearSelection).not.toHaveBeenCalled()
   })
 
   it('switches to individual mode with student controls in the action bar', async () => {

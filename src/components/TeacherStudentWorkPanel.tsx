@@ -14,11 +14,13 @@ import {
   type AssignmentWorkspacePaneLayout,
 } from '@/lib/assignment-grading-layout'
 import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import type { InspectorSectionId } from '@/components/assignment-workspace/types'
 
 interface TeacherStudentWorkPanelProps {
   classroomId: string
   assignmentId: string
   studentId: string
+  refreshKey?: number
   mode?: AssignmentWorkspaceMode
   inspectorCollapsed?: boolean
   inspectorWidth?: number
@@ -35,12 +37,24 @@ interface TeacherStudentWorkPanelProps {
   canGoNextStudent?: boolean
   inspectorEditMode?: boolean
   onDetailsMetaChange?: (meta: { studentName: string; characterCount: number } | null) => void
+  onGradeTemplateChange?: (template: TeacherAssignmentGradeTemplate | null) => void
+  highlightedInspectorSections?: readonly InspectorSectionId[]
+}
+
+export interface TeacherAssignmentGradeTemplate {
+  studentId: string
+  scoreCompletion: string
+  scoreThinking: string
+  scoreWorkflow: string
+  feedbackDraft: string
+  gradeMode: 'draft' | 'graded'
 }
 
 export function TeacherStudentWorkPanel({
   classroomId,
   assignmentId,
   studentId,
+  refreshKey = 0,
   mode = 'details',
   inspectorCollapsed = false,
   inspectorWidth = ASSIGNMENT_GRADING_LAYOUT.defaultInspectorWidth,
@@ -53,6 +67,8 @@ export function TeacherStudentWorkPanel({
   canGoNextStudent = false,
   inspectorEditMode = false,
   onDetailsMetaChange,
+  onGradeTemplateChange,
+  highlightedInspectorSections = [],
 }: TeacherStudentWorkPanelProps) {
   const {
     data,
@@ -100,6 +116,7 @@ export function TeacherStudentWorkPanel({
     classroomId,
     assignmentId,
     studentId,
+    refreshKey,
     onLoadingStateChange,
   })
   const previousInspectorEditModeRef = useRef(inspectorEditMode)
@@ -153,6 +170,38 @@ export function TeacherStudentWorkPanel({
     })
   }, [data, error, mode, onDetailsMetaChange, previewContent, showInitialSpinner])
 
+  useEffect(() => {
+    return () => onGradeTemplateChange?.(null)
+  }, [onGradeTemplateChange])
+
+  useEffect(() => {
+    if (mode !== 'overview' || showInitialSpinner || error || !data || data.student.id !== studentId) {
+      onGradeTemplateChange?.(null)
+      return
+    }
+
+    onGradeTemplateChange?.({
+      studentId,
+      scoreCompletion,
+      scoreThinking,
+      scoreWorkflow,
+      feedbackDraft,
+      gradeMode,
+    })
+  }, [
+    data,
+    error,
+    feedbackDraft,
+    gradeMode,
+    mode,
+    onGradeTemplateChange,
+    scoreCompletion,
+    scoreThinking,
+    scoreWorkflow,
+    showInitialSpinner,
+    studentId,
+  ])
+
   if (showInitialSpinner) {
     return (
       <div className="flex justify-center py-12">
@@ -202,6 +251,7 @@ export function TeacherStudentWorkPanel({
       gradeSaving={gradeSaving}
       showDraftAutosavedNotice={showDraftAutosavedNotice}
       repoAnalyzing={repoAnalyzing}
+      highlightedSections={highlightedInspectorSections}
       expandedSections={expandedSections}
       visibleSections={visibleSections}
       editMode={inspectorEditMode}
